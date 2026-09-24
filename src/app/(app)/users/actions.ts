@@ -1,0 +1,87 @@
+"use server";
+
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/session";
+
+const MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
+const ROLE_VALUES = [
+  "OWNER",
+  "ADMIN",
+  "PURCHASER",
+  "WAREHOUSE",
+  "TECHNOLOGIST",
+  "ACCOUNTANT",
+  "VIEWER",
+] as const;
+
+const createSchema = z.object({
+  name: z.string().trim().min(2, "Укажите имя"),
+  email: z.string().trim().toLowerCase().email("Некорректный email"),
+  password: z.string().min(8, "Минимум 8 символов"),
+  role: z.enum(ROLE_VALUES),
+});
+
+export type UserFormState = { error?: string };
+
+export async function createUser(
+  _prev: UserFormState,
+  formData: FormData
+): Promise<UserFormState> {
+  const session = await requireRole(...MANAGE_ROLES);
+  const parsed = createSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    role: formData.get("role"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  if (existing) return { error: "Пользователь с таким email уже существует" };
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  await prisma.user.create({
+    data: {
+      organizationId: session.user.organizationId,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      role: parsed.data.role,
+      passwordHash,
+    },
+  });
+
+  revalidatePath("/users");
+  redirect("/users");
+}
+
+export async function updateUserRole(id: string, role: string) {
+  const session = await requireRole(...MANAGE_ROLES);
+  if (id === session.user.id) return;
+  if (!ROLE_VALUES.includes(role as (typeof ROLE_VALUES)[number])) return;
+
+  await prisma.user.updateMany({
+    where: { id, organizationId: session.user.organizationId },
+    data: { role: role as (typeof ROLE_VALUES)[number] },
+  });
+  revalidatePath("/users");
+}
+
+export async function toggleUserActive(id: string) {
+  const session = await requireRole(...MANAGE_ROLES);
+  if (id === session.user.id) return;
+
+  const user = await prisma.user.findFirst({
+    where: { id, organizationId: session.user.organizationId },
+  });
+  if (!user) return;
+
+  await prisma.user.update({
+    where: { id },
+    data: { isActive: !user.isActive },
+  });
+  revalidatePath("/users");
+}
