@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addMaterialUsage } from "../actions";
-import type { RawMaterial } from "@prisma/client";
+import type { MaterialUnit } from "@prisma/client";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -14,7 +14,9 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-export function UsageForm({ orderId, materials }: { orderId: string; materials: RawMaterial[] }) {
+type MaterialOption = { id: string; name: string; unit: MaterialUnit };
+
+export function UsageForm({ orderId, materials }: { orderId: string; materials: MaterialOption[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

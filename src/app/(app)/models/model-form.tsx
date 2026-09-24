@@ -8,12 +8,14 @@ import type { ProductModel } from "@prisma/client";
 
 const initialState: ModelFormState = {};
 
+type SerializedModel = Omit<ProductModel, "sellingPrice"> & { sellingPrice: string | null };
+
 export function ModelForm({
   action,
   model,
 }: {
   action: (prev: ModelFormState, formData: FormData) => Promise<ModelFormState>;
-  model?: ProductModel;
+  model?: SerializedModel;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -39,7 +41,7 @@ export function ModelForm({
           type="number"
           step="0.01"
           min="0"
-          defaultValue={model?.sellingPrice?.toString() ?? ""}
+          defaultValue={model?.sellingPrice ?? ""}
         />
       </div>
       <div className="col-span-2">

@@ -4,9 +4,11 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "../actions";
-import type { ProductModel, Warehouse } from "@prisma/client";
+import type { Warehouse } from "@prisma/client";
 
 const initialState: FormState = {};
+
+type ModelOption = { id: string; name: string };
 
 export function ProductionCreateForm({
   action,
@@ -14,7 +16,7 @@ export function ProductionCreateForm({
   warehouses,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
-  models: ProductModel[];
+  models: ModelOption[];
   warehouses: Warehouse[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);

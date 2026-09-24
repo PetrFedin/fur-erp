@@ -16,13 +16,15 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+type SerializedMaterial = Omit<RawMaterial, "minStockLevel"> & { minStockLevel: string | null };
+
 export function MaterialForm({
   action,
   material,
   categories,
 }: {
   action: (prev: MaterialFormState, formData: FormData) => Promise<MaterialFormState>;
-  material?: RawMaterial;
+  material?: SerializedMaterial;
   categories: RawMaterialCategory[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -66,7 +68,7 @@ export function MaterialForm({
           type="number"
           step="0.001"
           min="0"
-          defaultValue={material?.minStockLevel?.toString() ?? ""}
+          defaultValue={material?.minStockLevel ?? ""}
         />
       </div>
       <div className="col-span-2">

@@ -4,15 +4,17 @@ import { useActionState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { writeOffFinishedGoods, type WriteOffState } from "./actions";
-import type { ProductModel, Warehouse } from "@prisma/client";
+import type { Warehouse } from "@prisma/client";
 
 const initialState: WriteOffState = {};
+
+type ModelOption = { id: string; name: string };
 
 export function WriteOffForm({
   models,
   warehouses,
 }: {
-  models: ProductModel[];
+  models: ModelOption[];
   warehouses: Warehouse[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);

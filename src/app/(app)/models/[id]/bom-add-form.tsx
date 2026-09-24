@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addBomLine } from "../actions";
-import type { RawMaterial } from "@prisma/client";
+import type { MaterialUnit } from "@prisma/client";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -14,12 +14,14 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+type MaterialOption = { id: string; name: string; unit: MaterialUnit };
+
 export function BomAddForm({
   productModelId,
   materials,
 }: {
   productModelId: string;
-  materials: RawMaterial[];
+  materials: MaterialOption[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const boundAction = addBomLine.bind(null, productModelId);

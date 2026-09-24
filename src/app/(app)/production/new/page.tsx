@@ -9,6 +9,7 @@ export default async function NewProductionOrderPage() {
   const [models, warehouses] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     prisma.warehouse.findMany({

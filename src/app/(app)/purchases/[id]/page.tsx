@@ -51,6 +51,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ? await Promise.all([
         prisma.rawMaterial.findMany({
           where: { organizationId: session.user.organizationId, isActive: true },
+          select: { id: true, name: true, unit: true },
           orderBy: { name: "asc" },
         }),
         prisma.expenseCategory.findMany({

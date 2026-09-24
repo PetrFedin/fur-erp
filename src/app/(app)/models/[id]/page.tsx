@@ -27,6 +27,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -41,7 +42,21 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           <CardTitle>{model.name}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ModelForm action={updateModel.bind(null, id)} model={model} />
+          <ModelForm
+            action={updateModel.bind(null, id)}
+            model={{
+              id: model.id,
+              organizationId: model.organizationId,
+              name: model.name,
+              sku: model.sku,
+              category: model.category,
+              sellingPrice: model.sellingPrice?.toString() ?? null,
+              description: model.description,
+              isActive: model.isActive,
+              createdAt: model.createdAt,
+              updatedAt: model.updatedAt,
+            }}
+          />
         </CardContent>
       </Card>
 

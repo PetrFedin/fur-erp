@@ -31,6 +31,7 @@ export default async function FinishedStockPage() {
     }),
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
     prisma.warehouse.findMany({

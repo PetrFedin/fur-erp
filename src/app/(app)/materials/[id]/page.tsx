@@ -32,7 +32,11 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
           <CardTitle>Редактировать сырьё</CardTitle>
         </CardHeader>
         <CardContent>
-          <MaterialForm action={updateMaterial.bind(null, id)} material={material} categories={categories} />
+          <MaterialForm
+            action={updateMaterial.bind(null, id)}
+            material={{ ...material, minStockLevel: material.minStockLevel?.toString() ?? null }}
+            categories={categories}
+          />
         </CardContent>
       </Card>
     </div>
