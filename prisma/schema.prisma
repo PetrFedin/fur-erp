@@ -1,0 +1,502 @@
+// Fur ERP — multi-tenant schema
+// Tenancy model: every business table carries organizationId and is scoped
+// to it at the application layer (see src/lib/tenant.ts). Postgres RLS is
+// not used in v1 — documented tradeoff, can be added later for defense in depth.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Tenancy & auth ----------
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("trial")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                  User[]
+  suppliers              Supplier[]
+  warehouses             Warehouse[]
+  rawMaterialCategories  RawMaterialCategory[]
+  rawMaterials           RawMaterial[]
+  expenseCategories      ExpenseCategory[]
+  purchases              Purchase[]
+  payments               Payment[]
+  rawMaterialStocks      RawMaterialStock[]
+  stockMovements         StockMovement[]
+  productModels          ProductModel[]
+  productionOrders       ProductionOrder[]
+  finishedGoodsStocks    FinishedGoodsStock[]
+  finishedGoodsMovements FinishedGoodsMovement[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  PURCHASER
+  WAREHOUSE
+  TECHNOLOGIST
+  ACCOUNTANT
+  VIEWER
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String       @unique
+  passwordHash   String
+  name           String
+  role           UserRole     @default(VIEWER)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  createdPurchases        Purchase[]        @relation("PurchaseCreatedBy")
+  createdProductionOrders ProductionOrder[] @relation("ProductionOrderCreatedBy")
+
+  @@index([organizationId])
+}
+
+// ---------- Reference data ----------
+
+model Supplier {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  inn            String?
+  contactName    String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  purchases Purchase[]
+  payments  Payment[]
+
+  @@index([organizationId])
+}
+
+model Warehouse {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?
+  isDefault      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  rawMaterialStocks      RawMaterialStock[]
+  stockMovements         StockMovement[]
+  purchasesIn            Purchase[]              @relation("PurchaseWarehouse")
+  productionOrdersRaw    ProductionOrder[]       @relation("ProductionOrderRawWarehouse")
+  productionOrdersOut    ProductionOrder[]       @relation("ProductionOrderFinishedWarehouse")
+  finishedGoodsStocks    FinishedGoodsStock[]
+  finishedGoodsMovements FinishedGoodsMovement[]
+
+  @@index([organizationId])
+}
+
+enum MaterialUnit {
+  PIECE
+  KG
+  M2
+  M
+  SET
+}
+
+model RawMaterialCategory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+
+  rawMaterials RawMaterial[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model RawMaterial {
+  id             String               @id @default(cuid())
+  organizationId String
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       RawMaterialCategory? @relation(fields: [categoryId], references: [id])
+  name           String
+  sku            String?
+  unit           MaterialUnit         @default(PIECE)
+  minStockLevel  Decimal?             @db.Decimal(14, 3)
+  description    String?
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  purchaseItems         PurchaseItem[]
+  stockMovements        StockMovement[]
+  rawMaterialStocks     RawMaterialStock[]
+  productModelMaterials ProductModelMaterial[]
+  productionUsages      ProductionMaterialUsage[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+}
+
+enum ExpenseCategoryKind {
+  PURCHASE
+  PRODUCTION
+  GENERAL
+}
+
+model ExpenseCategory {
+  id             String              @id @default(cuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  kind           ExpenseCategoryKind
+  isActive       Boolean             @default(true)
+
+  purchaseExpenses   PurchaseExpense[]
+  productionExpenses ProductionExpense[]
+
+  @@unique([organizationId, name, kind])
+  @@index([organizationId])
+}
+
+// ---------- Purchasing ----------
+
+enum PurchaseStatus {
+  DRAFT
+  ORDERED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+model Purchase {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  supplierId     String
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse      @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
+  status         PurchaseStatus @default(DRAFT)
+  currency       String         @default("RUB")
+  orderDate      DateTime       @default(now())
+  expectedDate   DateTime?
+  receivedDate   DateTime?
+  notes          String?
+  createdById    String?
+  createdBy      User?          @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items          PurchaseItem[]
+  expenses       PurchaseExpense[]
+  payments       Payment[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+}
+
+model PurchaseItem {
+  id            String      @id @default(cuid())
+  purchaseId    String
+  purchase      Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  quantity      Decimal     @db.Decimal(14, 3)
+  unitPrice     Decimal     @db.Decimal(14, 2)
+  subtotal      Decimal     @db.Decimal(14, 2)
+  grade         String?
+  color         String?
+  notes         String?
+
+  @@index([purchaseId])
+  @@index([rawMaterialId])
+}
+
+// Extra costs tied to a purchase: shipping, customs, insurance, commission, inspection loss, etc.
+model PurchaseExpense {
+  id          String          @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount      Decimal         @db.Decimal(14, 2)
+  date        DateTime        @default(now())
+  description String?
+
+  @@index([purchaseId])
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// Payments to a supplier. purchaseId is optional so advance/prepayments not
+// yet tied to a specific delivery can be recorded and reconciled later.
+model Payment {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier      @relation(fields: [supplierId], references: [id])
+  purchaseId     String?
+  purchase       Purchase?     @relation(fields: [purchaseId], references: [id])
+  amount         Decimal       @db.Decimal(14, 2)
+  currency       String        @default("RUB")
+  method         PaymentMethod @default(BANK_TRANSFER)
+  status         PaymentStatus @default(COMPLETED)
+  paidAt         DateTime      @default(now())
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([purchaseId])
+}
+
+// ---------- Raw material stock ----------
+
+enum StockMovementType {
+  PURCHASE_IN
+  PRODUCTION_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+// Append-only ledger of every raw-material stock change. unitCost/totalCost
+// capture the moving weighted-average cost at the time of the movement, so
+// production consumption can be costed and stock valuation stays accurate.
+model StockMovement {
+  id                String            @id @default(cuid())
+  organizationId    String
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseId       String
+  warehouse         Warehouse         @relation(fields: [warehouseId], references: [id])
+  rawMaterialId     String
+  rawMaterial       RawMaterial       @relation(fields: [rawMaterialId], references: [id])
+  type              StockMovementType
+  quantity          Decimal           @db.Decimal(14, 3)
+  unitCost          Decimal           @db.Decimal(14, 2)
+  totalCost         Decimal           @db.Decimal(14, 2)
+  purchaseId        String?
+  purchase          Purchase?         @relation(fields: [purchaseId], references: [id])
+  productionOrderId String?
+  productionOrder   ProductionOrder?  @relation(fields: [productionOrderId], references: [id])
+  date              DateTime          @default(now())
+  notes             String?
+  createdAt         DateTime          @default(now())
+
+  @@index([organizationId])
+  @@index([warehouseId, rawMaterialId])
+}
+
+// Materialized current balance per warehouse+material, kept in sync by the
+// stock service whenever a StockMovement is written. Avoids summing the
+// whole ledger on every "current stock" read.
+model RawMaterialStock {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseId    String
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  rawMaterialId  String
+  rawMaterial    RawMaterial  @relation(fields: [rawMaterialId], references: [id])
+  quantity       Decimal      @default(0) @db.Decimal(14, 3)
+  avgUnitCost    Decimal      @default(0) @db.Decimal(14, 2)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([warehouseId, rawMaterialId])
+  @@index([organizationId])
+}
+
+// ---------- Production ----------
+
+model ProductModel {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  sku            String?
+  category       String?
+  sellingPrice   Decimal?     @db.Decimal(14, 2)
+  description    String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  materials              ProductModelMaterial[]
+  productionOrders       ProductionOrder[]
+  finishedGoodsStocks    FinishedGoodsStock[]
+  finishedGoodsMovements FinishedGoodsMovement[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+}
+
+// Bill of materials: how much of each raw material one unit of a model consumes.
+model ProductModelMaterial {
+  id              String       @id @default(cuid())
+  productModelId  String
+  productModel    ProductModel @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  rawMaterialId   String
+  rawMaterial     RawMaterial  @relation(fields: [rawMaterialId], references: [id])
+  quantityPerUnit Decimal      @db.Decimal(14, 3)
+  notes           String?
+
+  @@unique([productModelId, rawMaterialId])
+}
+
+enum ProductionOrderStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrder {
+  id                  String                @id @default(cuid())
+  organizationId      String
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number              String
+  productModelId      String
+  productModel        ProductModel          @relation(fields: [productModelId], references: [id])
+  rawWarehouseId      String
+  rawWarehouse        Warehouse             @relation("ProductionOrderRawWarehouse", fields: [rawWarehouseId], references: [id])
+  finishedWarehouseId String
+  finishedWarehouse   Warehouse             @relation("ProductionOrderFinishedWarehouse", fields: [finishedWarehouseId], references: [id])
+  status              ProductionOrderStatus @default(PLANNED)
+  plannedQuantity     Decimal               @db.Decimal(14, 3)
+  producedQuantity    Decimal               @default(0) @db.Decimal(14, 3)
+  startDate           DateTime?
+  endDate             DateTime?
+  notes               String?
+  createdById         String?
+  createdBy           User?                 @relation("ProductionOrderCreatedBy", fields: [createdById], references: [id])
+
+  // Cost snapshot, filled in when the order is marked COMPLETED so reports
+  // stay stable even if later stock cost movements change the average.
+  materialCost Decimal? @db.Decimal(14, 2)
+  expenseCost  Decimal? @db.Decimal(14, 2)
+  totalCost    Decimal? @db.Decimal(14, 2)
+  unitCost     Decimal? @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materialUsages         ProductionMaterialUsage[]
+  expenses               ProductionExpense[]
+  stockMovements         StockMovement[]
+  finishedGoodsMovements FinishedGoodsMovement[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+}
+
+// Actual raw-material consumption recorded against a production order
+// (can differ from the model's BOM in practice — waste, substitutions).
+model ProductionMaterialUsage {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  rawMaterialId     String
+  rawMaterial       RawMaterial     @relation(fields: [rawMaterialId], references: [id])
+  quantity          Decimal         @db.Decimal(14, 3)
+  unitCost          Decimal         @db.Decimal(14, 2)
+  totalCost         Decimal         @db.Decimal(14, 2)
+  date              DateTime        @default(now())
+
+  @@index([productionOrderId])
+}
+
+// Non-material production costs: labor, fittings/trim, rent, depreciation, etc.
+model ProductionExpense {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  categoryId        String
+  category          ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount            Decimal         @db.Decimal(14, 2)
+  date              DateTime        @default(now())
+  description       String?
+
+  @@index([productionOrderId])
+}
+
+// ---------- Finished goods stock ----------
+
+enum FinishedGoodsMovementType {
+  PRODUCTION_IN
+  WRITE_OFF_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+model FinishedGoodsMovement {
+  id                String                    @id @default(cuid())
+  organizationId    String
+  organization      Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseId       String
+  warehouse         Warehouse                 @relation(fields: [warehouseId], references: [id])
+  productModelId    String
+  productModel      ProductModel              @relation(fields: [productModelId], references: [id])
+  type              FinishedGoodsMovementType
+  quantity          Decimal                   @db.Decimal(14, 3)
+  unitCost          Decimal                   @db.Decimal(14, 2)
+  totalCost         Decimal                   @db.Decimal(14, 2)
+  productionOrderId String?
+  productionOrder   ProductionOrder?          @relation(fields: [productionOrderId], references: [id])
+  date              DateTime                  @default(now())
+  notes             String?
+  createdAt         DateTime                  @default(now())
+
+  @@index([organizationId])
+  @@index([warehouseId, productModelId])
+}
+
+model FinishedGoodsStock {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseId    String
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  productModelId String
+  productModel   ProductModel @relation(fields: [productModelId], references: [id])
+  quantity       Decimal      @default(0) @db.Decimal(14, 3)
+  avgUnitCost    Decimal      @default(0) @db.Decimal(14, 2)
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([warehouseId, productModelId])
+  @@index([organizationId])
+}
