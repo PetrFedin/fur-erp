@@ -22,10 +22,15 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+# Full node_modules (not just the standalone trace) so the Prisma CLI and its
+# transitive deps are available to run migrations on container start.
+COPY --from=deps /app/node_modules ./node_modules
+# Overlay the generated client (created in the builder stage, after `prisma generate`).
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
