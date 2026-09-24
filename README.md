@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# МехУчёт (fur-erp)
 
-## Getting Started
+Мультитенантное веб-приложение для учёта закупок сырья, остатков, производства
+и себестоимости. Каждая компания-клиент (Organization) видит только свои
+данные; пользователи внутри компании имеют роли (владелец, администратор,
+закупщик, кладовщик, технолог, бухгалтер, наблюдатель).
 
-First, run the development server:
+## Стек
+
+- Next.js 16 (App Router, TypeScript) + Tailwind CSS
+- PostgreSQL + Prisma ORM
+- Auth.js (next-auth v5), учётные данные по email/паролю, JWT-сессии
+- Recharts для дашборда
+
+## Модель данных (кратко)
+
+`Organization` → `User` (роли) · `Supplier` → `Purchase` (`PurchaseItem` +
+`PurchaseExpense` + `Payment`) → при оприходовании расходы распределяются на
+позиции пропорционально сумме и формируют `StockMovement`/`RawMaterialStock`
+по методу скользящей средней себестоимости · `ProductModel` +
+`ProductModelMaterial` (норма расхода, BOM) → `ProductionOrder` списывает
+сырьё (`ProductionMaterialUsage`) и накапливает `ProductionExpense`; при
+завершении заказа фиксируется себестоимость и создаётся приход на склад
+готовой продукции (`FinishedGoodsStock`).
+
+Подробности и обоснование решений — в шапке `prisma/schema.prisma`.
+
+**Важно:** мультитенантность реализована на уровне приложения (каждый запрос
+фильтруется по `organizationId` из сессии), а не через PostgreSQL Row-Level
+Security. Для дополнительного уровня защиты при росте продукта стоит
+рассмотреть RLS.
+
+## Локальная разработка
 
 ```bash
+docker compose up db -d      # поднять только PostgreSQL
+cp .env.example .env         # и поправить порт/секрет при необходимости
+npm install
+npx prisma migrate dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Приложение откроется на `http://localhost:3000` (или на порту, который вы
+укажете).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Продакшен через Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`docker-compose.yml` поднимает и базу, и приложение. При старте контейнер
+приложения автоматически применяет миграции (`docker-entrypoint.sh`) и лишь
+затем запускает сервер — это безопасно повторять при каждом деплое.
 
-## Learn More
+```bash
+NEXTAUTH_SECRET=$(openssl rand -base64 32) docker compose up -d --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Обязательно задайте в окружении:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `NEXTAUTH_SECRET` — случайная строка (см. команду выше)
+- `NEXTAUTH_URL` — публичный URL приложения (например,
+  `https://your-domain.ru`)
+- `DATABASE_URL` — если используете внешнюю управляемую PostgreSQL вместо
+  контейнера `db` из compose-файла
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Деплой на Timeweb Cloud
 
-## Deploy on Vercel
+1. Создайте приложение/сервер с поддержкой Docker Compose (Timeweb Cloud
+   Apps или обычный облачный сервер с установленным Docker).
+2. Склонируйте репозиторий на сервер.
+3. Создайте `.env` (или задайте переменные в панели Timeweb) как минимум с
+   `NEXTAUTH_SECRET` и `NEXTAUTH_URL` (реальный домен).
+4. Если используете управляемую PostgreSQL Timeweb Cloud вместо контейнера
+   `db` — пропишите её `DATABASE_URL` и уберите сервис `db` из
+   `docker-compose.yml` (или оставьте только сервис `app`).
+5. `docker compose up -d --build` — при первом запуске автоматически
+   применятся миграции и создастся схема БД.
+6. Настройте домен/SSL через панель Timeweb (реверс-прокси перед
+   контейнером на порту 3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Резервное копирование: делайте регулярные бэкапы PostgreSQL (Timeweb Cloud
+предлагает managed-снапшоты; для контейнера — `pg_dump` по расписанию).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Что дальше (не реализовано в этой версии)
+
+- Приглашение пользователей по email (сейчас владелец/админ создаёт учётку
+  и передаёт пароль лично)
+- Мультивалютность с конвертацией курсов (закупки хранят валюту, но отчёты
+  считают суммы как есть, без пересчёта)
+- Биллинг/тарифы для продажи как SaaS другим компаниям
+- Postgres Row-Level Security как второй уровень изоляции тенантов
