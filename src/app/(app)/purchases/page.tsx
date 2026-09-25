@@ -38,6 +38,8 @@ export default async function PurchasesPage() {
           <Tr>
             <Th>№</Th>
             <Th>Поставщик</Th>
+            <Th>Аукцион / сессия</Th>
+            <Th>Счёт</Th>
             <Th>Дата</Th>
             <Th>Статус</Th>
             <Th>Сумма</Th>
@@ -57,6 +59,10 @@ export default async function PurchasesPage() {
                   </Link>
                 </Td>
                 <Td>{p.supplier.name}</Td>
+                <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
+                  {p.auctionSession ?? "—"}
+                </Td>
+                <Td className="text-neutral-500">{p.invoiceNumber ?? "—"}</Td>
                 <Td>{formatDate(p.orderDate)}</Td>
                 <Td>
                   <Badge variant={status.variant}>{status.label}</Badge>
@@ -70,7 +76,7 @@ export default async function PurchasesPage() {
           })}
           {purchases.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={8} className="py-8 text-center text-neutral-400">
                 Закупок пока нет
               </Td>
             </Tr>
