@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
-import { UsageForm } from "./usage-form";
+import { UsageForm, type LotOption } from "./usage-form";
 import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { removeMaterialUsage, removeProductionExpense } from "../actions";
@@ -37,7 +37,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       productModel: { include: { materials: { include: { rawMaterial: true } } } },
       rawWarehouse: true,
       finishedWarehouse: true,
-      materialUsages: { include: { rawMaterial: true }, orderBy: { date: "asc" } },
+      client: true,
+      materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
     },
   });
@@ -45,12 +46,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
 
-  const [materials, expenseCategories] = open
+  const [availableLots, expenseCategories] = open
     ? await Promise.all([
-        prisma.rawMaterial.findMany({
-          where: { organizationId: session.user.organizationId, isActive: true },
-          select: { id: true, name: true, unit: true },
-          orderBy: { name: "asc" },
+        prisma.rawMaterialLot.findMany({
+          where: {
+            organizationId: session.user.organizationId,
+            warehouseId: order.rawWarehouseId,
+            quantityRemaining: { gt: 0 },
+          },
+          include: { rawMaterial: true },
+          orderBy: { receivedDate: "asc" },
         }),
         prisma.expenseCategory.findMany({
           where: { organizationId: session.user.organizationId, kind: "PRODUCTION", isActive: true },
@@ -59,10 +64,25 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ])
     : [[], []];
 
+  const lotOptions: LotOption[] = availableLots.map((l) => ({
+    id: l.id,
+    lotNumber: l.lotNumber,
+    rawMaterialId: l.rawMaterialId,
+    rawMaterialName: l.rawMaterial.name,
+    unit: l.rawMaterial.unit,
+    quantityRemaining: l.quantityRemaining.toString(),
+    unitCost: l.unitCost.toString(),
+  }));
+
   const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
   const status = STATUS_LABELS[order.status];
+
+  const producedOrPlanned = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
+  const clientRevenue = order.clientWorkPricePerUnit
+    ? order.clientWorkPricePerUnit.mul(producedOrPlanned)
+    : null;
 
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
@@ -73,9 +93,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <div>
           <h1 className="text-xl font-semibold">Заказ {order.number}</h1>
           <p className="text-sm text-neutral-500">
-            {order.productModel.name} · план {formatQty(order.plannedQuantity.toString())} шт. ·{" "}
+            {order.productModel.name}
+            {order.color && ` · ${order.color}`}
+            {order.size && ` · разм. ${order.size}`} · план {formatQty(order.plannedQuantity.toString())} шт. ·{" "}
             {order.startDate ? formatDate(order.startDate) : "—"}
           </p>
+          {order.client && (
+            <p className="mt-1 text-sm text-neutral-500">
+              Заказчик: <span className="font-medium text-neutral-700">{order.client.name}</span>
+              {order.contractNumber && ` · Договор ${order.contractNumber}`}
+              {order.workOrderNumber && ` · ТЗ № ${order.workOrderNumber}`}
+              {order.workOrderDate && ` от ${formatDate(order.workOrderDate)}`}
+            </p>
+          )}
           <div className="mt-2">
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
@@ -94,6 +124,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           value={`${formatQty(order.producedQuantity.toString())} шт.`}
         />
       </div>
+
+      {clientRevenue && (
+        <div className="grid grid-cols-3 gap-3">
+          <SummaryCard
+            label="Стоимость работ для заказчика"
+            value={formatMoney(clientRevenue.toString())}
+          />
+          <SummaryCard label="Себестоимость" value={formatMoney(projectedTotal.toString())} />
+          <SummaryCard
+            label="Маржа"
+            value={formatMoney(clientRevenue.sub(projectedTotal).toString())}
+            warn={clientRevenue.sub(projectedTotal).lessThan(0)}
+          />
+        </div>
+      )}
 
       {order.productModel.materials.length > 0 && (
         <Card>
@@ -136,7 +181,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           {open && (
             <div className="flex flex-col gap-3">
               <ApplyBomButton orderId={id} />
-              <UsageForm orderId={id} materials={materials} />
+              <UsageForm orderId={id} lots={lotOptions} />
             </div>
           )}
           <Table>
@@ -144,6 +189,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Tr>
                 <Th>Дата</Th>
                 <Th>Сырьё</Th>
+                <Th>Лот</Th>
                 <Th>Количество</Th>
                 <Th>Себестоимость</Th>
                 {open && <Th></Th>}
@@ -154,6 +200,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Tr key={u.id}>
                   <Td>{formatDate(u.date)}</Td>
                   <Td>{u.rawMaterial.name}</Td>
+                  <Td>{u.lot.lotNumber ?? "без номера"}</Td>
                   <Td>
                     {formatQty(u.quantity.toString())} {UNIT_LABELS[u.rawMaterial.unit]}
                   </Td>
@@ -176,7 +223,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               ))}
               {order.materialUsages.length === 0 && (
                 <Tr>
-                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
                     Сырьё ещё не списано
                   </Td>
                 </Tr>
@@ -253,11 +300,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   );
 }
 
-function SummaryCard({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
+function SummaryCard({
+  label,
+  value,
+  emphasis,
+  warn,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+  warn?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`mt-1 text-lg font-semibold ${emphasis ? "text-neutral-900" : "text-neutral-700"}`}>
+      <div
+        className={`mt-1 text-lg font-semibold ${warn ? "text-amber-600" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
+      >
         {value}
       </div>
     </div>

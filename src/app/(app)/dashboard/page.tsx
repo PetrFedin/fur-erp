@@ -53,15 +53,17 @@ export default async function DashboardPage() {
       where: { organizationId, status: { not: "CANCELLED" } },
       include: { items: true, expenses: true, payments: true, supplier: true },
     }),
-    prisma.rawMaterialStock.findMany({
-      where: { organizationId },
-      include: { rawMaterial: true, warehouse: true },
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId, quantityRemaining: { gt: 0 } },
+      include: { rawMaterial: true },
     }),
   ]);
 
   // Raw + finished stock value
-  const rawStockRows = await prisma.rawMaterialStock.findMany({ where: { organizationId } });
-  const rawStockValue = rawStockRows.reduce((s, r) => s.add(r.quantity.mul(r.avgUnitCost)), new Decimal(0));
+  const rawStockValue = lowStockMaterials.reduce(
+    (s, l) => s.add(l.quantityRemaining.mul(l.unitCost)),
+    new Decimal(0)
+  );
   const finishedStockValue = finishedStock.reduce((s, r) => s.add(r.quantity.mul(r.avgUnitCost)), new Decimal(0));
 
   // Monthly purchases (last 6 months)
@@ -73,9 +75,9 @@ export default async function DashboardPage() {
     monthBuckets.push({ month: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, total: 0 });
   }
   for (const p of recentPurchases) {
-    const itemsTotal = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
+    const itemsTotalRub = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate);
     const expensesTotal = p.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-    const total = itemsTotal.add(expensesTotal).toNumber();
+    const total = itemsTotalRub.add(expensesTotal).toNumber();
     const d = new Date(p.orderDate);
     const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
     const bucket = monthBuckets.find((b) => b.month === label);
@@ -117,9 +119,9 @@ export default async function DashboardPage() {
   // Supplier balance due
   const supplierBalances = openPurchasesWithPayments
     .map((p) => {
-      const itemsTotal = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
+      const itemsTotalRub = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate);
       const expensesTotal = p.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-      const total = itemsTotal.add(expensesTotal);
+      const total = itemsTotalRub.add(expensesTotal);
       const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
       return { supplier: p.supplier.name, purchaseNumber: p.number, due: total.sub(paid) };
     })
@@ -127,9 +129,20 @@ export default async function DashboardPage() {
     .sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1))
     .slice(0, 5);
 
-  const lowStock = lowStockMaterials.filter(
-    (m) => m.rawMaterial.minStockLevel && m.quantity.lessThan(m.rawMaterial.minStockLevel)
-  );
+  // Low stock: sum remaining quantity per material across lots/warehouses, compare to the threshold.
+  const materialTotals = new Map<string, { name: string; quantity: Decimal; minStockLevel: Decimal | null }>();
+  for (const lot of lowStockMaterials) {
+    const entry = materialTotals.get(lot.rawMaterialId) ?? {
+      name: lot.rawMaterial.name,
+      quantity: new Decimal(0),
+      minStockLevel: lot.rawMaterial.minStockLevel,
+    };
+    entry.quantity = entry.quantity.add(lot.quantityRemaining);
+    materialTotals.set(lot.rawMaterialId, entry);
+  }
+  const lowStock = Array.from(materialTotals.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .filter((m) => m.minStockLevel && m.quantity.lessThan(m.minStockLevel));
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,7 +151,20 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-4 gap-3">
         <KpiCard label="Стоимость остатков сырья" value={formatMoney(rawStockValue.toString())} />
         <KpiCard label="Стоимость готовой продукции" value={formatMoney(finishedStockValue.toString())} />
-        <KpiCard label="Закупок за 6 мес." value={formatMoney(recentPurchases.reduce((s, p) => s + p.items.reduce((a, i) => a + Number(i.subtotal), 0) + p.expenses.reduce((a, e) => a + Number(e.amount), 0), 0))} />
+        <KpiCard
+          label="Закупок за 6 мес."
+          value={formatMoney(
+            recentPurchases
+              .reduce(
+                (s, p) =>
+                  s
+                    .add(p.items.reduce((a, i) => a.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate))
+                    .add(p.expenses.reduce((a, e) => a.add(e.amount), new Decimal(0))),
+                new Decimal(0)
+              )
+              .toString()
+          )}
+        />
         <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />
       </div>
 
@@ -221,13 +247,13 @@ export default async function DashboardPage() {
                   <Tr key={m.id}>
                     <Td>
                       <Link href="/stock" className="hover:underline">
-                        {m.rawMaterial.name}
+                        {m.name}
                       </Link>
                     </Td>
                     <Td>
                       <Badge variant="danger">{formatQty(m.quantity.toString())}</Badge>
                     </Td>
-                    <Td>{formatQty(m.rawMaterial.minStockLevel?.toString() ?? "0")}</Td>
+                    <Td>{formatQty(m.minStockLevel?.toString() ?? "0")}</Td>
                   </Tr>
                 ))}
                 {lowStock.length === 0 && (

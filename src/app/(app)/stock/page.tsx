@@ -25,21 +25,53 @@ const MOVEMENT_LABELS: Record<string, string> = {
 
 export default async function StockPage() {
   const session = await requireSession();
-  const [balances, movements] = await Promise.all([
-    prisma.rawMaterialStock.findMany({
-      where: { organizationId: session.user.organizationId },
+  const [lots, movements] = await Promise.all([
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId: session.user.organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true, warehouse: true },
-      orderBy: { rawMaterial: { name: "asc" } },
+      orderBy: [{ rawMaterial: { name: "asc" } }, { receivedDate: "asc" }],
     }),
     prisma.stockMovement.findMany({
       where: { organizationId: session.user.organizationId },
-      include: { rawMaterial: true, warehouse: true },
+      include: { rawMaterial: true, warehouse: true, lot: true },
       orderBy: { date: "desc" },
       take: 50,
     }),
   ]);
 
-  const totalValue = balances.reduce((s, b) => s.add(b.quantity.mul(b.avgUnitCost)), new Decimal(0));
+  const totalValue = lots.reduce((s, l) => s.add(l.quantityRemaining.mul(l.unitCost)), new Decimal(0));
+
+  // Aggregate by material+warehouse for the summary table; per-lot detail follows below.
+  type Agg = {
+    key: string;
+    materialName: string;
+    unit: string;
+    minStockLevel: Decimal | null;
+    warehouseName: string;
+    quantity: Decimal;
+    value: Decimal;
+  };
+  const aggregates = new Map<string, Agg>();
+  for (const l of lots) {
+    const key = `${l.rawMaterialId}:${l.warehouseId}`;
+    const existing = aggregates.get(key);
+    const value = l.quantityRemaining.mul(l.unitCost);
+    if (existing) {
+      existing.quantity = existing.quantity.add(l.quantityRemaining);
+      existing.value = existing.value.add(value);
+    } else {
+      aggregates.set(key, {
+        key,
+        materialName: l.rawMaterial.name,
+        unit: l.rawMaterial.unit,
+        minStockLevel: l.rawMaterial.minStockLevel,
+        warehouseName: l.warehouse.name,
+        quantity: l.quantityRemaining,
+        value,
+      });
+    }
+  }
+  const aggregateRows = Array.from(aggregates.values());
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,39 +88,82 @@ export default async function StockPage() {
             <Th>Сырьё</Th>
             <Th>Склад</Th>
             <Th>Остаток</Th>
-            <Th>Средняя себестоимость</Th>
             <Th>Стоимость остатка</Th>
             <Th>Мин. уровень</Th>
           </Tr>
         </Thead>
         <Tbody>
-          {balances.map((b) => {
-            const low = b.rawMaterial.minStockLevel && b.quantity.lessThan(b.rawMaterial.minStockLevel);
+          {aggregateRows.map((a) => {
+            const low = a.minStockLevel && a.quantity.lessThan(a.minStockLevel);
             return (
-              <Tr key={b.id}>
-                <Td className="font-medium">{b.rawMaterial.name}</Td>
-                <Td>{b.warehouse.name}</Td>
+              <Tr key={a.key}>
+                <Td className="font-medium">{a.materialName}</Td>
+                <Td>{a.warehouseName}</Td>
                 <Td>
-                  {formatQty(b.quantity.toString())} {UNIT_LABELS[b.rawMaterial.unit]}{" "}
+                  {formatQty(a.quantity.toString())} {UNIT_LABELS[a.unit]}{" "}
                   {low && <Badge variant="danger">Мало</Badge>}
                 </Td>
-                <Td>{formatMoney(b.avgUnitCost.toString())}</Td>
-                <Td>{formatMoney(b.quantity.mul(b.avgUnitCost).toString())}</Td>
-                <Td>
-                  {b.rawMaterial.minStockLevel ? formatQty(b.rawMaterial.minStockLevel.toString()) : "—"}
-                </Td>
+                <Td>{formatMoney(a.value.toString())}</Td>
+                <Td>{a.minStockLevel ? formatQty(a.minStockLevel.toString()) : "—"}</Td>
               </Tr>
             );
           })}
-          {balances.length === 0 && (
+          {aggregateRows.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={5} className="py-8 text-center text-neutral-400">
                 Остатков пока нет — оприходуйте закупку сырья
               </Td>
             </Tr>
           )}
         </Tbody>
       </Table>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Остатки по лотам</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Сырьё</Th>
+                <Th>Лот</Th>
+                <Th>Склад</Th>
+                <Th>Получено</Th>
+                <Th>Остаток</Th>
+                <Th>Себестоимость за ед.</Th>
+                <Th>Стоимость остатка</Th>
+                <Th>Дата поступления</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {lots.map((l) => (
+                <Tr key={l.id}>
+                  <Td>{l.rawMaterial.name}</Td>
+                  <Td>{l.lotNumber ?? "без номера"}</Td>
+                  <Td>{l.warehouse.name}</Td>
+                  <Td>
+                    {formatQty(l.quantityReceived.toString())} {UNIT_LABELS[l.rawMaterial.unit]}
+                  </Td>
+                  <Td>
+                    {formatQty(l.quantityRemaining.toString())} {UNIT_LABELS[l.rawMaterial.unit]}
+                  </Td>
+                  <Td>{formatMoney(l.unitCost.toString())}</Td>
+                  <Td>{formatMoney(l.quantityRemaining.mul(l.unitCost).toString())}</Td>
+                  <Td>{formatDate(l.receivedDate)}</Td>
+                </Tr>
+              ))}
+              {lots.length === 0 && (
+                <Tr>
+                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
+                    Лотов пока нет
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -101,6 +176,7 @@ export default async function StockPage() {
                 <Th>Дата</Th>
                 <Th>Тип</Th>
                 <Th>Сырьё</Th>
+                <Th>Лот</Th>
                 <Th>Склад</Th>
                 <Th>Кол-во</Th>
                 <Th>Сумма</Th>
@@ -112,6 +188,7 @@ export default async function StockPage() {
                   <Td>{formatDate(m.date)}</Td>
                   <Td>{MOVEMENT_LABELS[m.type]}</Td>
                   <Td>{m.rawMaterial.name}</Td>
+                  <Td>{m.lot?.lotNumber ?? "—"}</Td>
                   <Td>{m.warehouse.name}</Td>
                   <Td>
                     {m.type.endsWith("_OUT") ? "-" : "+"}
@@ -122,7 +199,7 @@ export default async function StockPage() {
               ))}
               {movements.length === 0 && (
                 <Tr>
-                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
                     Движений пока нет
                   </Td>
                 </Tr>

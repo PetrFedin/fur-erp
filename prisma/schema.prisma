@@ -24,6 +24,7 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   users                  User[]
+  clients                Client[]
   suppliers              Supplier[]
   warehouses             Warehouse[]
   rawMaterialCategories  RawMaterialCategory[]
@@ -31,7 +32,7 @@ model Organization {
   expenseCategories      ExpenseCategory[]
   purchases              Purchase[]
   payments               Payment[]
-  rawMaterialStocks      RawMaterialStock[]
+  rawMaterialLots        RawMaterialLot[]
   stockMovements         StockMovement[]
   productModels          ProductModel[]
   productionOrders       ProductionOrder[]
@@ -90,6 +91,28 @@ model Supplier {
   @@index([organizationId])
 }
 
+// A customer commissioning production (давалец/заказчик по договору подряда) —
+// distinct from Supplier, which is who we buy raw material from.
+model Client {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  inn            String?
+  contactName    String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  productionOrders ProductionOrder[]
+
+  @@index([organizationId])
+}
+
 model Warehouse {
   id             String       @id @default(cuid())
   organizationId String
@@ -99,7 +122,7 @@ model Warehouse {
   isDefault      Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
-  rawMaterialStocks      RawMaterialStock[]
+  rawMaterialLots        RawMaterialLot[]
   stockMovements         StockMovement[]
   purchasesIn            Purchase[]              @relation("PurchaseWarehouse")
   productionOrdersRaw    ProductionOrder[]       @relation("ProductionOrderRawWarehouse")
@@ -147,7 +170,7 @@ model RawMaterial {
 
   purchaseItems         PurchaseItem[]
   stockMovements        StockMovement[]
-  rawMaterialStocks     RawMaterialStock[]
+  lots                  RawMaterialLot[]
   productModelMaterials ProductModelMaterial[]
   productionUsages      ProductionMaterialUsage[]
 
@@ -197,6 +220,10 @@ model Purchase {
   warehouse      Warehouse      @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
   status         PurchaseStatus @default(DRAFT)
   currency       String         @default("RUB")
+  // Rate of `currency` -> RUB, entered manually per purchase (auction/invoice
+  // rate on the deal date). Item prices are in `currency`; this converts them
+  // to RUB for landed-cost and stock valuation. 1 for RUB purchases.
+  exchangeRate   Decimal        @default(1) @db.Decimal(14, 6)
   orderDate      DateTime       @default(now())
   expectedDate   DateTime?
   receivedDate   DateTime?
@@ -206,15 +233,19 @@ model Purchase {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  items          PurchaseItem[]
-  expenses       PurchaseExpense[]
-  payments       Payment[]
-  stockMovements StockMovement[]
+  items           PurchaseItem[]
+  expenses        PurchaseExpense[]
+  payments        Payment[]
+  stockMovements  StockMovement[]
+  rawMaterialLots RawMaterialLot[]
 
   @@unique([organizationId, number])
   @@index([organizationId])
 }
 
+// One line = one purchased lot/batch (лот) of a raw material. unitPrice and
+// subtotal are in the purchase's currency; converted to RUB via
+// purchase.exchangeRate when the item is received into a RawMaterialLot.
 model PurchaseItem {
   id            String      @id @default(cuid())
   purchaseId    String
@@ -224,9 +255,12 @@ model PurchaseItem {
   quantity      Decimal     @db.Decimal(14, 3)
   unitPrice     Decimal     @db.Decimal(14, 2)
   subtotal      Decimal     @db.Decimal(14, 2)
+  lotNumber     String?
   grade         String?
   color         String?
   notes         String?
+
+  lot RawMaterialLot?
 
   @@index([purchaseId])
   @@index([rawMaterialId])
@@ -282,7 +316,15 @@ model Payment {
   @@index([purchaseId])
 }
 
-// ---------- Raw material stock ----------
+// ---------- Raw material stock (lot-based / specific identification) ----------
+//
+// Fur pelts of the same material can vary 3-4x in cost lot to lot (auction
+// batch, quality, source), so a blended weighted-average would distort
+// per-product costing badly. Each purchased lot is its own inventory unit
+// with a cost fixed at receipt; production draws down specific lots by name,
+// matching how the business's own registry (and every downstream report)
+// already works. "Current stock by material" is a live aggregate query over
+// this table, not a separately maintained cache — avoids drift.
 
 enum StockMovementType {
   PURCHASE_IN
@@ -293,9 +335,49 @@ enum StockMovementType {
   TRANSFER_OUT
 }
 
-// Append-only ledger of every raw-material stock change. unitCost/totalCost
-// capture the moving weighted-average cost at the time of the movement, so
-// production consumption can be costed and stock valuation stays accurate.
+// One received batch/lot of a raw material. lotNumber is the external
+// identifier (auction/supplier lot number) when there is one — optional,
+// since not every material is lot-tracked by the supplier (e.g. lining
+// fabric sold by the running metre).
+model RawMaterialLot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rawMaterialId  String
+  rawMaterial    RawMaterial  @relation(fields: [rawMaterialId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
+  lotNumber      String?
+  grade          String?
+  color          String?
+
+  purchaseId     String?
+  purchase       Purchase?     @relation(fields: [purchaseId], references: [id])
+  purchaseItemId String?       @unique
+  purchaseItem   PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
+
+  quantityReceived  Decimal @db.Decimal(14, 3)
+  quantityRemaining Decimal @db.Decimal(14, 3)
+  // Landed cost per unit in RUB, fixed at receipt (item price * purchase
+  // exchange rate, plus this lot's share of the purchase's allocated
+  // expenses). Every consumption of this lot is costed at this rate.
+  unitCost          Decimal @db.Decimal(14, 2)
+  totalCost         Decimal @db.Decimal(14, 2)
+
+  receivedDate DateTime @default(now())
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  stockMovements StockMovement[]
+  usages         ProductionMaterialUsage[]
+
+  @@index([organizationId])
+  @@index([warehouseId, rawMaterialId])
+  @@index([organizationId, lotNumber])
+}
+
+// Append-only audit ledger of every lot movement (received, consumed,
+// adjusted, transferred).
 model StockMovement {
   id                String            @id @default(cuid())
   organizationId    String
@@ -304,6 +386,8 @@ model StockMovement {
   warehouse         Warehouse         @relation(fields: [warehouseId], references: [id])
   rawMaterialId     String
   rawMaterial       RawMaterial       @relation(fields: [rawMaterialId], references: [id])
+  lotId             String?
+  lot               RawMaterialLot?   @relation(fields: [lotId], references: [id])
   type              StockMovementType
   quantity          Decimal           @db.Decimal(14, 3)
   unitCost          Decimal           @db.Decimal(14, 2)
@@ -318,25 +402,7 @@ model StockMovement {
 
   @@index([organizationId])
   @@index([warehouseId, rawMaterialId])
-}
-
-// Materialized current balance per warehouse+material, kept in sync by the
-// stock service whenever a StockMovement is written. Avoids summing the
-// whole ledger on every "current stock" read.
-model RawMaterialStock {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  warehouseId    String
-  warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
-  rawMaterialId  String
-  rawMaterial    RawMaterial  @relation(fields: [rawMaterialId], references: [id])
-  quantity       Decimal      @default(0) @db.Decimal(14, 3)
-  avgUnitCost    Decimal      @default(0) @db.Decimal(14, 2)
-  updatedAt      DateTime     @updatedAt
-
-  @@unique([warehouseId, rawMaterialId])
-  @@index([organizationId])
+  @@index([lotId])
 }
 
 // ---------- Production ----------
@@ -397,11 +463,24 @@ model ProductionOrder {
   status              ProductionOrderStatus @default(PLANNED)
   plannedQuantity     Decimal               @db.Decimal(14, 3)
   producedQuantity    Decimal               @default(0) @db.Decimal(14, 3)
+  color               String?
+  size                String?
   startDate           DateTime?
   endDate             DateTime?
   notes               String?
   createdById         String?
   createdBy           User?                 @relation("ProductionOrderCreatedBy", fields: [createdById], references: [id])
+
+  // Optional: production done under a client work order (давальческая /
+  // подрядная схема) — a Технического задания attached to a Договор подряда.
+  clientId               String?
+  client                 Client?   @relation(fields: [clientId], references: [id])
+  contractNumber         String?
+  workOrderNumber        String?
+  workOrderDate          DateTime?
+  // Price charged to the client per produced unit for the manufacturing
+  // work itself (revenue) — separate from our internal production cost.
+  clientWorkPricePerUnit Decimal?  @db.Decimal(14, 2)
 
   // Cost snapshot, filled in when the order is marked COMPLETED so reports
   // stay stable even if later stock cost movements change the average.
@@ -430,12 +509,15 @@ model ProductionMaterialUsage {
   productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
   rawMaterialId     String
   rawMaterial       RawMaterial     @relation(fields: [rawMaterialId], references: [id])
+  lotId             String
+  lot               RawMaterialLot  @relation(fields: [lotId], references: [id])
   quantity          Decimal         @db.Decimal(14, 3)
   unitCost          Decimal         @db.Decimal(14, 2)
   totalCost         Decimal         @db.Decimal(14, 2)
   date              DateTime        @default(now())
 
   @@index([productionOrderId])
+  @@index([lotId])
 }
 
 // Non-material production costs: labor, fittings/trim, rent, depreciation, etc.

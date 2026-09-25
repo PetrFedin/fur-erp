@@ -19,9 +19,11 @@ type MaterialOption = { id: string; name: string; unit: MaterialUnit };
 export function PurchaseItemForm({
   purchaseId,
   materials,
+  currency,
 }: {
   purchaseId: string;
   materials: MaterialOption[];
+  currency: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const bound = addPurchaseItem.bind(null, purchaseId);
@@ -33,7 +35,7 @@ export function PurchaseItemForm({
         await bound(formData);
         formRef.current?.reset();
       }}
-      className="grid grid-cols-6 items-end gap-2"
+      className="grid grid-cols-7 items-end gap-2"
     >
       <div className="col-span-2">
         <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
@@ -53,8 +55,12 @@ export function PurchaseItemForm({
         <Input name="quantity" type="number" step="0.001" min="0" required />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">Цена за ед., ₽</label>
+        <label className="mb-1 block text-xs text-neutral-500">Цена за ед., {currency}</label>
         <Input name="unitPrice" type="number" step="0.01" min="0" required />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">Лот (если есть)</label>
+        <Input name="lotNumber" placeholder="напр. 15016" />
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Сорт</label>
@@ -64,7 +70,7 @@ export function PurchaseItemForm({
         <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
         <Input name="color" />
       </div>
-      <div className="col-span-6 flex justify-end">
+      <div className="col-span-7 flex justify-end">
         <Button type="submit" variant="outline" size="sm">
           + Добавить позицию
         </Button>

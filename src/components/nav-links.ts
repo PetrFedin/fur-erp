@@ -24,6 +24,7 @@ export const NAV_SECTIONS = [
     links: [
       { href: "/production", label: "Производственные заказы" },
       { href: "/models", label: "Модели изделий" },
+      { href: "/clients", label: "Заказчики" },
     ],
   },
   {

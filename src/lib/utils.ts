@@ -15,6 +15,22 @@ export function formatMoney(value: number | string) {
   return rubFormatter.format(Number(value));
 }
 
+const currencyFormatterCache = new Map<string, Intl.NumberFormat>();
+
+/** Formats a value in an arbitrary currency (purchases can be priced in USD/EUR before conversion). */
+export function formatCurrency(value: number | string, currency: string) {
+  let formatter = currencyFormatterCache.get(currency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    });
+    currencyFormatterCache.set(currency, formatter);
+  }
+  return formatter.format(Number(value));
+}
+
 const qtyFormatter = new Intl.NumberFormat("ru-RU", {
   maximumFractionDigits: 3,
 });

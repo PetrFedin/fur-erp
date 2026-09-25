@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PurchaseItemForm } from "./item-form";
 import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
 import { PurchaseActions } from "./purchase-actions";
+import { ExchangeRateForm } from "./exchange-rate-form";
 import { removePurchaseItem, removePurchaseExpense } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -61,11 +62,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       ])
     : [[], []];
 
+  const isForeignCurrency = purchase.currency !== "RUB";
   const itemsTotal = purchase.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
+  const itemsTotalRub = itemsTotal.mul(purchase.exchangeRate);
   const expensesTotal = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-  const grandTotal = itemsTotal.add(expensesTotal);
+  const grandTotalRub = itemsTotalRub.add(expensesTotal);
   const paidTotal = purchase.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
-  const balanceDue = grandTotal.sub(paidTotal);
+  const balanceDue = grandTotalRub.sub(paidTotal);
   const status = STATUS_LABELS[purchase.status];
 
   const boundRemoveItem = removePurchaseItem.bind(null, id);
@@ -78,6 +81,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
           <p className="text-sm text-neutral-500">
             {purchase.supplier.name} · склад «{purchase.warehouse.name}» · {formatDate(purchase.orderDate)}
+            {isForeignCurrency && ` · валюта позиций: ${purchase.currency}`}
           </p>
           <div className="mt-2">
             <Badge variant={status.variant}>{status.label}</Badge>
@@ -86,10 +90,29 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <PurchaseActions purchaseId={id} status={purchase.status} />
       </div>
 
+      {isForeignCurrency && editable && (
+        <Card>
+          <CardContent className="flex items-center justify-between pt-4">
+            <p className="text-xs text-neutral-500">
+              Позиции введены в {purchase.currency}. Курс применяется при оприходовании — обновите
+              его перед приёмкой, если он изменился.
+            </p>
+            <ExchangeRateForm
+              purchaseId={id}
+              currency={purchase.currency}
+              exchangeRate={purchase.exchangeRate.toString()}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-4 gap-3">
-        <SummaryCard label="Сырьё" value={formatMoney(itemsTotal.toString())} />
+        <SummaryCard
+          label={isForeignCurrency ? `Сырьё (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё"}
+          value={formatMoney(itemsTotalRub.toString())}
+        />
         <SummaryCard label="Доп. расходы" value={formatMoney(expensesTotal.toString())} />
-        <SummaryCard label="Итого" value={formatMoney(grandTotal.toString())} emphasis />
+        <SummaryCard label="Итого (RUB)" value={formatMoney(grandTotalRub.toString())} emphasis />
         <SummaryCard
           label="Остаток к оплате"
           value={formatMoney(balanceDue.toString())}
@@ -102,15 +125,18 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <CardTitle>Позиции сырья</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {editable && <PurchaseItemForm purchaseId={id} materials={materials} />}
+          {editable && (
+            <PurchaseItemForm purchaseId={id} materials={materials} currency={purchase.currency} />
+          )}
           <Table>
             <Thead>
               <Tr>
                 <Th>Сырьё</Th>
+                <Th>Лот</Th>
                 <Th>Сорт/цвет</Th>
                 <Th>Кол-во</Th>
                 <Th>Цена</Th>
-                <Th>Сумма</Th>
+                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
                 {editable && <Th></Th>}
               </Tr>
             </Thead>
@@ -118,12 +144,20 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               {purchase.items.map((item) => (
                 <Tr key={item.id}>
                   <Td>{item.rawMaterial.name}</Td>
+                  <Td>{item.lotNumber ?? "—"}</Td>
                   <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
                   <Td>
                     {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
                   </Td>
-                  <Td>{formatMoney(item.unitPrice.toString())}</Td>
-                  <Td>{formatMoney(item.subtotal.toString())}</Td>
+                  <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
+                  <Td>
+                    {formatMoney(item.subtotal.mul(purchase.exchangeRate).toString())}
+                    {isForeignCurrency && (
+                      <span className="ml-1 text-xs text-neutral-400">
+                        ({formatCurrency(item.subtotal.toString(), purchase.currency)})
+                      </span>
+                    )}
+                  </Td>
                   {editable && (
                     <Td>
                       <form
@@ -142,7 +176,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               ))}
               {purchase.items.length === 0 && (
                 <Tr>
-                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
                     Позиций пока нет
                   </Td>
                 </Tr>

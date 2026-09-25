@@ -9,15 +9,18 @@ import type { Warehouse } from "@prisma/client";
 const initialState: FormState = {};
 
 type ModelOption = { id: string; name: string };
+type ClientOption = { id: string; name: string };
 
 export function ProductionCreateForm({
   action,
   models,
   warehouses,
+  clients,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   models: ModelOption[];
   warehouses: Warehouse[];
+  clients: ClientOption[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const today = new Date().toISOString().slice(0, 10);
@@ -47,6 +50,14 @@ export function ProductionCreateForm({
         <Input id="startDate" name="startDate" type="date" defaultValue={today} />
       </div>
       <div>
+        <Label htmlFor="color">Цвет</Label>
+        <Input id="color" name="color" placeholder="Коричневый" />
+      </div>
+      <div>
+        <Label htmlFor="size">Размер</Label>
+        <Input id="size" name="size" placeholder="42, 44" />
+      </div>
+      <div>
         <Label htmlFor="rawWarehouseId">Склад сырья (списание)</Label>
         <Select id="rawWarehouseId" name="rawWarehouseId" required defaultValue={defaultWarehouse}>
           {warehouses.map((w) => (
@@ -66,6 +77,40 @@ export function ProductionCreateForm({
           ))}
         </Select>
       </div>
+
+      <div className="col-span-2 mt-2 border-t border-neutral-200 pt-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Заказчик и ТЗ (если производство по договору подряда)
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="clientId">Заказчик</Label>
+        <Select id="clientId" name="clientId" defaultValue="">
+          <option value="">Собственное производство</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="contractNumber">№ и дата договора подряда</Label>
+        <Input id="contractNumber" name="contractNumber" placeholder="№ 1605 от 16.05.2025" />
+      </div>
+      <div>
+        <Label htmlFor="workOrderNumber">№ ТЗ</Label>
+        <Input id="workOrderNumber" name="workOrderNumber" placeholder="141" />
+      </div>
+      <div>
+        <Label htmlFor="workOrderDate">Дата ТЗ</Label>
+        <Input id="workOrderDate" name="workOrderDate" type="date" />
+      </div>
+      <div>
+        <Label htmlFor="clientWorkPricePerUnit">Стоимость работ за ед., ₽ (для заказчика)</Label>
+        <Input id="clientWorkPricePerUnit" name="clientWorkPricePerUnit" type="number" step="0.01" min="0" />
+      </div>
+
       <div className="col-span-2">
         <Label htmlFor="notes">Заметки</Label>
         <Textarea id="notes" name="notes" rows={2} />

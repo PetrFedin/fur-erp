@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addMaterialUsage } from "../actions";
-import type { MaterialUnit } from "@prisma/client";
+import { formatMoney, formatQty } from "@/lib/utils";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -14,13 +14,34 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-type MaterialOption = { id: string; name: string; unit: MaterialUnit };
+export type LotOption = {
+  id: string;
+  lotNumber: string | null;
+  rawMaterialId: string;
+  rawMaterialName: string;
+  unit: string;
+  quantityRemaining: string;
+  unitCost: string;
+};
 
-export function UsageForm({ orderId, materials }: { orderId: string; materials: MaterialOption[] }) {
+export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [materialId, setMaterialId] = useState("");
   const bound = addMaterialUsage.bind(null, orderId);
+
+  const materials = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; unit: string }>();
+    for (const lot of lots) {
+      if (!seen.has(lot.rawMaterialId)) {
+        seen.set(lot.rawMaterialId, { id: lot.rawMaterialId, name: lot.rawMaterialName, unit: lot.unit });
+      }
+    }
+    return Array.from(seen.values());
+  }, [lots]);
+
+  const lotsForMaterial = lots.filter((l) => l.rawMaterialId === materialId);
 
   return (
     <form
@@ -29,20 +50,37 @@ export function UsageForm({ orderId, materials }: { orderId: string; materials: 
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
-          if (!result.error) formRef.current?.reset();
+          if (!result.error) {
+            formRef.current?.reset();
+            setMaterialId("");
+          }
         });
       }}
       className="grid grid-cols-4 items-end gap-2"
     >
-      <div className="col-span-2">
+      <div>
         <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
-        <Select name="rawMaterialId" required defaultValue="">
+        <Select value={materialId} onChange={(e) => setMaterialId(e.target.value)} required>
           <option value="" disabled>
             Выберите сырьё
           </option>
           {materials.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name} ({UNIT_LABELS[m.unit]})
+              {m.name} ({UNIT_LABELS[m.unit] ?? m.unit})
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">Лот</label>
+        <Select name="lotId" required defaultValue="" disabled={!materialId}>
+          <option value="" disabled>
+            {materialId ? "Выберите лот" : "Сначала выберите сырьё"}
+          </option>
+          {lotsForMaterial.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.lotNumber ?? "без номера"} — остаток {formatQty(l.quantityRemaining)} по{" "}
+              {formatMoney(l.unitCost)}
             </option>
           ))}
         </Select>
@@ -55,6 +93,9 @@ export function UsageForm({ orderId, materials }: { orderId: string; materials: 
         {pending ? "Списываем..." : "+ Списать"}
       </Button>
       {error && <p className="col-span-4 text-sm text-red-600">{error}</p>}
+      {materialId && lotsForMaterial.length === 0 && (
+        <p className="col-span-4 text-sm text-amber-600">Нет доступных лотов этого сырья на складе</p>
+      )}
     </form>
   );
 }

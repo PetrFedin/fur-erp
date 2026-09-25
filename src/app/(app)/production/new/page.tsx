@@ -6,7 +6,7 @@ import { ProductionCreateForm } from "./form";
 
 export default async function NewProductionOrderPage() {
   const session = await requireSession();
-  const [models, warehouses] = await Promise.all([
+  const [models, warehouses, clients] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
       select: { id: true, name: true },
@@ -14,6 +14,11 @@ export default async function NewProductionOrderPage() {
     }),
     prisma.warehouse.findMany({
       where: { organizationId: session.user.organizationId },
+      orderBy: { name: "asc" },
+    }),
+    prisma.client.findMany({
+      where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -25,7 +30,12 @@ export default async function NewProductionOrderPage() {
           <CardTitle>Новый производственный заказ</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProductionCreateForm action={createProductionOrder} models={models} warehouses={warehouses} />
+          <ProductionCreateForm
+            action={createProductionOrder}
+            models={models}
+            warehouses={warehouses}
+            clients={clients}
+          />
         </CardContent>
       </Card>
     </div>

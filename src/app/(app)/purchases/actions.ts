@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
-import { receiveRawMaterialStock } from "@/lib/stock";
+import { createRawMaterialLot } from "@/lib/stock";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -20,6 +20,7 @@ const purchaseSchema = z.object({
   supplierId: z.string().min(1, "Выберите поставщика"),
   warehouseId: z.string().min(1, "Выберите склад"),
   currency: z.string().trim().min(1).default("RUB"),
+  exchangeRate: z.coerce.number().positive("Курс должен быть больше 0").default(1),
   orderDate: z.string().min(1),
   expectedDate: z.string().optional(),
   notes: z.string().trim().optional(),
@@ -31,6 +32,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     supplierId: formData.get("supplierId"),
     warehouseId: formData.get("warehouseId"),
     currency: formData.get("currency") || "RUB",
+    exchangeRate: formData.get("exchangeRate") || 1,
     orderDate: formData.get("orderDate"),
     expectedDate: formData.get("expectedDate") || undefined,
     notes: formData.get("notes") || undefined,
@@ -46,6 +48,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         supplierId: parsed.data.supplierId,
         warehouseId: parsed.data.warehouseId,
         currency: parsed.data.currency,
+        exchangeRate: parsed.data.currency === "RUB" ? 1 : parsed.data.exchangeRate,
         orderDate: new Date(parsed.data.orderDate),
         expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : undefined,
         notes: parsed.data.notes,
@@ -56,6 +59,18 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
 
   revalidatePath("/purchases");
   redirect(`/purchases/${purchase.id}`);
+}
+
+export async function updatePurchaseExchangeRate(purchaseId: string, formData: FormData) {
+  const session = await requireRole(...EDIT_ROLES);
+  const rate = z.coerce.number().positive().safeParse(formData.get("exchangeRate"));
+  if (!rate.success) return;
+
+  await prisma.purchase.updateMany({
+    where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
+    data: { exchangeRate: rate.data },
+  });
+  revalidatePath(`/purchases/${purchaseId}`);
 }
 
 export async function setPurchaseStatus(
@@ -80,6 +95,7 @@ const itemSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите сырьё"),
   quantity: z.coerce.number().positive("Количество должно быть больше 0"),
   unitPrice: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
+  lotNumber: z.string().trim().optional(),
   grade: z.string().trim().optional(),
   color: z.string().trim().optional(),
 });
@@ -93,6 +109,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
     rawMaterialId: formData.get("rawMaterialId"),
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
+    lotNumber: formData.get("lotNumber") || undefined,
     grade: formData.get("grade") || undefined,
     color: formData.get("color") || undefined,
   });
@@ -107,6 +124,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
       quantity: parsed.data.quantity,
       unitPrice: parsed.data.unitPrice,
       subtotal,
+      lotNumber: parsed.data.lotNumber,
       grade: parsed.data.grade,
       color: parsed.data.color,
     },
@@ -216,25 +234,37 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
   if (purchase.items.length === 0) return { error: "В закупке нет позиций сырья" };
 
+  // Purchase expenses (customs, auction fees, dressing, transport, ...) are
+  // always recorded in RUB; item prices are in the purchase's currency and
+  // get converted here. Expenses are allocated across items proportionally
+  // by their (already-RUB) subtotal share, then rolled into that item's lot
+  // as a fixed landed cost — see src/lib/stock.ts.
   const totalExpenses = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
-  const totalItemsSubtotal = purchase.items.reduce((sum, i) => sum.add(i.subtotal), new Decimal(0));
+  const totalItemsSubtotalRub = purchase.items.reduce(
+    (sum, i) => sum.add(i.subtotal.mul(purchase.exchangeRate)),
+    new Decimal(0)
+  );
 
   await prisma.$transaction(async (tx) => {
     for (const item of purchase.items) {
-      const allocatedExpense = totalItemsSubtotal.isZero()
+      const subtotalRub = item.subtotal.mul(purchase.exchangeRate);
+      const allocatedExpense = totalItemsSubtotalRub.isZero()
         ? new Decimal(0)
-        : totalExpenses.mul(item.subtotal).div(totalItemsSubtotal);
-      const landedTotal = item.subtotal.add(allocatedExpense);
+        : totalExpenses.mul(subtotalRub).div(totalItemsSubtotalRub);
+      const landedTotal = subtotalRub.add(allocatedExpense);
 
-      await receiveRawMaterialStock(tx, {
+      await createRawMaterialLot(tx, {
         organizationId: session.user.organizationId,
         warehouseId: purchase.warehouseId,
         rawMaterialId: item.rawMaterialId,
+        lotNumber: item.lotNumber,
+        grade: item.grade,
+        color: item.color,
         quantity: item.quantity,
         unitCost: landedTotal.div(item.quantity),
         totalCost: landedTotal,
-        type: "PURCHASE_IN",
         purchaseId: purchase.id,
+        purchaseItemId: item.id,
       });
     }
 

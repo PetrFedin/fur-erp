@@ -1,118 +1,148 @@
 import "server-only";
-import type { Prisma, StockMovementType, FinishedGoodsMovementType } from "@prisma/client";
+import type { Prisma, FinishedGoodsMovementType } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 type Tx = Prisma.TransactionClient;
 
 /**
- * Records an incoming raw-material stock movement and rolls it into the
- * warehouse's moving weighted-average cost. Used for purchase receipts and
- * any other "material entered the warehouse" event.
+ * Creates a new raw-material lot from a received purchase item and logs the
+ * PURCHASE_IN movement. unitCost/totalCost must already be the landed RUB
+ * cost (item price converted via the purchase's exchange rate, plus this
+ * item's share of allocated purchase expenses) — see purchases/actions.ts.
+ * Each lot keeps its own fixed cost for the rest of its life; there is no
+ * blending with other lots of the same material.
  */
-export async function receiveRawMaterialStock(
+export async function createRawMaterialLot(
   tx: Tx,
   args: {
     organizationId: string;
     warehouseId: string;
     rawMaterialId: string;
+    lotNumber: string | null;
+    grade: string | null;
+    color: string | null;
     quantity: Prisma.Decimal | number;
     unitCost: Prisma.Decimal | number;
     totalCost: Prisma.Decimal | number;
-    type: Extract<StockMovementType, "PURCHASE_IN" | "ADJUSTMENT_IN" | "TRANSFER_IN">;
-    purchaseId?: string;
-    notes?: string;
+    purchaseId: string;
+    purchaseItemId: string;
   }
 ) {
-  await tx.stockMovement.create({
+  const quantity = toDecimal(args.quantity);
+  const unitCost = toDecimal(args.unitCost);
+  const totalCost = toDecimal(args.totalCost);
+
+  const lot = await tx.rawMaterialLot.create({
     data: {
       organizationId: args.organizationId,
       warehouseId: args.warehouseId,
       rawMaterialId: args.rawMaterialId,
-      type: args.type,
-      quantity: args.quantity,
-      unitCost: args.unitCost,
-      totalCost: args.totalCost,
+      lotNumber: args.lotNumber,
+      grade: args.grade,
+      color: args.color,
+      quantityReceived: quantity,
+      quantityRemaining: quantity,
+      unitCost,
+      totalCost,
       purchaseId: args.purchaseId,
-      notes: args.notes,
+      purchaseItemId: args.purchaseItemId,
     },
   });
 
-  const existing = await tx.rawMaterialStock.findUnique({
-    where: { warehouseId_rawMaterialId: { warehouseId: args.warehouseId, rawMaterialId: args.rawMaterialId } },
-  });
-
-  const qty = toDecimal(args.quantity);
-  const total = toDecimal(args.totalCost);
-
-  if (!existing) {
-    await tx.rawMaterialStock.create({
-      data: {
-        organizationId: args.organizationId,
-        warehouseId: args.warehouseId,
-        rawMaterialId: args.rawMaterialId,
-        quantity: qty,
-        avgUnitCost: qty.isZero() ? 0 : total.div(qty),
-      },
-    });
-    return;
-  }
-
-  const newQuantity = existing.quantity.add(qty);
-  const newTotalValue = existing.quantity.mul(existing.avgUnitCost).add(total);
-  const newAvgCost = newQuantity.isZero() ? existing.avgUnitCost : newTotalValue.div(newQuantity);
-
-  await tx.rawMaterialStock.update({
-    where: { id: existing.id },
-    data: { quantity: newQuantity, avgUnitCost: newAvgCost },
-  });
-}
-
-/** Consumes raw-material stock at its current weighted-average cost. Throws if insufficient. */
-export async function consumeRawMaterialStock(
-  tx: Tx,
-  args: {
-    organizationId: string;
-    warehouseId: string;
-    rawMaterialId: string;
-    quantity: Prisma.Decimal | number;
-    type: Extract<StockMovementType, "PRODUCTION_OUT" | "ADJUSTMENT_OUT" | "TRANSFER_OUT">;
-    productionOrderId?: string;
-    notes?: string;
-  }
-) {
-  const existing = await tx.rawMaterialStock.findUnique({
-    where: { warehouseId_rawMaterialId: { warehouseId: args.warehouseId, rawMaterialId: args.rawMaterialId } },
-  });
-
-  const qty = toDecimal(args.quantity);
-  if (!existing || existing.quantity.lessThan(qty)) {
-    const available = existing?.quantity.toString() ?? "0";
-    throw new Error(`Недостаточно сырья на складе (доступно: ${available})`);
-  }
-
-  const unitCost = existing.avgUnitCost;
-  const totalCost = unitCost.mul(qty);
-
   await tx.stockMovement.create({
     data: {
       organizationId: args.organizationId,
       warehouseId: args.warehouseId,
       rawMaterialId: args.rawMaterialId,
-      type: args.type,
-      quantity: qty,
+      lotId: lot.id,
+      type: "PURCHASE_IN",
+      quantity,
       unitCost,
+      totalCost,
+      purchaseId: args.purchaseId,
+    },
+  });
+
+  return lot;
+}
+
+/** Consumes a quantity from a specific lot at that lot's fixed unit cost. Throws if insufficient. */
+export async function consumeFromLot(
+  tx: Tx,
+  args: {
+    organizationId: string;
+    lotId: string;
+    quantity: Prisma.Decimal | number;
+    productionOrderId: string;
+    notes?: string;
+  }
+) {
+  const lot = await tx.rawMaterialLot.findUnique({ where: { id: args.lotId } });
+  const qty = toDecimal(args.quantity);
+  if (!lot || lot.organizationId !== args.organizationId) {
+    throw new Error("Лот не найден");
+  }
+  if (lot.quantityRemaining.lessThan(qty)) {
+    throw new Error(
+      `Недостаточно сырья в лоте ${lot.lotNumber ?? lot.id} (доступно: ${lot.quantityRemaining.toString()})`
+    );
+  }
+
+  const totalCost = lot.unitCost.mul(qty);
+
+  await tx.stockMovement.create({
+    data: {
+      organizationId: args.organizationId,
+      warehouseId: lot.warehouseId,
+      rawMaterialId: lot.rawMaterialId,
+      lotId: lot.id,
+      type: "PRODUCTION_OUT",
+      quantity: qty,
+      unitCost: lot.unitCost,
       totalCost,
       productionOrderId: args.productionOrderId,
       notes: args.notes,
     },
   });
 
-  await tx.rawMaterialStock.update({
-    where: { id: existing.id },
-    data: { quantity: existing.quantity.sub(qty) },
+  await tx.rawMaterialLot.update({
+    where: { id: lot.id },
+    data: { quantityRemaining: lot.quantityRemaining.sub(qty) },
   });
 
-  return { unitCost, totalCost };
+  return { unitCost: lot.unitCost, totalCost, warehouseId: lot.warehouseId, rawMaterialId: lot.rawMaterialId };
+}
+
+/** Reverses a consumption (e.g. deleting a ProductionMaterialUsage line): returns quantity to its lot. */
+export async function returnToLot(
+  tx: Tx,
+  args: { organizationId: string; lotId: string; quantity: Prisma.Decimal | number; notes?: string }
+) {
+  const lot = await tx.rawMaterialLot.findUnique({ where: { id: args.lotId } });
+  if (!lot || lot.organizationId !== args.organizationId) {
+    throw new Error("Лот не найден");
+  }
+  const qty = toDecimal(args.quantity);
+  const totalCost = lot.unitCost.mul(qty);
+
+  await tx.stockMovement.create({
+    data: {
+      organizationId: args.organizationId,
+      warehouseId: lot.warehouseId,
+      rawMaterialId: lot.rawMaterialId,
+      lotId: lot.id,
+      type: "ADJUSTMENT_IN",
+      quantity: qty,
+      unitCost: lot.unitCost,
+      totalCost,
+      notes: args.notes ?? "Отмена списания в производство",
+    },
+  });
+
+  await tx.rawMaterialLot.update({
+    where: { id: lot.id },
+    data: { quantityRemaining: lot.quantityRemaining.add(qty) },
+  });
 }
 
 /** Records finished goods entering a warehouse (e.g. from production) and updates the weighted average. */

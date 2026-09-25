@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "../actions";
@@ -18,6 +18,7 @@ export function PurchaseCreateForm({
   warehouses: Warehouse[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [currency, setCurrency] = useState("RUB");
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -49,9 +50,32 @@ export function PurchaseCreateForm({
         </Select>
       </div>
       <div>
-        <Label htmlFor="currency">Валюта</Label>
-        <Input id="currency" name="currency" defaultValue="RUB" />
+        <Label htmlFor="currency">Валюта позиций</Label>
+        <Select
+          id="currency"
+          name="currency"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
+        >
+          <option value="RUB">RUB — рубль</option>
+          <option value="USD">USD — доллар</option>
+          <option value="EUR">EUR — евро</option>
+        </Select>
       </div>
+      {currency !== "RUB" && (
+        <div>
+          <Label htmlFor="exchangeRate">Курс {currency} → RUB на дату сделки</Label>
+          <Input
+            id="exchangeRate"
+            name="exchangeRate"
+            type="number"
+            step="0.0001"
+            min="0"
+            required
+            placeholder="например, 79.75"
+          />
+        </div>
+      )}
       <div>
         <Label htmlFor="orderDate">Дата заказа</Label>
         <Input id="orderDate" name="orderDate" type="date" defaultValue={today} required />
