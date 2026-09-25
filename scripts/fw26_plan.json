@@ -1,0 +1,1129 @@
+{
+  "purchases": [
+    {
+      "key": "fw26-SAGA 03-26-0534-002",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "0534-002",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "740503",
+          "materialName": "SWAKARA WHITE REG_FLAT_SILV",
+          "quantity": 122.0,
+          "unitCostInclVat": 24636.68605049896
+        },
+        {
+          "lotNumber": "740504",
+          "materialName": "SWAKARA WHITE REG_FLAT_GOLD",
+          "quantity": 137.0,
+          "unitCostInclVat": 23277.03341409657
+        },
+        {
+          "lotNumber": "740505",
+          "materialName": "SWAKARA WHITE REG_FLAT_PLAT",
+          "quantity": 157.0,
+          "unitCostInclVat": 27356.229317243735
+        },
+        {
+          "lotNumber": "740506",
+          "materialName": "SWAKARA WHITE REG_FLAT_PLAT",
+          "quantity": 100.0,
+          "unitCostInclVat": 27356.229317243735
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-1057-001",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "1057-001",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "355159",
+          "materialName": "MINK WHITE M SR C2 VELV1",
+          "quantity": 211.0,
+          "unitCostInclVat": 10880.750465400186
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-0170-003",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "0170-003",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "500083",
+          "materialName": "AM. MINK BLACK M REG BLACK_ ROYB C1 VELV2",
+          "quantity": 205.0,
+          "unitCostInclVat": 13343.237827740168
+        },
+        {
+          "lotNumber": "500084",
+          "materialName": "AM. MINK BLACK M REG BLACK_ ROYB C1 VELV2",
+          "quantity": 180.0,
+          "unitCostInclVat": 13074.247361839674
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-0171-003",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "0171-003",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "503134",
+          "materialName": "AM. MINK BROWN M REG XD GOLD C1/2 VELV1",
+          "quantity": 205.0,
+          "unitCostInclVat": 9862.402802668037
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-0002-003",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "0002-003",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "400101",
+          "materialName": "MINK BROWN F REG DK SR С1 VELV1",
+          "quantity": 329.0,
+          "unitCostInclVat": 10661.27148934019
+        },
+        {
+          "lotNumber": "400102",
+          "materialName": "MINK BROWN F REG DK SR С2 VELV1",
+          "quantity": 385.0,
+          "unitCostInclVat": 9819.14242822019
+        },
+        {
+          "lotNumber": "400103",
+          "materialName": "MINK BROWN F REG DK SR С2 VELV1",
+          "quantity": 360.0,
+          "unitCostInclVat": 9819.14242822019
+        },
+        {
+          "lotNumber": "400104",
+          "materialName": "MINK BROWN F REG DK SR С2 VELV1",
+          "quantity": 330.0,
+          "unitCostInclVat": 9819.14242822019
+        },
+        {
+          "lotNumber": "400105",
+          "materialName": "MINK BROWN F REG DK SR С2 VELV1",
+          "quantity": 68.0,
+          "unitCostInclVat": 9684.409201329945
+        },
+        {
+          "lotNumber": "400440",
+          "materialName": "MINK BROWN F REG MED SR С2 VELV1",
+          "quantity": 277.0,
+          "unitCostInclVat": 9404.409201329945
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-0282-003",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "0282-003",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "300234",
+          "materialName": "BROWN M REG DK SR C2 VELV2",
+          "quantity": 165.0,
+          "unitCostInclVat": 13859.503594846694
+        },
+        {
+          "lotNumber": "300235",
+          "materialName": "BROWN M REG DK SR C2 VELV2",
+          "quantity": 140.0,
+          "unitCostInclVat": 13859.503594846694
+        },
+        {
+          "lotNumber": "300687",
+          "materialName": "BROWN M REG 2XDK SR С1 VELV1",
+          "quantity": 110.0,
+          "unitCostInclVat": 12245.084811563753
+        }
+      ]
+    },
+    {
+      "key": "fw26-SAGA 03-26-1885-001",
+      "supplierName": "SAGA Furs",
+      "auctionSession": "SAGA 03-26",
+      "invoiceNumber": "1885-001",
+      "orderDate": "2026-03-01",
+      "lots": [
+        {
+          "lotNumber": "165270",
+          "materialName": "REG_DK/MED_SR SILK С1/2",
+          "quantity": 87.0,
+          "unitCostInclVat": 18064.23422980828
+        }
+      ]
+    },
+    {
+      "key": "fw26-ООО «Веллмех» СПЕЦИФИКАЦИЯ № 18\nот «01» июля 2026 г.\nк Договору купли-продажи № 2502 от «26» февраля 2025 г.-0278-003",
+      "supplierName": "ООО «Веллмех»",
+      "auctionSession": "ООО «Веллмех» СПЕЦИФИКАЦИЯ № 18\nот «01» июля 2026 г.\nк Договору купли-продажи № 2502 от «26» февраля 2025 г.",
+      "invoiceNumber": "0278-003",
+      "orderDate": "2026-06-01",
+      "lots": [
+        {
+          "lotNumber": "302127",
+          "materialName": "MINK BROWN M REG XD SAGA C2 LNAP (+ под роспуск)",
+          "quantity": 225.0,
+          "unitCostInclVat": 10153.294698980037
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4079",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4079",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "1",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "2",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "3",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "4",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.2 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 35687.676024508684
+        },
+        {
+          "lotNumber": "5",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.2 -",
+          "quantity": 53.0,
+          "unitCostInclVat": 32642.693242438687
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4080",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4080",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "18",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 1.3 -",
+          "quantity": 60.0,
+          "unitCostInclVat": 35687.676024508684
+        },
+        {
+          "lotNumber": "19",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 1.3 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 35687.676024508684
+        },
+        {
+          "lotNumber": "20",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.1 -",
+          "quantity": 50.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "21",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.1 -",
+          "quantity": 50.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "23",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.1 -",
+          "quantity": 50.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "26",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.2 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "27",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.2 -",
+          "quantity": 55.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "30",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.2 -",
+          "quantity": 50.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "32",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.3 -",
+          "quantity": 45.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "33",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 2.3 -",
+          "quantity": 45.0,
+          "unitCostInclVat": 34672.681763818684
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4081",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4081",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "51",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 SIL.1",
+          "quantity": 50.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "52",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 SIL.1",
+          "quantity": 48.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "53",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.1 SIL.1",
+          "quantity": 45.0,
+          "unitCostInclVat": 38732.658806578685
+        },
+        {
+          "lotNumber": "54",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.2 SIL.1",
+          "quantity": 45.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "55",
+          "materialName": "Sable  wild raw Barguzinsky XXL 2 - 1.2 SIL.1",
+          "quantity": 45.0,
+          "unitCostInclVat": 38732.658806578685
+        },
+        {
+          "lotNumber": "59",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 1.2 SIL.1",
+          "quantity": 60.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "60",
+          "materialName": "Sable  wild raw Barguzinsky XXL 3 - 1.2 SIL.1",
+          "quantity": 55.0,
+          "unitCostInclVat": 39747.65306726867
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4083",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4083",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "1501",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 2 - 1.1 SIL.2",
+          "quantity": 47.0,
+          "unitCostInclVat": 45837.61863140868
+        },
+        {
+          "lotNumber": "1502",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 2 - 1.2 SIL.2",
+          "quantity": 36.0,
+          "unitCostInclVat": 44822.62437071868
+        },
+        {
+          "lotNumber": "1508",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 - 2.1 SIL.2",
+          "quantity": 55.0,
+          "unitCostInclVat": 43807.63011002868
+        },
+        {
+          "lotNumber": "1509",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 - 2.1 SIL.2",
+          "quantity": 55.0,
+          "unitCostInclVat": 43807.63011002868
+        },
+        {
+          "lotNumber": "1510",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 - 2.1 SIL.2",
+          "quantity": 54.0,
+          "unitCostInclVat": 43807.63011002868
+        },
+        {
+          "lotNumber": "1525",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 - 1.1 SIL.3",
+          "quantity": 48.0,
+          "unitCostInclVat": 57002.555498998685
+        },
+        {
+          "lotNumber": "1526",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 - 1.1 SIL.3",
+          "quantity": 45.0,
+          "unitCostInclVat": 57002.555498998685
+        },
+        {
+          "lotNumber": "1572",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 2 a 1.1 SIL.2",
+          "quantity": 50.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "1573",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 2 a 1.2 SIL.2",
+          "quantity": 58.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "1587",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 2 a 1.1 SIL.3",
+          "quantity": 42.0,
+          "unitCostInclVat": 48882.60141347868
+        },
+        {
+          "lotNumber": "1589",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 3 a 1.1 SIL.3",
+          "quantity": 30.0,
+          "unitCostInclVat": 50912.589934858675
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4084",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4084",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "2001",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.1 SIL.3",
+          "quantity": 22.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "2002",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.2 SIL.3",
+          "quantity": 17.0,
+          "unitCostInclVat": 39747.65306726867
+        },
+        {
+          "lotNumber": "2003",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.3 SIL.3",
+          "quantity": 23.0,
+          "unitCostInclVat": 38732.658806578685
+        },
+        {
+          "lotNumber": "2004",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 2.2 SIL.3",
+          "quantity": 21.0,
+          "unitCostInclVat": 38732.658806578685
+        },
+        {
+          "lotNumber": "2005",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 3.1 SIL.3",
+          "quantity": 49.0,
+          "unitCostInclVat": 38732.658806578685
+        },
+        {
+          "lotNumber": "2016",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.2 SIL.4",
+          "quantity": 17.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2017",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.3 SIL.4",
+          "quantity": 13.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2025",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.1 SIL.5",
+          "quantity": 13.0,
+          "unitCostInclVat": 42792.63584933869
+        },
+        {
+          "lotNumber": "2027",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 2.2 SIL.5",
+          "quantity": 18.0,
+          "unitCostInclVat": 41777.64158864869
+        },
+        {
+          "lotNumber": "2030",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 - 1.2 SIL.6",
+          "quantity": 19.0,
+          "unitCostInclVat": 45837.61863140868
+        },
+        {
+          "lotNumber": "2065",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 1.1 SIL.4",
+          "quantity": 11.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "2067",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 1.3 SIL.4",
+          "quantity": 29.0,
+          "unitCostInclVat": 33657.68750312868
+        },
+        {
+          "lotNumber": "2068",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 2.1 SIL.4",
+          "quantity": 14.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "2070",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 2.3 SIL.4",
+          "quantity": 15.0,
+          "unitCostInclVat": 33657.68750312868
+        },
+        {
+          "lotNumber": "2076",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 2.2 SIL.5",
+          "quantity": 7.0,
+          "unitCostInclVat": 38732.658806578685
+        }
+      ]
+    },
+    {
+      "key": "fw26-Закупка меха 04-26-4085",
+      "supplierName": "Закупка мехового сырья FW26 (поставщик не указан в отчёте)",
+      "auctionSession": "Закупка меха 04-26",
+      "invoiceNumber": "4085",
+      "orderDate": "2026-04-01",
+      "lots": [
+        {
+          "lotNumber": "2077",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 7 a 2.3 SIL.5",
+          "quantity": 7.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2125",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 1.1 SIL.3",
+          "quantity": 21.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "2126",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 1.2 SIL.3",
+          "quantity": 35.0,
+          "unitCostInclVat": 34672.681763818684
+        },
+        {
+          "lotNumber": "2135",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 1.2 SIL.4",
+          "quantity": 10.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2137",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 2.1 SIL.4",
+          "quantity": 56.0,
+          "unitCostInclVat": 40762.64732795868
+        },
+        {
+          "lotNumber": "2138",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 2.2 SIL.4",
+          "quantity": 38.0,
+          "unitCostInclVat": 40762.64732795868
+        },
+        {
+          "lotNumber": "2144",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 1.3 SIL.5",
+          "quantity": 20.0,
+          "unitCostInclVat": 40762.64732795868
+        },
+        {
+          "lotNumber": "2145",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 2.1 SIL.5",
+          "quantity": 12.0,
+          "unitCostInclVat": 40762.64732795868
+        },
+        {
+          "lotNumber": "2146",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 - 2.2 SIL.5",
+          "quantity": 20.0,
+          "unitCostInclVat": 40762.64732795868
+        },
+        {
+          "lotNumber": "2175",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 a 1.2 SIL.4",
+          "quantity": 59.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2182",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 a 1.1 SIL.5",
+          "quantity": 9.0,
+          "unitCostInclVat": 37717.664545888685
+        },
+        {
+          "lotNumber": "2183",
+          "materialName": "Sable  wild raw Barguzinsky Silvery XXL,XL 8 a 1.2 SIL.5",
+          "quantity": 14.0,
+          "unitCostInclVat": 37717.664545888685
+        }
+      ]
+    },
+    {
+      "key": "fw26-СОЮЗПУШНИНА 05-26-2020",
+      "supplierName": "Союзпушнина",
+      "auctionSession": "СОЮЗПУШНИНА 05-26",
+      "invoiceNumber": "2020",
+      "orderDate": "2026-05-01",
+      "lots": [
+        {
+          "lotNumber": "19",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 63.0,
+          "unitCostInclVat": 35945.93188016868
+        },
+        {
+          "lotNumber": "20",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 78.0,
+          "unitCostInclVat": 34980.15241574868
+        },
+        {
+          "lotNumber": "22",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 50.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "23",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 47.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "24",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 47.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "25",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 45.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "26",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 45.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "27",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 45.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "39",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 60.0,
+          "unitCostInclVat": 33048.593486908685
+        }
+      ]
+    },
+    {
+      "key": "fw26-СОЮЗПУШНИНА 05-26-2019",
+      "supplierName": "Союзпушнина",
+      "auctionSession": "СОЮЗПУШНИНА 05-26",
+      "invoiceNumber": "2019",
+      "orderDate": "2026-05-01",
+      "lots": [
+        {
+          "lotNumber": "3275",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 100.0,
+          "unitCostInclVat": 38843.27027342868
+        },
+        {
+          "lotNumber": "3278",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 95.0,
+          "unitCostInclVat": 38843.27027342868
+        },
+        {
+          "lotNumber": "3279",
+          "materialName": "Sable wild raw Barguzinsky",
+          "quantity": 95.0,
+          "unitCostInclVat": 38843.27027342868
+        }
+      ]
+    },
+    {
+      "key": "fw26-FH 06-26-32324",
+      "supplierName": "Fur Harvesters Auction (FH)",
+      "auctionSession": "FH 06-26",
+      "invoiceNumber": "32324",
+      "orderDate": "2026-06-01",
+      "lots": [
+        {
+          "lotNumber": "70101",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 193578.905576
+        },
+        {
+          "lotNumber": "70102",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70103",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70106",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 193578.905576
+        },
+        {
+          "lotNumber": "70108",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70111",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 271921.968416
+        },
+        {
+          "lotNumber": "70113",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 204770.771696
+        },
+        {
+          "lotNumber": "70115",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70116",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70117",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70119",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 193578.905576
+        },
+        {
+          "lotNumber": "70125",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70140",
+          "materialName": "lynx cat",
+          "quantity": 12.0,
+          "unitCostInclVat": 204770.771696
+        },
+        {
+          "lotNumber": "70141",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70142",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70146",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 193578.905576
+        },
+        {
+          "lotNumber": "70151",
+          "materialName": "lynx cat",
+          "quantity": 10.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70153",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70154",
+          "materialName": "lynx cat",
+          "quantity": 12.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70157",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 204770.771696
+        },
+        {
+          "lotNumber": "70160",
+          "materialName": "lynx cat",
+          "quantity": 13.0,
+          "unitCostInclVat": 171195.173336
+        },
+        {
+          "lotNumber": "70197",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 104043.976605
+        },
+        {
+          "lotNumber": "70201",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 115235.842725
+        },
+        {
+          "lotNumber": "70203",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 126427.708856
+        },
+        {
+          "lotNumber": "70204",
+          "materialName": "lynx cat",
+          "quantity": 3.0,
+          "unitCostInclVat": 104043.976605
+        },
+        {
+          "lotNumber": "70205",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 115235.842725
+        },
+        {
+          "lotNumber": "70212",
+          "materialName": "lynx cat",
+          "quantity": 11.0,
+          "unitCostInclVat": 115235.842725
+        },
+        {
+          "lotNumber": "70213",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 115235.842725
+        },
+        {
+          "lotNumber": "70270",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 238346.370056
+        },
+        {
+          "lotNumber": "70272",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 271921.968416
+        },
+        {
+          "lotNumber": "70278",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70284",
+          "materialName": "lynx cat",
+          "quantity": 3.0,
+          "unitCostInclVat": 271921.968416
+        },
+        {
+          "lotNumber": "70288",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70298",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70299",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 316689.432896
+        },
+        {
+          "lotNumber": "70300",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 283113.834536
+        },
+        {
+          "lotNumber": "70303",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 283113.834536
+        },
+        {
+          "lotNumber": "70304",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70311",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70312",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70313",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70318",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70322",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 271921.968416
+        },
+        {
+          "lotNumber": "70325",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 260730.1022960001
+        },
+        {
+          "lotNumber": "70337",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70368",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 316689.432896
+        },
+        {
+          "lotNumber": "70369",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 316689.432896
+        },
+        {
+          "lotNumber": "70376",
+          "materialName": "lynx cat",
+          "quantity": 6.0,
+          "unitCostInclVat": 204770.771696
+        },
+        {
+          "lotNumber": "70378",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70382",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70384",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70385",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70387",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70389",
+          "materialName": "lynx cat",
+          "quantity": 9.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70391",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70418",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 283113.834536
+        },
+        {
+          "lotNumber": "70420",
+          "materialName": "lynx cat",
+          "quantity": 3.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70518",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 316689.432896
+        },
+        {
+          "lotNumber": "70528",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70530",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 260730.1022960001
+        },
+        {
+          "lotNumber": "70531",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 316689.432896
+        },
+        {
+          "lotNumber": "70539",
+          "materialName": "lynx cat",
+          "quantity": 8.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70541",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70542",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 238346.370056
+        },
+        {
+          "lotNumber": "70546",
+          "materialName": "lynx cat",
+          "quantity": 10.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70547",
+          "materialName": "lynx cat",
+          "quantity": 4.0,
+          "unitCostInclVat": 305497.566776
+        },
+        {
+          "lotNumber": "70586",
+          "materialName": "lynx cat",
+          "quantity": 10.0,
+          "unitCostInclVat": 215962.6378160001
+        },
+        {
+          "lotNumber": "70588",
+          "materialName": "lynx cat",
+          "quantity": 10.0,
+          "unitCostInclVat": 227154.503936
+        },
+        {
+          "lotNumber": "70590",
+          "materialName": "lynx cat",
+          "quantity": 5.0,
+          "unitCostInclVat": 249538.236176
+        },
+        {
+          "lotNumber": "70591",
+          "materialName": "lynx cat",
+          "quantity": 7.0,
+          "unitCostInclVat": 294305.700656
+        },
+        {
+          "lotNumber": "70592",
+          "materialName": "lynx cat",
+          "quantity": 4.0,
+          "unitCostInclVat": 215962.6378160001
+        }
+      ]
+    }
+  ]
+}

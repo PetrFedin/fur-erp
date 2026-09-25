@@ -13,18 +13,36 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info"
   CANCELLED: { label: "Отменён", variant: "danger" },
 };
 
-export default async function ProductionPage() {
+export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
-  const orders = await prisma.productionOrder.findMany({
-    where: { organizationId: session.user.organizationId },
-    include: { productModel: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const sp = await searchParams;
+  const modelId = typeof sp.model === "string" ? sp.model : "";
+
+  const [orders, filterModel] = await Promise.all([
+    prisma.productionOrder.findMany({
+      where: { organizationId: session.user.organizationId, ...(modelId ? { productModelId: modelId } : {}) },
+      include: { productModel: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    modelId
+      ? prisma.productModel.findFirst({ where: { id: modelId, organizationId: session.user.organizationId } })
+      : null,
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Производственные заказы</h1>
+        <h1 className="text-xl font-semibold">
+          Производственные заказы
+          {filterModel && (
+            <span className="ml-2 text-base font-normal text-neutral-500">
+              — {filterModel.name}{" "}
+              <Link href="/production" className="text-sm text-neutral-400 hover:underline">
+                (сбросить фильтр)
+              </Link>
+            </span>
+          )}
+        </h1>
         <Link href="/production/new" className={buttonVariants()}>
           + Новый заказ
         </Link>

@@ -93,7 +93,15 @@ export default async function ArticlesPage() {
               </Td>
               <Td>{r.sku ?? "—"}</Td>
               <Td>{formatQty(r.totalProduced.toString())} шт.</Td>
-              <Td>{r.avgUnitCost ? formatMoney(r.avgUnitCost.toString()) : "—"}</Td>
+              <Td>
+                {r.avgUnitCost ? (
+                  <Link href={`/production?model=${r.id}`} className="text-neutral-900 hover:underline" title="Смотреть ТЗ, из которых сложилась себестоимость">
+                    {formatMoney(r.avgUnitCost.toString())}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </Td>
               <Td>
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} />
               </Td>
