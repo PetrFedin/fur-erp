@@ -7,7 +7,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
-import { MonthlyPurchasesChart, ExpenseBreakdownChart, ModelCostChart } from "./charts";
+import { MonthlyPurchasesChart } from "./charts";
 
 const MONTH_NAMES = [
   "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
@@ -34,8 +34,6 @@ export default async function DashboardPage() {
     finishedStock,
     recentPurchases,
     allPurchases,
-    purchaseExpensesByCategory,
-    productionExpensesByCategory,
     completedOrders,
     openPurchasesWithPayments,
     lowStockMaterials,
@@ -52,16 +50,6 @@ export default async function DashboardPage() {
     prisma.purchase.findMany({
       where: { organizationId },
       include: { items: true, expenses: true },
-    }),
-    prisma.purchaseExpense.groupBy({
-      by: ["categoryId"],
-      where: { purchase: { organizationId } },
-      _sum: { amount: true },
-    }),
-    prisma.productionExpense.groupBy({
-      by: ["categoryId"],
-      where: { productionOrder: { organizationId } },
-      _sum: { amount: true },
     }),
     prisma.productionOrder.findMany({
       where: { organizationId, status: "COMPLETED" },
@@ -113,38 +101,6 @@ export default async function DashboardPage() {
     const bucket = monthBuckets.find((b) => b.month === label);
     if (bucket) bucket.total += total;
   }
-
-  // Expense breakdown by category (purchase + production combined)
-  const categoryIds = [
-    ...purchaseExpensesByCategory.map((c) => c.categoryId),
-    ...productionExpensesByCategory.map((c) => c.categoryId),
-  ];
-  const categories = await prisma.expenseCategory.findMany({ where: { id: { in: categoryIds } } });
-  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-  const expenseTotals = new Map<string, number>();
-  for (const row of purchaseExpensesByCategory) {
-    const name = categoryMap.get(row.categoryId) ?? "—";
-    expenseTotals.set(name, (expenseTotals.get(name) ?? 0) + Number(row._sum.amount ?? 0));
-  }
-  for (const row of productionExpensesByCategory) {
-    const name = categoryMap.get(row.categoryId) ?? "—";
-    expenseTotals.set(name, (expenseTotals.get(name) ?? 0) + Number(row._sum.amount ?? 0));
-  }
-  const expenseBreakdown = Array.from(expenseTotals.entries()).map(([name, value]) => ({ name, value }));
-
-  // Model unit cost (average across completed orders)
-  const modelCostMap = new Map<string, { total: number; count: number }>();
-  for (const o of completedOrders) {
-    if (!o.unitCost) continue;
-    const entry = modelCostMap.get(o.productModel.name) ?? { total: 0, count: 0 };
-    entry.total += Number(o.unitCost);
-    entry.count += 1;
-    modelCostMap.set(o.productModel.name, entry);
-  }
-  const modelCosts = Array.from(modelCostMap.entries()).map(([name, { total, count }]) => ({
-    name,
-    unitCost: Math.round(total / count),
-  }));
 
   // Supplier balance due
   const supplierBalances = openPurchasesWithPayments
@@ -284,31 +240,12 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Закупки по месяцам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MonthlyPurchasesChart data={monthBuckets} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Структура расходов по статьям</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ExpenseBreakdownChart data={expenseBreakdown} />
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Себестоимость за единицу по моделям</CardTitle>
+          <CardTitle>Закупки по месяцам</CardTitle>
         </CardHeader>
         <CardContent>
-          <ModelCostChart data={modelCosts} />
+          <MonthlyPurchasesChart data={monthBuckets} />
         </CardContent>
       </Card>
 
