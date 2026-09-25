@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { MonthlyPurchasesChart, ExpenseBreakdownChart, ModelCostChart } from "./charts";
 
@@ -75,9 +76,7 @@ export default async function DashboardPage() {
     monthBuckets.push({ month: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, total: 0 });
   }
   for (const p of recentPurchases) {
-    const itemsTotalRub = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate);
-    const expensesTotal = p.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-    const total = itemsTotalRub.add(expensesTotal).toNumber();
+    const total = purchaseTotalInclVat(p).toNumber();
     const d = new Date(p.orderDate);
     const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
     const bucket = monthBuckets.find((b) => b.month === label);
@@ -119,9 +118,7 @@ export default async function DashboardPage() {
   // Supplier balance due
   const supplierBalances = openPurchasesWithPayments
     .map((p) => {
-      const itemsTotalRub = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate);
-      const expensesTotal = p.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-      const total = itemsTotalRub.add(expensesTotal);
+      const total = purchaseTotalInclVat(p);
       const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
       return { supplier: p.supplier.name, purchaseNumber: p.number, due: total.sub(paid) };
     })
@@ -154,15 +151,7 @@ export default async function DashboardPage() {
         <KpiCard
           label="Закупок за 6 мес."
           value={formatMoney(
-            recentPurchases
-              .reduce(
-                (s, p) =>
-                  s
-                    .add(p.items.reduce((a, i) => a.add(i.subtotal), new Decimal(0)).mul(p.exchangeRate))
-                    .add(p.expenses.reduce((a, e) => a.add(e.amount), new Decimal(0))),
-                new Decimal(0)
-              )
-              .toString()
+            recentPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0)).toString()
           )}
         />
         <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />

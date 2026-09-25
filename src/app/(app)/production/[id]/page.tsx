@@ -10,6 +10,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { UsageForm, type LotOption } from "./usage-form";
 import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
+import { RetailPriceForm } from "./retail-price-form";
 import { removeMaterialUsage, removeProductionExpense } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -67,6 +68,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const lotOptions: LotOption[] = availableLots.map((l) => ({
     id: l.id,
     lotNumber: l.lotNumber,
+    grade: l.grade,
+    color: l.color,
     rawMaterialId: l.rawMaterialId,
     rawMaterialName: l.rawMaterial.name,
     unit: l.rawMaterial.unit,
@@ -83,6 +86,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const clientRevenue = order.clientWorkPricePerUnit
     ? order.clientWorkPricePerUnit.mul(producedOrPlanned)
     : null;
+
+  // unitCost is fixed once the order completes; while in progress, estimate
+  // from costs booked so far so retail pricing can be planned ahead of time.
+  const estimatedUnitCost = order.unitCost ?? (producedOrPlanned.isZero() ? new Decimal(0) : projectedTotal.div(producedOrPlanned));
+  const markup =
+    order.retailPrice && estimatedUnitCost.greaterThan(0) ? order.retailPrice.div(estimatedUnitCost) : null;
 
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
@@ -139,6 +148,26 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           />
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Розничная цена и маркап</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
+          <div className="grid grid-cols-3 gap-3">
+            <SummaryCard
+              label={order.unitCost ? "Себестоимость за ед." : "Себестоимость за ед. (оценка)"}
+              value={formatMoney(estimatedUnitCost.toString())}
+            />
+            <SummaryCard
+              label="Розничная цена"
+              value={order.retailPrice ? formatMoney(order.retailPrice.toString()) : "—"}
+            />
+            <SummaryCard label="Маркап" value={markup ? `×${markup.toFixed(2)}` : "—"} emphasis />
+          </div>
+        </CardContent>
+      </Card>
 
       {order.productModel.materials.length > 0 && (
         <Card>

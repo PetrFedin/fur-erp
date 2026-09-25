@@ -95,6 +95,7 @@ const itemSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите сырьё"),
   quantity: z.coerce.number().positive("Количество должно быть больше 0"),
   unitPrice: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
+  vatRate: z.coerce.number().min(0, "Ставка НДС не может быть отрицательной").max(100, "Некорректная ставка НДС"),
   lotNumber: z.string().trim().optional(),
   grade: z.string().trim().optional(),
   color: z.string().trim().optional(),
@@ -109,6 +110,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
     rawMaterialId: formData.get("rawMaterialId"),
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
+    vatRate: formData.get("vatRate") ?? 20,
     lotNumber: formData.get("lotNumber") || undefined,
     grade: formData.get("grade") || undefined,
     color: formData.get("color") || undefined,
@@ -124,6 +126,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
       quantity: parsed.data.quantity,
       unitPrice: parsed.data.unitPrice,
       subtotal,
+      vatRate: parsed.data.vatRate,
       lotNumber: parsed.data.lotNumber,
       grade: parsed.data.grade,
       color: parsed.data.color,
@@ -147,6 +150,7 @@ export async function removePurchaseItem(purchaseId: string, itemId: string) {
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Выберите статью расходов"),
   amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+  vatRate: z.coerce.number().min(0, "Ставка НДС не может быть отрицательной").max(100, "Некорректная ставка НДС"),
   description: z.string().trim().optional(),
 });
 
@@ -158,6 +162,7 @@ export async function addPurchaseExpense(purchaseId: string, formData: FormData)
   const parsed = expenseSchema.safeParse({
     categoryId: formData.get("categoryId"),
     amount: formData.get("amount"),
+    vatRate: formData.get("vatRate") ?? 0,
     description: formData.get("description") || undefined,
   });
   if (!parsed.success) return;
@@ -234,24 +239,32 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
   if (purchase.items.length === 0) return { error: "В закупке нет позиций сырья" };
 
-  // Purchase expenses (customs, auction fees, dressing, transport, ...) are
-  // always recorded in RUB; item prices are in the purchase's currency and
-  // get converted here. Expenses are allocated across items proportionally
-  // by their (already-RUB) subtotal share, then rolled into that item's lot
-  // as a fixed landed cost — see src/lib/stock.ts.
-  const totalExpenses = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
-  const totalItemsSubtotalRub = purchase.items.reduce(
-    (sum, i) => sum.add(i.subtotal.mul(purchase.exchangeRate)),
+  // Item prices and expense amounts are entered EXCLUDING VAT; each line
+  // carries its own rate since it varies lot to lot (the rate in force
+  // changes over time — 20% and 22% both appear in the same registry).
+  // Expenses are always in RUB; item prices are in the purchase's currency
+  // and get converted here. Everything is grossed up to VAT-inclusive RUB,
+  // expenses are allocated across items proportionally by their inclusive
+  // subtotal share, and rolled into that item's lot as a fixed landed cost
+  // — see src/lib/stock.ts.
+  const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
+
+  const totalExpensesInclVat = purchase.expenses.reduce(
+    (sum, e) => sum.add(grossUp(e.amount, e.vatRate)),
     new Decimal(0)
   );
+  const itemsInclVatRub = purchase.items.map((item) => {
+    const baseRub = item.subtotal.mul(purchase.exchangeRate);
+    return { item, baseRub, inclVatRub: grossUp(baseRub, item.vatRate) };
+  });
+  const totalItemsInclVatRub = itemsInclVatRub.reduce((sum, i) => sum.add(i.inclVatRub), new Decimal(0));
 
   await prisma.$transaction(async (tx) => {
-    for (const item of purchase.items) {
-      const subtotalRub = item.subtotal.mul(purchase.exchangeRate);
-      const allocatedExpense = totalItemsSubtotalRub.isZero()
+    for (const { item, baseRub, inclVatRub } of itemsInclVatRub) {
+      const allocatedExpense = totalItemsInclVatRub.isZero()
         ? new Decimal(0)
-        : totalExpenses.mul(subtotalRub).div(totalItemsSubtotalRub);
-      const landedTotal = subtotalRub.add(allocatedExpense);
+        : totalExpensesInclVat.mul(inclVatRub).div(totalItemsInclVatRub);
+      const landedTotal = inclVatRub.add(allocatedExpense);
 
       await createRawMaterialLot(tx, {
         organizationId: session.user.organizationId,
@@ -263,6 +276,9 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
         quantity: item.quantity,
         unitCost: landedTotal.div(item.quantity),
         totalCost: landedTotal,
+        vatRate: item.vatRate,
+        materialCostExclVat: baseRub.div(item.quantity),
+        materialVatAmount: inclVatRub.sub(baseRub).div(item.quantity),
         purchaseId: purchase.id,
         purchaseItemId: item.id,
       });

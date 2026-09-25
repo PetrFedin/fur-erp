@@ -244,8 +244,11 @@ model Purchase {
 }
 
 // One line = one purchased lot/batch (лот) of a raw material. unitPrice and
-// subtotal are in the purchase's currency; converted to RUB via
-// purchase.exchangeRate when the item is received into a RawMaterialLot.
+// subtotal are the price EXCLUDING VAT, in the purchase's currency;
+// converted to RUB via purchase.exchangeRate and grossed up by vatRate when
+// the item is received into a RawMaterialLot. vatRate varies lot to lot —
+// the rate in force can change between purchases (seen 20% and 22% in the
+// same registry across 2025/2026).
 model PurchaseItem {
   id            String      @id @default(cuid())
   purchaseId    String
@@ -255,6 +258,7 @@ model PurchaseItem {
   quantity      Decimal     @db.Decimal(14, 3)
   unitPrice     Decimal     @db.Decimal(14, 2)
   subtotal      Decimal     @db.Decimal(14, 2)
+  vatRate       Decimal     @default(20) @db.Decimal(5, 2)
   lotNumber     String?
   grade         String?
   color         String?
@@ -267,6 +271,10 @@ model PurchaseItem {
 }
 
 // Extra costs tied to a purchase: shipping, customs, insurance, commission, inspection loss, etc.
+// amount is in RUB, excluding VAT; vatRate defaults to 0 since many fees
+// (commissions, some services) are quoted flat with no VAT to add — set it
+// per line when the invoice itemizes VAT separately (auction/customs fees
+// commonly do).
 model PurchaseExpense {
   id          String          @id @default(cuid())
   purchaseId  String
@@ -274,6 +282,7 @@ model PurchaseExpense {
   categoryId  String
   category    ExpenseCategory @relation(fields: [categoryId], references: [id])
   amount      Decimal         @db.Decimal(14, 2)
+  vatRate     Decimal         @default(0) @db.Decimal(5, 2)
   date        DateTime        @default(now())
   description String?
 
@@ -356,13 +365,20 @@ model RawMaterialLot {
   purchaseItemId String?       @unique
   purchaseItem   PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
 
-  quantityReceived  Decimal @db.Decimal(14, 3)
-  quantityRemaining Decimal @db.Decimal(14, 3)
-  // Landed cost per unit in RUB, fixed at receipt (item price * purchase
-  // exchange rate, plus this lot's share of the purchase's allocated
-  // expenses). Every consumption of this lot is costed at this rate.
-  unitCost          Decimal @db.Decimal(14, 2)
-  totalCost         Decimal @db.Decimal(14, 2)
+  quantityReceived    Decimal @db.Decimal(14, 3)
+  quantityRemaining   Decimal @db.Decimal(14, 3)
+  // Landed cost per unit in RUB, fixed at receipt: (item price incl. its
+  // own VAT + this lot's share of the purchase's allocated expenses, incl.
+  // their VAT) * exchange rate. Every consumption of this lot is costed at
+  // this rate. materialCostExclVat/materialVatAmount below break out just
+  // the raw-material component (not the allocated expenses) for the
+  // detail view — VAT rate is stored per lot since it varies by purchase
+  // date (20% vs. 22% seen in the same registry).
+  unitCost            Decimal @db.Decimal(14, 2)
+  totalCost           Decimal @db.Decimal(14, 2)
+  vatRate             Decimal @db.Decimal(5, 2)
+  materialCostExclVat Decimal @db.Decimal(14, 2)
+  materialVatAmount   Decimal @db.Decimal(14, 2)
 
   receivedDate DateTime @default(now())
   notes        String?
@@ -481,6 +497,10 @@ model ProductionOrder {
   // Price charged to the client per produced unit for the manufacturing
   // work itself (revenue) — separate from our internal production cost.
   clientWorkPricePerUnit Decimal?  @db.Decimal(14, 2)
+
+  // Intended/actual retail sale price per unit for this specific batch (own
+  // sales channel, not the давалец client) — markup = retailPrice / unitCost.
+  retailPrice Decimal? @db.Decimal(14, 2)
 
   // Cost snapshot, filled in when the order is marked COMPLETED so reports
   // stay stable even if later stock cost movements change the average.

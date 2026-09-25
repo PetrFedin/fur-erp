@@ -111,6 +111,16 @@ export function ProductionCreateForm({
         <Input id="clientWorkPricePerUnit" name="clientWorkPricePerUnit" type="number" step="0.01" min="0" />
       </div>
 
+      <div className="col-span-2 mt-2 border-t border-neutral-200 pt-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Розничная цена (для расчёта маркапа, можно указать позже)
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="retailPrice">Розничная цена за ед., ₽</Label>
+        <Input id="retailPrice" name="retailPrice" type="number" step="0.01" min="0" />
+      </div>
+
       <div className="col-span-2">
         <Label htmlFor="notes">Заметки</Label>
         <Textarea id="notes" name="notes" rows={2} />

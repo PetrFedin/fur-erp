@@ -33,6 +33,11 @@ const orderSchema = z.object({
     .nonnegative()
     .optional()
     .or(z.nan().transform(() => undefined)),
+  retailPrice: z.coerce
+    .number()
+    .nonnegative()
+    .optional()
+    .or(z.nan().transform(() => undefined)),
 });
 
 export async function createProductionOrder(
@@ -54,6 +59,7 @@ export async function createProductionOrder(
     workOrderNumber: formData.get("workOrderNumber") || undefined,
     workOrderDate: formData.get("workOrderDate") || undefined,
     clientWorkPricePerUnit: formData.get("clientWorkPricePerUnit") || undefined,
+    retailPrice: formData.get("retailPrice") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
@@ -76,6 +82,7 @@ export async function createProductionOrder(
         workOrderNumber: parsed.data.workOrderNumber,
         workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
         clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
+        retailPrice: parsed.data.retailPrice,
         createdById: session.user.id,
       },
     });
@@ -83,6 +90,18 @@ export async function createProductionOrder(
 
   revalidatePath("/production");
   redirect(`/production/${order.id}`);
+}
+
+export async function updateRetailPrice(orderId: string, formData: FormData) {
+  const session = await requireRole(...EDIT_ROLES);
+  const parsed = z.coerce.number().nonnegative().safeParse(formData.get("retailPrice"));
+  if (!parsed.success) return;
+
+  await prisma.productionOrder.updateMany({
+    where: { id: orderId, organizationId: session.user.organizationId },
+    data: { retailPrice: parsed.data },
+  });
+  revalidatePath(`/production/${orderId}`);
 }
 
 async function getOpenOrder(organizationId: string, orderId: string) {

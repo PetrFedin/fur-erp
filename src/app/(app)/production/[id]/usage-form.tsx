@@ -17,6 +17,8 @@ const UNIT_LABELS: Record<string, string> = {
 export type LotOption = {
   id: string;
   lotNumber: string | null;
+  grade: string | null;
+  color: string | null;
   rawMaterialId: string;
   rawMaterialName: string;
   unit: string;
@@ -29,6 +31,7 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [materialId, setMaterialId] = useState("");
+  const [filter, setFilter] = useState("");
   const bound = addMaterialUsage.bind(null, orderId);
 
   const materials = useMemo(() => {
@@ -41,7 +44,14 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
     return Array.from(seen.values());
   }, [lots]);
 
-  const lotsForMaterial = lots.filter((l) => l.rawMaterialId === materialId);
+  const filterLower = filter.trim().toLowerCase();
+  const lotsForMaterial = lots
+    .filter((l) => l.rawMaterialId === materialId)
+    .filter((l) =>
+      filterLower
+        ? [l.lotNumber, l.grade, l.color].some((v) => v?.toLowerCase().includes(filterLower))
+        : true
+    );
 
   return (
     <form
@@ -56,7 +66,7 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
           }
         });
       }}
-      className="grid grid-cols-4 items-end gap-2"
+      className="grid grid-cols-5 items-end gap-2"
     >
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
@@ -72,6 +82,15 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
         </Select>
       </div>
       <div>
+        <label className="mb-1 block text-xs text-neutral-500">Поиск лота (номер/сорт/цвет)</label>
+        <Input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="напр. 15874 или Silver"
+          disabled={!materialId}
+        />
+      </div>
+      <div>
         <label className="mb-1 block text-xs text-neutral-500">Лот</label>
         <Select name="lotId" required defaultValue="" disabled={!materialId}>
           <option value="" disabled>
@@ -79,8 +98,11 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
           </option>
           {lotsForMaterial.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.lotNumber ?? "без номера"} — остаток {formatQty(l.quantityRemaining)} по{" "}
-              {formatMoney(l.unitCost)}
+              {l.lotNumber ?? "без номера"}
+              {[l.grade, l.color].filter(Boolean).length > 0
+                ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})`
+                : ""}{" "}
+              — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)}
             </option>
           ))}
         </Select>
@@ -92,9 +114,11 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Списываем..." : "+ Списать"}
       </Button>
-      {error && <p className="col-span-4 text-sm text-red-600">{error}</p>}
+      {error && <p className="col-span-5 text-sm text-red-600">{error}</p>}
       {materialId && lotsForMaterial.length === 0 && (
-        <p className="col-span-4 text-sm text-amber-600">Нет доступных лотов этого сырья на складе</p>
+        <p className="col-span-5 text-sm text-amber-600">
+          {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого сырья на складе"}
+        </p>
       )}
     </form>
   );

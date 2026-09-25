@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -45,9 +46,7 @@ export default async function PurchasesPage() {
         </Thead>
         <Tbody>
           {purchases.map((p) => {
-            const itemsTotal = p.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
-            const expensesTotal = p.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-            const total = itemsTotal.add(expensesTotal);
+            const total = purchaseTotalInclVat(p);
             const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
             const status = STATUS_LABELS[p.status];
             return (

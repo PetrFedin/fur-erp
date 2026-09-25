@@ -35,7 +35,7 @@ export function PurchaseItemForm({
         await bound(formData);
         formRef.current?.reset();
       }}
-      className="grid grid-cols-7 items-end gap-2"
+      className="grid grid-cols-8 items-end gap-2"
     >
       <div className="col-span-2">
         <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
@@ -55,8 +55,19 @@ export function PurchaseItemForm({
         <Input name="quantity" type="number" step="0.001" min="0" required />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">Цена за ед., {currency}</label>
+        <label className="mb-1 block text-xs text-neutral-500">Цена за ед., {currency} (без НДС)</label>
         <Input name="unitPrice" type="number" step="0.01" min="0" required />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-neutral-500">НДС</label>
+        <Select name="vatRate" defaultValue="20">
+          <option value="0">0%</option>
+          <option value="5">5%</option>
+          <option value="7">7%</option>
+          <option value="10">10%</option>
+          <option value="20">20%</option>
+          <option value="22">22%</option>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Лот (если есть)</label>
@@ -70,7 +81,7 @@ export function PurchaseItemForm({
         <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
         <Input name="color" />
       </div>
-      <div className="col-span-7 flex justify-end">
+      <div className="col-span-8 flex justify-end">
         <Button type="submit" variant="outline" size="sm">
           + Добавить позицию
         </Button>

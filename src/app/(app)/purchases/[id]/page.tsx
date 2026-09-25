@@ -62,11 +62,22 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       ])
     : [[], []];
 
+  const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
+
   const isForeignCurrency = purchase.currency !== "RUB";
   const itemsTotal = purchase.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
-  const itemsTotalRub = itemsTotal.mul(purchase.exchangeRate);
-  const expensesTotal = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-  const grandTotalRub = itemsTotalRub.add(expensesTotal);
+  const itemsTotalExclVatRub = itemsTotal.mul(purchase.exchangeRate);
+  const itemsTotalInclVatRub = purchase.items.reduce(
+    (s, i) => s.add(grossUp(i.subtotal.mul(purchase.exchangeRate), i.vatRate)),
+    new Decimal(0)
+  );
+  const expensesTotalExclVat = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
+  const expensesTotalInclVat = purchase.expenses.reduce(
+    (s, e) => s.add(grossUp(e.amount, e.vatRate)),
+    new Decimal(0)
+  );
+  const grandTotalRub = itemsTotalInclVatRub.add(expensesTotalInclVat);
+  const vatTotal = grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat);
   const paidTotal = purchase.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = grandTotalRub.sub(paidTotal);
   const status = STATUS_LABELS[purchase.status];
@@ -106,13 +117,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         <SummaryCard
-          label={isForeignCurrency ? `Сырьё (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё"}
-          value={formatMoney(itemsTotalRub.toString())}
+          label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
+          value={formatMoney(itemsTotalExclVatRub.toString())}
         />
-        <SummaryCard label="Доп. расходы" value={formatMoney(expensesTotal.toString())} />
-        <SummaryCard label="Итого (RUB)" value={formatMoney(grandTotalRub.toString())} emphasis />
+        <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(expensesTotalExclVat.toString())} />
+        <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
+        <SummaryCard label="Итого с НДС (RUB)" value={formatMoney(grandTotalRub.toString())} emphasis />
         <SummaryCard
           label="Остаток к оплате"
           value={formatMoney(balanceDue.toString())}
@@ -135,48 +147,54 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Лот</Th>
                 <Th>Сорт/цвет</Th>
                 <Th>Кол-во</Th>
-                <Th>Цена</Th>
-                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
+                <Th>Цена (без НДС)</Th>
+                <Th>НДС</Th>
+                <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
                 {editable && <Th></Th>}
               </Tr>
             </Thead>
             <Tbody>
-              {purchase.items.map((item) => (
-                <Tr key={item.id}>
-                  <Td>{item.rawMaterial.name}</Td>
-                  <Td>{item.lotNumber ?? "—"}</Td>
-                  <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
-                  <Td>
-                    {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
-                  </Td>
-                  <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                  <Td>
-                    {formatMoney(item.subtotal.mul(purchase.exchangeRate).toString())}
-                    {isForeignCurrency && (
-                      <span className="ml-1 text-xs text-neutral-400">
-                        ({formatCurrency(item.subtotal.toString(), purchase.currency)})
-                      </span>
-                    )}
-                  </Td>
-                  {editable && (
+              {purchase.items.map((item) => {
+                const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
+                const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                return (
+                  <Tr key={item.id}>
+                    <Td>{item.rawMaterial.name}</Td>
+                    <Td>{item.lotNumber ?? "—"}</Td>
+                    <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
                     <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveItem(item.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Удалить
-                        </Button>
-                      </form>
+                      {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
                     </Td>
-                  )}
-                </Tr>
-              ))}
+                    <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
+                    <Td>{item.vatRate.toString()}%</Td>
+                    <Td>
+                      {formatMoney(subtotalInclVatRub.toString())}
+                      {isForeignCurrency && (
+                        <span className="ml-1 text-xs text-neutral-400">
+                          ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
+                        </span>
+                      )}
+                    </Td>
+                    {editable && (
+                      <Td>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await boundRemoveItem(item.id);
+                          }}
+                        >
+                          <Button type="submit" variant="ghost" size="sm">
+                            Удалить
+                          </Button>
+                        </form>
+                      </Td>
+                    )}
+                  </Tr>
+                );
+              })}
               {purchase.items.length === 0 && (
                 <Tr>
-                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
                     Позиций пока нет
                   </Td>
                 </Tr>
@@ -197,7 +215,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <Tr>
                 <Th>Статья</Th>
                 <Th>Описание</Th>
-                <Th>Сумма</Th>
+                <Th>Сумма (без НДС)</Th>
+                <Th>НДС</Th>
+                <Th>Сумма с НДС</Th>
                 {editable && <Th></Th>}
               </Tr>
             </Thead>
@@ -207,6 +227,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Td>{e.category.name}</Td>
                   <Td>{e.description ?? "—"}</Td>
                   <Td>{formatMoney(e.amount.toString())}</Td>
+                  <Td>{e.vatRate.toString()}%</Td>
+                  <Td>{formatMoney(grossUp(e.amount, e.vatRate).toString())}</Td>
                   {editable && (
                     <Td>
                       <form
@@ -225,7 +247,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               ))}
               {purchase.expenses.length === 0 && (
                 <Tr>
-                  <Td colSpan={4} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
                     Доп. расходов нет
                   </Td>
                 </Tr>

@@ -15,6 +15,7 @@ export const NAV_SECTIONS = [
     title: "Склад",
     links: [
       { href: "/stock", label: "Остатки сырья" },
+      { href: "/lots", label: "Архив сырья" },
       { href: "/finished-stock", label: "Остатки готовой продукции" },
       { href: "/warehouses", label: "Склады" },
     ],
