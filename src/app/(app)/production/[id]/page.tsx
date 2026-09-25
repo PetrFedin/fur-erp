@@ -13,6 +13,7 @@ import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
 import { ProductionPaymentForm } from "./payment-form";
+import { ProducedQuantityForm } from "./produced-quantity-form";
 import { removeMaterialUsage, removeProductionExpense, removeProductionPayment } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -76,23 +77,24 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
 
-  const [availableLots, expenseCategories] = open
-    ? await Promise.all([
-        prisma.rawMaterialLot.findMany({
-          where: {
-            organizationId: session.user.organizationId,
-            warehouseId: order.rawWarehouseId,
-            quantityRemaining: { gt: 0 },
-          },
-          include: { rawMaterial: true },
-          orderBy: { receivedDate: "asc" },
-        }),
-        prisma.expenseCategory.findMany({
-          where: { organizationId: session.user.organizationId, kind: "PRODUCTION", isActive: true },
-          orderBy: { name: "asc" },
-        }),
-      ])
-    : [[], []];
+  // Material usage / expenses stay editable regardless of status (fixing a
+  // mistake in a COMPLETED order is normal, not exceptional — see
+  // syncCompletedOrderCost in actions.ts), so these are always fetched.
+  const [availableLots, expenseCategories] = await Promise.all([
+    prisma.rawMaterialLot.findMany({
+      where: {
+        organizationId: session.user.organizationId,
+        warehouseId: order.rawWarehouseId,
+        quantityRemaining: { gt: 0 },
+      },
+      include: { rawMaterial: true },
+      orderBy: { receivedDate: "asc" },
+    }),
+    prisma.expenseCategory.findMany({
+      where: { organizationId: session.user.organizationId, kind: "PRODUCTION", isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const lotOptions: LotOption[] = availableLots.map((l) => ({
     id: l.id,
@@ -259,13 +261,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CardTitle>Списание меха в производство</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {open && (
-            <div className="flex flex-col gap-3">
-              <ApplyBomButton orderId={id} />
-              <UsageForm orderId={id} lots={furLots} />
-              <BulkUsageForm orderId={id} />
-            </div>
-          )}
+          <div className="flex flex-col gap-3">
+            <ApplyBomButton orderId={id} />
+            <UsageForm orderId={id} lots={furLots} />
+            <BulkUsageForm orderId={id} />
+          </div>
           <Table>
             <Thead>
               <Tr>
@@ -276,7 +276,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Цена лота без НДС</Th>
                 <Th>НДС</Th>
                 <Th>Себестоимость (с расходами закупки)</Th>
-                {open && <Th></Th>}
+                <Th></Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -291,20 +291,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
                   <Td>{u.lot.vatRate.toString()}%</Td>
                   <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
-                  {open && (
-                    <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveUsage(u.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Отменить
-                        </Button>
-                      </form>
-                    </Td>
-                  )}
+                  <Td>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await boundRemoveUsage(u.id);
+                      }}
+                    >
+                      <Button type="submit" variant="ghost" size="sm">
+                        Отменить
+                      </Button>
+                    </form>
+                  </Td>
                 </Tr>
               ))}
               {furUsages.length === 0 && (
@@ -325,7 +323,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {order.lining && <p className="text-sm text-neutral-500">Описание из ТЗ: {order.lining}</p>}
-          {open && <UsageForm orderId={id} lots={liningLots} />}
+          <UsageForm orderId={id} lots={liningLots} />
           <Table>
             <Thead>
               <Tr>
@@ -336,7 +334,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Цена лота без НДС</Th>
                 <Th>НДС</Th>
                 <Th>Себестоимость (с расходами закупки)</Th>
-                {open && <Th></Th>}
+                <Th></Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -351,20 +349,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
                   <Td>{u.lot.vatRate.toString()}%</Td>
                   <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
-                  {open && (
-                    <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveUsage(u.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Отменить
-                        </Button>
-                      </form>
-                    </Td>
-                  )}
+                  <Td>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await boundRemoveUsage(u.id);
+                      }}
+                    >
+                      <Button type="submit" variant="ghost" size="sm">
+                        Отменить
+                      </Button>
+                    </form>
+                  </Td>
                 </Tr>
               ))}
               {liningUsages.length === 0 && (
@@ -384,14 +380,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CardTitle>Производственные расходы</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {open && <ProductionExpenseForm orderId={id} categories={expenseCategories} />}
+          <ProductionExpenseForm orderId={id} categories={expenseCategories} />
           <Table>
             <Thead>
               <Tr>
                 <Th>Статья</Th>
                 <Th>Описание</Th>
                 <Th>Сумма</Th>
-                {open && <Th></Th>}
+                <Th></Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -400,20 +396,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Td>{e.category.name}</Td>
                   <Td>{e.description ?? "—"}</Td>
                   <Td>{formatMoney(e.amount.toString())}</Td>
-                  {open && (
-                    <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveExpense(e.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Удалить
-                        </Button>
-                      </form>
-                    </Td>
-                  )}
+                  <Td>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await boundRemoveExpense(e.id);
+                      }}
+                    >
+                      <Button type="submit" variant="ghost" size="sm">
+                        Удалить
+                      </Button>
+                    </form>
+                  </Td>
                 </Tr>
               ))}
               {order.expenses.length === 0 && (
@@ -511,6 +505,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {order.finishedWarehouse.name}» по себестоимости за единицу.
             </p>
             <CompleteOrderForm orderId={id} plannedQuantity={order.plannedQuantity.toString()} />
+          </CardContent>
+        </Card>
+      )}
+
+      {order.status === "COMPLETED" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Фактически произведено</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-neutral-500">
+              Правка количества пересчитывает себестоимость за ед. и корректирует остаток готовой
+              продукции на складе «{order.finishedWarehouse.name}».
+            </p>
+            <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />
           </CardContent>
         </Card>
       )}

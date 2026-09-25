@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/session";
 import { consumeFromLot, returnToLot, receiveFinishedGoodsStock } from "@/lib/stock";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
+import type { Prisma } from "@prisma/client";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 
@@ -129,10 +130,69 @@ export async function updateRetailPrice(orderId: string, formData: FormData) {
   revalidatePath("/articles");
 }
 
-async function getOpenOrder(organizationId: string, orderId: string) {
+// Any ТЗ can be edited regardless of status — completed orders are the
+// normal case once the historical registry is imported, and mistakes in
+// what was entered (wrong lot, wrong quantity, a forgotten expense) need
+// to stay fixable. See syncCompletedOrderCost below for how a COMPLETED
+// order's fixed cost snapshot (and the finished-goods stock valuation it
+// already fed) stays correct after such an edit.
+async function getEditableOrder(organizationId: string, orderId: string) {
   return prisma.productionOrder.findFirst({
-    where: { id: orderId, organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+    where: { id: orderId, organizationId },
     include: { productModel: { include: { materials: true } } },
+  });
+}
+
+/**
+ * After a material-usage or expense edit on a COMPLETED order, recomputes
+ * materialCost/expenseCost/totalCost/unitCost from the current lines (same
+ * formula as completeProductionOrder) and carries the resulting delta into
+ * the finished-goods stock valuation this order already fed at completion
+ * time, so /finished-stock and /articles don't go stale. No-op for
+ * PLANNED/IN_PROGRESS orders (nothing snapshotted yet) or zero-quantity ones.
+ */
+async function syncCompletedOrderCost(tx: Prisma.TransactionClient, orderId: string, organizationId: string) {
+  const order = await tx.productionOrder.findUnique({
+    where: { id: orderId },
+    include: { materialUsages: true, expenses: true },
+  });
+  if (!order || order.status !== "COMPLETED" || order.producedQuantity.isZero()) return;
+
+  const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
+  const totalCost = materialCost.add(expenseCost);
+  const unitCost = totalCost.div(order.producedQuantity);
+  const delta = totalCost.sub(order.totalCost ?? new Decimal(0));
+
+  await tx.productionOrder.update({
+    where: { id: orderId },
+    data: { materialCost, expenseCost, totalCost, unitCost },
+  });
+
+  if (delta.isZero()) return;
+
+  const stock = await tx.finishedGoodsStock.findUnique({
+    where: {
+      warehouseId_productModelId: { warehouseId: order.finishedWarehouseId, productModelId: order.productModelId },
+    },
+  });
+  if (!stock) return;
+
+  const newTotalValue = stock.quantity.mul(stock.avgUnitCost).add(delta);
+  const newAvgUnitCost = stock.quantity.isZero() ? stock.avgUnitCost : newTotalValue.div(stock.quantity);
+  await tx.finishedGoodsStock.update({ where: { id: stock.id }, data: { avgUnitCost: newAvgUnitCost } });
+  await tx.finishedGoodsMovement.create({
+    data: {
+      organizationId,
+      warehouseId: order.finishedWarehouseId,
+      productModelId: order.productModelId,
+      type: delta.greaterThan(0) ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+      quantity: 0,
+      unitCost: order.producedQuantity.isZero() ? 0 : delta.abs().div(order.producedQuantity),
+      totalCost: delta.abs(),
+      productionOrderId: orderId,
+      notes: "Корректировка себестоимости после правки завершённого ТЗ",
+    },
   });
 }
 
@@ -145,8 +205,8 @@ const usageSchema = z.object({
 
 export async function addMaterialUsage(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден или уже завершён" };
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден" };
 
   const parsed = usageSchema.safeParse({
     lotId: formData.get("lotId"),
@@ -177,6 +237,7 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
       if (order.status === "PLANNED") {
         await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
       }
+      await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Не удалось списать сырьё" };
@@ -201,8 +262,8 @@ export async function addMaterialUsagesBulk(
   formData: FormData
 ): Promise<BulkUsageState> {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден или уже завершён" };
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден" };
 
   const raw = (formData.get("rows") as string | null)?.trim();
   if (!raw) return { error: "Вставьте хотя бы одну строку" };
@@ -241,6 +302,7 @@ export async function addMaterialUsagesBulk(
         if (order.status === "PLANNED") {
           await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
         }
+        await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
       });
       created++;
     } catch {
@@ -263,8 +325,8 @@ export async function addMaterialUsagesBulk(
  */
 export async function applyBomToOrder(orderId: string): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден или уже завершён" };
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден" };
   if (order.productModel.materials.length === 0) {
     return { error: "У модели не задана норма расхода (BOM)" };
   }
@@ -320,6 +382,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
       if (order.status === "PLANNED") {
         await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
       }
+      await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Не удалось списать сырьё по норме" };
@@ -332,7 +395,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
 
 export async function removeMaterialUsage(orderId: string, usageId: string) {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return;
 
   const usage = await prisma.productionMaterialUsage.findFirst({
@@ -347,6 +410,7 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
       quantity: usage.quantity,
     });
     await tx.productionMaterialUsage.delete({ where: { id: usageId } });
+    await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
 
   revalidatePath(`/production/${orderId}`);
@@ -363,7 +427,7 @@ const expenseSchema = z.object({
 
 export async function addProductionExpense(orderId: string, formData: FormData) {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return;
 
   const parsed = expenseSchema.safeParse({
@@ -373,8 +437,11 @@ export async function addProductionExpense(orderId: string, formData: FormData) 
   });
   if (!parsed.success) return;
 
-  await prisma.productionExpense.create({
-    data: { productionOrderId: orderId, ...parsed.data },
+  await prisma.$transaction(async (tx) => {
+    await tx.productionExpense.create({
+      data: { productionOrderId: orderId, ...parsed.data },
+    });
+    await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
 
   revalidatePath(`/production/${orderId}`);
@@ -382,10 +449,13 @@ export async function addProductionExpense(orderId: string, formData: FormData) 
 
 export async function removeProductionExpense(orderId: string, expenseId: string) {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getOpenOrder(session.user.organizationId, orderId);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return;
 
-  await prisma.productionExpense.delete({ where: { id: expenseId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.productionExpense.delete({ where: { id: expenseId } });
+    await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
+  });
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -404,7 +474,7 @@ export async function completeProductionOrder(
     where: { id: orderId, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
     include: { materialUsages: true, expenses: true },
   });
-  if (!order) return { error: "Заказ не найден или уже завершён" };
+  if (!order) return { error: "Заказ не найден" };
 
   const parsed = completeSchema.safeParse({ producedQuantity: formData.get("producedQuantity") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
@@ -443,6 +513,76 @@ export async function completeProductionOrder(
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   revalidatePath("/finished-stock");
+  return {};
+}
+
+// Correcting the produced quantity after completion (e.g. an import typo)
+// changes unitCost too (same total cost, different divisor) and needs its
+// own finished-goods adjustment, since the quantity fed to stock changes,
+// not just its cost — syncCompletedOrderCost only handles the cost-only
+// case, so this is a separate, quantity-aware adjustment.
+export async function updateProducedQuantity(
+  orderId: string,
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const parsed = z.coerce.number().positive("Количество должно быть больше 0").safeParse(formData.get("producedQuantity"));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: session.user.organizationId, status: "COMPLETED" },
+  });
+  if (!order) return { error: "Заказ не найден или ещё не завершён" };
+
+  const newQuantity = new Decimal(parsed.data);
+  if (newQuantity.equals(order.producedQuantity)) return {};
+
+  const totalCost = order.totalCost ?? new Decimal(0);
+  const newUnitCost = totalCost.div(newQuantity);
+  const oldContribution = order.producedQuantity.mul(order.unitCost ?? new Decimal(0));
+  const newContribution = newQuantity.mul(newUnitCost);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productionOrder.update({
+      where: { id: orderId },
+      data: { producedQuantity: newQuantity, unitCost: newUnitCost },
+    });
+
+    const stock = await tx.finishedGoodsStock.findUnique({
+      where: {
+        warehouseId_productModelId: { warehouseId: order.finishedWarehouseId, productModelId: order.productModelId },
+      },
+    });
+    if (!stock) return;
+
+    const newStockQuantity = stock.quantity.sub(order.producedQuantity).add(newQuantity);
+    const newStockValue = stock.quantity.mul(stock.avgUnitCost).sub(oldContribution).add(newContribution);
+    const newAvgUnitCost = newStockQuantity.isZero() ? stock.avgUnitCost : newStockValue.div(newStockQuantity);
+
+    await tx.finishedGoodsStock.update({
+      where: { id: stock.id },
+      data: { quantity: newStockQuantity, avgUnitCost: newAvgUnitCost },
+    });
+    await tx.finishedGoodsMovement.create({
+      data: {
+        organizationId: session.user.organizationId,
+        warehouseId: order.finishedWarehouseId,
+        productModelId: order.productModelId,
+        type: newQuantity.greaterThan(order.producedQuantity) ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+        quantity: newQuantity.sub(order.producedQuantity).abs(),
+        unitCost: newUnitCost,
+        totalCost: newContribution.sub(oldContribution).abs(),
+        productionOrderId: orderId,
+        notes: "Корректировка фактически произведённого количества после завершения ТЗ",
+      },
+    });
+  });
+
+  revalidatePath(`/production/${orderId}`);
+  revalidatePath("/production");
+  revalidatePath("/finished-stock");
+  revalidatePath("/articles");
   return {};
 }
 
