@@ -1,0 +1,6378 @@
+{
+  "suppliers": [
+    {
+      "key": "soyuzpushnina",
+      "name": "Союзпушнина"
+    },
+    {
+      "key": "rp",
+      "name": "РП (аукцион, требует уточнения названия)"
+    }
+  ],
+  "materials": [
+    "Blue Iris mink F",
+    "Pastel mink F",
+    "Выделанная шкурка лисицы серебристо-черной",
+    "Выделанные крашенные шкурки каракуля",
+    "Норка отбеленная",
+    "Норка пастель, кашемир №LC 1635 (№8)",
+    "Подкладочная ткань №2",
+    "Подкладочная ткань №24",
+    "Подкладочная ткань №27",
+    "Подкладочная ткань №28",
+    "Подкладочная ткань №37",
+    "Подкладочная ткань №4",
+    "Подкладочная ткань №41",
+    "Соболь",
+    "Соболь баргузинский",
+    "Соболь выделанный тонированный",
+    "Соболь выделанный тонированный; выделанная шкурка норки",
+    "Соболь дикий выделанный",
+    "Соболь дикий выделанный (лавандер 2039) шкура норки американская пастель",
+    "Соболь дикий выделанный (лавандер)",
+    "Соболь клеточный XI 1 - 1 1 -",
+    "Соболь клеточный XXI 1 - 2 2 -",
+    "Соболь клеточный выделанный",
+    "Соболь клеточный выделанный тонированный",
+    "Соболь клеточный выделанный тонированный Норка коричневая крашенная в черный цвет",
+    "Соболь клеточный выделанный тонированный, Технический шёлк",
+    "Соболь клеточный, 100% шерсть",
+    "Соболь фермерский",
+    "Сырьё (не указано)",
+    "Шкура каракуля SWAKARA",
+    "Шкура каракуля SWAKARA нуга",
+    "Шкура каракуля SWAKARA облако",
+    "Шкура каракуля SWAKARA орех",
+    "Шкура каракуля SWAKARA фондю",
+    "Шкура лиса арктическая",
+    "Шкура норки",
+    "Шкура норки американский жемчуг самец 40",
+    "Шкура норки браун краш. в черный",
+    "Шкура норки виолет",
+    "Шкура норки жемчуг",
+    "Шкура норки жемчуг самка",
+    "Шкура норки лаванда",
+    "Шкура норки серебристо-голубая 50 М",
+    "Шкура соболя",
+    "Шкурка норки белой",
+    "Шкурка норки черной",
+    "Шкурки лисицы красной"
+  ],
+  "purchases": [
+    {
+      "key": "master-0",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": null,
+      "invoiceNumber": null,
+      "transferDocument": null,
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "лиса",
+          "materialName": "Шкурки лисицы красной",
+          "quantityReceived": 55.0,
+          "unitCostInclVat": 16000.0
+        }
+      ]
+    },
+    {
+      "key": "master-1",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "103",
+      "transferDocument": "№ 103 от 03.07.2025 г.",
+      "orderDate": "2025-07-03",
+      "lots": [
+        {
+          "lotNumber": "720502",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 195.0,
+          "unitCostInclVat": 12265.889229191243
+        },
+        {
+          "lotNumber": "720503",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 126.0,
+          "unitCostInclVat": 10869.971067574332
+        },
+        {
+          "lotNumber": "720504",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 200.0,
+          "unitCostInclVat": 15057.725552425061
+        },
+        {
+          "lotNumber": "720505",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 218.0,
+          "unitCostInclVat": 15057.725552425061
+        },
+        {
+          "lotNumber": "720506",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 200.0,
+          "unitCostInclVat": 20641.398198892697
+        },
+        {
+          "lotNumber": "720507",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 179.0,
+          "unitCostInclVat": 21199.765463539457
+        },
+        {
+          "lotNumber": "720508",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 99.0,
+          "unitCostInclVat": 11770.917342263983
+        },
+        {
+          "lotNumber": "720509",
+          "materialName": "Шкура каракуля SWAKARA",
+          "quantityReceived": 136.0,
+          "unitCostInclVat": 12545.072861514622
+        },
+        {
+          "lotNumber": "600083",
+          "materialName": "Шкура норки",
+          "quantityReceived": 400.0,
+          "unitCostInclVat": 7000.303388292607
+        },
+        {
+          "lotNumber": "618003",
+          "materialName": "Blue Iris mink F",
+          "quantityReceived": 110.0,
+          "unitCostInclVat": 8867.134654050398
+        },
+        {
+          "lotNumber": "605013",
+          "materialName": "Pastel mink F",
+          "quantityReceived": 306.0,
+          "unitCostInclVat": 8315.19016747877
+        },
+        {
+          "lotNumber": "513010",
+          "materialName": "Шкура норки американский жемчуг самец 40",
+          "quantityReceived": 195.0,
+          "unitCostInclVat": 10173.349503225272
+        },
+        {
+          "lotNumber": "613003",
+          "materialName": "Шкура норки жемчуг",
+          "quantityReceived": 216.0,
+          "unitCostInclVat": 7211.301194335515
+        },
+        {
+          "lotNumber": "613017",
+          "materialName": "Шкура норки жемчуг самка",
+          "quantityReceived": 197.0,
+          "unitCostInclVat": 5693.453856263538
+        },
+        {
+          "lotNumber": "160045",
+          "materialName": "Шкура лиса арктическая",
+          "quantityReceived": 74.0,
+          "unitCostInclVat": 23999.74929998876
+        },
+        {
+          "lotNumber": "518505",
+          "materialName": "Шкура норки виолет",
+          "quantityReceived": 86.0,
+          "unitCostInclVat": 19799.060567731693
+        },
+        {
+          "lotNumber": "518509",
+          "materialName": "Шкура норки виолет",
+          "quantityReceived": 68.0,
+          "unitCostInclVat": 15886.702688857416
+        },
+        {
+          "lotNumber": "301023",
+          "materialName": "Шкура норки браун краш. в черный",
+          "quantityReceived": 175.0,
+          "unitCostInclVat": 10271.261559785708
+        },
+        {
+          "lotNumber": "505053",
+          "materialName": "Шкура норки",
+          "quantityReceived": 86.0,
+          "unitCostInclVat": 9744.834653730943
+        },
+        {
+          "lotNumber": "505055",
+          "materialName": "Соболь дикий выделанный (лавандер 2039) шкура норки американская пастель",
+          "quantityReceived": 117.0,
+          "unitCostInclVat": 10994.042811603964
+        },
+        {
+          "lotNumber": "500747",
+          "materialName": "Шкура норки",
+          "quantityReceived": 180.0,
+          "unitCostInclVat": 8647.017882290835
+        },
+        {
+          "lotNumber": "500748",
+          "materialName": "Шкура норки",
+          "quantityReceived": 180.0,
+          "unitCostInclVat": 8647.017882290835
+        },
+        {
+          "lotNumber": "514038",
+          "materialName": "Шкура норки",
+          "quantityReceived": 164.0,
+          "unitCostInclVat": 6566.066830742532
+        },
+        {
+          "lotNumber": "519502",
+          "materialName": "Шкура норки лаванда",
+          "quantityReceived": 76.0,
+          "unitCostInclVat": 18905.694478133082
+        },
+        {
+          "lotNumber": "519503",
+          "materialName": "Шкура норки лаванда",
+          "quantityReceived": 65.0,
+          "unitCostInclVat": 16407.278162387043
+        },
+        {
+          "lotNumber": "519506",
+          "materialName": "Шкура норки",
+          "quantityReceived": 94.0,
+          "unitCostInclVat": 14464.06547236235
+        },
+        {
+          "lotNumber": "518005",
+          "materialName": "Шкура норки",
+          "quantityReceived": 86.0,
+          "unitCostInclVat": 8833.58105663401
+        }
+      ]
+    },
+    {
+      "key": "master-2",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "127",
+      "transferDocument": "№ 127 от 13.08.2025 г.",
+      "orderDate": "2025-08-13",
+      "lots": [
+        {
+          "lotNumber": "728001",
+          "materialName": "Выделанные крашенные шкурки каракуля",
+          "quantityReceived": 188.0,
+          "unitCostInclVat": 2386.4378750255187
+        },
+        {
+          "lotNumber": "728002",
+          "materialName": "Выделанные крашенные шкурки каракуля",
+          "quantityReceived": 188.0,
+          "unitCostInclVat": 2386.4378750255187
+        },
+        {
+          "lotNumber": "728011",
+          "materialName": "Выделанные крашенные шкурки каракуля",
+          "quantityReceived": 306.0,
+          "unitCostInclVat": 2278.0357232366187
+        },
+        {
+          "lotNumber": "728026",
+          "materialName": "Выделанные крашенные шкурки каракуля",
+          "quantityReceived": 312.0,
+          "unitCostInclVat": 2169.633571447719
+        }
+      ]
+    },
+    {
+      "key": "master-3",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "4014",
+      "transferDocument": "Доп закупк сырья партия",
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "15316",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 47.0,
+          "unitCostInclVat": 33936.10923
+        },
+        {
+          "lotNumber": "15317",
+          "materialName": "Соболь клеточный XXI 1 - 2 2 -",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 33936.10923
+        },
+        {
+          "lotNumber": "15318",
+          "materialName": "Соболь клеточный XI 1 - 1 1 -",
+          "quantityReceived": 60.0,
+          "unitCostInclVat": 28570.091025000005
+        }
+      ]
+    },
+    {
+      "key": "master-4",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "5К7",
+      "transferDocument": "№ 124 от 29.07.2025 г.",
+      "orderDate": "2025-07-29",
+      "lots": [
+        {
+          "lotNumber": "10022",
+          "materialName": "Шкура норки",
+          "quantityReceived": 200.0,
+          "unitCostInclVat": 9137.021999999999
+        }
+      ]
+    },
+    {
+      "key": "master-5",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "7",
+      "transferDocument": "№ 122 от 26.08.2025 г.",
+      "orderDate": "2025-08-26",
+      "lots": [
+        {
+          "lotNumber": "10025",
+          "materialName": "Шкура норки",
+          "quantityReceived": 150.0,
+          "unitCostInclVat": 6538.0
+        }
+      ]
+    },
+    {
+      "key": "master-6",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "8",
+      "transferDocument": "№ 122 от 26.08.2025 г.",
+      "orderDate": "2025-08-26",
+      "lots": [
+        {
+          "lotNumber": "10026",
+          "materialName": "Шкура норки серебристо-голубая 50 М",
+          "quantityReceived": 70.0,
+          "unitCostInclVat": 9722.0
+        }
+      ]
+    },
+    {
+      "key": "master-7",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "80",
+      "transferDocument": "№ 80 от 04.06.2025 г.",
+      "orderDate": "2025-06-04",
+      "lots": [
+        {
+          "lotNumber": "5017/5020/5016",
+          "materialName": "Норка пастель, кашемир №LC 1635 (№8)",
+          "quantityReceived": 179.0,
+          "unitCostInclVat": 9600.0
+        }
+      ]
+    },
+    {
+      "key": "master-8",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "96",
+      "transferDocument": "№ 96 от 15.07.2025 г.",
+      "orderDate": "2025-07-15",
+      "lots": [
+        {
+          "lotNumber": "5023, 5022, 5037, 5028",
+          "materialName": "Норка отбеленная",
+          "quantityReceived": 59.0,
+          "unitCostInclVat": 10000.000067796609
+        },
+        {
+          "lotNumber": "5020",
+          "materialName": "Сырьё (не указано)",
+          "quantityReceived": 55.0,
+          "unitCostInclVat": 9999.999927272727
+        },
+        {
+          "lotNumber": "300302",
+          "materialName": "Сырьё (не указано)",
+          "quantityReceived": 86.0,
+          "unitCostInclVat": 10000.000046511628
+        }
+      ]
+    },
+    {
+      "key": "master-9",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "Доп закупк сырья партия 5",
+      "transferDocument": "Доп закупк сырья партия 5",
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "фондю-1",
+          "materialName": "Шкура каракуля SWAKARA фондю",
+          "quantityReceived": 105.0,
+          "unitCostInclVat": 13250.0
+        },
+        {
+          "lotNumber": "нуга",
+          "materialName": "Шкура каракуля SWAKARA нуга",
+          "quantityReceived": 40.0,
+          "unitCostInclVat": 13250.0
+        },
+        {
+          "lotNumber": "облако",
+          "materialName": "Шкура каракуля SWAKARA облако",
+          "quantityReceived": 105.0,
+          "unitCostInclVat": 13250.0
+        },
+        {
+          "lotNumber": "орех",
+          "materialName": "Шкура каракуля SWAKARA орех",
+          "quantityReceived": 96.0,
+          "unitCostInclVat": 13250.0
+        }
+      ]
+    },
+    {
+      "key": "master-10",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "Доп закупк сырья партия 6",
+      "transferDocument": "Доп закупк сырья партия 6",
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "фондю-2",
+          "materialName": "Шкура каракуля SWAKARA фондю",
+          "quantityReceived": 35.0,
+          "unitCostInclVat": 13250.0
+        }
+      ]
+    },
+    {
+      "key": "master-11",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "Доп закупк сырья партия 7",
+      "transferDocument": "Доп закупк сырья партия 7",
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "фондю-3",
+          "materialName": "Шкура каракуля SWAKARA фондю",
+          "quantityReceived": 70.0,
+          "unitCostInclVat": 13250.0
+        }
+      ]
+    },
+    {
+      "key": "master-12",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Нет информации",
+      "invoiceNumber": "Доп закупк сырья партия 9",
+      "transferDocument": "Доп закупк сырья партия 9",
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "фондю-4",
+          "materialName": "Шкура каракуля SWAKARA фондю",
+          "quantityReceived": 32.0,
+          "unitCostInclVat": 13470.0
+        }
+      ]
+    },
+    {
+      "key": "master-13",
+      "supplierKey": "rp",
+      "auctionSession": "РП 03.25",
+      "invoiceNumber": "2153",
+      "transferDocument": "№ 77 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "89",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 33.0,
+          "unitCostInclVat": 14771.22288246236
+        },
+        {
+          "lotNumber": "175",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 37.0,
+          "unitCostInclVat": 12761.940770462359
+        },
+        {
+          "lotNumber": "1301",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 39.0,
+          "unitCostInclVat": 30727.34894646236
+        },
+        {
+          "lotNumber": "1316",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 48456.374930462356
+        },
+        {
+          "lotNumber": "1324",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 19.0,
+          "unitCostInclVat": 34273.14878646236
+        },
+        {
+          "lotNumber": "1328",
+          "materialName": "Соболь",
+          "quantityReceived": 16.0,
+          "unitCostInclVat": 107553.12821046235
+        },
+        {
+          "lotNumber": "1330",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 44.0,
+          "unitCostInclVat": 60275.725586462366
+        },
+        {
+          "lotNumber": "1331",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 83914.42689846235
+        },
+        {
+          "lotNumber": "1332",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 48.0,
+          "unitCostInclVat": 50820.25041846236
+        },
+        {
+          "lotNumber": "1333",
+          "materialName": "Шкура норки",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 50820.25041846236
+        },
+        {
+          "lotNumber": "1337",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 25999.611362462358
+        },
+        {
+          "lotNumber": "1351",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 21.0,
+          "unitCostInclVat": 49638.31267446236
+        },
+        {
+          "lotNumber": "1353",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 49638.31267446236
+        },
+        {
+          "lotNumber": "1358",
+          "materialName": "Шкура норки",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 20089.93603446236
+        },
+        {
+          "lotNumber": "1360",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 83914.42689846236
+        },
+        {
+          "lotNumber": "1363",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 17.0,
+          "unitCostInclVat": 40182.82411446236
+        }
+      ]
+    },
+    {
+      "key": "master-14",
+      "supplierKey": "rp",
+      "auctionSession": "РП 03.25",
+      "invoiceNumber": "2154",
+      "transferDocument": "№ 77 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "1378",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 52.0,
+          "unitCostInclVat": 37818.962018462356
+        },
+        {
+          "lotNumber": "1384",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 14.0,
+          "unitCostInclVat": 52002.17477046236
+        },
+        {
+          "lotNumber": "1385",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 20.0,
+          "unitCostInclVat": 42546.69960246236
+        },
+        {
+          "lotNumber": "1386",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 26.0,
+          "unitCostInclVat": 43728.63734646236
+        },
+        {
+          "lotNumber": "1388",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 22453.798130462357
+        },
+        {
+          "lotNumber": "1390",
+          "materialName": "Соболь",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 24817.67361846236
+        },
+        {
+          "lotNumber": "1397",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 56.0,
+          "unitCostInclVat": 30727.34894646236
+        },
+        {
+          "lotNumber": "1400",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 26.0,
+          "unitCostInclVat": 39000.89976246236
+        }
+      ]
+    },
+    {
+      "key": "master-15",
+      "supplierKey": "rp",
+      "auctionSession": "РП 03.25",
+      "invoiceNumber": "2155",
+      "transferDocument": "№ 77 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "543",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 21.0,
+          "unitCostInclVat": 17726.06054646236
+        },
+        {
+          "lotNumber": "549",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 18.0,
+          "unitCostInclVat": 10634.447555033788
+        },
+        {
+          "lotNumber": "583",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 16.0,
+          "unitCostInclVat": 17135.098259676644
+        },
+        {
+          "lotNumber": "588",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 10398.0652623195
+        },
+        {
+          "lotNumber": "1422",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 25.0,
+          "unitCostInclVat": 46092.49940217665
+        },
+        {
+          "lotNumber": "1423",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 30727.348845748074
+        },
+        {
+          "lotNumber": "1425",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 25999.61122146236
+        },
+        {
+          "lotNumber": "1426",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 18.0,
+          "unitCostInclVat": 17726.06054646236
+        },
+        {
+          "lotNumber": "1437",
+          "materialName": "Соболь",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 40182.824094319505
+        }
+      ]
+    },
+    {
+      "key": "master-16",
+      "supplierKey": "rp",
+      "auctionSession": "РП 03.25",
+      "invoiceNumber": "2156",
+      "transferDocument": "№ 77 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "634",
+          "materialName": "Соболь",
+          "quantityReceived": 68.0,
+          "unitCostInclVat": 18907.998290462358
+        },
+        {
+          "lotNumber": "1449",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 49638.31267446236
+        },
+        {
+          "lotNumber": "1450",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 11.0,
+          "unitCostInclVat": 16544.122802462356
+        },
+        {
+          "lotNumber": "1456",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 22453.79813046236
+        },
+        {
+          "lotNumber": "1457",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 15953.160626462357
+        }
+      ]
+    },
+    {
+      "key": "master-17",
+      "supplierKey": "rp",
+      "auctionSession": "РП 03.25",
+      "invoiceNumber": "2157",
+      "transferDocument": "№ 77 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "1465",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 16.0,
+          "unitCostInclVat": 18907.99829046236
+        },
+        {
+          "lotNumber": "1468",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 13589.285138462357
+        },
+        {
+          "lotNumber": "1483",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 20089.93603446236
+        },
+        {
+          "lotNumber": "1488",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 14.0,
+          "unitCostInclVat": 21271.87377846236
+        },
+        {
+          "lotNumber": "1495",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 35.0,
+          "unitCostInclVat": 18907.99829046236
+        },
+        {
+          "lotNumber": "1498-2",
+          "materialName": "Соболь",
+          "quantityReceived": 12.0,
+          "unitCostInclVat": 11580.003026462358
+        }
+      ]
+    },
+    {
+      "key": "master-18",
+      "supplierKey": "rp",
+      "auctionSession": "РП 05.25",
+      "invoiceNumber": "2227",
+      "transferDocument": "№ 143 от 22.09.2025 г.",
+      "orderDate": "2025-09-22",
+      "lots": [
+        {
+          "lotNumber": "1486",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 20517.470909713975
+        },
+        {
+          "lotNumber": "1490",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 22668.427013084256
+        },
+        {
+          "lotNumber": "1498-1",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 18366.514806343694
+        },
+        {
+          "lotNumber": "1504",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 12.0,
+          "unitCostInclVat": 21592.948961399114
+        },
+        {
+          "lotNumber": "1517",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 17.0,
+          "unitCostInclVat": 17291.03675465855
+        },
+        {
+          "lotNumber": "1520",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 16.0,
+          "unitCostInclVat": 16753.297728815982
+        },
+        {
+          "lotNumber": "1525",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 17.0,
+          "unitCostInclVat": 17291.03675465855
+        },
+        {
+          "lotNumber": "1541",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 17291.03675465855
+        },
+        {
+          "lotNumber": "1544",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 31.0,
+          "unitCostInclVat": 16215.558702973414
+        }
+      ]
+    },
+    {
+      "key": "master-19",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1046",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "15480",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 20115.35399646236
+        },
+        {
+          "lotNumber": "15481",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 20115.35399646236
+        },
+        {
+          "lotNumber": "15482",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 44.0,
+          "unitCostInclVat": 20115.35399646236
+        },
+        {
+          "lotNumber": "15484",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 75.0,
+          "unitCostInclVat": 20115.353996462356
+        },
+        {
+          "lotNumber": "15001",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 22482.393326462356
+        },
+        {
+          "lotNumber": "15002",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 33.0,
+          "unitCostInclVat": 15973.018406462359
+        },
+        {
+          "lotNumber": "15873",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 56804.59100646237
+        },
+        {
+          "lotNumber": "15874",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 21.0,
+          "unitCostInclVat": 60355.15670646236
+        },
+        {
+          "lotNumber": "15891",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 18.0,
+          "unitCostInclVat": 57988.10396646236
+        },
+        {
+          "lotNumber": "15892",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 9.0,
+          "unitCostInclVat": 43785.82775646236
+        },
+        {
+          "lotNumber": "15893",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 10.0,
+          "unitCostInclVat": 57988.10396646235
+        },
+        {
+          "lotNumber": "15894",
+          "materialName": "Соболь",
+          "quantityReceived": 10.0,
+          "unitCostInclVat": 43785.827756462364
+        },
+        {
+          "lotNumber": "15895",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 42602.301386462364
+        },
+        {
+          "lotNumber": "15896",
+          "materialName": "Соболь клеточный выделанный",
+          "quantityReceived": 24.0,
+          "unitCostInclVat": 52070.485526462355
+        },
+        {
+          "lotNumber": "15897",
+          "materialName": "Соболь фермерский",
+          "quantityReceived": 13.0,
+          "unitCostInclVat": 56804.59100646235
+        },
+        {
+          "lotNumber": "15898",
+          "materialName": "Соболь клеточный выделанный тонированный Норка коричневая крашенная в черный цвет",
+          "quantityReceived": 13.0,
+          "unitCostInclVat": 53254.01189646236
+        },
+        {
+          "lotNumber": "15899",
+          "materialName": "Соболь",
+          "quantityReceived": 7.0,
+          "unitCostInclVat": 46152.867086462364
+        }
+      ]
+    },
+    {
+      "key": "master-20",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1048",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "30",
+          "materialName": "Соболь",
+          "quantityReceived": 10.0,
+          "unitCostInclVat": 190542.76238646236
+        },
+        {
+          "lotNumber": "31",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 72190.39358646236
+        },
+        {
+          "lotNumber": "32",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 25.0,
+          "unitCostInclVat": 78108.01202646235
+        },
+        {
+          "lotNumber": "33",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 63313.965926462355
+        },
+        {
+          "lotNumber": "106",
+          "materialName": "Шкура норки",
+          "quantityReceived": 59.0,
+          "unitCostInclVat": 69231.58436646235
+        },
+        {
+          "lotNumber": "107",
+          "materialName": "Шкура норки",
+          "quantityReceived": 43.0,
+          "unitCostInclVat": 69231.58436646235
+        },
+        {
+          "lotNumber": "109",
+          "materialName": "Шкура норки",
+          "quantityReceived": 25.0,
+          "unitCostInclVat": 66272.77514646236
+        },
+        {
+          "lotNumber": "111",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 89943.24890646237
+        },
+        {
+          "lotNumber": "112",
+          "materialName": "Шкура соболя",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 89943.24890646237
+        },
+        {
+          "lotNumber": "114",
+          "materialName": "Соболь",
+          "quantityReceived": 42.0,
+          "unitCostInclVat": 95860.86734646236
+        },
+        {
+          "lotNumber": "115",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 36.0,
+          "unitCostInclVat": 84025.63046646235
+        }
+      ]
+    },
+    {
+      "key": "master-21",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1049",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "337",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 34.0,
+          "unitCostInclVat": 56804.59100646236
+        },
+        {
+          "lotNumber": "343",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 24.0,
+          "unitCostInclVat": 89943.24890646235
+        },
+        {
+          "lotNumber": "344",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 32.0,
+          "unitCostInclVat": 69231.58436646237
+        },
+        {
+          "lotNumber": "346",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 66272.77514646236
+        },
+        {
+          "lotNumber": "353",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 37.0,
+          "unitCostInclVat": 69231.58436646235
+        }
+      ]
+    },
+    {
+      "key": "master-22",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1050",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "3237",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 21.0,
+          "unitCostInclVat": 43785.82775646235
+        },
+        {
+          "lotNumber": "3238",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 42602.30138646236
+        },
+        {
+          "lotNumber": "3239",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 35.0,
+          "unitCostInclVat": 33134.11724646236
+        },
+        {
+          "lotNumber": "3240",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 26.0,
+          "unitCostInclVat": 29583.538136462357
+        },
+        {
+          "lotNumber": "3376",
+          "materialName": "Соболь",
+          "quantityReceived": 51.0,
+          "unitCostInclVat": 21298.88036646236
+        }
+      ]
+    },
+    {
+      "key": "master-23",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1051",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "866",
+          "materialName": "Соболь",
+          "quantityReceived": 20.0,
+          "unitCostInclVat": 60355.15670646236
+        },
+        {
+          "lotNumber": "867",
+          "materialName": "Соболь",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 60355.15670646236
+        },
+        {
+          "lotNumber": "869",
+          "materialName": "Соболь",
+          "quantityReceived": 20.0,
+          "unitCostInclVat": 59171.63033646236
+        },
+        {
+          "lotNumber": "872",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 22482.393326462356
+        },
+        {
+          "lotNumber": "873",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 21298.88036646236
+        },
+        {
+          "lotNumber": "874",
+          "materialName": "Соболь",
+          "quantityReceived": 31.0,
+          "unitCostInclVat": 60355.15670646236
+        },
+        {
+          "lotNumber": "875",
+          "materialName": "Соболь",
+          "quantityReceived": 42.0,
+          "unitCostInclVat": 56804.59100646235
+        },
+        {
+          "lotNumber": "877",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 53254.01189646236
+        }
+      ]
+    },
+    {
+      "key": "master-24",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1052",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "4016",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 50.0,
+          "unitCostInclVat": 37868.20931646236
+        },
+        {
+          "lotNumber": "4017",
+          "materialName": "Соболь",
+          "quantityReceived": 70.0,
+          "unitCostInclVat": 37868.20931646236
+        },
+        {
+          "lotNumber": "4018",
+          "materialName": "Соболь",
+          "quantityReceived": 70.0,
+          "unitCostInclVat": 36684.68294646236
+        }
+      ]
+    },
+    {
+      "key": "master-25",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 03.25",
+      "invoiceNumber": "1053",
+      "transferDocument": "№ 78 от 16 мая 2025 г.",
+      "orderDate": "2025-05-16",
+      "lots": [
+        {
+          "lotNumber": "3746",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 50.0,
+          "unitCostInclVat": 39051.73568646236
+        },
+        {
+          "lotNumber": "3749",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 41.0,
+          "unitCostInclVat": 41418.77501646236
+        },
+        {
+          "lotNumber": "3751-2",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 28.0,
+          "unitCostInclVat": 26032.972436462358
+        },
+        {
+          "lotNumber": "3754",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 23.0,
+          "unitCostInclVat": 55621.06463646236
+        },
+        {
+          "lotNumber": "3924",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 38.0,
+          "unitCostInclVat": 15381.261926462359
+        },
+        {
+          "lotNumber": "3926",
+          "materialName": "Соболь баргузинский",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 44969.35412646236
+        },
+        {
+          "lotNumber": "4145",
+          "materialName": "Соболь",
+          "quantityReceived": 29.0,
+          "unitCostInclVat": 29583.53813646236
+        },
+        {
+          "lotNumber": "4147",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 20.0,
+          "unitCostInclVat": 16564.77488646236
+        },
+        {
+          "lotNumber": "4148",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 15973.018406462359
+        },
+        {
+          "lotNumber": "4256",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 25.0,
+          "unitCostInclVat": 27216.498806462358
+        },
+        {
+          "lotNumber": "4364",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 20.0,
+          "unitCostInclVat": 29583.538136462354
+        },
+        {
+          "lotNumber": "4407",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 27216.498806462358
+        }
+      ]
+    },
+    {
+      "key": "master-26",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 05.25",
+      "invoiceNumber": "2004",
+      "transferDocument": "№ 143 от 22.09.2025 г.",
+      "orderDate": "2025-09-22",
+      "lots": [
+        {
+          "lotNumber": "15016",
+          "materialName": "Соболь клеточный выделанный тонированный, Технический шёлк",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 17213.743973649354
+        },
+        {
+          "lotNumber": "15017",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 43.0,
+          "unitCostInclVat": 14005.280751058786
+        },
+        {
+          "lotNumber": "15018",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 41.0,
+          "unitCostInclVat": 14005.280751058786
+        },
+        {
+          "lotNumber": "15019",
+          "materialName": "Соболь клеточный, 100% шерсть",
+          "quantityReceived": 42.0,
+          "unitCostInclVat": 12401.055364763502
+        },
+        {
+          "lotNumber": "15022",
+          "materialName": "Соболь клеточный выделанный тонированный",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 12935.793010195264
+        }
+      ]
+    },
+    {
+      "key": "master-27",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 05.25",
+      "invoiceNumber": "2094",
+      "transferDocument": "№ 143 от 22.09.2025 г.",
+      "orderDate": "2025-09-22",
+      "lots": [
+        {
+          "lotNumber": "3485",
+          "materialName": "Соболь",
+          "quantityReceived": 50.0,
+          "unitCostInclVat": 31098.029902382405
+        },
+        {
+          "lotNumber": "3486",
+          "materialName": "Соболь дикий выделанный (лавандер)",
+          "quantityReceived": 105.0,
+          "unitCostInclVat": 33236.53641029833
+        },
+        {
+          "lotNumber": "3487",
+          "materialName": "Соболь",
+          "quantityReceived": 105.0,
+          "unitCostInclVat": 34305.795889256304
+        },
+        {
+          "lotNumber": "3488",
+          "materialName": "Соболь дикий выделанный (лавандер)",
+          "quantityReceived": 105.0,
+          "unitCostInclVat": 34305.795889256304
+        },
+        {
+          "lotNumber": "3628",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 44.0,
+          "unitCostInclVat": 32167.276931340373
+        },
+        {
+          "lotNumber": "3634",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 39.0,
+          "unitCostInclVat": 37513.561876130196
+        },
+        {
+          "lotNumber": "3635",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 30.0,
+          "unitCostInclVat": 36444.30239717223
+        },
+        {
+          "lotNumber": "3748",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 22543.978970718683
+        },
+        {
+          "lotNumber": "3751-1",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 22.0,
+          "unitCostInclVat": 34305.7958892563
+        },
+        {
+          "lotNumber": "3958",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 20405.472462802747
+        },
+        {
+          "lotNumber": "3961",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 21.0,
+          "unitCostInclVat": 20405.47246280275
+        },
+        {
+          "lotNumber": "3967",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 40.0,
+          "unitCostInclVat": 23613.238449676646
+        },
+        {
+          "lotNumber": "4051",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 39.0,
+          "unitCostInclVat": 20405.47246280275
+        },
+        {
+          "lotNumber": "4053",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 27.0,
+          "unitCostInclVat": 19336.212983844784
+        }
+      ]
+    },
+    {
+      "key": "master-28",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "СП 05.25",
+      "invoiceNumber": "2095",
+      "transferDocument": "№ 143 от 22.09.2025 г.",
+      "orderDate": "2025-09-22",
+      "lots": [
+        {
+          "lotNumber": "3222",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 37.0,
+          "unitCostInclVat": 41799.3994010408
+        },
+        {
+          "lotNumber": "3223",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 35.0,
+          "unitCostInclVat": 39660.42391931376
+        },
+        {
+          "lotNumber": "3365",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 45.0,
+          "unitCostInclVat": 36451.960696723196
+        },
+        {
+          "lotNumber": "3369",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 24.0,
+          "unitCostInclVat": 41799.3994010408
+        }
+      ]
+    },
+    {
+      "key": "orphan-soyuzpushnina",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Не в реестре остатков (реконструировано из ТЗ)",
+      "invoiceNumber": null,
+      "transferDocument": null,
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "355159",
+          "materialName": "Шкурка норки белой",
+          "quantityReceived": 121.0,
+          "unitCostInclVat": 10880.750465400186
+        },
+        {
+          "lotNumber": "165270",
+          "materialName": "Выделанная шкурка лисицы серебристо-черной",
+          "quantityReceived": 42.0,
+          "unitCostInclVat": 18064.23422980828
+        },
+        {
+          "lotNumber": "500083",
+          "materialName": "Шкурка норки черной",
+          "quantityReceived": 48.0,
+          "unitCostInclVat": 13343.237827740168
+        },
+        {
+          "lotNumber": "СП0526.20",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 34980.15241574868
+        },
+        {
+          "lotNumber": "СП0526.23",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "СП0526.24",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 12.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "СП0526.26",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "СП0526.27",
+          "materialName": "Соболь выделанный тонированный",
+          "quantityReceived": 7.0,
+          "unitCostInclVat": 34014.37295132868
+        },
+        {
+          "lotNumber": "300687",
+          "materialName": "Соболь выделанный тонированный; выделанная шкурка норки",
+          "quantityReceived": 15.0,
+          "unitCostInclVat": 12245.084811563753
+        }
+      ]
+    },
+    {
+      "key": "orphan-rp",
+      "supplierKey": "rp",
+      "auctionSession": "Не в реестре остатков (реконструировано из ТЗ)",
+      "invoiceNumber": null,
+      "transferDocument": null,
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "РП0426.3",
+          "materialName": "Соболь выделанный тонированный; выделанная шкурка норки",
+          "quantityReceived": 17.0,
+          "unitCostInclVat": 32642.69
+        },
+        {
+          "lotNumber": "РП0426.1",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 24.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "РП0426.2",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 12.0,
+          "unitCostInclVat": 32642.693242438687
+        },
+        {
+          "lotNumber": "РП0426.4",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 11.0,
+          "unitCostInclVat": 35687.676024508684
+        },
+        {
+          "lotNumber": "РП0426.5",
+          "materialName": "Соболь дикий выделанный",
+          "quantityReceived": 12.0,
+          "unitCostInclVat": 32642.693242438687
+        }
+      ]
+    },
+    {
+      "key": "linings",
+      "supplierKey": "soyuzpushnina",
+      "auctionSession": "Подкладочные материалы (сводно по реестру)",
+      "invoiceNumber": null,
+      "transferDocument": null,
+      "orderDate": "2025-06-01",
+      "lots": [
+        {
+          "lotNumber": "LIN-10-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 4.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-20-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-30-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 1.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-39-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 1.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-50-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-53-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-56-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-59-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-70-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 1.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-73-0",
+          "materialName": "Подкладочная ткань №28",
+          "quantityReceived": 3.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-76-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 4.5,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-79-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-82-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 8.5,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-87-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 10.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-92-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 1.7,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-97-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 9.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-104-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-110-0",
+          "materialName": "Подкладочная ткань №28",
+          "quantityReceived": 1.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-113-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 1.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-116-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 0.9,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-119-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 9.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-125-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-128-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 5.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-141-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 4.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-149-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-152-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-155-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 6.200000000000001,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-158-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 6.6000000000000005,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-170-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 15.5,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-177-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-191-0",
+          "materialName": "Подкладочная ткань №2",
+          "quantityReceived": 3.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-194-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 4.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-199-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-210-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-213-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 12.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-216-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 5.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-221-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 1.95,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-224-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 7.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-232-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 13.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-245-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 15.5,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-251-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 10.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-255-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-259-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-262-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 1.95,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-265-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 14.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-268-0",
+          "materialName": "Подкладочная ткань №4",
+          "quantityReceived": 10.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-271-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 2.2,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-280-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 1.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-287-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 6.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-290-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 1.8,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-293-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.5,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-298-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 0.65,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-301-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-312-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 1.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-323-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-326-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 12.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-329-0",
+          "materialName": "Подкладочная ткань №27",
+          "quantityReceived": 9.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-332-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 3.4,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-335-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 9.3,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-338-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-350-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2140.0
+        },
+        {
+          "lotNumber": "LIN-396-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 5.4,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-401-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 6.2,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-439-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 3.6,
+          "unitCostInclVat": 2175.6588461538463
+        },
+        {
+          "lotNumber": "LIN-442-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 1.7,
+          "unitCostInclVat": 2175.6588461538463
+        },
+        {
+          "lotNumber": "LIN-456-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 3.1,
+          "unitCostInclVat": 2175.658846153846
+        },
+        {
+          "lotNumber": "LIN-481-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 1.7,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-484-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 0.25,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-493-0",
+          "materialName": "Подкладочная ткань №41",
+          "quantityReceived": 2.25,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-496-0",
+          "materialName": "Подкладочная ткань №4",
+          "quantityReceived": 3.0,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-499-0",
+          "materialName": "Подкладочная ткань №37",
+          "quantityReceived": 4.0,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-502-0",
+          "materialName": "Подкладочная ткань №28",
+          "quantityReceived": 2.5,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-505-0",
+          "materialName": "Подкладочная ткань №24",
+          "quantityReceived": 1.85,
+          "unitCostInclVat": 2175.666666666667
+        },
+        {
+          "lotNumber": "LIN-522-0",
+          "materialName": "Подкладочная ткань №28",
+          "quantityReceived": 2.5,
+          "unitCostInclVat": 2175.666666666667
+        }
+      ]
+    }
+  ],
+  "productionOrders": [
+    {
+      "headerRow": 10,
+      "article": "МОО1К",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь фермерский",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 46",
+      "quantity": 2.0,
+      "workPricePerUnit": 241790.0,
+      "retailPrice": 11850000.0,
+      "workOrderNumber": "1",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15874",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "15893",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "15895",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "15897",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "15873",
+          "quantity": 29.0
+        },
+        {
+          "lotNumber": "15891",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "15892",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "LIN-10-0",
+          "quantity": 4.8
+        }
+      ]
+    },
+    {
+      "headerRow": 20,
+      "article": "МОО2",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь баргузинский",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 401790.0,
+      "retailPrice": 14250000.0,
+      "workOrderNumber": "2",
+      "colorName": "TORTORA",
+      "lines": [
+        {
+          "lotNumber": "3239",
+          "quantity": 29.0
+        },
+        {
+          "lotNumber": "3240",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "1450",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "3237",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "3238",
+          "quantity": 15.0
+        },
+        {
+          "lotNumber": "1449",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "1456",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "LIN-20-0",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 30,
+      "article": "МОО3",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь баргузинский",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 213790.0,
+      "retailPrice": 5350000.0,
+      "workOrderNumber": "3",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "89",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "175",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "543",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "549",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "583",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "588",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "LIN-30-0",
+          "quantity": 1.6
+        }
+      ]
+    },
+    {
+      "headerRow": 39,
+      "article": "М001А",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь баргузинский",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 241790.0,
+      "retailPrice": 7980000.0,
+      "workOrderNumber": "4",
+      "colorName": "TORTORA",
+      "lines": [
+        {
+          "lotNumber": "1465",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "1468",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "3746",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "3749",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "3751-2",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "3754",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "3924",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "3926",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "LIN-39-0",
+          "quantity": 1.8
+        }
+      ]
+    },
+    {
+      "headerRow": 50,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1525000.0,
+      "workOrderNumber": "5",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500747",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "LIN-50-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 53,
+      "article": "М010",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 211790.0,
+      "retailPrice": 1435000.0,
+      "workOrderNumber": "6",
+      "colorName": "BROWN",
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-53-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 56,
+      "article": "М011",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 2175000.0,
+      "workOrderNumber": "7",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "600083",
+          "quantity": 48.0
+        },
+        {
+          "lotNumber": "LIN-56-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 59,
+      "article": "М015",
+      "productType": "Куртка женская из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 172790.0,
+      "retailPrice": 1590000.0,
+      "workOrderNumber": "8",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "10022",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-59-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 62,
+      "article": "М005",
+      "productType": "Куртка женская вязаная из соболя",
+      "materialDescription": "Соболь фермерский",
+      "liningComposition": "-",
+      "sizes": "единый размер",
+      "quantity": 2.0,
+      "workPricePerUnit": 361790.0,
+      "retailPrice": 4850000.0,
+      "workOrderNumber": "9",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15001",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15002",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15480",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15484",
+          "quantity": 12.0
+        }
+      ]
+    },
+    {
+      "headerRow": 70,
+      "article": "М020",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 156790.0,
+      "retailPrice": 1395000.0,
+      "workOrderNumber": "10",
+      "colorName": "NUT",
+      "lines": [
+        {
+          "lotNumber": "720505",
+          "quantity": 24.0
+        },
+        {
+          "lotNumber": "LIN-70-0",
+          "quantity": 1.8
+        }
+      ]
+    },
+    {
+      "headerRow": 73,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 4.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 649000.0,
+      "workOrderNumber": "11",
+      "colorName": "IRIS",
+      "lines": [
+        {
+          "lotNumber": "518005",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "LIN-73-0",
+          "quantity": 3.2
+        }
+      ]
+    },
+    {
+      "headerRow": 76,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 5.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 649000.0,
+      "workOrderNumber": "12",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500747",
+          "quantity": 40.0
+        },
+        {
+          "lotNumber": "LIN-76-0",
+          "quantity": 4.5
+        }
+      ]
+    },
+    {
+      "headerRow": 79,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 4.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 780000.0,
+      "workOrderNumber": "13",
+      "colorName": "LAVANDER",
+      "lines": [
+        {
+          "lotNumber": "519506",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "LIN-79-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 82,
+      "article": "М019",
+      "productType": "Юбка из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 44, 44, 46, 48",
+      "quantity": 5.0,
+      "workPricePerUnit": 111790.0,
+      "retailPrice": 785000.0,
+      "workOrderNumber": "14",
+      "colorName": "BROWN 239341",
+      "lines": [
+        {
+          "lotNumber": "720507",
+          "quantity": 35.0
+        },
+        {
+          "lotNumber": "720508",
+          "quantity": 35.0
+        },
+        {
+          "lotNumber": "LIN-82-0",
+          "quantity": 8.5
+        }
+      ]
+    },
+    {
+      "headerRow": 87,
+      "article": "М018",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 44, 44, 44, 46, 48",
+      "quantity": 6.0,
+      "workPricePerUnit": 151790.0,
+      "retailPrice": 1330000.0,
+      "workOrderNumber": "15",
+      "colorName": "BROWN 239341",
+      "lines": [
+        {
+          "lotNumber": "720506",
+          "quantity": 42.0
+        },
+        {
+          "lotNumber": "720502",
+          "quantity": 78.0
+        },
+        {
+          "lotNumber": "LIN-87-0",
+          "quantity": 10.2
+        }
+      ]
+    },
+    {
+      "headerRow": 92,
+      "article": "М018",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 151790.0,
+      "retailPrice": 1330000.0,
+      "workOrderNumber": "16",
+      "colorName": "NOUGAT",
+      "lines": [
+        {
+          "lotNumber": "720507",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "720508",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "LIN-92-0",
+          "quantity": 1.7
+        }
+      ]
+    },
+    {
+      "headerRow": 97,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "40, 46, 52",
+      "quantity": 3.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "17",
+      "colorName": "CLOUD 239264",
+      "lines": [
+        {
+          "lotNumber": "720503",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "720504",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "720506",
+          "quantity": 42.0
+        },
+        {
+          "lotNumber": "720508",
+          "quantity": 47.0
+        },
+        {
+          "lotNumber": "LIN-97-0",
+          "quantity": 9.3
+        }
+      ]
+    },
+    {
+      "headerRow": 104,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "54",
+      "quantity": 1.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "18",
+      "colorName": "FONDU",
+      "lines": [
+        {
+          "lotNumber": "720503",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "720504",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "720506",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "LIN-104-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 110,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 2.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 649000.0,
+      "workOrderNumber": "19",
+      "colorName": "IRIS",
+      "lines": [
+        {
+          "lotNumber": "518005",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "LIN-110-0",
+          "quantity": 1.8
+        }
+      ]
+    },
+    {
+      "headerRow": 113,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 2.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 649000.0,
+      "workOrderNumber": "19",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500747",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "LIN-113-0",
+          "quantity": 1.8
+        }
+      ]
+    },
+    {
+      "headerRow": 116,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "единый размер",
+      "quantity": 1.0,
+      "workPricePerUnit": 84790.0,
+      "retailPrice": 780000.0,
+      "workOrderNumber": "19",
+      "colorName": "LAVANDER",
+      "lines": [
+        {
+          "lotNumber": "519506",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "LIN-116-0",
+          "quantity": 0.9
+        }
+      ]
+    },
+    {
+      "headerRow": 119,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "50, 50, 52",
+      "quantity": 3.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "20",
+      "colorName": "FONDU",
+      "lines": [
+        {
+          "lotNumber": "720503",
+          "quantity": 36.0
+        },
+        {
+          "lotNumber": "720504",
+          "quantity": 27.0
+        },
+        {
+          "lotNumber": "720506",
+          "quantity": 42.0
+        },
+        {
+          "lotNumber": "LIN-119-0",
+          "quantity": 9.3
+        }
+      ]
+    },
+    {
+      "headerRow": 125,
+      "article": "М020",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 46",
+      "quantity": 2.0,
+      "workPricePerUnit": 156790.0,
+      "retailPrice": 1395000.0,
+      "workOrderNumber": "20",
+      "colorName": "NUT",
+      "lines": [
+        {
+          "lotNumber": "720505",
+          "quantity": 48.0
+        },
+        {
+          "lotNumber": "LIN-125-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 128,
+      "article": "М018",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 46, 48",
+      "quantity": 3.0,
+      "workPricePerUnit": 151790.0,
+      "retailPrice": 1330000.0,
+      "workOrderNumber": "20",
+      "colorName": "NOUGAT",
+      "lines": [
+        {
+          "lotNumber": "720507",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "720509",
+          "quantity": 39.0
+        },
+        {
+          "lotNumber": "LIN-128-0",
+          "quantity": 5.1
+        }
+      ]
+    },
+    {
+      "headerRow": 133,
+      "article": "М004",
+      "productType": "Жакет женский вязаный из соболя",
+      "materialDescription": "шкура соболя",
+      "liningComposition": "нет",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 321790.0,
+      "retailPrice": 3980000.0,
+      "workOrderNumber": "21",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15001",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15002",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15480",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15484",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 141,
+      "article": "М002А",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "шкура соболя",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 381790.0,
+      "retailPrice": 19350000.0,
+      "workOrderNumber": "21",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "1331",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "1332",
+          "quantity": 33.0
+        },
+        {
+          "lotNumber": "112",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "1363",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "111",
+          "quantity": 22.0
+        },
+        {
+          "lotNumber": "LIN-141-0",
+          "quantity": 4.3
+        }
+      ]
+    },
+    {
+      "headerRow": 149,
+      "article": "М015",
+      "productType": "Куртка женская из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 172790.0,
+      "retailPrice": 1590000.0,
+      "workOrderNumber": "22",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "10022",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-149-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 152,
+      "article": "М011А",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 2085000.0,
+      "workOrderNumber": "22",
+      "colorName": "BROWN",
+      "lines": [
+        {
+          "lotNumber": "10025",
+          "quantity": 45.0
+        },
+        {
+          "lotNumber": "LIN-152-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 155,
+      "article": "М010",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 211790.0,
+      "retailPrice": 1435000.0,
+      "workOrderNumber": "22",
+      "colorName": "BROWN",
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 40.0
+        },
+        {
+          "lotNumber": "LIN-155-0",
+          "quantity": 6.200000000000001
+        }
+      ]
+    },
+    {
+      "headerRow": 158,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 46, 50",
+      "quantity": 3.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1525000.0,
+      "workOrderNumber": "22",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500747",
+          "quantity": 51.0
+        },
+        {
+          "lotNumber": "LIN-158-0",
+          "quantity": 6.6000000000000005
+        }
+      ]
+    },
+    {
+      "headerRow": 161,
+      "article": "М003",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "шкура соболя",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 213790.0,
+      "retailPrice": 6850000.0,
+      "workOrderNumber": "23",
+      "colorName": "TORTORA",
+      "lines": [
+        {
+          "lotNumber": "89",
+          "quantity": 25.0
+        },
+        {
+          "lotNumber": "175",
+          "quantity": 30.0
+        },
+        {
+          "lotNumber": "543",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "549",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "588",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "1425",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 170,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "40, 42, 42, 42, 48",
+      "quantity": 5.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "24",
+      "colorName": "FONDU",
+      "lines": [
+        {
+          "lotNumber": "720502",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "720503",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "720504",
+          "quantity": 80.0
+        },
+        {
+          "lotNumber": "720506",
+          "quantity": 47.0
+        },
+        {
+          "lotNumber": "LIN-170-0",
+          "quantity": 15.5
+        }
+      ]
+    },
+    {
+      "headerRow": 177,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "25",
+      "colorName": "CLOUD 239264",
+      "lines": [
+        {
+          "lotNumber": "720504",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "720506",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "720508",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "LIN-177-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 183,
+      "article": "М005",
+      "productType": "Куртка женская вязаная из соболя",
+      "materialDescription": "Соболь фермерский",
+      "liningComposition": "-",
+      "sizes": "единый размер",
+      "quantity": 1.0,
+      "workPricePerUnit": 361790.0,
+      "retailPrice": 4850000.0,
+      "workOrderNumber": "26",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15001",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15002",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15480",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15484",
+          "quantity": 6.0
+        }
+      ]
+    },
+    {
+      "headerRow": 191,
+      "article": "М017",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "норка отбеленная",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 1785000.0,
+      "workOrderNumber": "27",
+      "colorName": "WHITE",
+      "lines": [
+        {
+          "lotNumber": "5023, 5022, 5037, 5028",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "LIN-191-0",
+          "quantity": 3.2
+        }
+      ]
+    },
+    {
+      "headerRow": 194,
+      "article": "М013",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки браун краш. в черный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 46",
+      "quantity": 2.0,
+      "workPricePerUnit": 241790.0,
+      "retailPrice": 2345000.0,
+      "workOrderNumber": "28",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 40.0
+        },
+        {
+          "lotNumber": "10022",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-194-0",
+          "quantity": 4.4
+        }
+      ]
+    },
+    {
+      "headerRow": 199,
+      "article": "М002А",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 381790.0,
+      "retailPrice": 19350000.0,
+      "workOrderNumber": "29",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "107",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "106",
+          "quantity": 19.0
+        },
+        {
+          "lotNumber": "109",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "112",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "1332",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "111",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "1333",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1358",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "LIN-199-0",
+          "quantity": 3.3
+        }
+      ]
+    },
+    {
+      "headerRow": 210,
+      "article": "М010",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 211790.0,
+      "retailPrice": 1435000.0,
+      "workOrderNumber": "30",
+      "colorName": "BROWN",
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-210-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 213,
+      "article": "М010",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 44, 46, 46",
+      "quantity": 4.0,
+      "workPricePerUnit": 211790.0,
+      "retailPrice": 1850000.0,
+      "workOrderNumber": "31",
+      "colorName": "PASTEL",
+      "lines": [
+        {
+          "lotNumber": "505053",
+          "quantity": 80.0
+        },
+        {
+          "lotNumber": "LIN-213-0",
+          "quantity": 12.4
+        }
+      ]
+    },
+    {
+      "headerRow": 216,
+      "article": "М020",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 48, 48",
+      "quantity": 3.0,
+      "workPricePerUnit": 156790.0,
+      "retailPrice": 1395000.0,
+      "workOrderNumber": "32",
+      "colorName": "NUT",
+      "lines": [
+        {
+          "lotNumber": "720502",
+          "quantity": 36.0
+        },
+        {
+          "lotNumber": "720503",
+          "quantity": 36.0
+        },
+        {
+          "lotNumber": "LIN-216-0",
+          "quantity": 5.4
+        }
+      ]
+    },
+    {
+      "headerRow": 221,
+      "article": "М016",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "шкура норки браун",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 46.50",
+      "quantity": 3.0,
+      "workPricePerUnit": 121790.0,
+      "retailPrice": 735000.0,
+      "workOrderNumber": "33",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "LIN-221-0",
+          "quantity": 1.95
+        }
+      ]
+    },
+    {
+      "headerRow": 224,
+      "article": "М011",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 44",
+      "quantity": 2.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 2175000.0,
+      "workOrderNumber": "34",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "600083",
+          "quantity": 90.0
+        },
+        {
+          "lotNumber": "LIN-224-0",
+          "quantity": 7.2
+        }
+      ]
+    },
+    {
+      "headerRow": 227,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки лаванда",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 46, 46, 50",
+      "quantity": 4.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1780000.0,
+      "workOrderNumber": "35",
+      "colorName": "LAVENDER",
+      "lines": [
+        {
+          "lotNumber": "519502",
+          "quantity": 28.0
+        },
+        {
+          "lotNumber": "519503",
+          "quantity": 40.0
+        }
+      ]
+    },
+    {
+      "headerRow": 232,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 42, 44, 44, 48, 48",
+      "quantity": 6.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1525000.0,
+      "workOrderNumber": "36",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500747",
+          "quantity": 56.0
+        },
+        {
+          "lotNumber": "500748",
+          "quantity": 46.0
+        },
+        {
+          "lotNumber": "LIN-232-0",
+          "quantity": 13.2
+        }
+      ]
+    },
+    {
+      "headerRow": 237,
+      "article": "М004",
+      "productType": "Жакет женский вязаный из соболя",
+      "materialDescription": "шкура соболя",
+      "liningComposition": "Нет",
+      "sizes": "50",
+      "quantity": 1.0,
+      "workPricePerUnit": 321790.0,
+      "retailPrice": 3980000.0,
+      "workOrderNumber": "37",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15001",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15002",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15480",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "15484",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 245,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42,42,44,46,48",
+      "quantity": 5.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "38",
+      "colorName": "CLOUD 239264",
+      "lines": [
+        {
+          "lotNumber": "720504",
+          "quantity": 30.0
+        },
+        {
+          "lotNumber": "720505",
+          "quantity": 120.0
+        },
+        {
+          "lotNumber": "720507",
+          "quantity": 25.0
+        },
+        {
+          "lotNumber": "LIN-245-0",
+          "quantity": 15.5
+        }
+      ]
+    },
+    {
+      "headerRow": 251,
+      "article": "М020",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42,42,44,44,44,54",
+      "quantity": 6.0,
+      "workPricePerUnit": 156790.0,
+      "retailPrice": 1395000.0,
+      "workOrderNumber": "39",
+      "colorName": "NUT",
+      "lines": [
+        {
+          "lotNumber": "720507",
+          "quantity": 60.0
+        },
+        {
+          "lotNumber": "720509",
+          "quantity": 84.0
+        },
+        {
+          "lotNumber": "LIN-251-0",
+          "quantity": 10.8
+        }
+      ]
+    },
+    {
+      "headerRow": 255,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки лаванда",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1780000.0,
+      "workOrderNumber": "40",
+      "colorName": "LAVENDER",
+      "lines": [
+        {
+          "lotNumber": "519502",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "519503",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "LIN-255-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 259,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "Шкура норки блекглама",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "52",
+      "quantity": 1.0,
+      "workPricePerUnit": 191790.0,
+      "retailPrice": 1525000.0,
+      "workOrderNumber": "40",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "LIN-259-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 262,
+      "article": "М016",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "шкура норки браун",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42,44,48",
+      "quantity": 3.0,
+      "workPricePerUnit": 121790.0,
+      "retailPrice": 735000.0,
+      "workOrderNumber": "41",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "LIN-262-0",
+          "quantity": 1.95
+        }
+      ]
+    },
+    {
+      "headerRow": 265,
+      "article": "М011",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "40,42,42,48",
+      "quantity": 4.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 2175000.0,
+      "workOrderNumber": "42",
+      "colorName": "BLACK GLAMA",
+      "lines": [
+        {
+          "lotNumber": "600083",
+          "quantity": 180.0
+        },
+        {
+          "lotNumber": "LIN-265-0",
+          "quantity": 14.4
+        }
+      ]
+    },
+    {
+      "headerRow": 268,
+      "article": "М011",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки жемчуг самка",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44,46,48",
+      "quantity": 3.0,
+      "workPricePerUnit": 221790.0,
+      "retailPrice": 2290000.0,
+      "workOrderNumber": "43",
+      "colorName": "PEARL",
+      "lines": [
+        {
+          "lotNumber": "613017",
+          "quantity": 135.0
+        },
+        {
+          "lotNumber": "LIN-268-0",
+          "quantity": 10.8
+        }
+      ]
+    },
+    {
+      "headerRow": 271,
+      "article": "М013",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки браун краш. в черный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 241790.0,
+      "retailPrice": 2345000.0,
+      "workOrderNumber": "44",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "10022",
+          "quantity": 30.0
+        },
+        {
+          "lotNumber": "LIN-271-0",
+          "quantity": 2.2
+        }
+      ]
+    },
+    {
+      "headerRow": 274,
+      "article": "М006",
+      "productType": "Жилет женский вязаный из соболя",
+      "materialDescription": "Соболь клеточный",
+      "liningComposition": "-",
+      "sizes": "Единый размер",
+      "quantity": 1.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2345000.0,
+      "workOrderNumber": "45",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "15002",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "15480",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "15484",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 280,
+      "article": "М003",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 213790.0,
+      "retailPrice": 6850000.0,
+      "workOrderNumber": "46",
+      "colorName": "TORTORA",
+      "lines": [
+        {
+          "lotNumber": "1457",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "1488",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "4148",
+          "quantity": 26.0
+        },
+        {
+          "lotNumber": "4147",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-280-0",
+          "quantity": 1.6
+        }
+      ]
+    },
+    {
+      "headerRow": 287,
+      "article": "М011А",
+      "productType": "Пальто женское из норки",
+      "materialDescription": "шкура норки браун",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "40, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 230040.0,
+      "retailPrice": 2085000.0,
+      "workOrderNumber": "47",
+      "colorName": "BROWN",
+      "lines": [
+        {
+          "lotNumber": "10025",
+          "quantity": 90.0
+        },
+        {
+          "lotNumber": "LIN-287-0",
+          "quantity": 6.4
+        }
+      ]
+    },
+    {
+      "headerRow": 290,
+      "article": "М022",
+      "productType": "Куртка женская из каракульчи",
+      "materialDescription": "Выделанные крашенные шкурки каракуля",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 131790.0,
+      "retailPrice": 995000.0,
+      "workOrderNumber": "48",
+      "colorName": "NAVY",
+      "lines": [
+        {
+          "lotNumber": "728026",
+          "quantity": 46.0
+        },
+        {
+          "lotNumber": "LIN-290-0",
+          "quantity": 1.8
+        }
+      ]
+    },
+    {
+      "headerRow": 293,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "165*24",
+      "quantity": 7.0,
+      "workPricePerUnit": 48000.0,
+      "retailPrice": null,
+      "workOrderNumber": "49",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15017",
+          "quantity": 43.0
+        },
+        {
+          "lotNumber": "15018",
+          "quantity": 41.0
+        },
+        {
+          "lotNumber": "LIN-293-0",
+          "quantity": 3.5
+        }
+      ]
+    },
+    {
+      "headerRow": 298,
+      "article": "М016",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "шкура норки браун",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 121790.0,
+      "retailPrice": 735000.0,
+      "workOrderNumber": "50",
+      "colorName": "BLACK",
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "LIN-298-0",
+          "quantity": 0.65
+        }
+      ]
+    },
+    {
+      "headerRow": 301,
+      "article": "М002",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 401790.0,
+      "retailPrice": null,
+      "workOrderNumber": "51",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "1468",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "3749",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "3924",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "3628",
+          "quantity": 19.0
+        },
+        {
+          "lotNumber": "3635",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "3634",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "4053",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "3240",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "LIN-301-0",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 312,
+      "article": "М003",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 213790.0,
+      "retailPrice": 5855000.0,
+      "workOrderNumber": "52",
+      "colorName": "TORTORA",
+      "lines": [
+        {
+          "lotNumber": "1456",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "3926",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "4148",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "4407",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "1495",
+          "quantity": 15.0
+        },
+        {
+          "lotNumber": "1498-1",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "LIN-312-0",
+          "quantity": 1.6
+        }
+      ]
+    },
+    {
+      "headerRow": 321,
+      "article": "М006",
+      "productType": "Жилет женский вязаный из соболя",
+      "materialDescription": "Соболь клеточный",
+      "liningComposition": "-",
+      "sizes": "Единый размер",
+      "quantity": 1.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 1985000.0,
+      "workOrderNumber": "53",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15484",
+          "quantity": 16.0
+        }
+      ]
+    },
+    {
+      "headerRow": 323,
+      "article": "М022",
+      "productType": "Куртка женская из каракульчи",
+      "materialDescription": "Выделанные крашенные шкурки каракуля",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44.48",
+      "quantity": 2.0,
+      "workPricePerUnit": 131790.0,
+      "retailPrice": 995000.0,
+      "workOrderNumber": "54",
+      "colorName": "NAVY",
+      "lines": [
+        {
+          "lotNumber": "728001",
+          "quantity": 92.0
+        },
+        {
+          "lotNumber": "LIN-323-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 326,
+      "article": "М020",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA\nорех",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 50, 50, 52",
+      "quantity": 4.0,
+      "workPricePerUnit": 156790.0,
+      "retailPrice": null,
+      "workOrderNumber": "55",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "орех",
+          "quantity": 96.0
+        },
+        {
+          "lotNumber": "LIN-326-0",
+          "quantity": 12.4
+        }
+      ]
+    },
+    {
+      "headerRow": 329,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA облако",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 46, 50",
+      "quantity": 3.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": 2450000.0,
+      "workOrderNumber": "56",
+      "colorName": "CLOUD 239264",
+      "lines": [
+        {
+          "lotNumber": "облако",
+          "quantity": 105.0
+        },
+        {
+          "lotNumber": "LIN-329-0",
+          "quantity": 9.3
+        }
+      ]
+    },
+    {
+      "headerRow": 332,
+      "article": "М018",
+      "productType": "Куртка женская из свакары",
+      "materialDescription": "шкура каракуля SWAKARA\nнуга",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 151790.0,
+      "retailPrice": 1330000.0,
+      "workOrderNumber": "57",
+      "colorName": "BROWN 239341",
+      "lines": [
+        {
+          "lotNumber": "нуга",
+          "quantity": 40.0
+        },
+        {
+          "lotNumber": "LIN-332-0",
+          "quantity": 3.4
+        }
+      ]
+    },
+    {
+      "headerRow": 335,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA фондю",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 44, 46",
+      "quantity": 3.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": null,
+      "workOrderNumber": "58",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "фондю-1",
+          "quantity": 105.0
+        },
+        {
+          "lotNumber": "LIN-335-0",
+          "quantity": 9.3
+        }
+      ]
+    },
+    {
+      "headerRow": 338,
+      "article": "М002",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 401790.0,
+      "retailPrice": null,
+      "workOrderNumber": "59",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3749",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "3924",
+          "quantity": 27.0
+        },
+        {
+          "lotNumber": "3754",
+          "quantity": 15.0
+        },
+        {
+          "lotNumber": "3239",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1449",
+          "quantity": 15.0
+        },
+        {
+          "lotNumber": "1457",
+          "quantity": 19.0
+        },
+        {
+          "lotNumber": "LIN-338-0",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 346,
+      "article": "М004",
+      "productType": "Жакет женский вязаный из соболя",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "нет",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 321790.0,
+      "retailPrice": 3980000.0,
+      "workOrderNumber": "60",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "15480",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15481",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "15482",
+          "quantity": 11.0
+        }
+      ]
+    },
+    {
+      "headerRow": 350,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA\nфондю",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 181790.0,
+      "retailPrice": null,
+      "workOrderNumber": "61",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "фондю-2",
+          "quantity": 35.0
+        },
+        {
+          "lotNumber": "LIN-350-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 353,
+      "article": "MSC-02",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "100% Кашемир арт. LC1638 артикул 5335",
+      "sizes": "200*30",
+      "quantity": 5.0,
+      "workPricePerUnit": 96000.0,
+      "retailPrice": 1935000.0,
+      "workOrderNumber": "62",
+      "colorName": "NATURAL",
+      "lines": [
+        {
+          "lotNumber": "1301",
+          "quantity": 24.0
+        },
+        {
+          "lotNumber": "1363",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "877",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1324",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "1332",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1353",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "873",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "1358",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "1333",
+          "quantity": 22.0
+        },
+        {
+          "lotNumber": "872",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 364,
+      "article": "MH08",
+      "productType": "Головной убор\n(Кубанка)",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "55% полиэстер\n45% шёлк",
+      "sizes": "57, 58, 58, 59, 59",
+      "quantity": 5.0,
+      "workPricePerUnit": 10000.0,
+      "retailPrice": null,
+      "workOrderNumber": "63",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15895",
+          "quantity": 15.0
+        }
+      ]
+    },
+    {
+      "headerRow": 366,
+      "article": "MH06",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки ирис",
+      "liningComposition": "100% кашемир № LC1613 (№5)",
+      "sizes": "единый",
+      "quantity": 6.0,
+      "workPricePerUnit": 6500.0,
+      "retailPrice": null,
+      "workOrderNumber": "64",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "518005",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 368,
+      "article": "MH06",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки лаванда",
+      "liningComposition": "49% кашемир\n51% шёлк \n№ LC1635 (№8)",
+      "sizes": "единый",
+      "quantity": 6.0,
+      "workPricePerUnit": 6500.0,
+      "retailPrice": null,
+      "workOrderNumber": "65",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "519506",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 370,
+      "article": "MH06",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки американский блек самец",
+      "liningComposition": "100% шерсть",
+      "sizes": "единый",
+      "quantity": 2.0,
+      "workPricePerUnit": 6500.0,
+      "retailPrice": null,
+      "workOrderNumber": "66",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 1.0
+        }
+      ]
+    },
+    {
+      "headerRow": 372,
+      "article": "MH05",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки американский браун",
+      "liningComposition": "100% кашемир № LC1661 (№2)",
+      "sizes": "единый",
+      "quantity": 4.0,
+      "workPricePerUnit": 7000.0,
+      "retailPrice": null,
+      "workOrderNumber": "67",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 374,
+      "article": "MH05",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки жемчуг",
+      "liningComposition": "49% кашемир\n51% шёлк \n№ LC1635 (№8)",
+      "sizes": "единый",
+      "quantity": 3.0,
+      "workPricePerUnit": 7000.0,
+      "retailPrice": null,
+      "workOrderNumber": "68",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "613003",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 376,
+      "article": "MH04",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% кашемир № LC1669 (№1)",
+      "sizes": "единый",
+      "quantity": 3.0,
+      "workPricePerUnit": 7500.0,
+      "retailPrice": null,
+      "workOrderNumber": "69",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "4016",
+          "quantity": 6.0
+        }
+      ]
+    },
+    {
+      "headerRow": 378,
+      "article": "MH03",
+      "productType": "Головной убор",
+      "materialDescription": "Соболь клеточный выделанный тонированный\nНорка коричневая крашенная в черный цвет",
+      "liningComposition": "55% полиэстер\n45% шёлк",
+      "sizes": "57,57,58,58,59,59",
+      "quantity": 6.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "70",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15898",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "10022",
+          "quantity": 6.0
+        }
+      ]
+    },
+    {
+      "headerRow": 381,
+      "article": "MH03",
+      "productType": "Головной убор",
+      "materialDescription": "Соболь дикий выделанный (лавандер 2039)\nшкура норки американская пастель",
+      "liningComposition": "49% кашемир\n51% шёлк \n№ LC1635 (№8)",
+      "sizes": "57, 57, 58, 58, 58, 59, 59, 60",
+      "quantity": 8.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "71",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "4016",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "505055",
+          "quantity": 8.0
+        }
+      ]
+    },
+    {
+      "headerRow": 384,
+      "article": "MH05",
+      "productType": "Головной убор",
+      "materialDescription": "шкура норки американский браун самец",
+      "liningComposition": "49% кашемир\n51% шёлк \n№ LC1661",
+      "sizes": "58",
+      "quantity": 2.0,
+      "workPricePerUnit": 7116.666666666667,
+      "retailPrice": null,
+      "workOrderNumber": "72",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 2.0
+        }
+      ]
+    },
+    {
+      "headerRow": 386,
+      "article": "MH06",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки американский блек самец",
+      "liningComposition": "100% кашемир",
+      "sizes": "58",
+      "quantity": 4.0,
+      "workPricePerUnit": 6610.0,
+      "retailPrice": null,
+      "workOrderNumber": "73",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 2.0
+        }
+      ]
+    },
+    {
+      "headerRow": 388,
+      "article": "MH15",
+      "productType": "Головной убор\n(Бейсболка)",
+      "materialDescription": "шкура норки браун самец крашеная в черный стриженная",
+      "liningComposition": "100% кашемир",
+      "sizes": "58, 59, 60",
+      "quantity": 3.0,
+      "workPricePerUnit": 9658.333333333334,
+      "retailPrice": null,
+      "workOrderNumber": "74",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 392,
+      "article": "MH01",
+      "productType": "Головной убор",
+      "materialDescription": "Соболь клеточный выделанный",
+      "liningComposition": "55% полиэстер\n45% шёлк",
+      "sizes": "57, 57, 58, 58, 59, 60",
+      "quantity": 6.0,
+      "workPricePerUnit": 11691.666666666668,
+      "retailPrice": null,
+      "workOrderNumber": "76",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15896",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 394,
+      "article": "MH17",
+      "productType": "Головной убор",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "55% полиэстер\n45% шёлк",
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "77",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 1.0
+        }
+      ]
+    },
+    {
+      "headerRow": 396,
+      "article": "М022",
+      "productType": "Куртка женская из каракульчи",
+      "materialDescription": "Выделанные крашенные шкурки каракуля",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 42, 46",
+      "quantity": 3.0,
+      "workPricePerUnit": 133986.5,
+      "retailPrice": 995000.0,
+      "workOrderNumber": "78",
+      "colorName": "NAVY",
+      "lines": [
+        {
+          "lotNumber": "728011",
+          "quantity": 46.0
+        },
+        {
+          "lotNumber": "728002",
+          "quantity": 46.0
+        },
+        {
+          "lotNumber": "728001",
+          "quantity": 46.0
+        },
+        {
+          "lotNumber": "LIN-396-0",
+          "quantity": 5.4
+        }
+      ]
+    },
+    {
+      "headerRow": 401,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA\nфондю",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44, 46",
+      "quantity": 2.0,
+      "workPricePerUnit": 184819.83333333334,
+      "retailPrice": null,
+      "workOrderNumber": "79",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "фондю-3",
+          "quantity": 70.0
+        },
+        {
+          "lotNumber": "LIN-401-0",
+          "quantity": 6.2
+        }
+      ]
+    },
+    {
+      "headerRow": 404,
+      "article": "М016",
+      "productType": "Жилет женский из норки",
+      "materialDescription": null,
+      "liningComposition": null,
+      "sizes": "42, 44, 44, 46, 46, 48",
+      "quantity": 6.0,
+      "workPricePerUnit": 123819.83333333334,
+      "retailPrice": null,
+      "workOrderNumber": "80",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "300302",
+          "quantity": 30.0
+        },
+        {
+          "lotNumber": "5020",
+          "quantity": 30.0
+        }
+      ]
+    },
+    {
+      "headerRow": 408,
+      "article": "М015",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "Норка белая",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 174653.1666666667,
+      "retailPrice": null,
+      "workOrderNumber": "81",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "300302",
+          "quantity": 50.0
+        }
+      ]
+    },
+    {
+      "headerRow": 411,
+      "article": "М001А",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "42, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 245819.83333333334,
+      "retailPrice": null,
+      "workOrderNumber": "82",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3751-2",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "1465",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "3748",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "4051",
+          "quantity": 19.0
+        },
+        {
+          "lotNumber": "3749",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "3222",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "3223",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "3365",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "3628",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "3634",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "3635",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 424,
+      "article": "М005",
+      "productType": "Куртка женская вязаная из соболя",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "нет",
+      "sizes": "единый",
+      "quantity": 1.0,
+      "workPricePerUnit": 367819.8333333334,
+      "retailPrice": null,
+      "workOrderNumber": "83",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15484",
+          "quantity": 27.0
+        },
+        {
+          "lotNumber": "15022",
+          "quantity": 9.0
+        }
+      ]
+    },
+    {
+      "headerRow": 427,
+      "article": "М001А",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 245819.83333333334,
+      "retailPrice": null,
+      "workOrderNumber": "84",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3967",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "3961",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "3746",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "3748",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "3754",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "3924",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "3238",
+          "quantity": 8.0
+        }
+      ]
+    },
+    {
+      "headerRow": 436,
+      "article": "М015",
+      "productType": "Куртка женская из норки",
+      "materialDescription": "Норка белая",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 174650.0,
+      "retailPrice": null,
+      "workOrderNumber": "85",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "5020",
+          "quantity": 25.0
+        }
+      ]
+    },
+    {
+      "headerRow": 439,
+      "article": "М022",
+      "productType": "Куртка женская из каракульчи",
+      "materialDescription": "Выделанные крашенные шкурки каракуля",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "46, 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 133986.5,
+      "retailPrice": null,
+      "workOrderNumber": "86",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "728011",
+          "quantity": 92.0
+        },
+        {
+          "lotNumber": "LIN-439-0",
+          "quantity": 3.6
+        }
+      ]
+    },
+    {
+      "headerRow": 442,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь дикий выделанный (лавандер)",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "160*24",
+      "quantity": 5.0,
+      "workPricePerUnit": 48800.0,
+      "retailPrice": null,
+      "workOrderNumber": "87",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3488",
+          "quantity": 60.0
+        },
+        {
+          "lotNumber": "LIN-442-0",
+          "quantity": 1.7
+        }
+      ]
+    },
+    {
+      "headerRow": 449,
+      "article": "MGL02",
+      "productType": "Варежки",
+      "materialDescription": "норка пастель, кашемир №LC 1635 (№8)",
+      "liningComposition": "№LC1669 (№1) Кашемир 100%",
+      "sizes": "6,7,8",
+      "quantity": 10.0,
+      "workPricePerUnit": 6100.0,
+      "retailPrice": null,
+      "workOrderNumber": null,
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "4016",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "5017/5020/5016",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "514038",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "505055",
+          "quantity": 10.0
+        }
+      ]
+    },
+    {
+      "headerRow": 454,
+      "article": "MH15",
+      "productType": "Головной убор\n(Бейсболка)",
+      "materialDescription": "шкура норки браун самец крашеная в черный стриженная",
+      "liningComposition": "100% кашемир",
+      "sizes": "57,59,61",
+      "quantity": 3.0,
+      "workPricePerUnit": 9658.0,
+      "retailPrice": null,
+      "workOrderNumber": "89",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "301023",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 456,
+      "article": "М021",
+      "productType": "Пальто женское из свакары",
+      "materialDescription": "шкура каракуля SWAKARA\nфондю",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "38",
+      "quantity": 1.0,
+      "workPricePerUnit": 184820.0,
+      "retailPrice": null,
+      "workOrderNumber": "90",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "фондю-4",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "LIN-456-0",
+          "quantity": 3.1
+        }
+      ]
+    },
+    {
+      "headerRow": 459,
+      "article": "МН02",
+      "productType": "Головной убор\n(шапка-ушанка)",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "55% полиэстер\n45% шёлк",
+      "sizes": "57,57,58,58,58,59,59,60,60",
+      "quantity": 9.0,
+      "workPricePerUnit": 10166.0,
+      "retailPrice": null,
+      "workOrderNumber": "91",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 18.0
+        }
+      ]
+    },
+    {
+      "headerRow": 461,
+      "article": "МН02",
+      "productType": "Головной убор\n(шапка-ушанка)",
+      "materialDescription": "шкура норки лаванда",
+      "liningComposition": "100% кашемир №LC1635 (№8)",
+      "sizes": "57,57,58,58,59",
+      "quantity": 5.0,
+      "workPricePerUnit": 10166.0,
+      "retailPrice": null,
+      "workOrderNumber": "92",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "519503",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "519506",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 464,
+      "article": "МН02",
+      "productType": "Головной убор\n(шапка-ушанка)",
+      "materialDescription": "шкура норки американская пастель",
+      "liningComposition": "100% кашемир №LC1635 (№8)",
+      "sizes": "57,58,58,59,60",
+      "quantity": 5.0,
+      "workPricePerUnit": 10166.0,
+      "retailPrice": null,
+      "workOrderNumber": "93",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "505053",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "505055",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 467,
+      "article": "МН09",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь клеточный выделанный тонированный,\nТехнический шёлк",
+      "liningComposition": "100% кашемир",
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 9658.0,
+      "retailPrice": null,
+      "workOrderNumber": "94",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15016",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 469,
+      "article": "МН17",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "100% кашемир",
+      "sizes": "57,58,58",
+      "quantity": 3.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "95",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 471,
+      "article": "МН06",
+      "productType": "Головной убор\n(повязка меховая)",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "100% шерсть",
+      "sizes": "58.58",
+      "quantity": 2.0,
+      "workPricePerUnit": 6610.0,
+      "retailPrice": null,
+      "workOrderNumber": "96",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 1.0
+        }
+      ]
+    },
+    {
+      "headerRow": 475,
+      "article": "МН09",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь клеточный выделанный тонированный,\nТехнический шёлк",
+      "liningComposition": "100% кашемир",
+      "sizes": "57,58,59,60,61,62",
+      "quantity": 9.0,
+      "workPricePerUnit": 9658.0,
+      "retailPrice": null,
+      "workOrderNumber": "98",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15016",
+          "quantity": 27.0
+        }
+      ]
+    },
+    {
+      "headerRow": 477,
+      "article": "МН17",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "100% кашемир",
+      "sizes": "59,59,60",
+      "quantity": 3.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "99",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 479,
+      "article": "MGL01",
+      "productType": "Варежки",
+      "materialDescription": "Соболь, норка",
+      "liningComposition": "Кашемир 100% № LC1638 (№3)",
+      "sizes": "6,7,8",
+      "quantity": 5.0,
+      "workPricePerUnit": 8135.0,
+      "retailPrice": null,
+      "workOrderNumber": "100",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "5017/5020/5016",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 481,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь дикий выделанный (лавандер)",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "160*23",
+      "quantity": 5.0,
+      "workPricePerUnit": 48800.0,
+      "retailPrice": null,
+      "workOrderNumber": "101",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3486",
+          "quantity": 60.0
+        },
+        {
+          "lotNumber": "LIN-481-0",
+          "quantity": 1.7
+        }
+      ]
+    },
+    {
+      "headerRow": 484,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американская пастель самец 30",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "130*16",
+      "quantity": 1.0,
+      "workPricePerUnit": 25000.0,
+      "retailPrice": null,
+      "workOrderNumber": "102",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "505055",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "LIN-484-0",
+          "quantity": 0.25
+        }
+      ]
+    },
+    {
+      "headerRow": 487,
+      "article": "МН17",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "100% кашемир",
+      "sizes": "57,59,60,61,62",
+      "quantity": 7.0,
+      "workPricePerUnit": 8845.0,
+      "retailPrice": null,
+      "workOrderNumber": "103",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 7.0
+        }
+      ]
+    },
+    {
+      "headerRow": 491,
+      "article": "MGL01",
+      "productType": "Варежки",
+      "materialDescription": "Соболь, норка",
+      "liningComposition": "Кашемир 100% № LC1638 (№3)",
+      "sizes": "6",
+      "quantity": 1.0,
+      "workPricePerUnit": 8135.0,
+      "retailPrice": null,
+      "workOrderNumber": "105",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "5017/5020/5016",
+          "quantity": 1.0
+        }
+      ]
+    },
+    {
+      "headerRow": 493,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американская пастель самец 30",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "145*16",
+      "quantity": 9.0,
+      "workPricePerUnit": 25000.0,
+      "retailPrice": null,
+      "workOrderNumber": "106",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "505055",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "LIN-493-0",
+          "quantity": 2.25
+        }
+      ]
+    },
+    {
+      "headerRow": 496,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американский жемчуг самец 40",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "135*19",
+      "quantity": 12.0,
+      "workPricePerUnit": 25000.0,
+      "retailPrice": null,
+      "workOrderNumber": "107",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "513010",
+          "quantity": 24.0
+        },
+        {
+          "lotNumber": "LIN-496-0",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 499,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американский блек самец 30",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "130*18",
+      "quantity": 16.0,
+      "workPricePerUnit": 25000.0,
+      "retailPrice": null,
+      "workOrderNumber": "108",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 32.0
+        },
+        {
+          "lotNumber": "LIN-499-0",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 502,
+      "article": "MSC-01",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки ирис самец 20",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "130*16",
+      "quantity": 10.0,
+      "workPricePerUnit": 25000.0,
+      "retailPrice": null,
+      "workOrderNumber": "109",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "518005",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "LIN-502-0",
+          "quantity": 2.5
+        }
+      ]
+    },
+    {
+      "headerRow": 505,
+      "article": "М003",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "50",
+      "quantity": 3.0,
+      "workPricePerUnit": 72450.0,
+      "retailPrice": null,
+      "workOrderNumber": "110",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "1422",
+          "quantity": 22.0
+        },
+        {
+          "lotNumber": "1423",
+          "quantity": 29.0
+        },
+        {
+          "lotNumber": "1426",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "LIN-505-0",
+          "quantity": 1.85
+        }
+      ]
+    },
+    {
+      "headerRow": 510,
+      "article": "MH12",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь клеточный, 100% шерсть",
+      "liningComposition": "100% Кашемир",
+      "sizes": "57,58,59,60,61,62",
+      "quantity": 8.0,
+      "workPricePerUnit": 9650.0,
+      "retailPrice": null,
+      "workOrderNumber": "111",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15019",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 512,
+      "article": "MH13",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Норка + 100% шерсть",
+      "liningComposition": "100% Кашемир",
+      "sizes": "57,58,59,60,61,62",
+      "quantity": 12.0,
+      "workPricePerUnit": 8850.0,
+      "retailPrice": null,
+      "workOrderNumber": "112",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 12.0
+        }
+      ]
+    },
+    {
+      "headerRow": 514,
+      "article": "МН16",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь клеточный",
+      "liningComposition": "100% Кашемир",
+      "sizes": "58,60,62,64",
+      "quantity": 4.0,
+      "workPricePerUnit": 12200.0,
+      "retailPrice": null,
+      "workOrderNumber": "113",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15022",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 516,
+      "article": "МН16",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь дикий выделанный тонированный",
+      "liningComposition": "100% Кашемир",
+      "sizes": "59, 60",
+      "quantity": 2.0,
+      "workPricePerUnit": 12200.0,
+      "retailPrice": null,
+      "workOrderNumber": "114",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "1301",
+          "quantity": 12.0
+        }
+      ]
+    },
+    {
+      "headerRow": 518,
+      "article": "МН11",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "шкура норки американский блек самец 30",
+      "liningComposition": "100% Кашемир",
+      "sizes": "57,58,59,60,61,62",
+      "quantity": 8.0,
+      "workPricePerUnit": 10675.0,
+      "retailPrice": null,
+      "workOrderNumber": "115",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 16.0
+        }
+      ]
+    },
+    {
+      "headerRow": 522,
+      "article": "М057",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "Шелк 93%, эластан 7%",
+      "sizes": "50",
+      "quantity": 1.0,
+      "workPricePerUnit": 248000.0,
+      "retailPrice": null,
+      "workOrderNumber": "117",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "1330",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "1316",
+          "quantity": 16.0
+        },
+        {
+          "lotNumber": "33",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "31",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "1351",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "LIN-522-0",
+          "quantity": 2.5
+        }
+      ]
+    },
+    {
+      "headerRow": 529,
+      "article": "MSC03",
+      "productType": "Головной убор\n(косынка)",
+      "materialDescription": "шкура норки виолет",
+      "liningComposition": "Кашемир №8 (LC1635) Colombo 50504 DIS.10 51% шелк 49% кашемир",
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 18000.0,
+      "retailPrice": null,
+      "workOrderNumber": "118",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "518505",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "518509",
+          "quantity": 2.0
+        }
+      ]
+    },
+    {
+      "headerRow": 532,
+      "article": "MSC04",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американская пастель",
+      "liningComposition": "Кашемир Colombo 97064 (74% кашемир 22% вискоза 1% шелка)",
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 35000.0,
+      "retailPrice": null,
+      "workOrderNumber": "118",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "505055",
+          "quantity": 8.0
+        }
+      ]
+    },
+    {
+      "headerRow": 534,
+      "article": "MSC04",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американский блек самец",
+      "liningComposition": "100% Кашемир №9 Paicenza 5824",
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 35000.0,
+      "retailPrice": null,
+      "workOrderNumber": "118",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 8.0
+        }
+      ]
+    },
+    {
+      "headerRow": 536,
+      "article": "MSC05",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": null,
+      "sizes": "58",
+      "quantity": 1.0,
+      "workPricePerUnit": 150000.0,
+      "retailPrice": null,
+      "workOrderNumber": "118",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15316",
+          "quantity": 10.0
+        }
+      ]
+    },
+    {
+      "headerRow": 538,
+      "article": "M025",
+      "productType": "Жакет из норки",
+      "materialDescription": "шкура норки виолет",
+      "liningComposition": "100 % Шелк",
+      "sizes": "42,42,44,44,44,46,46,48,48,50",
+      "quantity": 10.0,
+      "workPricePerUnit": 195000.0,
+      "retailPrice": null,
+      "workOrderNumber": "119",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "518505",
+          "quantity": 80.0
+        },
+        {
+          "lotNumber": "518509",
+          "quantity": 50.0
+        }
+      ]
+    },
+    {
+      "headerRow": 542,
+      "article": "М056",
+      "productType": "Куртка меховая",
+      "materialDescription": "шкура норки американский жемчуг",
+      "liningComposition": "100 % Шелк",
+      "sizes": "46 46 50",
+      "quantity": 3.0,
+      "workPricePerUnit": 220000.0,
+      "retailPrice": null,
+      "workOrderNumber": "120",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "513010",
+          "quantity": 45.0
+        }
+      ]
+    },
+    {
+      "headerRow": 545,
+      "article": "М029",
+      "productType": "Полушубок из лисы",
+      "materialDescription": "Шкурки лисицы красной",
+      "liningComposition": "100 % Шелк",
+      "sizes": "40 40 42 42 44",
+      "quantity": 5.0,
+      "workPricePerUnit": 115000.0,
+      "retailPrice": null,
+      "workOrderNumber": "121",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "лиса",
+          "quantity": 55.0
+        }
+      ]
+    },
+    {
+      "headerRow": 548,
+      "article": "MSC03",
+      "productType": "Косынка норка белая",
+      "materialDescription": "шкурка норки белой",
+      "liningComposition": "100 % шерсть",
+      "sizes": "NS",
+      "quantity": 5.0,
+      "workPricePerUnit": 18000.0,
+      "retailPrice": null,
+      "workOrderNumber": "122",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "355159",
+          "quantity": 15.0
+        }
+      ]
+    },
+    {
+      "headerRow": 551,
+      "article": "М041",
+      "productType": "Куртка из стриженой норки",
+      "materialDescription": "норка коричневая",
+      "liningComposition": "100 % Шелк",
+      "sizes": "48 48 50",
+      "quantity": 3.0,
+      "workPricePerUnit": 240000.0,
+      "retailPrice": null,
+      "workOrderNumber": "123",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "10022",
+          "quantity": 45.0
+        }
+      ]
+    },
+    {
+      "headerRow": 554,
+      "article": "M001E",
+      "productType": "полупальто из арктической лисы",
+      "materialDescription": "шкура лиса арктическая",
+      "liningComposition": "100% Кашемир",
+      "sizes": "42 44 45",
+      "quantity": 3.0,
+      "workPricePerUnit": 240000.0,
+      "retailPrice": null,
+      "workOrderNumber": "124",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "160045",
+          "quantity": 18.0
+        }
+      ]
+    },
+    {
+      "headerRow": 557,
+      "article": "М002",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "44 46",
+      "quantity": 2.0,
+      "workPricePerUnit": 408500.0,
+      "retailPrice": null,
+      "workOrderNumber": "125",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3746",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "1483",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "3223",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "3365",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "3369",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "3634",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "3635",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "3748",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "3751-1",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "3967",
+          "quantity": 10.0
+        },
+        {
+          "lotNumber": "1486",
+          "quantity": 19.0
+        },
+        {
+          "lotNumber": "1490",
+          "quantity": 21.0
+        },
+        {
+          "lotNumber": "1498-1",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1504",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "1517",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "1520",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "1525",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "1541",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "1544",
+          "quantity": 3.0
+        }
+      ]
+    },
+    {
+      "headerRow": 578,
+      "article": "MSC04",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки американская пастель",
+      "liningComposition": "Кашемир Colombo 97064 (74% кашемир 22% вискоза 1% шелка)",
+      "sizes": "210*30",
+      "quantity": 7.0,
+      "workPricePerUnit": 35000.0,
+      "retailPrice": null,
+      "workOrderNumber": "126",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "505055",
+          "quantity": 56.0
+        }
+      ]
+    },
+    {
+      "headerRow": 581,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "шкура норки американский блек",
+      "liningComposition": "100% Шелк",
+      "sizes": "NS",
+      "quantity": 2.0,
+      "workPricePerUnit": 95600.0,
+      "retailPrice": null,
+      "workOrderNumber": "127",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500748",
+          "quantity": 16.0
+        }
+      ]
+    },
+    {
+      "headerRow": 584,
+      "article": "М052",
+      "productType": "Шуба укороченная",
+      "materialDescription": "выделанная шкурка лисицы серебристо-черной",
+      "liningComposition": "100% шелк",
+      "sizes": "40 42 42 44 44 46",
+      "quantity": 6.0,
+      "workPricePerUnit": 145000.0,
+      "retailPrice": null,
+      "workOrderNumber": "128",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "165270",
+          "quantity": 42.0
+        }
+      ]
+    },
+    {
+      "headerRow": 587,
+      "article": "MSC03",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура норки виолет",
+      "liningComposition": "100% Кашемир №8 (LC1635) Colombo 50504 DIS.10",
+      "sizes": "NS",
+      "quantity": 4.0,
+      "workPricePerUnit": 18000.0,
+      "retailPrice": null,
+      "workOrderNumber": "129",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "518509",
+          "quantity": 12.0
+        }
+      ]
+    },
+    {
+      "headerRow": 590,
+      "article": "MSC04",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкурка норки черной",
+      "liningComposition": "100% Кашемир",
+      "sizes": "210*30",
+      "quantity": 3.0,
+      "workPricePerUnit": 35000.0,
+      "retailPrice": null,
+      "workOrderNumber": "130",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500083",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 593,
+      "article": "MSC06",
+      "productType": "Шарф меховой",
+      "materialDescription": "шкура лиса арктическая",
+      "liningComposition": "100% Кашемир",
+      "sizes": "165*9,5",
+      "quantity": 5.0,
+      "workPricePerUnit": 29500.0,
+      "retailPrice": null,
+      "workOrderNumber": "131",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "160045",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 596,
+      "article": "М049",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "48",
+      "quantity": 1.0,
+      "workPricePerUnit": 307000.0,
+      "retailPrice": null,
+      "workOrderNumber": "132",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "31",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "32",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "33",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "106",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "107",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "109",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "344",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "346",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "1331",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1332",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1353",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1358",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1378",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "1384",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "1385",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1386",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1388",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1397",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "1400",
+          "quantity": 7.0
+        }
+      ]
+    },
+    {
+      "headerRow": 617,
+      "article": "М001А",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "42 44",
+      "quantity": 2.0,
+      "workPricePerUnit": 246000.0,
+      "retailPrice": null,
+      "workOrderNumber": "133",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "3746",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1486",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1490",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1498-1",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1517",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1520",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "1525",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1541",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "1544",
+          "quantity": 5.0
+        },
+        {
+          "lotNumber": "3223",
+          "quantity": 4.0
+        },
+        {
+          "lotNumber": "3365",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "3369",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "3628",
+          "quantity": 13.0
+        },
+        {
+          "lotNumber": "3634",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "3751-1",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "4256",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "4364",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "4407",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1483",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "1495",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "3958",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "3967",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "4051",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "4053",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 643,
+      "article": "MSC05",
+      "productType": "Шарф меховой",
+      "materialDescription": "Соболь клеточный выделанный тонированный",
+      "liningComposition": "-",
+      "sizes": "58",
+      "quantity": 2.0,
+      "workPricePerUnit": 150000.0,
+      "retailPrice": null,
+      "workOrderNumber": "134",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15316",
+          "quantity": 20.0
+        }
+      ]
+    },
+    {
+      "headerRow": 645,
+      "article": "МН16",
+      "productType": "Головной убор\n(ушанка)",
+      "materialDescription": "Соболь клеточный",
+      "liningComposition": "100% Кашемир",
+      "sizes": "59",
+      "quantity": 1.0,
+      "workPricePerUnit": 12200.0,
+      "retailPrice": null,
+      "workOrderNumber": "135",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "15022",
+          "quantity": 6.0
+        }
+      ]
+    },
+    {
+      "headerRow": 648,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "выделанная шкурка норки белой",
+      "liningComposition": "100% Шелк",
+      "sizes": "40 42 42 44 44 46 46 48",
+      "quantity": 8.0,
+      "workPricePerUnit": 200000.0,
+      "retailPrice": null,
+      "workOrderNumber": "136",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "355159",
+          "quantity": 106.0
+        }
+      ]
+    },
+    {
+      "headerRow": 651,
+      "article": "М045",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "шкура норки жемчуг",
+      "liningComposition": "100% Шелк",
+      "sizes": "40 42 42 44 44 44 46 48 50",
+      "quantity": 10.0,
+      "workPricePerUnit": 180000.0,
+      "retailPrice": null,
+      "workOrderNumber": "137",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "613003",
+          "quantity": 180.0
+        }
+      ]
+    },
+    {
+      "headerRow": 654,
+      "article": "М009",
+      "productType": "Жакет женский из норки",
+      "materialDescription": "шкура норки американский браун самец",
+      "liningComposition": "100% Шелк",
+      "sizes": "42 42",
+      "quantity": 2.0,
+      "workPricePerUnit": 200000.0,
+      "retailPrice": null,
+      "workOrderNumber": "138",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "514038",
+          "quantity": 34.0
+        }
+      ]
+    },
+    {
+      "headerRow": 657,
+      "article": "М046",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь выделанный тонированный",
+      "liningComposition": "100% Шелк",
+      "sizes": "42",
+      "quantity": 1.0,
+      "workPricePerUnit": 105000.0,
+      "retailPrice": null,
+      "workOrderNumber": "139",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "СП0526.20",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "СП0526.23",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "СП0526.24",
+          "quantity": 12.0
+        },
+        {
+          "lotNumber": "СП0526.26",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "СП0526.27",
+          "quantity": 7.0
+        }
+      ]
+    },
+    {
+      "headerRow": 664,
+      "article": "М002А",
+      "productType": "Пальто женское из соболя",
+      "materialDescription": "Соболь выделанный тонированный",
+      "liningComposition": "100% Шелк",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 386500.0,
+      "retailPrice": null,
+      "workOrderNumber": "140",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "31",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "32",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "33",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "111",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "115",
+          "quantity": 31.0
+        },
+        {
+          "lotNumber": "353",
+          "quantity": 14.0
+        },
+        {
+          "lotNumber": "1330",
+          "quantity": 18.0
+        },
+        {
+          "lotNumber": "1337",
+          "quantity": 25.0
+        }
+      ]
+    },
+    {
+      "headerRow": 674,
+      "article": "М001К",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь выделанный тонированный",
+      "liningComposition": "100% Шелк",
+      "sizes": "42 44",
+      "quantity": 2.0,
+      "workPricePerUnit": 246000.0,
+      "retailPrice": null,
+      "workOrderNumber": "141",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "31",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "32",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "337",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "343",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "344",
+          "quantity": 29.0
+        },
+        {
+          "lotNumber": "346",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "353",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "1316",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1330",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "1337",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1351",
+          "quantity": 7.0
+        },
+        {
+          "lotNumber": "1353",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1360",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1386",
+          "quantity": 1.0
+        }
+      ]
+    },
+    {
+      "headerRow": 690,
+      "article": "М038",
+      "productType": "Полупальто женское из норки и соболя",
+      "materialDescription": "Соболь выделанный тонированный;\nвыделанная шкурка норки",
+      "liningComposition": "100% Шелк",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 187000.0,
+      "retailPrice": null,
+      "workOrderNumber": "142",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "РП0426.3",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "300687",
+          "quantity": 15.0
+        }
+      ]
+    },
+    {
+      "headerRow": 694,
+      "article": "М050",
+      "productType": "Полупальто женское из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 246000.0,
+      "retailPrice": null,
+      "workOrderNumber": "143",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "337",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "343",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "1378",
+          "quantity": 17.0
+        },
+        {
+          "lotNumber": "1384",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1385",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1386",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "1388",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "1397",
+          "quantity": 20.0
+        },
+        {
+          "lotNumber": "1400",
+          "quantity": 7.0
+        }
+      ]
+    },
+    {
+      "headerRow": 705,
+      "article": "М028",
+      "productType": "Полупальто из дикого соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 0,
+      "retailPrice": null,
+      "workOrderNumber": "144",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "РП0426.1",
+          "quantity": 23.0
+        },
+        {
+          "lotNumber": "РП0426.2",
+          "quantity": 11.0
+        },
+        {
+          "lotNumber": "РП0426.3",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "РП0426.4",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "РП0426.5",
+          "quantity": 11.0
+        }
+      ]
+    },
+    {
+      "headerRow": 712,
+      "article": "М012",
+      "productType": "Жилет женский из соболя",
+      "materialDescription": "Соболь дикий выделанный",
+      "liningComposition": "100% Шелк",
+      "sizes": "NS",
+      "quantity": 1.0,
+      "workPricePerUnit": 165000.0,
+      "retailPrice": null,
+      "workOrderNumber": "145",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "1483",
+          "quantity": 6.0
+        },
+        {
+          "lotNumber": "3223",
+          "quantity": 9.0
+        },
+        {
+          "lotNumber": "3635",
+          "quantity": 8.0
+        },
+        {
+          "lotNumber": "3967",
+          "quantity": 4.0
+        }
+      ]
+    },
+    {
+      "headerRow": 718,
+      "article": "MSC06",
+      "productType": "Шарф меховой",
+      "materialDescription": "лиса арктическая",
+      "liningComposition": "Шерсть 94% \nшёлк 6%",
+      "sizes": "NS",
+      "quantity": 5.0,
+      "workPricePerUnit": 28163.0,
+      "retailPrice": null,
+      "workOrderNumber": "146",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "160045",
+          "quantity": 5.0
+        }
+      ]
+    },
+    {
+      "headerRow": 721,
+      "article": "М012",
+      "productType": "Жилет женский из норки",
+      "materialDescription": "выделанная шкурка норки черной",
+      "liningComposition": "Шелк 100%",
+      "sizes": "NS",
+      "quantity": 3.0,
+      "workPricePerUnit": 95600.0,
+      "retailPrice": null,
+      "workOrderNumber": "147",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "500083",
+          "quantity": 24.0
+        }
+      ]
+    },
+    {
+      "headerRow": 724,
+      "article": "М031",
+      "productType": "Пальто женское из каракуля",
+      "materialDescription": "Выделанные крашенные шкурки каракуля",
+      "liningComposition": "100% Шелк",
+      "sizes": "46",
+      "quantity": 1.0,
+      "workPricePerUnit": 215000.0,
+      "retailPrice": null,
+      "workOrderNumber": "148",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "728011",
+          "quantity": 50.0
+        }
+      ]
+    },
+    {
+      "headerRow": 727,
+      "article": "М056",
+      "productType": "Куртка женская из норки",
+      "materialDescription": "шкура норки американский жемчуг",
+      "liningComposition": "100 % Шелк",
+      "sizes": "48 48",
+      "quantity": 2.0,
+      "workPricePerUnit": 220000.0,
+      "retailPrice": null,
+      "workOrderNumber": "149",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "513010",
+          "quantity": 30.0
+        }
+      ]
+    },
+    {
+      "headerRow": 730,
+      "article": "М026",
+      "productType": "Пальто женское из норки с шарфом",
+      "materialDescription": "Шкура норка белая",
+      "liningComposition": "100 % Шелк",
+      "sizes": "44",
+      "quantity": 1.0,
+      "workPricePerUnit": 320000.0,
+      "retailPrice": null,
+      "workOrderNumber": "150",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "5017/5020/5016",
+          "quantity": 29.0
+        }
+      ]
+    },
+    {
+      "headerRow": 733,
+      "article": "MSC03",
+      "productType": "Головной убор\n(косынка)",
+      "materialDescription": "Соболь выделанный тонированный",
+      "liningComposition": "100 % кашемир",
+      "sizes": "NS",
+      "quantity": 1.0,
+      "workPricePerUnit": 56000.0,
+      "retailPrice": null,
+      "workOrderNumber": "151",
+      "colorName": null,
+      "lines": [
+        {
+          "lotNumber": "РП0426.1",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "РП0426.2",
+          "quantity": 1.0
+        },
+        {
+          "lotNumber": "РП0426.3",
+          "quantity": 2.0
+        },
+        {
+          "lotNumber": "РП0426.4",
+          "quantity": 3.0
+        },
+        {
+          "lotNumber": "РП0426.5",
+          "quantity": 1.0
+        }
+      ]
+    }
+  ]
+}

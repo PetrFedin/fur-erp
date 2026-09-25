@@ -64,6 +64,19 @@ export async function updateModel(
   return {};
 }
 
+export async function updateSellingPrice(modelId: string, formData: FormData) {
+  const session = await requireRole(...EDIT_ROLES);
+  const parsed = z.coerce.number().nonnegative().safeParse(formData.get("sellingPrice"));
+  if (!parsed.success) return;
+
+  await prisma.productModel.updateMany({
+    where: { id: modelId, organizationId: session.user.organizationId },
+    data: { sellingPrice: parsed.data },
+  });
+  revalidatePath("/articles");
+  revalidatePath("/models");
+}
+
 const bomSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите сырьё"),
   quantityPerUnit: z.coerce.number().positive("Норма расхода должна быть больше 0"),

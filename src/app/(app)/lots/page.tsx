@@ -23,10 +23,14 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const materialId = typeof sp.material === "string" ? sp.material : "";
 
-  const [currentLots, lots, materials] = await Promise.all([
+  const [currentLots, allLots, lots, materials] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: session.user.organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true, warehouse: true },
+    }),
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId: session.user.organizationId },
+      select: { rawMaterialId: true, quantityReceived: true },
     }),
     prisma.rawMaterialLot.findMany({
       where: {
@@ -54,12 +58,46 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId: session.user.organizationId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
   const totalValue = currentLots.reduce((s, l) => s.add(l.quantityRemaining.mul(l.unitCost)), new Decimal(0));
+
+  type MaterialAgg = {
+    id: string;
+    name: string;
+    unit: string;
+    purchased: Decimal;
+    remaining: Decimal;
+    value: Decimal;
+  };
+  const materialAggMap = new Map<string, MaterialAgg>();
+  for (const m of materials) {
+    materialAggMap.set(m.id, {
+      id: m.id,
+      name: m.name,
+      unit: m.unit,
+      purchased: new Decimal(0),
+      remaining: new Decimal(0),
+      value: new Decimal(0),
+    });
+  }
+  for (const l of allLots) {
+    const agg = materialAggMap.get(l.rawMaterialId);
+    if (agg) agg.purchased = agg.purchased.add(l.quantityReceived);
+  }
+  for (const l of currentLots) {
+    const agg = materialAggMap.get(l.rawMaterialId);
+    if (agg) {
+      agg.remaining = agg.remaining.add(l.quantityRemaining);
+      agg.value = agg.value.add(l.quantityRemaining.mul(l.unitCost));
+    }
+  }
+  const materialRows = Array.from(materialAggMap.values()).filter(
+    (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
+  );
 
   type Agg = {
     key: string;
@@ -94,12 +132,58 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Остатки и архив сырья</h1>
-        <div className="text-sm text-neutral-500">
-          Стоимость остатков: <span className="font-semibold text-neutral-900">{formatMoney(totalValue.toString())}</span>
-        </div>
-      </div>
+      <h1 className="text-xl font-semibold">Остатки и архив сырья</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Итоговый отчёт по сырью</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Сырьё</Th>
+                <Th>Куплено всего</Th>
+                <Th>Использовано</Th>
+                <Th>Остаток</Th>
+                <Th>Стоимость остатка</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {materialRows.map((r) => (
+                <Tr key={r.id}>
+                  <Td className="font-medium">{r.name}</Td>
+                  <Td>
+                    {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td>
+                    {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td className="font-medium">
+                    {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td>{formatMoney(r.value.toString())}</Td>
+                </Tr>
+              ))}
+              {materialRows.length === 0 && (
+                <Tr>
+                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                    Сырьё ещё не закупалось
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+          <div className="mt-3 flex justify-end text-sm">
+            <span className="text-neutral-500">
+              Итого стоимость остатков всех материалов:{" "}
+            </span>
+            <span className="ml-1 font-semibold text-neutral-900">{formatMoney(totalValue.toString())}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <h2 className="text-sm font-medium text-neutral-500">Остатки по складам</h2>
 
       <Table>
         <Thead>

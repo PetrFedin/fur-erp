@@ -11,7 +11,8 @@ import { UsageForm, type LotOption } from "./usage-form";
 import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
-import { removeMaterialUsage, removeProductionExpense } from "../actions";
+import { ProductionPaymentForm } from "./payment-form";
+import { removeMaterialUsage, removeProductionExpense, removeProductionPayment } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -28,6 +29,13 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK_TRANSFER: "Банк. перевод",
+  CASH: "Наличные",
+  CARD: "Карта",
+  OTHER: "Другое",
+};
+
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -41,6 +49,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       client: true,
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
+      payments: { orderBy: { paidAt: "asc" } },
     },
   });
   if (!order) notFound();
@@ -95,6 +104,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
+  const boundRemovePayment = removeProductionPayment.bind(null, id);
+
+  const paidTotal = order.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
 
   return (
     <div className="flex max-w-4xl flex-col gap-4">
@@ -328,6 +341,69 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Table>
         </CardContent>
       </Card>
+
+      {order.client && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Оплаты от заказчика</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <ProductionPaymentForm orderId={id} />
+            {clientRevenue && (
+              <div className="grid grid-cols-3 gap-3">
+                <SummaryCard label="Стоимость работ" value={formatMoney(clientRevenue.toString())} />
+                <SummaryCard label="Оплачено" value={formatMoney(paidTotal.toString())} />
+                <SummaryCard
+                  label="Остаток к оплате"
+                  value={formatMoney(balanceDue!.toString())}
+                  warn={balanceDue!.greaterThan(0)}
+                  emphasis
+                />
+              </div>
+            )}
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Дата</Th>
+                  <Th>Сумма</Th>
+                  <Th>Способ</Th>
+                  <Th>Заметка</Th>
+                  <Th></Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {order.payments.map((p) => (
+                  <Tr key={p.id}>
+                    <Td>{formatDate(p.paidAt)}</Td>
+                    <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
+                    <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
+                    <Td>{p.notes ?? "—"}</Td>
+                    <Td>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await boundRemovePayment(p.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Удалить
+                        </Button>
+                      </form>
+                    </Td>
+                  </Tr>
+                ))}
+                {order.payments.length === 0 && (
+                  <Tr>
+                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                      Оплат пока нет
+                    </Td>
+                  </Tr>
+                )}
+              </Tbody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {open && (
         <Card>

@@ -361,6 +361,56 @@ export async function completeProductionOrder(
   return {};
 }
 
+// ---------- Payments from the client (separate ledger from supplier payments) ----------
+
+const productionPaymentSchema = z.object({
+  amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
+  paidAt: z.string().min(1),
+  notes: z.string().trim().optional(),
+});
+
+export async function addProductionPayment(orderId: string, formData: FormData) {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: session.user.organizationId },
+  });
+  if (!order) return;
+
+  const parsed = productionPaymentSchema.safeParse({
+    amount: formData.get("amount"),
+    method: formData.get("method"),
+    paidAt: formData.get("paidAt"),
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) return;
+
+  await prisma.productionPayment.create({
+    data: {
+      organizationId: session.user.organizationId,
+      productionOrderId: orderId,
+      amount: parsed.data.amount,
+      method: parsed.data.method,
+      status: "COMPLETED",
+      paidAt: new Date(parsed.data.paidAt),
+      notes: parsed.data.notes,
+    },
+  });
+
+  revalidatePath(`/production/${orderId}`);
+}
+
+export async function removeProductionPayment(orderId: string, paymentId: string) {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: session.user.organizationId },
+  });
+  if (!order) return;
+
+  await prisma.productionPayment.delete({ where: { id: paymentId } });
+  revalidatePath(`/production/${orderId}`);
+}
+
 export async function cancelProductionOrder(orderId: string) {
   const session = await requireRole(...EDIT_ROLES);
   await prisma.productionOrder.updateMany({

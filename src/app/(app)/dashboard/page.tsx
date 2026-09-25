@@ -13,6 +13,14 @@ const MONTH_NAMES = [
   "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
 ];
 
+const UNIT_LABELS: Record<string, string> = {
+  PIECE: "шт.",
+  KG: "кг",
+  M2: "м²",
+  M: "м",
+  SET: "компл.",
+};
+
 export default async function DashboardPage() {
   const session = await requireSession();
   const organizationId = session.user.organizationId;
@@ -25,15 +33,24 @@ export default async function DashboardPage() {
   const [
     finishedStock,
     recentPurchases,
+    allPurchases,
     purchaseExpensesByCategory,
     productionExpensesByCategory,
     completedOrders,
     openPurchasesWithPayments,
     lowStockMaterials,
+    allLots,
+    materials,
+    materialUsedAgg,
+    articleCount,
   ] = await Promise.all([
     prisma.finishedGoodsStock.findMany({ where: { organizationId } }),
     prisma.purchase.findMany({
       where: { organizationId, orderDate: { gte: sixMonthsAgo } },
+      include: { items: true, expenses: true },
+    }),
+    prisma.purchase.findMany({
+      where: { organizationId },
       include: { items: true, expenses: true },
     }),
     prisma.purchaseExpense.groupBy({
@@ -58,6 +75,20 @@ export default async function DashboardPage() {
       where: { organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
     }),
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId },
+      select: { rawMaterialId: true, quantityReceived: true },
+    }),
+    prisma.rawMaterial.findMany({
+      where: { organizationId },
+      select: { id: true, name: true, unit: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.productionMaterialUsage.aggregate({
+      where: { productionOrder: { organizationId } },
+      _sum: { totalCost: true },
+    }),
+    prisma.productModel.count({ where: { organizationId } }),
   ]);
 
   // Raw + finished stock value
@@ -141,6 +172,46 @@ export default async function DashboardPage() {
     .map(([id, v]) => ({ id, ...v }))
     .filter((m) => m.minStockLevel && m.quantity.lessThan(m.minStockLevel));
 
+  // Lifetime raw material purchased/used/remaining, by material (used = purchased - remaining).
+  type MaterialFlow = {
+    id: string;
+    name: string;
+    unit: string;
+    purchased: Decimal;
+    remaining: Decimal;
+    remainingValue: Decimal;
+  };
+  const materialFlowMap = new Map<string, MaterialFlow>();
+  for (const m of materials) {
+    materialFlowMap.set(m.id, {
+      id: m.id,
+      name: m.name,
+      unit: m.unit,
+      purchased: new Decimal(0),
+      remaining: new Decimal(0),
+      remainingValue: new Decimal(0),
+    });
+  }
+  for (const l of allLots) {
+    const agg = materialFlowMap.get(l.rawMaterialId);
+    if (agg) agg.purchased = agg.purchased.add(l.quantityReceived);
+  }
+  for (const l of lowStockMaterials) {
+    const agg = materialFlowMap.get(l.rawMaterialId);
+    if (agg) {
+      agg.remaining = agg.remaining.add(l.quantityRemaining);
+      agg.remainingValue = agg.remainingValue.add(l.quantityRemaining.mul(l.unitCost));
+    }
+  }
+  const materialFlowRows = Array.from(materialFlowMap.values()).filter(
+    (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
+  );
+  const unusedMaterials = materialFlowRows.filter((r) => r.remaining.greaterThan(0));
+
+  const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
+  const totalMaterialUsedValue = new Decimal(materialUsedAgg._sum.totalCost ?? 0);
+  const totalProducedQty = completedOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Дашборд</h1>
@@ -156,6 +227,62 @@ export default async function DashboardPage() {
         />
         <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />
       </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <KpiCard label="Артикулов (моделей)" value={String(articleCount)} />
+        <KpiCard label="Сырья закуплено, всего" value={formatMoney(totalPurchasedValue.toString())} />
+        <KpiCard label="Сырья использовано в производстве" value={formatMoney(totalMaterialUsedValue.toString())} />
+        <KpiCard label="Товара выпущено" value={`${formatQty(totalProducedQty.toString())} шт.`} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Сырьё: куплено / использовано / остаток по материалам</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Сырьё</Th>
+                <Th>Куплено всего</Th>
+                <Th>Использовано</Th>
+                <Th>Остаток (не использовано)</Th>
+                <Th>Стоимость остатка</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {materialFlowRows.map((r) => (
+                <Tr key={r.id}>
+                  <Td className="font-medium">{r.name}</Td>
+                  <Td>
+                    {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td>
+                    {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
+                    {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
+                  </Td>
+                  <Td>{formatMoney(r.remainingValue.toString())}</Td>
+                </Tr>
+              ))}
+              {materialFlowRows.length === 0 && (
+                <Tr>
+                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                    Сырьё ещё не закупалось
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+          {unusedMaterials.length > 0 && (
+            <p className="mt-3 text-sm text-neutral-500">
+              Не использовано ({unusedMaterials.length}):{" "}
+              {unusedMaterials.map((m) => m.name).join(", ")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>

@@ -32,6 +32,7 @@ model Organization {
   expenseCategories      ExpenseCategory[]
   purchases              Purchase[]
   payments               Payment[]
+  productionPayments     ProductionPayment[]
   rawMaterialLots        RawMaterialLot[]
   stockMovements         StockMovement[]
   productModels          ProductModel[]
@@ -332,6 +333,26 @@ model Payment {
   @@index([purchaseId])
 }
 
+// Payments received FROM a client for production work (ТЗ) — a separate
+// ledger from `Payment` (which is what we pay suppliers for raw material),
+// since the two sides of the business are billed independently.
+model ProductionPayment {
+  id                String          @id @default(cuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  amount            Decimal         @db.Decimal(14, 2)
+  method            PaymentMethod   @default(BANK_TRANSFER)
+  status            PaymentStatus   @default(COMPLETED)
+  paidAt            DateTime        @default(now())
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([organizationId])
+  @@index([productionOrderId])
+}
+
 // ---------- Raw material stock (lot-based / specific identification) ----------
 //
 // Fur pelts of the same material can vary 3-4x in cost lot to lot (auction
@@ -526,6 +547,7 @@ model ProductionOrder {
 
   materialUsages         ProductionMaterialUsage[]
   expenses               ProductionExpense[]
+  payments               ProductionPayment[]
   stockMovements         StockMovement[]
   finishedGoodsMovements FinishedGoodsMovement[]
 
