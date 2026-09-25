@@ -86,6 +86,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const boundRemoveItem = removePurchaseItem.bind(null, id);
   const boundRemoveExpense = removePurchaseExpense.bind(null, id);
 
+  const furItems = purchase.items.filter((i) => i.rawMaterial.unit !== "M");
+  const liningItems = purchase.items.filter((i) => i.rawMaterial.unit === "M");
+  const furMaterials = materials.filter((m) => m.unit !== "M");
+  const liningMaterials = materials.filter((m) => m.unit === "M");
+
   return (
     <div className="flex max-w-4xl flex-col gap-4">
       <div className="flex items-start justify-between">
@@ -142,12 +147,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
       <Card>
         <CardHeader>
-          <CardTitle>Позиции сырья</CardTitle>
+          <CardTitle>Позиции сырья (мех)</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editable && (
             <>
-              <PurchaseItemForm purchaseId={id} materials={materials} currency={purchase.currency} />
+              <PurchaseItemForm purchaseId={id} materials={furMaterials} currency={purchase.currency} />
               <BulkItemForm purchaseId={id} />
             </>
           )}
@@ -165,7 +170,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               </Tr>
             </Thead>
             <Tbody>
-              {purchase.items.map((item) => {
+              {furItems.map((item) => {
                 const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
                 const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
                 return (
@@ -203,10 +208,82 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   </Tr>
                 );
               })}
-              {purchase.items.length === 0 && (
+              {furItems.length === 0 && (
                 <Tr>
                   <Td colSpan={8} className="py-6 text-center text-neutral-400">
                     Позиций пока нет
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Подкладка</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {editable && (
+            <PurchaseItemForm purchaseId={id} materials={liningMaterials} currency={purchase.currency} />
+          )}
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Ткань</Th>
+                <Th>Лот</Th>
+                <Th>Сорт/цвет</Th>
+                <Th>Кол-во</Th>
+                <Th>Цена (без НДС)</Th>
+                <Th>НДС</Th>
+                <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
+                {editable && <Th></Th>}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {liningItems.map((item) => {
+                const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
+                const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                return (
+                  <Tr key={item.id}>
+                    <Td>{item.rawMaterial.name}</Td>
+                    <Td>{item.lotNumber ?? "—"}</Td>
+                    <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
+                    <Td>
+                      {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
+                    </Td>
+                    <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
+                    <Td>{item.vatRate.toString()}%</Td>
+                    <Td>
+                      {formatMoney(subtotalInclVatRub.toString())}
+                      {isForeignCurrency && (
+                        <span className="ml-1 text-xs text-neutral-400">
+                          ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
+                        </span>
+                      )}
+                    </Td>
+                    {editable && (
+                      <Td>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await boundRemoveItem(item.id);
+                          }}
+                        >
+                          <Button type="submit" variant="ghost" size="sm">
+                            Удалить
+                          </Button>
+                        </form>
+                      </Td>
+                    )}
+                  </Tr>
+                );
+              })}
+              {liningItems.length === 0 && (
+                <Tr>
+                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
+                    Подкладка ещё не заведена
                   </Td>
                 </Tr>
               )}

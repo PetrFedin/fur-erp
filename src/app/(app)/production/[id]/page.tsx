@@ -87,6 +87,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     unitCost: l.unitCost.toString(),
   }));
 
+  const furLots = lotOptions.filter((l) => l.unit !== "M");
+  const liningLots = lotOptions.filter((l) => l.unit === "M");
+  const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
+  const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
+
   const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
@@ -232,13 +237,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
       <Card>
         <CardHeader>
-          <CardTitle>Списание сырья в производство</CardTitle>
+          <CardTitle>Списание меха в производство</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {open && (
             <div className="flex flex-col gap-3">
               <ApplyBomButton orderId={id} />
-              <UsageForm orderId={id} lots={lotOptions} />
+              <UsageForm orderId={id} lots={furLots} />
               <BulkUsageForm orderId={id} />
             </div>
           )}
@@ -256,7 +261,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </Tr>
             </Thead>
             <Tbody>
-              {order.materialUsages.map((u) => (
+              {furUsages.map((u) => (
                 <Tr key={u.id}>
                   <Td>{formatDate(u.date)}</Td>
                   <Td>{u.rawMaterial.name}</Td>
@@ -283,10 +288,70 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   )}
                 </Tr>
               ))}
-              {order.materialUsages.length === 0 && (
+              {furUsages.length === 0 && (
                 <Tr>
                   <Td colSpan={8} className="py-6 text-center text-neutral-400">
-                    Сырьё ещё не списано
+                    Мех ещё не списан
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Подкладка</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {order.lining && <p className="text-sm text-neutral-500">Описание из ТЗ: {order.lining}</p>}
+          {open && <UsageForm orderId={id} lots={liningLots} />}
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Дата</Th>
+                <Th>Подкладка</Th>
+                <Th>Лот</Th>
+                <Th>Кол-во</Th>
+                <Th>Цена лота без НДС</Th>
+                <Th>НДС</Th>
+                <Th>Себестоимость (с расходами закупки)</Th>
+                {open && <Th></Th>}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {liningUsages.map((u) => (
+                <Tr key={u.id}>
+                  <Td>{formatDate(u.date)}</Td>
+                  <Td>{u.rawMaterial.name}</Td>
+                  <Td>{u.lot.lotNumber ?? "без номера"}</Td>
+                  <Td>
+                    {formatQty(u.quantity.toString())} {UNIT_LABELS[u.rawMaterial.unit]}
+                  </Td>
+                  <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
+                  <Td>{u.lot.vatRate.toString()}%</Td>
+                  <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
+                  {open && (
+                    <Td>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await boundRemoveUsage(u.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Отменить
+                        </Button>
+                      </form>
+                    </Td>
+                  )}
+                </Tr>
+              ))}
+              {liningUsages.length === 0 && (
+                <Tr>
+                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
+                    Подкладка ещё не выбрана
                   </Td>
                 </Tr>
               )}
