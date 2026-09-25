@@ -1,0 +1,776 @@
+[
+  {
+    "modelId": "cmuh7j3j501hbls05o7rmyd83",
+    "model": "М001А",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j3j501hbls05o7rmyd83",
+    "model": "М001А",
+    "month": "2026-10",
+    "status": "LAUNCHED",
+    "quantity": 6,
+    "eventDate": "2026-10-05",
+    "notes": null
+  },
+  {
+    "modelId": "cmuhg5ieh0001ls3vlku6owps",
+    "model": "М001Е",
+    "month": "2026-06",
+    "status": "WITH_TAILOR",
+    "quantity": 1,
+    "eventDate": "2026-06-17",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuhg5ieh0001ls3vlku6owps",
+    "model": "М001Е",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 3,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuhg5ieh0001ls3vlku6owps",
+    "model": "М001Е",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-09-28",
+    "notes": "срок 2 месяца с момента оплаты (18.09.2026)"
+  },
+  {
+    "modelId": "cmuhg5ieh0001ls3vlku6owps",
+    "model": "М001Е",
+    "month": "2026-10",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-10-05",
+    "notes": "срок 2 месяца с момента оплаты (18.09.2026)"
+  },
+  {
+    "modelId": "cmuh7j51l03ebls05pqetlh14",
+    "model": "М001К",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-09-07",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j51l03ebls05pqetlh14",
+    "model": "М001К",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-09-21",
+    "notes": "меха хватает только на 1 ед. определить какой размер - MVST"
+  },
+  {
+    "modelId": "cmuh7j51l03ebls05pqetlh14",
+    "model": "М001К",
+    "month": "2026-09",
+    "status": "PLANNED",
+    "quantity": 1,
+    "eventDate": null,
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j43k029jls055w379j19",
+    "model": "М002",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j43k029jls055w379j19",
+    "model": "М002",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": "2026-09-23",
+    "notes": "в работе у портной / сдача 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j3rg01svls056tzvpvex",
+    "model": "М002А",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-09-07",
+    "notes": "сдана 18.09.2026"
+  },
+  {
+    "modelId": "cmuh7j3sh01uvls05w6rzsdo9",
+    "model": "М003",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-09-28",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j3sh01uvls05w6rzsdo9",
+    "model": "М003",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 2,
+    "eventDate": "2026-09-14",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j3jn01ijls05le1e5upd",
+    "model": "М009",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 8,
+    "eventDate": "2026-08-17",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j3jn01ijls05le1e5upd",
+    "model": "М009",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-09-07",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j3jn01ijls05le1e5upd",
+    "model": "М009",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 17,
+    "eventDate": "2026-09-07",
+    "notes": "сдана 18.09.2026"
+  },
+  {
+    "modelId": "cmuh7j3s201u3ls05a44c9fa0",
+    "model": "М011А",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 14,
+    "eventDate": "2026-09-07",
+    "notes": "в работе у скорняка.скрой готовность 10.10.2026"
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 3,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 7,
+    "eventDate": "2026-08-17",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 7,
+    "eventDate": "2026-09-07",
+    "notes": "сдано. Партия 20"
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 7,
+    "eventDate": "2026-09-14",
+    "notes": "Сдача на 23.09.2026; в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-09-21",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j3la01lnls05kh2hxx8c",
+    "model": "М012",
+    "month": "2026-10",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-10-05",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j3m301nbls05ghgfb0z0",
+    "model": "М018",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-08-31",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j3m301nbls05ghgfb0z0",
+    "model": "М018",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-09-14",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuhg5if00005ls3viwlwbuok",
+    "model": "М023",
+    "month": "2026-06",
+    "status": "WITH_TAILOR",
+    "quantity": 5,
+    "eventDate": "2026-06-23",
+    "notes": "скрой готов.ткань утвердили 18.09.2026"
+  },
+  {
+    "modelId": "cmuhg5if00005ls3viwlwbuok",
+    "model": "М023",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 1,
+    "eventDate": "2026-08-14",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuhg5iev0003ls3visjbp9ra",
+    "model": "М025",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 10,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-06",
+    "status": "WITH_TAILOR",
+    "quantity": 1,
+    "eventDate": "2026-06-01",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-08",
+    "status": "CANCELLED",
+    "quantity": 1,
+    "eventDate": "2026-08-24",
+    "notes": "нет шкур на изделия/снята с производства"
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-08-24",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 2,
+    "eventDate": "2026-08-14",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 8,
+    "eventDate": "2026-09-14",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j57u03k3ls05rnduflv9",
+    "model": "М026",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": null,
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j54m03hrls05l7gyejo2",
+    "model": "М028",
+    "month": "2026-08",
+    "status": "WITH_FURRIER",
+    "quantity": 2,
+    "eventDate": "2026-08-24",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j54m03hrls05l7gyejo2",
+    "model": "М028",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-08-17",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j54m03hrls05l7gyejo2",
+    "model": "М028",
+    "month": "2026-09",
+    "status": "PLANNED",
+    "quantity": 1,
+    "eventDate": null,
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j54m03hrls05l7gyejo2",
+    "model": "М028",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-09-14",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j54m03hrls05l7gyejo2",
+    "model": "М028",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": "2026-09-07",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4ph0317ls05cug6kjg1",
+    "model": "М029",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 6,
+    "eventDate": "2026-08-20",
+    "notes": "сдано 18.09.2026"
+  },
+  {
+    "modelId": "cmuh7j4ph0317ls05cug6kjg1",
+    "model": "М029",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-09-18",
+    "notes": "сдано 18.09.2026"
+  },
+  {
+    "modelId": "cmuh7j4ph0317ls05cug6kjg1",
+    "model": "М029",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 7,
+    "eventDate": "2026-09-21",
+    "notes": "срок 1,5 месяца с момента оплаты (18.09.2026)"
+  },
+  {
+    "modelId": "cmuh7j4ph0317ls05cug6kjg1",
+    "model": "М029",
+    "month": "2026-10",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-10-05",
+    "notes": "срок 1,5 месяца с момента оплаты (18.09.2026)"
+  },
+  {
+    "modelId": "cmuhg5if40007ls3vc8hle50p",
+    "model": "М030",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-08-24",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuhg5if40007ls3vc8hle50p",
+    "model": "М030",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 2,
+    "eventDate": "2026-09-07",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuhg5if40007ls3vc8hle50p",
+    "model": "М030",
+    "month": "2026-10",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-10-05",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j56503jjls05mj5lou3o",
+    "model": "М031",
+    "month": "2026-08",
+    "status": "WITH_FURRIER",
+    "quantity": 4,
+    "eventDate": "2026-08-31",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j56503jjls05mj5lou3o",
+    "model": "М031",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 3,
+    "eventDate": "2026-09-28",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j56503jjls05mj5lou3o",
+    "model": "М031",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": "2026-09-07",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j52u03g3ls05z7da0t82",
+    "model": "М038",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 2,
+    "eventDate": "2026-08-14",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j52u03g3ls05z7da0t82",
+    "model": "М038",
+    "month": "2026-09",
+    "status": "WITH_TAILOR",
+    "quantity": 4,
+    "eventDate": "2026-09-07",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j52u03g3ls05z7da0t82",
+    "model": "М038",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": null,
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j52u03g3ls05z7da0t82",
+    "model": "М038",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-09-21",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuhg5if70009ls3vqn6t5db7",
+    "model": "М039",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-08-24",
+    "notes": null
+  },
+  {
+    "modelId": "cmuhg5if70009ls3vqn6t5db7",
+    "model": "М039",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-09-07",
+    "notes": "шкуры на стрижки  взяли модель М038 / \nв работу не брали 01.09.2026\n\n18.09.2026 соглосование деталей кроя (по соболю)"
+  },
+  {
+    "modelId": "cmuhg5ifa000bls3vm29eptuu",
+    "model": "М040",
+    "month": "2026-08",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-08-10",
+    "notes": "в работе у скорняка. в работе у скорняка 18.09. \nсогласование с мастом 1 полоска роспуска"
+  },
+  {
+    "modelId": "cmuhg5ifa000bls3vm29eptuu",
+    "model": "М040",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-09-28",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4pz031rls05o16d0w53",
+    "model": "М041",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-08-31",
+    "notes": "ждем мех на добор"
+  },
+  {
+    "modelId": "cmuh7j4pz031rls05o16d0w53",
+    "model": "М041",
+    "month": "2026-08",
+    "status": "WITH_FURRIER",
+    "quantity": 2,
+    "eventDate": "2026-08-24",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4pz031rls05o16d0w53",
+    "model": "М041",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 5,
+    "eventDate": "2026-08-24",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j4pz031rls05o16d0w53",
+    "model": "М041",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 3,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuhg5ife000dls3vz6u74m75",
+    "model": "М044",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-08-31",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuhg5ife000dls3vz6u74m75",
+    "model": "М044",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 5,
+    "eventDate": "2026-09-28",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuhg5ife000dls3vz6u74m75",
+    "model": "М044",
+    "month": "2026-10",
+    "status": "WITH_FURRIER",
+    "quantity": 2,
+    "eventDate": "2026-10-05",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4zi03bzls05bb625px4",
+    "model": "М045",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 4,
+    "eventDate": "2026-09-15",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4zi03bzls05bb625px4",
+    "model": "М045",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 14,
+    "eventDate": "2026-09-23",
+    "notes": "Сдача на 23.09.2026"
+  },
+  {
+    "modelId": "cmuh7j4zw03cjls05ye6ipnkn",
+    "model": "М046",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 1,
+    "eventDate": "2026-08-14",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4zw03cjls05ye6ipnkn",
+    "model": "М046",
+    "month": "2026-08",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-08-17",
+    "notes": "мелкие шкуры, перевели в 42 размер, 48р.запустим позже"
+  },
+  {
+    "modelId": "cmuh7j4zw03cjls05ye6ipnkn",
+    "model": "М046",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-09-21",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4zw03cjls05ye6ipnkn",
+    "model": "М046",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": null,
+    "notes": "в работе у портной (был 46р перевели в 44)"
+  },
+  {
+    "modelId": "cmuh7j4zw03cjls05ye6ipnkn",
+    "model": "М046",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 1,
+    "eventDate": "2026-09-14",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4u40367ls05qn2043k2",
+    "model": "М049",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4u40367ls05qn2043k2",
+    "model": "М049",
+    "month": "2026-10",
+    "status": "LAUNCHED",
+    "quantity": 2,
+    "eventDate": "2026-10-12",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4u40367ls05qn2043k2",
+    "model": "М049",
+    "month": "2026-10",
+    "status": "CANCELLED",
+    "quantity": 2,
+    "eventDate": "2026-10-19",
+    "notes": "отменен 17.09.2026 в связи с нехваткой шкур"
+  },
+  {
+    "modelId": "cmuh7j4u40367ls05qn2043k2",
+    "model": "М049",
+    "month": "2026-10",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-10-26",
+    "notes": "перевели в 48р. в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j53q03gjls0534es8uuz",
+    "model": "М050",
+    "month": "2026-08",
+    "status": "CANCELLED",
+    "quantity": 1,
+    "eventDate": "2026-08-17",
+    "notes": "отменен 17.09.2026 в связи с нехваткой шкур"
+  },
+  {
+    "modelId": "cmuh7j53q03gjls0534es8uuz",
+    "model": "М050",
+    "month": "2026-09",
+    "status": "LAUNCHED",
+    "quantity": 3,
+    "eventDate": "2026-09-28",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j53q03gjls0534es8uuz",
+    "model": "М050",
+    "month": "2026-09",
+    "status": "CANCELLED",
+    "quantity": 1,
+    "eventDate": "2026-09-21",
+    "notes": "отменен 17.09.2026 в связи с нехваткой шкур"
+  },
+  {
+    "modelId": "cmuh7j53q03gjls0534es8uuz",
+    "model": "М050",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 1,
+    "eventDate": "2026-09-07",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4s60353ls058tto73io",
+    "model": "М052",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 6,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuhg5ifi000fls3vdmb2n2c7",
+    "model": "М054",
+    "month": "2026-08",
+    "status": "WITH_FURRIER",
+    "quantity": 1,
+    "eventDate": "2026-08-17",
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuhg5ifl000hls3vh0dxnkpb",
+    "model": "М055",
+    "month": "2026-09",
+    "status": "WITH_FURRIER",
+    "quantity": 6,
+    "eventDate": null,
+    "notes": "в работе у скорняка"
+  },
+  {
+    "modelId": "cmuh7j4p5030vls05nyvnztj5",
+    "model": "М056",
+    "month": "2026-08",
+    "status": "WITH_TAILOR",
+    "quantity": 5,
+    "eventDate": "2026-08-07",
+    "notes": "в работе у портной"
+  },
+  {
+    "modelId": "cmuh7j4p5030vls05nyvnztj5",
+    "model": "М056",
+    "month": "2026-08",
+    "status": "PRODUCED",
+    "quantity": 3,
+    "eventDate": "2026-08-20",
+    "notes": null
+  },
+  {
+    "modelId": "cmuh7j4p5030vls05nyvnztj5",
+    "model": "М056",
+    "month": "2026-09",
+    "status": "PRODUCED",
+    "quantity": 2,
+    "eventDate": "2026-09-07",
+    "notes": null
+  }
+]
