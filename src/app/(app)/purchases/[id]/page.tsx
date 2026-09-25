@@ -8,6 +8,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PurchaseItemForm } from "./item-form";
+import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
 import { PurchaseActions } from "./purchase-actions";
@@ -145,7 +146,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editable && (
-            <PurchaseItemForm purchaseId={id} materials={materials} currency={purchase.currency} />
+            <>
+              <PurchaseItemForm purchaseId={id} materials={materials} currency={purchase.currency} />
+              <BulkItemForm purchaseId={id} />
+            </>
           )}
           <Table>
             <Thead>

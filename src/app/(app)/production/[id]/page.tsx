@@ -8,6 +8,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { UsageForm, type LotOption } from "./usage-form";
+import { BulkUsageForm } from "./bulk-usage-form";
 import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
@@ -238,6 +239,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <div className="flex flex-col gap-3">
               <ApplyBomButton orderId={id} />
               <UsageForm orderId={id} lots={lotOptions} />
+              <BulkUsageForm orderId={id} />
             </div>
           )}
           <Table>

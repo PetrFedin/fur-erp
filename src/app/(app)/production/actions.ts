@@ -168,6 +168,72 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
   return {};
 }
 
+// Bulk entry: paste "лот  количество" pairs (one per line, tab- or
+// multi-space-separated) copied straight from a ТЗ spreadsheet instead of
+// picking each lot one at a time — real orders here run up to a few dozen
+// lot lines. Lot numbers are matched within this order's raw-material
+// warehouse; unmatched or insufficient lines are reported back, matched
+// ones are still applied.
+export type BulkUsageState = { error?: string; created?: number; skipped?: string[] };
+
+export async function addMaterialUsagesBulk(
+  orderId: string,
+  _prev: BulkUsageState,
+  formData: FormData
+): Promise<BulkUsageState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await getOpenOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден или уже завершён" };
+
+  const raw = (formData.get("rows") as string | null)?.trim();
+  if (!raw) return { error: "Вставьте хотя бы одну строку" };
+
+  const lots = await prisma.rawMaterialLot.findMany({
+    where: { organizationId: session.user.organizationId, warehouseId: order.rawWarehouseId },
+  });
+  const lotByNumber = new Map(lots.filter((l) => l.lotNumber).map((l) => [l.lotNumber!.trim().toLowerCase(), l]));
+
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const skipped: string[] = [];
+  let created = 0;
+
+  for (const line of lines) {
+    const cells = line.split("\t").length > 1 ? line.split("\t") : line.split(/ {2,}/);
+    const [lotNumberRaw, quantityRaw] = cells.map((c) => c?.trim());
+    const quantity = Number((quantityRaw ?? "").replace(",", "."));
+    const lot = lotNumberRaw ? lotByNumber.get(lotNumberRaw.toLowerCase()) : undefined;
+
+    if (!lot || !Number.isFinite(quantity) || quantity <= 0) {
+      skipped.push(line);
+      continue;
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
+          organizationId: session.user.organizationId,
+          lotId: lot.id,
+          quantity,
+          productionOrderId: orderId,
+        });
+        await tx.productionMaterialUsage.create({
+          data: { productionOrderId: orderId, rawMaterialId, lotId: lot.id, quantity, unitCost, totalCost },
+        });
+        if (order.status === "PLANNED") {
+          await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
+        }
+      });
+      created++;
+    } catch {
+      skipped.push(line);
+    }
+  }
+
+  revalidatePath(`/production/${orderId}`);
+  revalidatePath("/lots");
+  return { created, skipped: skipped.length ? skipped : undefined };
+}
+
 /**
  * Consumes the BOM-defined quantities for the order's planned quantity,
  * picking lots automatically (oldest received first) until each material's

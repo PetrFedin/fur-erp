@@ -145,6 +145,99 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
+// Bulk entry: paste rows copied straight from a spreadsheet (tab- or
+// multi-space-separated) instead of filling the single-item form N times —
+// real purchases here run 10-160+ lots each. Columns, in order: Материал,
+// Кол-во, Цена без НДС, НДС% (optional, default 20), Лот, Сорт, Цвет.
+// Material is matched by exact name (case-insensitive); unmatched names
+// create a new RawMaterial rather than failing the row, since that's the
+// same "find or create" behavior the historical-data import scripts use.
+export type BulkFormState = { error?: string; created?: number; skipped?: string[] };
+
+export async function addPurchaseItemsBulk(
+  purchaseId: string,
+  _prev: BulkFormState,
+  formData: FormData
+): Promise<BulkFormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
+  if (!purchase) return { error: "Закупку нельзя редактировать" };
+
+  const raw = (formData.get("rows") as string | null)?.trim();
+  if (!raw) return { error: "Вставьте хотя бы одну строку" };
+
+  const materials = await prisma.rawMaterial.findMany({
+    where: { organizationId: session.user.organizationId },
+    select: { id: true, name: true },
+  });
+  const materialByName = new Map(materials.map((m) => [m.name.trim().toLowerCase(), m.id]));
+
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const rows: {
+    rawMaterialId: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    lotNumber?: string;
+    grade?: string;
+    color?: string;
+  }[] = [];
+  const skipped: string[] = [];
+
+  for (const line of lines) {
+    const cells = line.split("\t").length > 1 ? line.split("\t") : line.split(/ {2,}/);
+    const [materialName, quantityRaw, unitPriceRaw, vatRateRaw, lotNumber, grade, color] = cells.map((c) =>
+      c?.trim()
+    );
+    const quantity = Number((quantityRaw ?? "").replace(",", "."));
+    const unitPrice = Number((unitPriceRaw ?? "").replace(",", "."));
+    const vatRate = vatRateRaw ? Number(vatRateRaw.replace(",", ".").replace("%", "")) : 20;
+
+    if (!materialName || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
+      skipped.push(line);
+      continue;
+    }
+
+    let rawMaterialId = materialByName.get(materialName.toLowerCase());
+    if (!rawMaterialId) {
+      const created = await prisma.rawMaterial.create({
+        data: { organizationId: session.user.organizationId, name: materialName, unit: "PIECE" },
+      });
+      rawMaterialId = created.id;
+      materialByName.set(materialName.toLowerCase(), rawMaterialId);
+    }
+
+    rows.push({
+      rawMaterialId,
+      quantity,
+      unitPrice,
+      vatRate: Number.isFinite(vatRate) ? vatRate : 20,
+      lotNumber: lotNumber || undefined,
+      grade: grade || undefined,
+      color: color || undefined,
+    });
+  }
+
+  if (rows.length === 0) return { error: "Не удалось разобрать ни одной строки", skipped };
+
+  await prisma.purchaseItem.createMany({
+    data: rows.map((r) => ({
+      purchaseId,
+      rawMaterialId: r.rawMaterialId,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      subtotal: new Decimal(r.quantity).mul(r.unitPrice),
+      vatRate: r.vatRate,
+      lotNumber: r.lotNumber,
+      grade: r.grade,
+      color: r.color,
+    })),
+  });
+
+  revalidatePath(`/purchases/${purchaseId}`);
+  return { created: rows.length, skipped: skipped.length ? skipped : undefined };
+}
+
 export async function removePurchaseItem(purchaseId: string, itemId: string) {
   const session = await requireRole(...EDIT_ROLES);
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
