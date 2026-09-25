@@ -39,6 +39,7 @@ model Organization {
   productionOrders       ProductionOrder[]
   finishedGoodsStocks    FinishedGoodsStock[]
   finishedGoodsMovements FinishedGoodsMovement[]
+  supplyPlanEntries      SupplyPlanEntry[]
 }
 
 enum UserRole {
@@ -468,9 +469,42 @@ model ProductModel {
   productionOrders       ProductionOrder[]
   finishedGoodsStocks    FinishedGoodsStock[]
   finishedGoodsMovements FinishedGoodsMovement[]
+  supplyPlanEntries      SupplyPlanEntry[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+}
+
+// Higher-level planning: what's expected to move through which stage in
+// which calendar month, independent of a specific ТЗ (production order).
+// Stage names/order come from the user's own production-tracking sheet
+// (запуск → в работе у скорняка → в работе у портной → сдано).
+enum SupplyPlanStatus {
+  PLANNED
+  LAUNCHED
+  WITH_FURRIER
+  WITH_TAILOR
+  PRODUCED
+  CANCELLED
+}
+
+model SupplyPlanEntry {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productModelId String
+  productModel   ProductModel     @relation(fields: [productModelId], references: [id], onDelete: Cascade)
+  month          DateTime // first day of the planned month
+  status         SupplyPlanStatus @default(PLANNED)
+  quantity       Decimal          @db.Decimal(14, 3)
+  eventDate      DateTime? // specific date tied to the status (launch date, delivery date, etc.)
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([productModelId])
+  @@index([month])
 }
 
 // Bill of materials: how much of each raw material one unit of a model consumes.

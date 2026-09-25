@@ -16,6 +16,7 @@ export const NAV_SECTIONS = [
     title: "Производство",
     links: [
       { href: "/production", label: "Производственные заказы (ТЗ)" },
+      { href: "/supply-plan", label: "План поставки" },
       { href: "/articles", label: "Товар и цены" },
       { href: "/models", label: "Модели изделий" },
     ],
