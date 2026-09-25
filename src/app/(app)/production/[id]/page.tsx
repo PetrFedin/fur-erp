@@ -37,6 +37,12 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   OTHER: "Другое",
 };
 
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  ADVANCE: "Аванс",
+  PARTIAL: "Доплата",
+  FINAL: "Окончательная",
+};
+
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -50,10 +56,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       client: true,
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
-      payments: { orderBy: { paidAt: "asc" } },
+      paymentAllocations: {
+        include: { productionPayment: { include: { orders: { include: { productionOrder: true } } } } },
+        orderBy: { productionPayment: { paidAt: "asc" } },
+      },
     },
   });
   if (!order) notFound();
+
+  const payments = order.paymentAllocations.map((a) => a.productionPayment);
+
+  const siblingOrders = order.clientId
+    ? await prisma.productionOrder.findMany({
+        where: { clientId: order.clientId, organizationId: session.user.organizationId, id: { not: id } },
+        select: { id: true, number: true },
+        orderBy: { number: "asc" },
+      })
+    : [];
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
 
@@ -112,7 +131,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
   const boundRemovePayment = removeProductionPayment.bind(null, id);
 
-  const paidTotal = order.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const paidTotal = payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
 
   return (
@@ -415,7 +434,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <CardTitle>Оплаты от заказчика</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <ProductionPaymentForm orderId={id} />
+            <ProductionPaymentForm orderId={id} siblingOrders={siblingOrders} />
             {clientRevenue && (
               <div className="grid grid-cols-3 gap-3">
                 <SummaryCard label="Стоимость работ" value={formatMoney(clientRevenue.toString())} />
@@ -432,36 +451,45 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Thead>
                 <Tr>
                   <Th>Дата</Th>
+                  <Th>Тип</Th>
                   <Th>Сумма</Th>
                   <Th>Способ</Th>
+                  <Th>Также покрывает</Th>
                   <Th>Заметка</Th>
                   <Th></Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {order.payments.map((p) => (
-                  <Tr key={p.id}>
-                    <Td>{formatDate(p.paidAt)}</Td>
-                    <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
-                    <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
-                    <Td>{p.notes ?? "—"}</Td>
-                    <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemovePayment(p.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Удалить
-                        </Button>
-                      </form>
-                    </Td>
-                  </Tr>
-                ))}
-                {order.payments.length === 0 && (
+                {payments.map((p) => {
+                  const otherOrders = p.orders
+                    .map((a) => a.productionOrder)
+                    .filter((o) => o.id !== id);
+                  return (
+                    <Tr key={p.id}>
+                      <Td>{formatDate(p.paidAt)}</Td>
+                      <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
+                      <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
+                      <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
+                      <Td>{otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—"}</Td>
+                      <Td>{p.notes ?? "—"}</Td>
+                      <Td>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await boundRemovePayment(p.id);
+                          }}
+                        >
+                          <Button type="submit" variant="ghost" size="sm">
+                            Удалить
+                          </Button>
+                        </form>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+                {payments.length === 0 && (
                   <Tr>
-                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                    <Td colSpan={7} className="py-6 text-center text-neutral-400">
                       Оплат пока нет
                     </Td>
                   </Tr>

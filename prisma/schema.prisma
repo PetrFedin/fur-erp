@@ -110,7 +110,8 @@ model Client {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  productionOrders ProductionOrder[]
+  productionOrders   ProductionOrder[]
+  productionPayments ProductionPayment[]
 
   @@index([organizationId])
 }
@@ -337,20 +338,46 @@ model Payment {
 // Payments received FROM a client for production work (ТЗ) — a separate
 // ledger from `Payment` (which is what we pay suppliers for raw material),
 // since the two sides of the business are billed independently.
+// A client payment doesn't always land against one specific ТЗ — a client
+// may pay an advance before any order exists, or one lump sum that covers
+// several finished orders at once. `client` lets a payment be recorded
+// against the client alone (e.g. an advance), and `orders` optionally
+// allocates it to one or more specific ТЗ (checked off when recording the
+// payment) — same shape as an invoice payment covering several invoices.
+enum ProductionPaymentType {
+  ADVANCE // аванс — before/without a specific ТЗ
+  PARTIAL // доплата — partial payment against one or more ТЗ
+  FINAL // окончательная оплата
+}
+
 model ProductionPayment {
-  id                String          @id @default(cuid())
-  organizationId    String
-  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  productionOrderId String
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
-  amount            Decimal         @db.Decimal(14, 2)
-  method            PaymentMethod   @default(BANK_TRANSFER)
-  status            PaymentStatus   @default(COMPLETED)
-  paidAt            DateTime        @default(now())
-  notes             String?
-  createdAt         DateTime        @default(now())
+  id             String                   @id @default(cuid())
+  organizationId String
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?                  @relation(fields: [clientId], references: [id])
+  amount         Decimal                  @db.Decimal(14, 2)
+  paymentType    ProductionPaymentType    @default(FINAL)
+  method         PaymentMethod            @default(BANK_TRANSFER)
+  status         PaymentStatus            @default(COMPLETED)
+  paidAt         DateTime                 @default(now())
+  notes          String?
+  createdAt      DateTime                 @default(now())
+  orders         ProductionPaymentOrder[]
 
   @@index([organizationId])
+  @@index([clientId])
+}
+
+// Join table: which ТЗ a given payment was allocated to (0, 1, or many).
+model ProductionPaymentOrder {
+  id                  String            @id @default(cuid())
+  productionPaymentId String
+  productionPayment   ProductionPayment @relation(fields: [productionPaymentId], references: [id], onDelete: Cascade)
+  productionOrderId   String
+  productionOrder     ProductionOrder   @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([productionPaymentId, productionOrderId])
   @@index([productionOrderId])
 }
 
@@ -581,7 +608,7 @@ model ProductionOrder {
 
   materialUsages         ProductionMaterialUsage[]
   expenses               ProductionExpense[]
-  payments               ProductionPayment[]
+  paymentAllocations     ProductionPaymentOrder[]
   stockMovements         StockMovement[]
   finishedGoodsMovements FinishedGoodsMovement[]
 

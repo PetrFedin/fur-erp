@@ -64,17 +64,29 @@ export async function updateModel(
   return {};
 }
 
+// Kept in sync with ProductionOrder.retailPrice — see the matching note on
+// production/actions.ts's updateRetailPrice.
 export async function updateSellingPrice(modelId: string, formData: FormData) {
   const session = await requireRole(...EDIT_ROLES);
   const parsed = z.coerce.number().nonnegative().safeParse(formData.get("sellingPrice"));
   if (!parsed.success) return;
 
-  await prisma.productModel.updateMany({
+  const model = await prisma.productModel.findFirst({
     where: { id: modelId, organizationId: session.user.organizationId },
-    data: { sellingPrice: parsed.data },
   });
+  if (!model) return;
+
+  await prisma.$transaction([
+    prisma.productModel.update({ where: { id: modelId }, data: { sellingPrice: parsed.data } }),
+    prisma.productionOrder.updateMany({
+      where: { productModelId: modelId, organizationId: session.user.organizationId },
+      data: { retailPrice: parsed.data },
+    }),
+  ]);
+
   revalidatePath("/articles");
   revalidatePath("/models");
+  revalidatePath("/production");
 }
 
 const bomSchema = z.object({

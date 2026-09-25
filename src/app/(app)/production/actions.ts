@@ -98,16 +98,35 @@ export async function createProductionOrder(
   redirect(`/production/${order.id}`);
 }
 
+// Retail price is really an attribute of the article, not of one specific
+// ТЗ (matches the source spreadsheet, where "ПРЦ" is one number per
+// article) — so setting it here also updates the ProductModel, and every
+// other open/completed order of that model, so /articles and every ТЗ of
+// this model show the same price and markup without drifting apart.
 export async function updateRetailPrice(orderId: string, formData: FormData) {
   const session = await requireRole(...EDIT_ROLES);
   const parsed = z.coerce.number().nonnegative().safeParse(formData.get("retailPrice"));
   if (!parsed.success) return;
 
-  await prisma.productionOrder.updateMany({
+  const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId },
-    data: { retailPrice: parsed.data },
   });
+  if (!order) return;
+
+  await prisma.$transaction([
+    prisma.productionOrder.updateMany({
+      where: { productModelId: order.productModelId, organizationId: session.user.organizationId },
+      data: { retailPrice: parsed.data },
+    }),
+    prisma.productModel.update({
+      where: { id: order.productModelId },
+      data: { sellingPrice: parsed.data },
+    }),
+  ]);
+
   revalidatePath(`/production/${orderId}`);
+  revalidatePath("/production");
+  revalidatePath("/articles");
 }
 
 async function getOpenOrder(organizationId: string, orderId: string) {
@@ -431,11 +450,15 @@ export async function completeProductionOrder(
 
 const productionPaymentSchema = z.object({
   amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+  paymentType: z.enum(["ADVANCE", "PARTIAL", "FINAL"]),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
   paidAt: z.string().min(1),
   notes: z.string().trim().optional(),
 });
 
+// One payment can cover several ТЗ at once (a client paying a lump sum
+// against a running tab) — orderId is always included, plus whichever
+// sibling orders (same client) were checked in the form.
 export async function addProductionPayment(orderId: string, formData: FormData) {
   const session = await requireRole(...EDIT_ROLES);
   const order = await prisma.productionOrder.findFirst({
@@ -445,25 +468,36 @@ export async function addProductionPayment(orderId: string, formData: FormData) 
 
   const parsed = productionPaymentSchema.safeParse({
     amount: formData.get("amount"),
+    paymentType: formData.get("paymentType") || "FINAL",
     method: formData.get("method"),
     paidAt: formData.get("paidAt"),
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return;
 
+  const extraOrderIds = formData.getAll("orderIds").map(String);
+  const orderIds = Array.from(new Set([orderId, ...extraOrderIds]));
+  const validOrders = await prisma.productionOrder.findMany({
+    where: { id: { in: orderIds }, organizationId: session.user.organizationId },
+    select: { id: true },
+  });
+
   await prisma.productionPayment.create({
     data: {
       organizationId: session.user.organizationId,
-      productionOrderId: orderId,
+      clientId: order.clientId,
       amount: parsed.data.amount,
+      paymentType: parsed.data.paymentType,
       method: parsed.data.method,
       status: "COMPLETED",
       paidAt: new Date(parsed.data.paidAt),
       notes: parsed.data.notes,
+      orders: { create: validOrders.map((o) => ({ productionOrderId: o.id })) },
     },
   });
 
   revalidatePath(`/production/${orderId}`);
+  for (const id of orderIds) revalidatePath(`/production/${id}`);
 }
 
 export async function removeProductionPayment(orderId: string, paymentId: string) {
@@ -473,8 +507,14 @@ export async function removeProductionPayment(orderId: string, paymentId: string
   });
   if (!order) return;
 
+  const payment = await prisma.productionPayment.findFirst({
+    where: { id: paymentId, organizationId: session.user.organizationId },
+    include: { orders: true },
+  });
+  if (!payment) return;
+
   await prisma.productionPayment.delete({ where: { id: paymentId } });
-  revalidatePath(`/production/${orderId}`);
+  for (const alloc of payment.orders) revalidatePath(`/production/${alloc.productionOrderId}`);
 }
 
 export async function cancelProductionOrder(orderId: string) {
