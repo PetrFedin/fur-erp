@@ -42,12 +42,12 @@ export function ProductionCreateForm({
         </Select>
       </div>
       <div>
-        <Label htmlFor="plannedQuantity">Плановое количество</Label>
-        <Input id="plannedQuantity" name="plannedQuantity" type="number" step="1" min="1" required />
-      </div>
-      <div>
-        <Label htmlFor="startDate">Дата начала</Label>
-        <Input id="startDate" name="startDate" type="date" defaultValue={today} />
+        <Label htmlFor="materialDescription">Материал продукции</Label>
+        <Input
+          id="materialDescription"
+          name="materialDescription"
+          placeholder="Соболь выделанный тонированный"
+        />
       </div>
       <div>
         <Label htmlFor="color">Цвет</Label>
@@ -56,6 +56,18 @@ export function ProductionCreateForm({
       <div>
         <Label htmlFor="size">Размер</Label>
         <Input id="size" name="size" placeholder="42, 44" />
+      </div>
+      <div>
+        <Label htmlFor="lining">Подкладка</Label>
+        <Input id="lining" name="lining" placeholder="100% Шёлк" />
+      </div>
+      <div>
+        <Label htmlFor="plannedQuantity">Количество</Label>
+        <Input id="plannedQuantity" name="plannedQuantity" type="number" step="1" min="1" required />
+      </div>
+      <div>
+        <Label htmlFor="startDate">Дата начала</Label>
+        <Input id="startDate" name="startDate" type="date" defaultValue={today} />
       </div>
       <div>
         <Label htmlFor="rawWarehouseId">Склад сырья (списание)</Label>

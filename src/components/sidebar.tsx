@@ -12,10 +12,12 @@ export function Sidebar() {
     <nav className="flex h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4">
       <div className="px-2 text-lg font-semibold">МехУчёт</div>
       {NAV_SECTIONS.map((section) => (
-        <div key={section.title}>
-          <div className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            {section.title}
-          </div>
+        <div key={section.title || section.links[0]?.href}>
+          {section.title && (
+            <div className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              {section.title}
+            </div>
+          )}
           <div className="flex flex-col gap-0.5">
             {section.links.map((link) => {
               const active = pathname === link.href || pathname.startsWith(link.href + "/");

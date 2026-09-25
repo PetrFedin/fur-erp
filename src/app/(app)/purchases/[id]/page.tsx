@@ -94,6 +94,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             {purchase.supplier.name} · склад «{purchase.warehouse.name}» · {formatDate(purchase.orderDate)}
             {isForeignCurrency && ` · валюта позиций: ${purchase.currency}`}
           </p>
+          {(purchase.auctionSession || purchase.invoiceNumber || purchase.transferDocument) && (
+            <p className="text-sm text-neutral-500">
+              {purchase.auctionSession && `Аукцион: ${purchase.auctionSession}`}
+              {purchase.invoiceNumber && ` · Счёт № ${purchase.invoiceNumber}`}
+              {purchase.transferDocument && ` · УПД ${purchase.transferDocument}`}
+            </p>
+          )}
           <div className="mt-2">
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>

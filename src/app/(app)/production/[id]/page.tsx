@@ -107,6 +107,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {order.size && ` · разм. ${order.size}`} · план {formatQty(order.plannedQuantity.toString())} шт. ·{" "}
             {order.startDate ? formatDate(order.startDate) : "—"}
           </p>
+          {(order.materialDescription || order.lining) && (
+            <p className="text-sm text-neutral-500">
+              {order.materialDescription && `Материал: ${order.materialDescription}`}
+              {order.lining && ` · Подкладка: ${order.lining}`}
+            </p>
+          )}
           {order.client && (
             <p className="mt-1 text-sm text-neutral-500">
               Заказчик: <span className="font-medium text-neutral-700">{order.client.name}</span>
@@ -135,12 +141,20 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
 
       {clientRevenue && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <SummaryCard
             label="Стоимость работ для заказчика"
             value={formatMoney(clientRevenue.toString())}
           />
           <SummaryCard label="Себестоимость" value={formatMoney(projectedTotal.toString())} />
+          <SummaryCard
+            label="Стоимость продукции за ед."
+            value={
+              producedOrPlanned.greaterThan(0)
+                ? formatMoney(clientRevenue.add(materialCost).div(producedOrPlanned).toString())
+                : "—"
+            }
+          />
           <SummaryCard
             label="Маржа"
             value={formatMoney(clientRevenue.sub(projectedTotal).toString())}
@@ -219,8 +233,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Дата</Th>
                 <Th>Сырьё</Th>
                 <Th>Лот</Th>
-                <Th>Количество</Th>
-                <Th>Себестоимость</Th>
+                <Th>Кол-во</Th>
+                <Th>Цена лота без НДС</Th>
+                <Th>НДС</Th>
+                <Th>Себестоимость (с расходами закупки)</Th>
                 {open && <Th></Th>}
               </Tr>
             </Thead>
@@ -233,7 +249,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Td>
                     {formatQty(u.quantity.toString())} {UNIT_LABELS[u.rawMaterial.unit]}
                   </Td>
-                  <Td>{formatMoney(u.totalCost.toString())}</Td>
+                  <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
+                  <Td>{u.lot.vatRate.toString()}%</Td>
+                  <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
                   {open && (
                     <Td>
                       <form
@@ -252,7 +270,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               ))}
               {order.materialUsages.length === 0 && (
                 <Tr>
-                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
                     Сырьё ещё не списано
                   </Td>
                 </Tr>

@@ -235,7 +235,7 @@ export default async function DashboardPage() {
                 {lowStock.map((m) => (
                   <Tr key={m.id}>
                     <Td>
-                      <Link href="/stock" className="hover:underline">
+                      <Link href="/lots" className="hover:underline">
                         {m.name}
                       </Link>
                     </Td>

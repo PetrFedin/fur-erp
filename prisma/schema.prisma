@@ -210,28 +210,35 @@ enum PurchaseStatus {
 }
 
 model Purchase {
-  id             String         @id @default(cuid())
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  number         String
-  supplierId     String
-  supplier       Supplier       @relation(fields: [supplierId], references: [id])
-  warehouseId    String
-  warehouse      Warehouse      @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
-  status         PurchaseStatus @default(DRAFT)
-  currency       String         @default("RUB")
+  id               String         @id @default(cuid())
+  organizationId   String
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number           String
+  supplierId       String
+  supplier         Supplier       @relation(fields: [supplierId], references: [id])
+  warehouseId      String
+  warehouse        Warehouse      @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
+  status           PurchaseStatus @default(DRAFT)
+  currency         String         @default("RUB")
   // Rate of `currency` -> RUB, entered manually per purchase (auction/invoice
   // rate on the deal date). Item prices are in `currency`; this converts them
   // to RUB for landed-cost and stock valuation. 1 for RUB purchases.
-  exchangeRate   Decimal        @default(1) @db.Decimal(14, 6)
-  orderDate      DateTime       @default(now())
-  expectedDate   DateTime?
-  receivedDate   DateTime?
-  notes          String?
-  createdById    String?
-  createdBy      User?          @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  exchangeRate     Decimal        @default(1) @db.Decimal(14, 6)
+  // Free-text fields matching how a fur-auction purchase is actually
+  // documented (auction/session name e.g. "СП 05.25", invoice number, and
+  // the УПД transfer-document reference) — informational, shown on the
+  // purchase and carried onto its lots for the archive.
+  auctionSession   String?
+  invoiceNumber    String?
+  transferDocument String?
+  orderDate        DateTime       @default(now())
+  expectedDate     DateTime?
+  receivedDate     DateTime?
+  notes            String?
+  createdById      String?
+  createdBy        User?          @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   items           PurchaseItem[]
   expenses        PurchaseExpense[]
@@ -481,6 +488,11 @@ model ProductionOrder {
   producedQuantity    Decimal               @default(0) @db.Decimal(14, 3)
   color               String?
   size                String?
+  // Free-text description of the product material as written on the ТЗ
+  // (e.g. "Соболь выделанный тонированный") — separate from the BOM's raw
+  // material catalog entries, which may be more granular.
+  materialDescription String?
+  lining              String?
   startDate           DateTime?
   endDate             DateTime?
   notes               String?

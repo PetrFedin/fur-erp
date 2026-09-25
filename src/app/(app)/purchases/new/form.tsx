@@ -84,6 +84,25 @@ export function PurchaseCreateForm({
         <Label htmlFor="expectedDate">Ожидаемая дата поставки</Label>
         <Input id="expectedDate" name="expectedDate" type="date" />
       </div>
+
+      <div className="col-span-2 mt-2 border-t border-neutral-200 pt-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Аукцион / счёт / УПД (если закупка с пушного аукциона)
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="auctionSession">Аукцион / сессия</Label>
+        <Input id="auctionSession" name="auctionSession" placeholder="СП 05.25" />
+      </div>
+      <div>
+        <Label htmlFor="invoiceNumber">№ счёта</Label>
+        <Input id="invoiceNumber" name="invoiceNumber" placeholder="2004" />
+      </div>
+      <div className="col-span-2">
+        <Label htmlFor="transferDocument">УПД</Label>
+        <Input id="transferDocument" name="transferDocument" placeholder="№ 143 от 22.09.2025 г." />
+      </div>
+
       <div className="col-span-2">
         <Label htmlFor="notes">Заметки</Label>
         <Textarea id="notes" name="notes" rows={2} />

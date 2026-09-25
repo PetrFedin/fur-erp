@@ -22,6 +22,8 @@ const orderSchema = z.object({
   plannedQuantity: z.coerce.number().positive("Плановое количество должно быть больше 0"),
   color: z.string().trim().optional(),
   size: z.string().trim().optional(),
+  materialDescription: z.string().trim().optional(),
+  lining: z.string().trim().optional(),
   startDate: z.string().optional(),
   notes: z.string().trim().optional(),
   clientId: z.string().trim().optional(),
@@ -52,6 +54,8 @@ export async function createProductionOrder(
     plannedQuantity: formData.get("plannedQuantity"),
     color: formData.get("color") || undefined,
     size: formData.get("size") || undefined,
+    materialDescription: formData.get("materialDescription") || undefined,
+    lining: formData.get("lining") || undefined,
     startDate: formData.get("startDate") || undefined,
     notes: formData.get("notes") || undefined,
     clientId: formData.get("clientId") || undefined,
@@ -75,6 +79,8 @@ export async function createProductionOrder(
         plannedQuantity: parsed.data.plannedQuantity,
         color: parsed.data.color,
         size: parsed.data.size,
+        materialDescription: parsed.data.materialDescription,
+        lining: parsed.data.lining,
         startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : new Date(),
         notes: parsed.data.notes,
         clientId: parsed.data.clientId || undefined,
@@ -158,7 +164,7 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
   }
 
   revalidatePath(`/production/${orderId}`);
-  revalidatePath("/stock");
+  revalidatePath("/lots");
   return {};
 }
 
@@ -235,7 +241,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
   }
 
   revalidatePath(`/production/${orderId}`);
-  revalidatePath("/stock");
+  revalidatePath("/lots");
   return {};
 }
 
@@ -259,7 +265,7 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
   });
 
   revalidatePath(`/production/${orderId}`);
-  revalidatePath("/stock");
+  revalidatePath("/lots");
 }
 
 // ---------- Production expenses ----------

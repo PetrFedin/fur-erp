@@ -4,36 +4,25 @@ export const NAV_SECTIONS = [
     links: [{ href: "/dashboard", label: "Дашборд" }],
   },
   {
-    title: "Закупки",
+    title: "Закупки и склад",
     links: [
       { href: "/purchases", label: "Закупки сырья" },
+      { href: "/lots", label: "Остатки и архив сырья" },
       { href: "/suppliers", label: "Поставщики" },
       { href: "/payments", label: "Оплаты" },
     ],
   },
   {
-    title: "Склад",
-    links: [
-      { href: "/stock", label: "Остатки сырья" },
-      { href: "/lots", label: "Архив сырья" },
-      { href: "/finished-stock", label: "Остатки готовой продукции" },
-      { href: "/warehouses", label: "Склады" },
-    ],
-  },
-  {
     title: "Производство",
     links: [
-      { href: "/production", label: "Производственные заказы" },
+      { href: "/production", label: "Производственные заказы (ТЗ)" },
+      { href: "/finished-stock", label: "Остатки готовой продукции" },
       { href: "/models", label: "Модели изделий" },
       { href: "/clients", label: "Заказчики" },
     ],
   },
   {
-    title: "Справочники",
-    links: [
-      { href: "/materials", label: "Сырьё" },
-      { href: "/expense-categories", label: "Статьи расходов" },
-      { href: "/users", label: "Пользователи" },
-    ],
+    title: "",
+    links: [{ href: "/settings", label: "Настройки" }],
   },
 ] as const;

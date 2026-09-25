@@ -21,6 +21,9 @@ const purchaseSchema = z.object({
   warehouseId: z.string().min(1, "Выберите склад"),
   currency: z.string().trim().min(1).default("RUB"),
   exchangeRate: z.coerce.number().positive("Курс должен быть больше 0").default(1),
+  auctionSession: z.string().trim().optional(),
+  invoiceNumber: z.string().trim().optional(),
+  transferDocument: z.string().trim().optional(),
   orderDate: z.string().min(1),
   expectedDate: z.string().optional(),
   notes: z.string().trim().optional(),
@@ -33,6 +36,9 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     warehouseId: formData.get("warehouseId"),
     currency: formData.get("currency") || "RUB",
     exchangeRate: formData.get("exchangeRate") || 1,
+    auctionSession: formData.get("auctionSession") || undefined,
+    invoiceNumber: formData.get("invoiceNumber") || undefined,
+    transferDocument: formData.get("transferDocument") || undefined,
     orderDate: formData.get("orderDate"),
     expectedDate: formData.get("expectedDate") || undefined,
     notes: formData.get("notes") || undefined,
@@ -49,6 +55,9 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         warehouseId: parsed.data.warehouseId,
         currency: parsed.data.currency,
         exchangeRate: parsed.data.currency === "RUB" ? 1 : parsed.data.exchangeRate,
+        auctionSession: parsed.data.auctionSession,
+        invoiceNumber: parsed.data.invoiceNumber,
+        transferDocument: parsed.data.transferDocument,
         orderDate: new Date(parsed.data.orderDate),
         expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : undefined,
         notes: parsed.data.notes,
@@ -291,7 +300,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   });
 
   revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/stock");
+  revalidatePath("/lots");
   revalidatePath("/purchases");
   return {};
 }
