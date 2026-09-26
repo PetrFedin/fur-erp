@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -293,6 +294,9 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   <Td className="whitespace-nowrap text-xs">
                     {formatMoney(l.materialCostExclVat.toString())} / {l.vatRate.toString()}% /{" "}
                     <span className="font-medium text-neutral-900">{formatMoney(l.unitCost.toString())}</span>
+                    {l.costBreakdown && (
+                      <CostBreakdownToggle breakdown={l.costBreakdown as never} />
+                    )}
                   </Td>
                   <Td>
                     {l.purchase ? (

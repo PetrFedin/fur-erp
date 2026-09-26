@@ -440,6 +440,14 @@ model RawMaterialLot {
   notes        String?
   createdAt    DateTime @default(now())
 
+  // Ordered list of {label, value} cost components the source purchase
+  // report itemized for this lot (auction fee, broker %, dressing/tanning,
+  // customs advance, agent commission, freight, ...) — the ingredients
+  // "из чего складывается" unitCost, kept for full traceability. Only
+  // present where the source gave this level of detail (currently the
+  // FW26 season report); older lots only ever had the final landed cost.
+  costBreakdown Json?
+
   stockMovements StockMovement[]
   usages         ProductionMaterialUsage[]
 
