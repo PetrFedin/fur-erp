@@ -58,8 +58,12 @@ export function ProductionCreateForm({
         <Input id="size" name="size" placeholder="42, 44" />
       </div>
       <div>
-        <Label htmlFor="lining">Подкладка</Label>
-        <Input id="lining" name="lining" placeholder="100% Шёлк" />
+        <Label htmlFor="lining">Подкладка (описание из ТЗ)</Label>
+        <Input id="lining" name="lining" placeholder="100% Шёлк, № LC1635 (№8)" />
+        <p className="mt-1 text-xs text-neutral-400">
+          Состав/номер ткани из текста ТЗ — для справки. Списание конкретной ткани со склада
+          (с ценой и НДС) выбирается на странице заказа после его создания.
+        </p>
       </div>
       <div>
         <Label htmlFor="plannedQuantity">Количество</Label>

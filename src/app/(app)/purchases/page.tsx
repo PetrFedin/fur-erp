@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -20,9 +21,31 @@ export default async function PurchasesPage() {
   const session = await requireSession();
   const purchases = await prisma.purchase.findMany({
     where: { organizationId: session.user.organizationId },
-    include: { supplier: true, items: true, expenses: true, payments: true },
+    include: {
+      supplier: true,
+      items: { include: { rawMaterial: true } },
+      expenses: true,
+      payments: true,
+    },
     orderBy: { orderDate: "desc" },
   });
+
+  const liningRows = purchases.flatMap((p) =>
+    p.items
+      .filter((i) => i.rawMaterial.unit === "M")
+      .map((i) => ({
+        purchaseId: p.id,
+        purchaseNumber: p.number,
+        date: p.orderDate,
+        material: i.rawMaterial.name,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        currency: p.currency,
+        vatRate: i.vatRate,
+        subtotalRub: i.subtotal.mul(p.exchangeRate),
+      }))
+  );
+  const liningTotalRub = liningRows.reduce((s, r) => s.add(r.subtotalRub), new Decimal(0));
 
   return (
     <div className="flex flex-col gap-4">
@@ -32,6 +55,57 @@ export default async function PurchasesPage() {
           + Новая закупка
         </Link>
       </div>
+
+      {liningRows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Закупка подкладки</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-neutral-500">
+              Позиции подкладочной ткани из всех закупок ниже (мех этой же закупки — в общей
+              таблице). Остаток по каждой ткани — на странице{" "}
+              <Link href="/lots" className="underline">
+                «Остатки и архив сырья»
+              </Link>
+              .
+            </p>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Ткань</Th>
+                  <Th>Закупка</Th>
+                  <Th>Дата</Th>
+                  <Th>Кол-во</Th>
+                  <Th>Цена за ед. (без НДС)</Th>
+                  <Th>НДС</Th>
+                  <Th>Сумма, ₽</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {liningRows.map((r, i) => (
+                  <Tr key={i}>
+                    <Td>{r.material}</Td>
+                    <Td>
+                      <Link href={`/purchases/${r.purchaseId}`} className="hover:underline">
+                        {r.purchaseNumber}
+                      </Link>
+                    </Td>
+                    <Td className="text-neutral-500">{formatDate(r.date)}</Td>
+                    <Td>{formatQty(r.quantity.toString())} м</Td>
+                    <Td>{formatCurrency(r.unitPrice.toString(), r.currency)}</Td>
+                    <Td>{r.vatRate.toString()}%</Td>
+                    <Td>{formatMoney(r.subtotalRub.toString())}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <p className="mt-2 text-right text-sm text-neutral-500">
+              Итого закуплено подкладки: {formatMoney(liningTotalRub.toString())}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Table>
         <Thead>
