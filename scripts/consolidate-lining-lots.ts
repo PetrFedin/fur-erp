@@ -39,7 +39,15 @@ async function main() {
     const lots = await prisma.rawMaterialLot.findMany({
       where: { rawMaterialId: material.id },
       orderBy: { receivedDate: "asc" },
-      include: { purchaseItem: true },
+      // Historical note: at the time this script ran, RawMaterialLot <->
+      // PurchaseItem was still a one-to-one relation owned by the lot side
+      // (RawMaterialLot.purchaseItemId). That relation was later flipped
+      // (PurchaseItem.lotId, non-unique) to let addOrPoolLiningLot add
+      // future receipts onto one pool lot — `purchaseItems` here is that
+      // later shape; this script is idempotent and a no-op on an
+      // already-consolidated fabric (see the lots.length <= 1 check below),
+      // so it still reads correctly under the new relation.
+      include: { purchaseItems: true },
     });
     if (lots.length <= 1) {
       console.log(`${material.name}: already 1 lot, skipping`);
@@ -71,8 +79,8 @@ async function main() {
       new Decimal(0)
     );
 
-    const items = lots.map((l) => l.purchaseItem).filter((i): i is NonNullable<typeof i> => !!i);
-    const canonicalItem = canonical.purchaseItem;
+    const items = lots.flatMap((l) => l.purchaseItems);
+    const canonicalItem = canonical.purchaseItems[0];
     const totalItemQty = items.reduce((s, i) => s.add(i.quantity), new Decimal(0));
     const totalItemSubtotal = items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
     const weightedUnitPrice = totalItemQty.isZero()

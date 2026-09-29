@@ -71,9 +71,10 @@ async function createRawMaterialLot(
       materialCostExclVat: args.materialCostExclVat,
       materialVatAmount: args.materialVatAmount,
       purchaseId: args.purchaseId,
-      purchaseItemId: args.purchaseItemId,
     },
   });
+
+  await tx.purchaseItem.update({ where: { id: args.purchaseItemId }, data: { lotId: lot.id } });
 
   await tx.stockMovement.create({
     data: {

@@ -203,9 +203,10 @@ async function main() {
               materialCostExclVat,
               materialVatAmount,
               purchaseId: purchase.id,
-              purchaseItemId: item.id,
             },
           });
+
+          await tx.purchaseItem.update({ where: { id: item.id }, data: { lotId: created.id } });
 
           await tx.stockMovement.create({
             data: {

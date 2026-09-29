@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
-import { createRawMaterialLot } from "@/lib/stock";
+import { createRawMaterialLot, addOrPoolLiningLot } from "@/lib/stock";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -267,7 +267,7 @@ export async function updatePurchaseItem(
 
   const item = await prisma.purchaseItem.findFirst({
     where: { id: itemId, purchaseId },
-    include: { lot: true },
+    include: { lot: { include: { purchaseItems: { select: { id: true } } } } },
   });
   if (!item) return { error: "Позиция не найдена" };
 
@@ -336,6 +336,20 @@ export async function updatePurchaseItem(
   }
 
   if (!lot) return { error: "У позиции нет партии сырья на складе — обратитесь к администратору" };
+  // A pooled lining lot (see addOrPoolLiningLot) has more than one
+  // PurchaseItem feeding it once a second receipt has come in. The
+  // quantity/price recompute below assumes this item's own quantity/price
+  // maps 1:1 onto the lot's totals (true for fur, and for a lining lot's
+  // very first receipt) — once the lot is shared, "this item's fixed
+  // allocated expense" can no longer be isolated from the pool without
+  // unwinding every other item's contribution too, which is out of scope
+  // for a single-line edit. Block rather than silently mis-costing the pool.
+  if (lot.purchaseItems.length > 1) {
+    return {
+      error:
+        "Эта позиция входит в объединённый пул остатков ткани (несколько поступлений на один лот) — количество/цену/НДС менять нельзя. Доступно изменить только лот, сорт и цвет.",
+    };
+  }
   if (!lot.quantityRemaining.equals(lot.quantityReceived)) {
     const used = lot.quantityReceived.sub(lot.quantityRemaining);
     return {
@@ -500,7 +514,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
 
   const purchase = await prisma.purchase.findFirst({
     where: { id: purchaseId, organizationId: session.user.organizationId },
-    include: { items: true, expenses: true },
+    include: { items: { include: { rawMaterial: true } }, expenses: true },
   });
   if (!purchase) return { error: "Закупка не найдена" };
   if (purchase.status === "RECEIVED") return { error: "Закупка уже оприходована" };
@@ -546,7 +560,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
       const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
       const landedTotal = inclVatRub.add(allocatedExpense);
 
-      await createRawMaterialLot(tx, {
+      const lotArgs = {
         organizationId: session.user.organizationId,
         warehouseId: purchase.warehouseId,
         rawMaterialId: item.rawMaterialId,
@@ -563,7 +577,18 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
         expenseVatAmount: allocatedExpenseVatAmount.div(item.quantity),
         purchaseId: purchase.id,
         purchaseItemId: item.id,
-      });
+      };
+
+      // Lining fabric (tracked by the metre) is one aggregate pool per
+      // fabric, not one lot per receipt — see cfc5cd6 and
+      // addOrPoolLiningLot's own comment. Fur (and every other unit) keeps
+      // the original specific-identification behavior: a fresh lot every
+      // time.
+      if (item.rawMaterial.unit === "M") {
+        await addOrPoolLiningLot(tx, lotArgs);
+      } else {
+        await createRawMaterialLot(tx, lotArgs);
+      }
     }
 
     await tx.purchase.update({

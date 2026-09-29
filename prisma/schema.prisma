@@ -274,10 +274,20 @@ model PurchaseItem {
   color         String?
   notes         String?
 
-  lot RawMaterialLot?
+  // FK lives here (not on RawMaterialLot) so more than one PurchaseItem can
+  // point at the same lot: fur stays one-to-one in practice (each receipt
+  // creates its own specific-identification lot — see createRawMaterialLot),
+  // but lining fabric (RawMaterial.unit === "M") pools every receipt into one
+  // aggregate RawMaterialLot per fabric, so a second/third purchase of the
+  // same fabric adds a new PurchaseItem row pointing at the SAME lot instead
+  // of forcing a 1:1 relation that can't express that. See addOrPoolLiningLot
+  // in src/lib/stock.ts and the cfc5cd6/this-commit history for why.
+  lotId String?
+  lot   RawMaterialLot? @relation(fields: [lotId], references: [id])
 
   @@index([purchaseId])
   @@index([rawMaterialId])
+  @@index([lotId])
 }
 
 // Extra costs tied to a purchase: shipping, customs, insurance, commission, inspection loss, etc.
@@ -416,10 +426,13 @@ model RawMaterialLot {
   grade          String?
   color          String?
 
-  purchaseId     String?
-  purchase       Purchase?     @relation(fields: [purchaseId], references: [id])
-  purchaseItemId String?       @unique
-  purchaseItem   PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
+  purchaseId String?
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
+  // Reverse side of PurchaseItem.lotId (see its comment): a fur lot has
+  // exactly one PurchaseItem in practice, but a lining pool lot can have
+  // many, one per receipt that fed it — hence a list here, not a unique
+  // one-to-one FK owned by this side.
+  purchaseItems PurchaseItem[]
 
   quantityReceived    Decimal @db.Decimal(14, 3)
   quantityRemaining   Decimal @db.Decimal(14, 3)

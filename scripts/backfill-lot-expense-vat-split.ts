@@ -62,7 +62,10 @@ async function main() {
       const expenseCostExclVatTotal = totalExpensesExclVat.mul(ratio);
       const expenseVatAmountTotal = totalExpensesVatAmount.mul(ratio);
 
-      const lot = await prisma.rawMaterialLot.findUnique({ where: { purchaseItemId: item.id } });
+      const itemWithLot = await prisma.purchaseItem.findUnique({ where: { id: item.id }, select: { lotId: true } });
+      const lot = itemWithLot?.lotId
+        ? await prisma.rawMaterialLot.findUnique({ where: { id: itemWithLot.lotId } })
+        : null;
       if (!lot) continue; // item not yet received into a lot
 
       // Divide by the lot's ORIGINAL received quantity (not current

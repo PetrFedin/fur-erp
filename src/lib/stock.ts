@@ -10,7 +10,9 @@ type Tx = Prisma.TransactionClient;
  * cost (item price converted via the purchase's exchange rate, plus this
  * item's share of allocated purchase expenses) — see purchases/actions.ts.
  * Each lot keeps its own fixed cost for the rest of its life; there is no
- * blending with other lots of the same material.
+ * blending with other lots of the same material. This is the fur path
+ * (specific identification, one lot per receipt) — for lining pooling, see
+ * addOrPoolLiningLot below.
  */
 export async function createRawMaterialLot(
   tx: Tx,
@@ -55,9 +57,10 @@ export async function createRawMaterialLot(
       expenseCostExclVat: args.expenseCostExclVat ?? 0,
       expenseVatAmount: args.expenseVatAmount ?? 0,
       purchaseId: args.purchaseId,
-      purchaseItemId: args.purchaseItemId,
     },
   });
+
+  await tx.purchaseItem.update({ where: { id: args.purchaseItemId }, data: { lotId: lot.id } });
 
   await tx.stockMovement.create({
     data: {
@@ -74,6 +77,129 @@ export async function createRawMaterialLot(
   });
 
   return lot;
+}
+
+/**
+ * Lining fabric (RawMaterial.unit === "M") is tracked as one aggregate pool
+ * per fabric, not one lot per receipt (see cfc5cd6, which consolidated the
+ * historical data — this is the "future purchases" half of that fix). If the
+ * organization already has a RawMaterialLot for this rawMaterialId, this
+ * receipt's quantity/cost is folded into it with a proper quantity-weighted
+ * average (never just overwritten) and the new PurchaseItem is linked to
+ * that SAME lot; otherwise a fresh lot is created exactly like
+ * createRawMaterialLot does for fur.
+ *
+ * Post-consolidation there should be at most one lining lot per material —
+ * if more than one turns up (data drifted some other way), that's a bug, not
+ * a "pick one": we throw rather than silently pooling into an arbitrary lot,
+ * so it surfaces instead of quietly corrupting costs.
+ */
+export async function addOrPoolLiningLot(
+  tx: Tx,
+  args: {
+    organizationId: string;
+    warehouseId: string;
+    rawMaterialId: string;
+    lotNumber: string | null;
+    grade: string | null;
+    color: string | null;
+    quantity: Prisma.Decimal | number;
+    unitCost: Prisma.Decimal | number;
+    totalCost: Prisma.Decimal | number;
+    vatRate: Prisma.Decimal | number;
+    materialCostExclVat: Prisma.Decimal | number;
+    materialVatAmount: Prisma.Decimal | number;
+    expenseCostExclVat?: Prisma.Decimal | number;
+    expenseVatAmount?: Prisma.Decimal | number;
+    purchaseId: string;
+    purchaseItemId: string;
+  }
+) {
+  const existingLots = await tx.rawMaterialLot.findMany({
+    where: { organizationId: args.organizationId, rawMaterialId: args.rawMaterialId },
+  });
+
+  if (existingLots.length > 1) {
+    throw new Error(
+      `У ткани найдено ${existingLots.length} лотов вместо одного объединённого пула — требуется ручная проверка (см. scripts/consolidate-lining-lots.ts) перед новым поступлением.`
+    );
+  }
+
+  const quantity = toDecimal(args.quantity);
+  const unitCost = toDecimal(args.unitCost);
+  const totalCost = toDecimal(args.totalCost);
+
+  if (existingLots.length === 0) {
+    return createRawMaterialLot(tx, args);
+  }
+
+  const pool = existingLots[0];
+
+  // Quantity-weighted average over (old pool, new receipt) for every
+  // per-unit figure; every *Total-shaped field is a plain sum. unitCost is
+  // recomputed from the summed totalCost/quantityReceived rather than
+  // weight-averaged directly, to stay exact under repeated rounding the way
+  // consolidate-lining-lots.ts does it.
+  const newQuantityReceived = pool.quantityReceived.add(quantity);
+  const newQuantityRemaining = pool.quantityRemaining.add(quantity);
+  const newTotalCost = pool.totalCost.add(totalCost);
+  const newUnitCost = newQuantityReceived.isZero() ? unitCost : newTotalCost.div(newQuantityReceived);
+
+  const weightedPerUnit = (oldPerUnit: Prisma.Decimal, newPerUnit: Prisma.Decimal) =>
+    newQuantityReceived.isZero()
+      ? oldPerUnit
+      : oldPerUnit.mul(pool.quantityReceived).add(newPerUnit.mul(quantity)).div(newQuantityReceived);
+
+  const newMaterialCostExclVat = weightedPerUnit(pool.materialCostExclVat, toDecimal(args.materialCostExclVat));
+  const newMaterialVatAmount = weightedPerUnit(pool.materialVatAmount, toDecimal(args.materialVatAmount));
+  const newExpenseCostExclVat = weightedPerUnit(
+    pool.expenseCostExclVat,
+    toDecimal(args.expenseCostExclVat ?? 0)
+  );
+  const newExpenseVatAmount = weightedPerUnit(pool.expenseVatAmount, toDecimal(args.expenseVatAmount ?? 0));
+
+  const updatedLot = await tx.rawMaterialLot.update({
+    where: { id: pool.id },
+    data: {
+      quantityReceived: newQuantityReceived,
+      quantityRemaining: newQuantityRemaining,
+      unitCost: newUnitCost,
+      totalCost: newTotalCost,
+      // vatRate itself isn't weight-averaged (it's a rate, not a cost) —
+      // keep the pool's own rate; each receipt's own rate already fed the
+      // material/expense VAT-amount split above.
+      materialCostExclVat: newMaterialCostExclVat,
+      materialVatAmount: newMaterialVatAmount,
+      expenseCostExclVat: newExpenseCostExclVat,
+      expenseVatAmount: newExpenseVatAmount,
+      notes: pool.notes
+        ? `${pool.notes} Пул увеличен новым поступлением (+${quantity.toString()}).`
+        : `Пул увеличен новым поступлением (+${quantity.toString()}).`,
+    },
+  });
+
+  // The pool lot's own purchaseItemId/purchaseId is left as-is (whatever it
+  // was pointing at before — see PurchaseItem.lotId's schema comment: many
+  // items can point at one lot, but the lot itself only remembers its own
+  // purchase/first item for provenance). This new item just gets linked to
+  // the same lot.
+  await tx.purchaseItem.update({ where: { id: args.purchaseItemId }, data: { lotId: pool.id } });
+
+  await tx.stockMovement.create({
+    data: {
+      organizationId: args.organizationId,
+      warehouseId: args.warehouseId,
+      rawMaterialId: args.rawMaterialId,
+      lotId: pool.id,
+      type: "PURCHASE_IN",
+      quantity,
+      unitCost,
+      totalCost,
+      purchaseId: args.purchaseId,
+    },
+  });
+
+  return updatedLot;
 }
 
 /** Consumes a quantity from a specific lot at that lot's fixed unit cost. Throws if insufficient. */
