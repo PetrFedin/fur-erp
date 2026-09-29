@@ -22,10 +22,12 @@ export function MaterialForm({
   action,
   material,
   categories,
+  defaultUnit,
 }: {
   action: (prev: MaterialFormState, formData: FormData) => Promise<MaterialFormState>;
   material?: SerializedMaterial;
   categories: RawMaterialCategory[];
+  defaultUnit?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -41,7 +43,7 @@ export function MaterialForm({
       </div>
       <div>
         <Label htmlFor="unit">Единица измерения</Label>
-        <Select id="unit" name="unit" defaultValue={material?.unit ?? "PIECE"} required>
+        <Select id="unit" name="unit" defaultValue={material?.unit ?? defaultUnit ?? "PIECE"} required>
           {Object.entries(UNIT_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}

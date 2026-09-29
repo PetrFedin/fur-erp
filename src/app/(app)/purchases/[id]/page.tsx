@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -252,8 +253,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Подкладка</CardTitle>
+          <Link href="/lining" className="text-sm text-neutral-500 hover:underline">
+            Смотреть все ткани →
+          </Link>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editable && (

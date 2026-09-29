@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -151,7 +151,12 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Остатки и архив сырья</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Остатки и архив сырья</h1>
+        <Link href="/materials/new" className={buttonVariants()}>
+          + Добавить сырьё
+        </Link>
+      </div>
 
       <form className="grid grid-cols-4 items-end gap-2" method="get">
         <div className="col-span-2">
@@ -357,7 +362,12 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
         </CardContent>
       </Card>
 
-      <h2 className="text-lg font-semibold">Подкладка</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Подкладка</h2>
+        <Link href="/lining" className="text-sm text-neutral-500 hover:underline">
+          Смотреть все ткани →
+        </Link>
+      </div>
 
       <Card>
         <CardHeader>

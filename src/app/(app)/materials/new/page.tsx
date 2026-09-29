@@ -5,8 +5,13 @@ import { MaterialForm } from "../material-form";
 import { CategoryQuickAdd } from "../category-quick-add";
 import { createMaterial } from "../actions";
 
-export default async function NewMaterialPage() {
+const VALID_UNITS = ["PIECE", "KG", "M2", "M", "SET"];
+
+export default async function NewMaterialPage({ searchParams }: PageProps<"/materials/new">) {
   const session = await requireSession();
+  const sp = await searchParams;
+  const unitParam = typeof sp.unit === "string" ? sp.unit : undefined;
+  const defaultUnit = unitParam && VALID_UNITS.includes(unitParam) ? unitParam : undefined;
   const categories = await prisma.rawMaterialCategory.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: { name: "asc" },
@@ -24,7 +29,7 @@ export default async function NewMaterialPage() {
           <CardTitle>Новое сырьё</CardTitle>
         </CardHeader>
         <CardContent>
-          <MaterialForm action={createMaterial} categories={categories} />
+          <MaterialForm action={createMaterial} categories={categories} defaultUnit={defaultUnit} />
         </CardContent>
       </Card>
     </div>

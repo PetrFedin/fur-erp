@@ -10,17 +10,20 @@ const initialState: FormState = {};
 
 type ModelOption = { id: string; name: string };
 type ClientOption = { id: string; name: string };
+type LiningOption = { id: string; name: string; remaining: string };
 
 export function ProductionCreateForm({
   action,
   models,
   warehouses,
   clients,
+  liningOptions,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   models: ModelOption[];
   warehouses: Warehouse[];
   clients: ClientOption[];
+  liningOptions: LiningOption[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const today = new Date().toISOString().slice(0, 10);
@@ -61,13 +64,31 @@ export function ProductionCreateForm({
         <Label htmlFor="lining">Подкладка (описание из ТЗ)</Label>
         <Input id="lining" name="lining" placeholder="100% Шёлк, № LC1635 (№8)" />
         <p className="mt-1 text-xs text-neutral-400">
-          Состав/номер ткани из текста ТЗ — для справки. Списание конкретной ткани со склада
-          (с ценой и НДС) выбирается на странице заказа после его создания.
+          Состав/номер ткани из текста ТЗ — для справки, не влияет на склад.
         </p>
       </div>
       <div>
         <Label htmlFor="plannedQuantity">Количество</Label>
         <Input id="plannedQuantity" name="plannedQuantity" type="number" step="1" min="1" required />
+      </div>
+      <div>
+        <Label htmlFor="liningMaterialId">Списать ткань подкладки со склада</Label>
+        <Select id="liningMaterialId" name="liningMaterialId" defaultValue="">
+          <option value="">Не списывать сейчас</option>
+          {liningOptions.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name} — остаток {o.remaining} м
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="liningQuantity">Метраж подкладки, м</Label>
+        <Input id="liningQuantity" name="liningQuantity" type="number" step="0.01" min="0" />
+        <p className="mt-1 text-xs text-neutral-400">
+          Если выбрать ткань и указать метраж, списание из общего пула ткани произойдёт сразу при
+          создании заказа; если запрошено больше, чем есть в остатке — заказ не будет создан.
+        </p>
       </div>
       <div>
         <Label htmlFor="startDate">Дата начала</Label>

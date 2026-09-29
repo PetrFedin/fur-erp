@@ -41,6 +41,12 @@ const orderSchema = z.object({
     .nonnegative()
     .optional()
     .or(z.nan().transform(() => undefined)),
+  liningMaterialId: z.string().trim().optional(),
+  liningQuantity: z.coerce
+    .number()
+    .positive()
+    .optional()
+    .or(z.nan().transform(() => undefined)),
 });
 
 export async function createProductionOrder(
@@ -65,38 +71,120 @@ export async function createProductionOrder(
     workOrderDate: formData.get("workOrderDate") || undefined,
     clientWorkPricePerUnit: formData.get("clientWorkPricePerUnit") || undefined,
     retailPrice: formData.get("retailPrice") || undefined,
+    liningMaterialId: formData.get("liningMaterialId") || undefined,
+    liningQuantity: formData.get("liningQuantity") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  const order = await prisma.$transaction(async (tx) => {
-    const number = await nextDocumentNumber(tx, "productionOrder", session.user.organizationId, "П");
-    return tx.productionOrder.create({
-      data: {
-        organizationId: session.user.organizationId,
-        number,
-        productModelId: parsed.data.productModelId,
-        rawWarehouseId: parsed.data.rawWarehouseId,
-        finishedWarehouseId: parsed.data.finishedWarehouseId,
-        plannedQuantity: parsed.data.plannedQuantity,
-        color: parsed.data.color,
-        size: parsed.data.size,
-        materialDescription: parsed.data.materialDescription,
-        lining: parsed.data.lining,
-        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : new Date(),
-        notes: parsed.data.notes,
-        clientId: parsed.data.clientId || undefined,
-        contractNumber: parsed.data.contractNumber,
-        workOrderNumber: parsed.data.workOrderNumber,
-        workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
-        clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
-        retailPrice: parsed.data.retailPrice,
-        createdById: session.user.id,
-      },
+  let orderId: string;
+  try {
+    orderId = await prisma.$transaction(async (tx) => {
+      const number = await nextDocumentNumber(tx, "productionOrder", session.user.organizationId, "П");
+      const order = await tx.productionOrder.create({
+        data: {
+          organizationId: session.user.organizationId,
+          number,
+          productModelId: parsed.data.productModelId,
+          rawWarehouseId: parsed.data.rawWarehouseId,
+          finishedWarehouseId: parsed.data.finishedWarehouseId,
+          plannedQuantity: parsed.data.plannedQuantity,
+          color: parsed.data.color,
+          size: parsed.data.size,
+          materialDescription: parsed.data.materialDescription,
+          lining: parsed.data.lining,
+          startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : new Date(),
+          notes: parsed.data.notes,
+          clientId: parsed.data.clientId || undefined,
+          contractNumber: parsed.data.contractNumber,
+          workOrderNumber: parsed.data.workOrderNumber,
+          workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
+          clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
+          retailPrice: parsed.data.retailPrice,
+          createdById: session.user.id,
+        },
+      });
+
+      // Optional lining pick right at creation time (see cfc5cd6 — lining is
+      // one aggregate pool per fabric, not one lot per usage): draws from
+      // that fabric's pool the same way addMaterialUsage does (consumeFromLot
+      // is the shared primitive both call), inside this same transaction so
+      // an over-requested quantity rolls the whole order creation back
+      // instead of leaving a half-created order with no material on it.
+      if (parsed.data.liningMaterialId && parsed.data.liningQuantity) {
+        await consumeLiningForOrder(tx, {
+          organizationId: session.user.organizationId,
+          orderId: order.id,
+          rawMaterialId: parsed.data.liningMaterialId,
+          quantity: parsed.data.liningQuantity,
+        });
+        await tx.productionOrder.update({ where: { id: order.id }, data: { status: "IN_PROGRESS" } });
+      }
+
+      return order.id;
     });
-  });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Не удалось создать заказ" };
+  }
 
   revalidatePath("/production");
-  redirect(`/production/${order.id}`);
+  revalidatePath("/lots");
+  revalidatePath("/lining");
+  redirect(`/production/${orderId}`);
+}
+
+// Consumes `quantity` metres of a lining fabric's pooled stock for a
+// freshly created order's lining pick (see createProductionOrder above).
+// Draws oldest-lot-first like applyBomToOrder, but validates the *total*
+// available across all of this fabric's lots up front so the error message
+// names the fabric and the real shortage instead of an arbitrary lot's
+// partial one.
+async function consumeLiningForOrder(
+  tx: Prisma.TransactionClient,
+  args: { organizationId: string; orderId: string; rawMaterialId: string; quantity: number }
+) {
+  const material = await tx.rawMaterial.findFirst({
+    where: { id: args.rawMaterialId, organizationId: args.organizationId },
+  });
+  if (!material) throw new Error("Ткань подкладки не найдена");
+
+  const lots = await tx.rawMaterialLot.findMany({
+    where: { organizationId: args.organizationId, rawMaterialId: args.rawMaterialId, quantityRemaining: { gt: 0 } },
+    orderBy: { receivedDate: "asc" },
+  });
+
+  const requested = new Decimal(args.quantity);
+  const available = lots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+  if (available.lessThan(requested)) {
+    throw new Error(
+      `недостаточно ткани «${material.name}»: остаток ${available.toString()} м, запрошено ${requested.toString()} м`
+    );
+  }
+
+  let remaining = requested;
+  for (const lot of lots) {
+    if (remaining.lessThanOrEqualTo(0)) break;
+    const take = Decimal.min(remaining, lot.quantityRemaining);
+
+    const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
+      organizationId: args.organizationId,
+      lotId: lot.id,
+      quantity: take,
+      productionOrderId: args.orderId,
+    });
+
+    await tx.productionMaterialUsage.create({
+      data: {
+        productionOrderId: args.orderId,
+        rawMaterialId,
+        lotId: lot.id,
+        quantity: take,
+        unitCost,
+        totalCost,
+      },
+    });
+
+    remaining = remaining.sub(take);
+  }
 }
 
 // Retail price is really an attribute of the article, not of one specific

@@ -67,8 +67,8 @@ export default async function PurchasesPage() {
             <p className="mb-3 text-sm text-neutral-500">
               Позиции подкладочной ткани из всех закупок ниже (мех этой же закупки — в общей
               таблице). Остаток по каждой ткани — на странице{" "}
-              <Link href="/lots" className="underline">
-                «Остатки и архив сырья»
+              <Link href="/lining" className="underline">
+                «Подкладка»
               </Link>
               .
             </p>
