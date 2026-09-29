@@ -9,8 +9,9 @@
 // recomputes anything itself, it only switches which already-correct number
 // is shown.
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import type { VatMode } from "./vat-mode";
 
-export type VatMode = "incl" | "excl";
+export type { VatMode } from "./vat-mode";
 
 const COOKIE_NAME = "vatDisplay";
 
@@ -37,8 +38,4 @@ export function useVatDisplay() {
   const ctx = useContext(VatDisplayContext);
   if (!ctx) throw new Error("useVatDisplay must be used within VatDisplayProvider");
   return ctx;
-}
-
-export function parseVatModeCookie(value: string | undefined): VatMode {
-  return value === "excl" ? "excl" : "incl";
 }

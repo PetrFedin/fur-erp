@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { requireSession } from "@/lib/session";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
-import { VatDisplayProvider, parseVatModeCookie } from "@/lib/vat-display";
+import { VatDisplayProvider } from "@/lib/vat-display";
+import { parseVatModeCookie } from "@/lib/vat-mode";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
