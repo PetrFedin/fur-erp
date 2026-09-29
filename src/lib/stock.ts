@@ -27,6 +27,8 @@ export async function createRawMaterialLot(
     vatRate: Prisma.Decimal | number;
     materialCostExclVat: Prisma.Decimal | number;
     materialVatAmount: Prisma.Decimal | number;
+    expenseCostExclVat?: Prisma.Decimal | number;
+    expenseVatAmount?: Prisma.Decimal | number;
     purchaseId: string;
     purchaseItemId: string;
   }
@@ -50,6 +52,8 @@ export async function createRawMaterialLot(
       vatRate: args.vatRate,
       materialCostExclVat: args.materialCostExclVat,
       materialVatAmount: args.materialVatAmount,
+      expenseCostExclVat: args.expenseCostExclVat ?? 0,
+      expenseVatAmount: args.expenseVatAmount ?? 0,
       purchaseId: args.purchaseId,
       purchaseItemId: args.purchaseItemId,
     },

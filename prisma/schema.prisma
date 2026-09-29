@@ -435,6 +435,18 @@ model RawMaterialLot {
   vatRate             Decimal @db.Decimal(5, 2)
   materialCostExclVat Decimal @db.Decimal(14, 2)
   materialVatAmount   Decimal @db.Decimal(14, 2)
+  // Per-unit split of this lot's share of the purchase's allocated expenses
+  // (shipping/customs/etc. — see PurchaseExpense), broken into excl-VAT and
+  // VAT-amount components. Added for the "без НДС" display toggle: the
+  // allocation in receivePurchase splits the *inclusive* expense pool by a
+  // single per-item ratio, so applying that same ratio to the pool's own
+  // excl-VAT/VAT-amount split is exact, not an approximation (excl + vat =
+  // incl by construction). 0/0 for lots with no purchaseId (manual/adjustment
+  // lots never had expenses allocated). Combined with materialCostExclVat/
+  // materialVatAmount above, (materialCostExclVat + expenseCostExclVat) is
+  // the fully correct excl-VAT landed unit cost.
+  expenseCostExclVat Decimal @default(0) @db.Decimal(14, 2)
+  expenseVatAmount   Decimal @default(0) @db.Decimal(14, 2)
 
   receivedDate DateTime @default(now())
   notes        String?

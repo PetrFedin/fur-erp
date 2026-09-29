@@ -352,6 +352,12 @@ export async function updatePurchaseItem(
   const oldBaseRub = item.subtotal.mul(purchase.exchangeRate);
   const oldInclVatRub = grossUp(oldBaseRub, item.vatRate);
   const allocatedExpense = lot.totalCost.sub(oldInclVatRub);
+  // The allocated expense's own excl-VAT/VAT-amount split, as a fixed total
+  // (old per-unit figure * old quantity) — held fixed exactly like
+  // allocatedExpense itself, since we're not re-splitting expenses across
+  // the purchase's other items here (see comment above).
+  const allocatedExpenseExclVatTotal = lot.expenseCostExclVat.mul(lot.quantityReceived);
+  const allocatedExpenseVatAmountTotal = lot.expenseVatAmount.mul(lot.quantityReceived);
 
   const newQuantity = new Decimal(parsed.data.quantity);
   const newVatRate = new Decimal(parsed.data.vatRate);
@@ -382,6 +388,8 @@ export async function updatePurchaseItem(
         vatRate: parsed.data.vatRate,
         materialCostExclVat: newBaseRub.div(newQuantity),
         materialVatAmount: newInclVatRub.sub(newBaseRub).div(newQuantity),
+        expenseCostExclVat: allocatedExpenseExclVatTotal.div(newQuantity),
+        expenseVatAmount: allocatedExpenseVatAmountTotal.div(newQuantity),
         ...cosmetic,
       },
     }),
@@ -509,10 +517,16 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   // — see src/lib/stock.ts.
   const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
+  const totalExpensesExclVat = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
   const totalExpensesInclVat = purchase.expenses.reduce(
     (sum, e) => sum.add(grossUp(e.amount, e.vatRate)),
     new Decimal(0)
   );
+  // VAT amount of the total expense pool — used below to split each lot's
+  // allocated share the same way materialCostExclVat/materialVatAmount
+  // already split the item's own price. See RawMaterialLot.expenseCostExclVat
+  // for why applying the item's allocation ratio to this split is exact.
+  const totalExpensesVatAmount = totalExpensesInclVat.sub(totalExpensesExclVat);
   const itemsInclVatRub = purchase.items.map((item) => {
     const baseRub = item.subtotal.mul(purchase.exchangeRate);
     return { item, baseRub, inclVatRub: grossUp(baseRub, item.vatRate) };
@@ -521,9 +535,15 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
 
   await prisma.$transaction(async (tx) => {
     for (const { item, baseRub, inclVatRub } of itemsInclVatRub) {
-      const allocatedExpense = totalItemsInclVatRub.isZero()
+      // Same ratio drives both the inclusive allocation and its excl-VAT /
+      // VAT-amount split — exact, since the ratio is applied uniformly to
+      // the whole expense pool (excl + vat = incl by construction).
+      const allocationRatio = totalItemsInclVatRub.isZero()
         ? new Decimal(0)
-        : totalExpensesInclVat.mul(inclVatRub).div(totalItemsInclVatRub);
+        : inclVatRub.div(totalItemsInclVatRub);
+      const allocatedExpense = totalExpensesInclVat.mul(allocationRatio);
+      const allocatedExpenseExclVat = totalExpensesExclVat.mul(allocationRatio);
+      const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
       const landedTotal = inclVatRub.add(allocatedExpense);
 
       await createRawMaterialLot(tx, {
@@ -539,6 +559,8 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
         vatRate: item.vatRate,
         materialCostExclVat: baseRub.div(item.quantity),
         materialVatAmount: inclVatRub.sub(baseRub).div(item.quantity),
+        expenseCostExclVat: allocatedExpenseExclVat.div(item.quantity),
+        expenseVatAmount: allocatedExpenseVatAmount.div(item.quantity),
         purchaseId: purchase.id,
         purchaseItemId: item.id,
       });
