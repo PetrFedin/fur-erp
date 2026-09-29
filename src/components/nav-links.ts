@@ -8,6 +8,7 @@ export const NAV_SECTIONS = [
     links: [
       { href: "/purchases", label: "Закупки сырья" },
       { href: "/lots", label: "Остатки и архив сырья" },
+      { href: "/raw-materials", label: "Сырьё и ткани" },
       { href: "/suppliers", label: "Поставщики" },
       { href: "/payments", label: "Оплаты" },
     ],
