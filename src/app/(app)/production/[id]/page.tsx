@@ -18,12 +18,14 @@ import { ProductionPaymentForm } from "./payment-form";
 import { ProducedQuantityForm } from "./produced-quantity-form";
 import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
+import { OrderEditForm } from "./order-edit-form";
 import {
   removeMaterialUsage,
   removeProductionExpense,
   removeProductionPayment,
   updateMaterialUsage,
   updateProductionExpense,
+  updateProductionOrder,
 } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -95,7 +97,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // that very usage, so it must still show up pre-selected in the edit
   // dropdown even though it has nothing left for the add-usage picker
   // (availableLots below, unchanged).
-  const [availableLots, allLots, expenseCategories] = await Promise.all([
+  const [availableLots, allLots, expenseCategories, models, warehouses, clients] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: {
         organizationId: session.user.organizationId,
@@ -114,7 +116,34 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       where: { organizationId: session.user.organizationId, kind: "PRODUCTION", isActive: true },
       orderBy: { name: "asc" },
     }),
+    prisma.productModel.findMany({
+      where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.warehouse.findMany({
+      where: { organizationId: session.user.organizationId },
+      orderBy: { name: "asc" },
+    }),
+    prisma.client.findMany({
+      where: { organizationId: session.user.organizationId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
+
+  // The order's current model/warehouses might have been deactivated since
+  // creation (isActive: false) — the active-only lists above wouldn't offer
+  // them as options, which would silently swap the selection on save. Add
+  // them back in explicitly so the edit form always includes the order's
+  // current values.
+  const modelOptions = models.some((m) => m.id === order.productModelId)
+    ? models
+    : [{ id: order.productModelId, name: order.productModel.name }, ...models];
+  const clientOptions =
+    order.clientId && !clients.some((c) => c.id === order.clientId)
+      ? [{ id: order.client!.id, name: order.client!.name }, ...clients]
+      : clients;
 
   const lotOptions: LotOption[] = availableLots.map((l) => ({
     id: l.id,
@@ -182,6 +211,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundRemovePayment = removeProductionPayment.bind(null, id);
   const boundUpdateUsage = updateMaterialUsage.bind(null, id);
   const boundUpdateExpense = updateProductionExpense.bind(null, id);
+  const boundUpdateOrder = updateProductionOrder.bind(null, id);
+  const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
   const paidTotal = payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
@@ -229,6 +260,32 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CancelOrderButton orderId={id} />
         )}
       </div>
+
+      <OrderEditForm
+        action={boundUpdateOrder}
+        models={modelOptions}
+        warehouses={warehouses}
+        clients={clientOptions}
+        modelLocked={modelLocked}
+        defaults={{
+          productModelId: order.productModelId,
+          productModelName: order.productModel.name,
+          rawWarehouseId: order.rawWarehouseId,
+          finishedWarehouseId: order.finishedWarehouseId,
+          plannedQuantity: order.plannedQuantity.toString(),
+          color: order.color ?? "",
+          size: order.size ?? "",
+          materialDescription: order.materialDescription ?? "",
+          lining: order.lining ?? "",
+          startDate: order.startDate ? order.startDate.toISOString().slice(0, 10) : "",
+          notes: order.notes ?? "",
+          clientId: order.clientId ?? "",
+          contractNumber: order.contractNumber ?? "",
+          workOrderNumber: order.workOrderNumber ?? "",
+          workOrderDate: order.workOrderDate ? order.workOrderDate.toISOString().slice(0, 10) : "",
+          clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
+        }}
+      />
 
       <div className="grid grid-cols-4 gap-3">
         <SummaryCard label="Стоимость сырья" value={<Money incl={materialCost} excl={materialCostExcl} />} />

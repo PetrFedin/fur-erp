@@ -187,6 +187,127 @@ async function consumeLiningForOrder(
   }
 }
 
+// Editing a ТЗ's own core fields after creation — model/quantity/color/
+// size/material description/lining text/dates/client/contract/work-order
+// info/work price/notes. Before this, the only way to fix a mistyped field
+// was a raw DB edit, which the golden rule (never invent data) makes
+// especially costly to get wrong by hand.
+//
+// Two fields get a guard instead of being silently accepted or silently
+// dropped, following the same locked-identity philosophy as
+// updatePurchaseItem (8b24d5c): once real activity has happened against a
+// value, changing it out from under that activity would either orphan
+// history or silently mis-cost it, so it's blocked with an explicit error
+// naming why, rather than swallowed:
+// - productModelId: the order's materialDescription/lining free text and
+//   its BOM-driven "apply norm" button (applyBomToOrder) both describe
+//   *this* model. Once any material has been used or the order has a
+//   produced quantity, the model is locked — matches how updatePurchaseItem
+//   locks rawMaterialId once a lot exists and may be consumed.
+// - plannedQuantity: can be raised freely, but never lowered below
+//   producedQuantity already recorded — can't plan for less than what's
+//   already been made.
+// rawWarehouseId/finishedWarehouseId are intentionally NOT guarded here:
+// material usages reference their own lot (which carries its own
+// warehouse), and finished-goods stock is keyed by the order's *current*
+// warehouseId at completion time, already fixed by then — so a later
+// warehouse correction on the order header has no dangling reference to
+// invalidate.
+const editOrderSchema = z.object({
+  productModelId: z.string().min(1, "Выберите модель изделия"),
+  rawWarehouseId: z.string().min(1, "Выберите склад сырья"),
+  finishedWarehouseId: z.string().min(1, "Выберите склад готовой продукции"),
+  plannedQuantity: z.coerce.number().positive("Плановое количество должно быть больше 0"),
+});
+
+export async function updateProductionOrder(orderId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: session.user.organizationId },
+    include: { _count: { select: { materialUsages: true } } },
+  });
+  if (!order) return { error: "Заказ не найден" };
+
+  const parsed = editOrderSchema.safeParse({
+    productModelId: formData.get("productModelId"),
+    rawWarehouseId: formData.get("rawWarehouseId"),
+    finishedWarehouseId: formData.get("finishedWarehouseId"),
+    plannedQuantity: formData.get("plannedQuantity"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const modelLocked = order._count.materialUsages > 0 || order.producedQuantity.greaterThan(0);
+  if (modelLocked && parsed.data.productModelId !== order.productModelId) {
+    return {
+      error:
+        "Нельзя изменить модель изделия — по заказу уже списано сырьё или зафиксирован выпуск. Заведите новый заказ.",
+    };
+  }
+
+  const newPlannedQuantity = new Decimal(parsed.data.plannedQuantity);
+  if (newPlannedQuantity.lessThan(order.producedQuantity)) {
+    return {
+      error: `Плановое количество не может быть меньше уже произведённого (${order.producedQuantity.toString()} шт.)`,
+    };
+  }
+
+  // Free-text/reference fields read straight off formData rather than
+  // through a z.string().optional() schema: that treats a blank field as
+  // "not specified" (right at creation, where blank means "leave unset"),
+  // but on an edit blank means "clear it" — same bug class already fixed
+  // for purchase-item and production-expense edits (b17a9bd), avoided here
+  // by mapping blank to `null` explicitly instead of `undefined`.
+  const color = (formData.get("color") as string)?.trim() || null;
+  const size = (formData.get("size") as string)?.trim() || null;
+  const materialDescription = (formData.get("materialDescription") as string)?.trim() || null;
+  const lining = (formData.get("lining") as string)?.trim() || null;
+  const notes = (formData.get("notes") as string)?.trim() || null;
+  const clientId = (formData.get("clientId") as string)?.trim() || null;
+  const contractNumber = (formData.get("contractNumber") as string)?.trim() || null;
+  const workOrderNumber = (formData.get("workOrderNumber") as string)?.trim() || null;
+
+  const startDateRaw = (formData.get("startDate") as string)?.trim();
+  const startDate = startDateRaw ? new Date(startDateRaw) : null;
+
+  const workOrderDateRaw = (formData.get("workOrderDate") as string)?.trim();
+  const workOrderDate = workOrderDateRaw ? new Date(workOrderDateRaw) : null;
+
+  const clientWorkPriceRaw = (formData.get("clientWorkPricePerUnit") as string)?.trim();
+  let clientWorkPricePerUnit: Decimal | null = null;
+  if (clientWorkPriceRaw) {
+    const n = Number(clientWorkPriceRaw);
+    if (!Number.isFinite(n) || n < 0) {
+      return { error: "Стоимость работ за ед. должна быть числом ≥ 0" };
+    }
+    clientWorkPricePerUnit = new Decimal(n);
+  }
+
+  await prisma.productionOrder.update({
+    where: { id: orderId },
+    data: {
+      productModelId: parsed.data.productModelId,
+      rawWarehouseId: parsed.data.rawWarehouseId,
+      finishedWarehouseId: parsed.data.finishedWarehouseId,
+      plannedQuantity: newPlannedQuantity,
+      color,
+      size,
+      materialDescription,
+      lining,
+      startDate,
+      notes,
+      clientId,
+      contractNumber,
+      workOrderNumber,
+      workOrderDate,
+      clientWorkPricePerUnit,
+    },
+  });
+
+  revalidatePath(`/production/${orderId}`);
+  revalidatePath("/production");
+  return {};
+}
+
 // Retail price is really an attribute of the article, not of one specific
 // ТЗ (matches the source spreadsheet, where "ПРЦ" is one number per
 // article) — so setting it here also updates the ProductModel, and every
