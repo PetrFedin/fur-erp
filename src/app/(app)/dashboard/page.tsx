@@ -41,6 +41,8 @@ export default async function DashboardPage() {
     materials,
     materialUsedAgg,
     articleCount,
+    clientOrders,
+    clientPayments,
   ] = await Promise.all([
     prisma.finishedGoodsStock.findMany({ where: { organizationId } }),
     prisma.purchase.findMany({
@@ -77,6 +79,15 @@ export default async function DashboardPage() {
       _sum: { totalCost: true },
     }),
     prisma.productModel.count({ where: { organizationId } }),
+    // ТЗ производства под заказчика (давальческая схема) — заказы без
+    // clientId — это собственное производство, не подлежит взысканию.
+    prisma.productionOrder.findMany({
+      where: { organizationId, clientId: { not: null }, status: { not: "CANCELLED" } },
+      include: { client: true },
+    }),
+    prisma.productionPayment.findMany({
+      where: { organizationId, clientId: { not: null } },
+    }),
   ]);
 
   // Raw + finished stock value
@@ -112,6 +123,52 @@ export default async function DashboardPage() {
     .filter((x) => x.due.greaterThan(0))
     .sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1))
     .slice(0, 5);
+
+  // Client production debt (задолженность заказчиков): what clients owe us
+  // for давальческая (ТЗ) production work. Billable amount uses
+  // clientWorkPricePerUnit — the price charged to the client for the work
+  // itself — the same field and "produced or, until then, planned" quantity
+  // rule already used on the order detail page's own "Остаток к оплате"
+  // figure (see production/[id]/page.tsx), for consistency. retailPrice is
+  // a different, unrelated field (own retail channel markup, not давалец
+  // billing) and is intentionally not used here. Orders without
+  // clientWorkPricePerUnit set are not billable (can't invent a price) and
+  // are counted separately as a caveat rather than treated as zero.
+  type ClientDebt = {
+    clientId: string;
+    clientName: string;
+    billable: Decimal;
+    paid: Decimal;
+    unpricedOrders: number;
+  };
+  const clientDebtMap = new Map<string, ClientDebt>();
+  for (const o of clientOrders) {
+    if (!o.clientId || !o.client) continue;
+    const entry = clientDebtMap.get(o.clientId) ?? {
+      clientId: o.clientId,
+      clientName: o.client.name,
+      billable: new Decimal(0),
+      paid: new Decimal(0),
+      unpricedOrders: 0,
+    };
+    if (o.clientWorkPricePerUnit) {
+      const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+      entry.billable = entry.billable.add(o.clientWorkPricePerUnit.mul(qty));
+    } else {
+      entry.unpricedOrders += 1;
+    }
+    clientDebtMap.set(o.clientId, entry);
+  }
+  for (const p of clientPayments) {
+    if (!p.clientId) continue;
+    const entry = clientDebtMap.get(p.clientId);
+    if (entry) entry.paid = entry.paid.add(p.amount);
+  }
+  const clientDebts = Array.from(clientDebtMap.values())
+    .map((c) => ({ ...c, balance: c.billable.sub(c.paid) }))
+    .sort((a, b) => (b.balance.greaterThan(a.balance) ? 1 : -1));
+  const clientDebtTotal = clientDebts.reduce((s, c) => s.add(c.balance), new Decimal(0));
+  const clientDebtUnpricedTotal = clientDebts.reduce((s, c) => s + c.unpricedOrders, 0);
 
   // Low stock: sum remaining quantity per material across lots/warehouses, compare to the threshold.
   const materialTotals = new Map<string, { name: string; quantity: Decimal; minStockLevel: Decimal | null }>();
@@ -184,11 +241,16 @@ export default async function DashboardPage() {
         <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         <KpiCard label="Артикулов (моделей)" value={String(articleCount)} />
         <KpiCard label="Сырья закуплено, всего" value={formatMoney(totalPurchasedValue.toString())} />
         <KpiCard label="Сырья использовано в производстве" value={formatMoney(totalMaterialUsedValue.toString())} />
         <KpiCard label="Товара выпущено" value={`${formatQty(totalProducedQty.toString())} шт.`} />
+        <KpiCard
+          label="Долг заказчиков"
+          value={formatMoney(clientDebtTotal.toString())}
+          warn={clientDebtTotal.greaterThan(0)}
+        />
       </div>
 
       <Card>
@@ -248,6 +310,50 @@ export default async function DashboardPage() {
           <MonthlyPurchasesChart data={monthBuckets} />
         </CardContent>
       </Card>
+
+      {clientDebts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Задолженность заказчиков</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Заказчик</Th>
+                  <Th>К оплате (за выполненную/план. работу)</Th>
+                  <Th>Оплачено</Th>
+                  <Th>Остаток</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {clientDebts.map((c) => (
+                  <Tr key={c.clientId}>
+                    <Td>
+                      {c.clientName}
+                      {c.unpricedOrders > 0 && (
+                        <span className="ml-1 text-xs text-neutral-400">
+                          ({c.unpricedOrders} ТЗ без цены работ — не учтены)
+                        </span>
+                      )}
+                    </Td>
+                    <Td>{formatMoney(c.billable.toString())}</Td>
+                    <Td>{formatMoney(c.paid.toString())}</Td>
+                    <Td className={c.balance.greaterThan(0) ? "text-amber-600" : ""}>
+                      {formatMoney(c.balance.toString())}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            {clientDebtUnpricedTotal > 0 && (
+              <p className="mt-3 text-sm text-neutral-500">
+                Всего ТЗ без указанной стоимости работ (не входят в расчёт): {clientDebtUnpricedTotal}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
