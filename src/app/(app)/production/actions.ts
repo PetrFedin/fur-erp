@@ -417,6 +417,73 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
   revalidatePath("/lots");
 }
 
+// Editing an already-entered usage line — same underlying fix as
+// updatePurchaseItem, but the safety story is different: unlike a
+// received purchase item (where consumption into production is
+// deliberately out of scope to unwind), a COMPLETED order's cost snapshot
+// is already designed to be recomputed after a material-usage edit —
+// that's the whole job of syncCompletedOrderCost, which add/removeMaterialUsage
+// already call regardless of order status (see getEditableOrder's comment).
+// So there's no separate "was this order completed" block here: any lot/
+// quantity change is applied by reversing the old consumption back onto its
+// old lot and drawing the new quantity from the (possibly different) new
+// lot, exactly like a remove+add would — consumeFromLot's own
+// quantityRemaining check then naturally covers "can't consume more than
+// what's left", correctly accounting for this usage's own current amount
+// because that amount was just returned to the lot first.
+export async function updateMaterialUsage(
+  orderId: string,
+  usageId: string,
+  formData: FormData
+): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден" };
+
+  const usage = await prisma.productionMaterialUsage.findFirst({
+    where: { id: usageId, productionOrderId: orderId },
+  });
+  if (!usage) return { error: "Списание не найдено" };
+
+  const parsed = usageSchema.safeParse({
+    lotId: formData.get("lotId"),
+    quantity: formData.get("quantity"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  if (parsed.data.lotId === usage.lotId && new Decimal(parsed.data.quantity).eq(usage.quantity)) {
+    return {};
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await returnToLot(tx, {
+        organizationId: session.user.organizationId,
+        lotId: usage.lotId,
+        quantity: usage.quantity,
+        notes: "Возврат перед правкой списания",
+      });
+      const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
+        organizationId: session.user.organizationId,
+        lotId: parsed.data.lotId,
+        quantity: parsed.data.quantity,
+        productionOrderId: orderId,
+      });
+      await tx.productionMaterialUsage.update({
+        where: { id: usageId },
+        data: { lotId: parsed.data.lotId, rawMaterialId, quantity: parsed.data.quantity, unitCost, totalCost },
+      });
+      await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Не удалось изменить списание" };
+  }
+
+  revalidatePath(`/production/${orderId}`);
+  revalidatePath("/lots");
+  return {};
+}
+
 // ---------- Production expenses ----------
 
 const expenseSchema = z.object({
@@ -457,6 +524,56 @@ export async function removeProductionExpense(orderId: string, expenseId: string
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
   revalidatePath(`/production/${orderId}`);
+}
+
+// Editing an already-entered expense line — wrong category/amount or a typo
+// in the description. No lot/stock side-effects to reverse here (unlike
+// material usage), so this is a plain update plus the same
+// syncCompletedOrderCost cascade add/removeProductionExpense already run.
+// `description` is read straight off formData rather than through
+// expenseSchema's `.optional()` parsing: that treats a blank field as "not
+// specified" (right for addProductionExpense, where blank means "leave
+// unset"), but on an edit blank means "clear it", and Prisma reads
+// `undefined` as "don't touch this field" — the same bug just fixed for
+// purchase-item edits in b17a9bd, avoided here by mapping blank to `null`
+// explicitly instead of reusing parsed.data.description.
+export async function updateProductionExpense(
+  orderId: string,
+  expenseId: string,
+  formData: FormData
+): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "Заказ не найден" };
+
+  const expense = await prisma.productionExpense.findFirst({
+    where: { id: expenseId, productionOrderId: orderId },
+  });
+  if (!expense) return { error: "Расход не найден" };
+
+  const parsed = z
+    .object({
+      categoryId: z.string().min(1, "Выберите статью расходов"),
+      amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+    })
+    .safeParse({
+      categoryId: formData.get("categoryId"),
+      amount: formData.get("amount"),
+    });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const description = (formData.get("description") as string)?.trim() || null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productionExpense.update({
+      where: { id: expenseId },
+      data: { categoryId: parsed.data.categoryId, amount: parsed.data.amount, description },
+    });
+    await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
+  });
+
+  revalidatePath(`/production/${orderId}`);
+  return {};
 }
 
 // ---------- Completion: snapshots cost and receives finished goods ----------

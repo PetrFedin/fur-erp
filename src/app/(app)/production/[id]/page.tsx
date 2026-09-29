@@ -14,7 +14,15 @@ import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-ac
 import { RetailPriceForm } from "./retail-price-form";
 import { ProductionPaymentForm } from "./payment-form";
 import { ProducedQuantityForm } from "./produced-quantity-form";
-import { removeMaterialUsage, removeProductionExpense, removeProductionPayment } from "../actions";
+import { UsageRow, type EditableLotOption } from "./usage-row";
+import { ExpenseRow } from "./expense-row";
+import {
+  removeMaterialUsage,
+  removeProductionExpense,
+  removeProductionPayment,
+  updateMaterialUsage,
+  updateProductionExpense,
+} from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -80,13 +88,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // Material usage / expenses stay editable regardless of status (fixing a
   // mistake in a COMPLETED order is normal, not exceptional — see
   // syncCompletedOrderCost in actions.ts), so these are always fetched.
-  const [availableLots, expenseCategories] = await Promise.all([
+  // allLots (unfiltered by quantityRemaining) feeds the usage-edit lot
+  // picker only: a usage's own current lot is very often fully consumed by
+  // that very usage, so it must still show up pre-selected in the edit
+  // dropdown even though it has nothing left for the add-usage picker
+  // (availableLots below, unchanged).
+  const [availableLots, allLots, expenseCategories] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: {
         organizationId: session.user.organizationId,
         warehouseId: order.rawWarehouseId,
         quantityRemaining: { gt: 0 },
       },
+      include: { rawMaterial: true },
+      orderBy: { receivedDate: "asc" },
+    }),
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId: session.user.organizationId, warehouseId: order.rawWarehouseId },
       include: { rawMaterial: true },
       orderBy: { receivedDate: "asc" },
     }),
@@ -108,8 +126,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     unitCost: l.unitCost.toString(),
   }));
 
+  const allLotOptions: EditableLotOption[] = allLots.map((l) => ({
+    id: l.id,
+    lotNumber: l.lotNumber,
+    grade: l.grade,
+    color: l.color,
+    rawMaterialId: l.rawMaterialId,
+    rawMaterialName: l.rawMaterial.name,
+    unit: l.rawMaterial.unit,
+    quantityRemaining: l.quantityRemaining.toString(),
+    unitCost: l.unitCost.toString(),
+  }));
+
   const furLots = lotOptions.filter((l) => l.unit !== "M");
   const liningLots = lotOptions.filter((l) => l.unit === "M");
+  const allFurLots = allLotOptions.filter((l) => l.unit !== "M");
+  const allLiningLots = allLotOptions.filter((l) => l.unit === "M");
   const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
 
@@ -132,6 +164,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
   const boundRemovePayment = removeProductionPayment.bind(null, id);
+  const boundUpdateUsage = updateMaterialUsage.bind(null, id);
+  const boundUpdateExpense = updateProductionExpense.bind(null, id);
 
   const paidTotal = payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
@@ -291,29 +325,27 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </Thead>
             <Tbody>
               {furUsages.map((u) => (
-                <Tr key={u.id}>
-                  <Td>{formatDate(u.date)}</Td>
-                  <Td>{u.rawMaterial.name}</Td>
-                  <Td>{u.lot.lotNumber ?? "без номера"}</Td>
-                  <Td>
-                    {formatQty(u.quantity.toString())} {UNIT_LABELS[u.rawMaterial.unit]}
-                  </Td>
-                  <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
-                  <Td>{u.lot.vatRate.toString()}%</Td>
-                  <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
-                  <Td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await boundRemoveUsage(u.id);
-                      }}
-                    >
-                      <Button type="submit" variant="ghost" size="sm">
-                        Отменить
-                      </Button>
-                    </form>
-                  </Td>
-                </Tr>
+                <UsageRow
+                  key={u.id}
+                  usage={{
+                    id: u.id,
+                    date: u.date,
+                    rawMaterialName: u.rawMaterial.name,
+                    lotId: u.lotId,
+                    lotNumber: u.lot.lotNumber,
+                    quantity: u.quantity.toString(),
+                    unit: u.rawMaterial.unit,
+                    lotCostExclVat: u.lot.materialCostExclVat.toString(),
+                    lotVatRate: u.lot.vatRate.toString(),
+                    totalCost: u.totalCost.toString(),
+                  }}
+                  lots={allFurLots}
+                  updateAction={boundUpdateUsage.bind(null, u.id)}
+                  removeAction={async () => {
+                    "use server";
+                    await boundRemoveUsage(u.id);
+                  }}
+                />
               ))}
               {furUsages.length === 0 && (
                 <Tr>
@@ -349,29 +381,27 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </Thead>
             <Tbody>
               {liningUsages.map((u) => (
-                <Tr key={u.id}>
-                  <Td>{formatDate(u.date)}</Td>
-                  <Td>{u.rawMaterial.name}</Td>
-                  <Td>{u.lot.lotNumber ?? "без номера"}</Td>
-                  <Td>
-                    {formatQty(u.quantity.toString())} {UNIT_LABELS[u.rawMaterial.unit]}
-                  </Td>
-                  <Td>{formatMoney(u.lot.materialCostExclVat.toString())}</Td>
-                  <Td>{u.lot.vatRate.toString()}%</Td>
-                  <Td className="font-medium">{formatMoney(u.totalCost.toString())}</Td>
-                  <Td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await boundRemoveUsage(u.id);
-                      }}
-                    >
-                      <Button type="submit" variant="ghost" size="sm">
-                        Отменить
-                      </Button>
-                    </form>
-                  </Td>
-                </Tr>
+                <UsageRow
+                  key={u.id}
+                  usage={{
+                    id: u.id,
+                    date: u.date,
+                    rawMaterialName: u.rawMaterial.name,
+                    lotId: u.lotId,
+                    lotNumber: u.lot.lotNumber,
+                    quantity: u.quantity.toString(),
+                    unit: u.rawMaterial.unit,
+                    lotCostExclVat: u.lot.materialCostExclVat.toString(),
+                    lotVatRate: u.lot.vatRate.toString(),
+                    totalCost: u.totalCost.toString(),
+                  }}
+                  lots={allLiningLots}
+                  updateAction={boundUpdateUsage.bind(null, u.id)}
+                  removeAction={async () => {
+                    "use server";
+                    await boundRemoveUsage(u.id);
+                  }}
+                />
               ))}
               {liningUsages.length === 0 && (
                 <Tr>
@@ -402,23 +432,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </Thead>
             <Tbody>
               {order.expenses.map((e) => (
-                <Tr key={e.id}>
-                  <Td>{e.category.name}</Td>
-                  <Td>{e.description ?? "—"}</Td>
-                  <Td>{formatMoney(e.amount.toString())}</Td>
-                  <Td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await boundRemoveExpense(e.id);
-                      }}
-                    >
-                      <Button type="submit" variant="ghost" size="sm">
-                        Удалить
-                      </Button>
-                    </form>
-                  </Td>
-                </Tr>
+                <ExpenseRow
+                  key={e.id}
+                  expense={{
+                    id: e.id,
+                    categoryId: e.categoryId,
+                    categoryName: e.category.name,
+                    amount: e.amount.toString(),
+                    description: e.description,
+                  }}
+                  categories={expenseCategories}
+                  updateAction={boundUpdateExpense.bind(null, e.id)}
+                  removeAction={async () => {
+                    "use server";
+                    await boundRemoveExpense(e.id);
+                  }}
+                />
               ))}
               {order.expenses.length === 0 && (
                 <Tr>
