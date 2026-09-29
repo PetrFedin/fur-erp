@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
+import { materialCostExclVat } from "@/lib/purchase-totals";
 import { ArticlePriceForm } from "./price-form";
 
 export default async function ArticlesPage() {
@@ -14,7 +16,17 @@ export default async function ArticlesPage() {
     include: {
       productionOrders: {
         where: { status: "COMPLETED" },
-        select: { unitCost: true, producedQuantity: true },
+        select: {
+          unitCost: true,
+          producedQuantity: true,
+          materialUsages: {
+            select: {
+              quantity: true,
+              lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } },
+            },
+          },
+          expenses: { select: { amount: true } },
+        },
       },
     },
     orderBy: { name: "asc" },
@@ -26,7 +38,18 @@ export default async function ArticlesPage() {
       (s, o) => s.add((o.unitCost ?? new Decimal(0)).mul(o.producedQuantity)),
       new Decimal(0)
     );
+    // Excl-VAT counterpart of totalCost above, computed live from each
+    // order's own materialUsages/expenses — same approach as
+    // production/[id]'s estimatedUnitCostExclVat, since there is no stored
+    // excl-VAT snapshot column for unitCost (see schema comment). Production
+    // expenses carry no VAT at all, so they contribute the same amount to
+    // both incl- and excl-VAT totals.
+    const totalCostExclVat = m.productionOrders.reduce((s, o) => {
+      const orderExpenseCost = o.expenses.reduce((es, e) => es.add(e.amount), new Decimal(0));
+      return s.add(materialCostExclVat(o.materialUsages).add(orderExpenseCost));
+    }, new Decimal(0));
     const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.div(totalProduced) : null;
+    const avgUnitCostExclVat = totalProduced.greaterThan(0) ? totalCostExclVat.div(totalProduced) : null;
     const markup = m.sellingPrice && avgUnitCost && avgUnitCost.greaterThan(0) ? m.sellingPrice.div(avgUnitCost) : null;
 
     return {
@@ -36,6 +59,7 @@ export default async function ArticlesPage() {
       isActive: m.isActive,
       totalProduced,
       avgUnitCost,
+      avgUnitCostExclVat,
       sellingPrice: m.sellingPrice,
       markup,
     };
@@ -96,7 +120,7 @@ export default async function ArticlesPage() {
               <Td>
                 {r.avgUnitCost ? (
                   <Link href={`/production?model=${r.id}`} className="text-neutral-900 hover:underline" title="Смотреть ТЗ, из которых сложилась себестоимость">
-                    {formatMoney(r.avgUnitCost.toString())}
+                    <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} />
                   </Link>
                 ) : (
                   "—"
