@@ -238,6 +238,159 @@ export async function addPurchaseItemsBulk(
   return { created: rows.length, skipped: skipped.length ? skipped : undefined };
 }
 
+// Editing an already-entered line item — the main fix for wrong quantity/price/
+// lot/grade/color caught after the fact (very common on bulk-pasted rows).
+// Before receipt there's no RawMaterialLot yet, so everything is a plain update.
+// After receipt (purchase.status === "RECEIVED"), a RawMaterialLot exists and
+// may already have been consumed by production:
+//  - raw material identity is never changeable post-receipt (would orphan the
+//    lot's own material link and any StockMovement rows already logged against it);
+//  - cosmetic fields (lot number, grade, color) stay editable regardless of
+//    consumption — they don't affect cost or quantity math;
+//  - quantity/price/VAT stay editable ONLY while the lot is fully unconsumed
+//    (quantityRemaining === quantityReceived); once any of it has been drawn
+//    into production the edit is blocked with a clear message rather than
+//    trying to unwind and re-cost historical StockMovement/ProductionMaterialUsage
+//    rows, which is out of scope for a single-line correction.
+export async function updatePurchaseItem(
+  purchaseId: string,
+  itemId: string,
+  formData: FormData
+): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+
+  const purchase = await prisma.purchase.findFirst({
+    where: { id: purchaseId, organizationId: session.user.organizationId },
+  });
+  if (!purchase) return { error: "Закупка не найдена" };
+  if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
+
+  const item = await prisma.purchaseItem.findFirst({
+    where: { id: itemId, purchaseId },
+    include: { lot: true },
+  });
+  if (!item) return { error: "Позиция не найдена" };
+
+  const parsed = itemSchema.safeParse({
+    rawMaterialId: formData.get("rawMaterialId"),
+    quantity: formData.get("quantity"),
+    unitPrice: formData.get("unitPrice"),
+    vatRate: formData.get("vatRate") ?? 20,
+    lotNumber: formData.get("lotNumber") || undefined,
+    grade: formData.get("grade") || undefined,
+    color: formData.get("color") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const cosmetic = {
+    lotNumber: parsed.data.lotNumber,
+    grade: parsed.data.grade,
+    color: parsed.data.color,
+  };
+
+  // Not yet received: no lot exists — every field is freely editable, same
+  // validation as adding a fresh line.
+  if (purchase.status !== "RECEIVED") {
+    const subtotal = new Decimal(parsed.data.quantity).mul(parsed.data.unitPrice);
+    await prisma.purchaseItem.update({
+      where: { id: itemId },
+      data: {
+        rawMaterialId: parsed.data.rawMaterialId,
+        quantity: parsed.data.quantity,
+        unitPrice: parsed.data.unitPrice,
+        subtotal,
+        vatRate: parsed.data.vatRate,
+        ...cosmetic,
+      },
+    });
+    revalidatePath(`/purchases/${purchaseId}`);
+    return {};
+  }
+
+  // Received: material identity is locked in.
+  if (parsed.data.rawMaterialId !== item.rawMaterialId) {
+    return { error: "После оприходования нельзя изменить сырьё позиции" };
+  }
+
+  const financialsChanged =
+    !new Decimal(parsed.data.quantity).eq(item.quantity) ||
+    !new Decimal(parsed.data.unitPrice).eq(item.unitPrice) ||
+    !new Decimal(parsed.data.vatRate).eq(item.vatRate);
+
+  const lot = item.lot;
+
+  if (!financialsChanged) {
+    // Cosmetic-only edit — always safe, even on a fully consumed lot.
+    await prisma.$transaction([
+      prisma.purchaseItem.update({ where: { id: itemId }, data: cosmetic }),
+      ...(lot ? [prisma.rawMaterialLot.update({ where: { id: lot.id }, data: cosmetic })] : []),
+    ]);
+    revalidatePath(`/purchases/${purchaseId}`);
+    revalidatePath("/lots");
+    return {};
+  }
+
+  if (!lot) return { error: "У позиции нет партии сырья на складе — обратитесь к администратору" };
+  if (!lot.quantityRemaining.equals(lot.quantityReceived)) {
+    const used = lot.quantityReceived.sub(lot.quantityRemaining);
+    return {
+      error: `Нельзя изменить количество/цену/НДС — сырьё уже списано в производство (${used.toString()} ед. использовано). Доступно изменить только лот, сорт и цвет.`,
+    };
+  }
+
+  // Unconsumed lot: recompute this item's own landed cost the same way
+  // receivePurchase does, holding the RUB amount of expenses this item was
+  // allocated at receipt time fixed (re-splitting expenses across every other
+  // item in the purchase would mean touching their lots too — out of scope
+  // for a single-line edit).
+  const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
+  const oldBaseRub = item.subtotal.mul(purchase.exchangeRate);
+  const oldInclVatRub = grossUp(oldBaseRub, item.vatRate);
+  const allocatedExpense = lot.totalCost.sub(oldInclVatRub);
+
+  const newQuantity = new Decimal(parsed.data.quantity);
+  const newVatRate = new Decimal(parsed.data.vatRate);
+  const newSubtotal = newQuantity.mul(parsed.data.unitPrice);
+  const newBaseRub = newSubtotal.mul(purchase.exchangeRate);
+  const newInclVatRub = grossUp(newBaseRub, newVatRate);
+  const newLandedTotal = newInclVatRub.add(allocatedExpense);
+  const newUnitCost = newLandedTotal.div(newQuantity);
+
+  await prisma.$transaction([
+    prisma.purchaseItem.update({
+      where: { id: itemId },
+      data: {
+        quantity: parsed.data.quantity,
+        unitPrice: parsed.data.unitPrice,
+        subtotal: newSubtotal,
+        vatRate: parsed.data.vatRate,
+        ...cosmetic,
+      },
+    }),
+    prisma.rawMaterialLot.update({
+      where: { id: lot.id },
+      data: {
+        quantityReceived: newQuantity,
+        quantityRemaining: newQuantity,
+        unitCost: newUnitCost,
+        totalCost: newLandedTotal,
+        vatRate: parsed.data.vatRate,
+        materialCostExclVat: newBaseRub.div(newQuantity),
+        materialVatAmount: newInclVatRub.sub(newBaseRub).div(newQuantity),
+        ...cosmetic,
+      },
+    }),
+    prisma.stockMovement.updateMany({
+      where: { lotId: lot.id, type: "PURCHASE_IN" },
+      data: { quantity: newQuantity, unitCost: newUnitCost, totalCost: newLandedTotal },
+    }),
+  ]);
+
+  revalidatePath(`/purchases/${purchaseId}`);
+  revalidatePath("/lots");
+  return {};
+}
+
 export async function removePurchaseItem(purchaseId: string, itemId: string) {
   const session = await requireRole(...EDIT_ROLES);
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);

@@ -13,7 +13,8 @@ import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
-import { removePurchaseItem, removePurchaseExpense } from "../actions";
+import { PurchaseItemRow } from "./item-row";
+import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   DRAFT: { label: "Черновик", variant: "default" },
@@ -40,7 +41,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     include: {
       supplier: true,
       warehouse: true,
-      items: { include: { rawMaterial: true }, orderBy: { id: "asc" } },
+      items: { include: { rawMaterial: true, lot: true }, orderBy: { id: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       payments: { orderBy: { paidAt: "asc" } },
     },
@@ -84,7 +85,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const status = STATUS_LABELS[purchase.status];
 
   const boundRemoveItem = removePurchaseItem.bind(null, id);
+  const boundUpdateItem = updatePurchaseItem.bind(null, id);
   const boundRemoveExpense = removePurchaseExpense.bind(null, id);
+  // Item rows can be edited even after receipt (cosmetic fields always; qty/
+  // price/VAT only while the resulting lot hasn't been consumed yet) — see
+  // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
+  const itemsMutable = purchase.status !== "CANCELLED";
+  const itemColSpan = itemsMutable ? 8 : 7;
 
   const furItems = purchase.items.filter((i) => i.rawMaterial.unit !== "M");
   const liningItems = purchase.items.filter((i) => i.rawMaterial.unit === "M");
@@ -166,15 +173,48 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Цена (без НДС)</Th>
                 <Th>НДС</Th>
                 <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
-                {editable && <Th></Th>}
+                {itemsMutable && <Th></Th>}
               </Tr>
             </Thead>
             <Tbody>
               {furItems.map((item) => {
                 const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
                 const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
+                const canEditFinancials = editable || (!!item.lot && !consumed);
                 return (
-                  <Tr key={item.id}>
+                  <PurchaseItemRow
+                    key={item.id}
+                    colSpan={itemColSpan}
+                    removeAction={
+                      editable
+                        ? async () => {
+                            "use server";
+                            await boundRemoveItem(item.id);
+                          }
+                        : undefined
+                    }
+                    updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
+                    canEditFinancials={canEditFinancials}
+                    lockedNote={
+                      item.lot && consumed
+                        ? `Сырьё уже списано в производство (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот/сорт/цвет`
+                        : undefined
+                    }
+                    canEditMaterial={editable}
+                    materials={furMaterials}
+                    currency={purchase.currency}
+                    defaults={{
+                      rawMaterialId: item.rawMaterialId,
+                      rawMaterialName: item.rawMaterial.name,
+                      quantity: item.quantity.toString(),
+                      unitPrice: item.unitPrice.toString(),
+                      vatRate: item.vatRate.toString(),
+                      lotNumber: item.lotNumber ?? "",
+                      grade: item.grade ?? "",
+                      color: item.color ?? "",
+                    }}
+                  >
                     <Td>{item.rawMaterial.name}</Td>
                     <Td>{item.lotNumber ?? "—"}</Td>
                     <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
@@ -191,26 +231,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         </span>
                       )}
                     </Td>
-                    {editable && (
-                      <Td>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await boundRemoveItem(item.id);
-                          }}
-                        >
-                          <Button type="submit" variant="ghost" size="sm">
-                            Удалить
-                          </Button>
-                        </form>
-                      </Td>
-                    )}
-                  </Tr>
+                  </PurchaseItemRow>
                 );
               })}
               {furItems.length === 0 && (
                 <Tr>
-                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
                     Позиций пока нет
                   </Td>
                 </Tr>
@@ -238,15 +264,48 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Цена (без НДС)</Th>
                 <Th>НДС</Th>
                 <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
-                {editable && <Th></Th>}
+                {itemsMutable && <Th></Th>}
               </Tr>
             </Thead>
             <Tbody>
               {liningItems.map((item) => {
                 const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
                 const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
+                const canEditFinancials = editable || (!!item.lot && !consumed);
                 return (
-                  <Tr key={item.id}>
+                  <PurchaseItemRow
+                    key={item.id}
+                    colSpan={itemColSpan}
+                    removeAction={
+                      editable
+                        ? async () => {
+                            "use server";
+                            await boundRemoveItem(item.id);
+                          }
+                        : undefined
+                    }
+                    updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
+                    canEditFinancials={canEditFinancials}
+                    lockedNote={
+                      item.lot && consumed
+                        ? `Сырьё уже списано в производство (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот/сорт/цвет`
+                        : undefined
+                    }
+                    canEditMaterial={editable}
+                    materials={liningMaterials}
+                    currency={purchase.currency}
+                    defaults={{
+                      rawMaterialId: item.rawMaterialId,
+                      rawMaterialName: item.rawMaterial.name,
+                      quantity: item.quantity.toString(),
+                      unitPrice: item.unitPrice.toString(),
+                      vatRate: item.vatRate.toString(),
+                      lotNumber: item.lotNumber ?? "",
+                      grade: item.grade ?? "",
+                      color: item.color ?? "",
+                    }}
+                  >
                     <Td>{item.rawMaterial.name}</Td>
                     <Td>{item.lotNumber ?? "—"}</Td>
                     <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
@@ -263,26 +322,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         </span>
                       )}
                     </Td>
-                    {editable && (
-                      <Td>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await boundRemoveItem(item.id);
-                          }}
-                        >
-                          <Button type="submit" variant="ghost" size="sm">
-                            Удалить
-                          </Button>
-                        </form>
-                      </Td>
-                    )}
-                  </Tr>
+                  </PurchaseItemRow>
                 );
               })}
               {liningItems.length === 0 && (
                 <Tr>
-                  <Td colSpan={8} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
                     Подкладка ещё не заведена
                   </Td>
                 </Tr>
