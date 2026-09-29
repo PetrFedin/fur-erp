@@ -82,6 +82,75 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
+// Editing the purchase header itself — supplier, warehouse, auction session,
+// order date, currency, invoice number, transfer document. Only while
+// `editable` (not RECEIVED, not CANCELLED): once received, every line item's
+// RawMaterialLot is already costed against this purchase's currency/
+// exchangeRate at that moment (see receivePurchase) — changing supplier/
+// warehouse/currency afterwards would silently desync already-costed lots
+// from the purchase they claim to belong to. This mirrors the same
+// `editable` gate the detail page already uses for item edits.
+// exchangeRate keeps its own dedicated action (updatePurchaseExchangeRate)
+// rather than being duplicated here — but changing `currency` here resets
+// exchangeRate to 1 (or leaves it, for RUB) exactly like createPurchase does,
+// since a stale rate carried over from a different currency is meaningless
+// and must be re-entered.
+const purchaseHeaderSchema = z.object({
+  supplierId: z.string().min(1, "Выберите поставщика"),
+  warehouseId: z.string().min(1, "Выберите склад"),
+  currency: z.string().trim().min(1).default("RUB"),
+  auctionSession: z.string().trim().optional(),
+  invoiceNumber: z.string().trim().optional(),
+  transferDocument: z.string().trim().optional(),
+  orderDate: z.string().min(1),
+});
+
+export async function updatePurchase(purchaseId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+
+  const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
+  if (!purchase) return { error: "Закупку нельзя редактировать — она уже оприходована или отменена" };
+
+  const parsed = purchaseHeaderSchema.safeParse({
+    supplierId: formData.get("supplierId"),
+    warehouseId: formData.get("warehouseId"),
+    currency: formData.get("currency") || "RUB",
+    auctionSession: formData.get("auctionSession") || undefined,
+    invoiceNumber: formData.get("invoiceNumber") || undefined,
+    transferDocument: formData.get("transferDocument") || undefined,
+    orderDate: formData.get("orderDate"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const currencyChanged = parsed.data.currency !== purchase.currency;
+
+  // Blank optional fields must clear rather than be left untouched — same
+  // "read straight off formData" reasoning as updatePurchaseItem's `cosmetic`.
+  const auctionSession = (formData.get("auctionSession") as string)?.trim() || null;
+  const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim() || null;
+  const transferDocument = (formData.get("transferDocument") as string)?.trim() || null;
+
+  await prisma.purchase.updateMany({
+    where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
+    data: {
+      supplierId: parsed.data.supplierId,
+      warehouseId: parsed.data.warehouseId,
+      currency: parsed.data.currency,
+      // Same pairing rule as createPurchase: RUB is always rate 1; a
+      // currency change resets the rate to 1 so a stale rate from the old
+      // currency can't leak through — the exchange-rate form forces re-entry.
+      ...(currencyChanged ? { exchangeRate: 1 } : {}),
+      auctionSession,
+      invoiceNumber,
+      transferDocument,
+      orderDate: new Date(parsed.data.orderDate),
+    },
+  });
+
+  revalidatePath(`/purchases/${purchaseId}`);
+  return {};
+}
+
 export async function setPurchaseStatus(
   purchaseId: string,
   status: "DRAFT" | "ORDERED" | "IN_TRANSIT" | "CANCELLED"

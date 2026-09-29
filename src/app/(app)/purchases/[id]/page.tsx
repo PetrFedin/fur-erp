@@ -15,8 +15,9 @@ import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
+import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
-import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem } from "../actions";
+import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   DRAFT: { label: "Черновик", variant: "default" },
@@ -52,7 +53,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
   const editable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
 
-  const [materials, expenseCategories] = editable
+  const [materials, expenseCategories, suppliers, warehouses] = editable
     ? await Promise.all([
         prisma.rawMaterial.findMany({
           where: { organizationId: session.user.organizationId, isActive: true },
@@ -63,8 +64,27 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           where: { organizationId: session.user.organizationId, kind: "PURCHASE", isActive: true },
           orderBy: { name: "asc" },
         }),
+        prisma.supplier.findMany({
+          where: { organizationId: session.user.organizationId, isActive: true },
+          orderBy: { name: "asc" },
+        }),
+        prisma.warehouse.findMany({
+          where: { organizationId: session.user.organizationId },
+          orderBy: { name: "asc" },
+        }),
       ])
-    : [[], []];
+    : [[], [], [], []];
+
+  // The current supplier/warehouse must always be selectable even if it was
+  // since deactivated — otherwise the edit form's <select> would silently
+  // fall back to whatever option happens to be first, changing the purchase's
+  // supplier/warehouse without anyone asking for that.
+  const supplierOptions = suppliers.some((s) => s.id === purchase.supplierId)
+    ? suppliers
+    : [purchase.supplier, ...suppliers];
+  const warehouseOptions = warehouses.some((w) => w.id === purchase.warehouseId)
+    ? warehouses
+    : [purchase.warehouse, ...warehouses];
 
   const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
@@ -86,6 +106,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const balanceDue = grandTotalRub.sub(paidTotal);
   const status = STATUS_LABELS[purchase.status];
 
+  const boundUpdatePurchase = updatePurchase.bind(null, id);
   const boundRemoveItem = removePurchaseItem.bind(null, id);
   const boundUpdateItem = updatePurchaseItem.bind(null, id);
   const boundRemoveExpense = removePurchaseExpense.bind(null, id);
@@ -116,9 +137,27 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               {purchase.transferDocument && ` · УПД ${purchase.transferDocument}`}
             </p>
           )}
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2">
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
+          {editable && (
+            <div className="mt-2 max-w-md">
+              <PurchaseEditForm
+                action={boundUpdatePurchase}
+                suppliers={supplierOptions}
+                warehouses={warehouseOptions}
+                defaults={{
+                  supplierId: purchase.supplierId,
+                  warehouseId: purchase.warehouseId,
+                  currency: purchase.currency,
+                  orderDate: purchase.orderDate.toISOString().slice(0, 10),
+                  auctionSession: purchase.auctionSession ?? "",
+                  invoiceNumber: purchase.invoiceNumber ?? "",
+                  transferDocument: purchase.transferDocument ?? "",
+                }}
+              />
+            </div>
+          )}
         </div>
         <PurchaseActions purchaseId={id} status={purchase.status} />
       </div>
