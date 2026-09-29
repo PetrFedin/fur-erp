@@ -282,10 +282,15 @@ export async function updatePurchaseItem(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  // Read these straight off formData (not parsed.data): itemSchema's
+  // `.optional()` treats a blank field as "not specified" (right for
+  // addPurchaseItem, where blank means "leave unset"), but on an edit blank
+  // means "clear this field" — so an empty string here must become `null`,
+  // not `undefined` (which Prisma reads as "don't touch").
   const cosmetic = {
-    lotNumber: parsed.data.lotNumber,
-    grade: parsed.data.grade,
-    color: parsed.data.color,
+    lotNumber: (formData.get("lotNumber") as string)?.trim() || null,
+    grade: (formData.get("grade") as string)?.trim() || null,
+    color: (formData.get("color") as string)?.trim() || null,
   };
 
   // Not yet received: no lot exists — every field is freely editable, same
