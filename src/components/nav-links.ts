@@ -19,8 +19,10 @@ export const NAV_SECTIONS = [
     links: [
       { href: "/production", label: "Производственные заказы (ТЗ)" },
       { href: "/supply-plan", label: "План поставки" },
+      { href: "/finished-stock", label: "Остатки готовой продукции" },
       { href: "/articles", label: "Товар и цены" },
       { href: "/models", label: "Модели изделий" },
+      { href: "/clients", label: "Заказчики" },
     ],
   },
   {
