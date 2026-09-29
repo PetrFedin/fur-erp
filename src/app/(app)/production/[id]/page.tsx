@@ -135,6 +135,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const paidTotal = payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
+  // Some payments may cover this order together with sibling ТЗ for the same
+  // client (many-to-many via ProductionPaymentOrder — see payment-form.tsx).
+  // "Оплачено" above is deliberately the gross amount of every payment that
+  // touches this order, not a proportional split — the codebase has no
+  // convention for splitting a shared payment across orders, so inventing
+  // one here would just be a different kind of guess. When that's the case,
+  // "Остаток к оплате" is flagged as an approximation rather than presented
+  // as exact.
+  const sharedPayments = payments.filter((p) => p.orders.some((a) => a.productionOrder.id !== id));
+  const hasSharedPayments = sharedPayments.length > 0;
 
   return (
     <div className="flex max-w-4xl flex-col gap-4">
@@ -432,14 +442,24 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {clientRevenue && (
               <div className="grid grid-cols-3 gap-3">
                 <SummaryCard label="Стоимость работ" value={formatMoney(clientRevenue.toString())} />
-                <SummaryCard label="Оплачено" value={formatMoney(paidTotal.toString())} />
                 <SummaryCard
-                  label="Остаток к оплате"
+                  label={hasSharedPayments ? "Оплачено (вкл. общие с др. ТЗ)" : "Оплачено"}
+                  value={formatMoney(paidTotal.toString())}
+                />
+                <SummaryCard
+                  label={hasSharedPayments ? "Остаток к оплате (примерно)" : "Остаток к оплате"}
                   value={formatMoney(balanceDue!.toString())}
                   warn={balanceDue!.greaterThan(0)}
                   emphasis
                 />
               </div>
+            )}
+            {clientRevenue && hasSharedPayments && (
+              <p className="text-sm text-neutral-500">
+                Часть оплат ({sharedPayments.length}) покрывает этот заказ вместе с другими ТЗ того же
+                заказчика (см. столбец «Также покрывает» ниже) и учтена здесь целиком, без разбивки по
+                заказам — остаток выше поэтому приблизительный, а не точный.
+              </p>
             )}
             <Table>
               <Thead>
