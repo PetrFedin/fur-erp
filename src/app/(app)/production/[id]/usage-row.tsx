@@ -6,6 +6,7 @@ import { Input, Select } from "@/components/ui/input";
 import { Tr, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Money } from "@/components/money";
+import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
 
 const initialState: FormState = {};
@@ -54,6 +55,7 @@ export function UsageRow({
     lotVatRate: string;
     totalCost: string;
     totalCostExclVat: string;
+    costBreakdown: unknown;
   };
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
@@ -89,6 +91,9 @@ export function UsageRow({
         <Td>{usage.lotVatRate}%</Td>
         <Td className="font-medium">
           <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
+          {usage.costBreakdown != null && (
+            <CostBreakdownToggle breakdown={usage.costBreakdown as never} />
+          )}
         </Td>
         <Td>
           <div className="flex gap-2">

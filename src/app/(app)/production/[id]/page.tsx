@@ -359,6 +359,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     lotVatRate: u.lot.vatRate.toString(),
                     totalCost: u.totalCost.toString(),
                     totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
+                    costBreakdown: u.lot.costBreakdown,
                   }}
                   lots={allFurLots}
                   updateAction={boundUpdateUsage.bind(null, u.id)}
@@ -416,6 +417,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     lotVatRate: u.lot.vatRate.toString(),
                     totalCost: u.totalCost.toString(),
                     totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
+                    costBreakdown: u.lot.costBreakdown,
                   }}
                   lots={allLiningLots}
                   updateAction={boundUpdateUsage.bind(null, u.id)}
