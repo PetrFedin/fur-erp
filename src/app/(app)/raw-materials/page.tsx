@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
+import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { SearchableCheckboxList } from "./searchable-checkbox-list";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -221,7 +223,9 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
                       </Td>
                       <Td className="whitespace-nowrap text-xs">
                         {formatMoney(l.materialCostExclVat.toString())} / {l.vatRate.toString()}% /{" "}
-                        <span className="font-medium text-neutral-900">{formatMoney(l.unitCost.toString())}</span>
+                        <span className="font-medium text-neutral-900">
+                          <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
+                        </span>
                       </Td>
                       <Td>{l.purchase?.auctionSession ?? "—"}</Td>
                       <Td>
@@ -299,7 +303,7 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
                           );
                         })}
                         <Td className="whitespace-nowrap font-medium text-neutral-900">
-                          {formatMoney(l.unitCost.toString())}
+                          <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
                         </Td>
                       </Tr>
                     );
