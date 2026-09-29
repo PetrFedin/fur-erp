@@ -9,6 +9,8 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
+import { Money } from "@/components/money";
+import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -71,6 +73,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     purchased: Decimal;
     remaining: Decimal;
     value: Decimal;
+    valueExclVat: Decimal;
   };
   const materialAggMap = new Map<string, MaterialAgg>();
   for (const m of materials) {
@@ -81,6 +84,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
       purchased: new Decimal(0),
       remaining: new Decimal(0),
       value: new Decimal(0),
+      valueExclVat: new Decimal(0),
     });
   }
   for (const l of allLots) {
@@ -92,6 +96,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     if (agg) {
       agg.remaining = agg.remaining.add(l.quantityRemaining);
       agg.value = agg.value.add(l.quantityRemaining.mul(l.unitCost));
+      agg.valueExclVat = agg.valueExclVat.add(l.quantityRemaining.mul(lotUnitCostExclVat(l)));
     }
   }
   const materialRows = Array.from(materialAggMap.values()).filter(
@@ -100,7 +105,9 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
   const furMaterialRows = materialRows.filter((r) => r.unit !== "M");
   const liningMaterialRows = materialRows.filter((r) => r.unit === "M");
   const furTotalValue = furMaterialRows.reduce((s, r) => s.add(r.value), new Decimal(0));
+  const furTotalValueExclVat = furMaterialRows.reduce((s, r) => s.add(r.valueExclVat), new Decimal(0));
   const liningTotalValue = liningMaterialRows.reduce((s, r) => s.add(r.value), new Decimal(0));
+  const liningTotalValueExclVat = liningMaterialRows.reduce((s, r) => s.add(r.valueExclVat), new Decimal(0));
 
   type Agg = {
     key: string;
@@ -110,15 +117,18 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     warehouseName: string;
     quantity: Decimal;
     value: Decimal;
+    valueExclVat: Decimal;
   };
   const aggregates = new Map<string, Agg>();
   for (const l of currentLots) {
     const key = `${l.rawMaterialId}:${l.warehouseId}`;
     const existing = aggregates.get(key);
     const value = l.quantityRemaining.mul(l.unitCost);
+    const valueExclVat = l.quantityRemaining.mul(lotUnitCostExclVat(l));
     if (existing) {
       existing.quantity = existing.quantity.add(l.quantityRemaining);
       existing.value = existing.value.add(value);
+      existing.valueExclVat = existing.valueExclVat.add(valueExclVat);
     } else {
       aggregates.set(key, {
         key,
@@ -128,6 +138,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
         warehouseName: l.warehouse.name,
         quantity: l.quantityRemaining,
         value,
+        valueExclVat,
       });
     }
   }
@@ -198,7 +209,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   <Td className="font-medium">
                     {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
                   </Td>
-                  <Td>{formatMoney(r.value.toString())}</Td>
+                  <Td><Money incl={r.value} excl={r.valueExclVat} /></Td>
                 </Tr>
               ))}
               {furMaterialRows.length === 0 && (
@@ -212,7 +223,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
           </Table>
           <div className="mt-3 flex justify-end text-sm">
             <span className="text-neutral-500">Итого стоимость остатков меха: </span>
-            <span className="ml-1 font-semibold text-neutral-900">{formatMoney(furTotalValue.toString())}</span>
+            <span className="ml-1 font-semibold text-neutral-900"><Money incl={furTotalValue} excl={furTotalValueExclVat} /></span>
           </div>
         </CardContent>
       </Card>
@@ -240,7 +251,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   {formatQty(a.quantity.toString())} {UNIT_LABELS[a.unit]}{" "}
                   {low && <Badge variant="danger">Мало</Badge>}
                 </Td>
-                <Td>{formatMoney(a.value.toString())}</Td>
+                <Td><Money incl={a.value} excl={a.valueExclVat} /></Td>
                 <Td>{a.minStockLevel ? formatQty(a.minStockLevel.toString()) : "—"}</Td>
               </Tr>
             );
@@ -300,7 +311,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   </Td>
                   <Td className="whitespace-nowrap text-xs">
                     {formatMoney(l.materialCostExclVat.toString())} / {l.vatRate.toString()}% /{" "}
-                    <span className="font-medium text-neutral-900">{formatMoney(l.unitCost.toString())}</span>
+                    <span className="font-medium text-neutral-900"><Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /></span>
                     {l.costBreakdown && <CostBreakdownToggle breakdown={l.costBreakdown as never} />}
                   </Td>
                   <Td>
@@ -376,7 +387,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   <Td className="font-medium">
                     {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
                   </Td>
-                  <Td>{formatMoney(r.value.toString())}</Td>
+                  <Td><Money incl={r.value} excl={r.valueExclVat} /></Td>
                 </Tr>
               ))}
               {liningMaterialRows.length === 0 && (
@@ -390,7 +401,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
           </Table>
           <div className="mt-3 flex justify-end text-sm">
             <span className="text-neutral-500">Итого стоимость остатков подкладки: </span>
-            <span className="ml-1 font-semibold text-neutral-900">{formatMoney(liningTotalValue.toString())}</span>
+            <span className="ml-1 font-semibold text-neutral-900"><Money incl={liningTotalValue} excl={liningTotalValueExclVat} /></span>
           </div>
         </CardContent>
       </Card>
@@ -418,7 +429,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   {formatQty(a.quantity.toString())} {UNIT_LABELS[a.unit]}{" "}
                   {low && <Badge variant="danger">Мало</Badge>}
                 </Td>
-                <Td>{formatMoney(a.value.toString())}</Td>
+                <Td><Money incl={a.value} excl={a.valueExclVat} /></Td>
                 <Td>{a.minStockLevel ? formatQty(a.minStockLevel.toString()) : "—"}</Td>
               </Tr>
             );
@@ -477,7 +488,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
                   </Td>
                   <Td className="whitespace-nowrap text-xs">
                     {formatMoney(l.materialCostExclVat.toString())} / {l.vatRate.toString()}% /{" "}
-                    <span className="font-medium text-neutral-900">{formatMoney(l.unitCost.toString())}</span>
+                    <span className="font-medium text-neutral-900"><Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /></span>
                     {l.costBreakdown && <CostBreakdownToggle breakdown={l.costBreakdown as never} />}
                   </Td>
                   <Td>

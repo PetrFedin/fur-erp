@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
+import { materialCostExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { ProductionExpenseForm } from "./expense-form";
@@ -146,8 +148,17 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
 
   const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  // materialUsages.totalCost = quantity * lot.unitCost, and lot.unitCost is
+  // VAT-inclusive by definition (see schema) — so materialCost above is
+  // incl-VAT. Its excl-VAT counterpart uses the same lines' own excl-VAT lot
+  // cost (materialCostExclVat + expenseCostExclVat, exact per the schema
+  // comment on the latter). expenseCost has no excl-VAT counterpart:
+  // ProductionExpense has no vatRate field at all (no VAT tracked for
+  // production expenses in this schema) — shown the same in both modes.
+  const materialCostExcl = materialCostExclVat(order.materialUsages);
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
+  const projectedTotalExclVat = materialCostExcl.add(expenseCost);
   const status = STATUS_LABELS[order.status];
 
   const producedOrPlanned = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
@@ -158,6 +169,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // unitCost is fixed once the order completes; while in progress, estimate
   // from costs booked so far so retail pricing can be planned ahead of time.
   const estimatedUnitCost = order.unitCost ?? (producedOrPlanned.isZero() ? new Decimal(0) : projectedTotal.div(producedOrPlanned));
+  // No excl-VAT snapshot column exists for unitCost, so this is always
+  // computed live from the same lines behind estimatedUnitCost above —
+  // exact even once the order is COMPLETED, since materialUsages/expenses
+  // are themselves fixed historical records by then.
+  const estimatedUnitCostExclVat = producedOrPlanned.isZero() ? new Decimal(0) : projectedTotalExclVat.div(producedOrPlanned);
   const markup =
     order.retailPrice && estimatedUnitCost.greaterThan(0) ? order.retailPrice.div(estimatedUnitCost) : null;
 
@@ -215,9 +231,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <SummaryCard label="Стоимость сырья" value={formatMoney(materialCost.toString())} />
+        <SummaryCard label="Стоимость сырья" value={<Money incl={materialCost} excl={materialCostExcl} />} />
         <SummaryCard label="Произв. расходы" value={formatMoney(expenseCost.toString())} />
-        <SummaryCard label="Итого себестоимость" value={formatMoney(projectedTotal.toString())} emphasis />
+        <SummaryCard
+          label="Итого себестоимость"
+          value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
+          emphasis
+        />
         <SummaryCard
           label="Факт. произведено"
           value={`${formatQty(order.producedQuantity.toString())} шт.`}
@@ -230,7 +250,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             label="Стоимость работ для заказчика"
             value={formatMoney(clientRevenue.toString())}
           />
-          <SummaryCard label="Себестоимость" value={formatMoney(projectedTotal.toString())} />
+          <SummaryCard label="Себестоимость" value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />} />
           <SummaryCard
             label="Стоимость продукции за ед."
             value={
@@ -256,7 +276,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <div className="grid grid-cols-3 gap-3">
             <SummaryCard
               label={order.unitCost ? "Себестоимость за ед." : "Себестоимость за ед. (оценка)"}
-              value={formatMoney(estimatedUnitCost.toString())}
+              value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
             />
             <SummaryCard
               label="Розничная цена"
@@ -338,6 +358,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     lotCostExclVat: u.lot.materialCostExclVat.toString(),
                     lotVatRate: u.lot.vatRate.toString(),
                     totalCost: u.totalCost.toString(),
+                    totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
                   }}
                   lots={allFurLots}
                   updateAction={boundUpdateUsage.bind(null, u.id)}
@@ -394,6 +415,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     lotCostExclVat: u.lot.materialCostExclVat.toString(),
                     lotVatRate: u.lot.vatRate.toString(),
                     totalCost: u.totalCost.toString(),
+                    totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
                   }}
                   lots={allLiningLots}
                   updateAction={boundUpdateUsage.bind(null, u.id)}
@@ -583,7 +605,7 @@ function SummaryCard({
   warn,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   emphasis?: boolean;
   warn?: boolean;
 }) {

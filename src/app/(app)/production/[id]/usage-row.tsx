@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Tr, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { Money } from "@/components/money";
 import type { FormState } from "../actions";
 
 const initialState: FormState = {};
@@ -52,6 +53,7 @@ export function UsageRow({
     lotCostExclVat: string;
     lotVatRate: string;
     totalCost: string;
+    totalCostExclVat: string;
   };
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
@@ -85,7 +87,9 @@ export function UsageRow({
         </Td>
         <Td>{formatMoney(usage.lotCostExclVat)}</Td>
         <Td>{usage.lotVatRate}%</Td>
-        <Td className="font-medium">{formatMoney(usage.totalCost)}</Td>
+        <Td className="font-medium">
+          <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
+        </Td>
         <Td>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>

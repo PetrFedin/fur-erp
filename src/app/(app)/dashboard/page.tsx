@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
-import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
 import { MonthlyPurchasesChart } from "./charts";
 
 const MONTH_NAMES = [
@@ -74,9 +75,9 @@ export default async function DashboardPage() {
       select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
     }),
-    prisma.productionMaterialUsage.aggregate({
+    prisma.productionMaterialUsage.findMany({
       where: { productionOrder: { organizationId } },
-      _sum: { totalCost: true },
+      select: { quantity: true, totalCost: true, lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } } },
     }),
     prisma.productModel.count({ where: { organizationId } }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
@@ -95,6 +96,15 @@ export default async function DashboardPage() {
     (s, l) => s.add(l.quantityRemaining.mul(l.unitCost)),
     new Decimal(0)
   );
+  const rawStockValueExclVat = lowStockMaterials.reduce(
+    (s, l) => s.add(l.quantityRemaining.mul(lotUnitCostExclVat(l))),
+    new Decimal(0)
+  );
+  // FinishedGoodsStock.avgUnitCost is a running weighted average blended
+  // across every completed production order (and any stock adjustment) that
+  // ever fed this material/warehouse — there is no per-order excl-VAT
+  // breakdown carried into that blend, so it cannot be correctly split into
+  // excl-VAT here (see README). Shown incl-VAT only, in both toggle modes.
   const finishedStockValue = finishedStock.reduce((s, r) => s.add(r.quantity.mul(r.avgUnitCost)), new Decimal(0));
 
   // Monthly purchases (last 6 months)
@@ -193,6 +203,7 @@ export default async function DashboardPage() {
     purchased: Decimal;
     remaining: Decimal;
     remainingValue: Decimal;
+    remainingValueExclVat: Decimal;
   };
   const materialFlowMap = new Map<string, MaterialFlow>();
   for (const m of materials) {
@@ -203,6 +214,7 @@ export default async function DashboardPage() {
       purchased: new Decimal(0),
       remaining: new Decimal(0),
       remainingValue: new Decimal(0),
+      remainingValueExclVat: new Decimal(0),
     });
   }
   for (const l of allLots) {
@@ -214,6 +226,7 @@ export default async function DashboardPage() {
     if (agg) {
       agg.remaining = agg.remaining.add(l.quantityRemaining);
       agg.remainingValue = agg.remainingValue.add(l.quantityRemaining.mul(l.unitCost));
+      agg.remainingValueExclVat = agg.remainingValueExclVat.add(l.quantityRemaining.mul(lotUnitCostExclVat(l)));
     }
   }
   const materialFlowRows = Array.from(materialFlowMap.values()).filter(
@@ -222,7 +235,12 @@ export default async function DashboardPage() {
   const unusedMaterials = materialFlowRows.filter((r) => r.remaining.greaterThan(0));
 
   const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
-  const totalMaterialUsedValue = new Decimal(materialUsedAgg._sum.totalCost ?? 0);
+  const totalPurchasedValueExclVat = allPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
+  const totalMaterialUsedValue = materialUsedAgg.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const totalMaterialUsedValueExclVat = materialUsedAgg.reduce(
+    (s, u) => s.add(u.quantity.mul(lotUnitCostExclVat(u.lot))),
+    new Decimal(0)
+  );
   const totalProducedQty = completedOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
 
   return (
@@ -230,21 +248,27 @@ export default async function DashboardPage() {
       <h1 className="text-xl font-semibold">Дашборд</h1>
 
       <div className="grid grid-cols-4 gap-3">
-        <KpiCard label="Стоимость остатков сырья" value={formatMoney(rawStockValue.toString())} />
+        <KpiCard label="Стоимость остатков сырья" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />
         <KpiCard label="Стоимость готовой продукции" value={formatMoney(finishedStockValue.toString())} />
         <KpiCard
           label="Закупок за 6 мес."
-          value={formatMoney(
-            recentPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0)).toString()
-          )}
+          value={
+            <Money
+              incl={recentPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0))}
+              excl={recentPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0))}
+            />
+          }
         />
         <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />
       </div>
 
       <div className="grid grid-cols-5 gap-3">
         <KpiCard label="Артикулов (моделей)" value={String(articleCount)} />
-        <KpiCard label="Сырья закуплено, всего" value={formatMoney(totalPurchasedValue.toString())} />
-        <KpiCard label="Сырья использовано в производстве" value={formatMoney(totalMaterialUsedValue.toString())} />
+        <KpiCard label="Сырья закуплено, всего" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
+        <KpiCard
+          label="Сырья использовано в производстве"
+          value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
+        />
         <KpiCard label="Товара выпущено" value={`${formatQty(totalProducedQty.toString())} шт.`} />
         <KpiCard
           label="Долг заказчиков"
@@ -281,7 +305,9 @@ export default async function DashboardPage() {
                   <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
                     {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
                   </Td>
-                  <Td>{formatMoney(r.remainingValue.toString())}</Td>
+                  <Td>
+                    <Money incl={r.remainingValue} excl={r.remainingValueExclVat} />
+                  </Td>
                 </Tr>
               ))}
               {materialFlowRows.length === 0 && (
@@ -431,7 +457,7 @@ export default async function DashboardPage() {
   );
 }
 
-function KpiCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+function KpiCard({ label, value, warn }: { label: string; value: React.ReactNode; warn?: boolean }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4">
       <div className="text-xs text-neutral-500">{label}</div>

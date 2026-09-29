@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
-import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { purchaseTotalInclVat, purchaseTotalExclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   DRAFT: { label: "Черновик", variant: "default" },
@@ -45,7 +46,8 @@ export default async function PurchasesPage() {
         subtotalRub: i.subtotal.mul(p.exchangeRate),
       }))
   );
-  const liningTotalRub = liningRows.reduce((s, r) => s.add(r.subtotalRub), new Decimal(0));
+  const liningTotalExclVatRub = liningRows.reduce((s, r) => s.add(r.subtotalRub), new Decimal(0));
+  const liningTotalInclVatRub = liningRows.reduce((s, r) => s.add(grossUp(r.subtotalRub, r.vatRate)), new Decimal(0));
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,13 +97,15 @@ export default async function PurchasesPage() {
                     <Td>{formatQty(r.quantity.toString())} м</Td>
                     <Td>{formatCurrency(r.unitPrice.toString(), r.currency)}</Td>
                     <Td>{r.vatRate.toString()}%</Td>
-                    <Td>{formatMoney(r.subtotalRub.toString())}</Td>
+                    <Td>
+                      <Money incl={grossUp(r.subtotalRub, r.vatRate)} excl={r.subtotalRub} />
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>
             </Table>
             <p className="mt-2 text-right text-sm text-neutral-500">
-              Итого закуплено подкладки: {formatMoney(liningTotalRub.toString())}
+              Итого закуплено подкладки: <Money incl={liningTotalInclVatRub} excl={liningTotalExclVatRub} />
             </p>
           </CardContent>
         </Card>
@@ -123,6 +127,7 @@ export default async function PurchasesPage() {
         <Tbody>
           {purchases.map((p) => {
             const total = purchaseTotalInclVat(p);
+            const totalExclVat = purchaseTotalExclVat(p);
             const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
             const status = STATUS_LABELS[p.status];
             return (
@@ -141,7 +146,9 @@ export default async function PurchasesPage() {
                 <Td>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </Td>
-                <Td>{formatMoney(total.toString())}</Td>
+                <Td>
+                  <Money incl={total} excl={totalExclVat} />
+                </Td>
                 <Td className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>
                   {formatMoney(paid.toString())}
                 </Td>

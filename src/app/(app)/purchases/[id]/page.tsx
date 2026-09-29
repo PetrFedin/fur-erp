@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Money } from "@/components/money";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
@@ -144,7 +145,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         />
         <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(expensesTotalExclVat.toString())} />
         <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
-        <SummaryCard label="Итого с НДС (RUB)" value={formatMoney(grandTotalRub.toString())} emphasis />
+        <SummaryCard
+          label="Итого (RUB)"
+          value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
+          emphasis
+        />
         <SummaryCard
           label="Остаток к оплате"
           value={formatMoney(balanceDue.toString())}
@@ -172,7 +177,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Кол-во</Th>
                 <Th>Цена (без НДС)</Th>
                 <Th>НДС</Th>
-                <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
+                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
                 {itemsMutable && <Th></Th>}
               </Tr>
             </Thead>
@@ -224,7 +229,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
                     <Td>{item.vatRate.toString()}%</Td>
                     <Td>
-                      {formatMoney(subtotalInclVatRub.toString())}
+                      <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                       {isForeignCurrency && (
                         <span className="ml-1 text-xs text-neutral-400">
                           ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
@@ -263,7 +268,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Кол-во</Th>
                 <Th>Цена (без НДС)</Th>
                 <Th>НДС</Th>
-                <Th>Сумма с НДС{isForeignCurrency && " (RUB)"}</Th>
+                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
                 {itemsMutable && <Th></Th>}
               </Tr>
             </Thead>
@@ -315,7 +320,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
                     <Td>{item.vatRate.toString()}%</Td>
                     <Td>
-                      {formatMoney(subtotalInclVatRub.toString())}
+                      <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                       {isForeignCurrency && (
                         <span className="ml-1 text-xs text-neutral-400">
                           ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
@@ -350,7 +355,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Описание</Th>
                 <Th>Сумма (без НДС)</Th>
                 <Th>НДС</Th>
-                <Th>Сумма с НДС</Th>
+                <Th>Сумма</Th>
                 {editable && <Th></Th>}
               </Tr>
             </Thead>
@@ -361,7 +366,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Td>{e.description ?? "—"}</Td>
                   <Td>{formatMoney(e.amount.toString())}</Td>
                   <Td>{e.vatRate.toString()}%</Td>
-                  <Td>{formatMoney(grossUp(e.amount, e.vatRate).toString())}</Td>
+                  <Td>
+                    <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />
+                  </Td>
                   {editable && (
                     <Td>
                       <form
@@ -440,7 +447,7 @@ function SummaryCard({
   warn,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   emphasis?: boolean;
   warn?: boolean;
 }) {
