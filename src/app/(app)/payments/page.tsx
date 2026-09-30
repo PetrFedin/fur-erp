@@ -88,6 +88,14 @@ export default async function PaymentsPage({
       </div>
 
       {tab === "clients" ? (
+        <>
+        <p className="text-sm text-neutral-600">
+          Ввести оплату — на карточке ТЗ: откройте нужное ТЗ в разделе{" "}
+          <Link href="/production" className="underline hover:no-underline">
+            ТЗ
+          </Link>
+          . Здесь оплаты заказчиков только собраны списком.
+        </p>
         <Table>
           <Thead>
             <Tr>
@@ -96,6 +104,7 @@ export default async function PaymentsPage({
               <Th>ТЗ</Th>
               <Th>Тип</Th>
               <Th>Сумма</Th>
+              <Th></Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -120,24 +129,34 @@ export default async function PaymentsPage({
                 </Td>
                 <Td>{PAYMENT_TYPE_LABELS[p.paymentType]}</Td>
                 <Td>{formatMoney(p.amount.toString())}</Td>
+                <Td>
+                  {p.orders[0] ? (
+                    <Link href={`/production/${p.orders[0].productionOrderId}`} className="text-sm hover:underline">
+                      К ТЗ
+                    </Link>
+                  ) : (
+                    <span className="text-neutral-400">—</span>
+                  )}
+                </Td>
               </Tr>
             ))}
             {clientPayments.length === 0 && (
               <Tr>
-                <Td colSpan={5} className="py-8 text-center text-neutral-400">
+                <Td colSpan={6} className="py-8 text-center text-neutral-400">
                   Оплат от заказчиков пока нет
                 </Td>
               </Tr>
             )}
           </Tbody>
         </Table>
+        </>
       ) : (
         <>
           <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>Аванс / предоплата</CardTitle>
               <CardDescription>
-                Платёж без привязки к закупке, например аванс.
+                Аванс без привязки к закупке — гасит общий долг поставщика.
               </CardDescription>
             </CardHeader>
             <CardContent>

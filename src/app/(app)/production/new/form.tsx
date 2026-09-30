@@ -37,10 +37,13 @@ export function ProductionCreateForm({
   const [contract, setContract] = useState("");
   const [contractTouched, setContractTouched] = useState(false);
   const [clientId, setClientId] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ startDate: today });
+  const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today });
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const modelId = models.find((m) => m.name.toLowerCase() === modelText.trim().toLowerCase())?.id ?? "";
+  const lining = liningOptions.find((o) => o.id === f.liningMaterialId);
+  const liningRemaining = lining ? Number(lining.remaining) : 0;
+  const liningQty = Number(f.liningQuantity || 0);
   const errors = state.errors ?? (state.error ? [state.error] : []);
 
   return (
@@ -156,10 +159,15 @@ export function ProductionCreateForm({
               <option value="">Не списывать сейчас</option>
               {liningOptions.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.name} — остаток {o.remaining} м
+                  {o.name} — {Number(o.remaining) > 0 ? `остаток ${o.remaining} м` : "закончилась (0 м)"}
                 </option>
               ))}
             </Select>
+            {lining && liningRemaining <= 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                Ткань закончилась: остаток 0 м — сначала докупите на вкладке «Подкладка» раздела Сырьё.
+              </p>
+            )}
           </div>
           <div>
             <Label htmlFor="liningQuantity">Метраж, м</Label>
@@ -172,6 +180,11 @@ export function ProductionCreateForm({
               value={f.liningQuantity ?? ""}
               onChange={set("liningQuantity")}
             />
+            {lining && liningRemaining > 0 && liningQty > liningRemaining && (
+              <p className="mt-1 text-xs text-amber-600">
+                Больше остатка: на складе {lining.remaining} м, ТЗ не создастся.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -274,7 +287,8 @@ export function ProductionCreateForm({
           ))}
         </ul>
       )}
-      <div className="col-span-2 flex justify-end">
+      <div className="col-span-2 flex items-center justify-end gap-3">
+        {!modelId && <span className="text-sm text-amber-600">Выберите модель из списка</span>}
         <Button type="submit" disabled={pending || !modelId}>
           {pending ? "Создаём..." : "Создать ТЗ"}
         </Button>

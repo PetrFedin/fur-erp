@@ -26,9 +26,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const session = await requireSession();
   const sp = await searchParams;
   const auction = (typeof sp.auction === "string" ? sp.auction : "").trim();
+  const statusParam = typeof sp.status === "string" ? sp.status : "";
+  const status = ["DRAFT", "RECEIVED", "CANCELLED"].includes(statusParam) ? statusParam : "";
+  const dateStr = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+  const from = dateStr(sp.from);
+  const to = dateStr(sp.to);
   const purchases = await prisma.purchase.findMany({
     where: {
       organizationId: session.user.organizationId,
+      // Two states in the UI: everything not received/cancelled is a draft.
+      ...(status === "RECEIVED" ? { status: "RECEIVED" as const } : {}),
+      ...(status === "CANCELLED" ? { status: "CANCELLED" as const } : {}),
+      ...(status === "DRAFT" ? { status: { notIn: ["RECEIVED" as const, "CANCELLED" as const] } } : {}),
+      ...(from || to
+        ? { orderDate: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}) } }
+        : {}),
       ...(auction ? { auctionSession: { contains: auction, mode: "insensitive" as const } } : {}),
     },
     include: {
@@ -37,7 +49,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       expenses: true,
       payments: true,
     },
-    orderBy: { orderDate: "desc" },
+    // Numbers are З-YYYY-NNNN (zero-padded), so a string sort is numeric.
+    orderBy: { number: "desc" },
   });
 
   const sessions = await prisma.purchase.findMany({
@@ -57,7 +70,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </Link>
       </div>
 
-      <form method="get" className="flex items-center gap-2">
+      <form method="get" className="flex flex-wrap items-center gap-2">
         <input
           name="auction"
           defaultValue={auction}
@@ -70,10 +83,39 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             <option key={a} value={a} />
           ))}
         </datalist>
+        <select
+          name="status"
+          defaultValue={status}
+          aria-label="Статус"
+          className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+        >
+          <option value="">Все статусы</option>
+          <option value="DRAFT">Черновик</option>
+          <option value="RECEIVED">Принято на склад</option>
+          <option value="CANCELLED">Отменено</option>
+        </select>
+        <label className="flex items-center gap-1 text-sm text-neutral-500">
+          с
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-sm text-neutral-500">
+          по
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
+          />
+        </label>
         <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
           Найти
         </button>
-        {auction && (
+        {(auction || status || from || to) && (
           <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">
             Сбросить
           </Link>
@@ -127,7 +169,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           {purchases.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                {auction ? "По этому аукциону закупок нет" : "Закупок пока нет"}
+                {auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
               </Td>
             </Tr>
           )}

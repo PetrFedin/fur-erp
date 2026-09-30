@@ -29,6 +29,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const q = str(sp.q);
   const status = STATUS_KEYS.includes(str(sp.status)) ? str(sp.status) : "";
   const clientId = str(sp.client);
+  const SORTS: Record<string, string> = {
+    "": "Сначала новые",
+    num_desc: "№ ТЗ: по убыванию",
+    num_asc: "№ ТЗ: по возрастанию",
+  };
+  const sort = str(sp.sort) in SORTS ? str(sp.sort) : "";
 
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
@@ -47,7 +53,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       : {}),
   };
 
-  const [orders, filterModel, clients] = await Promise.all([
+  const [rawOrders, filterModel, clients] = await Promise.all([
     prisma.productionOrder.findMany({
       where,
       include: {
@@ -63,6 +69,42 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   ]);
 
   const hasFilters = Boolean(q || status || clientId || modelId);
+
+  // What matched the search text, so a result like "141" -> ТЗ №132 (order
+  // П-2026-0141) says why it is there. Exact № ТЗ / order number come first.
+  const ql = q.toLowerCase();
+  const matchOf = (o: (typeof rawOrders)[number]) => {
+    if (!ql) return null;
+    const wo = (o.workOrderNumber ?? "").toLowerCase();
+    const no = o.number.toLowerCase();
+    if (wo === ql) return { rank: 0, label: null };
+    if (no === ql) return { rank: 1, label: "совпал № заказа" };
+    if (wo.includes(ql)) return { rank: 2, label: "совпал № ТЗ" };
+    if (no.includes(ql)) return { rank: 3, label: "совпал № заказа" };
+    if (o.productModel.name.toLowerCase().includes(ql)) return { rank: 4, label: "совпала модель" };
+    return { rank: 5, label: "совпал заказчик" };
+  };
+  const woNum = (o: (typeof rawOrders)[number]) => {
+    const n = parseInt(o.workOrderNumber ?? "", 10);
+    return Number.isNaN(n) ? null : n;
+  };
+  const orders = [...rawOrders];
+  if (sort) {
+    const dir = sort === "num_asc" ? 1 : -1;
+    // ТЗ without a numeric number go last in either direction.
+    orders.sort((a, b) => {
+      const x = woNum(a);
+      const y = woNum(b);
+      if (x === null && y === null) return 0;
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return (x - y) * dir;
+    });
+  }
+  if (q) {
+    const idx = new Map(orders.map((o, i) => [o.id, i]));
+    orders.sort((a, b) => (matchOf(a)!.rank - matchOf(b)!.rank) || idx.get(a.id)! - idx.get(b.id)!);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,10 +139,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </option>
           ))}
         </Select>
+        <Select name="sort" defaultValue={sort} className="w-48" aria-label="Сортировка">
+          {Object.entries(SORTS).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </Select>
         <button type="submit" className={buttonVariants({ variant: "outline" })}>
           Найти
         </button>
-        {hasFilters && (
+        {(hasFilters || sort) && (
           <Link href="/production" className="text-sm text-neutral-500 hover:underline">
             Сбросить
           </Link>
@@ -140,6 +189,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 <Td className={`${cell} font-medium`}>
                   <Link href={href} className={`${link} hover:underline`}>
                     {o.workOrderNumber ?? "—"}
+                    {matchOf(o)?.label && (
+                      <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>
+                    )}
                   </Link>
                 </Td>
                 <Td className={cell}>
@@ -165,7 +217,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   <Link href={href} className={link}>{total.isZero() ? "—" : formatMoney(total.toString())}</Link>
                 </Td>
                 <Td className={cell}>
-                  <Link href={href} className={link}>{markup ? `×${markup.toFixed(2)}` : "—"}</Link>
+                  <Link
+                    href={href}
+                    className={link}
+                    title={
+                      markup
+                        ? undefined
+                        : !o.retailPrice
+                          ? "Розничная цена не задана на карточке ТЗ"
+                          : "Нет себестоимости — списаний ещё нет"
+                    }
+                  >
+                    {markup ? `×${markup.toFixed(2)}` : "—"}
+                  </Link>
                 </Td>
               </Tr>
             );
@@ -179,6 +243,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           )}
         </Tbody>
       </Table>
+      <p className="text-xs text-neutral-500">
+        Наценка = розничная цена / себестоимость единицы. «—» — розничная цена не задана на карточке ТЗ или ещё нет
+        списаний (себестоимости).
+      </p>
     </div>
   );
 }
