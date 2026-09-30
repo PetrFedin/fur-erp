@@ -1,120 +1,160 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import type { FormState } from "../actions";
-import type { Supplier, Warehouse } from "@prisma/client";
+import type { FormState, Issue } from "../actions";
+import { parsePasteRows, issueLines } from "../parse-rows";
+import { PasteBox, IssueList } from "../paste-box";
 
-const initialState: FormState = {};
+type Option = { id: string; name: string; isDefault?: boolean };
 
+// One form: header + pasted lines -> the purchase is created together with its
+// lines. State is held in React (not in the DOM) and the action is called from
+// a transition, so a failed submit never resets or loses any field.
 export function PurchaseCreateForm({
   action,
   suppliers,
   warehouses,
+  materialNames,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
-  suppliers: Supplier[];
-  warehouses: Warehouse[];
+  suppliers: Option[];
+  warehouses: Option[];
+  materialNames: string[];
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<FormState>({});
+  const [clientIssues, setClientIssues] = useState<Issue[]>([]);
   const [currency, setCurrency] = useState("RUB");
+  const [rows, setRows] = useState("");
   const today = new Date().toISOString().slice(0, 10);
 
+  const issues = clientIssues.length > 0 ? clientIssues : (state.issues ?? []);
+
   return (
-    <form action={formAction} className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
-        <Label htmlFor="supplierId">Поставщик</Label>
-        <Select id="supplierId" name="supplierId" required defaultValue="">
-          <option value="" disabled>
-            Выберите поставщика
-          </option>
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="warehouseId">Склад поступления</Label>
-        <Select id="warehouseId" name="warehouseId" required defaultValue={warehouses.find((w) => w.isDefault)?.id ?? ""}>
-          <option value="" disabled>
-            Выберите склад
-          </option>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="currency">Валюта позиций</Label>
-        <Select
-          id="currency"
-          name="currency"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-        >
-          <option value="RUB">RUB — рубль</option>
-          <option value="USD">USD — доллар</option>
-          <option value="EUR">EUR — евро</option>
-        </Select>
-      </div>
-      {currency !== "RUB" && (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        setState({});
+        if (rows.trim()) {
+          const result = parsePasteRows(rows, materialNames);
+          if (result.errorCount > 0) {
+            setClientIssues(issueLines(result));
+            setState({ error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.` });
+            return;
+          }
+        }
+        setClientIssues([]);
+        startTransition(async () => {
+          const res = await action({}, fd);
+          if (res) setState(res);
+        });
+      }}
+      className="flex flex-col gap-4"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
-          <Label htmlFor="exchangeRate">Курс {currency} → RUB на дату сделки</Label>
-          <Input
-            id="exchangeRate"
-            name="exchangeRate"
-            type="number"
-            step="0.0001"
-            min="0"
-            required
-            placeholder="например, 79.75"
-          />
+          <Label htmlFor="orderDate">Дата</Label>
+          <Input id="orderDate" name="orderDate" type="date" defaultValue={today} required />
         </div>
-      )}
-      <div>
-        <Label htmlFor="orderDate">Дата заказа</Label>
-        <Input id="orderDate" name="orderDate" type="date" defaultValue={today} required />
-      </div>
-      <div>
-        <Label htmlFor="expectedDate">Ожидаемая дата поставки</Label>
-        <Input id="expectedDate" name="expectedDate" type="date" />
+        <div className="sm:col-span-2">
+          <Label htmlFor="auctionSession">Аукцион / сессия</Label>
+          <Input id="auctionSession" name="auctionSession" placeholder="СП 05.25" />
+        </div>
+        <div>
+          <Label htmlFor="invoiceNumber">Счёт №</Label>
+          <Input id="invoiceNumber" name="invoiceNumber" placeholder="2004" />
+        </div>
+        <div>
+          <Label htmlFor="currency">Валюта</Label>
+          <Select id="currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+            <option value="RUB">RUB — рубль</option>
+            <option value="USD">USD — доллар</option>
+            <option value="EUR">EUR — евро</option>
+          </Select>
+        </div>
+        {currency !== "RUB" && (
+          <div>
+            <Label htmlFor="exchangeRate">Курс {currency} → RUB</Label>
+            <Input
+              id="exchangeRate"
+              name="exchangeRate"
+              type="number"
+              step="0.0001"
+              min="0"
+              required
+              placeholder="например, 79.75"
+            />
+          </div>
+        )}
+        {suppliers.length > 1 ? (
+          <div className="sm:col-span-2">
+            <Label htmlFor="supplierId">Поставщик</Label>
+            <Select id="supplierId" name="supplierId" required defaultValue="">
+              <option value="" disabled>
+                Выберите поставщика
+              </option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ) : (
+          suppliers[0] && <input type="hidden" name="supplierId" value={suppliers[0].id} />
+        )}
+        {warehouses.length > 1 ? (
+          <div className="sm:col-span-2">
+            <Label htmlFor="warehouseId">Склад поступления</Label>
+            <Select
+              id="warehouseId"
+              name="warehouseId"
+              required
+              defaultValue={warehouses.find((w) => w.isDefault)?.id ?? ""}
+            >
+              <option value="" disabled>
+                Выберите склад
+              </option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ) : (
+          warehouses[0] && <input type="hidden" name="warehouseId" value={warehouses[0].id} />
+        )}
       </div>
 
-      <div className="col-span-2 mt-2 border-t border-neutral-200 pt-4">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-          Аукцион / счёт / УПД (если закупка с пушного аукциона)
-        </p>
-      </div>
-      <div>
-        <Label htmlFor="auctionSession">Аукцион / сессия</Label>
-        <Input id="auctionSession" name="auctionSession" placeholder="СП 05.25" />
-      </div>
-      <div>
-        <Label htmlFor="invoiceNumber">№ счёта</Label>
-        <Input id="invoiceNumber" name="invoiceNumber" placeholder="2004" />
-      </div>
-      <div className="col-span-2">
-        <Label htmlFor="transferDocument">УПД</Label>
-        <Input id="transferDocument" name="transferDocument" placeholder="№ 143 от 22.09.2025 г." />
-      </div>
+      <details className="rounded-md border border-neutral-200 px-3 py-2">
+        <summary className="cursor-pointer text-sm text-neutral-600">Дополнительно</summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="transferDocument">УПД / документ передачи</Label>
+            <Input id="transferDocument" name="transferDocument" placeholder="№ 143 от 22.09.2025 г." />
+          </div>
+          <div>
+            <Label htmlFor="expectedDate">Ожидаемая дата</Label>
+            <Input id="expectedDate" name="expectedDate" type="date" />
+          </div>
+          <div className="col-span-2">
+            <Label htmlFor="notes">Заметки</Label>
+            <Textarea id="notes" name="notes" rows={2} />
+          </div>
+        </div>
+      </details>
 
-      <div className="col-span-2">
-        <Label htmlFor="notes">Заметки</Label>
-        <Textarea id="notes" name="notes" rows={2} />
-      </div>
-      {state.error && (
-        <p className="col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          {state.error}
-        </p>
-      )}
-      <div className="col-span-2 flex justify-end">
+      <PasteBox value={rows} onChange={setRows} materialNames={materialNames} currency={currency} />
+
+      {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+      <IssueList issues={issues} />
+      <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
-          {pending ? "Создаём..." : "Создать и перейти к позициям"}
+          {pending ? "Создаём..." : "Создать закупку"}
         </Button>
       </div>
     </form>

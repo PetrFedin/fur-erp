@@ -8,32 +8,42 @@ import { requireRole } from "@/lib/session";
 import { createRawMaterialLot, addOrPoolLiningLot } from "@/lib/stock";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
+import { parsePasteRows, issueLines, type ParsedRow } from "./parse-rows";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
 const WAREHOUSE_ROLES = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"] as const;
 
-export type FormState = { error?: string };
+export type OrderRef = { id: string; number: string; quantity: string };
+export type Issue = { level: "error" | "warning"; text: string };
+const UNIT_SHORT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
+
+export type FormState = { error?: string; issues?: Issue[]; orders?: OrderRef[] };
 
 // ---------- Purchase header ----------
 
 const purchaseSchema = z.object({
-  supplierId: z.string().min(1, "Выберите поставщика"),
-  warehouseId: z.string().min(1, "Выберите склад"),
+  supplierId: z.string().optional(),
+  warehouseId: z.string().optional(),
   currency: z.string().trim().min(1).default("RUB"),
   exchangeRate: z.coerce.number().positive("Курс должен быть больше 0").default(1),
   auctionSession: z.string().trim().optional(),
   invoiceNumber: z.string().trim().optional(),
   transferDocument: z.string().trim().optional(),
-  orderDate: z.string().min(1),
+  orderDate: z.string().min(1, "Укажите дату"),
   expectedDate: z.string().optional(),
   notes: z.string().trim().optional(),
 });
 
+// Creates the purchase TOGETHER with the lines pasted from Excel, in one
+// transaction — if any pasted line has an error nothing is written and the
+// form keeps its fields. Supplier/warehouse may be omitted when the
+// organization has exactly one of each (the form hides them then).
 export async function createPurchase(_prev: FormState, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
   const parsed = purchaseSchema.safeParse({
-    supplierId: formData.get("supplierId"),
-    warehouseId: formData.get("warehouseId"),
+    supplierId: formData.get("supplierId") || undefined,
+    warehouseId: formData.get("warehouseId") || undefined,
     currency: formData.get("currency") || "RUB",
     exchangeRate: formData.get("exchangeRate") || 1,
     auctionSession: formData.get("auctionSession") || undefined,
@@ -45,14 +55,46 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  let supplierId = parsed.data.supplierId;
+  if (!supplierId) {
+    const suppliers = await prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true } });
+    if (suppliers.length !== 1) return { error: "Выберите поставщика" };
+    supplierId = suppliers[0].id;
+  }
+  let warehouseId = parsed.data.warehouseId;
+  if (!warehouseId) {
+    const warehouses = await prisma.warehouse.findMany({ where: { organizationId: orgId }, select: { id: true } });
+    if (warehouses.length !== 1) return { error: "Выберите склад" };
+    warehouseId = warehouses[0].id;
+  }
+  const [supplierOk, warehouseOk] = await Promise.all([
+    prisma.supplier.findFirst({ where: { id: supplierId, organizationId: orgId }, select: { id: true } }),
+    prisma.warehouse.findFirst({ where: { id: warehouseId, organizationId: orgId }, select: { id: true } }),
+  ]);
+  if (!supplierOk) return { error: "Поставщик не найден" };
+  if (!warehouseOk) return { error: "Склад не найден" };
+
+  const rawRows = ((formData.get("rows") as string | null) ?? "").trim();
+  let pasteRows: ParsedRow[] = [];
+  let issues: Issue[] = [];
+  if (rawRows) {
+    const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
+    const result = parsePasteRows(rawRows, materials.map((m) => m.name));
+    issues = issueLines(result);
+    if (result.errorCount > 0) {
+      return { error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.`, issues };
+    }
+    pasteRows = result.rows;
+  }
+
   const purchase = await prisma.$transaction(async (tx) => {
-    const number = await nextDocumentNumber(tx, "purchase", session.user.organizationId, "З");
-    return tx.purchase.create({
+    const number = await nextDocumentNumber(tx, "purchase", orgId, "З");
+    const created = await tx.purchase.create({
       data: {
-        organizationId: session.user.organizationId,
+        organizationId: orgId,
         number,
-        supplierId: parsed.data.supplierId,
-        warehouseId: parsed.data.warehouseId,
+        supplierId,
+        warehouseId,
         currency: parsed.data.currency,
         exchangeRate: parsed.data.currency === "RUB" ? 1 : parsed.data.exchangeRate,
         auctionSession: parsed.data.auctionSession,
@@ -64,10 +106,43 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         createdById: session.user.id,
       },
     });
+    if (pasteRows.length > 0) await insertPasteRows(tx, orgId, created.id, pasteRows);
+    return created;
   });
 
   revalidatePath("/purchases");
   redirect(`/purchases/${purchase.id}`);
+}
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// Writes already-validated pasted lines; unknown materials are created
+// (same find-or-create behaviour as the historical-import scripts).
+async function insertPasteRows(tx: Tx, orgId: string, purchaseId: string, rows: ParsedRow[]) {
+  const materials = await tx.rawMaterial.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } });
+  const idByName = new Map(materials.map((m) => [m.name.trim().toLowerCase(), m.id]));
+  for (const r of rows) {
+    const key = r.materialName.toLowerCase();
+    if (!idByName.has(key)) {
+      const created = await tx.rawMaterial.create({
+        data: { organizationId: orgId, name: r.materialName, unit: "PIECE" },
+      });
+      idByName.set(key, created.id);
+    }
+  }
+  await tx.purchaseItem.createMany({
+    data: rows.map((r) => ({
+      purchaseId,
+      rawMaterialId: idByName.get(r.materialName.toLowerCase())!,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      subtotal: new Decimal(r.quantity).mul(r.unitPrice),
+      vatRate: r.vatRate,
+      lotNumber: r.lotNumber,
+      grade: r.grade,
+      color: r.color,
+    })),
+  });
 }
 
 export async function updatePurchaseExchangeRate(purchaseId: string, formData: FormData) {
@@ -109,7 +184,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   const session = await requireRole(...EDIT_ROLES);
 
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
-  if (!purchase) return { error: "Закупку нельзя редактировать — она уже оприходована или отменена" };
+  if (!purchase) return { error: "Закупку нельзя редактировать — она уже принята на склад или отменена" };
 
   const parsed = purchaseHeaderSchema.safeParse({
     supplierId: formData.get("supplierId"),
@@ -214,14 +289,10 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
-// Bulk entry: paste rows copied straight from a spreadsheet (tab- or
-// multi-space-separated) instead of filling the single-item form N times —
-// real purchases here run 10-160+ lots each. Columns, in order: Материал,
-// Кол-во, Цена без НДС, НДС% (optional, default 20), Лот, Сорт, Цвет.
-// Material is matched by exact name (case-insensitive); unmatched names
-// create a new RawMaterial rather than failing the row, since that's the
-// same "find or create" behavior the historical-data import scripts use.
-export type BulkFormState = { error?: string; created?: number; skipped?: string[] };
+// Bulk entry into an existing draft: same paste format and parser as the
+// "Новая закупка" form (see parse-rows.ts). All-or-nothing: any error in any
+// line -> nothing is written, every problem is listed.
+export type BulkFormState = { error?: string; created?: number; issues?: Issue[] };
 
 export async function addPurchaseItemsBulk(
   purchaseId: string,
@@ -229,82 +300,25 @@ export async function addPurchaseItemsBulk(
   formData: FormData
 ): Promise<BulkFormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
+  const orgId = session.user.organizationId;
+  const purchase = await getEditablePurchase(orgId, purchaseId);
   if (!purchase) return { error: "Закупку нельзя редактировать" };
 
   const raw = (formData.get("rows") as string | null)?.trim();
   if (!raw) return { error: "Вставьте хотя бы одну строку" };
 
-  const materials = await prisma.rawMaterial.findMany({
-    where: { organizationId: session.user.organizationId },
-    select: { id: true, name: true },
-  });
-  const materialByName = new Map(materials.map((m) => [m.name.trim().toLowerCase(), m.id]));
-
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const rows: {
-    rawMaterialId: string;
-    quantity: number;
-    unitPrice: number;
-    vatRate: number;
-    lotNumber?: string;
-    grade?: string;
-    color?: string;
-  }[] = [];
-  const skipped: string[] = [];
-
-  for (const line of lines) {
-    const cells = line.split("\t").length > 1 ? line.split("\t") : line.split(/ {2,}/);
-    const [materialName, quantityRaw, unitPriceRaw, vatRateRaw, lotNumber, grade, color] = cells.map((c) =>
-      c?.trim()
-    );
-    const quantity = Number((quantityRaw ?? "").replace(",", "."));
-    const unitPrice = Number((unitPriceRaw ?? "").replace(",", "."));
-    const vatRate = vatRateRaw ? Number(vatRateRaw.replace(",", ".").replace("%", "")) : 20;
-
-    if (!materialName || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
-      skipped.push(line);
-      continue;
-    }
-
-    let rawMaterialId = materialByName.get(materialName.toLowerCase());
-    if (!rawMaterialId) {
-      const created = await prisma.rawMaterial.create({
-        data: { organizationId: session.user.organizationId, name: materialName, unit: "PIECE" },
-      });
-      rawMaterialId = created.id;
-      materialByName.set(materialName.toLowerCase(), rawMaterialId);
-    }
-
-    rows.push({
-      rawMaterialId,
-      quantity,
-      unitPrice,
-      vatRate: Number.isFinite(vatRate) ? vatRate : 20,
-      lotNumber: lotNumber || undefined,
-      grade: grade || undefined,
-      color: color || undefined,
-    });
+  const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
+  const result = parsePasteRows(raw, materials.map((m) => m.name));
+  const issues = issueLines(result);
+  if (result.errorCount > 0) {
+    return { error: `Ничего не добавлено: ошибок в позициях — ${result.errorCount}.`, issues };
   }
+  if (result.rows.length === 0) return { error: "Не удалось разобрать ни одной строки", issues };
 
-  if (rows.length === 0) return { error: "Не удалось разобрать ни одной строки", skipped };
-
-  await prisma.purchaseItem.createMany({
-    data: rows.map((r) => ({
-      purchaseId,
-      rawMaterialId: r.rawMaterialId,
-      quantity: r.quantity,
-      unitPrice: r.unitPrice,
-      subtotal: new Decimal(r.quantity).mul(r.unitPrice),
-      vatRate: r.vatRate,
-      lotNumber: r.lotNumber,
-      grade: r.grade,
-      color: r.color,
-    })),
-  });
+  await prisma.$transaction((tx) => insertPasteRows(tx, orgId, purchaseId, result.rows));
 
   revalidatePath(`/purchases/${purchaseId}`);
-  return { created: rows.length, skipped: skipped.length ? skipped : undefined };
+  return { created: result.rows.length, issues: issues.length ? issues : undefined };
 }
 
 // Editing an already-entered line item — the main fix for wrong quantity/price/
@@ -336,7 +350,7 @@ export async function updatePurchaseItem(
 
   const item = await prisma.purchaseItem.findFirst({
     where: { id: itemId, purchaseId },
-    include: { lot: { include: { purchaseItems: { select: { id: true } } } } },
+    include: { rawMaterial: { select: { unit: true } }, lot: { include: { purchaseItems: { select: { id: true } } } } },
   });
   if (!item) return { error: "Позиция не найдена" };
 
@@ -383,7 +397,7 @@ export async function updatePurchaseItem(
 
   // Received: material identity is locked in.
   if (parsed.data.rawMaterialId !== item.rawMaterialId) {
-    return { error: "После оприходования нельзя изменить сырьё позиции" };
+    return { error: "После приёма на склад нельзя изменить сырьё позиции" };
   }
 
   const financialsChanged =
@@ -420,9 +434,34 @@ export async function updatePurchaseItem(
     };
   }
   if (!lot.quantityRemaining.equals(lot.quantityReceived)) {
-    const used = lot.quantityReceived.sub(lot.quantityRemaining);
+    const usages = await prisma.productionMaterialUsage.findMany({
+      where: { lotId: lot.id },
+      include: { productionOrder: { select: { id: true, number: true } } },
+      orderBy: { date: "asc" },
+    });
+    const byOrder = new Map<string, OrderRef>();
+    for (const u of usages) {
+      const cur = byOrder.get(u.productionOrderId);
+      byOrder.set(u.productionOrderId, {
+        id: u.productionOrder.id,
+        number: u.productionOrder.number,
+        quantity: (cur ? new Decimal(cur.quantity) : new Decimal(0)).add(u.quantity).toString(),
+      });
+    }
+    const orders = [...byOrder.values()];
+    const unitLabel = UNIT_SHORT[item.rawMaterial.unit] ?? "";
+    const lotName = lot.lotNumber ? `Лот ${lot.lotNumber}` : "Партия без номера";
+    if (orders.length === 0) {
+      const used = lot.quantityReceived.sub(lot.quantityRemaining);
+      return {
+        error: `${lotName} уже частично израсходован (${used.toString()} ед.). Количество, цену и НДС менять нельзя — доступны только лот, сорт и цвет.`,
+      };
+    }
     return {
-      error: `Нельзя изменить количество/цену/НДС — сырьё уже списано в производство (${used.toString()} ед. использовано). Доступно изменить только лот, сорт и цвет.`,
+      error: `${lotName} уже списан в заказ${orders.length > 1 ? "ы" : ""}: ${orders
+        .map((o) => `${o.number} (${new Decimal(o.quantity).toString()} ${unitLabel})`)
+        .join(", ")}. Сначала удалите там списание.`,
+      orders,
     };
   }
 
@@ -586,7 +625,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
     include: { items: { include: { rawMaterial: true } }, expenses: true },
   });
   if (!purchase) return { error: "Закупка не найдена" };
-  if (purchase.status === "RECEIVED") return { error: "Закупка уже оприходована" };
+  if (purchase.status === "RECEIVED") return { error: "Закупка уже принята на склад" };
   if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
   if (purchase.items.length === 0) return { error: "В закупке нет позиций сырья" };
 
