@@ -9,6 +9,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
+import { LiningPurchaseForm } from "./lining-purchase-form";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 
@@ -368,6 +369,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <CardTitle>Подкладка</CardTitle>
           </CardHeader>
           <CardContent>
+            <LiningPurchaseForm
+              materials={materials
+                .filter((m) => m.unit === "M")
+                .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
+                .map((m) => ({ id: m.id, name: m.name }))}
+            />
             <Table>
               <Thead>
                 <Tr>
@@ -395,6 +402,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                     }
                   }
                   const depleted = r.remaining.lessThanOrEqualTo(0);
+                  // Real остаток incl. negative pools (currentLots only sees > 0).
+                  const poolRemaining = rowLots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+                  const shortage = poolRemaining.lessThan(0) ? poolRemaining.neg() : null;
                   return (
                     <Tr key={r.id}>
                       <Td colSpan={5} className="p-0">
@@ -409,8 +419,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                             <span>{formatQty(r.purchased.toString())} м</span>
                             <span>{formatQty(r.purchased.sub(r.remaining).toString())} м</span>
                             <span className="font-medium">
-                              {formatQty(r.remaining.toString())} м{" "}
-                              {depleted && <Badge variant="danger">Исчерпан</Badge>}
+                              {shortage ? "0" : formatQty(r.remaining.toString())} м{" "}
+                              {shortage ? (
+                                <Badge variant="warning">Не хватает {formatQty(shortage.toString())} м</Badge>
+                              ) : (
+                                depleted && <span className="text-xs font-normal text-neutral-500">остаток 0</span>
+                              )}
                             </span>
                             <span>
                               <Money incl={r.value} excl={r.valueExclVat} />

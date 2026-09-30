@@ -716,3 +716,142 @@ async function getEditablePurchase(organizationId: string, purchaseId: string) {
     where: { id: purchaseId, organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
   });
 }
+
+// ---------- Quick lining purchase ----------
+
+export type LiningPurchaseState = { error?: string; ok?: string };
+
+const liningSchema = z.object({
+  materialId: z.string().optional(),
+  newNumber: z.string().trim().optional(),
+  meters: z.coerce.number({ message: "Укажите метры числом" }).positive("Метры должны быть больше 0").max(1_000_000, "Слишком большое количество метров"),
+  pricePerMeter: z.coerce.number({ message: "Укажите цену за метр числом" }).min(0, "Цена не может быть отрицательной").max(10_000_000, "Слишком большая цена"),
+  vatRate: z.coerce.number({ message: "НДС — число" }).min(0, "НДС не может быть отрицательным").max(100, "НДС не может быть больше 100%"),
+  date: z.string().min(1, "Укажите дату"),
+  invoiceNumber: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+});
+
+// One-step lining purchase from «Сырьё → Подкладка»: creates a purchase with a
+// single line and receives it into the warehouse straight away. Receiving goes
+// through receivePurchase, which folds the metres into the fabric's single pool
+// (addOrPoolLiningLot) with a weighted-average price. If anything fails after
+// the purchase was written, the purchase (and a fabric created just now) is
+// removed again so nothing half-done stays behind.
+export async function addLiningPurchase(_prev: LiningPurchaseState, formData: FormData): Promise<LiningPurchaseState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const parsed = liningSchema.safeParse({
+    materialId: formData.get("materialId") || undefined,
+    newNumber: formData.get("newNumber") || undefined,
+    meters: (formData.get("meters") as string | null)?.replace(",", ".") ?? "",
+    pricePerMeter: (formData.get("pricePerMeter") as string | null)?.replace(",", ".") || "",
+    vatRate: (formData.get("vatRate") as string | null)?.replace(",", ".") || 22,
+    date: formData.get("date") || "",
+    invoiceNumber: formData.get("invoiceNumber") || undefined,
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
+  const d = parsed.data;
+  if (String(formData.get("pricePerMeter") ?? "").trim() === "") return { error: "Укажите цену за метр" };
+  const orderDate = new Date(d.date);
+  if (Number.isNaN(orderDate.getTime())) return { error: "Некорректная дата" };
+
+  const [suppliers, warehouses] = await Promise.all([
+    prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true } }),
+    prisma.warehouse.findMany({ where: { organizationId: orgId }, select: { id: true } }),
+  ]);
+  if (suppliers.length !== 1) return { error: "Не удалось определить поставщика: оформите закупку через раздел «Закупки»" };
+  if (warehouses.length !== 1) return { error: "Не удалось определить склад: оформите закупку через раздел «Закупки»" };
+
+  let material: { id: string } | null = null;
+  let materialName = "";
+  let createdMaterial = false;
+  if (d.materialId && d.materialId !== "__new") {
+    const m = await prisma.rawMaterial.findFirst({
+      where: { id: d.materialId, organizationId: orgId, unit: "M" },
+      select: { id: true, name: true },
+    });
+    if (!m) return { error: "Ткань не найдена" };
+    material = m;
+    materialName = m.name;
+  } else {
+    const num = (d.newNumber ?? "").replace(/^№\s*/, "").trim();
+    if (!num) return { error: "Выберите ткань или укажите номер новой ткани" };
+    if (!/^[0-9A-Za-zА-Яа-я\-\/.]{1,20}$/.test(num)) return { error: "Номер ткани: до 20 символов, без пробелов" };
+    materialName = `Подкладочная ткань №${num}`;
+    material = await prisma.rawMaterial.findFirst({
+      where: { organizationId: orgId, unit: "M", name: { equals: materialName, mode: "insensitive" } },
+      select: { id: true },
+    });
+  }
+
+  let purchaseId: string | null = null;
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      if (!material) {
+        material = await tx.rawMaterial.create({
+          data: { organizationId: orgId, name: materialName, unit: "M" },
+          select: { id: true },
+        });
+        createdMaterial = true;
+      }
+      const number = await nextDocumentNumber(tx, "purchase", orgId, "З");
+      const purchase = await tx.purchase.create({
+        data: {
+          organizationId: orgId,
+          number,
+          supplierId: suppliers[0].id,
+          warehouseId: warehouses[0].id,
+          currency: "RUB",
+          exchangeRate: 1,
+          auctionSession: "Подкладочные материалы",
+          invoiceNumber: d.invoiceNumber,
+          orderDate,
+          notes: d.notes,
+          createdById: session.user.id,
+        },
+      });
+      await tx.purchaseItem.create({
+        data: {
+          purchaseId: purchase.id,
+          rawMaterialId: material.id,
+          quantity: d.meters,
+          unitPrice: d.pricePerMeter,
+          subtotal: new Decimal(d.meters).mul(d.pricePerMeter),
+          vatRate: d.vatRate,
+        },
+      });
+      return purchase;
+    });
+    purchaseId = created.id;
+
+    const res = await receivePurchase(created.id);
+    if (res.error) throw new Error(res.error);
+  } catch (e) {
+    // Roll back: receivePurchase's own transaction already undid the stock
+    // side; drop the (draft) purchase — its item cascades — and a fabric we
+    // created just now, if nothing else references it.
+    try {
+      if (purchaseId) {
+        const p = await prisma.purchase.findUnique({ where: { id: purchaseId }, select: { status: true } });
+        if (p && p.status !== "RECEIVED") await prisma.purchase.delete({ where: { id: purchaseId } });
+      }
+      if (createdMaterial && material) {
+        const mid = (material as { id: string }).id;
+        const [items, lots] = await Promise.all([
+          prisma.purchaseItem.count({ where: { rawMaterialId: mid } }),
+          prisma.rawMaterialLot.count({ where: { rawMaterialId: mid } }),
+        ]);
+        if (items === 0 && lots === 0) await prisma.rawMaterial.delete({ where: { id: mid } });
+      }
+    } catch {
+      /* best effort */
+    }
+    return { error: `Закупка не оформлена: ${e instanceof Error ? e.message : "неизвестная ошибка"}` };
+  }
+
+  revalidatePath("/lots");
+  revalidatePath("/purchases");
+  return { ok: `Добавлено: ${materialName} — ${d.meters} м` };
+}
