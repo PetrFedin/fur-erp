@@ -81,15 +81,14 @@ export function UsageRow({
   return (
     <>
       <Tr>
-        <Td>{formatDate(usage.date)}</Td>
+        <Td title={`Списано ${formatDate(usage.date)}`}>{usage.lotNumber ?? "без номера"}</Td>
         <Td>{usage.rawMaterialName}</Td>
-        <Td>{usage.lotNumber ?? "без номера"}</Td>
         <Td>
           {formatQty(usage.quantity)} {UNIT_LABELS[usage.unit] ?? usage.unit}
         </Td>
         <Td>{formatMoney(usage.lotCostExclVat)}</Td>
         <Td>{usage.lotVatRate}%</Td>
-        <Td className="font-medium">
+        <Td className="text-right font-medium">
           <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
           {usage.costBreakdown != null && (
             <CostBreakdownToggle breakdown={usage.costBreakdown as never} />
@@ -98,11 +97,17 @@ export function UsageRow({
         <Td>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
-              {isEditing ? "Отмена" : "Изменить"}
+              {isEditing ? "Закрыть" : "Изменить"}
             </Button>
-            <form action={removeAction}>
+            <form
+              action={removeAction}
+              onSubmit={(e) => {
+                if (!confirm(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatQty(usage.quantity)} ${UNIT_LABELS[usage.unit] ?? usage.unit}?`))
+                  e.preventDefault();
+              }}
+            >
               <Button type="submit" variant="ghost" size="sm">
-                Отменить
+                Удалить
               </Button>
             </form>
           </div>
@@ -110,7 +115,7 @@ export function UsageRow({
       </Tr>
       {isEditing && (
         <Tr>
-          <Td colSpan={8} className="bg-neutral-50">
+          <Td colSpan={7} className="bg-neutral-50">
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}

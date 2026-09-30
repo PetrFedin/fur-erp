@@ -8,11 +8,11 @@ export function RetailPriceForm({ orderId, retailPrice }: { orderId: string; ret
   const bound = updateRetailPrice.bind(null, orderId);
 
   return (
-    <form action={bound} className="flex items-end gap-2">
-      <div>
-        <label className="mb-1 block text-xs text-neutral-500">Розничная цена за ед., ₽</label>
-        <Input name="retailPrice" type="number" step="0.01" min="0" defaultValue={retailPrice} className="w-40" />
-      </div>
+    <form action={bound} className="flex flex-wrap items-center gap-2">
+      <label className="text-sm text-neutral-600" htmlFor="retailPrice">
+        Розничная цена за ед., ₽
+      </label>
+      <Input id="retailPrice" name="retailPrice" type="number" step="0.01" min="0" defaultValue={retailPrice} className="w-36" />
       <Button type="submit" variant="outline" size="sm">
         Сохранить
       </Button>

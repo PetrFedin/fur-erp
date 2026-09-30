@@ -32,9 +32,11 @@ export function ApplyBomButton({ orderId }: { orderId: string }) {
 export function CompleteOrderForm({
   orderId,
   plannedQuantity,
+  warehouseName,
 }: {
   orderId: string;
   plannedQuantity: string;
+  warehouseName: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -48,22 +50,24 @@ export function CompleteOrderForm({
           setError(result.error ?? null);
         })
       }
-      className="flex items-end gap-2"
+      className="flex flex-wrap items-center gap-2"
+      title={`Себестоимость фиксируется, готовая продукция принимается на склад «${warehouseName}»`}
     >
-      <div>
-        <label className="mb-1 block text-xs text-neutral-500">Фактически произведено</label>
-        <Input
-          name="producedQuantity"
-          type="number"
-          step="1"
-          min="1"
-          defaultValue={plannedQuantity}
-          required
-          className="w-32"
-        />
-      </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Завершаем..." : "Завершить и оприходовать"}
+      <label className="text-xs text-neutral-500" htmlFor="completeQty">
+        Факт, шт.
+      </label>
+      <Input
+        id="completeQty"
+        name="producedQuantity"
+        type="number"
+        step="1"
+        min="1"
+        defaultValue={plannedQuantity}
+        required
+        className="w-20"
+      />
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Завершаем..." : "Завершить"}
       </Button>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
@@ -77,7 +81,9 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
       variant="destructive"
       size="sm"
       disabled={pending}
-      onClick={() => startTransition(() => cancelProductionOrder(orderId))}
+      onClick={() => {
+        if (confirm("Отменить заказ? Это действие нельзя отменить.")) startTransition(() => cancelProductionOrder(orderId));
+      }}
     >
       Отменить заказ
     </Button>

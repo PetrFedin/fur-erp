@@ -61,13 +61,14 @@ export function OrderEditForm({
 
   if (!isEditing) {
     return (
-      <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+      <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
         Изменить
       </Button>
     );
   }
 
   return (
+    <div className="order-last w-full basis-full">
     <Card>
       <CardHeader>
         <CardTitle>Изменение ТЗ</CardTitle>
@@ -208,7 +209,7 @@ export function OrderEditForm({
           )}
           <div className="col-span-2 flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>
-              Отмена
+              Закрыть
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Сохраняем..." : "Сохранить"}
@@ -217,5 +218,6 @@ export function OrderEditForm({
         </form>
       </CardContent>
     </Card>
+    </div>
   );
 }

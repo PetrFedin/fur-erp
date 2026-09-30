@@ -39,15 +39,22 @@ export function ExpenseRow({
   return (
     <>
       <Tr>
-        <Td>{expense.categoryName}</Td>
-        <Td>{expense.description ?? "—"}</Td>
-        <Td>{formatMoney(expense.amount)}</Td>
+        <Td colSpan={5}>
+          {expense.categoryName}
+          {expense.description && <span className="text-neutral-500"> — {expense.description}</span>}
+        </Td>
+        <Td className="text-right font-medium">{formatMoney(expense.amount)}</Td>
         <Td>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
-              {isEditing ? "Отмена" : "Изменить"}
+              {isEditing ? "Закрыть" : "Изменить"}
             </Button>
-            <form action={removeAction}>
+            <form
+              action={removeAction}
+              onSubmit={(e) => {
+                if (!confirm(`Удалить расход «${expense.categoryName}» на ${formatMoney(expense.amount)}?`)) e.preventDefault();
+              }}
+            >
               <Button type="submit" variant="ghost" size="sm">
                 Удалить
               </Button>
@@ -57,7 +64,7 @@ export function ExpenseRow({
       </Tr>
       {isEditing && (
         <Tr>
-          <Td colSpan={4} className="bg-neutral-50">
+          <Td colSpan={7} className="bg-neutral-50">
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
