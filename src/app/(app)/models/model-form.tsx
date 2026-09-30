@@ -33,17 +33,6 @@ export function ModelForm({
         <Label htmlFor="category">Категория</Label>
         <Input id="category" name="category" defaultValue={model?.category ?? ""} placeholder="Шубы" />
       </div>
-      <div>
-        <Label htmlFor="sellingPrice">Цена продажи, ₽</Label>
-        <Input
-          id="sellingPrice"
-          name="sellingPrice"
-          type="number"
-          step="0.01"
-          min="0"
-          defaultValue={model?.sellingPrice ?? ""}
-        />
-      </div>
       <div className="col-span-2">
         <Label htmlFor="description">Описание</Label>
         <Textarea id="description" name="description" rows={2} defaultValue={model?.description ?? ""} />

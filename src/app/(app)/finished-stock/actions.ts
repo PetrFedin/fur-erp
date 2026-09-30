@@ -46,5 +46,6 @@ export async function writeOffFinishedGoods(
   }
 
   revalidatePath("/finished-stock");
+  revalidatePath("/articles");
   return {};
 }

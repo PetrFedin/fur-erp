@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ModelForm } from "../model-form";
 import { updateModel, removeBomLine } from "../actions";
 import { BomAddForm } from "./bom-add-form";
-import { formatQty } from "@/lib/utils";
+import { formatMoney, formatQty } from "@/lib/utils";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -39,9 +40,15 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
     <div className="flex max-w-3xl flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>{model.name}</CardTitle>
+          <CardTitle>Модель: {model.name}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-3">
+          <div className="text-sm text-neutral-600">
+            Розничная цена: {model.sellingPrice ? formatMoney(model.sellingPrice.toString()) : "не задана"} ·{" "}
+            <Link href="/articles" className="text-neutral-900 underline">
+              изменить на странице «Изделия»
+            </Link>
+          </div>
           <ModelForm
             action={updateModel.bind(null, id)}
             model={{
@@ -62,48 +69,45 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
       <Card>
         <CardHeader>
-          <CardTitle>Норма расхода сырья (BOM)</CardTitle>
+          <CardTitle>Состав: норма расхода сырья на 1 изделие</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <BomAddForm productModelId={id} materials={materials} />
+          {model.materials.length === 0 ? (
+            <p className="text-sm text-neutral-400">Нормы нет</p>
+          ) : (
           <Table>
-            <Thead>
-              <Tr>
-                <Th>Сырьё</Th>
-                <Th>Норма на 1 изделие</Th>
-                <Th></Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {model.materials.map((line) => (
-                <Tr key={line.id}>
-                  <Td>{line.rawMaterial.name}</Td>
-                  <Td>
-                    {formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}
-                  </Td>
-                  <Td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await boundRemove(line.id);
-                      }}
-                    >
-                      <Button type="submit" variant="ghost" size="sm">
-                        Удалить
-                      </Button>
-                    </form>
-                  </Td>
-                </Tr>
-              ))}
-              {model.materials.length === 0 && (
+              <Thead>
                 <Tr>
-                  <Td colSpan={3} className="py-8 text-center text-neutral-400">
-                    Норма расхода не задана
-                  </Td>
+                  <Th>Сырьё</Th>
+                  <Th>Норма на 1 изделие</Th>
+                  <Th></Th>
                 </Tr>
-              )}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {model.materials.map((line) => (
+                  <Tr key={line.id}>
+                    <Td>{line.rawMaterial.name}</Td>
+                    <Td>
+                      {formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}
+                    </Td>
+                    <Td>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await boundRemove(line.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Удалить
+                        </Button>
+                      </form>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
+          <BomAddForm productModelId={id} materials={materials} />
         </CardContent>
       </Card>
     </div>
