@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { ModelForm } from "../model-form";
 import { updateModel, removeBomLine } from "../actions";
 import { BomAddForm } from "./bom-add-form";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { FITTING_STATUS, orderLabel, truncate } from "@/lib/fittings";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -21,7 +23,7 @@ const UNIT_LABELS: Record<string, string> = {
 export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
   const { id } = await params;
   const session = await requireSession();
-  const [model, materials] = await Promise.all([
+  const [model, materials, fittings] = await Promise.all([
     prisma.productModel.findFirst({
       where: { id, organizationId: session.user.organizationId },
       include: { materials: { include: { rawMaterial: true }, orderBy: { id: "asc" } } },
@@ -30,6 +32,12 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       where: { organizationId: session.user.organizationId, isActive: true },
       select: { id: true, name: true, unit: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.fitting.findMany({
+      where: { organizationId: session.user.organizationId, productionOrder: { productModelId: id } },
+      include: { productionOrder: { select: { number: true, workOrderNumber: true } } },
+      orderBy: [{ fittingDate: "desc" }, { createdAt: "desc" }],
+      take: 10,
     }),
   ]);
   if (!model) notFound();
@@ -108,6 +116,33 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             </Table>
           )}
           <BomAddForm productModelId={id} materials={materials} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Примерки этой модели</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {fittings.length === 0 ? (
+            <p className="text-sm text-neutral-400">Примерок по этой модели пока нет</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-neutral-100">
+              {fittings.map((f) => {
+                const st = FITTING_STATUS[f.status];
+                return (
+                  <li key={f.id}>
+                    <Link href={`/fittings/${f.id}`} className="flex flex-wrap items-center gap-3 py-2 text-sm hover:bg-neutral-50">
+                      <span className="whitespace-nowrap font-medium">{formatDate(f.fittingDate)}</span>
+                      <span className="whitespace-nowrap">{orderLabel(f.productionOrder)}</span>
+                      <Badge variant={st.variant}>{st.label}</Badge>
+                      <span className="min-w-0 flex-1 text-neutral-600">{truncate(f.comment, 100)}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>
