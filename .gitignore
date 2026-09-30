@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploads (photos of fittings etc.) - user data, back up together with the DB
+/uploads/

@@ -28,6 +28,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Overlay the generated client (created in the builder stage, after `prisma generate`).
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
+# Upload directory (fitting photos); mount a volume here so files survive redeploys.
+RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 
 USER nextjs
 EXPOSE 3000

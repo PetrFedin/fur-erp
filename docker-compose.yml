@@ -29,8 +29,12 @@ services:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
       NODE_ENV: production
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - fur_erp_uploads:/app/uploads
     ports:
       - "3000:3000"
 
 volumes:
   fur_erp_db_data:
+  fur_erp_uploads:
