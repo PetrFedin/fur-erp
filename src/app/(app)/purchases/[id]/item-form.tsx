@@ -60,7 +60,7 @@ export function PurchaseItemForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">НДС</label>
-        <Select name="vatRate" defaultValue="20">
+        <Select name="vatRate" defaultValue="22">
           <option value="0">0%</option>
           <option value="5">5%</option>
           <option value="7">7%</option>

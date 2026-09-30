@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Tr, Td } from "@/components/ui/table";
-import type { FormState } from "../actions";
+import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
 
 const initialState: FormState = {};
@@ -26,6 +27,7 @@ export function PurchaseItemRow({
   updateAction,
   canEditFinancials,
   lockedNote,
+  lockedOrders,
   canEditMaterial,
   materials,
   currency,
@@ -37,6 +39,7 @@ export function PurchaseItemRow({
   updateAction?: (formData: FormData) => Promise<FormState>;
   canEditFinancials: boolean;
   lockedNote?: string;
+  lockedOrders?: OrderRef[];
   canEditMaterial: boolean;
   materials: MaterialOption[];
   currency: string;
@@ -83,7 +86,12 @@ export function PurchaseItemRow({
                 </Button>
               )}
               {removeAction && (
-                <form action={removeAction}>
+                <form
+                  action={removeAction}
+                  onSubmit={(e) => {
+                    if (!window.confirm("Удалить позицию из закупки?")) e.preventDefault();
+                  }}
+                >
                   <Button type="submit" variant="ghost" size="sm">
                     Удалить
                   </Button>
@@ -176,8 +184,18 @@ export function PurchaseItemRow({
               </div>
               <div className="col-span-8 flex items-center justify-between gap-4">
                 <div>
-                  {!canEditFinancials && lockedNote && <p className="text-xs text-amber-600">{lockedNote}</p>}
-                  {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+                  {!canEditFinancials && lockedNote && (
+                    <p className="text-xs text-amber-600">
+                      {lockedNote}
+                      <OrderLinks orders={lockedOrders} />
+                    </p>
+                  )}
+                  {state.error && (
+                    <p className="text-sm text-red-600">
+                      {state.error}
+                      <OrderLinks orders={state.orders} />
+                    </p>
+                  )}
                 </div>
                 <Button type="submit" variant="outline" size="sm" disabled={pending}>
                   {pending ? "Сохраняем..." : "Сохранить"}
@@ -188,5 +206,21 @@ export function PurchaseItemRow({
         </Tr>
       )}
     </>
+  );
+}
+
+function OrderLinks({ orders }: { orders?: OrderRef[] }) {
+  if (!orders || orders.length === 0) return null;
+  return (
+    <span className="ml-1">
+      {orders.map((o, i) => (
+        <span key={o.id}>
+          {i > 0 && ", "}
+          <Link href={`/production/${o.id}`} className="underline">
+            {o.number}
+          </Link>
+        </span>
+      ))}
+    </span>
   );
 }

@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,15 +16,25 @@ import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
-import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase } from "../actions";
+import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
-const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
-  DRAFT: { label: "Черновик", variant: "default" },
-  ORDERED: { label: "Заказано", variant: "info" },
-  IN_TRANSIT: { label: "В пути", variant: "warning" },
-  RECEIVED: { label: "Оприходовано", variant: "success" },
-  CANCELLED: { label: "Отменено", variant: "danger" },
+// Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
+// are shown (and behave) as a draft; the enum itself is untouched.
+function statusView(status: string): { label: string; variant: "default" | "success" | "danger" } {
+  if (status === "RECEIVED") return { label: "Принято на склад", variant: "success" };
+  if (status === "CANCELLED") return { label: "Отменено", variant: "danger" };
+  return { label: "Черновик", variant: "default" };
+}
+
+const METHOD_LABELS: Record<string, string> = {
+  BANK_TRANSFER: "Банк. перевод",
+  CASH: "Наличные",
+  CARD: "Карта",
+  OTHER: "Другое",
 };
+
+/** Cap for the always-expanded item list; bigger purchases start collapsed. */
+const EXPANDED_ITEMS_LIMIT = 25;
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -104,7 +113,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const vatTotal = grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat);
   const paidTotal = purchase.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = grandTotalRub.sub(paidTotal);
-  const status = STATUS_LABELS[purchase.status];
+  const status = statusView(purchase.status);
 
   const boundUpdatePurchase = updatePurchase.bind(null, id);
   const boundRemoveItem = removePurchaseItem.bind(null, id);
@@ -114,12 +123,37 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   // price/VAT only while the resulting lot hasn't been consumed yet) — see
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
   const itemsMutable = purchase.status !== "CANCELLED";
-  const itemColSpan = itemsMutable ? 8 : 7;
 
-  const furItems = purchase.items.filter((i) => i.rawMaterial.unit !== "M");
-  const liningItems = purchase.items.filter((i) => i.rawMaterial.unit === "M");
-  const furMaterials = materials.filter((m) => m.unit !== "M");
-  const liningMaterials = materials.filter((m) => m.unit === "M");
+  const allMaterials = materials;
+  const showGradeColor = purchase.items.some((i) => i.grade || i.color);
+  const itemColSpan = 6 + (showGradeColor ? 1 : 0) + (itemsMutable ? 1 : 0);
+
+  // Which production orders already drew from each consumed lot — so the
+  // "locked" hint and the edit error can name them and link to them.
+  const consumedLotIds = purchase.items
+    .filter((i) => i.lot && !i.lot.quantityRemaining.equals(i.lot.quantityReceived))
+    .map((i) => i.lot!.id);
+  const usages = consumedLotIds.length
+    ? await prisma.productionMaterialUsage.findMany({
+        where: { lotId: { in: consumedLotIds } },
+        include: { productionOrder: { select: { id: true, number: true } } },
+      })
+    : [];
+  const ordersByLot = new Map<string, OrderRef[]>();
+  for (const u of usages) {
+    const list = ordersByLot.get(u.lotId) ?? [];
+    const existing = list.find((o) => o.id === u.productionOrderId);
+    if (existing) existing.quantity = new Decimal(existing.quantity).add(u.quantity).toString();
+    else list.push({ id: u.productionOrder.id, number: u.productionOrder.number, quantity: u.quantity.toString() });
+    ordersByLot.set(u.lotId, list);
+  }
+
+  const itemsInclVatRub = itemsTotalInclVatRub;
+  const totalQty = purchase.items.reduce((s, i) => s.add(i.quantity), new Decimal(0));
+  const units = new Set(purchase.items.map((i) => i.rawMaterial.unit));
+  const singleUnit = units.size === 1 ? [...units][0] : null;
+  const expensePerUnit = singleUnit && totalQty.greaterThan(0) ? expensesTotalInclVat.div(totalQty) : null;
+  const expensePct = itemsInclVatRub.greaterThan(0) ? expensesTotalInclVat.div(itemsInclVatRub).mul(100) : null;
 
   return (
     <div className="flex max-w-4xl flex-col gap-4">
@@ -165,9 +199,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       {isForeignCurrency && editable && (
         <Card>
           <CardContent className="flex items-center justify-between pt-4">
-            <p className="text-xs text-neutral-500">
-              Позиции введены в {purchase.currency}. Курс применяется при оприходовании — обновите
-              его перед приёмкой, если он изменился.
+            <p
+              className="text-xs text-neutral-500"
+              title="Курс применяется при приёме на склад — обновите его перед приёмкой, если он изменился."
+            >
+              Позиции введены в {purchase.currency}
             </p>
             <ExchangeRateForm
               purchaseId={id}
@@ -199,254 +235,199 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
       <Card>
         <CardHeader>
-          <CardTitle>Позиции сырья (мех)</CardTitle>
+          <CardTitle>Позиции ({purchase.items.length})</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-3">
           {editable && (
             <>
-              <PurchaseItemForm purchaseId={id} materials={furMaterials} currency={purchase.currency} />
-              <BulkItemForm purchaseId={id} />
+              <details open={purchase.items.length === 0} className="rounded-md border border-neutral-200 px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Вставить позиции из Excel</summary>
+                <div className="mt-3">
+                  <BulkItemForm
+                    purchaseId={id}
+                    materialNames={allMaterials.map((m) => m.name)}
+                    currency={purchase.currency}
+                  />
+                </div>
+              </details>
+              <details className="rounded-md border border-neutral-200 px-3 py-2">
+                <summary className="cursor-pointer text-sm text-neutral-600">Добавить одну позицию</summary>
+                <div className="mt-3">
+                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} />
+                </div>
+              </details>
             </>
           )}
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Сырьё</Th>
-                <Th>Лот</Th>
-                <Th>Сорт/цвет</Th>
-                <Th>Кол-во</Th>
-                <Th>Цена (без НДС)</Th>
-                <Th>НДС</Th>
-                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
-                {itemsMutable && <Th></Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {furItems.map((item) => {
-                const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
-                const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
-                const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
-                const canEditFinancials = editable || (!!item.lot && !consumed);
-                return (
-                  <PurchaseItemRow
-                    key={item.id}
-                    colSpan={itemColSpan}
-                    removeAction={
-                      editable
-                        ? async () => {
-                            "use server";
-                            await boundRemoveItem(item.id);
-                          }
-                        : undefined
-                    }
-                    updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
-                    canEditFinancials={canEditFinancials}
-                    lockedNote={
-                      item.lot && consumed
-                        ? `Сырьё уже списано в производство (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот/сорт/цвет`
-                        : undefined
-                    }
-                    canEditMaterial={editable}
-                    materials={furMaterials}
-                    currency={purchase.currency}
-                    defaults={{
-                      rawMaterialId: item.rawMaterialId,
-                      rawMaterialName: item.rawMaterial.name,
-                      quantity: item.quantity.toString(),
-                      unitPrice: item.unitPrice.toString(),
-                      vatRate: item.vatRate.toString(),
-                      lotNumber: item.lotNumber ?? "",
-                      grade: item.grade ?? "",
-                      color: item.color ?? "",
-                    }}
-                  >
-                    <Td>{item.rawMaterial.name}</Td>
-                    <Td>{item.lotNumber ?? "—"}</Td>
-                    <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
-                    <Td>
-                      {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
-                    </Td>
-                    <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                    <Td>{item.vatRate.toString()}%</Td>
-                    <Td>
-                      <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                      {isForeignCurrency && (
-                        <span className="ml-1 text-xs text-neutral-400">
-                          ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
-                        </span>
-                      )}
-                    </Td>
-                  </PurchaseItemRow>
-                );
-              })}
-              {furItems.length === 0 && (
+          <details open={purchase.items.length <= EXPANDED_ITEMS_LIMIT}>
+            <summary className="mb-2 cursor-pointer text-sm text-neutral-600">
+              {purchase.items.length > EXPANDED_ITEMS_LIMIT
+                ? `Список позиций (${purchase.items.length})`
+                : "Список позиций"}
+            </summary>
+            <Table>
+              <Thead>
                 <Tr>
-                  <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
-                    Позиций пока нет
-                  </Td>
+                  <Th>Материал</Th>
+                  <Th>Лот</Th>
+                  {showGradeColor && <Th>Сорт / цвет</Th>}
+                  <Th>Кол-во</Th>
+                  <Th>Цена без НДС</Th>
+                  <Th>НДС</Th>
+                  <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
+                  {itemsMutable && <Th></Th>}
                 </Tr>
-              )}
-            </Tbody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Подкладка</CardTitle>
-          <Link href="/lining" className="text-sm text-neutral-500 hover:underline">
-            Смотреть все ткани →
-          </Link>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {editable && (
-            <PurchaseItemForm purchaseId={id} materials={liningMaterials} currency={purchase.currency} />
+              </Thead>
+              <Tbody>
+                {purchase.items.map((item) => {
+                  const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
+                  const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                  const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
+                  const canEditFinancials = editable || (!!item.lot && !consumed);
+                  const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
+                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Партия без номера";
+                  return (
+                    <PurchaseItemRow
+                      key={item.id}
+                      colSpan={itemColSpan}
+                      removeAction={
+                        editable
+                          ? async () => {
+                              "use server";
+                              await boundRemoveItem(item.id);
+                            }
+                          : undefined
+                      }
+                      updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
+                      canEditFinancials={canEditFinancials}
+                      lockedNote={
+                        item.lot && consumed
+                          ? orders && orders.length > 0
+                            ? `${lotName} уже списан в ${orders.length > 1 ? "заказы" : "заказ"} (${orders
+                                .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
+                                .join(", ")}). Сначала удалите там списание. Здесь доступны только лот, сорт и цвет:`
+                            : `${lotName} уже частично израсходован (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
+                          : undefined
+                      }
+                      lockedOrders={orders}
+                      canEditMaterial={editable}
+                      materials={allMaterials}
+                      currency={purchase.currency}
+                      defaults={{
+                        rawMaterialId: item.rawMaterialId,
+                        rawMaterialName: item.rawMaterial.name,
+                        quantity: item.quantity.toString(),
+                        unitPrice: item.unitPrice.toString(),
+                        vatRate: item.vatRate.toString(),
+                        lotNumber: item.lotNumber ?? "",
+                        grade: item.grade ?? "",
+                        color: item.color ?? "",
+                      }}
+                    >
+                      <Td>{item.rawMaterial.name}</Td>
+                      <Td>{item.lotNumber ?? "—"}</Td>
+                      {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
+                      <Td>
+                        {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
+                      </Td>
+                      <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
+                      <Td>{item.vatRate.toString()}%</Td>
+                      <Td>
+                        <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                        {isForeignCurrency && (
+                          <span className="ml-1 text-xs text-neutral-400">
+                            ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
+                          </span>
+                        )}
+                      </Td>
+                    </PurchaseItemRow>
+                  );
+                })}
+                {purchase.items.length === 0 && (
+                  <Tr>
+                    <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
+                      Позиций пока нет
+                    </Td>
+                  </Tr>
+                )}
+              </Tbody>
+            </Table>
+          </details>
+          {purchase.items.length > EXPANDED_ITEMS_LIMIT && (
+            <p className="text-right text-sm font-medium">
+              Итого по закупке ({purchase.items.length} поз.): <Money incl={itemsTotalInclVatRub} excl={itemsTotalExclVatRub} />
+            </p>
           )}
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Ткань</Th>
-                <Th>Лот</Th>
-                <Th>Сорт/цвет</Th>
-                <Th>Кол-во</Th>
-                <Th>Цена (без НДС)</Th>
-                <Th>НДС</Th>
-                <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
-                {itemsMutable && <Th></Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {liningItems.map((item) => {
-                const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
-                const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
-                const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
-                const canEditFinancials = editable || (!!item.lot && !consumed);
-                return (
-                  <PurchaseItemRow
-                    key={item.id}
-                    colSpan={itemColSpan}
-                    removeAction={
-                      editable
-                        ? async () => {
-                            "use server";
-                            await boundRemoveItem(item.id);
-                          }
-                        : undefined
-                    }
-                    updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
-                    canEditFinancials={canEditFinancials}
-                    lockedNote={
-                      item.lot && consumed
-                        ? `Сырьё уже списано в производство (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот/сорт/цвет`
-                        : undefined
-                    }
-                    canEditMaterial={editable}
-                    materials={liningMaterials}
-                    currency={purchase.currency}
-                    defaults={{
-                      rawMaterialId: item.rawMaterialId,
-                      rawMaterialName: item.rawMaterial.name,
-                      quantity: item.quantity.toString(),
-                      unitPrice: item.unitPrice.toString(),
-                      vatRate: item.vatRate.toString(),
-                      lotNumber: item.lotNumber ?? "",
-                      grade: item.grade ?? "",
-                      color: item.color ?? "",
-                    }}
-                  >
-                    <Td>{item.rawMaterial.name}</Td>
-                    <Td>{item.lotNumber ?? "—"}</Td>
-                    <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>
-                    <Td>
-                      {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
-                    </Td>
-                    <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                    <Td>{item.vatRate.toString()}%</Td>
-                    <Td>
-                      <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                      {isForeignCurrency && (
-                        <span className="ml-1 text-xs text-neutral-400">
-                          ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
-                        </span>
-                      )}
-                    </Td>
-                  </PurchaseItemRow>
-                );
-              })}
-              {liningItems.length === 0 && (
-                <Tr>
-                  <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
-                    Подкладка ещё не заведена
-                  </Td>
-                </Tr>
-              )}
-            </Tbody>
-          </Table>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Дополнительные расходы по закупке</CardTitle>
+          <CardTitle>Расходы</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editable && <PurchaseExpenseForm purchaseId={id} categories={expenseCategories} />}
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Статья</Th>
-                <Th>Описание</Th>
-                <Th>Сумма (без НДС)</Th>
-                <Th>НДС</Th>
-                <Th>Сумма</Th>
-                {editable && <Th></Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {purchase.expenses.map((e) => (
-                <Tr key={e.id}>
-                  <Td>{e.category.name}</Td>
-                  <Td>{e.description ?? "—"}</Td>
-                  <Td>{formatMoney(e.amount.toString())}</Td>
-                  <Td>{e.vatRate.toString()}%</Td>
-                  <Td>
-                    <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />
-                  </Td>
-                  {editable && (
-                    <Td>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveExpense(e.id);
-                        }}
-                      >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Удалить
-                        </Button>
-                      </form>
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-              {purchase.expenses.length === 0 && (
+          {purchase.expenses.length > 0 && (
+            <Table>
+              <Thead>
                 <Tr>
-                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
-                    Доп. расходов нет
-                  </Td>
+                  <Th>Статья</Th>
+                  <Th>Описание</Th>
+                  <Th>Сумма (без НДС)</Th>
+                  <Th>НДС</Th>
+                  <Th>Сумма</Th>
+                  {editable && <Th></Th>}
                 </Tr>
-              )}
-            </Tbody>
-          </Table>
-          <p className="text-xs text-neutral-400">
-            При оприходовании расходы распределяются на позиции сырья пропорционально их сумме —
-            себестоимость на складе учитывает доставку, растаможку и прочие затраты.
-          </p>
+              </Thead>
+              <Tbody>
+                {purchase.expenses.map((e) => (
+                  <Tr key={e.id}>
+                    <Td>{e.category.name}</Td>
+                    <Td>{e.description ?? "—"}</Td>
+                    <Td>{formatMoney(e.amount.toString())}</Td>
+                    <Td>{e.vatRate.toString()}%</Td>
+                    <Td>
+                      <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />
+                    </Td>
+                    {editable && (
+                      <Td>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await boundRemoveExpense(e.id);
+                          }}
+                        >
+                          <Button type="submit" variant="ghost" size="sm">
+                            Удалить
+                          </Button>
+                        </form>
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
+          {purchase.expenses.length === 0 && <p className="text-sm text-neutral-400">Расходов нет</p>}
+          {purchase.expenses.length > 0 && expensesTotalInclVat.greaterThan(0) && (
+            <p
+              className="text-sm text-neutral-600"
+              title="Справочно: при приёме на склад расходы распределяются по позициям пропорционально их сумме."
+            >
+              Расходы = {formatMoney(expensesTotalInclVat.toString())} (с НДС) → в цену единицы добавится ≈{" "}
+              {expensePerUnit
+                ? `${formatMoney(expensePerUnit.toFixed(2))} за 1 ${UNIT_LABELS[singleUnit!]}`
+                : expensePct
+                  ? `+${expensePct.toFixed(1)}% к цене каждой единицы`
+                  : "—"}
+              {expensePct && expensePerUnit && ` (+${expensePct.toFixed(1)}% к стоимости позиций)`}
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Оплаты поставщику</CardTitle>
+          <CardTitle>Оплаты</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <PurchasePaymentForm purchaseId={id} />
@@ -463,7 +444,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               {purchase.payments.map((p) => (
                 <Tr key={p.id}>
                   <Td>{formatDate(p.paidAt)}</Td>
-                  <Td>{p.method}</Td>
+                  <Td>{METHOD_LABELS[p.method] ?? p.method}</Td>
                   <Td>{formatMoney(p.amount.toString())}</Td>
                   <Td>{p.notes ?? "—"}</Td>
                 </Tr>

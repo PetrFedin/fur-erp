@@ -56,26 +56,34 @@ export function PurchaseEditForm({
       onSubmit={() => setSubmitted(true)}
       className="mt-2 grid grid-cols-2 gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
     >
-      <div className="col-span-2">
-        <Label htmlFor="supplierId">Поставщик</Label>
-        <Select id="supplierId" name="supplierId" required defaultValue={defaults.supplierId}>
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="warehouseId">Склад поступления</Label>
-        <Select id="warehouseId" name="warehouseId" required defaultValue={defaults.warehouseId}>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {suppliers.length > 1 ? (
+        <div className="col-span-2">
+          <Label htmlFor="supplierId">Поставщик</Label>
+          <Select id="supplierId" name="supplierId" required defaultValue={defaults.supplierId}>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : (
+        <input type="hidden" name="supplierId" value={defaults.supplierId} />
+      )}
+      {warehouses.length > 1 ? (
+        <div>
+          <Label htmlFor="warehouseId">Склад поступления</Label>
+          <Select id="warehouseId" name="warehouseId" required defaultValue={defaults.warehouseId}>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : (
+        <input type="hidden" name="warehouseId" value={defaults.warehouseId} />
+      )}
       <div>
         <Label htmlFor="currency">Валюта позиций</Label>
         <Select id="currency" name="currency" defaultValue={defaults.currency}>
@@ -106,7 +114,7 @@ export function PurchaseEditForm({
         />
       </div>
       <p className="col-span-2 text-xs text-neutral-500">
-        При смене валюты курс сбрасывается на 1 — обновите его в блоке ниже перед оприходованием.
+        При смене валюты курс сбрасывается на 1 — обновите его ниже.
       </p>
       {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
       <div className="col-span-2 flex justify-end gap-2">
