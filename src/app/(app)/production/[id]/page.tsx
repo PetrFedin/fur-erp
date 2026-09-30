@@ -20,6 +20,8 @@ import { ProducedQuantityForm } from "./produced-quantity-form";
 import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
 import { OrderEditForm } from "./order-edit-form";
+import { ShipmentsBlock } from "./shipments-block";
+import { FittingsBlock } from "./fittings-block";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -518,6 +520,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
         </div>
       </div>
+
+      <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
+      <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
 
       {order.client && (
         <Card>
