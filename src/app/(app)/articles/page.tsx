@@ -9,16 +9,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { materialCostExclVat } from "@/lib/purchase-totals";
 import { ArticlePriceForm } from "./price-form";
+import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
-
-const MOVEMENT_LABELS: Record<string, string> = {
-  PRODUCTION_IN: "Приход (производство)",
-  WRITE_OFF_OUT: "Списание",
-  ADJUSTMENT_IN: "Корректировка (+)",
-  ADJUSTMENT_OUT: "Корректировка (-)",
-  TRANSFER_IN: "Перемещение (+)",
-  TRANSFER_OUT: "Перемещение (-)",
-};
 
 export const metadata = { title: "Изделия" };
 
@@ -27,16 +19,24 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const q = (rawQ ?? "").trim();
   const session = await requireSession();
   const orgId = session.user.organizationId;
-  const [stocks, movements, warehouses] = await Promise.all([
+  const [stocks, shipments, warehouses] = await Promise.all([
     prisma.finishedGoodsStock.findMany({
       where: { organizationId: orgId },
       include: { warehouse: true },
     }),
-    prisma.finishedGoodsMovement.findMany({
-      where: { organizationId: orgId },
-      include: { warehouse: true },
-      orderBy: { date: "desc" },
-      take: 200,
+    prisma.shipment.findMany({
+      where: { organizationId: orgId, lines: { some: {} } },
+      include: {
+        lines: {
+          orderBy: { id: "asc" },
+          select: {
+            size: true,
+            quantity: true,
+            productionOrder: { select: { productModelId: true, number: true, workOrderNumber: true } },
+          },
+        },
+      },
+      orderBy: { plannedDate: "desc" },
     }),
     prisma.warehouse.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
   ]);
@@ -88,7 +88,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
     const stockValue = modelStocks.reduce((sum, st) => sum.add(st.quantity.mul(st.avgUnitCost)), new Decimal(0));
-    const modelMovements = movements.filter((mv) => mv.productModelId === m.id).slice(0, 10);
+    // Последние 10 отгрузок, где есть ТЗ этой модели (показываем только строки этой модели).
+    const modelShipments = shipments
+      .map((sh) => ({ sh, lines: sh.lines.filter((l) => l.productionOrder.productModelId === m.id) }))
+      .filter((x) => x.lines.length > 0)
+      .slice(0, 10);
 
     return {
       id: m.id,
@@ -98,7 +102,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       modelStocks,
       stockQty,
       stockValue,
-      modelMovements,
+      modelShipments,
       totalProduced,
       avgUnitCost,
       avgUnitCostExclVat,
@@ -172,16 +176,19 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                         </div>
                       ))
                     )}
-                    <div className="font-medium text-neutral-700">Последние движения</div>
-                    {r.modelMovements.length === 0 ? (
-                      <div>Движений пока нет</div>
+                    <div className="font-medium text-neutral-700">Отгрузки по модели</div>
+                    {r.modelShipments.length === 0 ? (
+                      <div>Отгрузок пока нет</div>
                     ) : (
                       <ul className="flex flex-col gap-0.5">
-                        {r.modelMovements.map((mv) => (
-                          <li key={mv.id}>
-                            {formatDate(mv.date)} · {MOVEMENT_LABELS[mv.type]} · {mv.warehouse.name} ·{" "}
-                            {mv.type.endsWith("_OUT") ? "-" : "+"}
-                            {formatQty(mv.quantity.toString())} шт. · {formatMoney(mv.totalCost.toString())}
+                        {r.modelShipments.map(({ sh, lines }) => (
+                          <li key={sh.id}>
+                            <Link href={`/shipments/${sh.id}`} className="hover:underline">
+                              {sh.status === "SHIPPED" && sh.shippedDate
+                                ? `отгружена ${formatDate(sh.shippedDate)}`
+                                : `план ${formatDate(sh.plannedDate)}`}
+                            </Link>{" "}
+                            · {summarizeLines(lines).join("; ")} · {SHIPMENT_STATUS[sh.status].label}
                           </li>
                         ))}
                       </ul>
