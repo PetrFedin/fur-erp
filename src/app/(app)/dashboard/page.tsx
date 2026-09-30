@@ -2,17 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
-import { MonthlyPurchasesChart } from "./charts";
-
-const MONTH_NAMES = [
-  "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
-];
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -26,37 +20,19 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const organizationId = session.user.organizationId;
 
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setDate(1);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
-
   const [
-    finishedStock,
-    recentPurchases,
     allPurchases,
-    completedOrders,
     openPurchasesWithPayments,
     lowStockMaterials,
     allLots,
     materials,
     materialUsedAgg,
-    articleCount,
     clientOrders,
     clientPayments,
   ] = await Promise.all([
-    prisma.finishedGoodsStock.findMany({ where: { organizationId } }),
-    prisma.purchase.findMany({
-      where: { organizationId, orderDate: { gte: sixMonthsAgo } },
-      include: { items: true, expenses: true },
-    }),
     prisma.purchase.findMany({
       where: { organizationId },
       include: { items: true, expenses: true },
-    }),
-    prisma.productionOrder.findMany({
-      where: { organizationId, status: "COMPLETED" },
-      include: { productModel: true },
     }),
     prisma.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
@@ -79,7 +55,6 @@ export default async function DashboardPage() {
       where: { productionOrder: { organizationId } },
       select: { quantity: true, totalCost: true, lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } } },
     }),
-    prisma.productModel.count({ where: { organizationId } }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
     // clientId — это собственное производство, не подлежит взысканию.
     prisma.productionOrder.findMany({
@@ -100,39 +75,20 @@ export default async function DashboardPage() {
     (s, l) => s.add(l.quantityRemaining.mul(lotUnitCostExclVat(l))),
     new Decimal(0)
   );
-  // FinishedGoodsStock.avgUnitCost is a running weighted average blended
-  // across every completed production order (and any stock adjustment) that
-  // ever fed this material/warehouse — there is no per-order excl-VAT
-  // breakdown carried into that blend, so it cannot be correctly split into
-  // excl-VAT here (see README). Shown incl-VAT only, in both toggle modes.
-  const finishedStockValue = finishedStock.reduce((s, r) => s.add(r.quantity.mul(r.avgUnitCost)), new Decimal(0));
-
-  // Monthly purchases (last 6 months)
-  const monthBuckets: { month: string; total: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    monthBuckets.push({ month: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, total: 0 });
+  // Supplier balance due: per purchase (real amounts, not affected by the VAT toggle),
+  // then one row per supplier (sum of debt + number of purchases with debt).
+  const supplierMap = new Map<string, { supplier: string; due: Decimal; purchases: number }>();
+  for (const p of openPurchasesWithPayments) {
+    const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
+    const due = purchaseTotalInclVat(p).sub(paid);
+    if (!due.greaterThan(0)) continue;
+    const e = supplierMap.get(p.supplierId) ?? { supplier: p.supplier.name, due: new Decimal(0), purchases: 0 };
+    e.due = e.due.add(due);
+    e.purchases += 1;
+    supplierMap.set(p.supplierId, e);
   }
-  for (const p of recentPurchases) {
-    const total = purchaseTotalInclVat(p).toNumber();
-    const d = new Date(p.orderDate);
-    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-    const bucket = monthBuckets.find((b) => b.month === label);
-    if (bucket) bucket.total += total;
-  }
-
-  // Supplier balance due
-  const supplierBalances = openPurchasesWithPayments
-    .map((p) => {
-      const total = purchaseTotalInclVat(p);
-      const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-      return { supplier: p.supplier.name, purchaseNumber: p.number, due: total.sub(paid) };
-    })
-    .filter((x) => x.due.greaterThan(0))
-    .sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1))
-    .slice(0, 5);
+  const supplierBalances = Array.from(supplierMap.values()).sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1));
+  const supplierDebtTotal = supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0));
 
   // Client production debt (задолженность заказчиков): what clients owe us
   // for давальческая (ТЗ) production work. Billable amount uses
@@ -150,6 +106,7 @@ export default async function DashboardPage() {
     billable: Decimal;
     paid: Decimal;
     unpricedOrders: number;
+    orders: number;
   };
   const clientDebtMap = new Map<string, ClientDebt>();
   for (const o of clientOrders) {
@@ -160,7 +117,9 @@ export default async function DashboardPage() {
       billable: new Decimal(0),
       paid: new Decimal(0),
       unpricedOrders: 0,
+      orders: 0,
     };
+    entry.orders += 1;
     if (o.clientWorkPricePerUnit) {
       const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
       entry.billable = entry.billable.add(o.clientWorkPricePerUnit.mul(qty));
@@ -178,22 +137,6 @@ export default async function DashboardPage() {
     .map((c) => ({ ...c, balance: c.billable.sub(c.paid) }))
     .sort((a, b) => (b.balance.greaterThan(a.balance) ? 1 : -1));
   const clientDebtTotal = clientDebts.reduce((s, c) => s.add(c.balance), new Decimal(0));
-  const clientDebtUnpricedTotal = clientDebts.reduce((s, c) => s + c.unpricedOrders, 0);
-
-  // Low stock: sum remaining quantity per material across lots/warehouses, compare to the threshold.
-  const materialTotals = new Map<string, { name: string; quantity: Decimal; minStockLevel: Decimal | null }>();
-  for (const lot of lowStockMaterials) {
-    const entry = materialTotals.get(lot.rawMaterialId) ?? {
-      name: lot.rawMaterial.name,
-      quantity: new Decimal(0),
-      minStockLevel: lot.rawMaterial.minStockLevel,
-    };
-    entry.quantity = entry.quantity.add(lot.quantityRemaining);
-    materialTotals.set(lot.rawMaterialId, entry);
-  }
-  const lowStock = Array.from(materialTotals.entries())
-    .map(([id, v]) => ({ id, ...v }))
-    .filter((m) => m.minStockLevel && m.quantity.lessThan(m.minStockLevel));
 
   // Lifetime raw material purchased/used/remaining, by material (used = purchased - remaining).
   type MaterialFlow = {
@@ -232,7 +175,12 @@ export default async function DashboardPage() {
   const materialFlowRows = Array.from(materialFlowMap.values()).filter(
     (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
   );
-  const unusedMaterials = materialFlowRows.filter((r) => r.remaining.greaterThan(0));
+  // Скрываем строки, где и остаток, и его стоимость нулевые (полностью израсходованная подкладка);
+  // информация не теряется: сырьё по-прежнему в разделе «Сырьё», ссылка «Подкладка →» под таблицей.
+  const visibleMaterialRows = materialFlowRows.filter(
+    (r) => !(r.remaining.isZero() && r.remainingValue.isZero())
+  );
+  const hiddenMaterialRows = materialFlowRows.length - visibleMaterialRows.length;
 
   const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const totalPurchasedValueExclVat = allPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
@@ -241,61 +189,45 @@ export default async function DashboardPage() {
     (s, u) => s.add(u.quantity.mul(lotUnitCostExclVat(u.lot))),
     new Decimal(0)
   );
-  const totalProducedQty = completedOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Дашборд</h1>
-
-      <div className="grid grid-cols-4 gap-3">
-        <KpiCard label="Стоимость остатков сырья" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />
-        <KpiCard label="Стоимость готовой продукции" value={formatMoney(finishedStockValue.toString())} />
-        <KpiCard
-          label="Закупок за 6 мес."
-          value={
-            <Money
-              incl={recentPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0))}
-              excl={recentPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0))}
-            />
-          }
-        />
-        <KpiCard label="Долг поставщикам" value={formatMoney(supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0)).toString())} warn={supplierBalances.length > 0} />
-      </div>
+      <h1 className="text-xl font-semibold">Сводка</h1>
 
       <div className="grid grid-cols-5 gap-3">
-        <KpiCard label="Артикулов (моделей)" value={String(articleCount)} />
-        <KpiCard label="Сырья закуплено, всего" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
+        <KpiCard label="Куплено сырья" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
         <KpiCard
-          label="Сырья использовано в производстве"
+          label="Использовано в ТЗ"
           value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
         />
-        <KpiCard label="Товара выпущено" value={`${formatQty(totalProducedQty.toString())} шт.`} />
-        <KpiCard
-          label="Долг заказчиков"
-          value={formatMoney(clientDebtTotal.toString())}
-          warn={clientDebtTotal.greaterThan(0)}
-        />
+        <KpiCard label="Остаток сырья (в деньгах)" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />
+        <KpiCard label="Долг поставщикам" value={formatMoney(supplierDebtTotal.toString())} warn={supplierDebtTotal.greaterThan(0)} />
+        <KpiCard label="Долг заказчиков" value={formatMoney(clientDebtTotal.toString())} warn={clientDebtTotal.greaterThan(0)} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Сырьё: куплено / использовано / остаток по материалам</CardTitle>
+          <CardTitle>Сырьё по материалам</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <Thead>
               <Tr>
                 <Th>Сырьё</Th>
-                <Th>Куплено всего</Th>
+                <Th>Куплено</Th>
                 <Th>Использовано</Th>
-                <Th>Остаток (не использовано)</Th>
+                <Th>Остаток</Th>
                 <Th>Стоимость остатка</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {materialFlowRows.map((r) => (
+              {visibleMaterialRows.map((r) => (
                 <Tr key={r.id}>
-                  <Td className="font-medium">{r.name}</Td>
+                  <Td className="font-medium">
+                    <Link href={r.unit === "M" ? "/lots?tab=lining" : "/lots"} className="hover:underline">
+                      {r.name}
+                    </Link>
+                  </Td>
                   <Td>
                     {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
                   </Td>
@@ -310,7 +242,7 @@ export default async function DashboardPage() {
                   </Td>
                 </Tr>
               ))}
-              {materialFlowRows.length === 0 && (
+              {visibleMaterialRows.length === 0 && (
                 <Tr>
                   <Td colSpan={5} className="py-6 text-center text-neutral-400">
                     Сырьё ещё не закупалось
@@ -319,87 +251,41 @@ export default async function DashboardPage() {
               )}
             </Tbody>
           </Table>
-          {unusedMaterials.length > 0 && (
-            <p className="mt-3 text-sm text-neutral-500">
-              Не использовано ({unusedMaterials.length}):{" "}
-              {unusedMaterials.map((m) => m.name).join(", ")}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Закупки по месяцам</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MonthlyPurchasesChart data={monthBuckets} />
-        </CardContent>
-      </Card>
-
-      {clientDebts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Задолженность заказчиков</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Заказчик</Th>
-                  <Th>К оплате (за выполненную/план. работу)</Th>
-                  <Th>Оплачено</Th>
-                  <Th>Остаток</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {clientDebts.map((c) => (
-                  <Tr key={c.clientId}>
-                    <Td>
-                      {c.clientName}
-                      {c.unpricedOrders > 0 && (
-                        <span className="ml-1 text-xs text-neutral-400">
-                          ({c.unpricedOrders} ТЗ без цены работ — не учтены)
-                        </span>
-                      )}
-                    </Td>
-                    <Td>{formatMoney(c.billable.toString())}</Td>
-                    <Td>{formatMoney(c.paid.toString())}</Td>
-                    <Td className={c.balance.greaterThan(0) ? "text-amber-600" : ""}>
-                      {formatMoney(c.balance.toString())}
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-            {clientDebtUnpricedTotal > 0 && (
-              <p className="mt-3 text-sm text-neutral-500">
-                Всего ТЗ без указанной стоимости работ (не входят в расчёт): {clientDebtUnpricedTotal}
-              </p>
+          <p className="mt-3 flex gap-4 text-sm">
+            <Link href="/lots" className="text-neutral-600 hover:underline">
+              Мех →
+            </Link>
+            <Link href="/lots?tab=lining" className="text-neutral-600 hover:underline">
+              Подкладка →
+            </Link>
+            {hiddenMaterialRows > 0 && (
+              <span className="text-neutral-400">
+                Скрыто строк с нулевым остатком: {hiddenMaterialRows}
+              </span>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Задолженность поставщикам</CardTitle>
+            <CardTitle>Долг поставщикам</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <Thead>
                 <Tr>
                   <Th>Поставщик</Th>
-                  <Th>Закупка</Th>
+                  <Th>Закупок</Th>
                   <Th>Долг</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {supplierBalances.map((s, i) => (
-                  <Tr key={i}>
+                {supplierBalances.map((s) => (
+                  <Tr key={s.supplier}>
                     <Td>{s.supplier}</Td>
-                    <Td>{s.purchaseNumber}</Td>
+                    <Td>{s.purchases}</Td>
                     <Td className="text-amber-600">{formatMoney(s.due.toString())}</Td>
                   </Tr>
                 ))}
@@ -412,39 +298,50 @@ export default async function DashboardPage() {
                 )}
               </Tbody>
             </Table>
+            <p className="mt-3 text-sm">
+              <Link href="/purchases" className="text-neutral-600 hover:underline">
+                Все закупки →
+              </Link>
+            </p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
-            <CardTitle>Низкие остатки сырья</CardTitle>
+            <CardTitle>Долг заказчиков</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <Thead>
                 <Tr>
-                  <Th>Сырьё</Th>
-                  <Th>Остаток</Th>
-                  <Th>Мин.</Th>
+                  <Th>Заказчик</Th>
+                  <Th>ТЗ</Th>
+                  <Th>Остаток к оплате</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {lowStock.map((m) => (
-                  <Tr key={m.id}>
+                {clientDebts.map((c) => (
+                  <Tr key={c.clientId}>
                     <Td>
-                      <Link href="/lots" className="hover:underline">
-                        {m.name}
+                      <Link href={`/production?q=${encodeURIComponent(c.clientName)}`} className="hover:underline">
+                        {c.clientName}
                       </Link>
+                      {c.unpricedOrders > 0 && (
+                        <span className="ml-1 text-xs text-neutral-400">
+                          ({c.unpricedOrders} ТЗ без цены работ — не учтены)
+                        </span>
+                      )}
                     </Td>
-                    <Td>
-                      <Badge variant="danger">{formatQty(m.quantity.toString())}</Badge>
+                    <Td>{c.orders}</Td>
+                    <Td className={c.balance.greaterThan(0) ? "text-amber-600" : ""}>
+                      {formatMoney(c.balance.toString())}
                     </Td>
-                    <Td>{formatQty(m.minStockLevel?.toString() ?? "0")}</Td>
                   </Tr>
                 ))}
-                {lowStock.length === 0 && (
+                {clientDebts.length === 0 && (
                   <Tr>
                     <Td colSpan={3} className="py-6 text-center text-neutral-400">
-                      Все остатки в норме
+                      Задолженностей нет
                     </Td>
                   </Tr>
                 )}

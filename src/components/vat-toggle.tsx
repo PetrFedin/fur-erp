@@ -11,7 +11,9 @@ export function VatToggle() {
   const { mode, setMode } = useVatDisplay();
 
   return (
-    <div className="flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs">
+    <div
+      title="Переключает цены и себестоимость. Долги и оплаты не меняются."
+      className="flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs">
       <button
         type="button"
         onClick={() => setMode("incl")}
