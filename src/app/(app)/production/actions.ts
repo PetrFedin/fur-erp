@@ -36,11 +36,6 @@ const orderSchema = z.object({
     .nonnegative()
     .optional()
     .or(z.nan().transform(() => undefined)),
-  retailPrice: z.coerce
-    .number()
-    .nonnegative()
-    .optional()
-    .or(z.nan().transform(() => undefined)),
   liningMaterialId: z.string().trim().optional(),
   liningQuantity: z.coerce
     .number()
@@ -49,15 +44,60 @@ const orderSchema = z.object({
     .or(z.nan().transform(() => undefined)),
 });
 
+export type CreateOrderState = { error?: string; errors?: string[] };
+
+type LotLine = { line: number; lotNumber: string; quantity: number };
+
+// Parses text pasted from Excel: "лот <Tab> кол-во" per line (Tab, ';' or
+// spaces as separators). Returns every problem, line by line — never just
+// the first few — so the user can fix the whole paste in one pass.
+function parseLotLines(raw: string): { lines: LotLine[]; errors: string[] } {
+  const lines: LotLine[] = [];
+  const errors: string[] = [];
+  raw.split(/\r?\n/).forEach((text, i) => {
+    const t = text.trim();
+    if (!t) return;
+    const n = i + 1;
+    const cells = t.split(/[\t;]+|\s+/).map((c) => c.trim()).filter(Boolean);
+    if (cells.length !== 2) {
+      errors.push(`строка ${n}: ожидается «лот количество», получено «${t}»`);
+      return;
+    }
+    const quantity = Number(cells[1].replace(",", "."));
+    if (!Number.isFinite(quantity)) {
+      errors.push(`строка ${n}: не число «${cells[1]}»`);
+      return;
+    }
+    if (quantity <= 0) {
+      errors.push(`строка ${n}: количество должно быть больше 0`);
+      return;
+    }
+    lines.push({ line: n, lotNumber: cells[0], quantity });
+  });
+  return { lines, errors };
+}
+
 export async function createProductionOrder(
-  _prev: FormState,
+  _prev: CreateOrderState,
   formData: FormData
-): Promise<FormState> {
+): Promise<CreateOrderState> {
   const session = await requireRole(...EDIT_ROLES);
+  const organizationId = session.user.organizationId;
+
+  // Warehouses default to the org's default/first one when not sent.
+  let rawWarehouseId = (formData.get("rawWarehouseId") as string) || "";
+  let finishedWarehouseId = (formData.get("finishedWarehouseId") as string) || "";
+  if (!rawWarehouseId || !finishedWarehouseId) {
+    const ws = await prisma.warehouse.findMany({ where: { organizationId }, orderBy: { name: "asc" } });
+    const def = ws.find((w) => w.isDefault)?.id ?? ws[0]?.id ?? "";
+    rawWarehouseId ||= def;
+    finishedWarehouseId ||= def;
+  }
+
   const parsed = orderSchema.safeParse({
     productModelId: formData.get("productModelId"),
-    rawWarehouseId: formData.get("rawWarehouseId"),
-    finishedWarehouseId: formData.get("finishedWarehouseId"),
+    rawWarehouseId,
+    finishedWarehouseId,
     plannedQuantity: formData.get("plannedQuantity"),
     color: formData.get("color") || undefined,
     size: formData.get("size") || undefined,
@@ -70,19 +110,64 @@ export async function createProductionOrder(
     workOrderNumber: formData.get("workOrderNumber") || undefined,
     workOrderDate: formData.get("workOrderDate") || undefined,
     clientWorkPricePerUnit: formData.get("clientWorkPricePerUnit") || undefined,
-    retailPrice: formData.get("retailPrice") || undefined,
     liningMaterialId: formData.get("liningMaterialId") || undefined,
     liningQuantity: formData.get("liningQuantity") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  if (!parsed.success) return { errors: parsed.error.issues.map((i) => i.message) };
+
+  const { lines, errors } = parseLotLines(((formData.get("lots") as string | null) ?? "").toString());
+
+  // Resolve lot numbers against every lot that still has stock, across all
+  // purchases. An ambiguous number is never guessed — listed instead.
+  const resolved: { line: number; lotId: string; quantity: number }[] = [];
+  if (lines.length > 0) {
+    const lots = await prisma.rawMaterialLot.findMany({
+      where: { organizationId, quantityRemaining: { gt: 0 }, lotNumber: { not: null } },
+      include: { rawMaterial: { select: { name: true } }, purchase: { select: { number: true } } },
+    });
+    const byNumber = new Map<string, typeof lots>();
+    for (const l of lots) {
+      const k = l.lotNumber!.trim().toLowerCase();
+      byNumber.set(k, [...(byNumber.get(k) ?? []), l]);
+    }
+    const needed = new Map<string, Decimal>();
+    for (const ln of lines) {
+      const cands = byNumber.get(ln.lotNumber.toLowerCase()) ?? [];
+      if (cands.length === 0) {
+        errors.push(`строка ${ln.line}: лот ${ln.lotNumber} не найден (или нет остатка)`);
+        continue;
+      }
+      if (cands.length > 1) {
+        const opts = cands
+          .map((c) => `${c.rawMaterial.name}${c.purchase ? `, закупка ${c.purchase.number}` : ""}, остаток ${c.quantityRemaining.toString()}`)
+          .join("; ");
+        errors.push(`строка ${ln.line}: лот ${ln.lotNumber} неоднозначен, найдено ${cands.length}: ${opts}`);
+        continue;
+      }
+      const lot = cands[0];
+      const total = (needed.get(lot.id) ?? new Decimal(0)).add(ln.quantity);
+      if (lot.quantityRemaining.lessThan(total)) {
+        errors.push(
+          `строка ${ln.line}: лот ${ln.lotNumber} — мало остатка: есть ${lot.quantityRemaining.toString()}, нужно ${total.toString()}`
+        );
+        continue;
+      }
+      needed.set(lot.id, total);
+      resolved.push({ line: ln.line, lotId: lot.id, quantity: ln.quantity });
+    }
+  }
+  if (errors.length > 0) {
+    const lineNo = (e: string) => Number(/^строка (\d+)/.exec(e)?.[1] ?? 0);
+    return { errors: errors.sort((a, b) => lineNo(a) - lineNo(b)) };
+  }
 
   let orderId: string;
   try {
     orderId = await prisma.$transaction(async (tx) => {
-      const number = await nextDocumentNumber(tx, "productionOrder", session.user.organizationId, "П");
+      const number = await nextDocumentNumber(tx, "productionOrder", organizationId, "П");
       const order = await tx.productionOrder.create({
         data: {
-          organizationId: session.user.organizationId,
+          organizationId,
           number,
           productModelId: parsed.data.productModelId,
           rawWarehouseId: parsed.data.rawWarehouseId,
@@ -99,31 +184,52 @@ export async function createProductionOrder(
           workOrderNumber: parsed.data.workOrderNumber,
           workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
           clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
-          retailPrice: parsed.data.retailPrice,
           createdById: session.user.id,
         },
       });
 
-      // Optional lining pick right at creation time (see cfc5cd6 — lining is
-      // one aggregate pool per fabric, not one lot per usage): draws from
-      // that fabric's pool the same way addMaterialUsage does (consumeFromLot
-      // is the shared primitive both call), inside this same transaction so
-      // an over-requested quantity rolls the whole order creation back
-      // instead of leaving a half-created order with no material on it.
+      // Pasted lots: same primitive (consumeFromLot) and same usage row as
+      // addMaterialUsagesBulk, so cost snapshots are identical.
+      for (const r of resolved) {
+        try {
+          const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
+            organizationId,
+            lotId: r.lotId,
+            quantity: r.quantity,
+            productionOrderId: order.id,
+          });
+          await tx.productionMaterialUsage.create({
+            data: {
+              productionOrderId: order.id,
+              rawMaterialId,
+              lotId: r.lotId,
+              quantity: r.quantity,
+              unitCost,
+              totalCost,
+            },
+          });
+        } catch (e) {
+          throw new Error(`строка ${r.line}: ${e instanceof Error ? e.message : "не удалось списать"}`);
+        }
+      }
+
+      // Lining pick (one aggregate pool per fabric, see consumeLiningForOrder).
       if (parsed.data.liningMaterialId && parsed.data.liningQuantity) {
         await consumeLiningForOrder(tx, {
-          organizationId: session.user.organizationId,
+          organizationId,
           orderId: order.id,
           rawMaterialId: parsed.data.liningMaterialId,
           quantity: parsed.data.liningQuantity,
         });
+      }
+      if (resolved.length > 0 || (parsed.data.liningMaterialId && parsed.data.liningQuantity)) {
         await tx.productionOrder.update({ where: { id: order.id }, data: { status: "IN_PROGRESS" } });
       }
 
       return order.id;
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Не удалось создать заказ" };
+    return { errors: [e instanceof Error ? e.message : "Не удалось создать заказ"] };
   }
 
   revalidatePath("/production");

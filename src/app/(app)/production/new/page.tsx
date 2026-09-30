@@ -7,7 +7,7 @@ import { ProductionCreateForm } from "./form";
 
 export default async function NewProductionOrderPage() {
   const session = await requireSession();
-  const [models, warehouses, clients, liningMaterials, liningLots] = await Promise.all([
+  const [models, warehouses, clients, liningMaterials, liningLots, contractRows] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
       select: { id: true, name: true },
@@ -31,7 +31,20 @@ export default async function NewProductionOrderPage() {
       where: { organizationId: session.user.organizationId, rawMaterial: { unit: "M" } },
       select: { rawMaterialId: true, quantityRemaining: true },
     }),
+    prisma.productionOrder.findMany({
+      where: { organizationId: session.user.organizationId, clientId: { not: null }, contractNumber: { not: null } },
+      select: { clientId: true, contractNumber: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+
+  // Latest contract per client — only a pre-filled hint, editable in the form.
+  const lastContractByClient: Record<string, string> = {};
+  for (const r of contractRows) {
+    if (r.clientId && r.contractNumber && !(r.clientId in lastContractByClient)) {
+      lastContractByClient[r.clientId] = r.contractNumber;
+    }
+  }
 
   const remainingByMaterial = new Map<string, Decimal>();
   for (const l of liningLots) {
@@ -47,10 +60,10 @@ export default async function NewProductionOrderPage() {
   }));
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-3xl">
       <Card>
         <CardHeader>
-          <CardTitle>Новый производственный заказ</CardTitle>
+          <CardTitle>Новое ТЗ</CardTitle>
         </CardHeader>
         <CardContent>
           <ProductionCreateForm
@@ -59,6 +72,7 @@ export default async function NewProductionOrderPage() {
             warehouses={warehouses}
             clients={clients}
             liningOptions={liningOptions}
+            lastContractByClient={lastContractByClient}
           />
         </CardContent>
       </Card>
