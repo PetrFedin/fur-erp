@@ -5,19 +5,42 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addProductionPayment } from "../actions";
 
+type PaymentOrder = {
+  id: string;
+  /** "ТЗ №N" or "Заказ П-…" when the ТЗ has no number. */
+  label: string;
+  /** Work price x quantity, 2-decimal string; null when no client work price is set. */
+  due: string | null;
+  /** Gross amount of every payment touching this ТЗ, 2-decimal string. */
+  paid: string;
+};
+
+const nf = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rub = (n: number) => nf.format(n);
+
 export function ProductionPaymentForm({
   orderId,
-  siblingOrders,
-  advanceHint,
+  orders,
 }: {
   orderId: string;
-  siblingOrders: { id: string; number: string }[];
-  /** 70% of the client's work price (unit price x quantity), 2-decimal string, or null when no price is set. */
-  advanceHint: string | null;
+  /** All ТЗ of this client (including the current one), sorted by number. */
+  orders: PaymentOrder[];
 }) {
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("FINAL");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set([orderId]));
   const formRef = useRef<HTMLFormElement>(null);
+  const chosen = orders.filter((o) => selected.has(o.id) && o.due !== null);
+  const dueSum = chosen.reduce((sum, o) => sum + Number(o.due), 0);
+  const restSum = chosen.reduce((sum, o) => sum + (Number(o.due) - Number(o.paid)), 0);
+  let hint: { text: string; value: string } | null = null;
+  if (chosen.length > 0 && paymentType === "ADVANCE") {
+    const v = Math.round(dueSum * 0.7 * 100) / 100;
+    hint = { value: v.toFixed(2), text: `70% от к оплате по выбранным ТЗ: ${rub(v)} ₽ — подставить` };
+  } else if (chosen.length > 0 && paymentType === "PARTIAL") {
+    const v = Math.max(0, Math.round(restSum * 100) / 100);
+    hint = { value: v.toFixed(2), text: `Остаток по выбранным ТЗ: ${rub(v)} ₽ — подставить` };
+  }
   const bound = addProductionPayment.bind(null, orderId);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -29,6 +52,7 @@ export function ProductionPaymentForm({
         formRef.current?.reset();
         setAmount("");
         setPaymentType("FINAL");
+        setSelected(new Set([orderId]));
       }}
       className="flex flex-col gap-2"
     >
@@ -63,29 +87,52 @@ export function ProductionPaymentForm({
           <Input name="notes" />
         </div>
       </div>
-      {advanceHint && paymentType === "ADVANCE" && (
+      {hint && (
         <div>
           <button
             type="button"
-            onClick={() => setAmount(advanceHint)}
+            onClick={() => setAmount(hint.value)}
             className="text-xs text-neutral-600 underline-offset-2 hover:underline"
           >
-            70% от к оплате: {advanceHint} ₽ — подставить
+            {hint.text}
           </button>
         </div>
       )}
-      {siblingOrders.length > 0 && (
+      {orders.length > 1 && (
         <div>
           <label className="mb-1 block text-xs text-neutral-500">
-            Эта оплата также покрывает (другие ТЗ этого заказчика):
+            Эта оплата покрывает ТЗ этого заказчика (текущее отмечено всегда):
           </label>
-          <div className="flex flex-wrap gap-3">
-            {siblingOrders.map((o) => (
-              <label key={o.id} className="flex items-center gap-1 text-sm text-neutral-700">
-                <input type="checkbox" name="orderIds" value={o.id} className="rounded" />
-                {o.number}
-              </label>
-            ))}
+          <div className="flex flex-col gap-1">
+            {orders.map((o) => {
+              const current = o.id === orderId;
+              const due = o.due !== null ? Number(o.due) : null;
+              const paid = Number(o.paid);
+              return (
+                <label key={o.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                  <input
+                    type="checkbox"
+                    name={current ? undefined : "orderIds"}
+                    value={o.id}
+                    className="rounded"
+                    checked={selected.has(o.id)}
+                    disabled={current}
+                    onChange={(e) =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(o.id);
+                        else next.delete(o.id);
+                        return next;
+                      })
+                    }
+                  />
+                  {o.label}
+                  {" — "}
+                  {due !== null ? `К оплате ${rub(due)} ₽` : "цена работы не указана"} (оплачено {rub(paid)} ₽)
+                  {current && <span className="text-xs text-neutral-400">· это ТЗ</span>}
+                </label>
+              );
+            })}
           </div>
         </div>
       )}

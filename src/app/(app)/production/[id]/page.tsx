@@ -15,6 +15,7 @@ import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
 import { ProductionPaymentForm } from "./payment-form";
+import { OpenDetailsLink } from "./open-details-link";
 import { ProducedQuantityForm } from "./produced-quantity-form";
 import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
@@ -79,13 +80,39 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const payments = order.paymentAllocations.map((a) => a.productionPayment);
 
-  const siblingOrders = order.clientId
+  // All ТЗ of this client (incl. the current one) for the payment form:
+  // "К оплате" / "оплачено" per ТЗ follow the same rule as this page — work
+  // price x quantity (produced, else planned) and the gross amount of every
+  // payment touching the ТЗ (shared payments are not split per ТЗ).
+  const clientOrders = order.clientId
     ? await prisma.productionOrder.findMany({
-        where: { clientId: order.clientId, organizationId: session.user.organizationId, id: { not: id } },
-        select: { id: true, number: true },
-        orderBy: { number: "asc" },
+        where: { clientId: order.clientId, organizationId: session.user.organizationId },
+        select: {
+          id: true,
+          number: true,
+          workOrderNumber: true,
+          plannedQuantity: true,
+          producedQuantity: true,
+          clientWorkPricePerUnit: true,
+          paymentAllocations: { select: { productionPayment: { select: { amount: true } } } },
+        },
       })
     : [];
+  const paymentOrders = clientOrders
+    .map((o) => {
+      const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+      const due = o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.mul(qty) : null;
+      const paid = o.paymentAllocations.reduce((sum, a) => sum.add(a.productionPayment.amount), new Decimal(0));
+      return {
+        id: o.id,
+        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+        sortKey: o.workOrderNumber ?? o.number,
+        due: due ? due.toFixed(2) : null,
+        paid: paid.toFixed(2),
+      };
+    })
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, "ru", { numeric: true }))
+    .map((o) => ({ id: o.id, label: o.label, due: o.due, paid: o.paid }));
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
 
@@ -261,7 +288,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const liningCost = liningUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
   const liningCostExcl = materialCostExclVat(liningUsages);
   const margin = clientRevenue ? clientRevenue.sub(projectedTotal) : null;
-  const advanceHint = clientRevenue ? clientRevenue.mul(0.7).toDecimalPlaces(2).toFixed(2) : null;
   const canCancel = order.status === "PLANNED" && order.materialUsages.length === 0;
   const qtyLabel =
     order.status === "COMPLETED" || order.producedQuantity.greaterThan(0)
@@ -354,7 +380,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Кол-во</Th>
                 <Th>Цена за ед. без НДС</Th>
                 <Th>НДС</Th>
-                <Th className="text-right">Сумма</Th>
+                <Th className="text-right" title="Сумма по лоту с НДС (переключатель НДС меняет отображение)">Сумма с НДС</Th>
                 <Th></Th>
               </Tr>
             </Thead>
@@ -366,7 +392,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
               <SectionRow>Подкладка</SectionRow>
               {usageRows(liningUsages, allLiningLots)}
-              {liningUsages.length === 0 && <EmptyRow>Подкладка ещё не выбрана</EmptyRow>}
+              {liningUsages.length === 0 && (
+                <EmptyRow>
+                  Подкладка не указана — <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
+                </EmptyRow>
+              )}
               <TotalRow label="Итого подкладка" value={<Money incl={liningCost} excl={liningCostExcl} />} />
 
               <SectionRow>Расходы</SectionRow>
@@ -400,15 +430,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
                 strong
               />
-              {clientRevenue && margin && (
+              <SectionRow>Работа для заказчика</SectionRow>
+              {clientRevenue && margin ? (
                 <>
-                  <TotalRow label="Работы для заказчика" value={formatMoney(clientRevenue.toString())} />
+                  <TotalRow
+                    label={`Работы: ${formatMoney(order.clientWorkPricePerUnit!.toString())} × ${formatQty(producedOrPlanned.toString())} шт. =`}
+                    value={formatMoney(clientRevenue.toString())}
+                  />
                   <TotalRow
                     label="Маржа"
+                    title="Работа для заказчика минус себестоимость ТЗ"
                     value={formatMoney(margin.toString())}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}
                   />
                 </>
+              ) : (
+                <EmptyRow>Цена работы для заказчика не указана</EmptyRow>
               )}
             </Tbody>
           </Table>
@@ -421,7 +458,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </div>
             </details>
             <BulkUsageForm orderId={id} />
-            <details>
+            <details id="add-lining">
               <summary className="cursor-pointer text-neutral-600">+ подкладка</summary>
               <div className="mt-2">
                 <UsageForm orderId={id} lots={liningLots} />
@@ -506,7 +543,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 )}
               </p>
             )}
-            <ProductionPaymentForm orderId={id} siblingOrders={siblingOrders} advanceHint={advanceHint} />
+            <ProductionPaymentForm orderId={id} orders={paymentOrders} />
             <Table>
               <Thead>
                 <Tr>
@@ -582,14 +619,16 @@ function TotalRow({
   value,
   strong,
   className,
+  title,
 }: {
   label: string;
   value: React.ReactNode;
   strong?: boolean;
   className?: string;
+  title?: string;
 }) {
   return (
-    <Tr className={`${strong ? "bg-neutral-100 font-semibold" : "font-medium"} ${className ?? ""}`}>
+    <Tr title={title} className={`${strong ? "bg-neutral-100 font-semibold" : "font-medium"} ${className ?? ""}`}>
       <Td colSpan={5} className="text-right">
         {label}
       </Td>
