@@ -3,25 +3,32 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
-import { purchaseTotalInclVat, purchaseTotalExclVat, grossUp } from "@/lib/purchase-totals";
+import { formatMoney, formatDate } from "@/lib/utils";
+import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 
-const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
-  DRAFT: { label: "Черновик", variant: "default" },
-  ORDERED: { label: "Заказано", variant: "info" },
-  IN_TRANSIT: { label: "В пути", variant: "warning" },
-  RECEIVED: { label: "Оприходовано", variant: "success" },
-  CANCELLED: { label: "Отменено", variant: "danger" },
-};
+// Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
+function firstLine(v: string | null) {
+  return (v ?? "").split(/\r?\n/)[0].trim();
+}
 
-export default async function PurchasesPage() {
+function statusView(status: string): { label: string; variant: "default" | "success" | "danger" } {
+  if (status === "RECEIVED") return { label: "Принято на склад", variant: "success" };
+  if (status === "CANCELLED") return { label: "Отменено", variant: "danger" };
+  return { label: "Черновик", variant: "default" };
+}
+
+export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
+  const sp = await searchParams;
+  const auction = (typeof sp.auction === "string" ? sp.auction : "").trim();
   const purchases = await prisma.purchase.findMany({
-    where: { organizationId: session.user.organizationId },
+    where: {
+      organizationId: session.user.organizationId,
+      ...(auction ? { auctionSession: { contains: auction, mode: "insensitive" as const } } : {}),
+    },
     include: {
       supplier: true,
       items: { include: { rawMaterial: true } },
@@ -31,23 +38,13 @@ export default async function PurchasesPage() {
     orderBy: { orderDate: "desc" },
   });
 
-  const liningRows = purchases.flatMap((p) =>
-    p.items
-      .filter((i) => i.rawMaterial.unit === "M")
-      .map((i) => ({
-        purchaseId: p.id,
-        purchaseNumber: p.number,
-        date: p.orderDate,
-        material: i.rawMaterial.name,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        currency: p.currency,
-        vatRate: i.vatRate,
-        subtotalRub: i.subtotal.mul(p.exchangeRate),
-      }))
-  );
-  const liningTotalExclVatRub = liningRows.reduce((s, r) => s.add(r.subtotalRub), new Decimal(0));
-  const liningTotalInclVatRub = liningRows.reduce((s, r) => s.add(grossUp(r.subtotalRub, r.vatRate)), new Decimal(0));
+  const sessions = await prisma.purchase.findMany({
+    where: { organizationId: session.user.organizationId, auctionSession: { not: null } },
+    select: { auctionSession: true },
+    distinct: ["auctionSession"],
+    orderBy: { auctionSession: "asc" },
+  });
+  const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i);
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,58 +55,28 @@ export default async function PurchasesPage() {
         </Link>
       </div>
 
-      {liningRows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Закупка подкладки</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-3 text-sm text-neutral-500">
-              Позиции подкладочной ткани из всех закупок ниже (мех этой же закупки — в общей
-              таблице). Остаток по каждой ткани — на странице{" "}
-              <Link href="/lining" className="underline">
-                «Подкладка»
-              </Link>
-              .
-            </p>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Ткань</Th>
-                  <Th>Закупка</Th>
-                  <Th>Дата</Th>
-                  <Th>Кол-во</Th>
-                  <Th>Цена за ед. (без НДС)</Th>
-                  <Th>НДС</Th>
-                  <Th>Сумма, ₽</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {liningRows.map((r, i) => (
-                  <Tr key={i}>
-                    <Td>{r.material}</Td>
-                    <Td>
-                      <Link href={`/purchases/${r.purchaseId}`} className="hover:underline">
-                        {r.purchaseNumber}
-                      </Link>
-                    </Td>
-                    <Td className="text-neutral-500">{formatDate(r.date)}</Td>
-                    <Td>{formatQty(r.quantity.toString())} м</Td>
-                    <Td>{formatCurrency(r.unitPrice.toString(), r.currency)}</Td>
-                    <Td>{r.vatRate.toString()}%</Td>
-                    <Td>
-                      <Money incl={grossUp(r.subtotalRub, r.vatRate)} excl={r.subtotalRub} />
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-            <p className="mt-2 text-right text-sm text-neutral-500">
-              Итого закуплено подкладки: <Money incl={liningTotalInclVatRub} excl={liningTotalExclVatRub} />
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <form method="get" className="flex items-center gap-2">
+        <input
+          name="auction"
+          defaultValue={auction}
+          placeholder="Аукцион / сессия"
+          list="auction-sessions"
+          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+        />
+        <datalist id="auction-sessions">
+          {auctionOptions.map((a) => (
+            <option key={a} value={a} />
+          ))}
+        </datalist>
+        <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Найти
+        </button>
+        {auction && (
+          <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">
+            Сбросить
+          </Link>
+        )}
+      </form>
 
       <Table>
         <Thead>
@@ -129,7 +96,7 @@ export default async function PurchasesPage() {
             const total = purchaseTotalInclVat(p);
             const totalExclVat = purchaseTotalExclVat(p);
             const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-            const status = STATUS_LABELS[p.status];
+            const status = statusView(p.status);
             return (
               <Tr key={p.id}>
                 <Td className="font-medium">
@@ -139,7 +106,7 @@ export default async function PurchasesPage() {
                 </Td>
                 <Td>{p.supplier.name}</Td>
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
-                  {p.auctionSession ?? "—"}
+                  {p.auctionSession ? firstLine(p.auctionSession) : "—"}
                 </Td>
                 <Td className="text-neutral-500">{p.invoiceNumber ?? "—"}</Td>
                 <Td>{formatDate(p.orderDate)}</Td>
@@ -158,7 +125,7 @@ export default async function PurchasesPage() {
           {purchases.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                Закупок пока нет
+                {auction ? "По этому аукциону закупок нет" : "Закупок пока нет"}
               </Td>
             </Tr>
           )}
