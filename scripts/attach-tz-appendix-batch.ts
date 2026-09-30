@@ -32,7 +32,21 @@ const prisma = new PrismaClient();
 // states one; several documents were found to carry a color the original
 // bulk import never captured (that sheet-based import had no color
 // column), which this script backfills from the real signed document.
-type Entry = { clientName: string; contractNumber: string; workOrderDate?: string; color?: string };
+// clientWorkPricePerUnit is optional too, and only ever fills a gap
+// (order.clientWorkPricePerUnit === null) — never overwrites an existing
+// value, even if it disagrees with the document. A disagreement (found on
+// ТЗ №146: DB had a value that matched neither the document's per-unit
+// price nor the document's own stated total) is a genuine conflict
+// between two real numbers, not a missing-field gap — that needs a human
+// decision, not a silent overwrite, so it's simply omitted from this
+// entry's data rather than "fixed" here.
+type Entry = {
+  clientName: string;
+  contractNumber: string;
+  workOrderDate?: string;
+  color?: string;
+  clientWorkPricePerUnit?: number;
+};
 
 async function main() {
   const data: Record<string, Entry> = JSON.parse(
@@ -74,12 +88,16 @@ async function main() {
         contractNumber: entry.contractNumber,
         ...(entry.workOrderDate ? { workOrderDate: new Date(entry.workOrderDate) } : {}),
         ...(entry.color && !order.color ? { color: entry.color } : {}),
+        ...(entry.clientWorkPricePerUnit != null && order.clientWorkPricePerUnit == null
+          ? { clientWorkPricePerUnit: entry.clientWorkPricePerUnit }
+          : {}),
       },
     });
     console.log(
       `ТЗ №${workOrderNumber} (${order.number}): set client "${entry.clientName}", contract` +
         `${entry.workOrderDate ? ", date" : " (date masked in source, left unset)"}` +
-        `${entry.color && !order.color ? `, color "${entry.color}"` : ""}.`
+        `${entry.color && !order.color ? `, color "${entry.color}"` : ""}` +
+        `${entry.clientWorkPricePerUnit != null && order.clientWorkPricePerUnit == null ? `, work price ${entry.clientWorkPricePerUnit}` : ""}.`
     );
     updated++;
   }
