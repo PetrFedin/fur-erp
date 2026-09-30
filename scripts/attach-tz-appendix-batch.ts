@@ -25,7 +25,14 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-type Entry = { clientName: string; contractNumber: string; workOrderDate: string };
+// workOrderDate is optional: some appendix documents have the day of the
+// ТЗ date masked in the source ("**.08.2026") — only month/year is known
+// in those cases, which isn't a real date, so it's left unset rather than
+// guessed. color is optional too — only set where the document actually
+// states one; several documents were found to carry a color the original
+// bulk import never captured (that sheet-based import had no color
+// column), which this script backfills from the real signed document.
+type Entry = { clientName: string; contractNumber: string; workOrderDate?: string; color?: string };
 
 async function main() {
   const data: Record<string, Entry> = JSON.parse(
@@ -65,10 +72,15 @@ async function main() {
       data: {
         clientId: client.id,
         contractNumber: entry.contractNumber,
-        workOrderDate: new Date(entry.workOrderDate),
+        ...(entry.workOrderDate ? { workOrderDate: new Date(entry.workOrderDate) } : {}),
+        ...(entry.color && !order.color ? { color: entry.color } : {}),
       },
     });
-    console.log(`ТЗ №${workOrderNumber} (${order.number}): set client "${entry.clientName}", contract, date.`);
+    console.log(
+      `ТЗ №${workOrderNumber} (${order.number}): set client "${entry.clientName}", contract` +
+        `${entry.workOrderDate ? ", date" : " (date masked in source, left unset)"}` +
+        `${entry.color && !order.color ? `, color "${entry.color}"` : ""}.`
+    );
     updated++;
   }
 
