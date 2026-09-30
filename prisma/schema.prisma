@@ -40,6 +40,8 @@ model Organization {
   finishedGoodsStocks    FinishedGoodsStock[]
   finishedGoodsMovements FinishedGoodsMovement[]
   supplyPlanEntries      SupplyPlanEntry[]
+  shipments              Shipment[]
+  fittings               Fitting[]
 }
 
 enum UserRole {
@@ -112,6 +114,7 @@ model Client {
 
   productionOrders   ProductionOrder[]
   productionPayments ProductionPayment[]
+  shipments          Shipment[]
 
   @@index([organizationId])
 }
@@ -426,8 +429,8 @@ model RawMaterialLot {
   grade          String?
   color          String?
 
-  purchaseId String?
-  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
+  purchaseId    String?
+  purchase      Purchase?      @relation(fields: [purchaseId], references: [id])
   // Reverse side of PurchaseItem.lotId (see its comment): a fur lot has
   // exactly one PurchaseItem in practice, but a lining pool lot can have
   // many, one per receipt that fed it — hence a list here, not a unique
@@ -458,8 +461,8 @@ model RawMaterialLot {
   // lots never had expenses allocated). Combined with materialCostExclVat/
   // materialVatAmount above, (materialCostExclVat + expenseCostExclVat) is
   // the fully correct excl-VAT landed unit cost.
-  expenseCostExclVat Decimal @default(0) @db.Decimal(14, 2)
-  expenseVatAmount   Decimal @default(0) @db.Decimal(14, 2)
+  expenseCostExclVat  Decimal @default(0) @db.Decimal(14, 2)
+  expenseVatAmount    Decimal @default(0) @db.Decimal(14, 2)
 
   receivedDate DateTime @default(now())
   notes        String?
@@ -642,6 +645,8 @@ model ProductionOrder {
   materialUsages         ProductionMaterialUsage[]
   expenses               ProductionExpense[]
   paymentAllocations     ProductionPaymentOrder[]
+  shipmentLines          ShipmentLine[]
+  fittings               Fitting[]
   stockMovements         StockMovement[]
   finishedGoodsMovements FinishedGoodsMovement[]
 
@@ -729,4 +734,84 @@ model FinishedGoodsStock {
 
   @@unique([warehouseId, productModelId])
   @@index([organizationId])
+}
+
+// Планируемые/выполненные отгрузки готовой продукции заказчику: по
+// уведомлению об отгрузке выбираются ТЗ, размеры и количество, плановая дата.
+enum ShipmentStatus {
+  PLANNED
+  SHIPPED
+  CANCELLED
+}
+
+model Shipment {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?        @relation(fields: [clientId], references: [id])
+  plannedDate    DateTime
+  shippedDate    DateTime?
+  status         ShipmentStatus @default(PLANNED)
+  notes          String?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  lines          ShipmentLine[]
+
+  @@index([organizationId, status])
+  @@index([plannedDate])
+}
+
+model ShipmentLine {
+  id                String          @id @default(cuid())
+  shipmentId        String
+  shipment          Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  size              String?
+  quantity          Int
+
+  @@index([shipmentId])
+  @@index([productionOrderId])
+}
+
+// Журнал примерок: по ТЗ (а значит и по модели) — дата, размер, итог,
+// комментарий и фото, сделанные по факту примерки.
+enum FittingStatus {
+  PLANNED
+  HELD_REMARKS
+  HELD_OK
+}
+
+model Fitting {
+  id                String          @id @default(cuid())
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  fittingDate       DateTime
+  size              String?
+  status            FittingStatus   @default(PLANNED)
+  comment           String?
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  photos            FittingPhoto[]
+
+  @@index([organizationId])
+  @@index([productionOrderId])
+}
+
+model FittingPhoto {
+  id           String   @id @default(cuid())
+  fittingId    String
+  fitting      Fitting  @relation(fields: [fittingId], references: [id], onDelete: Cascade)
+  storagePath  String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  @@index([fittingId])
 }

@@ -7,6 +7,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Input, Select } from "@/components/ui/input";
+import { ProductionTabs } from "@/components/production-tabs";
 import { formatMoney, formatQty } from "@/lib/utils";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -108,6 +109,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   return (
     <div className="flex flex-col gap-4">
+      <ProductionTabs active="orders" />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">
           ТЗ
