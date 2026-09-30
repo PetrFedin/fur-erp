@@ -20,16 +20,17 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-export default async function LotsArchivePage({ searchParams }: PageProps<"/lots">) {
+export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
   const session = await requireSession();
   const sp = await searchParams;
+  const tab: "fur" | "lining" = sp.tab === "lining" ? "lining" : "fur";
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const materialId = typeof sp.material === "string" ? sp.material : "";
 
   const [currentLots, allLots, lots, materials] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: session.user.organizationId, quantityRemaining: { gt: 0 } },
-      include: { rawMaterial: true, warehouse: true },
+      include: { rawMaterial: true },
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId: session.user.organizationId },
@@ -38,8 +39,9 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     prisma.rawMaterialLot.findMany({
       where: {
         organizationId: session.user.organizationId,
-        ...(materialId ? { rawMaterialId: materialId } : {}),
-        ...(q
+        rawMaterial: tab === "lining" ? { unit: "M" } : { unit: { not: "M" } },
+        ...(tab === "fur" && materialId ? { rawMaterialId: materialId } : {}),
+        ...(tab === "fur" && q
           ? {
               OR: [
                 { lotNumber: { contains: q, mode: "insensitive" } },
@@ -52,12 +54,11 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
       },
       include: {
         rawMaterial: true,
-        warehouse: true,
         purchase: { include: { supplier: true } },
         usages: { include: { productionOrder: true } },
       },
-      orderBy: { receivedDate: "desc" },
-      take: 200,
+      orderBy: { receivedDate: tab === "lining" ? "asc" : "desc" },
+      ...(tab === "fur" ? { take: 200 } : {}),
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId: session.user.organizationId },
@@ -111,7 +112,7 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
   const liningTotalValue = liningMaterialRows.reduce((s, r) => s.add(r.value), new Decimal(0));
   const liningTotalValueExclVat = liningMaterialRows.reduce((s, r) => s.add(r.valueExclVat), new Decimal(0));
 
-  const furLots = lots.filter((l) => l.rawMaterial.unit !== "M");
+  const furLots = lots;
 
   const furLotsByMaterial = new Map<string, typeof furLots>();
   for (const l of furLots) {
@@ -120,257 +121,396 @@ export default async function LotsArchivePage({ searchParams }: PageProps<"/lots
     else furLotsByMaterial.set(l.rawMaterialId, [l]);
   }
 
+  const liningLotsByMaterial = furLotsByMaterial; // (та же группировка: на вкладке «Подкладка» lots — только ткани)
+
+  const tabLink = (t: string, label: string) => (
+    <Link
+      href={t === "fur" ? "/lots" : `/lots?tab=${t}`}
+      className={
+        "rounded-md px-3 py-1.5 text-sm " +
+        (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
+      }
+    >
+      {label}
+    </Link>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Остатки и архив сырья</h1>
-        <Link href="/materials/new" className={buttonVariants()}>
-          + Добавить сырьё
+        <div>
+          <h1 className="text-xl font-semibold">Сырьё</h1>
+          <p className="text-sm text-neutral-500">Остаток по материалу — разверните, чтобы увидеть лоты.</p>
+        </div>
+        <Link
+          href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
+          className={buttonVariants()}
+        >
+          + Добавить материал
         </Link>
       </div>
 
-      <form className="grid grid-cols-4 items-end gap-2" method="get">
-        <div className="col-span-2">
-          <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
-          <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
-          <Select name="material" defaultValue={materialId}>
-            <option value="">Все материалы</option>
-            {materials.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="flex gap-2">
-          <Button type="submit" variant="outline">
-            Найти
-          </Button>
-          <Link href="/lots" className="flex items-center text-sm text-neutral-500 hover:underline">
-            Сбросить
-          </Link>
-        </div>
-      </form>
+      <div className="flex gap-1 border-b border-neutral-200 pb-2">
+        {tabLink("fur", "Мех")}
+        {tabLink("lining", "Подкладка")}
+      </div>
 
-      <h2 className="text-lg font-semibold">Мех</h2>
+      {tab === "fur" ? (
+        <>
+          <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
+            <form className="grid grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
+                <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
+                <Select name="material" defaultValue={materialId}>
+                  <option value="">Все материалы</option>
+                  {materials
+                    .filter((m) => m.unit !== "M")
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" variant="outline">
+                  Найти
+                </Button>
+                <Link href="/lots" className="flex items-center text-sm text-neutral-500 hover:underline">
+                  Сбросить
+                </Link>
+              </div>
+              <div className="col-span-4">
+                <Link href="/raw-materials" className="text-sm text-neutral-500 hover:underline">
+                  Расширенный поиск по лотам и аукционам →
+                </Link>
+              </div>
+            </form>
+          </details>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Итоговый отчёт по меху</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-3 text-sm text-neutral-500">
-            У нас один склад, поэтому отдельная разбивка «по складам» не нужна — остаток по
-            материалу ниже это и есть весь остаток. Разверните строку, чтобы увидеть, из каких
-            лотов он состоит.
-          </p>
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Сырьё</Th>
-                <Th>Куплено всего</Th>
-                <Th>Использовано</Th>
-                <Th>Остаток</Th>
-                <Th>Стоимость остатка</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {furMaterialRows.map((r) => {
-                const rowLots = furLotsByMaterial.get(r.id) ?? [];
-                const low = r.minStockLevel != null && r.remaining.lessThan(r.minStockLevel);
-                return (
-                  <Tr key={r.id}>
-                    <Td colSpan={5} className="p-0">
-                      <details className="group">
-                        <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
-                          <span className="font-medium">
-                            <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
-                              ›
+          <Card>
+            <CardHeader>
+              <CardTitle>Мех</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>Сырьё</Th>
+                    <Th>Куплено всего</Th>
+                    <Th>Использовано</Th>
+                    <Th>Остаток</Th>
+                    <Th>Стоимость остатка</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {furMaterialRows.map((r) => {
+                    const rowLots = furLotsByMaterial.get(r.id) ?? [];
+                    const low = r.minStockLevel != null && r.remaining.lessThan(r.minStockLevel);
+                    return (
+                      <Tr key={r.id}>
+                        <Td colSpan={5} className="p-0">
+                          <details className="group">
+                            <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+                              <span className="font-medium">
+                                <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
+                                  ›
+                                </span>
+                                {r.name}
+                              </span>
+                              <span>
+                                {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
+                              </span>
+                              <span>
+                                {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
+                              </span>
+                              <span className="font-medium">
+                                {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}{" "}
+                                {low && <Badge variant="danger">Мало</Badge>}
+                              </span>
+                              <span>
+                                <Money incl={r.value} excl={r.valueExclVat} />
+                              </span>
+                            </summary>
+                            <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2">
+                              <Table>
+                                <Thead>
+                                  <Tr>
+                                    <Th>Лот</Th>
+                                    <Th>Куплено</Th>
+                                    <Th>Остаток</Th>
+                                    <Th>Без НДС</Th>
+                                    <Th>НДС</Th>
+                                    <Th>Всего</Th>
+                                    <Th>Использован в ТЗ</Th>
+                                    <Th>Закупка / аукцион</Th>
+                                  </Tr>
+                                </Thead>
+                                <Tbody>
+                                  {rowLots.map((l) => {
+                                    const excl = lotUnitCostExclVat(l);
+                                    const vat = l.unitCost.sub(excl);
+                                    const unit = UNIT_LABELS[l.rawMaterial.unit];
+                                    return (
+                                      <Tr key={l.id}>
+                                        <Td>
+                                          {l.lotNumber ?? "без номера"}
+                                          {(l.grade || l.color) && (
+                                            <div className="text-xs text-neutral-400">
+                                              {[l.grade, l.color].filter(Boolean).join(" / ")}
+                                            </div>
+                                          )}
+                                        </Td>
+                                        <Td>
+                                          {formatQty(l.quantityReceived.toString())} {unit}
+                                        </Td>
+                                        <Td>
+                                          {l.quantityRemaining.isZero() ? (
+                                            <Badge>Израсходован</Badge>
+                                          ) : (
+                                            <>
+                                              {formatQty(l.quantityRemaining.toString())} {unit}
+                                            </>
+                                          )}
+                                        </Td>
+                                        <Td className="whitespace-nowrap">{formatMoney(excl.toString())}</Td>
+                                        <Td className="whitespace-nowrap">
+                                          {formatMoney(vat.toString())}
+                                          <div className="text-xs text-neutral-400">{l.vatRate.toString()}%</div>
+                                        </Td>
+                                        <Td className="whitespace-nowrap font-medium">
+                                          {formatMoney(l.unitCost.toString())}
+                                          {l.costBreakdown && (
+                                            <CostBreakdownToggle breakdown={l.costBreakdown as never} />
+                                          )}
+                                        </Td>
+                                        <Td>
+                                          {l.usages.length === 0
+                                            ? "—"
+                                            : l.usages.map((u) => (
+                                                <div key={u.id} className="whitespace-nowrap">
+                                                  <Link
+                                                    href={`/production/${u.productionOrderId}`}
+                                                    className="hover:underline"
+                                                  >
+                                                    ТЗ {u.productionOrder.number}
+                                                  </Link>
+                                                  {" — "}
+                                                  {formatQty(u.quantity.toString())} {unit}
+                                                </div>
+                                              ))}
+                                        </Td>
+                                        <Td>
+                                          {l.purchase ? (
+                                            <>
+                                              <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
+                                                {l.purchase.supplier.name} ({l.purchase.number})
+                                              </Link>
+                                              <div className="text-xs text-neutral-400">
+                                                {[
+                                                  formatDate(l.receivedDate),
+                                                  l.purchase.auctionSession,
+                                                  l.purchase.transferDocument,
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(" · ")}
+                                              </div>
+                                            </>
+                                          ) : (
+                                            formatDate(l.receivedDate)
+                                          )}
+                                        </Td>
+                                      </Tr>
+                                    );
+                                  })}
+                                  {rowLots.length === 0 && (
+                                    <Tr>
+                                      <Td colSpan={8} className="py-4 text-center text-neutral-400">
+                                        Лоты не найдены (сузьте поиск/фильтр выше)
+                                      </Td>
+                                    </Tr>
+                                  )}
+                                </Tbody>
+                              </Table>
+                              <p className="mt-1 text-xs text-neutral-400">Цены — за единицу материала.</p>
+                            </div>
+                          </details>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                  {furMaterialRows.length === 0 && (
+                    <Tr>
+                      <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                        Мех ещё не закупался
+                      </Td>
+                    </Tr>
+                  )}
+                </Tbody>
+              </Table>
+              <div className="mt-3 flex justify-end text-sm">
+                <span className="text-neutral-500">Итого стоимость остатков меха: </span>
+                <span className="ml-1 font-semibold text-neutral-900">
+                  <Money incl={furTotalValue} excl={furTotalValueExclVat} />
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Подкладка</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>№ ткани</Th>
+                  <Th>Куплено</Th>
+                  <Th>Использовано</Th>
+                  <Th>Остаток</Th>
+                  <Th>Стоимость</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {liningMaterialRows.map((r) => {
+                  const rowLots = liningLotsByMaterial.get(r.id) ?? [];
+                  const perOrder = new Map<string, { id: string; number: string; qty: Decimal }>();
+                  for (const l of rowLots) {
+                    for (const u of l.usages) {
+                      const e = perOrder.get(u.productionOrderId);
+                      if (e) e.qty = e.qty.add(u.quantity);
+                      else
+                        perOrder.set(u.productionOrderId, {
+                          id: u.productionOrderId,
+                          number: u.productionOrder.number,
+                          qty: u.quantity,
+                        });
+                    }
+                  }
+                  const depleted = r.remaining.lessThanOrEqualTo(0);
+                  return (
+                    <Tr key={r.id}>
+                      <Td colSpan={5} className="p-0">
+                        <details className="group">
+                          <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+                            <span className="font-medium">
+                              <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
+                                ›
+                              </span>
+                              {r.name}
                             </span>
-                            {r.name}
-                          </span>
-                          <span>
-                            {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
-                          </span>
-                          <span>
-                            {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
-                          </span>
-                          <span className="font-medium">
-                            {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}{" "}
-                            {low && <Badge variant="danger">Мало</Badge>}
-                          </span>
-                          <span>
-                            <Money incl={r.value} excl={r.valueExclVat} />
-                          </span>
-                        </summary>
-                        <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2">
-                          <Table>
-                            <Thead>
-                              <Tr>
-                                <Th>Лот</Th>
-                                <Th>Сорт/цвет</Th>
-                                <Th>Получено</Th>
-                                <Th>Остаток</Th>
-                                <Th>Себест. за ед. (без НДС / НДС / всего)</Th>
-                                <Th>Поставщик / закупка</Th>
-                                <Th>Дата поступления</Th>
-                                <Th>Использовано в</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {rowLots.map((l) => (
-                                <Tr key={l.id}>
-                                  <Td>{l.lotNumber ?? "без номера"}</Td>
-                                  <Td>{[l.grade, l.color].filter(Boolean).join(" / ") || "—"}</Td>
-                                  <Td>
-                                    {formatQty(l.quantityReceived.toString())} {UNIT_LABELS[l.rawMaterial.unit]}
-                                  </Td>
-                                  <Td>
-                                    {l.quantityRemaining.isZero() ? (
-                                      <Badge>Израсходован</Badge>
-                                    ) : (
-                                      <>
-                                        {formatQty(l.quantityRemaining.toString())} {UNIT_LABELS[l.rawMaterial.unit]}
-                                      </>
-                                    )}
-                                  </Td>
-                                  <Td className="whitespace-nowrap text-xs">
-                                    {formatMoney(l.materialCostExclVat.toString())} / {l.vatRate.toString()}% /{" "}
-                                    <span className="font-medium text-neutral-900">
-                                      <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
-                                    </span>
-                                    {l.costBreakdown && <CostBreakdownToggle breakdown={l.costBreakdown as never} />}
-                                  </Td>
-                                  <Td>
-                                    {l.purchase ? (
-                                      <>
-                                        <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
-                                          {l.purchase.supplier.name} ({l.purchase.number})
-                                        </Link>
-                                        {(l.purchase.auctionSession || l.purchase.transferDocument) && (
-                                          <div className="text-xs text-neutral-400">
-                                            {[l.purchase.auctionSession, l.purchase.transferDocument]
-                                              .filter(Boolean)
-                                              .join(" · ")}
-                                          </div>
+                            <span>{formatQty(r.purchased.toString())} м</span>
+                            <span>{formatQty(r.purchased.sub(r.remaining).toString())} м</span>
+                            <span className="font-medium">
+                              {formatQty(r.remaining.toString())} м{" "}
+                              {depleted && <Badge variant="danger">Исчерпан</Badge>}
+                            </span>
+                            <span>
+                              <Money incl={r.value} excl={r.valueExclVat} />
+                            </span>
+                          </summary>
+                          <div className="grid grid-cols-2 gap-4 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
+                            <div>
+                              <div className="mb-1 text-xs font-semibold text-neutral-500">Закупки</div>
+                              <Table>
+                                <Thead>
+                                  <Tr>
+                                    <Th>Закупка</Th>
+                                    <Th>Дата</Th>
+                                    <Th>Куплено</Th>
+                                    <Th>Цена за м</Th>
+                                  </Tr>
+                                </Thead>
+                                <Tbody>
+                                  {rowLots.map((l) => (
+                                    <Tr key={l.id}>
+                                      <Td>
+                                        {l.purchase ? (
+                                          <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
+                                            {l.purchase.supplier.name} ({l.purchase.number})
+                                          </Link>
+                                        ) : (
+                                          "—"
                                         )}
-                                      </>
-                                    ) : (
-                                      "—"
-                                    )}
-                                  </Td>
-                                  <Td>{formatDate(l.receivedDate)}</Td>
-                                  <Td>
-                                    {l.usages.length === 0
-                                      ? "—"
-                                      : l.usages.map((u, i) => (
-                                          <span key={u.id}>
-                                            {i > 0 && ", "}
-                                            <Link href={`/production/${u.productionOrderId}`} className="hover:underline">
-                                              {u.productionOrder.number}
-                                            </Link>
-                                          </span>
-                                        ))}
-                                  </Td>
-                                </Tr>
-                              ))}
-                              {rowLots.length === 0 && (
-                                <Tr>
-                                  <Td colSpan={8} className="py-4 text-center text-neutral-400">
-                                    Лоты не найдены (сузьте поиск/фильтр выше)
-                                  </Td>
-                                </Tr>
-                              )}
-                            </Tbody>
-                          </Table>
-                        </div>
-                      </details>
+                                      </Td>
+                                      <Td>{formatDate(l.receivedDate)}</Td>
+                                      <Td>{formatQty(l.quantityReceived.toString())} м</Td>
+                                      <Td>
+                                        <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
+                                      </Td>
+                                    </Tr>
+                                  ))}
+                                  {rowLots.length === 0 && (
+                                    <Tr>
+                                      <Td colSpan={4} className="py-3 text-center text-neutral-400">
+                                        Эта ткань пока не закупалась
+                                      </Td>
+                                    </Tr>
+                                  )}
+                                </Tbody>
+                              </Table>
+                            </div>
+                            <div>
+                              <div className="mb-1 text-xs font-semibold text-neutral-500">Использована в ТЗ</div>
+                              <Table>
+                                <Thead>
+                                  <Tr>
+                                    <Th>ТЗ</Th>
+                                    <Th>Метров</Th>
+                                  </Tr>
+                                </Thead>
+                                <Tbody>
+                                  {Array.from(perOrder.values()).map((o) => (
+                                    <Tr key={o.id}>
+                                      <Td>
+                                        <Link href={`/production/${o.id}`} className="hover:underline">
+                                          ТЗ {o.number}
+                                        </Link>
+                                      </Td>
+                                      <Td>{formatQty(o.qty.toString())} м</Td>
+                                    </Tr>
+                                  ))}
+                                  {perOrder.size === 0 && (
+                                    <Tr>
+                                      <Td colSpan={2} className="py-3 text-center text-neutral-400">
+                                        Пока не использовалась
+                                      </Td>
+                                    </Tr>
+                                  )}
+                                </Tbody>
+                              </Table>
+                            </div>
+                          </div>
+                        </details>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+                {liningMaterialRows.length === 0 && (
+                  <Tr>
+                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                      Подкладка ещё не закупалась
                     </Td>
                   </Tr>
-                );
-              })}
-              {furMaterialRows.length === 0 && (
-                <Tr>
-                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                    Мех ещё не закупался
-                  </Td>
-                </Tr>
-              )}
-            </Tbody>
-          </Table>
-          <div className="mt-3 flex justify-end text-sm">
-            <span className="text-neutral-500">Итого стоимость остатков меха: </span>
-            <span className="ml-1 font-semibold text-neutral-900"><Money incl={furTotalValue} excl={furTotalValueExclVat} /></span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Подкладка</h2>
-        <Link href="/lining" className="text-sm text-neutral-500 hover:underline">
-          Смотреть все ткани →
-        </Link>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Итоговый отчёт по подкладке</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Ткань</Th>
-                <Th>Куплено всего</Th>
-                <Th>Использовано</Th>
-                <Th>Остаток</Th>
-                <Th>Стоимость остатка</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {liningMaterialRows.map((r) => (
-                <Tr key={r.id}>
-                  <Td className="font-medium">{r.name}</Td>
-                  <Td>
-                    {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td>
-                    {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td className="font-medium">
-                    {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td><Money incl={r.value} excl={r.valueExclVat} /></Td>
-                </Tr>
-              ))}
-              {liningMaterialRows.length === 0 && (
-                <Tr>
-                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                    Подкладка ещё не закупалась
-                  </Td>
-                </Tr>
-              )}
-            </Tbody>
-          </Table>
-          <div className="mt-3 flex justify-end text-sm">
-            <span className="text-neutral-500">Итого стоимость остатков подкладки: </span>
-            <span className="ml-1 font-semibold text-neutral-900"><Money incl={liningTotalValue} excl={liningTotalValueExclVat} /></span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <p className="text-sm text-neutral-500">
-        Подробный архив по каждой ткани (куплено/использовано/остаток, себестоимость, какие
-        закупки её пополнили) — на странице{" "}
-        <Link href="/lining" className="underline">
-          «Подкладка»
-        </Link>
-        . Подкладка ведётся одним агрегированным остатком по номеру ткани, а не отдельными
-        партиями, поэтому «архива лотов» здесь больше нет — только сама ткань.
-      </p>
+                )}
+              </Tbody>
+            </Table>
+            <div className="mt-3 flex justify-end text-sm">
+              <span className="text-neutral-500">Итого стоимость остатков подкладки: </span>
+              <span className="ml-1 font-semibold text-neutral-900">
+                <Money incl={liningTotalValue} excl={liningTotalValueExclVat} />
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -20,18 +20,19 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
   return (
     <div className="flex max-w-2xl flex-col gap-4">
       <Card>
-        <CardContent className="pt-4">
-          <CategoryQuickAdd />
-        </CardContent>
-      </Card>
-      <Card>
         <CardHeader>
-          <CardTitle>Новое сырьё</CardTitle>
+          <CardTitle>Новый материал</CardTitle>
         </CardHeader>
         <CardContent>
           <MaterialForm action={createMaterial} categories={categories} defaultUnit={defaultUnit} />
         </CardContent>
       </Card>
+      <details className="rounded-md border border-neutral-200 bg-white">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Добавить категорию</summary>
+        <div className="border-t border-neutral-100 p-3">
+          <CategoryQuickAdd />
+        </div>
+      </details>
     </div>
   );
 }

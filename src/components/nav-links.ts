@@ -1,32 +1,23 @@
-export const NAV_SECTIONS = [
+// Меню из 6 пунктов. `also` — вложенные и переехавшие разделы: на них
+// подсвечивается тот же пункт, чтобы человек не терял, "где он".
+export const NAV_LINKS = [
+  { href: "/dashboard", label: "Сводка", also: [] },
+  { href: "/lots", label: "Сырьё", also: ["/lining", "/raw-materials"] },
+  { href: "/purchases", label: "Закупки", also: [] },
+  { href: "/production", label: "ТЗ", also: [] },
+  { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock"] },
   {
-    title: "Обзор",
-    links: [{ href: "/dashboard", label: "Дашборд" }],
-  },
-  {
-    title: "Закупки и склад",
-    links: [
-      { href: "/purchases", label: "Закупки сырья" },
-      { href: "/lots", label: "Остатки и архив сырья" },
-      { href: "/lining", label: "Подкладка" },
-      { href: "/raw-materials", label: "Сырьё и ткани" },
-      { href: "/suppliers", label: "Поставщики" },
-      { href: "/payments", label: "Оплаты" },
+    href: "/settings",
+    label: "Настройки",
+    also: [
+      "/clients",
+      "/suppliers",
+      "/payments",
+      "/supply-plan",
+      "/materials",
+      "/warehouses",
+      "/expense-categories",
+      "/users",
     ],
-  },
-  {
-    title: "Производство",
-    links: [
-      { href: "/production", label: "Производственные заказы (ТЗ)" },
-      { href: "/supply-plan", label: "План поставки" },
-      { href: "/finished-stock", label: "Остатки готовой продукции" },
-      { href: "/articles", label: "Товар и цены" },
-      { href: "/models", label: "Модели изделий" },
-      { href: "/clients", label: "Заказчики" },
-    ],
-  },
-  {
-    title: "",
-    links: [{ href: "/settings", label: "Настройки" }],
   },
 ] as const;

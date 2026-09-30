@@ -13,6 +13,11 @@ export default async function SuppliersPage() {
     orderBy: { name: "asc" },
   });
 
+  const showContact = suppliers.some((x) => x.contactName);
+  const showPhone = suppliers.some((x) => x.phone);
+  const showEmail = suppliers.some((x) => x.email);
+  const colCount = 3 + (showContact ? 1 : 0) + (showPhone ? 1 : 0) + (showEmail ? 1 : 0);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -26,9 +31,9 @@ export default async function SuppliersPage() {
         <Thead>
           <Tr>
             <Th>Название</Th>
-            <Th>Контакт</Th>
-            <Th>Телефон</Th>
-            <Th>Email</Th>
+            {showContact && <Th>Контакт</Th>}
+            {showPhone && <Th>Телефон</Th>}
+            {showEmail && <Th>Email</Th>}
             <Th>Статус</Th>
             <Th></Th>
           </Tr>
@@ -41,9 +46,9 @@ export default async function SuppliersPage() {
                   {s.name}
                 </Link>
               </Td>
-              <Td>{s.contactName ?? "—"}</Td>
-              <Td>{s.phone ?? "—"}</Td>
-              <Td>{s.email ?? "—"}</Td>
+              {showContact && <Td>{s.contactName ?? "—"}</Td>}
+              {showPhone && <Td>{s.phone ?? "—"}</Td>}
+              {showEmail && <Td>{s.email ?? "—"}</Td>}
               <Td>
                 <Badge variant={s.isActive ? "success" : "default"}>
                   {s.isActive ? "Активен" : "Неактивен"}
@@ -65,7 +70,7 @@ export default async function SuppliersPage() {
           ))}
           {suppliers.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
                 Поставщиков пока нет
               </Td>
             </Tr>

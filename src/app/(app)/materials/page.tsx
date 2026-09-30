@@ -22,12 +22,17 @@ export default async function MaterialsPage() {
     orderBy: { name: "asc" },
   });
 
+  const showSku = materials.some((m) => m.sku);
+  const showCategory = materials.some((m) => m.category);
+  const showMin = materials.some((m) => m.minStockLevel);
+  const colCount = 3 + (showSku ? 1 : 0) + (showCategory ? 1 : 0) + (showMin ? 1 : 0);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Сырьё</h1>
+        <h1 className="text-xl font-semibold">Справочник материалов</h1>
         <Link href="/materials/new" className={buttonVariants()}>
-          + Новое сырьё
+          + Добавить материал
         </Link>
       </div>
 
@@ -35,10 +40,10 @@ export default async function MaterialsPage() {
         <Thead>
           <Tr>
             <Th>Название</Th>
-            <Th>Артикул</Th>
-            <Th>Категория</Th>
+            {showSku && <Th>Артикул</Th>}
+            {showCategory && <Th>Категория</Th>}
             <Th>Ед. изм.</Th>
-            <Th>Мин. остаток</Th>
+            {showMin && <Th>Мин. остаток</Th>}
             <Th>Статус</Th>
           </Tr>
         </Thead>
@@ -50,10 +55,10 @@ export default async function MaterialsPage() {
                   {m.name}
                 </Link>
               </Td>
-              <Td>{m.sku ?? "—"}</Td>
-              <Td>{m.category?.name ?? "—"}</Td>
+              {showSku && <Td>{m.sku ?? "—"}</Td>}
+              {showCategory && <Td>{m.category?.name ?? "—"}</Td>}
               <Td>{UNIT_LABELS[m.unit]}</Td>
-              <Td>{m.minStockLevel ? formatQty(m.minStockLevel.toString()) : "—"}</Td>
+              {showMin && <Td>{m.minStockLevel ? formatQty(m.minStockLevel.toString()) : "—"}</Td>}
               <Td>
                 <Badge variant={m.isActive ? "success" : "default"}>
                   {m.isActive ? "Активно" : "Неактивно"}
@@ -63,7 +68,7 @@ export default async function MaterialsPage() {
           ))}
           {materials.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
                 Сырья пока нет
               </Td>
             </Tr>
