@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import { groupBreakdownItems, labelUnit } from "@/lib/cost-breakdown-groups";
 
 type Breakdown = {
@@ -24,7 +24,7 @@ export function CostBreakdownToggle({
   /** Себестоимость единицы с НДС. Необязательно. */
   unitCostIncl?: number | string | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const groups = groupBreakdownItems(breakdown.items ?? []);
   const excl = toNum(unitCostExcl);
   const incl = toNum(unitCostIncl);
@@ -32,11 +32,27 @@ export function CostBreakdownToggle({
 
   return (
     <div className="text-xs">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="text-neutral-500 hover:underline">
-        {open ? "Скрыть" : "Из чего цена →"}
+      <button type="button" onClick={() => dialogRef.current?.showModal()} className="text-neutral-500 hover:underline">
+        Из чего цена →
       </button>
-      {open && (
-        <div className="mt-1 rounded border border-neutral-200 bg-neutral-50 p-2">
+      <dialog
+        ref={dialogRef}
+        onClick={(e) => {
+          if (e.target === dialogRef.current) dialogRef.current?.close();
+        }}
+        className="m-auto max-h-[85vh] w-[34rem] max-w-[95vw] rounded-lg border border-neutral-200 bg-white p-0 text-xs shadow-xl backdrop:bg-black/30"
+      >
+        <div className="p-4">
+          <div className="mb-2 flex items-start justify-between gap-4">
+            <p className="text-sm font-semibold text-neutral-800">Из чего складывается цена лота</p>
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              className="rounded border border-neutral-200 px-2 py-0.5 text-neutral-500 hover:bg-neutral-50"
+            >
+              Закрыть
+            </button>
+          </div>
           {breakdown.furDescription && <p className="mb-1 text-neutral-500">{breakdown.furDescription}</p>}
           {(breakdown.exchangeRateInvoice || breakdown.exchangeRateFixed) && (
             <p className="mb-1 text-neutral-500">
@@ -93,9 +109,9 @@ export function CostBreakdownToggle({
               </div>
             </div>
           )}
-          <p className="mt-1 text-neutral-400">Числа — из отчёта поставщика, в его единицах.</p>
+          <p className="mt-2 text-neutral-400">Числа — из отчёта поставщика, в его единицах.</p>
         </div>
-      )}
+      </dialog>
     </div>
   );
 }

@@ -214,11 +214,13 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 <Tbody>
                   {furMaterialRows.map((r) => {
                     const rowLots = furLotsByMaterial.get(r.id) ?? [];
+                    const filtering = Boolean(q || materialId);
+                    if (filtering && rowLots.length === 0) return null;
                     const low = r.minStockLevel != null && r.remaining.lessThan(r.minStockLevel);
                     return (
                       <Tr key={r.id}>
                         <Td colSpan={5} className="p-0">
-                          <details className="group">
+                          <details className="group" open={filtering}>
                             <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
                               <span className="font-medium">
                                 <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
@@ -289,7 +291,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                         <Td className="whitespace-nowrap font-medium">
                                           {formatMoney(l.unitCost.toString())}
                                           {l.costBreakdown && (
-                                            <CostBreakdownToggle breakdown={l.costBreakdown as never} />
+                                            <CostBreakdownToggle
+                                              breakdown={l.costBreakdown as never}
+                                              unitCostExcl={excl.toString()}
+                                              unitCostIncl={l.unitCost.toString()}
+                                            />
                                           )}
                                         </Td>
                                         <Td>

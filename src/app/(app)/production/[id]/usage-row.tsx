@@ -56,6 +56,8 @@ export function UsageRow({
     totalCost: string;
     totalCostExclVat: string;
     costBreakdown: unknown;
+    lotUnitCostExcl: string;
+    lotUnitCostIncl: string;
   };
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
@@ -91,7 +93,11 @@ export function UsageRow({
         <Td className="text-right font-medium">
           <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
           {usage.costBreakdown != null && (
-            <CostBreakdownToggle breakdown={usage.costBreakdown as never} />
+            <CostBreakdownToggle
+              breakdown={usage.costBreakdown as never}
+              unitCostExcl={usage.lotUnitCostExcl}
+              unitCostIncl={usage.lotUnitCostIncl}
+            />
           )}
         </Td>
         <Td>

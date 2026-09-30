@@ -244,6 +244,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           totalCost: u.totalCost.toString(),
           totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
           costBreakdown: u.lot.costBreakdown,
+          lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
+          lotUnitCostIncl: u.lot.unitCost.toString(),
         }}
         lots={lots}
         updateAction={boundUpdateUsage.bind(null, u.id)}
