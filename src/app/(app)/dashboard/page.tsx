@@ -31,6 +31,7 @@ export default async function DashboardPage() {
     materialUsedAgg,
     clientOrders,
     clientPayments,
+    unlinkedSupplierPayments,
   ] = await Promise.all([
     prisma.purchase.findMany({
       where: { organizationId },
@@ -66,6 +67,11 @@ export default async function DashboardPage() {
     prisma.productionPayment.findMany({
       where: { organizationId, clientId: { not: null } },
     }),
+    // Авансы поставщику без привязки к закупке (Payment.purchaseId = null).
+    prisma.payment.findMany({
+      where: { organizationId, purchaseId: null, status: "COMPLETED" },
+      select: { supplierId: true, amount: true },
+    }),
   ]);
 
   // Raw + finished stock value
@@ -89,7 +95,13 @@ export default async function DashboardPage() {
     e.purchases += 1;
     supplierMap.set(p.supplierId, e);
   }
-  const supplierBalances = Array.from(supplierMap.values()).sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1));
+  // Аванс без привязки к закупке гасит долг своего поставщика (не глубже нуля).
+  for (const pay of unlinkedSupplierPayments) {
+    const e = supplierMap.get(pay.supplierId);
+    if (!e) continue;
+    e.due = Decimal.max(e.due.sub(pay.amount), new Decimal(0));
+  }
+  const supplierBalances = Array.from(supplierMap.values()).filter((x) => x.due.greaterThan(0)).sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1));
   const supplierDebtTotal = supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0));
 
   // Client production debt (задолженность заказчиков): what clients owe us
