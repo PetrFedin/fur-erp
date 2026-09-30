@@ -21,6 +21,8 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+export const metadata = { title: "Сырьё" };
+
 export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
   const session = await requireSession();
   const sp = await searchParams;
@@ -166,7 +168,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
+                <label className="mb-1 block text-xs text-neutral-500">Материал</label>
                 <Select name="material" defaultValue={materialId}>
                   <option value="">Все материалы</option>
                   {materials
@@ -202,7 +204,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <Table>
                 <Thead>
                   <Tr>
-                    <Th>Сырьё</Th>
+                    <Th>Материал</Th>
                     <Th>Куплено всего</Th>
                     <Th>Использовано</Th>
                     <Th>Остаток</Th>

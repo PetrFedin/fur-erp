@@ -109,13 +109,8 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Сырьё и ткани</h1>
-      <p className="text-sm text-neutral-500">
-        Аналитический вид по закупленному сырью: выберите один или несколько аукционов/сессий, видов
-        сырья и/или номеров лотов — увидите закупленное по этому набору фильтров, а ниже — как для
-        каждого лота сложилась финальная себестоимость (горизонтальное сравнение по составляющим
-        расчёта).
-      </p>
+      <h1 className="text-xl font-semibold">Сырьё</h1>
+      <p className="text-sm text-neutral-500">Выберите аукцион, материал или лот — покажем закупленное и себестоимость.</p>
 
       <form method="get" className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -129,12 +124,12 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-neutral-500">Вид сырья</label>
+            <label className="mb-1 block text-xs text-neutral-500">Материал</label>
             <SearchableCheckboxList
               name="material"
               options={materials.map((m) => ({ value: m.id, label: m.name }))}
               selected={selectedMaterials}
-              placeholder="Фильтр по сырью…"
+              placeholder="Фильтр по материалу…"
             />
           </div>
           <div>
@@ -160,7 +155,7 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
       {!hasFilters ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-neutral-400">
-            Выберите хотя бы один фильтр (аукцион, вид сырья или лот), чтобы увидеть закупленное
+            Выберите хотя бы один фильтр (аукцион, материал или лот), чтобы увидеть закупленное
           </CardContent>
         </Card>
       ) : (
@@ -198,12 +193,12 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
               <Table>
                 <Thead>
                   <Tr>
-                    <Th>Сырьё</Th>
+                    <Th>Материал</Th>
                     <Th>Лот</Th>
                     <Th>Сорт/цвет</Th>
                     <Th>Получено</Th>
                     <Th>Остаток</Th>
-                    <Th>Себест. за ед. (без НДС / НДС / всего)</Th>
+                    <Th>Себестоимость за ед. (без НДС / НДС / всего)</Th>
                     <Th>Аукцион/сессия</Th>
                     <Th>Закупка</Th>
                     <Th>Дата поступления</Th>
@@ -254,21 +249,16 @@ export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw
 
           <Card>
             <CardHeader>
-              <CardTitle>Как сложилась финальная цена — горизонтальное сравнение по лотам</CardTitle>
+              <CardTitle>Из чего сложилась цена по лотам</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
               <p className="text-sm text-neutral-500">
-                Один лот — одна строка; каждая составляющая расчёта из отчёта поставщика — свой
-                столбец (набор столбцов — объединение по всем лотам выборки, разные сезоны отчётов
-                добавляли разные составляющие). Пустая ячейка значит, что у этого лота такой
-                составляющей в отчёте не было. Таблица широкая — доступна горизонтальная прокрутка.
-                Показаны только лоты выборки, для которых сохранён детальный расчёт (
-                {lotsWithBreakdown.length} из {lots.length}).
+                Лоты с сохранённым расчётом: {lotsWithBreakdown.length} из {lots.length}. Пусто — составляющей у лота нет.
               </p>
               <Table>
                 <Thead>
                   <Tr>
-                    <Th>Сырьё</Th>
+                    <Th>Материал</Th>
                     <Th>Лот</Th>
                     <Th>Аукцион/сессия</Th>
                     {anyExchangeRate && <Th>Курс инвойса</Th>}

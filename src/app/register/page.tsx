@@ -18,8 +18,7 @@ export default function RegisterPage() {
         <CardHeader>
           <CardTitle className="text-lg">Регистрация компании</CardTitle>
           <CardDescription>
-            Создайте аккаунт компании — вы станете владельцем (роль «Владелец»)
-            и сможете пригласить сотрудников.
+            Вы станете владельцем и сможете добавить сотрудников.
           </CardDescription>
         </CardHeader>
         <CardContent>

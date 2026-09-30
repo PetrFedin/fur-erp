@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "МехУчёт — управление закупками и производством",
-  description: "Учёт закупок сырья, остатков, производства и себестоимости",
+  title: { default: "МехУчёт", template: "%s — МехУчёт" },
+  description: "Закупки, склад и себестоимость",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

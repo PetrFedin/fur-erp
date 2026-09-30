@@ -137,8 +137,7 @@ export default async function PaymentsPage({
             <CardHeader>
               <CardTitle>Аванс / предоплата</CardTitle>
               <CardDescription>
-                Платёж без привязки к конкретной закупке — например, аванс.
-                Привязать к закупке можно из карточки закупки.
+                Платёж без привязки к закупке, например аванс.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -245,7 +245,7 @@ export async function setPurchaseStatus(
 // ---------- Line items ----------
 
 const itemSchema = z.object({
-  rawMaterialId: z.string().min(1, "Выберите сырьё"),
+  rawMaterialId: z.string().min(1, "Выберите материал"),
   quantity: z.coerce.number().positive("Количество должно быть больше 0"),
   unitPrice: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
   vatRate: z.coerce.number().min(0, "Ставка НДС не может быть отрицательной").max(100, "Некорректная ставка НДС"),
@@ -397,7 +397,7 @@ export async function updatePurchaseItem(
 
   // Received: material identity is locked in.
   if (parsed.data.rawMaterialId !== item.rawMaterialId) {
-    return { error: "После приёма на склад нельзя изменить сырьё позиции" };
+    return { error: "После приёма на склад нельзя изменить материал позиции" };
   }
 
   const financialsChanged =
@@ -418,7 +418,7 @@ export async function updatePurchaseItem(
     return {};
   }
 
-  if (!lot) return { error: "У позиции нет партии сырья на складе — обратитесь к администратору" };
+  if (!lot) return { error: "У позиции нет лота на складе — обратитесь к администратору" };
   // A pooled lining lot (see addOrPoolLiningLot) has more than one
   // PurchaseItem feeding it once a second receipt has come in. The
   // quantity/price recompute below assumes this item's own quantity/price
@@ -450,7 +450,7 @@ export async function updatePurchaseItem(
     }
     const orders = [...byOrder.values()];
     const unitLabel = UNIT_SHORT[item.rawMaterial.unit] ?? "";
-    const lotName = lot.lotNumber ? `Лот ${lot.lotNumber}` : "Партия без номера";
+    const lotName = lot.lotNumber ? `Лот ${lot.lotNumber}` : "Лот без номера";
     if (orders.length === 0) {
       const used = lot.quantityReceived.sub(lot.quantityRemaining);
       return {
@@ -458,7 +458,7 @@ export async function updatePurchaseItem(
       };
     }
     return {
-      error: `${lotName} уже списан в заказ${orders.length > 1 ? "ы" : ""}: ${orders
+      error: `${lotName} уже списан в ТЗ: ${orders
         .map((o) => `${o.number} (${new Decimal(o.quantity).toString()} ${unitLabel})`)
         .join(", ")}. Сначала удалите там списание.`,
       orders,
@@ -627,7 +627,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   if (!purchase) return { error: "Закупка не найдена" };
   if (purchase.status === "RECEIVED") return { error: "Закупка уже принята на склад" };
   if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
-  if (purchase.items.length === 0) return { error: "В закупке нет позиций сырья" };
+  if (purchase.items.length === 0) return { error: "В закупке нет позиций" };
 
   // Item prices and expense amounts are entered EXCLUDING VAT; each line
   // carries its own rate since it varies lot to lot (the rate in force

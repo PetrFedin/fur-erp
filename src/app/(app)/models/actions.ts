@@ -90,7 +90,7 @@ export async function updateSellingPrice(modelId: string, formData: FormData) {
 }
 
 const bomSchema = z.object({
-  rawMaterialId: z.string().min(1, "Выберите сырьё"),
+  rawMaterialId: z.string().min(1, "Выберите материал"),
   quantityPerUnit: z.coerce.number().positive("Норма расхода должна быть больше 0"),
 });
 

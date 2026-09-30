@@ -7,7 +7,7 @@ export function CategoryQuickAdd() {
     <form action={createCategory} className="flex items-end gap-2">
       <div className="flex-1">
         <label htmlFor="categoryName" className="mb-1 block text-xs text-neutral-500">
-          Добавить категорию сырья (например «Норка», «Лиса», «Кролик»)
+          Добавить категорию (например «Норка»)
         </label>
         <Input id="categoryName" name="categoryName" placeholder="Название категории" />
       </div>

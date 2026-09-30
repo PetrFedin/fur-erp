@@ -22,7 +22,7 @@ export function ApplyBomButton({ orderId }: { orderId: string }) {
           })
         }
       >
-        {pending ? "Списываем..." : "Списать по норме (BOM)"}
+        {pending ? "Списываем..." : "Списать по составу"}
       </Button>
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>
@@ -82,10 +82,10 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
       size="sm"
       disabled={pending}
       onClick={() => {
-        if (confirm("Отменить заказ? Это действие нельзя отменить.")) startTransition(() => cancelProductionOrder(orderId));
+        if (confirm("Отменить ТЗ? Это действие нельзя отменить.")) startTransition(() => cancelProductionOrder(orderId));
       }}
     >
-      Отменить заказ
+      Отменить ТЗ
     </Button>
   );
 }

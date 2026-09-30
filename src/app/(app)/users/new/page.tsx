@@ -26,8 +26,7 @@ export default function NewUserPage() {
         <CardHeader>
           <CardTitle>Новый пользователь</CardTitle>
           <CardDescription>
-            Создайте учётную запись и сообщите сотруднику пароль лично — приглашение по
-            email пока не настроено.
+            Пароль сообщите сотруднику лично.
           </CardDescription>
         </CardHeader>
         <CardContent>

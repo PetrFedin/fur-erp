@@ -78,7 +78,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           <Table>
               <Thead>
                 <Tr>
-                  <Th>Сырьё</Th>
+                  <Th>Материал</Th>
                   <Th>Норма на 1 изделие</Th>
                   <Th></Th>
                 </Tr>

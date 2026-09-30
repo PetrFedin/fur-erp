@@ -119,7 +119,7 @@ export function PurchaseEditForm({
       {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
       <div className="col-span-2 flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-          Отмена
+          Закрыть
         </Button>
         <Button type="submit" variant="outline" size="sm" disabled={pending}>
           {pending ? "Сохраняем..." : "Сохранить"}

@@ -23,7 +23,7 @@ export function BulkUsageForm({ orderId }: { orderId: string }) {
   return (
     <div className="rounded-md border border-dashed border-neutral-300 p-3">
       <p className="mb-2 text-xs text-neutral-500">
-        Вставьте строки «Лот [Tab] Количество», по одной паре на строку — как в столбцах Лот/Кол-во исходной таблицы.
+        Строки «Лот [Tab] Количество», по одной на лот.
       </p>
       <form action={formAction} className="flex flex-col gap-2">
         <Textarea name="rows" rows={5} placeholder={"15874\t21\n15893\t10\n..."} className="font-mono text-xs" />

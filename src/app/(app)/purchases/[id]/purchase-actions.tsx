@@ -20,11 +20,11 @@ export function PurchaseActions({ purchaseId, status }: { purchaseId: string; st
           variant="default"
           size="sm"
           disabled={pending}
-          title="Создаст партии на складе с себестоимостью; после этого цену и количество менять нельзя"
+          title="Создаст лоты на складе; цену и количество потом менять нельзя"
           onClick={() => {
             if (
               !window.confirm(
-                "После этого нельзя менять цену и количество позиций (лот уже может быть списан). Принять?"
+                "Цену и количество потом менять нельзя. Принять?"
               )
             )
               return;

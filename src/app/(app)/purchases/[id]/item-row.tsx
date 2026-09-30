@@ -82,7 +82,7 @@ export function PurchaseItemRow({
             <div className="flex gap-2">
               {updateAction && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
-                  {isEditing ? "Отмена" : "Изменить"}
+                  {isEditing ? "Закрыть" : "Изменить"}
                 </Button>
               )}
               {removeAction && (
@@ -110,7 +110,7 @@ export function PurchaseItemRow({
               className="grid grid-cols-8 items-end gap-2 py-2"
             >
               <div className="col-span-2">
-                <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
+                <label className="mb-1 block text-xs text-neutral-500">Материал</label>
                 {canEditMaterial ? (
                   <Select name="rawMaterialId" required defaultValue={defaults.rawMaterialId}>
                     {materials.map((m) => (

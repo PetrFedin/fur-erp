@@ -229,7 +229,7 @@ export async function createProductionOrder(
       return order.id;
     });
   } catch (e) {
-    return { errors: [e instanceof Error ? e.message : "Не удалось создать заказ"] };
+    return { errors: [e instanceof Error ? e.message : "Не удалось создать ТЗ"] };
   }
 
   revalidatePath("/production");
@@ -332,7 +332,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     where: { id: orderId, organizationId: session.user.organizationId },
     include: { _count: { select: { materialUsages: true } } },
   });
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const parsed = editOrderSchema.safeParse({
     productModelId: formData.get("productModelId"),
@@ -346,7 +346,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   if (modelLocked && parsed.data.productModelId !== order.productModelId) {
     return {
       error:
-        "Нельзя изменить модель изделия — по заказу уже списано сырьё или зафиксирован выпуск. Заведите новый заказ.",
+        "Нельзя изменить модель изделия — по ТЗ уже списано сырьё или зафиксирован выпуск. Заведите новое ТЗ.",
     };
   }
 
@@ -521,7 +521,7 @@ const usageSchema = z.object({
 export async function addMaterialUsage(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const parsed = usageSchema.safeParse({
     lotId: formData.get("lotId"),
@@ -578,7 +578,7 @@ export async function addMaterialUsagesBulk(
 ): Promise<BulkUsageState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const raw = (formData.get("rows") as string | null)?.trim();
   if (!raw) return { error: "Вставьте хотя бы одну строку" };
@@ -641,9 +641,9 @@ export async function addMaterialUsagesBulk(
 export async function applyBomToOrder(orderId: string): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
   if (order.productModel.materials.length === 0) {
-    return { error: "У модели не задана норма расхода (BOM)" };
+    return { error: "У модели не задан состав" };
   }
 
   try {
@@ -670,7 +670,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
             lotId: lot.id,
             quantity: take,
             productionOrderId: orderId,
-            notes: "Списано по норме (BOM)",
+            notes: "Списано по составу",
           });
 
           await tx.productionMaterialUsage.create({
@@ -700,7 +700,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
       await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
     });
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Не удалось списать сырьё по норме" };
+    return { error: e instanceof Error ? e.message : "Не удалось списать по составу" };
   }
 
   revalidatePath(`/production/${orderId}`);
@@ -753,7 +753,7 @@ export async function updateMaterialUsage(
 ): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const usage = await prisma.productionMaterialUsage.findFirst({
     where: { id: usageId, productionOrderId: orderId },
@@ -859,7 +859,7 @@ export async function updateProductionExpense(
 ): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const expense = await prisma.productionExpense.findFirst({
     where: { id: expenseId, productionOrderId: orderId },
@@ -906,7 +906,7 @@ export async function completeProductionOrder(
     where: { id: orderId, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
     include: { materialUsages: true, expenses: true },
   });
-  if (!order) return { error: "Заказ не найден" };
+  if (!order) return { error: "ТЗ не найдено" };
 
   const parsed = completeSchema.safeParse({ producedQuantity: formData.get("producedQuantity") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
@@ -965,7 +965,7 @@ export async function updateProducedQuantity(
   const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId, status: "COMPLETED" },
   });
-  if (!order) return { error: "Заказ не найден или ещё не завершён" };
+  if (!order) return { error: "ТЗ не найдено или ещё не завершено" };
 
   const newQuantity = new Decimal(parsed.data);
   if (newQuantity.equals(order.producedQuantity)) return {};

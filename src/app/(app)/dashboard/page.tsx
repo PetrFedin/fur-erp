@@ -16,6 +16,8 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+export const metadata = { title: "Сводка" };
+
 export default async function DashboardPage() {
   const session = await requireSession();
   const organizationId = session.user.organizationId;
@@ -213,7 +215,7 @@ export default async function DashboardPage() {
           <Table>
             <Thead>
               <Tr>
-                <Th>Сырьё</Th>
+                <Th>Материал</Th>
                 <Th>Куплено</Th>
                 <Th>Использовано</Th>
                 <Th>Остаток</Th>

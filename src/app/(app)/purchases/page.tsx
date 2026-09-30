@@ -20,6 +20,8 @@ function statusView(status: string): { label: string; variant: "default" | "succ
   return { label: "Черновик", variant: "default" };
 }
 
+export const metadata = { title: "Закупки" };
+
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
   const sp = await searchParams;
@@ -49,7 +51,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Закупки сырья</h1>
+        <h1 className="text-xl font-semibold">Закупки</h1>
         <Link href="/purchases/new" className={buttonVariants()}>
           + Новая закупка
         </Link>

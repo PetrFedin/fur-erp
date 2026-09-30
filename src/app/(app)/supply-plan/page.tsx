@@ -65,8 +65,7 @@ export default async function SupplyPlanPage() {
       <div>
         <h1 className="text-xl font-semibold">План поставки</h1>
         <p className="text-sm text-neutral-500">
-          Артикулы по строкам, месяцы по столбцам — отдельно от карточек ТЗ, для верхнеуровневого планирования
-          запуска/выпуска.
+          Артикулы по строкам, месяцы по столбцам.
         </p>
       </div>
 

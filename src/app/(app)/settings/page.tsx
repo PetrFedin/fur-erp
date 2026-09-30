@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 const SETTINGS_LINKS = [
   { href: "/materials", title: "Справочник материалов", description: "Названия, единицы измерения, категории" },
-  { href: "/suppliers", title: "Поставщик", description: "Поставщики сырья и их контакты" },
+  { href: "/suppliers", title: "Поставщик", description: "Поставщики и их контакты" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
   { href: "/payments", title: "Оплаты", description: "Оплаты поставщикам и поступления от заказчиков" },
   { href: "/supply-plan", title: "План поставки", description: "Что и когда должно прийти" },
@@ -11,6 +11,8 @@ const SETTINGS_LINKS = [
   { href: "/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
 ];
+
+export const metadata = { title: "Настройки" };
 
 export default function SettingsPage() {
   return (

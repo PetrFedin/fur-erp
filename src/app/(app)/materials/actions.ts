@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/session";
 const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"] as const;
 
 const materialSchema = z.object({
-  name: z.string().trim().min(2, "Укажите название сырья"),
+  name: z.string().trim().min(2, "Укажите название материала"),
   sku: z.string().trim().optional(),
   unit: z.enum(["PIECE", "KG", "M2", "M", "SET"]),
   categoryId: z.string().trim().optional(),
@@ -59,7 +59,7 @@ export async function updateMaterial(
     where: { id, organizationId: session.user.organizationId },
     data: parsed.data,
   });
-  if (result.count === 0) return { error: "Сырьё не найдено" };
+  if (result.count === 0) return { error: "Материал не найден" };
 
   revalidatePath("/materials");
   redirect("/materials");

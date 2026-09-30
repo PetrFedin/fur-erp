@@ -284,7 +284,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
                   const canEditFinancials = editable || (!!item.lot && !consumed);
                   const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
-                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Партия без номера";
+                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
                   return (
                     <PurchaseItemRow
                       key={item.id}
@@ -302,9 +302,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       lockedNote={
                         item.lot && consumed
                           ? orders && orders.length > 0
-                            ? `${lotName} уже списан в ${orders.length > 1 ? "заказы" : "заказ"} (${orders
+                            ? `${lotName} уже списан в ТЗ (${orders
                                 .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
-                                .join(", ")}). Сначала удалите там списание. Здесь доступны только лот, сорт и цвет:`
+                                .join(", ")}). Сначала удалите там списание. Доступны только лот, сорт и цвет:`
                             : `${lotName} уже частично израсходован (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
                           : undefined
                       }

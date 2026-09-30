@@ -38,10 +38,10 @@ export function PurchaseItemForm({
       className="grid grid-cols-8 items-end gap-2"
     >
       <div className="col-span-2">
-        <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
+        <label className="mb-1 block text-xs text-neutral-500">Материал</label>
         <Select name="rawMaterialId" required defaultValue="">
           <option value="" disabled>
-            Выберите сырьё
+            Выберите материал
           </option>
           {materials.map((m) => (
             <option key={m.id} value={m.id}>

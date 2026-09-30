@@ -69,10 +69,10 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
       className="grid grid-cols-5 items-end gap-2"
     >
       <div>
-        <label className="mb-1 block text-xs text-neutral-500">Сырьё</label>
+        <label className="mb-1 block text-xs text-neutral-500">Материал</label>
         <Select value={materialId} onChange={(e) => setMaterialId(e.target.value)} required>
           <option value="" disabled>
-            Выберите сырьё
+            Выберите материал
           </option>
           {materials.map((m) => (
             <option key={m.id} value={m.id}>
@@ -94,7 +94,7 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
         <label className="mb-1 block text-xs text-neutral-500">Лот</label>
         <Select name="lotId" required defaultValue="" disabled={!materialId}>
           <option value="" disabled>
-            {materialId ? "Выберите лот" : "Сначала выберите сырьё"}
+            {materialId ? "Выберите лот" : "Сначала выберите материал"}
           </option>
           {lotsForMaterial.map((l) => (
             <option key={l.id} value={l.id}>
@@ -117,7 +117,7 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
       {error && <p className="col-span-5 text-sm text-red-600">{error}</p>}
       {materialId && lotsForMaterial.length === 0 && (
         <p className="col-span-5 text-sm text-amber-600">
-          {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого сырья на складе"}
+          {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого материала на складе"}
         </p>
       )}
     </form>

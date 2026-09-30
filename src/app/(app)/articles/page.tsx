@@ -20,6 +20,8 @@ const MOVEMENT_LABELS: Record<string, string> = {
   TRANSFER_OUT: "Перемещение (-)",
 };
 
+export const metadata = { title: "Изделия" };
+
 export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q: rawQ } = await searchParams;
   const q = (rawQ ?? "").trim();
@@ -160,11 +162,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   <summary className="cursor-pointer hover:underline">{r.name}</summary>
                   <div className="mt-2 flex flex-col gap-2 text-xs font-normal text-neutral-600">
                     {r.modelStocks.length === 0 ? (
-                      <div>Остатка на складе нет</div>
+                      <div>Остаток на складе: 0</div>
                     ) : (
                       r.modelStocks.map((st) => (
                         <div key={st.id}>
-                          {st.warehouse.name}: {formatQty(st.quantity.toString())} шт., средневзвешенная себестоимость{" "}
+                          {st.warehouse.name}: {formatQty(st.quantity.toString())} шт., себестоимость{" "}
                           {formatMoney(st.avgUnitCost.toString())}, стоимость остатка{" "}
                           {formatMoney(st.quantity.mul(st.avgUnitCost).toString())}
                         </div>
@@ -210,7 +212,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               </Td>
               <Td>
                 <Link href={`/models/${r.id}`} className="whitespace-nowrap text-neutral-600 hover:underline">
-                  Состав (BOM) →
+                  Состав →
                 </Link>
               </Td>
             </Tr>

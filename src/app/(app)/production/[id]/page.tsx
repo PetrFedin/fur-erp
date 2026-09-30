@@ -270,7 +270,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     <div className="flex max-w-4xl flex-col gap-4">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">Заказ {order.number}</h1>
+          <h1 className="text-xl font-semibold">
+            {order.workOrderNumber ? `ТЗ №${order.workOrderNumber}` : `Заказ ${order.number}`}
+          </h1>
+          {order.workOrderNumber && (
+            <span className="text-sm text-neutral-500">заказ {order.number}</span>
+          )}
           <Badge variant={status.variant}>{status.label}</Badge>
           <div className="ml-auto" />
           <OrderEditForm
@@ -326,7 +331,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {" · "}
               <span className="font-medium text-neutral-700">{order.client.name}</span>
               {order.contractNumber && ` · ${order.contractNumber}`}
-              {order.workOrderNumber && ` · ТЗ № ${order.workOrderNumber}`}
               {order.workOrderDate && ` от ${formatDate(order.workOrderDate)}`}
             </>
           )}
@@ -396,7 +400,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               />
               {clientRevenue && margin && (
                 <>
-                  <TotalRow label="Стоимость работ для заказчика" value={formatMoney(clientRevenue.toString())} />
+                  <TotalRow label="Работы для заказчика" value={formatMoney(clientRevenue.toString())} />
                   <TotalRow
                     label="Маржа"
                     value={formatMoney(margin.toString())}
@@ -429,13 +433,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </details>
             {order.productModel.materials.length > 0 && (
               <details>
-                <summary className="cursor-pointer text-neutral-600">Норма по модели (BOM)</summary>
+                <summary className="cursor-pointer text-neutral-600">Состав модели</summary>
                 <div className="mt-2 flex flex-col gap-3">
                   <Table>
                     <Thead>
                       <Tr>
-                        <Th>Сырьё</Th>
-                        <Th>Норма на 1 изд.</Th>
+                        <Th>Материал</Th>
+                        <Th>На 1 изделие</Th>
                         <Th>На план ({formatQty(order.plannedQuantity.toString())} шт.)</Th>
                       </Tr>
                     </Thead>
@@ -495,7 +499,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 </span>
                 {hasSharedPayments && (
                   <span className="block text-xs text-neutral-500">
-                    Оплат, общих с другими ТЗ: {sharedPayments.length} — учтены целиком, без разбивки по заказам.
+                    Оплат, общих с другими ТЗ: {sharedPayments.length} — учтены целиком, без разбивки по ТЗ.
                   </span>
                 )}
               </p>

@@ -18,6 +18,8 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info"
 
 const STATUS_KEYS = Object.keys(STATUS_LABELS);
 
+export const metadata = { title: "ТЗ" };
+
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
   const orgId = session.user.organizationId;
@@ -66,7 +68,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">
-          Производственные заказы
+          ТЗ
           {filterModel && (
             <span className="ml-2 text-base font-normal text-neutral-500">— {filterModel.name}</span>
           )}
@@ -78,7 +80,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
       <form method="get" className="flex flex-wrap items-end gap-2">
         {modelId && <input type="hidden" name="model" value={modelId} />}
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ, заказ, модель, заказчик" className="w-72" />
+        <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-72" />
         <Select name="status" defaultValue={status} className="w-44">
           <option value="">Все статусы</option>
           {STATUS_KEYS.map((k) => (
@@ -171,7 +173,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           {orders.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                {hasFilters ? "Ничего не найдено" : "Производственных заказов пока нет"}
+                {hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}
               </Td>
             </Tr>
           )}

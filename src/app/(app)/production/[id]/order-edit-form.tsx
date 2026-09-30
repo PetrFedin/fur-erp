@@ -88,7 +88,7 @@ export function OrderEditForm({
                   {defaults.productModelName}
                 </div>
                 <p className="mt-1 text-xs text-amber-600">
-                  По заказу уже списано сырьё или зафиксирован выпуск — модель изменить нельзя.
+                  По ТЗ уже списано сырьё или зафиксирован выпуск — модель изменить нельзя.
                 </p>
               </>
             ) : (
