@@ -1,7 +1,4 @@
-"use client";
-
-import { formatMoney } from "@/lib/utils";
-import { useVatDisplay } from "@/lib/vat-display";
+import { MoneyClient } from "./money-client";
 
 type MoneyLike = number | string | { toString(): string };
 
@@ -14,6 +11,12 @@ type MoneyLike = number | string | { toString(): string };
  * When a figure genuinely has no correct excl-VAT breakdown (see README),
  * pass only `incl` — the "Без НДС" mode then falls back to showing the
  * incl-VAT figure with a footnote marker rather than guessing.
+ *
+ * Deliberately NOT a "use client" module: callers pass Prisma Decimal
+ * values, and a Decimal can't be a prop of a Client Component (React logs
+ * "Only plain objects can be passed to Client Components" for every one).
+ * This wrapper stringifies on the server side and hands MoneyClient plain
+ * strings; used from a client tree it's just an ordinary component.
  */
 export function Money({
   incl,
@@ -24,15 +27,5 @@ export function Money({
   excl?: MoneyLike | null;
   className?: string;
 }) {
-  const { mode } = useVatDisplay();
-  const showExcl = mode === "excl" && excl != null;
-  const value = showExcl ? excl : incl;
-  const isFallback = mode === "excl" && excl == null;
-
-  return (
-    <span className={className} title={isFallback ? "Без НДС недоступно для этой суммы — показано с НДС" : undefined}>
-      {formatMoney(value.toString())}
-      {isFallback && <sup className="ml-0.5 text-neutral-400">*</sup>}
-    </span>
-  );
+  return <MoneyClient incl={incl.toString()} excl={excl != null ? excl.toString() : null} className={className} />;
 }
