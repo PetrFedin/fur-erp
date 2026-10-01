@@ -33,12 +33,27 @@ async function main() {
     return;
   }
 
+  // modelId в JSON — id из исходной базы и в пересобранной не существует:
+  // ищем модель по названию (с учётом кириллицы/латиницы), при отсутствии создаём.
+  const LOOK: Record<string, string> = { А: "A", В: "B", Е: "E", К: "K", М: "M", Н: "H", О: "O", Р: "P", С: "C", Т: "T", У: "Y", Х: "X" };
+  const norm = (n: string) => n.toUpperCase().replace(/[А-ЯЁ]/g, (c) => LOOK[c] ?? c).replace(/\s+/g, "");
+  const models = await prisma.productModel.findMany({ where: { organizationId: org.id } });
+  const byNorm = new Map(models.map((m) => [norm(m.name), m.id]));
+  const idFor = async (name: string) => {
+    const hit = byNorm.get(norm(name));
+    if (hit) return hit;
+    const m = await prisma.productModel.create({ data: { organizationId: org.id, name } });
+    byNorm.set(norm(name), m.id);
+    console.log(`Создана модель ${name}`);
+    return m.id;
+  };
+
   let created = 0;
   for (const p of plan) {
     await prisma.supplyPlanEntry.create({
       data: {
         organizationId: org.id,
-        productModelId: p.modelId,
+        productModelId: await idFor(p.model),
         month: new Date(`${p.month}-01`),
         status: p.status,
         quantity: p.quantity,
