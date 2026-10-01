@@ -104,7 +104,6 @@ export async function replacePurchaseDocument(documentId: string, formData: Form
         originalName: stored.originalName,
         mimeType: stored.mimeType,
         sizeBytes: stored.sizeBytes,
-        createdAt: new Date(),
       },
     });
   } catch (e) {

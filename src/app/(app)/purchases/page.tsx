@@ -8,7 +8,7 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
-import { cleanSearch, parseDateInput } from "@/lib/input";
+import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
@@ -47,14 +47,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       ...(from || to
         ? { orderDate: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}) } }
         : {}),
-      ...(auction ? { auctionSession: { contains: auction, mode: "insensitive" as const } } : {}),
+      ...(auction ? { auctionSession: { contains: escapeLike(auction), mode: "insensitive" as const } } : {}),
       ...(q
         ? {
             OR: [
-              { number: { contains: q, mode: "insensitive" as const } },
-              { invoiceNumber: { contains: q, mode: "insensitive" as const } },
-              { supplier: { name: { contains: q, mode: "insensitive" as const } } },
-              { items: { some: { lotNumber: { contains: q, mode: "insensitive" as const } } } },
+              { number: { contains: escapeLike(q), mode: "insensitive" as const } },
+              { invoiceNumber: { contains: escapeLike(q), mode: "insensitive" as const } },
+              { supplier: { name: { contains: escapeLike(q), mode: "insensitive" as const } } },
+              { items: { some: { lotNumber: { contains: escapeLike(q), mode: "insensitive" as const } } } },
             ],
           }
         : {}),

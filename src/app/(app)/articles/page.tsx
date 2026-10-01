@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cleanSearch } from "@/lib/input";
+import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -47,7 +47,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const models = await prisma.productModel.findMany({
     where: {
       organizationId: orgId,
-      ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+      ...(q ? { name: { contains: escapeLike(q), mode: "insensitive" as const } } : {}),
     },
     include: {
       _count: { select: { productionOrders: true } },

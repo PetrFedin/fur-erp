@@ -1,3 +1,4 @@
+import { escapeLike } from "@/lib/input";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -97,6 +98,9 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
 }
 
+/** Версия файла для ссылки (сброс кэша при замене) — по имени файла на диске, а не по дате документа. */
+const docVersion = (storagePath: string) => encodeURIComponent(storagePath.split(/[\\/]/).pop() ?? "");
+
 const rateText = (r: Decimal) => Number(r.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 
 export async function AuctionView({
@@ -128,11 +132,11 @@ export async function AuctionView({
     ...(q
       ? {
           OR: [
-            { lotNumber: { contains: q, mode: "insensitive" as const } },
-            { color: { contains: q, mode: "insensitive" as const } },
-            { grade: { contains: q, mode: "insensitive" as const } },
-            { notes: { contains: q, mode: "insensitive" as const } },
-            { rawMaterial: { name: { contains: q, mode: "insensitive" as const } } },
+            { lotNumber: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { color: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { grade: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { notes: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { rawMaterial: { name: { contains: escapeLike(q), mode: "insensitive" as const } } },
           ],
         }
       : {}),
@@ -252,7 +256,7 @@ export async function AuctionView({
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
             <div>
               <dt className="text-xs text-neutral-500">Закупок / счетов</dt>
-              <dd className="text-lg font-semibold">{purchases.length}</dd>
+              <dd className="text-lg font-semibold">{counted.length}</dd>
             </div>
             <div>
               <dt className="text-xs text-neutral-500">Шкур всего</dt>
@@ -347,7 +351,7 @@ export async function AuctionView({
                 )}
                 {invoice ? (
                   <a
-                    href={`/api/purchase-docs/${invoice.id}?v=${invoice.createdAt.getTime()}`}
+                    href={`/api/purchase-docs/${invoice.id}?v=${docVersion(invoice.storagePath)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-blue-600 hover:underline"
@@ -512,8 +516,8 @@ export async function AuctionView({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {docRows.length > 0 ? (
-            <Table>
-              <Thead>
+            <Table className="max-md:block">
+              <Thead className="max-md:hidden">
                 <Tr>
                   <Th>Документ</Th>
                   <Th>Тип</Th>
@@ -524,20 +528,20 @@ export async function AuctionView({
                   {canEdit && <Th>Корректировка</Th>}
                 </Tr>
               </Thead>
-              <Tbody>
+              <Tbody className="max-md:block">
                 {docRows.map(({ d, batch, purchaseId, purchaseLabel }) => {
-                  const v = d.createdAt.getTime();
+                  const v = docVersion(d.storagePath);
                   return (
-                    <Tr key={d.id} className="align-top">
-                      <Td className="min-w-40 font-medium">
+                    <Tr key={d.id} className="align-top max-md:block max-md:space-y-1 max-md:p-3">
+                      <Td className="min-w-40 font-medium max-md:block max-md:px-0 max-md:py-0">
                         {d.title}
                         <div className="text-xs font-normal text-neutral-400">{d.originalName}</div>
                       </Td>
-                      <Td className="whitespace-nowrap">{DOC_KIND_LABELS[d.kind]}</Td>
-                      <Td className="text-xs">{batch ? `вся партия ${d.batch ?? ""}` : `закупка ${purchaseLabel}`}</Td>
-                      <Td className="whitespace-nowrap">{formatDate(d.createdAt)}</Td>
-                      <Td className="whitespace-nowrap">{fmtSize(d.sizeBytes)}</Td>
-                      <Td>
+                      <Td className="whitespace-nowrap max-md:block max-md:px-0 max-md:py-0">{DOC_KIND_LABELS[d.kind]}</Td>
+                      <Td className="text-xs max-md:block max-md:px-0 max-md:py-0">{batch ? `вся партия ${d.batch ?? ""}` : `закупка ${purchaseLabel}`}</Td>
+                      <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0 max-md:pr-3">{formatDate(d.createdAt)}</Td>
+                      <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0">{fmtSize(d.sizeBytes)}</Td>
+                      <Td className="max-md:block max-md:px-0 max-md:py-1">
                         <div className="flex flex-wrap gap-1">
                           <a
                             href={`/api/purchase-docs/${d.id}?download=1&v=${v}`}
@@ -556,7 +560,7 @@ export async function AuctionView({
                         </div>
                       </Td>
                       {canEdit && (
-                        <Td className="min-w-56">
+                        <Td className="min-w-56 max-md:block max-md:min-w-0 max-md:px-0 max-md:py-1">
                           <DocEditControls
                             documentId={d.id}
                             purchaseId={purchaseId || editPurchaseId}

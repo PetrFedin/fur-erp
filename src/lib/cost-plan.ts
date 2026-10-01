@@ -27,6 +27,23 @@ export type CostPlanInputs = {
   vat: number;
 };
 
+/** Округление «как в БД» (half-up по десятичной записи), без ошибок двоичной дроби вроде 1.005. */
+export function roundTo(n: number, digits: number): number {
+  if (!Number.isFinite(n)) return n;
+  const s = String(n);
+  if (s.includes("e")) {
+    const f = 10 ** digits;
+    return Math.round(n * f) / f;
+  }
+  const sign = n < 0 ? -1 : 1;
+  return sign * Number(Math.round(Number(`${Math.abs(n)}e${digits}`)) + `e-${digits}`);
+}
+/** Точность колонок PurchaseItem / Purchase: цена 2 знака, количество 3, НДС 2, курс 6. */
+export const roundPrice = (n: number) => roundTo(n, 2);
+export const roundQty = (n: number) => roundTo(n, 3);
+export const roundVat = (n: number) => roundTo(n, 2);
+export const roundRate = (n: number) => roundTo(n, 6);
+
 export const DEFAULT_FEE_PCT = 7.35;
 export const DEFAULT_BROKER_PCT = 4.5;
 export const DEFAULT_VAT = 22;

@@ -61,6 +61,11 @@ export function cleanSearch(v: unknown, maxLen = 100): string {
   return v.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maxLen);
 }
 
+/** Экранирует \\, % и _ для contains-запросов Prisma (иначе они работают как маска LIKE). */
+export function escapeLike(v: string): string {
+  return v.replace(/[\\%_]/g, (c) => "\\" + c);
+}
+
 /** Разбор даты из формы / query: валидная дата в разумных пределах или null. */
 export function parseDateInput(v: unknown): Date | null {
   if (typeof v !== "string" || !v.trim()) return null;

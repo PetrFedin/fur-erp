@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -80,8 +81,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     : [];
   const planItems = purchase.items.filter((i) => i.costPlan != null);
 
-  const editable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
-  const canEditPlan = editable && hasRole(session.user.role, ACCESS.purchases);
+  const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
+  // Роль из сессии: формы и кнопки правок видят только OWNER/ADMIN/PURCHASER (сервер всё равно отказывает остальным).
+  const canEditRole = hasRole(session.user.role, ACCESS.purchases);
+  const canReceive = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"].includes(session.user.role);
+  const editable = statusEditable && canEditRole;
+  const canEditPlan = editable;
 
   const [materials, expenseCategories, suppliers, warehouses, existingLots] = editable
     ? await Promise.all([
@@ -149,7 +154,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   // Item rows can be edited even after receipt (cosmetic fields always; qty/
   // price/VAT only while the resulting lot hasn't been consumed yet) — see
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
-  const itemsMutable = purchase.status !== "CANCELLED";
+  const itemsMutable = purchase.status !== "CANCELLED" && canEditRole;
 
   const allMaterials = materials;
   const showGradeColor = purchase.items.some((i) => i.grade || i.color);
@@ -221,7 +226,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </div>
           )}
         </div>
-        <PurchaseActions purchaseId={id} status={purchase.status} />
+        <PurchaseActions
+          purchaseId={id}
+          status={purchase.status}
+          canReceive={canReceive}
+          canCancel={canEditRole}
+          hasCostPlan={planItems.length > 0}
+        />
       </div>
 
       {isForeignCurrency && editable && planItems.length === 0 && (
@@ -316,7 +327,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
                   // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
                   const hasPlan = item.costPlan != null;
-                  const canEditFinancials = !hasPlan && (editable || (!!item.lot && !consumed));
+                  const canEditFinancials = canEditRole && !hasPlan && (editable || (!!item.lot && !consumed));
                   const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
                   const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
                   return (
@@ -410,12 +421,26 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               только цена лота без этих сборов и расходов, поэтому она меньше итога закупки.
             </p>
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              {editable ? (
-                <>Цена, количество и расходы лота правятся кнопкой «Править расчёт».</>
+              {statusEditable ? (
+                canEditRole ? (
+                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт».</>
+                ) : (
+                  <>Расчёт могут менять только владелец, администратор и закупщик.</>
+                )
               ) : (
                 <>
                   Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — расчёт менять нельзя;
-                  обратитесь к администратору. Документы можно заменить в блоке «Документы» ниже.
+                  обратитесь к администратору.
+                  {batchName && canEditRole && (
+                    <>
+                      {" "}
+                      Документы можно заменить или переименовать в режиме «Аукцион»:{" "}
+                      <Link href={`/lots?auction=${encodeURIComponent(batchName)}`} className="underline">
+                        открыть аукцион {batchName}
+                      </Link>
+                      .
+                    </>
+                  )}
                 </>
               )}
             </p>
@@ -516,6 +541,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
                   </span>
                 </div>
+                {canEditRole && (
                 <form
                   action={async () => {
                     "use server";
@@ -530,13 +556,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     }
                   />
                 </form>
+                )}
               </div>
             ),
           )}
           {purchase.documents.length + batchDocs.length === 0 && (
             <p className="text-sm text-neutral-400">Документов пока нет</p>
           )}
-          <DocumentsForm purchaseId={id} hasBatch={!!batchName} />
+          {canEditRole && <DocumentsForm purchaseId={id} hasBatch={!!batchName} />}
         </CardContent>
       </Card>
 
@@ -612,7 +639,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <CardContent className="flex flex-col gap-4">
           {purchase.status === "CANCELLED" ? (
             <p className="text-sm text-neutral-500">Закупка отменена — оплаты добавлять нельзя.</p>
-          ) : (
+          ) : !canEditRole ? null : (
             <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
           )}
           <Table>

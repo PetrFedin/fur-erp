@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cleanSearch } from "@/lib/input";
+import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
@@ -31,9 +31,9 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
     ...(q
       ? {
           OR: [
-            { comment: { contains: q, mode: "insensitive" } },
-            { productionOrder: { workOrderNumber: { contains: q, mode: "insensitive" } } },
-            { productionOrder: { number: { contains: q, mode: "insensitive" } } },
+            { comment: { contains: escapeLike(q), mode: "insensitive" } },
+            { productionOrder: { workOrderNumber: { contains: escapeLike(q), mode: "insensitive" } } },
+            { productionOrder: { number: { contains: escapeLike(q), mode: "insensitive" } } },
           ],
         }
       : {}),

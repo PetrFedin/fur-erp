@@ -13,7 +13,7 @@ import { Prisma } from "@prisma/client";
 import { parsePasteRows, issueLines, type ParsedRow } from "./parse-rows";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_MONEY, MAX_QTY, zNum, parseDateInput } from "@/lib/input";
-import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan } from "@/lib/cost-plan";
+import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
   z.string().refine((s) => parseDateInput(s) !== null, label);
@@ -216,20 +216,24 @@ const costPlanItemSchema = z.object({
   vat: zNum("Ставка НДС", { max: 100 }),
 });
 
+/** Блокирует строку закупки до конца транзакции: правки расчёта и приёмка сериализуются. */
+async function lockPurchase(tx: Prisma.TransactionClient, purchaseId: string, orgId: string) {
+  const rows = await tx.$queryRaw<{ status: string; exchangeRate: Prisma.Decimal | string }[]>`
+    SELECT "status", "exchangeRate" FROM "Purchase"
+    WHERE "id" = ${purchaseId} AND "organizationId" = ${orgId} FOR UPDATE`;
+  return rows[0] ?? null;
+}
+
 // «Править расчёт лота»: позиция черновика с расчётом (costPlan). Пересчитывает
 // costPlan целиком по формулам расчётного листа и обновляет количество, цену,
 // сумму и НДС позиции. Курс здесь не меняется — он общий на закупку
 // (updateCostPlanRate). Обычная правка позиции с расчётом по-прежнему заблокирована.
+// Входные значения округляются до точности колонок БД ДО расчёта, чтобы costPlan
+// был ровно пересчётом из сохранённых значений. Чтение и запись — под блокировкой
+// строки закупки (иначе гонка с приёмкой / сменой курса).
 export async function updateCostPlanItem(purchaseId: string, itemId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const purchase = await prisma.purchase.findFirst({
-    where: { id: purchaseId, organizationId: session.user.organizationId },
-  });
-  if (!purchase) return { error: "Закупка не найдена" };
-  if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
-  const item = await prisma.purchaseItem.findFirst({ where: { id: itemId, purchaseId } });
-  if (!item) return { error: "Позиция не найдена" };
-  if (item.costPlan == null) return { error: "У позиции нет расчёта из расчётного листа" };
+  const orgId = session.user.organizationId;
 
   const parsed = costPlanItemSchema.safeParse({
     quantity: formData.get("quantity"),
@@ -242,21 +246,26 @@ export async function updateCostPlanItem(purchaseId: string, itemId: string, for
     vat: formData.get("vat"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-  const v = parsed.data;
-  const rate = Number(purchase.exchangeRate.toString());
-  const plan = item.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
-  const inputs = { ...v, rate };
-  const calc = computeCostPlan(inputs);
-  const subtotal = new Decimal(v.price).mul(v.quantity);
-  if (tooBig(subtotal) || tooBig(new Decimal(calc.totalIncl))) return { error: AMOUNT_TOO_BIG };
+  const raw = parsed.data;
+  const v = { ...raw, quantity: roundQty(raw.quantity), price: roundPrice(raw.price), vat: roundVat(raw.vat) };
+  if (v.quantity < 0.001) return { error: "Количество: значение должно быть не меньше 0,001" };
+  if (v.price < 0.01) return { error: "Цена лота: значение должно быть не меньше 0,01" };
 
-  const now = new Date();
   const res = await prisma.$transaction(async (tx) => {
-    // Статус проверяем в момент записи: закупка могла быть принята между чтением и правкой.
-    const draft = await tx.purchase.count({
-      where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
-    });
-    if (draft === 0) return false;
+    const purchase = await lockPurchase(tx, purchaseId, orgId);
+    if (!purchase) return { error: "Закупка не найдена" };
+    if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
+    const item = await tx.purchaseItem.findFirst({ where: { id: itemId, purchaseId } });
+    if (!item) return { error: "Позиция не найдена" };
+    if (item.costPlan == null) return { error: "У позиции нет расчёта из расчётного листа" };
+
+    const rate = roundRate(Number(purchase.exchangeRate.toString()));
+    const plan = item.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
+    const inputs = { ...v, rate };
+    const calc = computeCostPlan(inputs);
+    const subtotal = new Decimal(v.price).mul(v.quantity);
+    if (tooBig(subtotal) || tooBig(new Decimal(calc.totalIncl))) return { error: AMOUNT_TOO_BIG };
+
     await tx.purchaseItem.update({
       where: { id: itemId },
       data: {
@@ -267,13 +276,13 @@ export async function updateCostPlanItem(purchaseId: string, itemId: string, for
         costPlan: buildCostPlanJson(
           inputs,
           { furDescription: plan.costBreakdown?.furDescription, exchangeRateFixed: plan.costBreakdown?.exchangeRateFixed },
-          now.toISOString(),
+          new Date().toISOString(),
         ),
       },
     });
-    return true;
-  });
-  if (!res) return { error: NOT_DRAFT };
+    return {};
+  }, { timeout: 30000 });
+  if (res.error) return { error: res.error };
   revalidateCostPlan(purchaseId);
   return {};
 }
@@ -281,53 +290,52 @@ export async function updateCostPlanItem(purchaseId: string, itemId: string, for
 // Курс закупки с расчётом: общий для всех позиций, поэтому меняется одной
 // формой с пересчётом costPlan каждой позиции (сборы и брокерский % берутся
 // как проценты, выделка/транспорт/транзит — фиксированные суммы).
+// Курс округляется до 6 знаков (точность колонки) до расчёта; позиции читаются
+// после блокировки строки закупки.
 export async function updateCostPlanRate(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
   const rateParsed = zNum("Курс", { positive: true, max: 1_000_000 }).safeParse(formData.get("exchangeRate"));
   if (!rateParsed.success) return { error: rateParsed.error.issues[0]?.message ?? "Некорректный курс" };
-  const rate = rateParsed.data as number;
+  const rate = roundRate(rateParsed.data as number);
+  if (rate <= 0) return { error: "Курс: значение должно быть не меньше 0,000001" };
 
-  const purchase = await prisma.purchase.findFirst({
-    where: { id: purchaseId, organizationId: session.user.organizationId },
-    include: { items: true },
-  });
-  if (!purchase) return { error: "Закупка не найдена" };
-  if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
-  const planItems = purchase.items.filter((i) => i.costPlan != null);
-  if (planItems.length === 0) return { error: "В закупке нет позиций с расчётом — используйте обычную форму курса" };
+  const res = await prisma.$transaction(async (tx) => {
+    const purchase = await lockPurchase(tx, purchaseId, orgId);
+    if (!purchase) return { error: "Закупка не найдена" };
+    if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
+    const items = await tx.purchaseItem.findMany({ where: { purchaseId } });
+    const planItems = items.filter((i) => i.costPlan != null);
+    if (planItems.length === 0) return { error: "В закупке нет позиций с расчётом — используйте обычную форму курса" };
 
-  const now = new Date().toISOString();
-  const updates = planItems.map((i) => {
-    const prev = i.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
-    const base = deriveCostPlanInputs(i.costPlan, {
-      quantity: Number(i.quantity.toString()),
-      price: Number(i.unitPrice.toString()),
-      rate: Number(purchase.exchangeRate.toString()),
-      vat: Number(i.vatRate.toString()),
+    const now = new Date().toISOString();
+    const oldRate = roundRate(Number(purchase.exchangeRate.toString()));
+    const updates = planItems.map((i) => {
+      const prev = i.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
+      const base = deriveCostPlanInputs(i.costPlan, {
+        quantity: Number(i.quantity.toString()),
+        price: Number(i.unitPrice.toString()),
+        rate: oldRate,
+        vat: Number(i.vatRate.toString()),
+      });
+      const inputs = { ...base, rate };
+      return {
+        id: i.id,
+        costPlan: buildCostPlanJson(
+          inputs,
+          { furDescription: prev.costBreakdown?.furDescription, exchangeRateFixed: prev.costBreakdown?.exchangeRateFixed },
+          now,
+        ),
+        total: computeCostPlan(inputs).totalIncl,
+      };
     });
-    const inputs = { ...base, rate };
-    return {
-      id: i.id,
-      costPlan: buildCostPlanJson(
-        inputs,
-        { furDescription: prev.costBreakdown?.furDescription, exchangeRateFixed: prev.costBreakdown?.exchangeRateFixed },
-        now,
-      ),
-      total: computeCostPlan(inputs).totalIncl,
-    };
-  });
-  if (updates.some((u) => tooBig(new Decimal(u.total)))) return { error: AMOUNT_TOO_BIG };
+    if (updates.some((u) => tooBig(new Decimal(u.total)))) return { error: AMOUNT_TOO_BIG };
 
-  const ok = await prisma.$transaction(async (tx) => {
-    const r = await tx.purchase.updateMany({
-      where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
-      data: { exchangeRate: rate },
-    });
-    if (r.count === 0) return false;
+    await tx.purchase.update({ where: { id: purchaseId }, data: { exchangeRate: rate } });
     for (const u of updates) await tx.purchaseItem.update({ where: { id: u.id }, data: { costPlan: u.costPlan } });
-    return true;
+    return {};
   }, { timeout: 30000 });
-  if (!ok) return { error: NOT_DRAFT };
+  if (res.error) return { error: res.error };
   revalidateCostPlan(purchaseId);
   return {};
 }
@@ -880,6 +888,11 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   try {
     await prisma.$transaction(
       async (tx) => {
+        // Блокируем строку закупки: правки расчёта (updateCostPlanItem/Rate) берут ту же
+        // блокировку, поэтому приёмка и правки идут строго по очереди. Статус — под замком.
+        const locked = await lockPurchase(tx, purchaseId, orgId);
+        if (!locked || locked.status === "RECEIVED" || locked.status === "CANCELLED") throw new AlreadyReceivedError();
+
         // Атомарный переход статуса: если параллельная приёмка уже выиграла,
         // count = 0 и лоты не создаются (иначе склад задвоился бы).
         const claimed = await tx.purchase.updateMany({

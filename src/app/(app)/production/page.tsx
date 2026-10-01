@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cleanSearch } from "@/lib/input";
+import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
@@ -50,10 +50,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     ...(q
       ? {
           OR: [
-            { workOrderNumber: { contains: q, mode: "insensitive" } },
-            { number: { contains: q, mode: "insensitive" } },
-            { productModel: { name: { contains: q, mode: "insensitive" } } },
-            { client: { name: { contains: q, mode: "insensitive" } } },
+            { workOrderNumber: { contains: escapeLike(q), mode: "insensitive" } },
+            { number: { contains: escapeLike(q), mode: "insensitive" } },
+            { productModel: { name: { contains: escapeLike(q), mode: "insensitive" } } },
+            { client: { name: { contains: escapeLike(q), mode: "insensitive" } } },
           ],
         }
       : {}),

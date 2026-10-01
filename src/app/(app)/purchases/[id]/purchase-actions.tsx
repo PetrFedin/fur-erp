@@ -7,15 +7,29 @@ import { setPurchaseStatus, receivePurchase } from "../actions";
 // Two states in the UI: draft -> accepted to stock. (ORDERED / IN_TRANSIT rows
 // in the DB behave exactly like a draft here.) Accepting is irreversible, so
 // it asks first; cancelling lives in the "⋯" menu.
-export function PurchaseActions({ purchaseId, status }: { purchaseId: string; status: string }) {
+export function PurchaseActions({
+  purchaseId,
+  status,
+  canReceive = true,
+  canCancel = true,
+  hasCostPlan = false,
+}: {
+  purchaseId: string;
+  status: string;
+  canReceive?: boolean;
+  canCancel?: boolean;
+  /** В закупке есть позиции с расчётом: после приёмки расчёт заблокируется. */
+  hasCostPlan?: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (status === "RECEIVED" || status === "CANCELLED") return null;
+  if (status === "RECEIVED" || status === "CANCELLED" || (!canReceive && !canCancel)) return null;
 
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
+        {canReceive && (
         <Button
           variant="default"
           size="sm"
@@ -24,7 +38,10 @@ export function PurchaseActions({ purchaseId, status }: { purchaseId: string; st
           onClick={() => {
             if (
               !window.confirm(
-                "Принять закупку на склад? Это создаст лоты. После приёмки цену и количество у позиции нельзя будет менять, если лот уже использован в ТЗ (лот, сорт и цвет остаются доступны)."
+                "Принять закупку на склад? Это создаст лоты. После приёмки цену и количество у позиции нельзя будет менять, если лот уже использован в ТЗ (лот, сорт и цвет остаются доступны)." +
+                  (hasCostPlan
+                    ? "\n\nВ закупке есть расчёт себестоимости: после приёмки расчёт лотов («Править расчёт», курс закупки) будет заблокирован."
+                    : "")
               )
             )
               return;
@@ -36,6 +53,8 @@ export function PurchaseActions({ purchaseId, status }: { purchaseId: string; st
         >
           {pending ? "Принимаем..." : "Принять на склад"}
         </Button>
+        )}
+        {canCancel && (
         <details className="relative">
           <summary className="cursor-pointer list-none rounded-md px-2 py-1 text-neutral-500 hover:bg-neutral-100">
             ⋯
@@ -54,6 +73,7 @@ export function PurchaseActions({ purchaseId, status }: { purchaseId: string; st
             </Button>
           </div>
         </details>
+        )}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>

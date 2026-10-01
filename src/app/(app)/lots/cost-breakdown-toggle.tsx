@@ -11,6 +11,9 @@ type Breakdown = {
 };
 
 const fmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+// Курс показываем минимум с 4 знаками (до 6): округление до 2 знаков скрывало разницу в курсе.
+const fmtRate = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+const isRateLabel = (label: string) => /^курс/i.test(label.trim());
 const toNum = (v: number | string | null | undefined) => (v == null || v === "" ? null : Number(v));
 
 export function CostBreakdownToggle({
@@ -40,7 +43,7 @@ export function CostBreakdownToggle({
         onClick={(e) => {
           if (e.target === dialogRef.current) dialogRef.current?.close();
         }}
-        className="m-auto max-h-[85vh] w-[34rem] max-w-[95vw] rounded-lg border border-neutral-200 bg-white p-0 text-xs shadow-xl backdrop:bg-black/30"
+        className="m-auto max-h-[85vh] w-[34rem] max-w-[95vw] overflow-y-auto overflow-x-hidden whitespace-normal break-words rounded-lg border border-neutral-200 bg-white p-0 text-left text-xs font-normal shadow-xl backdrop:bg-black/30"
       >
         <div className="p-4">
           <div className="mb-2 flex items-start justify-between gap-4">
@@ -60,12 +63,12 @@ export function CostBreakdownToggle({
               {breakdown.exchangeRateFixed ?? "—"}
             </p>
           )}
-          <table className="w-full border-collapse">
+          <table className="w-full table-fixed border-collapse">
             <thead>
               <tr className="text-left text-neutral-400">
                 <th className="py-0.5 pr-3 font-normal">Составляющая</th>
-                <th className="py-0.5 pr-3 text-right font-normal">Значение</th>
-                <th className="py-0.5 font-normal">Ед.</th>
+                <th className="w-24 py-0.5 pr-2 text-right font-normal">Значение</th>
+                <th className="w-10 py-0.5 font-normal">Ед.</th>
               </tr>
             </thead>
             {groups.map((g) => (
@@ -82,7 +85,7 @@ export function CostBreakdownToggle({
                   return (
                     <tr key={i} className={bold ? "font-semibold" : undefined}>
                       <td className={`py-px pr-3 ${bold ? "" : "text-neutral-500"}`}>{item.label}</td>
-                      <td className="py-px pr-3 text-right font-mono">{fmt(item.value)}</td>
+                      <td className="py-px pr-2 text-right font-mono">{isRateLabel(item.label) ? fmtRate(item.value) : fmt(item.value)}</td>
                       <td className="py-px text-neutral-400">{unit ?? ""}</td>
                     </tr>
                   );

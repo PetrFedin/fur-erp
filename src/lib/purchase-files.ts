@@ -43,6 +43,14 @@ export function detectDocument(head: Buffer, name: string, whole?: Buffer): DocK
   return null;
 }
 
+/** Обрезает имя до maxLen символов, сохраняя расширение (обрезается основа имени). */
+export function truncateFileName(name: string, maxLen = 200): string {
+  if (name.length <= maxLen) return name;
+  const m = /\.[A-Za-z0-9]{1,8}$/.exec(name);
+  const ext = m ? m[0] : "";
+  return name.slice(0, maxLen - ext.length) + ext;
+}
+
 export type ReadDoc = { buf: Buffer; kind: DocKind; originalName: string };
 
 export async function readDocumentFiles(
@@ -65,7 +73,7 @@ export async function readDocumentFiles(
     const buf = Buffer.from(await f.arrayBuffer());
     const kind = detectDocument(buf.subarray(0, 16), name, buf);
     if (!kind) return { error: `Файл «${name}» не подходит: допустимы PDF, XLSX, DOCX, JPEG, PNG` };
-    out.push({ buf, kind, originalName: name.slice(0, 200) });
+    out.push({ buf, kind, originalName: truncateFileName(name, 200) });
   }
   return { files: out };
 }

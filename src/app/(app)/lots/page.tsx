@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cleanSearch } from "@/lib/input";
+import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,30 +66,42 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     </Link>
   );
 
-  const auctionChips = auctions.slice(0, 6);
+  const CHIPS_SHOWN = 6;
+  const auctionChips = auctions.slice(0, CHIPS_SHOWN);
+  const moreAuctions = auctions.slice(CHIPS_SHOWN);
+  const auctionChip = (a: (typeof auctions)[number]) => {
+    const active = auctionNames.length === 1 && auctionNames[0] === a.name;
+    return (
+      <Link
+        key={a.name}
+        href={`/lots?auction=${encodeURIComponent(a.name)}`}
+        className={
+          "rounded-full border px-3 py-1 text-xs " +
+          (active
+            ? "border-neutral-900 bg-neutral-900 text-white"
+            : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+        }
+        title={`${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
+      >
+        {a.name} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
+      </Link>
+    );
+  };
   const filtersBlock = (
     <>
       {auctions.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs text-neutral-500">Аукционы:</span>
-          {auctionChips.map((a) => {
-            const active = auctionNames.length === 1 && auctionNames[0] === a.name;
-            return (
-              <Link
-                key={a.name}
-                href={`/lots?auction=${encodeURIComponent(a.name)}`}
-                className={
-                  "rounded-full border px-3 py-1 text-xs " +
-                  (active
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-                }
-                title={`${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
-              >
-                {a.name} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
-              </Link>
-            );
-          })}
+          {auctionChips.map(auctionChip)}
+          {moreAuctions.length > 0 && (
+            <details className="group/more" open={moreAuctions.some((a) => auctionNames.length === 1 && auctionNames[0] === a.name)}>
+              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
+                <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
+                <span className="hidden group-open/more:inline">скрыть</span>
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
+            </details>
+          )}
         </div>
       )}
       <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId || auctionQ)}>
@@ -187,10 +199,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     ...(tab === "fur" && q
       ? {
           OR: [
-            { lotNumber: { contains: q, mode: "insensitive" as const } },
-            { color: { contains: q, mode: "insensitive" as const } },
-            { grade: { contains: q, mode: "insensitive" as const } },
-            { rawMaterial: { name: { contains: q, mode: "insensitive" as const } } },
+            { lotNumber: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { color: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { grade: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { rawMaterial: { name: { contains: escapeLike(q), mode: "insensitive" as const } } },
           ],
         }
       : {}),

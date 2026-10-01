@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { normalizeNumberInput } from "@/lib/input";
-import { computeCostPlan } from "@/lib/cost-plan";
+import { computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 import { updateCostPlanItem, updateCostPlanRate } from "../actions";
 
 export type CostPlanEditorItem = {
@@ -64,15 +64,16 @@ export function CostPlanItemEditor({
     return typeof x === "number" ? x : NaN;
   };
   const calc = computeCostPlan({
-    quantity: n("quantity"),
-    price: n("price"),
-    rate: item.rate,
+    // Значения округляются до точности колонок БД — так же, как на сервере (расчёт = пересчёт из сохранённого).
+    quantity: roundQty(n("quantity")),
+    price: roundPrice(n("price")),
+    rate: roundRate(item.rate),
     feePct: n("feePct"),
     dressing: n("dressing"),
     transport: n("transport"),
     brokerPct: n("brokerPct"),
     transit: Number.isNaN(n("transit")) && !(vals.transit ?? "").trim() ? 0 : n("transit"),
-    vat: n("vat"),
+    vat: roundVat(n("vat")),
   });
 
   return (
@@ -90,7 +91,7 @@ export function CostPlanItemEditor({
           }}
         >
           <form
-            className="flex max-h-full w-full max-w-xl flex-col gap-3 overflow-y-auto rounded-lg bg-white p-4 text-left font-normal shadow-xl"
+            className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden whitespace-normal rounded-lg bg-white text-left font-normal shadow-xl"
             action={(formData) => {
               setError(null);
               start(async () => {
@@ -100,6 +101,7 @@ export function CostPlanItemEditor({
               });
             }}
           >
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
             <h3 className="text-base font-semibold">Править расчёт лота {item.lotNumber ?? ""}</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {FIELDS.map((f) => (
@@ -110,6 +112,7 @@ export function CostPlanItemEditor({
                     type="text"
                     inputMode="decimal"
                     autoComplete="off"
+                    className="text-neutral-900"
                     value={vals[f.name] ?? ""}
                     onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
                   />
@@ -118,11 +121,11 @@ export function CostPlanItemEditor({
               ))}
               <label className="flex flex-col gap-1 text-xs text-neutral-500">
                 Курс ЦБ (общий на закупку)
-                <Input value={show(item.rate)} readOnly disabled />
+                <Input value={show(item.rate)} readOnly disabled className="text-neutral-700 disabled:opacity-100" />
                 <span className="text-[11px] text-neutral-400">меняется формой «Курс закупки» в блоке расчёта</span>
               </label>
             </div>
-            <div className="rounded-md bg-neutral-50 px-3 py-2 text-sm">
+            <div className="break-words rounded-md bg-neutral-50 px-3 py-2 text-sm">
               <div>
                 Себестоимость единицы: <b>{fmt(calc.unitIncl)} ₽</b>{" "}
                 <span className="text-xs text-neutral-500">(без НДС {fmt(calc.unitExcl)} ₽)</span>
@@ -137,7 +140,8 @@ export function CostPlanItemEditor({
               </div>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex justify-end gap-2">
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-neutral-200 bg-white p-3">
               <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => setOpen(false)}>
                 Отмена
               </Button>
