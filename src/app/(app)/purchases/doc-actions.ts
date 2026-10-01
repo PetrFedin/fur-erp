@@ -1,5 +1,6 @@
 "use server";
 
+import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -70,4 +71,68 @@ export async function deletePurchaseDocument(purchaseId: string, documentId: str
   if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
+}
+
+function revalidateDocPages(purchaseId: string | null | undefined) {
+  if (purchaseId) revalidatePath(`/purchases/${purchaseId}`);
+  revalidatePath("/lots");
+}
+
+/**
+ * Замена файла документа: новый файл проверяется как при загрузке (тип по сигнатуре, размер),
+ * пишется на диск, строка в БД обновляется, и только потом старый файл удаляется с диска.
+ */
+export async function replacePurchaseDocument(documentId: string, formData: FormData): Promise<DocFormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const doc = await prisma.purchaseDocument.findFirst({ where: { id: documentId, organizationId: orgId } });
+  if (!doc) return { error: "Документ не найден" };
+
+  const entries = formData.getAll("file");
+  if (entries.filter((e) => typeof e !== "string" && e.size > 0).length > 1) return { error: "Выберите один файл" };
+  const read = await readDocumentFiles(entries);
+  if ("error" in read) return { error: read.error };
+
+  // Кладём в тот же каталог, где лежал старый файл (purchase-docs/<org>/<закупка | batch-…>/).
+  const scope = path.basename(path.dirname(doc.storagePath)) || (doc.purchaseId ?? "replaced");
+  const [stored] = await writeDocumentFiles(orgId, scope, read.files);
+  try {
+    await prisma.purchaseDocument.update({
+      where: { id: doc.id },
+      data: {
+        storagePath: stored.storagePath,
+        originalName: stored.originalName,
+        mimeType: stored.mimeType,
+        sizeBytes: stored.sizeBytes,
+        createdAt: new Date(),
+      },
+    });
+  } catch (e) {
+    await removeStoredFiles([stored.storagePath]);
+    throw e;
+  }
+  // Старый файл — только после успешной записи в БД и только если на него больше никто не ссылается.
+  if (doc.storagePath !== stored.storagePath) {
+    const stillUsed = await prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } });
+    if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
+  }
+  revalidateDocPages(doc.purchaseId);
+  return { ok: true };
+}
+
+/** Переименование документа и смена его типа. */
+export async function updatePurchaseDocument(documentId: string, formData: FormData): Promise<DocFormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const doc = await prisma.purchaseDocument.findFirst({
+    where: { id: documentId, organizationId: session.user.organizationId },
+    select: { id: true, purchaseId: true },
+  });
+  if (!doc) return { error: "Документ не найден" };
+  const title = String(formData.get("title") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 200);
+  if (!title) return { error: "Укажите название документа" };
+  const kindRaw = String(formData.get("kind") ?? "");
+  if (!(KINDS as readonly string[]).includes(kindRaw)) return { error: "Неизвестный тип документа" };
+  await prisma.purchaseDocument.update({ where: { id: doc.id }, data: { title, kind: kindRaw as Kind } });
+  revalidateDocPages(doc.purchaseId);
+  return { ok: true };
 }

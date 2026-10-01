@@ -13,6 +13,7 @@ import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { LiningPurchaseForm } from "./lining-purchase-form";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -33,6 +34,151 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const tab: "fur" | "lining" = sp.tab === "lining" ? "lining" : "fur";
   const q = cleanSearch(sp.q);
   const materialId = cleanSearch(sp.material);
+  const auctionQ = tab === "fur" ? cleanSearch(sp.auction, 200) : "";
+
+  const [materials, auctions] = await Promise.all([
+    prisma.rawMaterial.findMany({
+      where: { organizationId: session.user.organizationId },
+      select: { id: true, name: true, unit: true, minStockLevel: true },
+      orderBy: { name: "asc" },
+    }),
+    tab === "fur" ? loadAuctions(session.user.organizationId) : Promise.resolve([]),
+  ]);
+
+  // Режим «Аукцион»: выбранное название — точное совпадение, иначе вхождение (без учёта регистра).
+  const lowerQ = auctionQ.toLowerCase();
+  const exact = auctions.filter((a) => a.name.toLowerCase() === lowerQ);
+  const auctionNames = auctionQ
+    ? (exact.length > 0 ? exact : auctions.filter((a) => a.name.toLowerCase().includes(lowerQ))).map((a) => a.name)
+    : [];
+  const auctionMode = tab === "fur" && Boolean(auctionQ);
+  const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+
+  const tabLink = (t: string, label: string) => (
+    <Link
+      href={t === "fur" ? "/lots" : `/lots?tab=${t}`}
+      className={
+        "rounded-md px-3 py-1.5 text-sm " +
+        (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
+      }
+    >
+      {label}
+    </Link>
+  );
+
+  const auctionChips = auctions.slice(0, 6);
+  const filtersBlock = (
+    <>
+      {auctions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs text-neutral-500">Аукционы:</span>
+          {auctionChips.map((a) => {
+            const active = auctionNames.length === 1 && auctionNames[0] === a.name;
+            return (
+              <Link
+                key={a.name}
+                href={`/lots?auction=${encodeURIComponent(a.name)}`}
+                className={
+                  "rounded-full border px-3 py-1 text-xs " +
+                  (active
+                    ? "border-neutral-900 bg-neutral-900 text-white"
+                    : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+                }
+                title={`${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
+              >
+                {a.name} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+      <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId || auctionQ)}>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
+        <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+          <div className="col-span-2 sm:col-span-4">
+            <label className="mb-1 block text-xs text-neutral-500">Аукцион (название — выберите из списка или введите)</label>
+            <Input name="auction" list="auction-options" defaultValue={auctionQ} placeholder="напр. СП 09-26" autoComplete="off" />
+            <datalist id="auction-options">
+              {auctions.map((a) => (
+                <option key={a.name} value={a.name}>
+                  {`${a.name} · ${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
+                </option>
+              ))}
+            </datalist>
+          </div>
+          <div className="col-span-2">
+            <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
+            <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-neutral-500">Материал</label>
+            <Select name="material" defaultValue={materialId}>
+              <option value="">Все материалы</option>
+              {materials
+                .filter((m) => m.unit !== "M")
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" variant="outline">
+              Найти
+            </Button>
+            <Link href="/lots" className="flex items-center text-sm text-neutral-500 hover:underline">
+              Сбросить
+            </Link>
+          </div>
+          <div className="col-span-2 sm:col-span-4">
+            <Link href="/raw-materials" className="text-sm text-neutral-500 hover:underline">
+              Расширенный поиск по лотам и аукционам →
+            </Link>
+          </div>
+        </form>
+      </details>
+    </>
+  );
+
+  if (auctionMode) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="text-xl font-semibold">Сырьё</h1>
+            <p className="text-sm text-neutral-500">Режим «Аукцион»: позиции закупок, документы и расчёт цены.</p>
+          </div>
+          <Link href="/materials/new" className={buttonVariants()}>
+            + Добавить материал
+          </Link>
+        </div>
+        <div className="flex gap-1 border-b border-neutral-200 pb-2">
+          {tabLink("fur", "Мех")}
+          {tabLink("lining", "Подкладка")}
+        </div>
+        {filtersBlock}
+        {auctionNames.length === 0 ? (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Аукцион «{auctionQ}» не найден. Выберите название из списка или{" "}
+            <Link href="/lots" className="underline">
+              сбросьте фильтр
+            </Link>
+            .
+          </p>
+        ) : (
+          <AuctionView
+            organizationId={session.user.organizationId}
+            names={auctionNames}
+            label={auctionNames.length === 1 ? auctionNames[0] : auctionQ}
+            q={q}
+            materialId={materialId}
+            canEdit={canEditDocs}
+          />
+        )}
+      </div>
+    );
+  }
 
   const lotsWhere = {
     organizationId: session.user.organizationId,
@@ -50,7 +196,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       : {}),
   };
 
-  const [currentLots, allLots, lots, materials, lotsTotal] = await Promise.all([
+  const [currentLots, allLots, lots, lotsTotal] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: session.user.organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
@@ -68,11 +214,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       },
       orderBy: { receivedDate: tab === "lining" ? "asc" : "desc" },
       ...(tab === "fur" ? { take: FUR_LOTS_LIMIT } : {}),
-    }),
-    prisma.rawMaterial.findMany({
-      where: { organizationId: session.user.organizationId },
-      select: { id: true, name: true, unit: true, minStockLevel: true },
-      orderBy: { name: "asc" },
     }),
     tab === "fur" ? prisma.rawMaterialLot.count({ where: lotsWhere }) : Promise.resolve(0),
   ]);
@@ -133,18 +274,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
   const liningLotsByMaterial = furLotsByMaterial; // (та же группировка: на вкладке «Подкладка» lots — только ткани)
 
-  const tabLink = (t: string, label: string) => (
-    <Link
-      href={t === "fur" ? "/lots" : `/lots?tab=${t}`}
-      className={
-        "rounded-md px-3 py-1.5 text-sm " +
-        (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
-      }
-    >
-      {label}
-    </Link>
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -167,41 +296,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
       {tab === "fur" ? (
         <>
-          <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
-            <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
-                <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-neutral-500">Материал</label>
-                <Select name="material" defaultValue={materialId}>
-                  <option value="">Все материалы</option>
-                  {materials
-                    .filter((m) => m.unit !== "M")
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" variant="outline">
-                  Найти
-                </Button>
-                <Link href="/lots" className="flex items-center text-sm text-neutral-500 hover:underline">
-                  Сбросить
-                </Link>
-              </div>
-              <div className="col-span-2 sm:col-span-4">
-                <Link href="/raw-materials" className="text-sm text-neutral-500 hover:underline">
-                  Расширенный поиск по лотам и аукционам →
-                </Link>
-              </div>
-            </form>
-          </details>
+          {filtersBlock}
 
           {lotsTotal > lots.length && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
