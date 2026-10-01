@@ -342,7 +342,12 @@ export async function AuctionView({
                 <Money incl={fullIncl} excl={fullExcl} />
               </dd>
               <dd className="text-xs text-neutral-400">
-                расходы <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
+                расходы{" "}
+                {fullIncl.sub(priceIncl).abs().lessThan(1) && fullExcl.sub(priceExcl).abs().lessThan(1) ? (
+                  "—"
+                ) : (
+                  <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
+                )}
               </dd>
             </div>
             {paySummaries.length > 0 && (

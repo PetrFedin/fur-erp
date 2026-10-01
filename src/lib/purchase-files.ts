@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveInside, removeStoredFiles } from "@/lib/fitting-files";
+import { formatMb } from "@/lib/format-mb";
 
 /**
  * Документы закупки (счета аукциона, спецификации, расчётные листы): файлы на
@@ -39,10 +40,7 @@ export function fixFileNameExt(name: string, ext: string): string {
   return name + "." + ext;
 }
 
-/** Размер в МБ с двумя знаками, округлённый вверх (чтобы «больше 25 МБ» не выглядело как «25,00 МБ»). */
-export function formatMb(bytes: number): string {
-  return (Math.ceil((bytes / 1024 / 1024) * 100) / 100).toFixed(2).replace(".", ",");
-}
+export { formatMb };
 
 export type ReadDoc = { buf: Buffer; kind: DocKind; originalName: string };
 
@@ -55,6 +53,9 @@ export async function readDocumentFiles(
     return { error: `За один раз можно загрузить не больше ${MAX_DOCS_PER_UPLOAD} файлов (выбрано ${files.length})` };
   }
   const total = files.reduce((s, f) => s + f.size, 0);
+  if (files.length === 1 && total > MAX_DOC_BYTES) {
+    return { error: `Файл больше 25 МБ (${formatMb(total)} МБ)` };
+  }
   if (total > MAX_TOTAL_BYTES) {
     return { error: `Суммарный размер файлов ${formatMb(total)} МБ — больше лимита 25 МБ; загрузите файлы по частям` };
   }

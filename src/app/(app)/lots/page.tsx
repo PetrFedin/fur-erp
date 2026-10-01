@@ -14,6 +14,7 @@ import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { LiningPurchaseForm } from "./lining-purchase-form";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PurchaseSummary } from "./summary-view";
 import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
 
@@ -360,7 +361,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </CardHeader>
             <CardContent>
               <Table>
-                <Thead>
+                <Thead className="max-md:hidden">
                   <Tr>
                     <Th>Материал</Th>
                     <Th>Куплено всего</Th>
@@ -379,28 +380,34 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                       <Tr key={r.id}>
                         <Td colSpan={5} className="p-0">
                           <details className="group" open={filtering}>
-                            <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
-                              <span className="font-medium">
+                            <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 md:grid-cols-5 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+                              <span className="col-span-2 font-medium md:col-span-1">
                                 <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
                                   ›
                                 </span>
                                 {r.name}
                               </span>
                               <span>
+                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Куплено всего</span>
                                 {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
                               </span>
                               <span>
+                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Использовано</span>
                                 {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
                               </span>
                               <span className="font-medium">
+                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Остаток</span>
                                 {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}{" "}
                                 {low && <Badge variant="danger">Мало</Badge>}
                               </span>
                               <span>
+                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость остатка</span>
                                 <Money incl={r.value} excl={r.valueExclVat} />
                               </span>
                             </summary>
                             <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2">
+                              <ResponsiveRows
+                                table={
                               <Table>
                                 <Thead>
                                   <Tr>
@@ -515,6 +522,73 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                   )}
                                 </Tbody>
                               </Table>
+                                }
+                              >
+                                {rowLots.map((l) => {
+                                  const excl = lotUnitCostExclVat(l);
+                                  const unit = UNIT_LABELS[l.rawMaterial.unit];
+                                  return (
+                                    <RowCard
+                                      key={l.id}
+                                      title={l.lotNumber ?? "без номера"}
+                                      subtitle={[l.grade, l.color].filter(Boolean).join(" / ") || undefined}
+                                      badge={l.quantityRemaining.isZero() ? <Badge>Израсходован</Badge> : undefined}
+                                      fields={[
+                                        { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} ${unit}` },
+                                        { label: "Остаток", value: `${formatQty(l.quantityRemaining.toString())} ${unit}`, strong: true },
+                                        { label: "Цена за ед. (всего)", value: formatMoney(l.unitCost.toString()), strong: true },
+                                        { label: "Без НДС", value: formatMoney(excl.toString()) },
+                                      ]}
+                                      details={[
+                                        {
+                                          label: "НДС",
+                                          value: `${formatMoney(l.unitCost.sub(excl).toString())} (${l.vatRate.toString()}%)`,
+                                        },
+                                        {
+                                          label: "Использован в ТЗ",
+                                          value:
+                                            l.usages.length === 0 ? null : (
+                                              <>
+                                                {l.usages.map((u) => (
+                                                  <div key={u.id}>
+                                                    <Link href={`/production/${u.productionOrderId}`} className="underline">
+                                                      ТЗ {u.productionOrder.number}
+                                                    </Link>
+                                                    {" — "}
+                                                    {formatQty(u.quantity.toString())} {unit}
+                                                  </div>
+                                                ))}
+                                              </>
+                                            ),
+                                        },
+                                        {
+                                          label: "Закупка / аукцион",
+                                          value: l.purchase ? (
+                                            <>
+                                              <Link href={`/purchases/${l.purchase.id}`} className="underline">
+                                                {l.purchase.supplier.name} ({l.purchase.number})
+                                              </Link>
+                                              <div className="text-xs text-neutral-400">
+                                                {[
+                                                  formatDate(l.receivedDate),
+                                                  l.purchase.auctionSession ? shortAuctionName(l.purchase.auctionSession.split("\n")[0], 60) : null,
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(" · ")}
+                                              </div>
+                                            </>
+                                          ) : (
+                                            formatDate(l.receivedDate)
+                                          ),
+                                        },
+                                      ]}
+                                    />
+                                  );
+                                })}
+                                {rowLots.length === 0 && (
+                                  <p className="py-4 text-center text-neutral-400">Лоты не найдены (сузьте поиск/фильтр выше)</p>
+                                )}
+                              </ResponsiveRows>
                               <p className="mt-1 text-xs text-neutral-400">Цены — за единицу материала.</p>
                             </div>
                           </details>
@@ -553,7 +627,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 .map((m) => ({ id: m.id, name: m.name }))}
             />
             <Table>
-              <Thead>
+              <Thead className="max-md:hidden">
                 <Tr>
                   <Th>№ ткани</Th>
                   <Th>Куплено</Th>
@@ -586,16 +660,23 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                     <Tr key={r.id}>
                       <Td colSpan={5} className="p-0">
                         <details className="group">
-                          <summary className="grid cursor-pointer list-none grid-cols-5 gap-2 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
-                            <span className="font-medium">
+                          <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 md:grid-cols-5 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+                            <span className="col-span-2 font-medium md:col-span-1">
                               <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
                                 ›
                               </span>
                               {r.name}
                             </span>
-                            <span>{formatQty(r.purchased.toString())} м</span>
-                            <span>{formatQty(r.purchased.sub(r.remaining).toString())} м</span>
+                            <span>
+                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Куплено</span>
+                              {formatQty(r.purchased.toString())} м
+                            </span>
+                            <span>
+                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Использовано</span>
+                              {formatQty(r.purchased.sub(r.remaining).toString())} м
+                            </span>
                             <span className="font-medium">
+                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Остаток</span>
                               {shortage ? "0" : formatQty(r.remaining.toString())} м{" "}
                               {shortage ? (
                                 <Badge variant="warning">Не хватает {formatQty(shortage.toString())} м</Badge>
@@ -604,6 +685,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                               )}
                             </span>
                             <span>
+                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость</span>
                               <Money incl={r.value} excl={r.valueExclVat} />
                             </span>
                           </summary>

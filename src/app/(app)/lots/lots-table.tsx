@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
+import { RowCard } from "@/components/responsive-rows";
 import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
@@ -326,6 +327,15 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
   return (
     <div className="flex flex-col gap-2">
       <LotsControls scope={purchaseId} />
+      <div className="flex flex-col gap-2 md:hidden">
+        {rows.map((r) => (
+          <LotCardView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />
+        ))}
+        {rows.length === 0 && (
+          <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "В закупке нет позиций" : "Нет лотов, подходящих под фильтр"}</p>
+        )}
+      </div>
+      <div className="hidden md:block">
       <Table>
         <Thead>
           <Tr>
@@ -367,6 +377,7 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
         </Tbody>
         <TotalsFooter view={view} fields={fields} hasEditCol={hasEditCol} hasCheckCol />
       </Table>
+      </div>
     </div>
   );
 }
@@ -457,6 +468,93 @@ function LotRowView({
       )}
       <Td />
     </Tr>
+  );
+}
+
+/** Карточка лота для телефона (< md): ключевые поля сверху, остальное — в «Подробнее». Выбор лота тот же, что в таблице. */
+function LotCardView({
+  row: r,
+  fields,
+  hasEditCol,
+  currency,
+  invoice,
+}: {
+  row: LotRow;
+  fields: CustomFieldDef[];
+  hasEditCol: boolean;
+  currency: string;
+  invoice?: { label: string; number: string };
+}) {
+  const { selected, setSelected } = useLots();
+  const checked = selected.has(r.id);
+  return (
+    <RowCard
+      className={checked ? "border-blue-300 bg-blue-50/60" : undefined}
+      title={
+        <label className="flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-5 w-5 shrink-0"
+            aria-label={`Выбрать лот ${r.lotNumber || r.material}`}
+            checked={checked}
+            onChange={() => setSelected([r.id], !checked)}
+          />
+          <span>
+            {r.material}
+            {r.lotNumber ? ` · лот ${r.lotNumber}` : ""}
+          </span>
+        </label>
+      }
+      subtitle={
+        invoice ? (
+          <Link href={`/purchases/${r.purchaseId}`} className="text-blue-600 hover:underline">
+            {invoice.label}
+          </Link>
+        ) : undefined
+      }
+      fields={[
+        { label: "Кол-во", value: `${formatQty(r.qty)} ${r.unit}` },
+        { label: "Себестоимость всего", value: <Money incl={r.totalIncl} excl={r.totalExcl} />, strong: true },
+        { label: "Себестоимость ед.", value: <Money incl={r.unitIncl} excl={r.unitExcl} /> },
+        {
+          label: "Остаток на складе",
+          value: r.onStock ? (r.remaining === 0 ? <Badge>Израсходован</Badge> : `${formatQty(r.remaining)} ${r.unit}`) : "ещё не на складе",
+        },
+      ]}
+      details={[
+        { label: "Сорт / размер", value: r.size },
+        { label: "Операция", value: r.op },
+        { label: `Цена за шк., ${symbol(currency)}`, value: formatCurrency(r.price, currency) },
+        { label: "Курс", value: rateFmt(r.rate) },
+        {
+          label: "Использован в ТЗ",
+          value:
+            r.usages.length === 0 ? null : (
+              <>
+                {r.usages.map((u) => (
+                  <div key={u.id}>
+                    <Link href={`/production/${u.orderId}`} className="underline">
+                      ТЗ {u.number}
+                    </Link>
+                    {" — "}
+                    {formatQty(u.qty)} {r.unit}
+                  </div>
+                ))}
+              </>
+            ),
+        },
+        ...fields.map((f) => ({ label: f.name, value: <CustomCell row={r} field={f} /> })),
+        {
+          label: "Расчёт",
+          value: r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null,
+        },
+      ]}
+      extra={
+        hasEditCol && r.editor ? (
+          <CostPlanItemEditor purchaseId={r.purchaseId} currencySymbol={symbol(currency)} item={r.editor as CostPlanEditorItem} />
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -628,6 +726,16 @@ export function FlatLotsPanel() {
         <Legend />
       </div>
       <LotsControls scope={ALL_SCOPE} />
+      <div className="flex flex-col gap-2 md:hidden">
+        {rows.map((r) => {
+          const m = purchases.get(r.purchaseId);
+          return <LotCardView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+        })}
+        {rows.length === 0 && (
+          <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}</p>
+        )}
+      </div>
+      <div className="hidden md:block">
       <Table>
         <Thead>
           <Tr>
@@ -676,6 +784,7 @@ export function FlatLotsPanel() {
         </Tbody>
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol invoiceCol />
       </Table>
+      </div>
       <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость" />
     </section>
   );

@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatQty, formatDate } from "@/lib/utils";
+import { compareModelNames, normalizeModelCode } from "@/lib/model-code";
 import { AddSupplyPlanForm } from "./add-form";
 import { EntryRowForm } from "./entry-row-form";
 import { STATUS_LABELS, STATUS_BADGE_VARIANT, type SupplyPlanStatusValue } from "./status";
@@ -28,9 +29,10 @@ export default async function SupplyPlanPage() {
     prisma.productModel.findMany({
       where: { organizationId },
       select: { id: true, name: true },
-      orderBy: { name: "asc" },
     }),
   ]);
+  // Коды моделей записаны то латиницей, то кириллицей (M012 / М012): сортируем по нормализованному коду, данные не трогаем.
+  allModels.sort((a, b) => compareModelNames(a.name, b.name));
 
   const now = new Date();
   now.setDate(1);
@@ -63,14 +65,15 @@ export default async function SupplyPlanPage() {
   type Row = { modelId: string; modelName: string; cells: Map<string, typeof entries> };
   const rows = new Map<string, Row>();
   for (const e of shownEntries) {
-    const key = e.productModelId;
+    // Группировка по нормализованному названию: «M012» и «М012» — одна строка плана.
+    const key = normalizeModelCode(e.productModel.name).trim().toLowerCase();
     if (!rows.has(key)) rows.set(key, { modelId: key, modelName: e.productModel.name, cells: new Map() });
     const row = rows.get(key)!;
     const mk = monthKey(new Date(e.month));
     if (!row.cells.has(mk)) row.cells.set(mk, []);
     row.cells.get(mk)!.push(e);
   }
-  const rowList = Array.from(rows.values()).sort((a, b) => a.modelName.localeCompare(b.modelName));
+  const rowList = Array.from(rows.values()).sort((a, b) => compareModelNames(a.modelName, b.modelName));
 
   return (
     <div className="flex flex-col gap-4">

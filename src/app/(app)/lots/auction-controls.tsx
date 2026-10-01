@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { formatMb } from "@/lib/format-mb";
 import {
   deletePurchaseDocument,
   replacePurchaseDocument,
@@ -90,7 +91,7 @@ export function DocEditControls({
     e.target.value = "";
     if (!f) return;
     if (f.size > MAX_DOC) {
-      setMsg({ error: `Файл «${f.name}» больше 25 МБ` });
+      setMsg({ error: `Файл больше 25 МБ (${formatMb(f.size)} МБ)` });
       return;
     }
     if (!window.confirm(`Заменить файл документа «${title}» на «${f.name}»? Старый файл будет удалён.`)) return;

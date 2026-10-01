@@ -19,6 +19,7 @@ import { canEditProduction } from "@/lib/production-access";
 import { ResponsiveDetails } from "./filters-details";
 import { GroupedByBatch } from "./grouped-view";
 import { modelCodeVariants } from "@/lib/model-code";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { batchOrderInclude } from "@/lib/batch-stats";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -149,6 +150,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   let sumIncl = new Decimal(0);
   let sumExcl = new Decimal(0);
+  const cards: React.ReactNode[] = [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -248,6 +250,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} />
       ) : (
       <>
+      <ResponsiveRows table={
       <Table>
         <Thead>
           <Tr>
@@ -282,6 +285,24 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               sumIncl = sumIncl.add(total);
               sumExcl = sumExcl.add(totalExcl);
             }
+            cards.push(
+              <RowCard
+                key={o.id}
+                title={`ТЗ ${o.workOrderNumber ?? "—"}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
+                href={href}
+                subtitle={o.productModel.name}
+                badge={<Badge variant={st.variant}>{st.label}</Badge>}
+                fields={[
+                  { label: "План / факт, шт.", value: `${formatQty(o.plannedQuantity.toString())} / ${formatQty(o.producedQuantity.toString())}` },
+                  {
+                    label: `Себестоимость${c4}`,
+                    value: total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />,
+                    strong: true,
+                  },
+                ]}
+                details={[{ label: "Заказчик", value: o.client?.name }]}
+              />,
+            );
             const cell = "p-0";
             const link = "block px-3 py-2";
             return (
@@ -332,6 +353,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           )}
         </Tbody>
       </Table>
+      }>
+        {cards}
+        {orders.length === 0 && <p className="py-8 text-center text-neutral-400">{hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}</p>}
+      </ResponsiveRows>
       {orders.length > 0 && (
         <p className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
           <VatLabel base={`Итого себестоимость по списку${c4}`} />

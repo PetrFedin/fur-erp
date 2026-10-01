@@ -13,6 +13,7 @@ import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { compareModelNames, modelCodeVariants } from "@/lib/model-code";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
@@ -209,6 +210,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </p>
       )}
 
+      <ResponsiveRows table={
       <Table>
         <Thead>
           <Tr>
@@ -306,6 +308,63 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           )}
         </Tbody>
       </Table>
+      }>
+        {rows.map((r) => (
+          <RowCard
+            key={r.id}
+            className={r.isActive ? "" : "opacity-60"}
+            title={r.name}
+            href={`/models/${r.id}`}
+            fields={[
+              { label: "Остаток, шт.", value: formatQty(r.stockQty.toString()), strong: true },
+              { label: `Себестоимость за ед.${c4}`, value: r.avgUnitCost ? <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} /> : "—" },
+              { label: "Наценка", value: r.markup ? `×${r.markup.toFixed(2)}` : "—" },
+              {
+                label: "ТЗ",
+                value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—",
+              },
+            ]}
+            extra={
+              <div>
+                <div className="mb-1 text-xs text-neutral-500">Розничная цена</div>
+                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} />
+              </div>
+            }
+            details={[
+              {
+                label: "Склады",
+                value:
+                  r.modelStocks.length === 0
+                    ? "Остаток на складе: 0"
+                    : r.modelStocks.map((st) => (
+                        <div key={st.id}>
+                          {st.warehouse.name}: {formatQty(st.quantity.toString())} шт.
+                        </div>
+                      )),
+              },
+              {
+                label: "Отгрузки по модели",
+                value:
+                  r.modelShipments.length === 0
+                    ? "Отгрузок пока нет"
+                    : r.modelShipments.map(({ sh, lines }) => (
+                        <div key={sh.id}>
+                          <Link href={`/shipments/${sh.id}`} className="underline">
+                            {sh.status === "SHIPPED" && sh.shippedDate ? `отгружена ${formatDate(sh.shippedDate)}` : `план ${formatDate(sh.plannedDate)}`}
+                          </Link>{" "}
+                          · {summarizeLines(lines).join("; ")} · {SHIPMENT_STATUS[sh.status].label}
+                        </div>
+                      )),
+              },
+            ]}
+          />
+        ))}
+        {rows.length === 0 && (
+          <p className="py-8 text-center text-neutral-400">
+            {q ? "Ничего не найдено" : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
+          </p>
+        )}
+      </ResponsiveRows>
 
       <details className="rounded-lg border border-neutral-200 bg-white p-3">
         <summary className="cursor-pointer text-sm font-medium">Списать готовую продукцию со склада</summary>

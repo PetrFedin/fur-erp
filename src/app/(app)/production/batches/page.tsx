@@ -6,6 +6,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { batchExtraName, batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Партии" };
@@ -76,6 +77,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           )}
         </p>
       )}
+      <ResponsiveRows table={
       <Table>
         <Thead>
           <Tr>
@@ -135,6 +137,38 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           )}
         </Tbody>
       </Table>
+      }>
+        {rows.map(({ b, t, docs }) => {
+          const rem = t.work.isZero() && t.paid.isZero()
+            ? "—"
+            : t.remaining.lessThan(-0.005)
+              ? `переплата ${formatMoney(t.remaining.abs().toString())}`
+              : formatMoney(t.remaining.toString());
+          return (
+            <RowCard
+              key={b.id}
+              title={`Партия ${b.number}`}
+              href={`/production/batches/${b.number}`}
+              subtitle={batchExtraName(b.name)}
+              fields={[
+                { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{rem}</span>, strong: true },
+                { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
+                { label: "ТЗ", value: <Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link> },
+                { label: "Изделий", value: `${formatQty(t.units.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
+              ]}
+              details={[
+                { label: `Себестоимость${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
+                { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
+                { label: "Год", value: b.year },
+                { label: "Файлов в Drive", value: docs || "—" },
+              ]}
+            />
+          );
+        })}
+        {rows.length === 0 && (
+          <p className="py-8 text-center text-neutral-400">Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.</p>
+        )}
+      </ResponsiveRows>
       <p className="text-xs text-neutral-500">
         Остаток = работа заказчику (цена за ед. × количество) минус оплаты заказчика по ТЗ партии; каждая оплата учитывается
         один раз. Группировка ТЗ по партиям —{" "}

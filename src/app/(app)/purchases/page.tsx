@@ -9,6 +9,8 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { ResponsiveDetails } from "../production/filters-details";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
 
@@ -112,6 +114,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </div>
       </div>
 
+      <ResponsiveDetails summary={`Фильтры и поиск${q || auction || status || from || to ? " (применены)" : ""}`} forceOpen={Boolean(q || auction || status || from || to)}>
       <form method="get" className="flex flex-wrap items-center gap-2">
         <input
           name="q"
@@ -170,7 +173,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </Link>
         )}
       </form>
+      </ResponsiveDetails>
 
+      <ResponsiveRows
+        table={
       <Table>
         <Thead>
           <Tr>
@@ -202,7 +208,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
                   {p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : "—"}
                 </Td>
-                <Td className="text-neutral-500">{p.invoiceNumber ?? "—"}</Td>
+                <Td className="text-neutral-500">{p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : "—"}</Td>
                 <Td>{formatDate(p.orderDate)}</Td>
                 <Td>
                   <Badge variant={status.variant}>{status.label}</Badge>
@@ -236,6 +242,50 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           )}
         </Tbody>
       </Table>
+        }
+      >
+        {purchases.map((p) => {
+          const total = purchaseTotalInclVat(p);
+          const totalExclVat = purchaseTotalExclVat(p);
+          const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
+          const st = statusView(p.status);
+          const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
+          const paidView = ap ? (
+            <Link
+              href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
+              className={ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}
+            >
+              {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+              <span className="block text-xs text-neutral-400">по аукциону</span>
+            </Link>
+          ) : (
+            <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
+          );
+          return (
+            <RowCard
+              key={p.id}
+              title={p.number}
+              href={`/purchases/${p.id}`}
+              subtitle={p.supplier.name}
+              badge={<Badge variant={st.variant}>{st.label}</Badge>}
+              fields={[
+                { label: "Сумма", value: <Money incl={total} excl={totalExclVat} />, strong: true },
+                { label: "Оплачено", value: paidView },
+                { label: "Дата", value: formatDate(p.orderDate) },
+              ]}
+              details={[
+                { label: "Аукцион / сессия", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },
+                { label: "Счёт", value: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null },
+              ]}
+            />
+          );
+        })}
+        {purchases.length === 0 && (
+          <p className="py-8 text-center text-neutral-400">
+            {q || auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
+          </p>
+        )}
+      </ResponsiveRows>
       {hasMore && (
         <div className="flex justify-center">
           <Link href={`/purchases?${moreParams.toString()}`} className={buttonVariants({ variant: "outline", size: "sm" })}>

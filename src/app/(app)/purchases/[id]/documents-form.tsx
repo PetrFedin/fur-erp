@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { formatMb } from "@/lib/format-mb";
 import { uploadPurchaseDocuments, type DocFormState } from "../doc-actions";
 
 const KINDS: [string, string][] = [
@@ -28,7 +29,7 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
     const files = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
     const total = files.reduce((s, f) => s + f.size, 0);
     if (total > MAX_TOTAL) {
-      setState({ error: `Суммарный размер файлов ${(total / 1024 / 1024).toFixed(1)} МБ — больше 25 МБ. Загрузите их по частям.` });
+      setState({ error: (files.length === 1 ? `Файл больше 25 МБ (${formatMb(total)} МБ)` : `Суммарный размер файлов ${formatMb(total)} МБ — больше лимита 25 МБ; загрузите файлы по частям`) });
       return;
     }
     setState({});

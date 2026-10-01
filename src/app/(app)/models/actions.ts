@@ -79,7 +79,7 @@ export async function updateModel(
   return {};
 }
 
-// Kept in sync with ProductionOrder.retailPrice — see the matching note on
+// Применяется только к незавершённым ТЗ (PLANNED/IN_PROGRESS): у завершённых и отменённых цена не меняется. See the matching note on
 // production/actions.ts's updateRetailPrice.
 export async function updateSellingPrice(modelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
@@ -95,7 +95,7 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
   await prisma.$transaction([
     prisma.productModel.update({ where: { id: modelId }, data: { sellingPrice: price } }),
     prisma.productionOrder.updateMany({
-      where: { productModelId: modelId, organizationId: session.user.organizationId },
+      where: { productModelId: modelId, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
       data: { retailPrice: price },
     }),
   ]);

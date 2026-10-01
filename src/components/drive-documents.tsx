@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { formatMb } from "@/lib/format-mb";
 import { Button } from "@/components/ui/button";
 import {
   addDriveDocument,
   removeDriveDocument,
+  isDriveFileShared,
   removeDriveDocumentFile,
   uploadDriveDocument,
   uploadDriveDocumentFile,
@@ -181,6 +183,9 @@ function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
             {editable && <FilePicker d={d} label="Загрузить файл" onError={setErr} />}
           </>
         )}
+        {canEdit && d.canRemove === false && (
+          <span className="text-xs text-neutral-400">Управляют владелец и администратор</span>
+        )}
         {editable && (
           <Button
             type="button"
@@ -188,11 +193,14 @@ function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
             size="sm"
             disabled={pending}
             onClick={() => {
-              const msg = d.hasFile && !url
-                ? `Удалить документ «${d.title}» вместе с загруженным файлом?`
-                : `Убрать ссылку «${d.title}»? Файл в Google Drive не удаляется${d.hasFile ? ", загруженный файл удалится из приложения" : ""}.`;
-              if (!window.confirm(msg)) return;
               start(async () => {
+                const shared = d.hasFile ? await isDriveFileShared(d.id).catch(() => false) : false;
+                const msg = shared
+                  ? "Запись будет удалена; файл останется, пока на него ссылаются другие документы"
+                  : d.hasFile && !url
+                    ? `Удалить документ «${d.title}» вместе с загруженным файлом?`
+                    : `Убрать ссылку «${d.title}»? Файл в Google Drive не удаляется${d.hasFile ? ", загруженный файл удалится из приложения" : ""}.`;
+                if (!window.confirm(msg)) return;
                 const res = await removeDriveDocument(d.id);
                 setErr(res?.error ?? null);
               });
@@ -239,7 +247,7 @@ export function UploadDocument({
     const fd = new FormData(form);
     const f = fd.get("file");
     if (f instanceof File && f.size > 25 * 1024 * 1024) {
-      setState({ error: `Файл больше 25 МБ (${(f.size / 1024 / 1024).toFixed(1).replace(".", ",")} МБ)` });
+      setState({ error: `Файл больше 25 МБ (${formatMb(f.size)} МБ)` });
       return;
     }
     setState({});

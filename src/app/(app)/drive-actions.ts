@@ -93,6 +93,21 @@ export async function addDriveDocument(
   return { ok: true };
 }
 
+/** Общий ли файл документа с другими записями (по storagePath): тогда «Убрать» не удалит сам файл. */
+export async function isDriveFileShared(documentId: string): Promise<boolean> {
+  const session = await requireSession();
+  const doc = await prisma.driveDocument.findFirst({
+    where: { id: documentId, organizationId: session.user.organizationId },
+    select: { id: true, storagePath: true },
+  });
+  if (!doc?.storagePath) return false;
+  const [a, b] = await Promise.all([
+    prisma.driveDocument.count({ where: { storagePath: doc.storagePath, id: { not: doc.id } } }),
+    prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } }),
+  ]);
+  return a + b > 0;
+}
+
 /** Удаляет только ссылку (файл в Google Drive не затрагивается). */
 export async function removeDriveDocument(documentId: string): Promise<DriveDocState> {
   const session = await requireSession();

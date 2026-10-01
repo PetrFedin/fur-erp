@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { updateSellingPrice } from "../models/actions";
 
 /** Розничная цена модели: сохраняется по Enter или при уходе из поля, если значение изменилось. */
-export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; sellingPrice: string }) {
+export function ArticlePriceForm({ modelId, sellingPrice, mobile = false }: { modelId: string; sellingPrice: string; mobile?: boolean }) {
   const bound = updateSellingPrice.bind(null, modelId);
   const formRef = useRef<HTMLFormElement>(null);
   const [saved, setSaved] = useState(sellingPrice);
@@ -16,7 +16,7 @@ export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; s
   return (
     <form
       ref={formRef}
-      id={`price-${modelId}`}
+      id={mobile ? `price-m-${modelId}` : `price-${modelId}`}
       action={async (formData) => {
         if (value === saved) return;
         setPending(true);
@@ -38,10 +38,11 @@ export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; s
           if (dirty && !pending) formRef.current?.requestSubmit();
         }}
         aria-label="Розничная цена"
+        title="Цена применяется к незавершённым ТЗ (в плане и в работе); у завершённых не меняется"
         className="h-8 w-28"
       />
       <span className={`text-xs ${pending ? "text-neutral-500" : dirty ? "text-neutral-500" : saved ? "text-neutral-500" : "text-amber-600"}`}>
-        {pending ? "Сохраняю…" : dirty ? "Enter — сохранить" : saved ? "Задана" : "Не задана"}
+        {pending ? "Сохраняю…" : dirty ? "Enter — сохранить; цена применяется к незавершённым ТЗ" : saved ? "Задана" : "Не задана"}
       </span>
     </form>
   );

@@ -8,6 +8,8 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
 import { addLeaf, aggOf, emptyAgg, loadSummary, loadUnlinkedAdvances, type Agg, type Leaf } from "@/lib/purchase-summary";
+import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { prisma } from "@/lib/prisma";
 import { VatSync } from "./vat-sync";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
@@ -160,7 +162,11 @@ export async function PurchaseSummary({
   const vatOverride: Mode | null = searchParams.vat === "excl" ? "excl" : searchParams.vat === "incl" ? "incl" : null;
   const cookieMode: Mode = parseVatModeCookie((await cookies()).get("vatDisplay")?.value);
   const mode: Mode = vatOverride ?? cookieMode;
-  const [{ leaves: all, purchaseTotals }, advances] = await Promise.all([loadSummary(organizationId), loadUnlinkedAdvances(organizationId)]);
+  const [{ leaves: all, purchaseTotals }, advances, debt] = await Promise.all([
+    loadSummary(organizationId),
+    loadUnlinkedAdvances(organizationId),
+    loadSupplierDebt(prisma, organizationId),
+  ]);
 
   const years = [...new Set(all.map((l) => l.year))].sort((a, b) => b - a);
   const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
@@ -362,6 +368,25 @@ export async function PurchaseSummary({
             <span>Итого{filtered ? " по фильтру" : ""}</span>
             <Metrics a={grand} mode={mode} />
           </div>
+        </div>
+      )}
+
+      {leaves.length > 0 && (
+        <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm" data-supplier-debt>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-medium">Долг поставщику (с НДС, по всей организации)</span>
+            <span className="font-semibold">{money(debt.debt)}</span>
+          </div>
+          <div className="mt-0.5 text-xs text-neutral-500">
+            Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
+            {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}. Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».
+            {filtered ? " Фильтры на это число не влияют." : ""}
+          </div>
+          {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) && (
+            <div className="mt-0.5 text-xs text-neutral-500">
+              В таблице «Оплачено» {money(grand.paidIncl)} — фактически внесено, включая переплату по отдельным закупкам ({money(grand.paidIncl.sub(debt.paid))}); в долге переплата одной закупки не гасит остаток другой.
+            </div>
+          )}
         </div>
       )}
 

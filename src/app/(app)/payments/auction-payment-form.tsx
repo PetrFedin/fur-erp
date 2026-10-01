@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { formatMb } from "@/lib/format-mb";
 import { Input, Select } from "@/components/ui/input";
 import { createAuctionPayment, updateAuctionPayment, deleteAuctionPayment, closeAuctionRemainder, type PayState } from "./actions";
 
@@ -117,7 +118,7 @@ export function AuctionPaymentForm({
       return;
     }
     if (typeof file !== "string" && file && file.size > MAX_FILE) {
-      setError(`Файл «${file.name}» (${(Math.ceil((file.size / 1024 / 1024) * 100) / 100).toFixed(2).replace(".", ",")} МБ) больше лимита 25 МБ`);
+      setError(`Файл «${file.name}» (${formatMb(file.size)} МБ) больше лимита 25 МБ`);
       return;
     }
     const paidAt = String(fd.get("paidAt") ?? "");

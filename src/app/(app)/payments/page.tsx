@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import {
@@ -253,7 +255,72 @@ export default async function PaymentsPage({
       </Tr>
     );
   };
-  const auctionsTable = (list: typeof auctions) => (
+  // Сводная строка «Без аукциона»: все служебные группы + закупки без аукциона — чтобы Σ строк сходилась с «Остатком к оплате».
+  const zeroD = new Decimal(0);
+  const svcAll = auctions.filter((a) => isServiceAuction(a.name));
+  const svcTotal = svcAll.reduce((acc, a) => acc.add(a.total), zeroD);
+  const svcPaid = svcAll.reduce((acc, a) => acc.add(a.paid), zeroD);
+  const svcRemaining = svcAll.reduce((acc, a) => acc.add(a.remaining), zeroD);
+  const noAucTotal = debt ? debt.total.sub(auctions.reduce((acc, a) => acc.add(a.total), zeroD)) : zeroD;
+  const noAucDebt = debt ? debt.nonAuctionDebt : zeroD;
+  const noAucPaid = noAucTotal.sub(noAucDebt);
+  const sumTotal = svcTotal.add(noAucTotal);
+  const sumPaid = svcPaid.add(noAucPaid);
+  const sumRemaining = svcRemaining.add(noAucDebt);
+  const showServiceSum = !listQ && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS)) && (!onlyRest || sumRemaining.greaterThan(PAY_EPS));
+  const serviceSumRow = (
+    <Tr key="__service_sum">
+      <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Служебные записи импорта и закупки без аукциона, все вместе">
+        Без аукциона (служебные записи)
+      </Td>
+      <Td className="text-right">{svcAll.reduce((n, a) => n + a.purchases, 0)}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(sumPaid.toString())}</Td>
+      {anyPlanned && <Td className="text-right">—</Td>}
+      <Td className={"whitespace-nowrap text-right font-semibold " + (sumRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>{fmtRemaining(sumRemaining)}</Td>
+      <Td></Td>
+      <Td></Td>
+    </Tr>
+  );
+  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-600" : r.lessThan(-0.005) ? "text-blue-600" : "");
+  const auctionCard = (a: (typeof auctions)[number]) => {
+    const href = `${listParams({ auction: a.name })}#auction-block`;
+    return (
+      <RowCard
+        key={a.name}
+        title={shortAuctionName(a.name)}
+        href={href}
+        badge={<Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>}
+        fields={[
+          { label: "Остаток", value: <span className={remClass(a.remaining)}>{fmtRemaining(a.remaining)}</span>, strong: true },
+          { label: "Стоимость", value: formatMoney(a.total.toString()) },
+          { label: "Оплачено", value: `${formatMoney(a.paid.toString())} (${fmtPct(a.percentPaid)})` },
+          ...(a.planned.greaterThan(PAY_EPS) ? [{ label: "Запланировано", value: formatMoney(a.planned.toString()) }] : []),
+        ]}
+        details={[{ label: "Закупок", value: a.purchases }]}
+        extra={
+          <Link href={href} scroll className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Оплаты
+          </Link>
+        }
+      />
+    );
+  };
+  const serviceSumCard = (
+    <RowCard
+      key="__service_sum"
+      title="Без аукциона (служебные записи)"
+      fields={[
+        { label: "Остаток", value: <span className={remClass(sumRemaining)}>{fmtRemaining(sumRemaining)}</span>, strong: true },
+        { label: "Стоимость", value: formatMoney(sumTotal.toString()) },
+        { label: "Оплачено", value: formatMoney(sumPaid.toString()) },
+      ]}
+      details={[{ label: "Закупок", value: svcAll.reduce((n, a) => n + a.purchases, 0) }]}
+    />
+  );
+  const auctionsTable = (list: typeof auctions, extraRow?: React.ReactNode) => (
+    <ResponsiveRows
+      table={
     <Table>
       <Thead>
         <Tr>
@@ -267,8 +334,13 @@ export default async function PaymentsPage({
           <Th></Th>
         </Tr>
       </Thead>
-      <Tbody>{list.map(renderAuction)}</Tbody>
+      <Tbody>{list.map(renderAuction)}{extraRow}</Tbody>
     </Table>
+      }
+    >
+      {list.map(auctionCard)}
+      {extraRow ? serviceSumCard : null}
+    </ResponsiveRows>
   );
 
   return (
@@ -312,6 +384,7 @@ export default async function PaymentsPage({
           </Link>
           . Здесь оплаты заказчиков только собраны списком.
         </p>
+        <ResponsiveRows table={
         <Table>
           <Thead>
             <Tr>
@@ -377,6 +450,41 @@ export default async function PaymentsPage({
             )}
           </Tbody>
         </Table>
+        }>
+          {clientPayments.map((p) => (
+            <RowCard
+              key={p.id}
+              title={p.client?.name ?? "—"}
+              subtitle={PAYMENT_TYPE_LABELS[p.paymentType]}
+              fields={[
+                { label: "Сумма", value: formatMoney(p.amount.toString()), strong: true },
+                { label: "Дата", value: formatDate(p.paidAt) },
+                {
+                  label: "ТЗ",
+                  value:
+                    p.orders.length === 0 ? (
+                      "без ТЗ"
+                    ) : p.orders.length <= 3 ? (
+                      p.orders.map((o, i) => (
+                        <span key={o.id}>
+                          {i > 0 && ", "}
+                          <Link href={`/production/${o.productionOrderId}`} className="underline">
+                            {o.productionOrder.number}
+                          </Link>
+                        </span>
+                      ))
+                    ) : (
+                      `${p.orders.length} ТЗ${batchLabel(p.orders)}`
+                    ),
+                },
+              ]}
+              details={p.orders.length > 3 ? [{ label: "Все ТЗ", value: p.orders.map((o, i) => (
+                <span key={o.id}>{i > 0 && ", "}<Link href={`/production/${o.productionOrderId}`} className="underline">{o.productionOrder.number}</Link></span>
+              )) }] : []}
+            />
+          ))}
+          {clientPayments.length === 0 && <p className="py-6 text-center text-neutral-400">Оплат от заказчиков пока нет</p>}
+        </ResponsiveRows>
         </>
       ) : (
         <>
@@ -432,7 +540,7 @@ export default async function PaymentsPage({
             </div>
           )}
 
-          {mainAuctions.length > 0 && auctionsTable(mainAuctions)}
+          {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(listQ) || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
