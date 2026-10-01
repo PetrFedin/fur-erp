@@ -9,6 +9,7 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { VatLabel } from "@/components/vat-label";
 import { ResponsiveDetails } from "../production/filters-details";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
@@ -253,7 +254,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           const paidView = ap ? (
             <Link
               href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
-              className={ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}
+              className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
             >
               {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
             </Link>
@@ -268,7 +269,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               subtitle={p.supplier.name}
               badge={<Badge variant={st.variant}>{st.label}</Badge>}
               fields={[
-                { label: "Сумма", value: <Money incl={total} excl={totalExclVat} />, strong: true },
+                { label: <VatLabel base="Сумма" />, value: <Money incl={total} excl={totalExclVat} />, strong: true },
                 { label: ap ? "По аукциону: оплачено" : "Оплачено", value: paidView },
                 { label: "Дата", value: formatDate(p.orderDate) },
               ]}

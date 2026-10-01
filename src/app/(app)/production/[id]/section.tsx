@@ -49,7 +49,7 @@ export function SectionNav({ items }: { items: { id: string; label: string }[] }
         <a
           key={it.id}
           href={`#${it.id}`}
-          className="underline-offset-2 hover:underline"
+          className="inline-block underline-offset-2 hover:underline max-md:py-2"
           onClick={(e) => {
             const el = document.getElementById(it.id);
             if (!el) return;

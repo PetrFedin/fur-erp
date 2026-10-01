@@ -55,7 +55,7 @@ export function PurchaseExpenseForm({
             type="button"
             onClick={() => setCategoryId(c.id)}
             aria-pressed={categoryId === c.id}
-            className={`rounded-full border px-3 py-1 text-sm ${
+            className={`rounded-full border px-3 py-1 text-sm max-md:min-h-8 ${
               categoryId === c.id
                 ? "border-neutral-900 bg-neutral-900 text-white"
                 : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
@@ -97,7 +97,7 @@ export function PurchaseExpenseForm({
           <button
             type="button"
             onClick={() => setShowDescription(true)}
-            className="pb-2 text-xs text-neutral-500 hover:underline"
+            className="pb-2 text-xs text-neutral-500 hover:underline max-md:min-h-8"
           >
             + комментарий
           </button>

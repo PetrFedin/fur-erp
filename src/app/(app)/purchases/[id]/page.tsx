@@ -10,11 +10,13 @@ import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils"
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
+import { VatLabel } from "@/components/vat-label";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
+import { PaymentDeleteButton } from "./payment-delete-button";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
@@ -29,7 +31,7 @@ import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
-import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
+import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
 // are shown (and behave) as a draft; the enum itself is untouched.
@@ -179,6 +181,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const boundRemoveItem = removePurchaseItem.bind(null, id);
   const boundUpdateItem = updatePurchaseItem.bind(null, id);
   const boundRemoveExpense = removePurchaseExpense.bind(null, id);
+  const boundRemovePayment = removePurchasePayment.bind(null, id);
   // Item rows can be edited even after receipt (cosmetic fields always; qty/
   // price/VAT only while the resulting lot hasn't been consumed yet) — see
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
@@ -263,10 +266,41 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
                       { label: "НДС", value: `${item.vatRate.toString()}%` },
-                      ...(hasPlan ? [{ label: "Себестоимость ед.", value: unitNode ?? "—" }] : []),
-                      { label: hasPlan ? "Всего" : `Сумма${isForeignCurrency ? " (RUB)" : ""}`, value: totalNode, strong: true },
+                      ...(hasPlan ? [{ label: <VatLabel base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
+                      { label: <VatLabel base={hasPlan ? "Всего" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
                     details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
+                    // То же, что в ячейках десктопной строки: «Из чего цена», пометка о ручной правке, «Править расчёт».
+                    extra: planInfo ? (
+                      <div className="flex flex-col items-start gap-1.5">
+                        <CostBreakdownToggle
+                          breakdown={planInfo.plan.costBreakdown}
+                          unitCostExcl={planInfo.excl.toString()}
+                          unitCostIncl={planInfo.plan.unitCostInclVat}
+                        />
+                        {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
+                          <div className="text-xs text-amber-700">
+                            изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
+                          </div>
+                        )}
+                        {canEditPlan && (
+                          <CostPlanItemEditor
+                            purchaseId={id}
+                            currencySymbol={currencySym}
+                            item={{
+                              id: item.id,
+                              lotNumber: item.lotNumber,
+                              ...deriveCostPlanInputs(item.costPlan, {
+                                quantity: Number(item.quantity.toString()),
+                                price: Number(item.unitPrice.toString()),
+                                rate: Number(purchase.exchangeRate.toString()),
+                                vat: Number(item.vatRate.toString()),
+                              }),
+                            }}
+                          />
+                        )}
+                      </div>
+                    ) : undefined,
                   };
                   return (
                     <PurchaseItemRow
@@ -453,7 +487,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(extraExclVat.toString())} />
         <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
         <SummaryCard
-          label="Итого (RUB)"
+          label={<VatLabel base="Итого, RUB" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
           emphasis
         />
@@ -462,7 +496,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             label={
               <Link
                 href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`}
-                className="text-blue-600 hover:underline"
+                className="inline-block text-blue-600 hover:underline max-md:py-2"
                 title={`Оплаты ведутся по аукциону «${auctionPay.name}» целиком`}
               >
                 Оплачено по аукциону
@@ -492,7 +526,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           {editable && (
             <>
               <details open={purchase.items.length === 0} className="rounded-md border border-neutral-200 px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium">Вставить позиции из Excel</summary>
+                <summary className="cursor-pointer text-sm font-medium max-md:py-2">Вставить позиции из Excel</summary>
                 <div className="mt-3">
                   <BulkItemForm
                     purchaseId={id}
@@ -503,7 +537,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 </div>
               </details>
               <details className="rounded-md border border-neutral-200 px-3 py-2">
-                <summary className="cursor-pointer text-sm text-neutral-600">Добавить одну позицию</summary>
+                <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить одну позицию</summary>
                 <div className="mt-3">
                   <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} />
                 </div>
@@ -511,7 +545,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </>
           )}
           <details open={purchase.items.length <= EXPANDED_ITEMS_LIMIT}>
-            <summary className="mb-2 cursor-pointer text-sm text-neutral-600">
+            <summary className="mb-2 cursor-pointer text-sm text-neutral-600 max-md:py-2">
               {purchase.items.length > EXPANDED_ITEMS_LIMIT
                 ? `Список позиций (${purchase.items.length})`
                 : "Список позиций"}
@@ -712,7 +746,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   fields={[
                     { label: "Сумма (без НДС)", value: formatMoney(e.amount.toString()) },
                     { label: "НДС", value: `${e.vatRate.toString()}%` },
-                    { label: "Сумма", value: <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />, strong: true },
+                    { label: <VatLabel base="Сумма" />, value: <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />, strong: true },
                   ]}
                   extra={
                     editable && (
@@ -722,7 +756,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                           await boundRemoveExpense(e.id);
                         }}
                       >
-                        <Button type="submit" variant="ghost" size="sm">
+                        <Button type="submit" variant="outline" size="sm" className="max-md:h-10">
                           Удалить
                         </Button>
                       </form>
@@ -769,6 +803,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Способ</Th>
                 <Th>Сумма</Th>
                 <Th>Заметка</Th>
+                {canEditRole && <Th></Th>}
               </Tr>
             </Thead>
             <Tbody>
@@ -781,11 +816,22 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                   </Td>
                   <Td>{p.notes ?? "—"}</Td>
+                  {canEditRole && (
+                    <Td>
+                      <PaymentDeleteButton
+                        amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                        action={async () => {
+                          "use server";
+                          await boundRemovePayment(p.id);
+                        }}
+                      />
+                    </Td>
+                  )}
                 </Tr>
               ))}
               {purchase.payments.length === 0 && (
                 <Tr>
-                  <Td colSpan={4} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={canEditRole ? 5 : 4} className="py-6 text-center text-neutral-400">
                     Оплат пока нет
                   </Td>
                 </Tr>
@@ -804,6 +850,17 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
                   ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
                 ]}
+                extra={
+                  canEditRole && (
+                    <PaymentDeleteButton
+                      amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                      action={async () => {
+                        "use server";
+                        await boundRemovePayment(p.id);
+                      }}
+                    />
+                  )
+                }
               />
             ))}
             {purchase.payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Оплат пока нет</p>}

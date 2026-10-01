@@ -21,7 +21,7 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="text-left text-xs text-neutral-500 hover:underline">
+      <button type="button" onClick={() => setOpen(true)} className="text-left text-xs text-neutral-500 hover:underline max-md:min-h-8">
         Списать сразу несколько лотов из таблицы →
       </button>
     );
@@ -42,9 +42,9 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-<label className="flex items-center gap-2 text-xs text-neutral-600 " title="4% — доп. комиссия посредника к сырью и подкладке; работа не облагается">
+<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — доп. комиссия посредника к сырью и подкладке; работа не облагается">
         <input type="hidden" name="c4form" value="1" />
-        <input type="checkbox" name="commission4" defaultChecked={defaultCommission4} className="h-4 w-4" />
+        <input type="checkbox" name="commission4" defaultChecked={defaultCommission4} className="h-4 w-4 max-md:h-5 max-md:w-5" />
         Начислять 4%
       </label>
         <div className="flex items-center gap-2">

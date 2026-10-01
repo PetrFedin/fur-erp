@@ -13,7 +13,7 @@ export function ResponsiveRows({ table, children, className }: { table: ReactNod
   );
 }
 
-export type RowField = { label: string; value: ReactNode; strong?: boolean };
+export type RowField = { label: ReactNode; key?: string; value: ReactNode; strong?: boolean };
 
 // Карточка строки: заголовок (со ссылкой), бейдж, 2–4 ключевых поля «подпись: значение»,
 // остальное — в раскрывающемся «Подробнее».
@@ -43,7 +43,7 @@ export function RowCard({
         <div className="min-w-0">
           <div className="break-words font-medium">
             {href ? (
-              <Link href={href} className="hover:underline">
+              <Link href={href} className="inline-block py-1.5 hover:underline">
                 {title}
               </Link>
             ) : (
@@ -56,8 +56,8 @@ export function RowCard({
       </div>
       {fields.length > 0 && (
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-          {fields.map((f) => (
-            <div key={f.label} className="min-w-0">
+          {fields.map((f, i) => (
+            <div key={f.key ?? i} className="min-w-0">
               <dt className="text-xs text-neutral-500">{f.label}</dt>
               <dd className={cn("break-words tabular-nums", f.strong && "font-semibold")}>{f.value}</dd>
             </div>
@@ -67,10 +67,10 @@ export function RowCard({
       {extra && <div className="mt-2">{extra}</div>}
       {shownDetails.length > 0 && (
         <details className="mt-2 border-t border-neutral-100 pt-2">
-          <summary className="cursor-pointer select-none text-xs text-neutral-500">Подробнее</summary>
+          <summary className="cursor-pointer select-none py-2 text-xs text-neutral-500">Подробнее</summary>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-            {shownDetails.map((f) => (
-              <div key={f.label} className="min-w-0">
+            {shownDetails.map((f, i) => (
+              <div key={f.key ?? i} className="min-w-0">
                 <dt className="text-xs text-neutral-500">{f.label}</dt>
                 <dd className="break-words tabular-nums">{f.value}</dd>
               </div>

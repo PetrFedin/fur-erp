@@ -39,7 +39,7 @@ export function PurchaseItemRow({
 }: {
   /** «card» — карточка для телефона: вместо ячеек (children) берутся поля card. */
   variant?: "row" | "card";
-  card?: { title: ReactNode; subtitle?: ReactNode; fields: RowField[]; details?: RowField[] };
+  card?: { title: ReactNode; subtitle?: ReactNode; fields: RowField[]; details?: RowField[]; extra?: ReactNode };
   colSpan: number;
   children: ReactNode;
   removeAction?: () => Promise<void>;
@@ -83,7 +83,7 @@ export function PurchaseItemRow({
   const actions = (updateAction || removeAction) && (
             <div className="flex gap-2">
               {updateAction && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
+                <Button type="button" variant={variant === "card" ? "outline" : "ghost"} size="sm" className="max-md:h-10" onClick={() => setIsEditing((v) => !v)}>
                   {isEditing ? "Закрыть" : "Изменить"}
                 </Button>
               )}
@@ -94,7 +94,7 @@ export function PurchaseItemRow({
                     if (!window.confirm("Удалить позицию из закупки?")) e.preventDefault();
                   }}
                 >
-                  <Button type="submit" variant="ghost" size="sm">
+                  <Button type="submit" variant={variant === "card" ? "outline" : "ghost"} size="sm" className="max-md:h-10">
                     Удалить
                   </Button>
                 </form>
@@ -202,8 +202,9 @@ export function PurchaseItemRow({
         fields={card.fields}
         details={card.details}
         extra={
-          (actions || (isEditing && updateAction)) && (
+          (card.extra || actions || (isEditing && updateAction)) && (
             <div className="flex flex-col gap-2">
+              {card.extra}
               {actions}
               {isEditing && updateAction && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
             </div>

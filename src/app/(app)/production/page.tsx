@@ -186,7 +186,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               href={`/production${qs.size ? `?${qs}` : ""}`}
               aria-current={grouped === g ? "page" : undefined}
               className={
-                "rounded-md border px-3 py-1 " +
+                "rounded-md border px-3 py-1 max-md:inline-flex max-md:min-h-8 max-md:items-center " +
                 (grouped === g ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
               }
             >
@@ -295,7 +295,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 fields={[
                   { label: "План / факт, шт.", value: `${formatQty(o.plannedQuantity.toString())} / ${formatQty(o.producedQuantity.toString())}` },
                   {
-                    label: `Себестоимость${c4}`,
+                    label: <VatLabel base={`Себестоимость${c4}`} />,
                     value: total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />,
                     strong: true,
                   },

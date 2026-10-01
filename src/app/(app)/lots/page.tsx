@@ -110,7 +110,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         key={a.name}
         href={`/lots?auction=${encodeURIComponent(a.name)}${auctionView === "lots" ? "&view=lots" : ""}`}
         className={
-          "rounded-full border px-3 py-1 text-xs " +
+          "rounded-full border px-3 py-1 text-xs max-md:inline-flex max-md:min-h-8 max-md:items-center " +
           (active
             ? "border-neutral-900 bg-neutral-900 text-white"
             : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
@@ -129,7 +129,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           {auctionChips.map(auctionChip)}
           {moreAuctions.length > 0 && (
             <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
+              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
                 <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
                 <span className="hidden group-open/more:inline">скрыть</span>
               </summary>
@@ -138,7 +138,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           )}
           {serviceAuctions.length > 0 && (
             <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
+              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
                 Прочее — без аукциона ({serviceAuctions.length})
               </summary>
               <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>

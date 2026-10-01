@@ -876,6 +876,30 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
   return {};
 }
 
+/** Удаляет оплату закупки (та же защита и блокировка аукциона, что при добавлении). */
+export async function removePurchasePayment(purchaseId: string, paymentId: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const purchase = await prisma.purchase.findFirst({
+    where: { id: purchaseId, organizationId: orgId },
+    select: { id: true, auctionSession: true },
+  });
+  if (!purchase) return { error: "Закупка не найдена" };
+  const auction = auctionName(purchase.auctionSession);
+
+  const deleted = await prisma.$transaction(async (tx) => {
+    if (auction) await lockAuction(tx, orgId, auction);
+    const res = await tx.payment.deleteMany({ where: { id: paymentId, organizationId: orgId, purchaseId: purchase.id } });
+    return res.count;
+  });
+  if (deleted === 0) return { error: "Оплата не найдена (возможно, уже удалена)" };
+
+  revalidatePath(`/purchases/${purchaseId}`);
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // ---------- Receiving: this is where landed cost + stock-in happens ----------
 
 function parseCostPlan(raw: unknown) {

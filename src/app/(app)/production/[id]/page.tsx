@@ -454,7 +454,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
           {order.batch && (
-            <Link href={`/production/batches/${order.batch.number}`} className="text-sm text-blue-600 hover:underline">
+            <Link href={`/production/batches/${order.batch.number}`} className="inline-block text-sm text-blue-600 hover:underline max-md:py-2">
               Партия {order.batch.number}
             </Link>
           )}
@@ -650,20 +650,20 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {canWrite && (
               <>
             <details>
-              <summary className="cursor-pointer text-neutral-600">+ лот</summary>
+              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ лот</summary>
               <div className="mt-2">
                 <UsageForm orderId={id} lots={furLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
               </div>
             </details>
             <BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />
             <details id="add-lining">
-              <summary className="cursor-pointer text-neutral-600">+ подкладка</summary>
+              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ подкладка</summary>
               <div className="mt-2">
                 <UsageForm orderId={id} lots={liningLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
               </div>
             </details>
             <details>
-              <summary className="cursor-pointer text-neutral-600">+ расход</summary>
+              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ расход</summary>
               <div className="mt-2">
                 <ProductionExpenseForm orderId={id} categories={expenseCategories} />
               </div>
@@ -838,10 +838,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {canWrite && (
               <>
                 <span>·</span>
-                <Link href={`/shipments/new?order=${id}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+                <Link href={`/shipments/new?order=${id}`} className="inline-block text-neutral-700 underline underline-offset-2 hover:text-neutral-900 max-md:py-2">
                   + Отгрузка
                 </Link>
-                <Link href={`/fittings/new?order=${id}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+                <Link href={`/fittings/new?order=${id}`} className="inline-block text-neutral-700 underline underline-offset-2 hover:text-neutral-900 max-md:py-2">
                   + Примерка
                 </Link>
               </>

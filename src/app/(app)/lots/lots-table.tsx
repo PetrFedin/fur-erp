@@ -18,7 +18,7 @@ import { emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table"
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
 import type { CostPlanEditorItem } from "../purchases/[id]/cost-plan-editor";
-import { AddFieldButton, CustomCell, CustomFieldHeader } from "./custom-field-controls";
+import { AddFieldButton, CustomCell, CustomFieldHeader, MobileFieldsManager } from "./custom-field-controls";
 import { FilterPanel } from "./lots-filters";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 
@@ -326,6 +326,7 @@ function LotsControls({ scope }: { scope: string }) {
           {view.label}
         </span>
       </div>
+      <MobileFieldsManager />
       {view.hiddenSelected > 0 && (
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-amber-700" data-hidden-selection>
           <span>
@@ -553,7 +554,7 @@ function LotCardView({
       }
       subtitle={
         invoice ? (
-          <Link href={`/purchases/${r.purchaseId}`} className="text-blue-600 hover:underline">
+          <Link href={`/purchases/${r.purchaseId}`} className="inline-block py-2 text-blue-600 hover:underline">
             {invoice.label}
           </Link>
         ) : undefined
@@ -589,7 +590,7 @@ function LotCardView({
               </>
             ),
         },
-        ...fields.map((f) => ({ label: f.name, value: <CustomCell row={r} field={f} /> })),
+        ...fields.map((f) => ({ label: f.name, value: <CustomCell row={r} field={f} card /> })),
         {
           label: "Расчёт",
           value: r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null,

@@ -122,7 +122,7 @@ export function ProductionPaymentForm({
       )}
       {orders.length > 1 && (
         <details className="rounded-md border border-neutral-200 p-2">
-          <summary className="cursor-pointer text-xs text-neutral-600 sm:text-sm">
+          <summary className="cursor-pointer text-xs text-neutral-600 max-md:py-2 sm:text-sm">
             Распределить оплату на другие ТЗ заказчика ({orders.length - 1})
             {selected.size > 1 && <span className="text-neutral-900"> · выбрано ещё {selected.size - 1}</span>}
           </summary>
@@ -147,12 +147,12 @@ export function ProductionPaymentForm({
                 // Скрываем, а не удаляем из DOM — отмеченные ТЗ должны уходить в форму при любом поиске.
                 const hidden = term !== "" && !current && !o.label.toLowerCase().includes(term);
                 return (
-                  <label key={o.id} className={`${hidden ? "hidden" : "flex"} items-start gap-2 text-xs text-neutral-700 sm:text-sm`}>
+                  <label key={o.id} className={`${hidden ? "hidden" : "flex"} items-start gap-2 text-xs text-neutral-700 max-md:min-h-8 max-md:py-1 sm:text-sm`}>
                     <input
                       type="checkbox"
                       name={current ? undefined : "orderIds"}
                       value={o.id}
-                      className="mt-0.5 shrink-0 rounded"
+                      className="mt-0.5 shrink-0 rounded max-md:h-5 max-md:w-5"
                       checked={selected.has(o.id)}
                       disabled={current}
                       onChange={(e) =>

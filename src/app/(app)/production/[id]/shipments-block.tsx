@@ -38,7 +38,7 @@ export async function ShipmentsBlock({
         {canAdd && (
           <>
             {" · "}
-            <Link href={`/shipments/new?order=${orderId}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+            <Link href={`/shipments/new?order=${orderId}`} className="inline-block text-neutral-700 underline underline-offset-2 hover:text-neutral-900 max-md:py-2">
               + Отгрузка
             </Link>
           </>

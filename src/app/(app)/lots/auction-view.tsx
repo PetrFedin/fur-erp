@@ -360,7 +360,7 @@ export async function AuctionView({
                   оплачено {formatMoney(payPaid.toString())} ·{" "}
                   <Link
                     href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
-                    className="text-blue-600 hover:underline"
+                    className="inline-block text-blue-600 hover:underline max-md:py-2"
                   >
                     Оплаты →
                   </Link>

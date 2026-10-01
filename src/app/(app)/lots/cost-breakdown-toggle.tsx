@@ -35,7 +35,7 @@ export function CostBreakdownToggle({
 
   return (
     <div className="text-xs">
-      <button type="button" onClick={() => dialogRef.current?.showModal()} className="text-neutral-500 hover:underline">
+      <button type="button" onClick={() => dialogRef.current?.showModal()} className="text-neutral-500 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
         Из чего цена →
       </button>
       <dialog

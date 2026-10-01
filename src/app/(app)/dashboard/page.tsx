@@ -221,7 +221,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Сводка</h1>
-        <Link href="/payments" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">
+        <Link href="/payments" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center">
           Оплаты →
         </Link>
       </div>
@@ -374,7 +374,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             );
           })()}
           <p className="mt-3 text-sm">
-            <Link href="/lots" className="text-neutral-600 hover:underline">
+            <Link href="/lots" className="inline-block text-neutral-600 hover:underline max-md:py-2">
               Все материалы → Сырьё
             </Link>
             {moreFurRows > 0 && <span className="ml-3 text-neutral-400">Меха ещё: {moreFurRows}</span>}

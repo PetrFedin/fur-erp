@@ -184,7 +184,7 @@ export function CustomFieldHeader({ field, index, count }: { field: CustomFieldD
 }
 
 /** Ячейка значения: клик -> ввод -> Enter / потеря фокуса сохраняет, Esc отменяет. */
-export function CustomCell({ row, field }: { row: LotRow; field: CustomFieldDef }) {
+export function CustomCell({ row, field, card = false }: { row: LotRow; field: CustomFieldDef; card?: boolean }) {
   const { extraOf, setExtra, canEdit } = useLots();
   const value = extraOf(row, field.id);
   const [editing, setEditing] = useState(false);
@@ -220,7 +220,7 @@ export function CustomCell({ row, field }: { row: LotRow; field: CustomFieldDef 
           value={value === true ? "true" : value === false ? "false" : ""}
           disabled={pending}
           onChange={(e) => save(e.target.value === "" ? null : e.target.value === "true")}
-          className="h-7 rounded border border-neutral-200 bg-white px-1 text-xs"
+          className={card ? "h-9 rounded border border-neutral-300 bg-white px-2 text-sm" : "h-7 rounded border border-neutral-200 bg-white px-1 text-xs"}
         >
           <option value="">—</option>
           <option value="true">Да</option>
@@ -243,9 +243,13 @@ export function CustomCell({ row, field }: { row: LotRow; field: CustomFieldDef 
           setErr("");
           setEditing(true);
         }}
-        className="min-h-8 min-w-16 cursor-text sm:min-h-6 rounded px-1 text-left hover:bg-neutral-100"
+        className={
+          card
+            ? `min-h-9 w-full cursor-text rounded border px-2 py-1 text-left ${shown ? "border-neutral-200 hover:bg-neutral-100" : "border-dashed border-neutral-400 bg-neutral-50 text-neutral-500"}`
+            : "min-h-8 min-w-16 cursor-text sm:min-h-6 rounded px-1 text-left hover:bg-neutral-100"
+        }
       >
-        {shown || <span className="text-neutral-300">—</span>}
+        {shown || (card ? <span className="text-xs">нажмите, чтобы ввести</span> : <span className="text-neutral-300">—</span>)}
       </button>
     );
   }
@@ -277,9 +281,66 @@ export function CustomCell({ row, field }: { row: LotRow; field: CustomFieldDef 
           }
           save(draft);
         }}
-        className="h-7 w-28 rounded border border-neutral-400 bg-white px-1 text-sm"
+        className={card ? "h-9 w-full rounded border border-neutral-400 bg-white px-2 text-sm" : "h-7 w-28 rounded border border-neutral-400 bg-white px-1 text-sm"}
       />
       {err && <div className="max-w-40 whitespace-normal text-[10px] text-red-600">{err}</div>}
     </div>
+  );
+}
+
+/** Блок «Столбцы» для телефона: управление своими столбцами без десктопной шапки таблицы. */
+export function MobileFieldsManager() {
+  const { canEdit, fields } = useLots();
+  const [renaming, setRenaming] = useState<CustomFieldDef | null>(null);
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState("");
+  if (!canEdit || fields.length === 0) return null;
+
+  const run = (fn: () => Promise<{ ok?: boolean; error?: string }>) =>
+    start(async () => {
+      setErr("");
+      const r = await fn();
+      if (!r.ok && r.error) setErr(r.error);
+    });
+  const btn =
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40";
+
+  return (
+    <details className="rounded-md border border-neutral-200 bg-white px-3 md:hidden" data-mobile-fields>
+      <summary className="flex min-h-10 cursor-pointer select-none items-center text-sm font-medium">Столбцы ({fields.length})</summary>
+      <ul className="flex flex-col divide-y divide-neutral-100 pb-2">
+        {fields.map((f, i) => (
+          <li key={f.id} className="flex flex-col gap-1.5 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 break-words font-medium">{f.name}</span>
+              <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-500">{FIELD_TYPE_LABELS[f.type]}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" className={btn} disabled={pending} onClick={() => setRenaming(f)}>
+                Переименовать
+              </button>
+              <button type="button" className={btn} disabled={pending || i === 0} aria-label="Сдвинуть влево" onClick={() => run(() => moveCustomField(f.id, "left"))}>
+                ←
+              </button>
+              <button type="button" className={btn} disabled={pending || i === fields.length - 1} aria-label="Сдвинуть вправо" onClick={() => run(() => moveCustomField(f.id, "right"))}>
+                →
+              </button>
+              <button
+                type="button"
+                className={`${btn} text-red-600`}
+                disabled={pending}
+                onClick={() => {
+                  if (window.confirm(`Удалить столбец «${f.name}»? Значения этого столбца у всех лотов будут удалены безвозвратно.`)) run(() => deleteCustomField(f.id));
+                }}
+              >
+                Удалить
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {err && <p className="pb-2 text-xs text-red-600">{err}</p>}
+      {renaming && <FieldDialog mode="rename" field={renaming} onClose={() => setRenaming(null)} />}
+    </details>
   );
 }

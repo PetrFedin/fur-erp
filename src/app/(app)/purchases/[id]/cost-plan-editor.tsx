@@ -125,29 +125,31 @@ export function CostPlanItemEditor({
                 <span className="text-[11px] text-neutral-400">меняется формой «Курс закупки» в блоке расчёта</span>
               </label>
             </div>
-            <div className="break-words rounded-md bg-neutral-50 px-3 py-2 text-sm">
-              <div>
-                Себестоимость единицы: <b>{fmt(calc.unitIncl)} ₽</b>{" "}
-                <span className="text-xs text-neutral-500">(без НДС {fmt(calc.unitExcl)} ₽)</span>
-              </div>
-              <div>
-                Всего: <b>{fmt(calc.totalIncl)} ₽</b>{" "}
-                <span className="text-xs text-neutral-500">(без НДС {fmt(calc.totalExcl)} ₽)</span>
-              </div>
-              <div className="mt-1 text-xs text-neutral-500">
-                товар {fmt(calc.goods)} · сборы {fmt(calc.fee)} + НДС {fmt(calc.feeVat)} · НДС на товар {fmt(calc.goodsVat)} ·
-                брокер {fmt(calc.broker)}
-              </div>
-            </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             </div>
-            <div className="flex shrink-0 justify-end gap-2 border-t border-neutral-200 bg-white p-3">
+            <div className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 bg-white p-3 shadow-[0_-4px_8px_-6px_rgba(0,0,0,0.15)]">
+            <div className="break-words rounded-md bg-neutral-50 px-3 py-2 text-sm">
+    <div>
+      Себестоимость единицы: <b>{fmt(calc.unitIncl)} ₽</b>{" "}
+      <span className="text-xs text-neutral-500">(без НДС {fmt(calc.unitExcl)} ₽)</span>
+    </div>
+    <div>
+      Всего: <b>{fmt(calc.totalIncl)} ₽</b>{" "}
+      <span className="text-xs text-neutral-500">(без НДС {fmt(calc.totalExcl)} ₽)</span>
+    </div>
+    <div className="mt-1 hidden text-xs text-neutral-500 sm:block">
+      товар {fmt(calc.goods)} · сборы {fmt(calc.fee)} + НДС {fmt(calc.feeVat)} · НДС на товар {fmt(calc.goodsVat)} ·
+      брокер {fmt(calc.broker)}
+    </div>
+  </div>
+              <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => setOpen(false)}>
                 Отмена
               </Button>
               <Button type="submit" size="sm" disabled={pending}>
                 {pending ? "Сохранение…" : "Сохранить расчёт"}
               </Button>
+              </div>
             </div>
           </form>
         </div>

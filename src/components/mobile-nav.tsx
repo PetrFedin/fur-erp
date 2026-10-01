@@ -29,7 +29,7 @@ export function MobileNav() {
         aria-label={open ? "Закрыть меню" : "Открыть меню"}
         aria-expanded={open}
         onClick={() => setOpenAt(open ? null : pathname)}
-        className="flex h-9 w-9 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+        className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
           <path d="M2 4.5h14M2 9h14M2 13.5h14" />
