@@ -481,7 +481,7 @@ function appendJournal(entries: Entry[]) {
   writeFileSync(JOURNAL, JSON.stringify(cur.concat(entries), null, 1));
 }
 
-const UNITS: [string, (c: Ctx) => Promise<void>][] = [
+const UNITS: [string, (c: Ctx) => Promise<unknown>][] = [
   ["1. Рысь FH 06-26 → DRAFT", unitFH],
   ["2. Закупки из реестра/ТЗ: пометки", unitNotes],
   ["3. Подкладка 2025 по УПД №109", unitLining],
