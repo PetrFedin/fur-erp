@@ -617,6 +617,26 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
 
 // ---------- Receiving: this is where landed cost + stock-in happens ----------
 
+function parseCostPlan(raw: unknown) {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const d = (k: string) => (r[k] != null ? new Decimal(String(r[k])) : null);
+  const unitCostInclVat = d("unitCostInclVat");
+  const materialExclVat = d("materialExclVat");
+  const materialVat = d("materialVat");
+  const expenseExclVat = d("expenseExclVat");
+  const expenseVat = d("expenseVat");
+  if (!unitCostInclVat || !materialExclVat || !materialVat || !expenseExclVat || !expenseVat) return null;
+  return {
+    unitCostInclVat,
+    materialExclVat,
+    materialVat,
+    expenseExclVat,
+    expenseVat,
+    costBreakdown: r["costBreakdown"] as import("@prisma/client").Prisma.InputJsonValue,
+  };
+}
+
 export async function receivePurchase(purchaseId: string): Promise<FormState> {
   const session = await requireRole(...WAREHOUSE_ROLES);
 
@@ -668,6 +688,10 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
       const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
       const landedTotal = inclVatRub.add(allocatedExpense);
 
+      // Позиция с расчётом из расчётного листа (costPlan): стоимость единицы
+      // берётся оттуда как есть (выделка/транспорт — на штуку, а не от цены),
+      // расходы закупки на неё не распределяются, разбивка уходит в лот.
+      const plan = parseCostPlan(item.costPlan);
       const lotArgs = {
         organizationId: session.user.organizationId,
         warehouseId: purchase.warehouseId,
@@ -676,15 +700,16 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
         grade: item.grade,
         color: item.color,
         quantity: item.quantity,
-        unitCost: landedTotal.div(item.quantity),
-        totalCost: landedTotal,
+        unitCost: plan ? plan.unitCostInclVat : landedTotal.div(item.quantity),
+        totalCost: plan ? plan.unitCostInclVat.mul(item.quantity) : landedTotal,
         vatRate: item.vatRate,
-        materialCostExclVat: baseRub.div(item.quantity),
-        materialVatAmount: inclVatRub.sub(baseRub).div(item.quantity),
-        expenseCostExclVat: allocatedExpenseExclVat.div(item.quantity),
-        expenseVatAmount: allocatedExpenseVatAmount.div(item.quantity),
+        materialCostExclVat: plan ? plan.materialExclVat : baseRub.div(item.quantity),
+        materialVatAmount: plan ? plan.materialVat : inclVatRub.sub(baseRub).div(item.quantity),
+        expenseCostExclVat: plan ? plan.expenseExclVat : allocatedExpenseExclVat.div(item.quantity),
+        expenseVatAmount: plan ? plan.expenseVat : allocatedExpenseVatAmount.div(item.quantity),
         purchaseId: purchase.id,
         purchaseItemId: item.id,
+        ...(plan ? { costBreakdown: plan.costBreakdown } : {}),
       };
 
       // Lining fabric (tracked by the metre) is one aggregate pool per

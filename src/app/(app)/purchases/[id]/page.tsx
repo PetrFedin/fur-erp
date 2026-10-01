@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
+import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
@@ -16,6 +17,10 @@ import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
+import { DocumentsForm } from "./documents-form";
+import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
+import { DOC_KIND_LABELS } from "@/lib/purchase-files";
+import { deletePurchaseDocument } from "../doc-actions";
 import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -56,9 +61,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       items: { include: { rawMaterial: true, lot: true }, orderBy: { id: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       payments: { orderBy: { paidAt: "asc" } },
+      documents: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!purchase) notFound();
+
+  // Документы партии (спецификация, расчётный лист, счёт на аванс) лежат на
+  // аукционе целиком: показываем их на каждой закупке с тем же auctionSession.
+  const batchName = purchase.auctionSession?.split(/\r?\n/)[0].trim() || null;
+  const batchDocs = batchName
+    ? await prisma.purchaseDocument.findMany({
+        where: { organizationId: session.user.organizationId, purchaseId: null, batch: batchName },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const planItems = purchase.items.filter((i) => i.costPlan != null);
 
   const editable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
 
@@ -99,17 +116,19 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
   const isForeignCurrency = purchase.currency !== "RUB";
   const itemsTotal = purchase.items.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
-  const itemsTotalExclVatRub = itemsTotal.mul(purchase.exchangeRate);
-  const itemsTotalInclVatRub = purchase.items.reduce(
-    (s, i) => s.add(grossUp(i.subtotal.mul(purchase.exchangeRate), i.vatRate)),
-    new Decimal(0)
-  );
+  // С расчётом из расчётного листа (costPlan) суммы берутся из него — см. purchase-totals.
+  const itemsOnly = { exchangeRate: purchase.exchangeRate, items: purchase.items, expenses: [] };
+  const itemsTotalExclVatRub = purchaseTotalExclVat(itemsOnly);
+  const itemsTotalInclVatRub = purchaseTotalInclVat(itemsOnly);
   const expensesTotalExclVat = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const expensesTotalInclVat = purchase.expenses.reduce(
     (s, e) => s.add(grossUp(e.amount, e.vatRate)),
     new Decimal(0)
   );
   const grandTotalRub = itemsTotalInclVatRub.add(expensesTotalInclVat);
+  const goodsExclVatRub = itemsTotal.mul(purchase.exchangeRate);
+  // Расходы, заложенные в расчёт лотов (сборы аукциона, выделка, транспорт, брокер), — тоже «доп. расходы».
+  const extraExclVat = itemsTotalExclVatRub.sub(goodsExclVatRub).add(expensesTotalExclVat);
   const vatTotal = grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat);
   const paidTotal = purchase.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
   const balanceDue = grandTotalRub.sub(paidTotal);
@@ -217,9 +236,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       <div className="grid grid-cols-5 gap-3">
         <SummaryCard
           label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
-          value={formatMoney(itemsTotalExclVatRub.toString())}
+          value={formatMoney(goodsExclVatRub.toString())}
         />
-        <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(expensesTotalExclVat.toString())} />
+        <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(extraExclVat.toString())} />
         <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
         <SummaryCard
           label="Итого (RUB)"
@@ -357,6 +376,101 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               Итого по закупке ({purchase.items.length} поз.): <Money incl={itemsTotalInclVatRub} excl={itemsTotalExclVatRub} />
             </p>
           )}
+        </CardContent>
+      </Card>
+
+
+      {planItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Расчёт себестоимости по лотам</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-xs text-neutral-500">
+              Предварительный расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %,
+              НДС. При приёме на склад эта стоимость единицы переходит в лот как есть.
+            </p>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Лот</Th>
+                  <Th>Кол-во</Th>
+                  <Th>Цена лота, $</Th>
+                  <Th>Себестоимость единицы</Th>
+                  <Th>Всего</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {planItems.map((i) => {
+                  const plan = i.costPlan as unknown as {
+                    unitCostInclVat: string;
+                    materialExclVat: string;
+                    expenseExclVat: string;
+                    costBreakdown: never;
+                  };
+                  const excl = new Decimal(plan.materialExclVat).add(plan.expenseExclVat);
+                  const total = new Decimal(plan.unitCostInclVat).mul(i.quantity);
+                  return (
+                    <Tr key={i.id}>
+                      <Td>{i.lotNumber ?? "—"}</Td>
+                      <Td>{formatQty(i.quantity.toString())} шт.</Td>
+                      <Td>{formatCurrency(i.unitPrice.toString(), purchase.currency)}</Td>
+                      <Td className="whitespace-nowrap">
+                        <Money incl={plan.unitCostInclVat} excl={excl.toString()} />
+                        <CostBreakdownToggle
+                          breakdown={plan.costBreakdown}
+                          unitCostExcl={excl.toString()}
+                          unitCostIncl={plan.unitCostInclVat}
+                        />
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        <Money incl={total.toString()} excl={excl.mul(i.quantity).toString()} />
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Документы ({purchase.documents.length + batchDocs.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {[...purchase.documents.map((d) => ({ d, batch: false })), ...batchDocs.map((d) => ({ d, batch: true }))].map(
+            ({ d, batch }) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                <div>
+                  <a href={`/api/purchase-docs/${d.id}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                    {d.title}
+                  </a>
+                  <span className="ml-2 text-xs text-neutral-500">
+                    {DOC_KIND_LABELS[d.kind]}
+                    {batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
+                  </span>
+                </div>
+                {!batch && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await deletePurchaseDocument(id, d.id);
+                    }}
+                  >
+                    <Button type="submit" variant="ghost" size="sm">
+                      Удалить
+                    </Button>
+                  </form>
+                )}
+              </div>
+            ),
+          )}
+          {purchase.documents.length + batchDocs.length === 0 && (
+            <p className="text-sm text-neutral-400">Документов пока нет</p>
+          )}
+          <DocumentsForm purchaseId={id} hasBatch={!!batchName} />
         </CardContent>
       </Card>
 

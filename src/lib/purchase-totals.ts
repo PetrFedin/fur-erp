@@ -1,7 +1,19 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 
-type Item = { subtotal: Prisma.Decimal; vatRate: Prisma.Decimal };
+type Item = { subtotal: Prisma.Decimal; vatRate: Prisma.Decimal; quantity?: Prisma.Decimal; costPlan?: unknown };
+
+/** Позиция с расчётом из расчётного листа: стоимость единицы берётся оттуда (см. PurchaseItem.costPlan). */
+function planUnit(i: Item): { incl: Prisma.Decimal; excl: Prisma.Decimal } | null {
+  const c = i.costPlan as Record<string, unknown> | null | undefined;
+  if (!c || typeof c !== "object" || !i.quantity) return null;
+  const f = (k: string) => (c[k] != null ? new Decimal(String(c[k])) : null);
+  const incl = f("unitCostInclVat");
+  const m = f("materialExclVat");
+  const e = f("expenseExclVat");
+  if (!incl || !m || !e) return null;
+  return { incl: incl.mul(i.quantity) as never, excl: m.add(e).mul(i.quantity) as never };
+}
 type Expense = { amount: Prisma.Decimal; vatRate: Prisma.Decimal };
 
 export function grossUp(base: Prisma.Decimal, vatRate: Prisma.Decimal) {
@@ -19,7 +31,7 @@ export function purchaseTotalInclVat(purchase: {
   expenses: Expense[];
 }) {
   const itemsInclVatRub = purchase.items.reduce(
-    (s, i) => s.add(grossUp(i.subtotal.mul(purchase.exchangeRate), i.vatRate)),
+    (s, i) => s.add(planUnit(i)?.incl ?? grossUp(i.subtotal.mul(purchase.exchangeRate), i.vatRate)),
     new Decimal(0)
   );
   const expensesInclVat = purchase.expenses.reduce((s, e) => s.add(grossUp(e.amount, e.vatRate)), new Decimal(0));
@@ -32,7 +44,10 @@ export function purchaseTotalInclVat(purchase: {
  * VAT math needed (only the currency conversion for item prices).
  */
 export function purchaseTotalExclVat(purchase: { exchangeRate: Prisma.Decimal; items: Item[]; expenses: Expense[] }) {
-  const itemsExclVatRub = purchase.items.reduce((s, i) => s.add(i.subtotal.mul(purchase.exchangeRate)), new Decimal(0));
+  const itemsExclVatRub = purchase.items.reduce(
+    (s, i) => s.add(planUnit(i)?.excl ?? i.subtotal.mul(purchase.exchangeRate)),
+    new Decimal(0)
+  );
   const expensesExclVat = purchase.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   return itemsExclVatRub.add(expensesExclVat);
 }

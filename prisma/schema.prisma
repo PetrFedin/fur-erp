@@ -42,6 +42,7 @@ model Organization {
   supplyPlanEntries      SupplyPlanEntry[]
   shipments              Shipment[]
   fittings               Fitting[]
+  purchaseDocuments      PurchaseDocument[]
 }
 
 enum UserRole {
@@ -251,6 +252,7 @@ model Purchase {
   payments        Payment[]
   stockMovements  StockMovement[]
   rawMaterialLots RawMaterialLot[]
+  documents       PurchaseDocument[]
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -287,6 +289,15 @@ model PurchaseItem {
   // in src/lib/stock.ts and the cfc5cd6/this-commit history for why.
   lotId String?
   lot   RawMaterialLot? @relation(fields: [lotId], references: [id])
+
+  // Предварительный расчёт стоимости единицы из расчётного листа закупки
+  // (аукционный сбор, выделка, транспорт, брокерский %, НДС ...):
+  // { unitCostInclVat, materialExclVat, materialVat, expenseExclVat,
+  //   expenseVat (всё за единицу, ₽), breakdown: [{label, value}] }.
+  // Если задан, receivePurchase берёт из него стоимость единицы лота вместо
+  // распределения расходов закупки пропорционально стоимости (выделка и
+  // транспорт считаются на штуку, а не от цены) и копирует breakdown в лот.
+  costPlan Json?
 
   @@index([purchaseId])
   @@index([rawMaterialId])
@@ -814,4 +825,37 @@ model FittingPhoto {
   createdAt    DateTime @default(now())
 
   @@index([fittingId])
+}
+
+enum PurchaseDocumentKind {
+  AUCTION_INVOICE // счёт аукциона на лоты
+  SPECIFICATION // спецификация / приложение к договору
+  ADVANCE_INVOICE // счёт на аванс
+  CALC_SHEET // расчётный лист (Excel)
+  UPD // УПД / акт
+  OTHER
+}
+
+// Документ закупки: лежит на диске в UPLOAD_DIR (см. src/lib/purchase-files.ts).
+// purchaseId задан — документ относится к одной закупке (счёт аукциона на её
+// лоты); иначе документ партии — все закупки с тем же `batch`
+// (Purchase.auctionSession, напр. «СП 09-26»): спецификация, расчётный лист,
+// счёт на аванс.
+model PurchaseDocument {
+  id             String               @id @default(cuid())
+  organizationId String
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseId     String?
+  purchase       Purchase?            @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  batch          String?
+  kind           PurchaseDocumentKind @default(OTHER)
+  title          String
+  storagePath    String
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  createdAt      DateTime             @default(now())
+
+  @@index([organizationId, batch])
+  @@index([purchaseId])
 }

@@ -57,7 +57,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       },
       include: {
         rawMaterial: true,
-        purchase: { include: { supplier: true } },
+        purchase: { include: { supplier: true, documents: { orderBy: { createdAt: "asc" } } } },
         usages: { include: { productionOrder: true } },
       },
       orderBy: { receivedDate: tab === "lining" ? "asc" : "desc" },
@@ -329,6 +329,17 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                                   .filter(Boolean)
                                                   .join(" · ")}
                                               </div>
+                                              {l.purchase.documents.map((d) => (
+                                                <a
+                                                  key={d.id}
+                                                  href={`/api/purchase-docs/${d.id}`}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="block text-xs text-blue-600 hover:underline"
+                                                >
+                                                  📄 {d.title}
+                                                </a>
+                                              ))}
                                             </>
                                           ) : (
                                             formatDate(l.receivedDate)

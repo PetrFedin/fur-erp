@@ -33,6 +33,7 @@ export async function createRawMaterialLot(
     expenseVatAmount?: Prisma.Decimal | number;
     purchaseId: string;
     purchaseItemId: string;
+    costBreakdown?: Prisma.InputJsonValue;
   }
 ) {
   const quantity = toDecimal(args.quantity);
@@ -57,6 +58,7 @@ export async function createRawMaterialLot(
       expenseCostExclVat: args.expenseCostExclVat ?? 0,
       expenseVatAmount: args.expenseVatAmount ?? 0,
       purchaseId: args.purchaseId,
+      ...(args.costBreakdown !== undefined ? { costBreakdown: args.costBreakdown } : {}),
     },
   });
 
