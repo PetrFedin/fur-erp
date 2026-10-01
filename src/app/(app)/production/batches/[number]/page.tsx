@@ -225,6 +225,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             entity="batch"
             entityId={batch.id}
             canEdit={canEditProduction(session.user.role)}
+            extraTargets={
+              ["OWNER", "ADMIN"].includes(session.user.role)
+                ? payments.map((x) => ({
+                    entity: "productionPayment" as const,
+                    id: x.p.id,
+                    label: `Оплата ${formatDate(x.p.paidAt)} · ${formatMoney(x.p.amount.toString())}`,
+                  }))
+                : undefined
+            }
           />
         </CardContent>
       </Card>

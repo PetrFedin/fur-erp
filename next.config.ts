@@ -9,6 +9,15 @@ const securityHeaders = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
 ];
 
+// Файлы документов показываются в окне предпросмотра (iframe) нашего же сайта — для них frame-ancestors 'self'.
+const docFrameHeaders = securityHeaders.map((h) =>
+  h.key === "X-Frame-Options"
+    ? { ...h, value: "SAMEORIGIN" }
+    : h.key === "Content-Security-Policy"
+      ? { ...h, value: "frame-ancestors 'self'" }
+      : h,
+);
+
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -20,7 +29,11 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/((?!api/drive-docs/|api/purchase-docs/).*)", headers: securityHeaders },
+      { source: "/api/drive-docs/:path*", headers: docFrameHeaders },
+      { source: "/api/purchase-docs/:path*", headers: docFrameHeaders },
+    ];
   },
 };
 

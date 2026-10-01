@@ -18,6 +18,7 @@ export const NAV_LINKS = [
       "/warehouses",
       "/expense-categories",
       "/users",
+      "/attention",
     ],
   },
 ] as const;

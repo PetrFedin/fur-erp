@@ -31,6 +31,7 @@ import { Section, SectionNav } from "./section";
 import Link from "next/link";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
+import { hasRole } from "@/lib/access";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -719,7 +720,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       <Section id="drive" title="Документы Google Drive">
         <Card>
           <CardContent className="pt-4">
-            <DriveDocuments docs={driveDocs} entity="order" entityId={id} canEdit={canEdit} />
+            <DriveDocuments
+              docs={driveDocs}
+              entity="order"
+              entityId={id}
+              canEdit={canEdit}
+              extraTargets={
+                hasRole(session.user.role, ["OWNER", "ADMIN"])
+                  ? payments.map((p) => ({
+                      entity: "productionPayment" as const,
+                      id: p.id,
+                      label: `Оплата ${p.paidAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} · ${p.amount.toString()}`,
+                    }))
+                  : undefined
+              }
+            />
           </CardContent>
         </Card>
       </Section>

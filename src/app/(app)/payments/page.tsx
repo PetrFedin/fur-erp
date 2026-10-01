@@ -19,7 +19,7 @@ import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
 import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
-import { DriveDocList } from "@/components/drive-documents";
+import { DriveDocList, UploadDocument } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
@@ -187,13 +187,19 @@ export default async function PaymentsPage({
       supplierIds: [p.supplierId],
     })),
   ];
-  const payDocs = (p: (typeof payments)[number]) => p.driveDocuments.map((d) => toDriveView(d, "оплата"));
+  const payDocs = (p: (typeof payments)[number]) => p.driveDocuments.map((d) => toDriveView(d, "оплата", session.user.role));
+  const canDocs = hasRole(session.user.role, ["OWNER", "ADMIN"]);
   const docBlock = (p: (typeof payments)[number]) => {
     const docs = payDocs(p);
-    return docs.length > 0 ? (
-      <div className="mt-2">
-        <div className="mb-1 text-xs text-neutral-400">Документы Google Drive ({docs.length})</div>
-        <DriveDocList docs={docs} />
+    return docs.length > 0 || canDocs ? (
+      <div className="mt-2 flex flex-col gap-1">
+        {docs.length > 0 && (
+          <>
+            <div className="text-xs text-neutral-400">Документы ({docs.length})</div>
+            <DriveDocList docs={docs} canEdit={canDocs} />
+          </>
+        )}
+        {canDocs && <UploadDocument entity="payment" entityId={p.id} compact />}
       </div>
     ) : null;
   };

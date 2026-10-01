@@ -11,6 +11,7 @@ import { InclVatOnlyLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { auctionName, buildAuctionSummaries } from "@/lib/auction-payments";
+import { computeAttention, countAttention } from "@/lib/attention";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -41,6 +42,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     clientPayments,
     unlinkedSupplierPayments,
     auctionPayments,
+    attentionChecks,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
@@ -93,7 +95,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
       select: { auctionSession: true, amount: true, status: true },
     }),
+    computeAttention(prisma, organizationId),
   ]);
+  const attention = countAttention(attentionChecks);
 
   // Raw + finished stock value
   const rawStockValue = lowStockMaterials.reduce(
@@ -277,27 +281,50 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-        <KpiCard label="Куплено сырья" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiCard
-          label={`Использовано в ТЗ${c4Suffix(c4Mode)}`}
+          label="Куплено сырья"
+          hint="Все закупки, кроме отменённых, вместе с черновиками (мех по ним ещё не принят)."
+          value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />}
+        />
+        <KpiCard
+          label={`Списано в ТЗ${c4Suffix(c4Mode)}`}
+          hint="Стоимость сырья, уже ушедшего в производство."
           value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
         />
-        <KpiCard label="Остаток сырья (в деньгах)" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />
+        <KpiCard
+          label="Сырьё на складе"
+          hint="Во сколько оценивается мех и подкладка, которые лежат на складе."
+          value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />}
+        />
         <KpiCard
           label={<InclVatOnlyLabel base="Долг поставщикам" />}
+          hint={
+            draftDebt.greaterThan(0)
+              ? `Сколько ещё заплатить. Из них ${formatMoney(draftDebt.toString())} — за черновики (мех не принят). Авансы без привязки уже вычтены.`
+              : "Сколько ещё заплатить поставщикам. Авансы без привязки уже вычтены."
+          }
           value={formatMoney(supplierDebtTotal.toString())}
           warn={supplierDebtTotal.greaterThan(0)}
-          note={
-            <>
-              {draftDebt.greaterThan(0) && <span className="block">{`в т.ч. черновики (мех ещё не принят): ${formatMoney(draftDebt.toString())}`}</span>}
-              <span className="block">
-                Может отличаться от «Остатка к оплате» в разделе «Оплаты»: здесь ещё закупки без аукциона, а авансы без привязки уменьшают долг.
-              </span>
-            </>
-          }
         />
-        <KpiCard label={<InclVatOnlyLabel base="Долг заказчиков" />} value={formatMoney(clientDebtTotal.toString())} warn={clientDebtTotal.greaterThan(0)} />
+        <KpiCard
+          label={<InclVatOnlyLabel base="Долг заказчиков" />}
+          hint="Сколько заказчики ещё должны за работу по ТЗ."
+          value={formatMoney(clientDebtTotal.toString())}
+          warn={clientDebtTotal.greaterThan(0)}
+        />
+        <KpiCard
+          label="Требует внимания"
+          hint={
+            attention.main === 0
+              ? "Всё заведено."
+              : `Не заведены документы, даты, оплаты. Срочных: ${attention.red}${attention.gray > 0 ? `, справочно: ${attention.gray}` : ""}.`
+          }
+          value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
+          warn={attention.main > 0}
+          danger={attention.red > 0}
+          href="/attention"
+        />
       </div>
 
       <Card>
@@ -429,9 +456,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <Link href="/purchases" className="text-neutral-600 hover:underline">
                 Все закупки →
               </Link>
-              <Link href="/payments" className="text-neutral-600 hover:underline">
-                Оплаты →
-              </Link>
             </p>
           </CardContent>
         </Card>
@@ -488,18 +512,30 @@ function KpiCard({
   label,
   value,
   warn,
-  note,
+  danger,
+  hint,
+  href,
 }: {
   label: React.ReactNode;
   value: React.ReactNode;
   warn?: boolean;
-  note?: React.ReactNode;
+  danger?: boolean;
+  hint?: string;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4">
+  const body = (
+    <div
+      title={hint}
+      className={`h-full rounded-lg border bg-white p-4 ${danger ? "border-red-300" : "border-neutral-200"} ${href ? "transition-colors hover:bg-neutral-50" : ""}`}
+    >
       <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`mt-1 break-words text-lg font-semibold sm:text-xl ${warn ? "text-amber-600" : "text-neutral-900"}`}>{value}</div>
-      {note && <div className="mt-1 text-xs text-neutral-500">{note}</div>}
+      <div
+        className={`mt-1 break-words text-lg font-semibold sm:text-xl ${danger ? "text-red-600" : warn ? "text-amber-600" : "text-neutral-900"}`}
+      >
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-xs text-neutral-400">{hint}</div>}
     </div>
   );
+  return href ? <Link href={href}>{body}</Link> : body;
 }

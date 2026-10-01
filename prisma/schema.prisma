@@ -982,6 +982,12 @@ model DriveDocument {
   year           Int?
   notes          String?
   createdAt      DateTime     @default(now())
+  // Оригинал файла в приложении (необязательно): путь относительно UPLOAD_DIR, имя на диске — uuid.
+  storagePath    String?
+  storedName     String?
+  storedMime     String?
+  storedSize     Int?
+  storedAt       DateTime?
 
   purchaseId          String?
   purchase            Purchase?          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)

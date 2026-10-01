@@ -20,6 +20,7 @@ import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
 import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
 import { DriveDocuments } from "@/components/drive-documents";
+import { DocFileButtons } from "@/components/doc-preview";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
@@ -585,7 +586,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <CardContent className="flex flex-col gap-3">
           {[...purchase.documents.map((d) => ({ d, batch: false })), ...batchDocs.map((d) => ({ d, batch: true }))].map(
             ({ d, batch }) => (
-              <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+              <div key={d.id} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div>
                   <a href={`/api/purchase-docs/${d.id}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
                     {d.title}
@@ -595,6 +596,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
                   </span>
                 </div>
+                <div className="flex shrink-0 items-center gap-2">
+                <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
                 {canEditRole && (
                 <form
                   action={async () => {
@@ -611,6 +614,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   />
                 </form>
                 )}
+                </div>
               </div>
             ),
           )}
@@ -619,7 +623,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           )}
           {canEditRole && <DocumentsForm purchaseId={id} hasBatch={!!batchName} />}
           <div className="border-t border-neutral-100 pt-3">
-            <DriveDocuments docs={driveDocs} entity="purchase" entityId={id} canEdit={canEditRole} />
+            <DriveDocuments
+              docs={driveDocs}
+              entity="purchase"
+              entityId={id}
+              canEdit={canEditRole}
+              extraTargets={
+                hasRole(session.user.role, ["OWNER", "ADMIN"])
+                  ? purchase.payments.map((p) => ({
+                      entity: "payment" as const,
+                      id: p.id,
+                      label: `Оплата ${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}`,
+                    }))
+                  : undefined
+              }
+            />
           </div>
         </CardContent>
       </Card>

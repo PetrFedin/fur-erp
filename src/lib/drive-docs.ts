@@ -42,6 +42,11 @@ export type DriveDocView = {
   scope?: string | null;
   /** Может ли текущий пользователь убрать ссылку (undefined — решает canEdit списка). */
   canRemove?: boolean;
+  /** Есть ли оригинал файла в приложении (открывается через /api/drive-docs/<id>). */
+  hasFile?: boolean;
+  storedName?: string | null;
+  storedMime?: string | null;
+  storedSize?: number | null;
 };
 
 /** Id файла Google Drive: 20+ символов [A-Za-z0-9_-]. */

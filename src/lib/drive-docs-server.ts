@@ -25,6 +25,10 @@ export function toDriveView(d: DriveDocument, scope?: string | null, role?: stri
     viewUrl: d.viewUrl,
     drivePath: d.drivePath,
     scope: scope ?? null,
+    hasFile: !!d.storagePath,
+    storedName: d.storedName,
+    storedMime: d.storedMime,
+    storedSize: d.storedSize,
     canRemove: role === undefined ? undefined : hasRole(role, driveDocRemoveRoles(d)),
   };
 }
