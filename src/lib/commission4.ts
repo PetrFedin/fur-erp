@@ -9,7 +9,8 @@
 // (по умолчанию true: сырьё и подкладка; не применяется к лоскуту ТЗ 75, фондю,
 // бобру 97/104, партии 6).
 
-export const COMMISSION_RATE = 0.04;
+import { COMMISSION_RATE, COMMISSION4_HINT } from "./commission4-const";
+export { COMMISSION_RATE, COMMISSION4_HINT };
 
 /** Ставка НДС в долях: 20 → 0.2; 0.2 → 0.2 (значения > 1 считаются процентами). */
 export function vatFraction(vatRate: number): number {
@@ -122,9 +123,6 @@ export function extraInclOnly(usages: { totalCost: Decimal.Value; commission4: b
     .filter((u) => u.commission4)
     .reduce((s, u) => s.add(new Decimal(u.totalCost).mul(RATE)), new Decimal(0));
 }
-
-export const COMMISSION4_HINT =
-  "4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается";
 
 /** Подпись режима для заголовков/итогов: « (с 4%)» или пусто. */
 export function c4Suffix(mode: Commission4Mode): string {

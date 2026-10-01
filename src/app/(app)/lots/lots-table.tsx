@@ -11,7 +11,7 @@ import { Money } from "@/components/money";
 import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
-import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4";
+import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4-const";
 import { formatAvg, formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
 import { emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
