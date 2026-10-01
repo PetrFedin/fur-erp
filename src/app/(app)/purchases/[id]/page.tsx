@@ -17,7 +17,7 @@ import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
-import { DocumentsForm } from "./documents-form";
+import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { deletePurchaseDocument } from "../doc-actions";
@@ -79,7 +79,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
   const editable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
 
-  const [materials, expenseCategories, suppliers, warehouses] = editable
+  const [materials, expenseCategories, suppliers, warehouses, existingLots] = editable
     ? await Promise.all([
         prisma.rawMaterial.findMany({
           where: { organizationId: session.user.organizationId, isActive: true },
@@ -98,8 +98,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           where: { organizationId: session.user.organizationId },
           orderBy: { name: "asc" },
         }),
+        prisma.rawMaterialLot.findMany({
+          where: { organizationId: session.user.organizationId, lotNumber: { not: null } },
+          select: { lotNumber: true },
+        }),
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
   // The current supplier/warehouse must always be selectable even if it was
   // since deactivated — otherwise the edit form's <select> would silently
@@ -197,6 +201,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             <div className="mt-2 max-w-md">
               <PurchaseEditForm
                 action={boundUpdatePurchase}
+                currencyLocked={planItems.length > 0}
                 suppliers={supplierOptions}
                 warehouses={warehouseOptions}
                 defaults={{
@@ -215,7 +220,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <PurchaseActions purchaseId={id} status={purchase.status} />
       </div>
 
-      {isForeignCurrency && editable && (
+      {isForeignCurrency && editable && planItems.length === 0 && (
         <Card>
           <CardContent className="flex items-center justify-between pt-4">
             <p
@@ -233,7 +238,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <SummaryCard
           label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
           value={formatMoney(goodsExclVatRub.toString())}
@@ -265,6 +270,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <BulkItemForm
                     purchaseId={id}
                     materialNames={allMaterials.map((m) => m.name)}
+                    existingLotNumbers={existingLots.map((l) => l.lotNumber as string)}
                     currency={purchase.currency}
                   />
                 </div>
@@ -292,7 +298,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Th>Кол-во</Th>
                   <Th>Цена без НДС</Th>
                   <Th>НДС</Th>
-                  <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
+                  <Th title={planItems.length > 0 ? "Цена самого лота; выделка и транспорт из расчёта себестоимости (ниже) сюда не входят" : undefined}>
+                    {planItems.length > 0 ? "Цена лота (без расходов)" : "Сумма"}
+                    {isForeignCurrency && " (RUB)"}
+                  </Th>
                   {itemsMutable && <Th></Th>}
                 </Tr>
               </Thead>
@@ -301,7 +310,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
                   const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
                   const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
-                  const canEditFinancials = editable || (!!item.lot && !consumed);
+                  // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
+                  const hasPlan = item.costPlan != null;
+                  const canEditFinancials = !hasPlan && (editable || (!!item.lot && !consumed));
                   const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
                   const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
                   return (
@@ -319,7 +330,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
                       canEditFinancials={canEditFinancials}
                       lockedNote={
-                        item.lot && consumed
+                        hasPlan
+                          ? "Цена и количество взяты из расчётного листа — менять их нельзя. Доступны только лот, сорт и цвет."
+                          : item.lot && consumed
                           ? orders && orders.length > 0
                             ? `${lotName} уже списан в ТЗ (${orders
                                 .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
@@ -388,7 +401,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <CardContent className="flex flex-col gap-2">
             <p className="text-xs text-neutral-500">
               Предварительный расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %,
-              НДС. При приёме на склад эта стоимость единицы переходит в лот как есть.
+              НДС. При приёме на склад эта стоимость единицы переходит в лот, а расходы закупки (блок «Расходы»)
+              добавляются сверху пропорционально стоимости лотов. Колонка «Цена лота (без расходов)» в таблице позиций —
+              только цена лота без этих сборов и расходов, поэтому она меньше итога закупки. Цена и количество таких
+              позиций взяты из расчётного листа и не редактируются.
             </p>
             <Table>
               <Thead>
@@ -452,18 +468,20 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
                   </span>
                 </div>
-                {!batch && (
-                  <form
-                    action={async () => {
-                      "use server";
-                      await deletePurchaseDocument(id, d.id);
-                    }}
-                  >
-                    <Button type="submit" variant="ghost" size="sm">
-                      Удалить
-                    </Button>
-                  </form>
-                )}
+                <form
+                  action={async () => {
+                    "use server";
+                    await deletePurchaseDocument(id, d.id);
+                  }}
+                >
+                  <ConfirmSubmitButton
+                    message={
+                      batch
+                        ? `Удалить документ «${d.title}»? Он относится ко всей партии ${batchName} и пропадёт на всех её закупках.`
+                        : `Удалить документ «${d.title}»?`
+                    }
+                  />
+                </form>
               </div>
             ),
           )}
@@ -544,7 +562,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <CardTitle>Оплаты</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <PurchasePaymentForm purchaseId={id} />
+          {purchase.status === "CANCELLED" ? (
+            <p className="text-sm text-neutral-500">Закупка отменена — оплаты добавлять нельзя.</p>
+          ) : (
+            <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
+          )}
           <Table>
             <Thead>
               <Tr>
@@ -593,7 +615,7 @@ function SummaryCard({
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="text-xs text-neutral-500">{label}</div>
       <div
-        className={`mt-1 text-lg font-semibold ${warn ? "text-amber-600" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
+        className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-600" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
       >
         {value}
       </div>

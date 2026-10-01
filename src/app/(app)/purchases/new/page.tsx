@@ -6,7 +6,7 @@ import { PurchaseCreateForm } from "./form";
 
 export default async function NewPurchasePage() {
   const session = await requireSession();
-  const [suppliers, warehouses, materials] = await Promise.all([
+  const [suppliers, warehouses, materials, lots] = await Promise.all([
     prisma.supplier.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
       orderBy: { name: "asc" },
@@ -18,6 +18,10 @@ export default async function NewPurchasePage() {
     prisma.rawMaterial.findMany({
       where: { organizationId: session.user.organizationId },
       select: { name: true },
+    }),
+    prisma.rawMaterialLot.findMany({
+      where: { organizationId: session.user.organizationId, lotNumber: { not: null } },
+      select: { lotNumber: true },
     }),
   ]);
 
@@ -33,6 +37,7 @@ export default async function NewPurchasePage() {
             suppliers={suppliers}
             warehouses={warehouses}
             materialNames={materials.map((m) => m.name)}
+            existingLotNumbers={lots.map((l) => l.lotNumber as string)}
           />
         </CardContent>
       </Card>

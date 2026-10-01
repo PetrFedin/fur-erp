@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
+import { VatInput } from "@/components/vat-input";
 import { Tr, Td } from "@/components/ui/table";
 import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
@@ -107,7 +108,7 @@ export function PurchaseItemRow({
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
-              className="grid grid-cols-8 items-end gap-2 py-2"
+              className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 items-end gap-2 py-2"
             >
               <div className="col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Материал</label>
@@ -155,14 +156,7 @@ export function PurchaseItemRow({
               <div>
                 <label className="mb-1 block text-xs text-neutral-500">НДС</label>
                 {canEditFinancials ? (
-                  <Select name="vatRate" defaultValue={defaults.vatRate}>
-                    <option value="0">0%</option>
-                    <option value="5">5%</option>
-                    <option value="7">7%</option>
-                    <option value="10">10%</option>
-                    <option value="20">20%</option>
-                    <option value="22">22%</option>
-                  </Select>
+                  <VatInput name="vatRate" defaultValue={defaults.vatRate} required />
                 ) : (
                   <>
                     <input type="hidden" name="vatRate" value={defaults.vatRate} />
@@ -182,7 +176,7 @@ export function PurchaseItemRow({
                 <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
                 <Input name="color" defaultValue={defaults.color} />
               </div>
-              <div className="col-span-8 flex items-center justify-between gap-4">
+              <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex items-center justify-between gap-4">
                 <div>
                   {!canEditFinancials && lockedNote && (
                     <p className="text-xs text-amber-600">

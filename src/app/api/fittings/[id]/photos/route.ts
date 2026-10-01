@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readPhotoFiles, writePhotoFiles, removeStoredFiles } from "@/lib/fitting-files";
 
@@ -7,7 +7,7 @@ const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 /** Добавить фото к существующей примерке (multipart, поле photos). */
 export async function POST(request: Request, ctx: RouteContext<"/api/fittings/[id]/photos">) {
-  const session = await auth();
+  const session = await getFreshSession();
   if (!session?.user) return Response.json({ error: "Нужно войти в систему" }, { status: 401 });
   if (!EDIT_ROLES.includes(session.user.role)) {
     return Response.json({ error: "Недостаточно прав для добавления фото" }, { status: 403 });

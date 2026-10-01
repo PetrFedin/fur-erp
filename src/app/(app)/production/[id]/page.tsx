@@ -3,11 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { VatLabel } from "@/components/vat-label";
+import { canEditProduction } from "@/lib/production-access";
+import { RemovePaymentButton } from "./remove-payment-button";
 import { materialCostExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
@@ -117,6 +119,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     .map((o) => ({ id: o.id, label: o.label, due: o.due, paid: o.paid }));
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
+  // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
+  // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses/payments).
+  const canEdit = canEditProduction(session.user.role);
+  const cancelled = order.status === "CANCELLED";
+  const canWrite = canEdit && !cancelled;
 
   // Material usage / expenses stay editable regardless of status (fixing a
   // mistake in a COMPLETED order is normal, not exceptional — see
@@ -277,6 +284,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           lotUnitCostIncl: u.lot.unitCost.toString(),
         }}
         lots={lots}
+        readOnly={!canEdit}
         updateAction={boundUpdateUsage.bind(null, u.id)}
         removeAction={async () => {
           "use server";
@@ -290,7 +298,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const liningCost = liningUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
   const liningCostExcl = materialCostExclVat(liningUsages);
   const margin = clientRevenue ? clientRevenue.sub(projectedTotal) : null;
-  const canCancel = order.status === "PLANNED" && order.materialUsages.length === 0;
+  // Excl-VAT margin: same work revenue minus the excl-VAT cost, matching the toggle.
+  const marginExcl = clientRevenue ? clientRevenue.sub(projectedTotalExclVat) : null;
+  const cancelBlockedReason =
+    order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
   const qtyLabel =
     order.status === "COMPLETED" || order.producedQuantity.greaterThan(0)
       ? `план ${formatQty(order.plannedQuantity.toString())} / факт ${formatQty(order.producedQuantity.toString())} шт.`
@@ -308,7 +319,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
           <div className="ml-auto" />
-          <OrderEditForm
+          {canEdit && <OrderEditForm
             action={boundUpdateOrder}
             models={modelOptions}
             warehouses={warehouses}
@@ -332,21 +343,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               workOrderDate: order.workOrderDate ? order.workOrderDate.toISOString().slice(0, 10) : "",
               clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
             }}
-          />
-          {open && (
+          />}
+          {open && canEdit && (
             <CompleteOrderForm
               orderId={id}
+              hasUsages={order.materialUsages.length > 0}
               plannedQuantity={order.plannedQuantity.toString()}
               warehouseName={order.finishedWarehouse.name}
             />
           )}
-          {canCancel && (
+          {open && canEdit && (
             <details className="relative">
               <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё">
                 ⋯
               </summary>
               <div className="absolute right-0 z-10 mt-1 rounded-md border border-neutral-200 bg-white p-2 shadow">
-                <CancelOrderButton orderId={id} />
+                <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
               </div>
             </details>
           )}
@@ -361,7 +373,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {" · "}
               <span className="font-medium text-neutral-700">{order.client.name}</span>
               {order.contractNumber && ` · ${order.contractNumber}`}
-              {order.workOrderDate && ` от ${formatDate(order.workOrderDate)}`}
+              {order.workOrderDate && ` · ТЗ от ${formatDate(order.workOrderDate)}`}
             </>
           )}
           {order.materialDescription && ` · Материал: ${order.materialDescription}`}
@@ -374,6 +386,31 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CardTitle>Расчёт</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white text-sm lg:hidden">
+            <SummaryLine label="Итого мех" value={<Money incl={furCost} excl={furCostExcl} />} />
+            <SummaryLine label="Итого подкладка" value={<Money incl={liningCost} excl={liningCostExcl} />} />
+            <SummaryLine label="Итого расходы" value={formatMoney(expenseCost.toString())} />
+            <SummaryLine
+              label="Итого себестоимость"
+              value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
+              strong
+            />
+            <SummaryLine
+              label={order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)"}
+              value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
+              strong
+            />
+            {clientRevenue && margin && (
+              <>
+                <SummaryLine label="Работа для заказчика" value={formatMoney(clientRevenue.toString())} />
+                <SummaryLine
+                  label={<VatLabel base="Маржа" />}
+                  value={<Money incl={margin} excl={marginExcl} />}
+                  className={margin.lessThan(0) ? "text-amber-600" : undefined}
+                />
+              </>
+            )}
+          </dl>
           <Table>
             <Thead>
               <Tr>
@@ -396,7 +433,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {usageRows(liningUsages, allLiningLots)}
               {liningUsages.length === 0 && (
                 <EmptyRow>
-                  Подкладка не указана — <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
+                  Подкладка не указана
+                  {canWrite && (
+                    <>
+                      {" — "}
+                      <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
+                    </>
+                  )}
                 </EmptyRow>
               )}
               <TotalRow label="Итого подкладка" value={<Money incl={liningCost} excl={liningCostExcl} />} />
@@ -413,6 +456,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     description: e.description,
                   }}
                   categories={expenseCategories}
+                  readOnly={!canEdit}
                   updateAction={boundUpdateExpense.bind(null, e.id)}
                   removeAction={async () => {
                     "use server";
@@ -440,9 +484,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     value={formatMoney(clientRevenue.toString())}
                   />
                   <TotalRow
-                    label="Маржа"
-                    title="Работа для заказчика минус себестоимость ТЗ"
-                    value={formatMoney(margin.toString())}
+                    label={<VatLabel base="Маржа" />}
+                    title="Работа для заказчика минус себестоимость ТЗ (следует переключателю С НДС / Без НДС)"
+                    value={<Money incl={margin} excl={marginExcl} />}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}
                   />
                 </>
@@ -453,6 +497,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Table>
 
           <div className="flex flex-col gap-2 text-sm">
+            {cancelled && (
+              <p className="rounded-md bg-neutral-100 px-3 py-2 text-neutral-600">
+                ТЗ отменено — списывать сырьё, добавлять расходы и оплаты нельзя.
+              </p>
+            )}
+            {canWrite && (
+              <>
             <details>
               <summary className="cursor-pointer text-neutral-600">+ лот</summary>
               <div className="mt-2">
@@ -472,7 +523,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <ProductionExpenseForm orderId={id} categories={expenseCategories} />
               </div>
             </details>
-            {order.productModel.materials.length > 0 && (
+              </>
+            )}
+            {canWrite && order.productModel.materials.length > 0 && (
               <details>
                 <summary className="cursor-pointer text-neutral-600">Состав модели</summary>
                 <div className="mt-2 flex flex-col gap-3">
@@ -507,14 +560,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             )}
           </div>
 
-          {order.status === "COMPLETED" && (
+          {canEdit && order.status === "COMPLETED" && (
             <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />
           )}
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-200 bg-white p-3">
-        <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
+        {canEdit ? (
+          <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
+        ) : (
+          <div className="text-sm text-neutral-600">
+            Розничная цена за ед.{" "}
+            <span className="font-semibold text-neutral-900">
+              {order.retailPrice ? formatMoney(order.retailPrice.toString()) : "—"}
+            </span>
+          </div>
+        )}
         <div className="text-sm text-neutral-600">
           Наценка{" "}
           <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
@@ -548,7 +610,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 )}
               </p>
             )}
-            <ProductionPaymentForm orderId={id} orders={paymentOrders} />
+            {canWrite && <ProductionPaymentForm orderId={id} orders={paymentOrders} />}
             <Table>
               <Thead>
                 <Tr>
@@ -575,16 +637,15 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       <Td>{otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—"}</Td>
                       <Td>{p.notes ?? "—"}</Td>
                       <Td>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await boundRemovePayment(p.id);
-                          }}
-                        >
-                          <Button type="submit" variant="ghost" size="sm">
-                            Удалить
-                          </Button>
-                        </form>
+                        {canEdit && (
+                          <RemovePaymentButton
+                            summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                            action={async () => {
+                              "use server";
+                              await boundRemovePayment(p.id);
+                            }}
+                          />
+                        )}
                       </Td>
                     </Tr>
                   );
@@ -619,6 +680,27 @@ function EmptyRow({ children, cols = 7 }: { children: React.ReactNode; cols?: nu
   );
 }
 
+function SummaryLine({
+  label,
+  value,
+  strong,
+  className,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  strong?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "bg-neutral-100 font-semibold" : "font-medium"} ${className ?? ""}`}
+    >
+      <dt className="text-neutral-600">{label}</dt>
+      <dd className="text-right">{value}</dd>
+    </div>
+  );
+}
+
 function TotalRow({
   label,
   value,
@@ -626,7 +708,7 @@ function TotalRow({
   className,
   title,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   strong?: boolean;
   className?: string;

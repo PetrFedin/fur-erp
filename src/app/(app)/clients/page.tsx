@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -8,6 +9,7 @@ import { toggleClientActive } from "./actions";
 
 export default async function ClientsPage() {
   const session = await requireSession();
+  const canCreate = hasRole(session.user.role, ACCESS.clients);
   const clients = await prisma.client.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: { name: "asc" },
@@ -22,9 +24,11 @@ export default async function ClientsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Заказчики</h1>
-        <Link href="/clients/new" className={buttonVariants()}>
-          + Новый заказчик
-        </Link>
+        {canCreate && (
+          <Link href="/clients/new" className={buttonVariants()}>
+            + Новый заказчик
+          </Link>
+        )}
       </div>
 
       <Table>

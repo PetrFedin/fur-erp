@@ -137,20 +137,28 @@ export async function addOrPoolLiningLot(
 
   const pool = existingLots[0];
 
-  // Quantity-weighted average over (old pool, new receipt) for every
-  // per-unit figure; every *Total-shaped field is a plain sum. unitCost is
-  // recomputed from the summed totalCost/quantityReceived rather than
-  // weight-averaged directly, to stay exact under repeated rounding the way
-  // consolidate-lining-lots.ts does it.
+  // Цена единицы после докупки считается по ОСТАТКУ, а не по всему
+  // полученному: уже израсходованные метры вышли по старой цене и в цену
+  // остатка влиять не должны (раньше при нулевом остатке новая закупка
+  // «разбавлялась» метрами, которых на складе уже нет).
+  //   unit = (остаток × старая цена + новые метры × новая цена) / (остаток + новые)
+  // Накопительные поля — quantityReceived и totalCost — остаются суммами всех
+  // поступлений («получено всего» / «потрачено на закупки всего»), история
+  // списаний (StockMovement, ProductionMaterialUsage) не затрагивается: каждое
+  // списание уже зафиксировано по цене на момент списания. Поэтому для пула
+  // unitCost ≠ totalCost/quantityReceived — unitCost это цена остатка.
   const newQuantityReceived = pool.quantityReceived.add(quantity);
   const newQuantityRemaining = pool.quantityRemaining.add(quantity);
   const newTotalCost = pool.totalCost.add(totalCost);
-  const newUnitCost = newQuantityReceived.isZero() ? unitCost : newTotalCost.div(newQuantityReceived);
+  const remainder = pool.quantityRemaining;
+  const newUnitCost = newQuantityRemaining.isZero()
+    ? unitCost
+    : remainder.mul(pool.unitCost).add(quantity.mul(unitCost)).div(newQuantityRemaining);
 
   const weightedPerUnit = (oldPerUnit: Prisma.Decimal, newPerUnit: Prisma.Decimal) =>
-    newQuantityReceived.isZero()
-      ? oldPerUnit
-      : oldPerUnit.mul(pool.quantityReceived).add(newPerUnit.mul(quantity)).div(newQuantityReceived);
+    newQuantityRemaining.isZero()
+      ? newPerUnit
+      : oldPerUnit.mul(remainder).add(newPerUnit.mul(quantity)).div(newQuantityRemaining);
 
   const newMaterialCostExclVat = weightedPerUnit(pool.materialCostExclVat, toDecimal(args.materialCostExclVat));
   const newMaterialVatAmount = weightedPerUnit(pool.materialVatAmount, toDecimal(args.materialVatAmount));

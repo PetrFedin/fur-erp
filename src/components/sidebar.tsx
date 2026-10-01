@@ -9,7 +9,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4">
+    <nav className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 md:flex">
       <div className="px-2 text-lg font-semibold">МехУчёт</div>
       <div className="flex flex-col gap-0.5">
         {NAV_LINKS.map((link) => {

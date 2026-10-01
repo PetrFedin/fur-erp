@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
-import { isFittingStatus, parseFittingDate } from "@/lib/fittings";
+import { FITTING_DATE_ERROR, isFittingStatus, parseFittingDate } from "@/lib/fittings";
 import { removeStoredFiles, removeFittingDirIfEmpty } from "@/lib/fitting-files";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
@@ -20,7 +20,7 @@ export async function updateFitting(id: string, _prev: FittingFormState, formDat
   if (!fitting) return { error: "Примерка не найдена" };
   const str = (k: string) => (typeof formData.get(k) === "string" ? (formData.get(k) as string).trim() : "");
   const date = parseFittingDate(str("date"));
-  if (!date) return { error: "Укажите дату примерки" };
+  if (!date) return { error: FITTING_DATE_ERROR };
   const status = str("status");
   if (!isFittingStatus(status)) return { error: "Выберите итог примерки" };
   await prisma.fitting.update({

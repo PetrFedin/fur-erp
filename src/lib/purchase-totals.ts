@@ -55,6 +55,9 @@ export function purchaseTotalExclVat(purchase: { exchangeRate: Prisma.Decimal; i
 type LotCostFields = {
   materialCostExclVat: Prisma.Decimal;
   expenseCostExclVat: Prisma.Decimal;
+  /** Необязательные: если переданы, нулевая разбивка (старые/объединённые лоты) восстанавливается из полной цены. */
+  unitCost?: Prisma.Decimal;
+  vatRate?: Prisma.Decimal;
 };
 
 /**
@@ -64,7 +67,14 @@ type LotCostFields = {
  * split is exact, not approximated).
  */
 export function lotUnitCostExclVat(lot: LotCostFields) {
-  return lot.materialCostExclVat.add(lot.expenseCostExclVat);
+  const split = lot.materialCostExclVat.add(lot.expenseCostExclVat);
+  // Лот без разбивки (нули при ненулевой цене — например, объединённый пул
+  // подкладки из старых данных): вычисляем без-НДС цену из полной по ставке
+  // лота, чтобы режим «Без НДС» не показывал нули.
+  if (split.isZero() && lot.unitCost && lot.unitCost.greaterThan(0)) {
+    return lot.unitCost.div(new Decimal(1).add((lot.vatRate ?? new Decimal(0)).div(100)));
+  }
+  return split;
 }
 
 /**

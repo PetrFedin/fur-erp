@@ -8,7 +8,13 @@ export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; s
   const bound = updateSellingPrice.bind(null, modelId);
 
   return (
-    <form action={bound} className="flex items-center gap-1">
+    <form
+      action={async (formData) => {
+        const res = await bound(formData);
+        if (res?.error) window.alert(res.error);
+      }}
+      className="flex items-center gap-1"
+    >
       <Input
         name="sellingPrice"
         type="number"

@@ -37,8 +37,8 @@ export function MaterialForm({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
+    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
         <Label htmlFor="name">Название</Label>
         <Input
           id="name"
@@ -64,7 +64,7 @@ export function MaterialForm({
         </Select>
       </div>
       <details
-        className="col-span-2 rounded-md border border-neutral-200"
+        className="sm:col-span-2 rounded-md border border-neutral-200"
         open={Boolean(
           material?.sku ||
           material?.categoryId ||
@@ -75,7 +75,7 @@ export function MaterialForm({
         <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
           Дополнительно
         </summary>
-        <div className="grid grid-cols-2 gap-4 border-t border-neutral-100 p-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-neutral-100 p-3">
           <div>
             <Label htmlFor="sku">Артикул</Label>
             <Input id="sku" name="sku" defaultValue={material?.sku ?? ""} />
@@ -106,7 +106,7 @@ export function MaterialForm({
               defaultValue={material?.minStockLevel ?? ""}
             />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="description">Описание</Label>
             <Textarea
               id="description"
@@ -118,11 +118,11 @@ export function MaterialForm({
         </div>
       </details>
       {state.error && (
-        <p className="col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       )}
-      <div className="col-span-2 flex justify-end">
+      <div className="sm:col-span-2 flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Сохраняем..." : "Сохранить"}
         </Button>

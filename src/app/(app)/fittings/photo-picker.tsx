@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 
 export const MAX_FILES = 10;
 export const MAX_BYTES = 10 * 1024 * 1024;
+export const MAX_TOTAL_BYTES = 50 * 1024 * 1024;
+
+/** Размер файла для сообщений: с двумя знаками в МБ (чтобы 10,004 МБ не выглядело как «10.0»). */
+export function formatMb(bytes: number) {
+  return `${(bytes / 1024 / 1024).toFixed(2)} МБ`;
+}
 
 /** Проверка выбранных файлов на клиенте (сервер проверяет всё заново). */
 export function validatePicked(files: File[]): string | null {
@@ -12,8 +18,11 @@ export function validatePicked(files: File[]): string | null {
   for (const f of files) {
     const heic = /\.(heic|heif)$/i.test(f.name);
     if (!f.type.startsWith("image/") && !heic) return `Файл «${f.name}» не является фото`;
-    if (f.size > MAX_BYTES) return `Файл «${f.name}» больше 10 МБ (${(f.size / 1024 / 1024).toFixed(1)} МБ)`;
+    if (f.size === 0) return `Файл «${f.name}» пустой (0 байт) — уберите его и выберите заново`;
+    if (f.size > MAX_BYTES) return `Файл «${f.name}» больше 10 МБ (${formatMb(f.size)})`;
   }
+  const total = files.reduce((a, f) => a + f.size, 0);
+  if (total > MAX_TOTAL_BYTES) return `Общий размер фото больше 50 МБ (${formatMb(total)}) — уберите часть файлов`;
   return null;
 }
 

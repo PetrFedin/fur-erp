@@ -13,7 +13,7 @@ export function AddSupplyPlanForm({ models }: { models: { id: string; name: stri
   const thisMonth = new Date().toISOString().slice(0, 7);
 
   return (
-    <form action={formAction} className="grid grid-cols-6 items-end gap-2">
+    <form action={formAction} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 items-end gap-2">
       <div>
         <Label htmlFor="productModelId">Артикул</Label>
         <Select id="productModelId" name="productModelId" required defaultValue="">
@@ -43,7 +43,7 @@ export function AddSupplyPlanForm({ models }: { models: { id: string; name: stri
       </div>
       <div>
         <Label htmlFor="quantity">Кол-во</Label>
-        <Input id="quantity" name="quantity" type="number" step="0.01" min="0" required />
+        <Input id="quantity" name="quantity" type="number" step="1" min="1" max="1000000" required />
       </div>
       <div>
         <Label htmlFor="eventDate">Дата</Label>
@@ -53,8 +53,8 @@ export function AddSupplyPlanForm({ models }: { models: { id: string; name: stri
         <Label htmlFor="notes">Заметка</Label>
         <Input id="notes" name="notes" />
       </div>
-      {state.error && <p className="col-span-6 text-sm text-red-600">{state.error}</p>}
-      <div className="col-span-6 flex justify-end">
+      {state.error && <p className="col-span-2 sm:col-span-3 lg:col-span-6 text-sm text-red-600">{state.error}</p>}
+      <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Добавляем..." : "+ Добавить в план"}
         </Button>

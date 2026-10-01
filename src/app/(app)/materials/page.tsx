@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -16,6 +17,7 @@ const UNIT_LABELS: Record<string, string> = {
 
 export default async function MaterialsPage() {
   const session = await requireSession();
+  const canCreate = hasRole(session.user.role, ACCESS.materials);
   const materials = await prisma.rawMaterial.findMany({
     where: { organizationId: session.user.organizationId },
     include: { category: true },
@@ -31,9 +33,11 @@ export default async function MaterialsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Справочник материалов</h1>
-        <Link href="/materials/new" className={buttonVariants()}>
-          + Добавить материал
-        </Link>
+        {canCreate && (
+          <Link href="/materials/new" className={buttonVariants()}>
+            + Добавить материал
+          </Link>
+        )}
       </div>
 
       <Table>

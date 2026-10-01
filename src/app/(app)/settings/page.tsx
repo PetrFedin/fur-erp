@@ -18,7 +18,7 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Настройки</h1>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SETTINGS_LINKS.map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="h-full transition-colors hover:border-neutral-400">

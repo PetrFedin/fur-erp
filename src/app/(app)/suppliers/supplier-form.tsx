@@ -18,8 +18,8 @@ export function SupplierForm({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
+    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
         <Label htmlFor="name">Название</Label>
         <Input id="name" name="name" required defaultValue={supplier?.name} />
       </div>
@@ -39,20 +39,20 @@ export function SupplierForm({
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" defaultValue={supplier?.email ?? ""} />
       </div>
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label htmlFor="address">Адрес</Label>
         <Input id="address" name="address" defaultValue={supplier?.address ?? ""} />
       </div>
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label htmlFor="notes">Заметки</Label>
         <Textarea id="notes" name="notes" rows={3} defaultValue={supplier?.notes ?? ""} />
       </div>
       {state.error && (
-        <p className="col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       )}
-      <div className="col-span-2 flex justify-end gap-2">
+      <div className="sm:col-span-2 flex justify-end gap-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Сохраняем..." : "Сохранить"}
         </Button>

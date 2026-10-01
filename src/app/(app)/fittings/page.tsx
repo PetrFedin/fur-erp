@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
@@ -17,7 +18,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const sp = await searchParams;
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const str = (v: unknown) => cleanSearch(v);
   const status = isFittingStatus(str(sp.status)) ? (str(sp.status) as keyof typeof FITTING_STATUS) : "";
   const modelId = str(sp.model);
   const q = str(sp.q);
@@ -67,7 +68,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="fittings" />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Примерки</h1>
         {canEdit && (
           <Link href="/fittings/new" className={buttonVariants()}>
@@ -77,8 +78,8 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2">
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ или комментарий" className="w-64" />
-        <Select name="status" defaultValue={status} className="w-56" aria-label="Итог">
+        <Input name="q" defaultValue={q} placeholder="№ ТЗ или комментарий" className="w-full sm:w-64" />
+        <Select name="status" defaultValue={status} className="w-full sm:w-56" aria-label="Итог">
           <option value="">Любой итог</option>
           {FITTING_STATUS_KEYS.map((k) => (
             <option key={k} value={k}>
@@ -86,7 +87,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
             </option>
           ))}
         </Select>
-        <Select name="model" defaultValue={modelId} className="w-56" aria-label="Модель">
+        <Select name="model" defaultValue={modelId} className="w-full sm:w-56" aria-label="Модель">
           <option value="">Все модели</option>
           {models.map((m) => (
             <option key={m.id} value={m.id}>
@@ -104,7 +105,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         )}
       </form>
 
-      <Table>
+      <Table className="min-w-[720px]">
         <Thead>
           <Tr>
             <Th>Дата</Th>

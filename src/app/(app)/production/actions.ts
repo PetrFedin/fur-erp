@@ -9,8 +9,15 @@ import { consumeFromLot, returnToLot, receiveFinishedGoodsStock } from "@/lib/st
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
+import { PRODUCTION_EDIT_ROLES as EDIT_ROLES } from "@/lib/production-access";
+import { parseLotLines } from "@/lib/lot-lines";
+import { checkOrgRefs } from "@/lib/org-guard";
+import { MAX_QTY, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const optDate = (label: string) =>
+  z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
+
+const CANCELLED_ERROR = "ТЗ отменено — списывать сырьё, добавлять расходы и оплаты нельзя";
 
 export type FormState = { error?: string };
 
@@ -20,61 +27,80 @@ const orderSchema = z.object({
   productModelId: z.string().min(1, "Выберите модель изделия"),
   rawWarehouseId: z.string().min(1, "Выберите склад сырья"),
   finishedWarehouseId: z.string().min(1, "Выберите склад готовой продукции"),
-  plannedQuantity: z.coerce.number().positive("Плановое количество должно быть больше 0"),
-  color: z.string().trim().optional(),
-  size: z.string().trim().optional(),
-  materialDescription: z.string().trim().optional(),
-  lining: z.string().trim().optional(),
-  startDate: z.string().optional(),
-  notes: z.string().trim().optional(),
+  plannedQuantity: zNum("Плановое количество", { positive: true, max: MAX_QTY }),
+  color: z.string().trim().max(200).optional(),
+  size: z.string().trim().max(200).optional(),
+  materialDescription: z.string().trim().max(2000).optional(),
+  lining: z.string().trim().max(2000).optional(),
+  startDate: optDate("Некорректная дата начала"),
+  notes: z.string().trim().max(5000).optional(),
   clientId: z.string().trim().optional(),
-  contractNumber: z.string().trim().optional(),
-  workOrderNumber: z.string().trim().optional(),
-  workOrderDate: z.string().optional(),
-  clientWorkPricePerUnit: z.coerce
-    .number()
-    .nonnegative()
-    .optional()
-    .or(z.nan().transform(() => undefined)),
+  contractNumber: z.string().trim().max(200).optional(),
+  workOrderNumber: z.string().trim().max(200).optional(),
+  workOrderDate: optDate("Некорректная дата ТЗ"),
+  clientWorkPricePerUnit: zNumOpt("Стоимость работ за ед."),
   liningMaterialId: z.string().trim().optional(),
-  liningQuantity: z.coerce
-    .number()
-    .positive()
-    .optional()
-    .or(z.nan().transform(() => undefined)),
+  liningQuantity: zNumOpt("Метраж подкладки", { positive: true, max: MAX_QTY }),
 });
 
 export type CreateOrderState = { error?: string; errors?: string[] };
 
-type LotLine = { line: number; lotNumber: string; quantity: number };
+type ResolvedLot = { line: number; lotId: string; quantity: number };
 
-// Parses text pasted from Excel: "лот <Tab> кол-во" per line (Tab, ';' or
-// spaces as separators). Returns every problem, line by line — never just
-// the first few — so the user can fix the whole paste in one pass.
-function parseLotLines(raw: string): { lines: LotLine[]; errors: string[] } {
-  const lines: LotLine[] = [];
+// Resolves parsed lot lines against lots that still have stock. An ambiguous
+// number is never guessed — listed instead. Every problem is collected.
+// `warehouseId` limits the search to one raw-material warehouse (ТЗ card);
+// creation searches all warehouses.
+async function resolveLotLines(
+  organizationId: string,
+  lines: { line: number; lotNumber: string; quantity: number }[],
+  warehouseId?: string
+): Promise<{ resolved: ResolvedLot[]; errors: string[] }> {
+  const resolved: ResolvedLot[] = [];
   const errors: string[] = [];
-  raw.split(/\r?\n/).forEach((text, i) => {
-    const t = text.trim();
-    if (!t) return;
-    const n = i + 1;
-    const cells = t.split(/[\t;]+|\s+/).map((c) => c.trim()).filter(Boolean);
-    if (cells.length !== 2) {
-      errors.push(`строка ${n}: ожидается «лот количество», получено «${t}»`);
-      return;
-    }
-    const quantity = Number(cells[1].replace(",", "."));
-    if (!Number.isFinite(quantity)) {
-      errors.push(`строка ${n}: не число «${cells[1]}»`);
-      return;
-    }
-    if (quantity <= 0) {
-      errors.push(`строка ${n}: количество должно быть больше 0`);
-      return;
-    }
-    lines.push({ line: n, lotNumber: cells[0], quantity });
+  if (lines.length === 0) return { resolved, errors };
+  const lots = await prisma.rawMaterialLot.findMany({
+    where: {
+      organizationId,
+      quantityRemaining: { gt: 0 },
+      lotNumber: { not: null },
+      ...(warehouseId ? { warehouseId } : {}),
+    },
+    include: { rawMaterial: { select: { name: true } }, purchase: { select: { number: true } } },
   });
-  return { lines, errors };
+  const byNumber = new Map<string, typeof lots>();
+  for (const l of lots) {
+    const k = l.lotNumber!.trim().toLowerCase();
+    byNumber.set(k, [...(byNumber.get(k) ?? []), l]);
+  }
+  const needed = new Map<string, Decimal>();
+  for (const ln of lines) {
+    const cands = byNumber.get(ln.lotNumber.toLowerCase()) ?? [];
+    if (cands.length === 0) {
+      errors.push(`строка ${ln.line}: лот ${ln.lotNumber} не найден (или нет остатка)`);
+      continue;
+    }
+    if (cands.length > 1) {
+      const opts = cands
+        .map((c) => `${c.rawMaterial.name}${c.purchase ? `, закупка ${c.purchase.number}` : ""}, остаток ${c.quantityRemaining.toString()}`)
+        .join("; ");
+      errors.push(`строка ${ln.line}: лот ${ln.lotNumber} неоднозначен, найдено ${cands.length}: ${opts}`);
+      continue;
+    }
+    const lot = cands[0];
+    const total = (needed.get(lot.id) ?? new Decimal(0)).add(ln.quantity);
+    if (lot.quantityRemaining.lessThan(total)) {
+      errors.push(
+        `строка ${ln.line}: лот ${ln.lotNumber} — мало остатка: есть ${lot.quantityRemaining.toString()}, нужно ${total.toString()}`
+      );
+      continue;
+    }
+    needed.set(lot.id, total);
+    resolved.push({ line: ln.line, lotId: lot.id, quantity: ln.quantity });
+  }
+  const lineNo = (e: string) => Number(/^строка (\d+)/.exec(e)?.[1] ?? 0);
+  errors.sort((x, y) => lineNo(x) - lineNo(y));
+  return { resolved, errors };
 }
 
 export async function createProductionOrder(
@@ -117,48 +143,37 @@ export async function createProductionOrder(
 
   const { lines, errors } = parseLotLines(((formData.get("lots") as string | null) ?? "").toString());
 
-  // Resolve lot numbers against every lot that still has stock, across all
-  // purchases. An ambiguous number is never guessed — listed instead.
-  const resolved: { line: number; lotId: string; quantity: number }[] = [];
-  if (lines.length > 0) {
-    const lots = await prisma.rawMaterialLot.findMany({
-      where: { organizationId, quantityRemaining: { gt: 0 }, lotNumber: { not: null } },
-      include: { rawMaterial: { select: { name: true } }, purchase: { select: { number: true } } },
-    });
-    const byNumber = new Map<string, typeof lots>();
-    for (const l of lots) {
-      const k = l.lotNumber!.trim().toLowerCase();
-      byNumber.set(k, [...(byNumber.get(k) ?? []), l]);
-    }
-    const needed = new Map<string, Decimal>();
-    for (const ln of lines) {
-      const cands = byNumber.get(ln.lotNumber.toLowerCase()) ?? [];
-      if (cands.length === 0) {
-        errors.push(`строка ${ln.line}: лот ${ln.lotNumber} не найден (или нет остатка)`);
-        continue;
-      }
-      if (cands.length > 1) {
-        const opts = cands
-          .map((c) => `${c.rawMaterial.name}${c.purchase ? `, закупка ${c.purchase.number}` : ""}, остаток ${c.quantityRemaining.toString()}`)
-          .join("; ");
-        errors.push(`строка ${ln.line}: лот ${ln.lotNumber} неоднозначен, найдено ${cands.length}: ${opts}`);
-        continue;
-      }
-      const lot = cands[0];
-      const total = (needed.get(lot.id) ?? new Decimal(0)).add(ln.quantity);
-      if (lot.quantityRemaining.lessThan(total)) {
-        errors.push(
-          `строка ${ln.line}: лот ${ln.lotNumber} — мало остатка: есть ${lot.quantityRemaining.toString()}, нужно ${total.toString()}`
-        );
-        continue;
-      }
-      needed.set(lot.id, total);
-      resolved.push({ line: ln.line, lotId: lot.id, quantity: ln.quantity });
-    }
+  // Lining: fabric and metres go together — never silently drop one half.
+  if (parsed.data.liningMaterialId && !parsed.data.liningQuantity) {
+    errors.push("Подкладка: указана ткань, но не указан метраж — введите метраж или выберите «Не списывать сейчас»");
   }
+  if (!parsed.data.liningMaterialId && parsed.data.liningQuantity) {
+    errors.push("Подкладка: указан метраж, но не выбрана ткань — выберите ткань или очистите метраж");
+  }
+
+  const badRef = await checkOrgRefs(organizationId, {
+    productModel: parsed.data.productModelId,
+    client: parsed.data.clientId,
+    warehouse: [parsed.data.rawWarehouseId, parsed.data.finishedWarehouseId],
+    rawMaterial: parsed.data.liningMaterialId,
+  });
+  if (badRef) return { errors: [badRef] };
+  const model = await prisma.productModel.findFirst({
+    where: { id: parsed.data.productModelId, organizationId },
+    select: { sellingPrice: true },
+  });
+  if (!model) return { errors: ["Модель изделия не найдена"] };
+
+  // Resolve lot numbers against every lot that still has stock, across all
+  // purchases.
+  const lotRes = await resolveLotLines(organizationId, lines);
+  const resolved = lotRes.resolved;
+  errors.push(...lotRes.errors);
   if (errors.length > 0) {
     const lineNo = (e: string) => Number(/^строка (\d+)/.exec(e)?.[1] ?? 0);
-    return { errors: errors.sort((a, b) => lineNo(a) - lineNo(b)) };
+    // Line-bound errors first, in line order; general ones keep their order after.
+    const withLine = errors.filter((e) => lineNo(e) > 0).sort((a, b) => lineNo(a) - lineNo(b));
+    return { errors: [...errors.filter((e) => lineNo(e) === 0), ...withLine] };
   }
 
   let orderId: string;
@@ -184,6 +199,8 @@ export async function createProductionOrder(
           workOrderNumber: parsed.data.workOrderNumber,
           workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
           clientWorkPricePerUnit: parsed.data.clientWorkPricePerUnit,
+          // The article's retail price is inherited by the new ТЗ.
+          retailPrice: model.sellingPrice ?? undefined,
           createdById: session.user.id,
         },
       });
@@ -323,7 +340,7 @@ const editOrderSchema = z.object({
   productModelId: z.string().min(1, "Выберите модель изделия"),
   rawWarehouseId: z.string().min(1, "Выберите склад сырья"),
   finishedWarehouseId: z.string().min(1, "Выберите склад готовой продукции"),
-  plannedQuantity: z.coerce.number().positive("Плановое количество должно быть больше 0"),
+  plannedQuantity: zNum("Плановое количество", { positive: true, max: MAX_QTY }),
 });
 
 export async function updateProductionOrder(orderId: string, formData: FormData): Promise<FormState> {
@@ -341,6 +358,13 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     plannedQuantity: formData.get("plannedQuantity"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const clientIdRaw = (formData.get("clientId") as string | null)?.trim() || null;
+  const badRef = await checkOrgRefs(session.user.organizationId, {
+    productModel: parsed.data.productModelId,
+    client: clientIdRaw,
+    warehouse: [parsed.data.rawWarehouseId, parsed.data.finishedWarehouseId],
+  });
+  if (badRef) return { error: badRef };
 
   const modelLocked = order._count.materialUsages > 0 || order.producedQuantity.greaterThan(0);
   if (modelLocked && parsed.data.productModelId !== order.productModelId) {
@@ -373,19 +397,19 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   const workOrderNumber = (formData.get("workOrderNumber") as string)?.trim() || null;
 
   const startDateRaw = (formData.get("startDate") as string)?.trim();
-  const startDate = startDateRaw ? new Date(startDateRaw) : null;
+  const startDate = startDateRaw ? parseDateInput(startDateRaw) : null;
+  if (startDateRaw && !startDate) return { error: "Некорректная дата начала" };
 
   const workOrderDateRaw = (formData.get("workOrderDate") as string)?.trim();
-  const workOrderDate = workOrderDateRaw ? new Date(workOrderDateRaw) : null;
+  const workOrderDate = workOrderDateRaw ? parseDateInput(workOrderDateRaw) : null;
+  if (workOrderDateRaw && !workOrderDate) return { error: "Некорректная дата ТЗ" };
 
   const clientWorkPriceRaw = (formData.get("clientWorkPricePerUnit") as string)?.trim();
   let clientWorkPricePerUnit: Decimal | null = null;
   if (clientWorkPriceRaw) {
-    const n = Number(clientWorkPriceRaw);
-    if (!Number.isFinite(n) || n < 0) {
-      return { error: "Стоимость работ за ед. должна быть числом ≥ 0" };
-    }
-    clientWorkPricePerUnit = new Decimal(n);
+    const n = parseNumber(clientWorkPriceRaw, "Стоимость работ за ед.");
+    if ("error" in n) return { error: n.error };
+    clientWorkPricePerUnit = new Decimal(n.value);
   }
 
   await prisma.productionOrder.update({
@@ -419,30 +443,36 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
 // article) — so setting it here also updates the ProductModel, and every
 // other open/completed order of that model, so /articles and every ТЗ of
 // this model show the same price and markup without drifting apart.
-export async function updateRetailPrice(orderId: string, formData: FormData) {
+export async function updateRetailPrice(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const parsed = z.coerce.number().nonnegative().safeParse(formData.get("retailPrice"));
-  if (!parsed.success) return;
+  // Empty must not become 0 (z.coerce turns "" into 0) and 0 must never
+  // overwrite the article's sellingPrice: both are rejected explicitly.
+  const rawPrice = formData.get("retailPrice");
+  if (typeof rawPrice !== "string" || !rawPrice.trim()) return { error: "Введите розничную цену" };
+  const priceRes = parseNumber(rawPrice, "Розничная цена", { positive: true });
+  if ("error" in priceRes) return { error: priceRes.error };
+  const price = priceRes.value;
 
   const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId },
   });
-  if (!order) return;
+  if (!order) return { error: "ТЗ не найдено" };
 
   await prisma.$transaction([
     prisma.productionOrder.updateMany({
       where: { productModelId: order.productModelId, organizationId: session.user.organizationId },
-      data: { retailPrice: parsed.data },
+      data: { retailPrice: price },
     }),
     prisma.productModel.update({
       where: { id: order.productModelId },
-      data: { sellingPrice: parsed.data },
+      data: { sellingPrice: price },
     }),
   ]);
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   revalidatePath("/articles");
+  return {};
 }
 
 // Any ТЗ can be edited regardless of status — completed orders are the
@@ -515,13 +545,14 @@ async function syncCompletedOrderCost(tx: Prisma.TransactionClient, orderId: str
 
 const usageSchema = z.object({
   lotId: z.string().min(1, "Выберите лот"),
-  quantity: z.coerce.number().positive("Количество должно быть больше 0"),
+  quantity: zNum("Количество", { positive: true, max: MAX_QTY }),
 });
 
 export async function addMaterialUsage(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const parsed = usageSchema.safeParse({
     lotId: formData.get("lotId"),
@@ -563,13 +594,11 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
   return {};
 }
 
-// Bulk entry: paste "лот  количество" pairs (one per line, tab- or
-// multi-space-separated) copied straight from a ТЗ spreadsheet instead of
-// picking each lot one at a time — real orders here run up to a few dozen
-// lot lines. Lot numbers are matched within this order's raw-material
-// warehouse; unmatched or insufficient lines are reported back, matched
-// ones are still applied.
-export type BulkUsageState = { error?: string; created?: number; skipped?: string[] };
+// Bulk entry: paste "лот  количество" pairs (one per line) copied straight
+// from a ТЗ spreadsheet. Same parser and separators as ТЗ creation (Tab, ';',
+// two+ spaces, single space) and the same all-or-nothing rule: any bad line
+// (listed with its reason) means nothing is written off.
+export type BulkUsageState = { error?: string; errors?: string[]; created?: number };
 
 export async function addMaterialUsagesBulk(
   orderId: string,
@@ -577,57 +606,58 @@ export async function addMaterialUsagesBulk(
   formData: FormData
 ): Promise<BulkUsageState> {
   const session = await requireRole(...EDIT_ROLES);
-  const order = await getEditableOrder(session.user.organizationId, orderId);
+  const organizationId = session.user.organizationId;
+  const order = await getEditableOrder(organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
-  const raw = (formData.get("rows") as string | null)?.trim();
-  if (!raw) return { error: "Вставьте хотя бы одну строку" };
+  const raw = ((formData.get("rows") as string | null) ?? "").toString();
+  if (!raw.trim()) return { error: "Вставьте хотя бы одну строку" };
 
-  const lots = await prisma.rawMaterialLot.findMany({
-    where: { organizationId: session.user.organizationId, warehouseId: order.rawWarehouseId },
-  });
-  const lotByNumber = new Map(lots.filter((l) => l.lotNumber).map((l) => [l.lotNumber!.trim().toLowerCase(), l]));
+  const { lines, errors } = parseLotLines(raw);
+  const res = await resolveLotLines(organizationId, lines, order.rawWarehouseId);
+  errors.push(...res.errors);
+  if (errors.length > 0) {
+    const lineNo = (e: string) => Number(/^строка (\d+)/.exec(e)?.[1] ?? 0);
+    return { errors: errors.sort((a, b) => lineNo(a) - lineNo(b)) };
+  }
 
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const skipped: string[] = [];
-  let created = 0;
-
-  for (const line of lines) {
-    const cells = line.split("\t").length > 1 ? line.split("\t") : line.split(/ {2,}/);
-    const [lotNumberRaw, quantityRaw] = cells.map((c) => c?.trim());
-    const quantity = Number((quantityRaw ?? "").replace(",", "."));
-    const lot = lotNumberRaw ? lotByNumber.get(lotNumberRaw.toLowerCase()) : undefined;
-
-    if (!lot || !Number.isFinite(quantity) || quantity <= 0) {
-      skipped.push(line);
-      continue;
-    }
-
-    try {
-      await prisma.$transaction(async (tx) => {
-        const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
-          organizationId: session.user.organizationId,
-          lotId: lot.id,
-          quantity,
-          productionOrderId: orderId,
-        });
-        await tx.productionMaterialUsage.create({
-          data: { productionOrderId: orderId, rawMaterialId, lotId: lot.id, quantity, unitCost, totalCost },
-        });
-        if (order.status === "PLANNED") {
-          await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const r of res.resolved) {
+        try {
+          const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, {
+            organizationId,
+            lotId: r.lotId,
+            quantity: r.quantity,
+            productionOrderId: orderId,
+          });
+          await tx.productionMaterialUsage.create({
+            data: {
+              productionOrderId: orderId,
+              rawMaterialId,
+              lotId: r.lotId,
+              quantity: r.quantity,
+              unitCost,
+              totalCost,
+            },
+          });
+        } catch (e) {
+          throw new Error(`строка ${r.line}: ${e instanceof Error ? e.message : "не удалось списать"}`);
         }
-        await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
-      });
-      created++;
-    } catch {
-      skipped.push(line);
-    }
+      }
+      if (order.status === "PLANNED") {
+        await tx.productionOrder.update({ where: { id: orderId }, data: { status: "IN_PROGRESS" } });
+      }
+      await syncCompletedOrderCost(tx, orderId, organizationId);
+    });
+  } catch (e) {
+    return { errors: [e instanceof Error ? e.message : "Не удалось списать"] };
   }
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
-  return { created, skipped: skipped.length ? skipped : undefined };
+  return { created: res.resolved.length };
 }
 
 /**
@@ -642,6 +672,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
   if (order.productModel.materials.length === 0) {
     return { error: "У модели не задан состав" };
   }
@@ -755,6 +786,8 @@ export async function updateMaterialUsage(
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
 
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
+
   const usage = await prisma.productionMaterialUsage.findFirst({
     where: { id: usageId, productionOrderId: orderId },
   });
@@ -803,21 +836,24 @@ export async function updateMaterialUsage(
 
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Выберите статью расходов"),
-  amount: z.coerce.number().positive("Сумма должна быть больше 0"),
-  description: z.string().trim().optional(),
+  amount: zNum("Сумма", { positive: true }),
+  description: z.string().trim().max(500).optional(),
 });
 
-export async function addProductionExpense(orderId: string, formData: FormData) {
+export async function addProductionExpense(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
-  if (!order) return;
+  if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const parsed = expenseSchema.safeParse({
     categoryId: formData.get("categoryId"),
     amount: formData.get("amount"),
     description: formData.get("description") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const badCat = await checkOrgRefs(session.user.organizationId, { expenseCategory: parsed.data.categoryId });
+  if (badCat) return { error: badCat };
 
   await prisma.$transaction(async (tx) => {
     await tx.productionExpense.create({
@@ -827,6 +863,7 @@ export async function addProductionExpense(orderId: string, formData: FormData) 
   });
 
   revalidatePath(`/production/${orderId}`);
+  return {};
 }
 
 export async function removeProductionExpense(orderId: string, expenseId: string) {
@@ -835,7 +872,8 @@ export async function removeProductionExpense(orderId: string, expenseId: string
   if (!order) return;
 
   await prisma.$transaction(async (tx) => {
-    await tx.productionExpense.delete({ where: { id: expenseId } });
+    // Только расход этого (своего) ТЗ: чужой id не удалится.
+    await tx.productionExpense.deleteMany({ where: { id: expenseId, productionOrderId: orderId } });
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
   revalidatePath(`/production/${orderId}`);
@@ -861,6 +899,8 @@ export async function updateProductionExpense(
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
 
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
+
   const expense = await prisma.productionExpense.findFirst({
     where: { id: expenseId, productionOrderId: orderId },
   });
@@ -869,19 +909,21 @@ export async function updateProductionExpense(
   const parsed = z
     .object({
       categoryId: z.string().min(1, "Выберите статью расходов"),
-      amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+      amount: zNum("Сумма", { positive: true }),
     })
     .safeParse({
       categoryId: formData.get("categoryId"),
       amount: formData.get("amount"),
     });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const badCat = await checkOrgRefs(session.user.organizationId, { expenseCategory: parsed.data.categoryId });
+  if (badCat) return { error: badCat };
 
   const description = (formData.get("description") as string)?.trim() || null;
 
   await prisma.$transaction(async (tx) => {
     await tx.productionExpense.update({
-      where: { id: expenseId },
+      where: { id: expense.id },
       data: { categoryId: parsed.data.categoryId, amount: parsed.data.amount, description },
     });
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
@@ -894,7 +936,7 @@ export async function updateProductionExpense(
 // ---------- Completion: snapshots cost and receives finished goods ----------
 
 const completeSchema = z.object({
-  producedQuantity: z.coerce.number().positive("Количество должно быть больше 0"),
+  producedQuantity: zNum("Количество", { positive: true, max: MAX_QTY }),
 });
 
 export async function completeProductionOrder(
@@ -907,6 +949,12 @@ export async function completeProductionOrder(
     include: { materialUsages: true, expenses: true },
   });
   if (!order) return { error: "ТЗ не найдено" };
+  if (order.materialUsages.length === 0) {
+    return {
+      error:
+        "Нельзя завершить ТЗ без списаний сырья — продукция встала бы на склад с нулевой себестоимостью. Сначала спишите сырьё.",
+    };
+  }
 
   const parsed = completeSchema.safeParse({ producedQuantity: formData.get("producedQuantity") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
@@ -916,7 +964,13 @@ export async function completeProductionOrder(
   const totalCost = materialCost.add(expenseCost);
   const unitCost = totalCost.div(parsed.data.producedQuantity);
 
-  await prisma.$transaction(async (tx) => {
+  const raced = await prisma.$transaction(async (tx) => {
+    // Атомарный переход статуса: две вкладки не должны оприходовать продукцию дважды.
+    const moved = await tx.productionOrder.updateMany({
+      where: { id: orderId, organizationId: session.user.organizationId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+      data: { status: "COMPLETED" },
+    });
+    if (moved.count === 0) return true;
     await tx.productionOrder.update({
       where: { id: orderId },
       data: {
@@ -940,7 +994,9 @@ export async function completeProductionOrder(
       type: "PRODUCTION_IN",
       productionOrderId: orderId,
     });
+    return false;
   });
+  if (raced) return { error: "ТЗ уже завершено" };
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
@@ -959,7 +1015,7 @@ export async function updateProducedQuantity(
   formData: FormData
 ): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const parsed = z.coerce.number().positive("Количество должно быть больше 0").safeParse(formData.get("producedQuantity"));
+  const parsed = zNum("Количество", { positive: true, max: MAX_QTY }).safeParse(formData.get("producedQuantity"));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const order = await prisma.productionOrder.findFirst({
@@ -967,7 +1023,7 @@ export async function updateProducedQuantity(
   });
   if (!order) return { error: "ТЗ не найдено или ещё не завершено" };
 
-  const newQuantity = new Decimal(parsed.data);
+  const newQuantity = new Decimal(parsed.data as number);
   if (newQuantity.equals(order.producedQuantity)) return {};
 
   const totalCost = order.totalCost ?? new Decimal(0);
@@ -1021,22 +1077,26 @@ export async function updateProducedQuantity(
 // ---------- Payments from the client (separate ledger from supplier payments) ----------
 
 const productionPaymentSchema = z.object({
-  amount: z.coerce.number().positive("Сумма должна быть больше 0"),
+  amount: zNum("Сумма", { positive: true }),
   paymentType: z.enum(["ADVANCE", "PARTIAL", "FINAL"]),
-  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
-  paidAt: z.string().min(1),
-  notes: z.string().trim().optional(),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"], { message: "Выберите способ оплаты" }),
+  paidAt: z
+    .string()
+    .min(1, "Укажите дату оплаты")
+    .refine((s) => parseDateInput(s) !== null, "Некорректная дата оплаты"),
+  notes: z.string().trim().max(1000).optional(),
 });
 
 // One payment can cover several ТЗ at once (a client paying a lump sum
 // against a running tab) — orderId is always included, plus whichever
 // sibling orders (same client) were checked in the form.
-export async function addProductionPayment(orderId: string, formData: FormData) {
+export async function addProductionPayment(orderId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId },
   });
-  if (!order) return;
+  if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const parsed = productionPaymentSchema.safeParse({
     amount: formData.get("amount"),
@@ -1045,12 +1105,19 @@ export async function addProductionPayment(orderId: string, formData: FormData) 
     paidAt: formData.get("paidAt"),
     notes: formData.get("notes") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { error: issue?.path[0] === "paidAt" ? "Укажите дату оплаты" : issue?.message };
+  }
 
   const extraOrderIds = formData.getAll("orderIds").map(String);
   const orderIds = Array.from(new Set([orderId, ...extraOrderIds]));
   const validOrders = await prisma.productionOrder.findMany({
-    where: { id: { in: orderIds }, organizationId: session.user.organizationId },
+    where: {
+      id: { in: orderIds },
+      organizationId: session.user.organizationId,
+      OR: [{ id: orderId }, { status: { not: "CANCELLED" } }],
+    },
     select: { id: true },
   });
 
@@ -1070,6 +1137,7 @@ export async function addProductionPayment(orderId: string, formData: FormData) 
 
   revalidatePath(`/production/${orderId}`);
   for (const id of orderIds) revalidatePath(`/production/${id}`);
+  return {};
 }
 
 export async function removeProductionPayment(orderId: string, paymentId: string) {
@@ -1080,7 +1148,11 @@ export async function removeProductionPayment(orderId: string, paymentId: string
   if (!order) return;
 
   const payment = await prisma.productionPayment.findFirst({
-    where: { id: paymentId, organizationId: session.user.organizationId },
+    where: {
+      id: paymentId,
+      organizationId: session.user.organizationId,
+      orders: { some: { productionOrderId: orderId } },
+    },
     include: { orders: true },
   });
   if (!payment) return;
@@ -1089,17 +1161,34 @@ export async function removeProductionPayment(orderId: string, paymentId: string
   for (const alloc of payment.orders) revalidatePath(`/production/${alloc.productionOrderId}`);
 }
 
-export async function cancelProductionOrder(orderId: string) {
+// Any not-yet-completed ТЗ (planned or in progress) can be cancelled as long
+// as nothing has been written off against it.
+export async function cancelProductionOrder(orderId: string): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  await prisma.productionOrder.updateMany({
+  const organizationId = session.user.organizationId;
+  const res = await prisma.productionOrder.updateMany({
     where: {
       id: orderId,
-      organizationId: session.user.organizationId,
-      status: "PLANNED",
+      organizationId,
+      status: { in: ["PLANNED", "IN_PROGRESS"] },
       materialUsages: { none: {} },
     },
     data: { status: "CANCELLED" },
   });
+  if (res.count === 0) {
+    const order = await prisma.productionOrder.findFirst({
+      where: { id: orderId, organizationId },
+      include: { _count: { select: { materialUsages: true } } },
+    });
+    if (!order) return { error: "ТЗ не найдено" };
+    if (order.status === "COMPLETED") return { error: "Завершённое ТЗ отменить нельзя" };
+    if (order.status === "CANCELLED") return { error: "ТЗ уже отменено" };
+    if (order._count.materialUsages > 0) {
+      return { error: "Нельзя отменить ТЗ со списаниями — сначала удалите списания (сырьё вернётся на склад)" };
+    }
+    return { error: "Не удалось отменить ТЗ" };
+  }
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
+  return {};
 }

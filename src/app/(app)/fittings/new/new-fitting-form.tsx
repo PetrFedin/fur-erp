@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { PhotoPicker, validatePicked } from "../photo-picker";
-import { FITTING_STATUS, FITTING_STATUS_KEYS } from "@/lib/fittings";
+import { FITTING_DATE_ERROR, FITTING_STATUS, FITTING_STATUS_KEYS, localTodayIso, parseFittingDate } from "@/lib/fittings";
 
 export type OrderOption = { id: string; label: string; sizes: string[] };
 
@@ -25,8 +25,10 @@ export function NewFittingForm({
   const router = useRouter();
   const initial = orders.find((o) => o.id === initialOrderId);
   const [orderText, setOrderText] = useState(initial?.label ?? "");
-  const [date, setDate] = useState(today);
-  const [status, setStatus] = useState(defaultStatus(today, today));
+  // Местная дата браузера (а не UTC); на сервере — запасное значение из пропса.
+  const [localToday] = useState(() => (typeof window === "undefined" ? today : localTodayIso()));
+  const [date, setDate] = useState(localToday);
+  const [status, setStatus] = useState(defaultStatus(localToday, localToday));
   const [statusTouched, setStatusTouched] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function NewFittingForm({
     e.preventDefault();
     setError(null);
     if (!order) return setError("Выберите ТЗ из списка: начните вводить № ТЗ или модель");
+    if (!parseFittingDate(date)) return setError(FITTING_DATE_ERROR);
     const pickErr = validatePicked(files);
     if (pickErr) return setError(pickErr);
     const fd = new FormData(e.currentTarget);
@@ -89,11 +92,14 @@ export function NewFittingForm({
           <Input
             id="date"
             type="date"
+            suppressHydrationWarning
+            min="2020-01-01"
+            max="2100-01-01"
             value={date}
             required
             onChange={(e) => {
               setDate(e.target.value);
-              if (!statusTouched && e.target.value) setStatus(defaultStatus(e.target.value, today));
+              if (!statusTouched && e.target.value) setStatus(defaultStatus(e.target.value, localToday));
             }}
           />
         </div>

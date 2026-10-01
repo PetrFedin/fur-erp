@@ -42,6 +42,7 @@ export function UsageRow({
   lots,
   updateAction,
   removeAction,
+  readOnly = false,
 }: {
   usage: {
     id: string;
@@ -62,6 +63,8 @@ export function UsageRow({
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
+  /** No edit rights: hide the change/remove buttons. */
+  readOnly?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -101,7 +104,7 @@ export function UsageRow({
           )}
         </Td>
         <Td>
-          <div className="flex gap-2">
+          {!readOnly && <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
               {isEditing ? "Закрыть" : "Изменить"}
             </Button>
@@ -116,16 +119,16 @@ export function UsageRow({
                 Удалить
               </Button>
             </form>
-          </div>
+          </div>}
         </Td>
       </Tr>
-      {isEditing && (
+      {isEditing && !readOnly && (
         <Tr>
           <Td colSpan={7} className="bg-neutral-50">
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
-              className="grid grid-cols-4 items-end gap-2 py-2"
+              className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 py-2"
             >
               <div className="col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Лот</label>

@@ -3,7 +3,7 @@ import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+    <div className="table-scroll w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white">
       <table className={cn("w-full text-sm", className)} {...props} />
     </div>
   );

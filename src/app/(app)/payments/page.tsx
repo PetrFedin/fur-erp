@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { createAdvancePayment } from "./actions";
+import { hasRole } from "@/lib/access";
 
 const METHOD_LABELS: Record<string, string> = {
   CASH: "Наличные",
@@ -32,6 +33,8 @@ export default async function PaymentsPage({
 }: PageProps<"/payments">) {
   const session = await requireSession();
   const sp = await searchParams;
+  const canPay = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"]);
+  const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
   const tab: "suppliers" | "clients" =
     sp.tab === "clients" ? "clients" : "suppliers";
   const [payments, suppliers, clientPayments] = await Promise.all([
@@ -61,6 +64,9 @@ export default async function PaymentsPage({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Оплаты</h1>
+      {flashError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
+      )}
 
       <div className="flex gap-1 border-b border-neutral-200 pb-2">
         <Link
@@ -152,6 +158,7 @@ export default async function PaymentsPage({
         </>
       ) : (
         <>
+          {canPay && (
           <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>Аванс / предоплата</CardTitle>
@@ -162,7 +169,7 @@ export default async function PaymentsPage({
             <CardContent>
               <form
                 action={createAdvancePayment}
-                className="grid grid-cols-4 items-end gap-2"
+                className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4"
               >
                 <div>
                   <Label htmlFor="supplierId">Поставщик</Label>
@@ -217,12 +224,13 @@ export default async function PaymentsPage({
                     required
                   />
                 </div>
-                <div className="col-span-4">
+                <div className="sm:col-span-2 lg:col-span-4">
                   <Button type="submit">Добавить платёж</Button>
                 </div>
               </form>
             </CardContent>
           </Card>
+          )}
 
           <Table>
             <Thead>

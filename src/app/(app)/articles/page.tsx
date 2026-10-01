@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { VatLabel } from "@/components/vat-label";
 import { materialCostExclVat } from "@/lib/purchase-totals";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
@@ -14,10 +17,11 @@ import { WriteOffForm } from "../finished-stock/write-off-form";
 
 export const metadata = { title: "Изделия" };
 
-export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   const { q: rawQ } = await searchParams;
-  const q = (rawQ ?? "").trim();
+  const q = cleanSearch(rawQ);
   const session = await requireSession();
+  const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
   const [stocks, shipments, warehouses] = await Promise.all([
     prisma.finishedGoodsStock.findMany({
@@ -88,6 +92,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
     const stockValue = modelStocks.reduce((sum, st) => sum.add(st.quantity.mul(st.avgUnitCost)), new Decimal(0));
+    // Excl-VAT стоимость остатка: остаток × средняя себестоимость без НДС по
+    // завершённым ТЗ модели (отдельного снимка нет). Нет данных — берём с НДС.
+    const stockValueExclVat = avgUnitCostExclVat ? stockQty.mul(avgUnitCostExclVat) : stockValue;
     // Последние 10 отгрузок, где есть ТЗ этой модели (показываем только строки этой модели).
     const modelShipments = shipments
       .map((sh) => ({ sh, lines: sh.lines.filter((l) => l.productionOrder.productModelId === m.id) }))
@@ -102,6 +109,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       modelStocks,
       stockQty,
       stockValue,
+      stockValueExclVat,
       modelShipments,
       totalProduced,
       avgUnitCost,
@@ -117,6 +125,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return wa - wb || a.name.localeCompare(b.name, "ru");
   });
   const totalStockValue = rows.reduce((s, r) => s.add(r.stockValue), new Decimal(0));
+  const totalStockValueExclVat = rows.reduce((s, r) => s.add(r.stockValueExclVat), new Decimal(0));
   const writeOffModels = models.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name }));
 
   return (
@@ -125,12 +134,16 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         <h1 className="text-xl font-semibold">Изделия</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-neutral-500">
-            Стоимость остатков (по себестоимости):{" "}
-            <span className="font-semibold text-neutral-900">{formatMoney(totalStockValue.toString())}</span>
+            <VatLabel base="Стоимость остатков (по себестоимости)" />:{" "}
+            <span className="font-semibold text-neutral-900">
+              <Money incl={totalStockValue} excl={totalStockValueExclVat} />
+            </span>
           </span>
-          <Link href="/models/new" className={buttonVariants()}>
-            + Новая модель
-          </Link>
+          {canCreate && (
+            <Link href="/models/new" className={buttonVariants()}>
+              + Новая модель
+            </Link>
+          )}
         </div>
       </div>
 
@@ -171,8 +184,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                       r.modelStocks.map((st) => (
                         <div key={st.id}>
                           {st.warehouse.name}: {formatQty(st.quantity.toString())} шт., себестоимость{" "}
-                          {formatMoney(st.avgUnitCost.toString())}, стоимость остатка{" "}
-                          {formatMoney(st.quantity.mul(st.avgUnitCost).toString())}
+                          <Money incl={st.avgUnitCost} excl={r.avgUnitCostExclVat ?? st.avgUnitCost} />, стоимость остатка{" "}
+                          <Money
+                            incl={st.quantity.mul(st.avgUnitCost)}
+                            excl={st.quantity.mul(r.avgUnitCostExclVat ?? st.avgUnitCost)}
+                          />
                         </div>
                       ))
                     )}

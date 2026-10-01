@@ -66,7 +66,7 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
           }
         });
       }}
-      className="grid grid-cols-5 items-end gap-2"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2"
     >
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Материал</label>
@@ -114,9 +114,9 @@ export function UsageForm({ orderId, lots }: { orderId: string; lots: LotOption[
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Списываем..." : "+ Списать"}
       </Button>
-      {error && <p className="col-span-5 text-sm text-red-600">{error}</p>}
+      {error && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">{error}</p>}
       {materialId && lotsForMaterial.length === 0 && (
-        <p className="col-span-5 text-sm text-amber-600">
+        <p className="sm:col-span-2 lg:col-span-5 text-sm text-amber-600">
           {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого материала на складе"}
         </p>
       )}

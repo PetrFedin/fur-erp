@@ -1,14 +1,14 @@
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { isFittingStatus, parseFittingDate } from "@/lib/fittings";
+import { FITTING_DATE_ERROR, isFittingStatus, parseFittingDate } from "@/lib/fittings";
 import { readPhotoFiles, writePhotoFiles, removeStoredFiles } from "@/lib/fitting-files";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
 /** Создание примерки вместе с фото (multipart). Ответ — JSON {id} или {error}. */
 export async function POST(request: Request) {
-  const session = await auth();
+  const session = await getFreshSession();
   if (!session?.user) return Response.json({ error: "Нужно войти в систему" }, { status: 401 });
   if (!EDIT_ROLES.includes(session.user.role)) {
     return Response.json({ error: "Недостаточно прав для добавления примерок" }, { status: 403 });
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     : null;
   if (!order) return Response.json({ error: "Выберите ТЗ из списка" }, { status: 400 });
   const date = parseFittingDate(str("date"));
-  if (!date) return Response.json({ error: "Укажите дату примерки" }, { status: 400 });
+  if (!date) return Response.json({ error: FITTING_DATE_ERROR }, { status: 400 });
   const status = str("status");
   if (!isFittingStatus(status)) return Response.json({ error: "Выберите итог примерки" }, { status: 400 });
 

@@ -7,6 +7,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { InclVatOnlyLabel } from "@/components/vat-label";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -18,8 +19,11 @@ const UNIT_LABELS: Record<string, string> = {
 
 export const metadata = { title: "Сводка" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
+  // requireRole() redirects here with ?error=forbidden when a role may not do an action.
+  const sp = await searchParams;
+  const forbidden = sp.error === "forbidden";
   const organizationId = session.user.organizationId;
 
   const [
@@ -33,8 +37,9 @@ export default async function DashboardPage() {
     clientPayments,
     unlinkedSupplierPayments,
   ] = await Promise.all([
+    // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
-      where: { organizationId },
+      where: { organizationId, status: { not: "CANCELLED" } },
       include: { items: true, expenses: true },
     }),
     prisma.purchase.findMany({
@@ -86,10 +91,13 @@ export default async function DashboardPage() {
   // Supplier balance due: per purchase (real amounts, not affected by the VAT toggle),
   // then one row per supplier (sum of debt + number of purchases with debt).
   const supplierMap = new Map<string, { supplier: string; due: Decimal; purchases: number }>();
+  // Часть долга приходится на черновики — мех по ним ещё не принят на склад.
+  let draftDebt = new Decimal(0);
   for (const p of openPurchasesWithPayments) {
     const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
     const due = purchaseTotalInclVat(p).sub(paid);
     if (!due.greaterThan(0)) continue;
+    if (p.status !== "RECEIVED") draftDebt = draftDebt.add(due);
     const e = supplierMap.get(p.supplierId) ?? { supplier: p.supplier.name, due: new Decimal(0), purchases: 0 };
     e.due = e.due.add(due);
     e.purchases += 1;
@@ -207,16 +215,26 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Сводка</h1>
+      {forbidden && (
+        <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          Недостаточно прав для этого действия
+        </div>
+      )}
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <KpiCard label="Куплено сырья" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
         <KpiCard
           label="Использовано в ТЗ"
           value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
         />
         <KpiCard label="Остаток сырья (в деньгах)" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />
-        <KpiCard label="Долг поставщикам" value={formatMoney(supplierDebtTotal.toString())} warn={supplierDebtTotal.greaterThan(0)} />
-        <KpiCard label="Долг заказчиков" value={formatMoney(clientDebtTotal.toString())} warn={clientDebtTotal.greaterThan(0)} />
+        <KpiCard
+          label={<InclVatOnlyLabel base="Долг поставщикам" />}
+          value={formatMoney(supplierDebtTotal.toString())}
+          warn={supplierDebtTotal.greaterThan(0)}
+          note={draftDebt.greaterThan(0) ? `в т.ч. черновики (мех ещё не принят): ${formatMoney(draftDebt.toString())}` : undefined}
+        />
+        <KpiCard label={<InclVatOnlyLabel base="Долг заказчиков" />} value={formatMoney(clientDebtTotal.toString())} warn={clientDebtTotal.greaterThan(0)} />
       </div>
 
       <Card>
@@ -281,10 +299,10 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Долг поставщикам</CardTitle>
+            <CardTitle><InclVatOnlyLabel base="Долг поставщикам" /></CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -322,7 +340,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Долг заказчиков</CardTitle>
+            <CardTitle><InclVatOnlyLabel base="Долг заказчиков" /></CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -368,11 +386,22 @@ export default async function DashboardPage() {
   );
 }
 
-function KpiCard({ label, value, warn }: { label: string; value: React.ReactNode; warn?: boolean }) {
+function KpiCard({
+  label,
+  value,
+  warn,
+  note,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  warn?: boolean;
+  note?: string;
+}) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4">
       <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`mt-1 text-xl font-semibold ${warn ? "text-amber-600" : "text-neutral-900"}`}>{value}</div>
+      <div className={`mt-1 break-words text-lg font-semibold sm:text-xl ${warn ? "text-amber-600" : "text-neutral-900"}`}>{value}</div>
+      {note && <div className="mt-1 text-xs text-neutral-500">{note}</div>}
     </div>
   );
 }

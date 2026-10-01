@@ -64,3 +64,16 @@ export function todayIso() {
 export function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
 }
+
+/** Разумные пределы для вводимых данных. */
+export const MAX_LINE_QTY = 100000;
+export const MAX_TOTAL_QTY = 1000000;
+export const MAX_LINES = 200;
+export const MIN_DATE = "2020-01-01";
+export const MAX_DATE = "2100-01-01";
+
+/** Дата YYYY-MM-DD в допустимом диапазоне (строки сравниваются лексикографически). */
+export function isDateInRange(s: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(s).getTime()) && s >= MIN_DATE && s <= MAX_DATE;
+}
+export const DATE_RANGE_ERROR = "Дата должна быть между 01.01.2020 и 01.01.2100";

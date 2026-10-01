@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { redirect } from "next/navigation";
 import { RoleSelect } from "./role-select";
 import { toggleUserActive } from "./actions";
 
-export default async function UsersPage() {
-  const session = await requireSession();
-  const canManage = session.user.role === "OWNER" || session.user.role === "ADMIN";
+export default async function UsersPage({ searchParams }: PageProps<"/users">) {
+  const session = await requireRole("OWNER", "ADMIN");
+  const canManage = true;
+  const isOwner = session.user.role === "OWNER";
+  const sp = await searchParams;
+  const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
   const users = await prisma.user.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: { createdAt: "asc" },
@@ -25,6 +29,10 @@ export default async function UsersPage() {
           </Link>
         )}
       </div>
+
+      {flashError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
+      )}
 
       <Table>
         <Thead>
@@ -42,8 +50,13 @@ export default async function UsersPage() {
               <Td className="font-medium">{u.name}</Td>
               <Td>{u.email}</Td>
               <Td>
-                {canManage ? (
-                  <RoleSelect userId={u.id} role={u.role} disabled={u.id === session.user.id} />
+                {canManage && (isOwner || u.role !== "OWNER") ? (
+                  <RoleSelect
+                    userId={u.id}
+                    role={u.role}
+                    disabled={u.id === session.user.id}
+                    allowOwner={isOwner}
+                  />
                 ) : (
                   u.role
                 )}
@@ -54,11 +67,12 @@ export default async function UsersPage() {
                 </Badge>
               </Td>
               <Td>
-                {canManage && u.id !== session.user.id && (
+                {canManage && u.id !== session.user.id && (isOwner || u.role !== "OWNER") && (
                   <form
                     action={async () => {
                       "use server";
-                      await toggleUserActive(u.id);
+                      const res = await toggleUserActive(u.id);
+                      if (res.error) redirect(`/users?error=${encodeURIComponent(res.error)}`);
                     }}
                   >
                     <Button type="submit" variant="ghost" size="sm">

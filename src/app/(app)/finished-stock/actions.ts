@@ -5,14 +5,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { writeOffFinishedGoodsStock } from "@/lib/stock";
+import { checkOrgRefs } from "@/lib/org-guard";
+import { zNum, MAX_QTY } from "@/lib/input";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "WAREHOUSE"] as const;
 
 const schema = z.object({
   warehouseId: z.string().min(1),
   productModelId: z.string().min(1),
-  quantity: z.coerce.number().positive("Количество должно быть больше 0"),
-  notes: z.string().trim().optional(),
+  quantity: zNum("Количество", { positive: true, max: MAX_QTY }),
+  notes: z.string().trim().max(1000).optional(),
 });
 
 export type WriteOffState = { error?: string };
@@ -29,6 +31,12 @@ export async function writeOffFinishedGoods(
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const badRef = await checkOrgRefs(session.user.organizationId, {
+    warehouse: parsed.data.warehouseId,
+    productModel: parsed.data.productModelId,
+  });
+  if (badRef) return { error: badRef };
 
   try {
     await prisma.$transaction(async (tx) => {

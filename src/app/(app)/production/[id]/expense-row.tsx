@@ -15,11 +15,14 @@ export function ExpenseRow({
   categories,
   updateAction,
   removeAction,
+  readOnly = false,
 }: {
   expense: { id: string; categoryId: string; categoryName: string; amount: string; description: string | null };
   categories: ExpenseCategory[];
   updateAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
+  /** No edit rights: hide the change/remove buttons. */
+  readOnly?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -45,7 +48,7 @@ export function ExpenseRow({
         </Td>
         <Td className="text-right font-medium">{formatMoney(expense.amount)}</Td>
         <Td>
-          <div className="flex gap-2">
+          {!readOnly && <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
               {isEditing ? "Закрыть" : "Изменить"}
             </Button>
@@ -59,18 +62,18 @@ export function ExpenseRow({
                 Удалить
               </Button>
             </form>
-          </div>
+          </div>}
         </Td>
       </Tr>
-      {isEditing && (
+      {isEditing && !readOnly && (
         <Tr>
           <Td colSpan={7} className="bg-neutral-50">
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
-              className="grid grid-cols-5 items-end gap-2 py-2"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2 py-2"
             >
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Статья расходов</label>
                 <Select name="categoryId" required defaultValue={expense.categoryId}>
                   {categories.map((c) => (
@@ -84,11 +87,11 @@ export function ExpenseRow({
                 <label className="mb-1 block text-xs text-neutral-500">Сумма, ₽</label>
                 <Input name="amount" type="number" step="0.01" min="0" required defaultValue={expense.amount} />
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Описание</label>
                 <Input name="description" defaultValue={expense.description ?? ""} />
               </div>
-              <div className="col-span-5 flex items-center justify-between gap-4">
+              <div className="sm:col-span-2 lg:col-span-5 flex items-center justify-between gap-4">
                 {state.error && <p className="text-sm text-red-600">{state.error}</p>}
                 <Button type="submit" variant="outline" size="sm" disabled={pending}>
                   {pending ? "Сохраняем..." : "Сохранить"}

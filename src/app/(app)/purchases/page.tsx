@@ -8,6 +8,7 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { cleanSearch, parseDateInput } from "@/lib/input";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
@@ -25,10 +26,15 @@ export const metadata = { title: "Закупки" };
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
   const sp = await searchParams;
-  const auction = (typeof sp.auction === "string" ? sp.auction : "").trim();
+  const canCreate = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+  const auction = cleanSearch(sp.auction);
+  const q = cleanSearch(sp.q);
+  const PAGE = 50;
+  const limitRaw = Number(typeof sp.limit === "string" ? sp.limit : PAGE);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
   const statusParam = typeof sp.status === "string" ? sp.status : "";
   const status = ["DRAFT", "RECEIVED", "CANCELLED"].includes(statusParam) ? statusParam : "";
-  const dateStr = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+  const dateStr = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && parseDateInput(v) ? v : "");
   const from = dateStr(sp.from);
   const to = dateStr(sp.to);
   const purchases = await prisma.purchase.findMany({
@@ -42,6 +48,16 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ? { orderDate: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}) } }
         : {}),
       ...(auction ? { auctionSession: { contains: auction, mode: "insensitive" as const } } : {}),
+      ...(q
+        ? {
+            OR: [
+              { number: { contains: q, mode: "insensitive" as const } },
+              { invoiceNumber: { contains: q, mode: "insensitive" as const } },
+              { supplier: { name: { contains: q, mode: "insensitive" as const } } },
+              { items: { some: { lotNumber: { contains: q, mode: "insensitive" as const } } } },
+            ],
+          }
+        : {}),
     },
     include: {
       supplier: true,
@@ -51,7 +67,17 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     },
     // Numbers are З-YYYY-NNNN (zero-padded), so a string sort is numeric.
     orderBy: { number: "desc" },
+    take: limit + 1, // +1 — чтобы понять, есть ли ещё
   });
+  const hasMore = purchases.length > limit;
+  if (hasMore) purchases.length = limit;
+  const moreParams = new URLSearchParams();
+  if (q) moreParams.set("q", q);
+  if (auction) moreParams.set("auction", auction);
+  if (status) moreParams.set("status", status);
+  if (from) moreParams.set("from", from);
+  if (to) moreParams.set("to", to);
+  moreParams.set("limit", String(limit + PAGE));
 
   const sessions = await prisma.purchase.findMany({
     where: { organizationId: session.user.organizationId, auctionSession: { not: null } },
@@ -65,12 +91,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Закупки</h1>
-        <Link href="/purchases/new" className={buttonVariants()}>
-          + Новая закупка
-        </Link>
+        {canCreate && (
+          <Link href="/purchases/new" className={buttonVariants()}>
+            + Новая закупка
+          </Link>
+        )}
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="№ закупки, счёт, поставщик, лот"
+          aria-label="Поиск по закупкам"
+          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+        />
         <input
           name="auction"
           defaultValue={auction}
@@ -115,7 +150,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
           Найти
         </button>
-        {(auction || status || from || to) && (
+        {(q || auction || status || from || to) && (
           <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">
             Сбросить
           </Link>
@@ -169,12 +204,20 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           {purchases.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                {auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
+                {q || auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
               </Td>
             </Tr>
           )}
         </Tbody>
       </Table>
+      {hasMore && (
+        <div className="flex justify-center">
+          <Link href={`/purchases?${moreParams.toString()}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Показать ещё {PAGE}
+          </Link>
+        </div>
+      )}
+      <p className="text-xs text-neutral-400">Показано закупок: {purchases.length}{hasMore ? " (есть ещё)" : ""}</p>
     </div>
   );
 }

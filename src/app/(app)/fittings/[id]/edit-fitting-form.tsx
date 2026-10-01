@@ -34,7 +34,7 @@ export function EditFittingForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="e-date">Дата</Label>
-          <Input id="e-date" name="date" type="date" defaultValue={defaults.date} required />
+          <Input id="e-date" name="date" type="date" min="2020-01-01" max="2100-01-01" defaultValue={defaults.date} required />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="e-size">Размер</Label>

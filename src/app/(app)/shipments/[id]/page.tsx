@@ -46,7 +46,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         {overdue && <Badge variant="danger">просрочена</Badge>}
       </div>
 
-      <dl className="grid grid-cols-[10rem_1fr] gap-y-1 text-sm">
+      <dl className="grid grid-cols-[7rem_1fr] sm:grid-cols-[10rem_1fr] gap-y-1 text-sm">
         <dt className="text-neutral-500">Заказчик</dt>
         <dd>{s.client?.name ?? "—"}</dd>
         <dt className="text-neutral-500">Плановая дата</dt>

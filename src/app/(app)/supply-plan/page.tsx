@@ -35,7 +35,19 @@ export default async function SupplyPlanPage() {
   const now = new Date();
   now.setDate(1);
   now.setHours(0, 0, 0, 0);
-  const monthDates = entries.map((e) => new Date(e.month));
+  // Показываем окно месяцев вокруг текущего (не десятки тысяч колонок, даже
+  // если в БД попала запись с годом 9999). Записи вне окна — отдельным списком.
+  const WINDOW_BACK = 12;
+  const WINDOW_FWD = 36;
+  const windowStart = new Date(now);
+  windowStart.setMonth(windowStart.getMonth() - WINDOW_BACK);
+  const windowEnd = new Date(now);
+  windowEnd.setMonth(windowEnd.getMonth() + WINDOW_FWD);
+  const inWindow = (d: Date) => d >= windowStart && d <= windowEnd;
+  const shownEntries = entries.filter((e) => inWindow(new Date(e.month)));
+  const hiddenEntries = entries.filter((e) => !inWindow(new Date(e.month)));
+
+  const monthDates = shownEntries.map((e) => new Date(e.month));
   const minMonth = monthDates.length ? new Date(Math.min(now.getTime(), ...monthDates.map((d) => d.getTime()))) : now;
   const maxCandidate = new Date(now);
   maxCandidate.setMonth(maxCandidate.getMonth() + 5);
@@ -43,14 +55,14 @@ export default async function SupplyPlanPage() {
 
   const months: { key: string; label: string; date: Date }[] = [];
   const cursor = new Date(minMonth);
-  while (cursor <= maxMonth) {
+  while (cursor <= maxMonth && months.length < 60) {
     months.push({ key: monthKey(cursor), label: `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`, date: new Date(cursor) });
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
   type Row = { modelId: string; modelName: string; cells: Map<string, typeof entries> };
   const rows = new Map<string, Row>();
-  for (const e of entries) {
+  for (const e of shownEntries) {
     const key = e.productModelId;
     if (!rows.has(key)) rows.set(key, { modelId: key, modelName: e.productModel.name, cells: new Map() });
     const row = rows.get(key)!;
@@ -91,7 +103,36 @@ export default async function SupplyPlanPage() {
         </CardContent>
       </Card>
 
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      {hiddenEntries.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Записи вне отображаемого периода ({hiddenEntries.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-sm text-neutral-500">
+              Таблица показывает период с {MONTH_NAMES[windowStart.getMonth()]} {windowStart.getFullYear()} по{" "}
+              {MONTH_NAMES[windowEnd.getMonth()]} {windowEnd.getFullYear()}. Остальные записи — здесь.
+            </p>
+            {hiddenEntries.slice(0, 100).map((e) => (
+              <div key={e.id} className="flex flex-col gap-1">
+                <span className="text-xs text-neutral-600">
+                  {e.productModel.name} — {MONTH_NAMES[new Date(e.month).getMonth()]} {new Date(e.month).getFullYear()},{" "}
+                  {formatQty(e.quantity.toString())} шт.
+                </span>
+                <EntryRowForm
+                  entryId={e.id}
+                  status={e.status as SupplyPlanStatusValue}
+                  quantity={e.quantity.toString()}
+                  eventDate={e.eventDate ? new Date(e.eventDate).toISOString().slice(0, 10) : ""}
+                  notes={e.notes ?? ""}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-neutral-200 bg-neutral-50">

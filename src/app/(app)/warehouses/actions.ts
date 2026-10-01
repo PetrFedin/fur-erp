@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "WAREHOUSE"] as const;
+const EDIT_ROLES = ACCESS.warehouses;
 
 const warehouseSchema = z.object({
   name: z.string().trim().min(2, "Укажите название склада"),

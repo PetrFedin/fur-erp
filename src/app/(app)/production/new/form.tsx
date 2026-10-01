@@ -8,7 +8,7 @@ import type { Warehouse } from "@prisma/client";
 
 const initialState: CreateOrderState = {};
 
-type ModelOption = { id: string; name: string };
+type ModelOption = { id: string; name: string; retailPrice: string | null };
 type ClientOption = { id: string; name: string };
 type LiningOption = { id: string; name: string; remaining: string };
 
@@ -40,16 +40,17 @@ export function ProductionCreateForm({
   const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today });
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  const modelId = models.find((m) => m.name.toLowerCase() === modelText.trim().toLowerCase())?.id ?? "";
+  const selectedModel = models.find((m) => m.name.toLowerCase() === modelText.trim().toLowerCase());
+  const modelId = selectedModel?.id ?? "";
   const lining = liningOptions.find((o) => o.id === f.liningMaterialId);
   const liningRemaining = lining ? Number(lining.remaining) : 0;
   const liningQty = Number(f.liningQuantity || 0);
   const errors = state.errors ?? (state.error ? [state.error] : []);
 
   return (
-    <form action={formAction} className="grid grid-cols-2 gap-4">
+    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <input type="hidden" name="productModelId" value={modelId} />
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label htmlFor="modelText">Модель изделия</Label>
         <Input
           id="modelText"
@@ -65,6 +66,13 @@ export function ProductionCreateForm({
             <option key={m.id} value={m.name} />
           ))}
         </datalist>
+        {selectedModel && (
+          <p className="mt-1 text-xs text-neutral-500">
+            {selectedModel.retailPrice
+              ? `Розничная цена модели: ${selectedModel.retailPrice} ₽ — перейдёт в новое ТЗ`
+              : "У модели не задана розничная цена — её можно указать на карточке ТЗ"}
+          </p>
+        )}
         {modelText && !modelId && (
           <p className="mt-1 text-xs text-amber-600">Выберите модель из списка подсказок (точное название).</p>
         )}
@@ -108,7 +116,7 @@ export function ProductionCreateForm({
           onChange={set("workOrderNumber")}
         />
       </div>
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label htmlFor="clientId">Заказчик</Label>
         <Select
           id="clientId"
@@ -129,7 +137,7 @@ export function ProductionCreateForm({
         </Select>
       </div>
 
-      <div className="col-span-2 rounded-md border border-neutral-200 p-3">
+      <div className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
         <Label htmlFor="lots">Лоты меха</Label>
         <Textarea
           id="lots"
@@ -145,9 +153,9 @@ export function ProductionCreateForm({
         </p>
       </div>
 
-      <div className="col-span-2 rounded-md border border-neutral-200 p-3">
+      <div className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
         <p className="mb-2 text-sm font-medium text-neutral-700">Подкладка</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="liningMaterialId">Ткань подкладки</Label>
             <Select
@@ -189,9 +197,9 @@ export function ProductionCreateForm({
         </div>
       </div>
 
-      <details className="col-span-2 rounded-md border border-neutral-200 p-3">
+      <details className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
         <summary className="cursor-pointer text-sm font-medium text-neutral-700">Дополнительно</summary>
-        <div className="mt-3 grid grid-cols-2 gap-4">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="color">Цвет</Label>
             <Input id="color" name="color" placeholder="Коричневый" value={f.color ?? ""} onChange={set("color")} />
@@ -273,7 +281,7 @@ export function ProductionCreateForm({
               ))}
             </Select>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="notes">Заметки</Label>
             <Textarea id="notes" name="notes" rows={2} value={f.notes ?? ""} onChange={set("notes")} />
           </div>
@@ -281,13 +289,13 @@ export function ProductionCreateForm({
       </details>
 
       {errors.length > 0 && (
-        <ul className="col-span-2 list-disc rounded-md bg-red-50 px-6 py-2 text-sm text-red-700">
+        <ul className="sm:col-span-2 list-disc rounded-md bg-red-50 px-6 py-2 text-sm text-red-700">
           {errors.map((e, i) => (
             <li key={i}>{e}</li>
           ))}
         </ul>
       )}
-      <div className="col-span-2 flex items-center justify-end gap-3">
+      <div className="sm:col-span-2 flex items-center justify-end gap-3">
         {!modelId && <span className="text-sm text-amber-600">Выберите модель из списка</span>}
         <Button type="submit" disabled={pending || !modelId}>
           {pending ? "Создаём..." : "Создать ТЗ"}

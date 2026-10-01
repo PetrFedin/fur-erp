@@ -13,7 +13,9 @@ export function PurchaseEditForm({
   suppliers,
   warehouses,
   defaults,
+  currencyLocked = false,
 }: {
+  currencyLocked?: boolean;
   action: (formData: FormData) => Promise<FormState>;
   suppliers: Supplier[];
   warehouses: Warehouse[];
@@ -54,10 +56,10 @@ export function PurchaseEditForm({
     <form
       action={formAction}
       onSubmit={() => setSubmitted(true)}
-      className="mt-2 grid grid-cols-2 gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
+      className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
     >
       {suppliers.length > 1 ? (
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <Label htmlFor="supplierId">Поставщик</Label>
           <Select id="supplierId" name="supplierId" required defaultValue={defaults.supplierId}>
             {suppliers.map((s) => (
@@ -86,7 +88,8 @@ export function PurchaseEditForm({
       )}
       <div>
         <Label htmlFor="currency">Валюта позиций</Label>
-        <Select id="currency" name="currency" defaultValue={defaults.currency}>
+        {currencyLocked && <input type="hidden" name="currency" value={defaults.currency} />}
+        <Select id="currency" name={currencyLocked ? undefined : "currency"} defaultValue={defaults.currency} disabled={currencyLocked}>
           <option value="RUB">RUB — рубль</option>
           <option value="USD">USD — доллар</option>
           <option value="EUR">EUR — евро</option>
@@ -104,7 +107,7 @@ export function PurchaseEditForm({
         <Label htmlFor="invoiceNumber">№ счёта</Label>
         <Input id="invoiceNumber" name="invoiceNumber" defaultValue={defaults.invoiceNumber} placeholder="2004" />
       </div>
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label htmlFor="transferDocument">УПД</Label>
         <Input
           id="transferDocument"
@@ -113,11 +116,13 @@ export function PurchaseEditForm({
           placeholder="№ 143 от 22.09.2025 г."
         />
       </div>
-      <p className="col-span-2 text-xs text-neutral-500">
-        При смене валюты курс сбрасывается на 1 — обновите его ниже.
+      <p className="sm:col-span-2 text-xs text-neutral-500">
+        {currencyLocked
+          ? "Валюта и курс не меняются: в закупке есть позиции с расчётом из расчётного листа."
+          : "При смене валюты курс сбрасывается на 1 — обновите его ниже."}
       </p>
-      {state.error && <p className="col-span-2 text-sm text-red-600">{state.error}</p>}
-      <div className="col-span-2 flex justify-end gap-2">
+      {state.error && <p className="sm:col-span-2 text-sm text-red-600">{state.error}</p>}
+      <div className="sm:col-span-2 flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
           Закрыть
         </Button>

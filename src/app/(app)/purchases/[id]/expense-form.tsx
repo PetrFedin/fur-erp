@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { VatInput } from "@/components/vat-input";
 import { addPurchaseExpense } from "../actions";
 
 type Category = { id: string; name: string };
@@ -35,7 +36,11 @@ export function PurchaseExpenseForm({
     fd.set("vatRate", vatRate);
     if (description.trim()) fd.set("description", description.trim());
     startTransition(async () => {
-      await addPurchaseExpense(purchaseId, fd);
+      const res = await addPurchaseExpense(purchaseId, fd);
+      if (res?.error) {
+        window.alert(res.error);
+        return;
+      }
       setAmount("");
       setDescription("");
     });
@@ -62,8 +67,9 @@ export function PurchaseExpenseForm({
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs text-neutral-500">Сумма, ₽ (без НДС)</label>
+          <label htmlFor="expense-amount" className="mb-1 block text-xs text-neutral-500">Сумма, ₽ (без НДС)</label>
           <Input
+            id="expense-amount"
             type="number"
             step="0.01"
             min="0"
@@ -79,20 +85,13 @@ export function PurchaseExpenseForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-neutral-500">НДС</label>
-          <Select value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-28">
-            <option value="0">0%</option>
-            <option value="5">5%</option>
-            <option value="7">7%</option>
-            <option value="10">10%</option>
-            <option value="20">20%</option>
-            <option value="22">22%</option>
-          </Select>
+          <label htmlFor="expense-vat" className="mb-1 block text-xs text-neutral-500">НДС, %</label>
+          <VatInput id="expense-vat" value={vatRate} onChange={(e) => setVatRate(e.target.value)} className="w-28" />
         </div>
         {showDescription ? (
           <div>
-            <label className="mb-1 block text-xs text-neutral-500">Комментарий</label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="w-56" />
+            <label htmlFor="expense-description" className="mb-1 block text-xs text-neutral-500">Комментарий</label>
+            <Input id="expense-description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-56" />
           </div>
         ) : (
           <button

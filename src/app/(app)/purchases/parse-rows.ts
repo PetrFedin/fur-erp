@@ -35,11 +35,12 @@ export type ParseResult = {
 function toNumber(s: string | undefined): number {
   if (s == null) return NaN;
   const cleaned = s
-    .replace(/[\s  ]/g, "")
+    .replace(/[\s\u00a0\u202f]/g, "")
     .replace("₽", "")
     .replace("%", "")
     .replace(",", ".");
-  if (cleaned === "") return NaN;
+  // Только обычная запись: «0x10», «1e3», «Infinity» — не числа.
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return NaN;
   return Number(cleaned);
 }
 
@@ -49,19 +50,34 @@ function splitLine(line: string): string[] {
   return line.split(/ {2,}/);
 }
 
-export function parsePasteRows(raw: string, knownMaterialNames: Iterable<string>): ParseResult {
+// Excel оборачивает ячейки с запятой/кавычкой в "…" (а внутренние кавычки удваивает).
+function unquoteCell(c: string): string {
+  const t = c.trim();
+  if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) return t.slice(1, -1).replace(/""/g, '"').trim();
+  return t;
+}
+
+export function parsePasteRows(
+  raw: string,
+  knownMaterialNames: Iterable<string>,
+  existingLotNumbers: Iterable<string> = [],
+): ParseResult {
   const known = new Set<string>();
   for (const n of knownMaterialNames) known.add(n.trim().toLowerCase());
+  const existingLots = new Set<string>();
+  for (const n of existingLotNumbers) existingLots.add(n.trim().toLowerCase());
+  const seenLots = new Map<string, number>();
 
   const rows: ParsedRow[] = [];
   let headerSkipped = false;
   const seenNew = new Map<string, number>();
 
   raw.split(/\r?\n/).forEach((rawLine, idx) => {
-    const line = rawLine.trim();
-    if (!line) return;
+    if (!rawLine.trim()) return;
+    // Табы в начале не трогаем: пустая первая колонка = «не указан материал», а не сдвиг столбцов.
+    const line = rawLine.replace(/^ +/, "").replace(/\s+$/, "");
     const lineNo = idx + 1;
-    const cells = splitLine(line).map((c) => c.trim());
+    const cells = splitLine(line).map(unquoteCell);
     const [materialName = "", quantityRaw, unitPriceRaw, vatRaw, lot, grade, color] = cells;
 
     // Header copied along with the data ("Материал  Кол-во  Цена ...").
@@ -81,18 +97,28 @@ export function parsePasteRows(raw: string, knownMaterialNames: Iterable<string>
       const quantity = toNumber(quantityRaw);
       if (!quantityRaw) errors.push("не указано количество");
       else if (!Number.isFinite(quantity)) errors.push(`количество «${quantityRaw}» — не число`);
-      else if (quantity <= 0) errors.push("количество должно быть больше 0");
+      else if (quantity < 0.001) errors.push("количество должно быть не меньше 0,001");
+      else if (quantity > 99_999_999_999) errors.push("количество слишком большое");
 
       const unitPrice = toNumber(unitPriceRaw);
       if (!unitPriceRaw) errors.push("не указана цена");
       else if (!Number.isFinite(unitPrice)) errors.push(`цена «${unitPriceRaw}» — не число`);
       else if (unitPrice < 0) errors.push("цена не может быть отрицательной");
+      else if (unitPrice > 999_999_999_999 || (Number.isFinite(quantity) && quantity * unitPrice >= 999_999_999_999))
+        errors.push("сумма строки слишком велика");
 
       let vatRate = DEFAULT_PASTE_VAT_RATE;
       if (vatRaw) {
         vatRate = toNumber(vatRaw);
         if (!Number.isFinite(vatRate)) errors.push(`НДС «${vatRaw}» — не число`);
         else if (vatRate < 0 || vatRate > 100) errors.push("НДС% должен быть от 0 до 100");
+      }
+
+      if (lot) {
+        const lotKey = lot.toLowerCase();
+        if (seenLots.has(lotKey)) errors.push(`номер лота «${lot}» повторяется — он уже указан в строке ${seenLots.get(lotKey)}`);
+        else seenLots.set(lotKey, lineNo);
+        if (existingLots.has(lotKey)) warnings.push(`лот с номером «${lot}» уже есть на складе — проверьте, не дубль ли это`);
       }
 
       const key = materialName.toLowerCase();

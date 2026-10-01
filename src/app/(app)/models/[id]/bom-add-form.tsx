@@ -30,7 +30,11 @@ export function BomAddForm({
     <form
       ref={formRef}
       action={async (formData) => {
-        await boundAction(formData);
+        const res = await boundAction(formData);
+        if (res?.error) {
+          window.alert(res.error);
+          return;
+        }
         formRef.current?.reset();
       }}
       className="flex items-end gap-2"

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
@@ -8,7 +9,11 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Input, Select } from "@/components/ui/input";
 import { ProductionTabs } from "@/components/production-tabs";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatQty } from "@/lib/utils";
+import { Money } from "@/components/money";
+import { VatLabel } from "@/components/vat-label";
+import { materialCostExclVat } from "@/lib/purchase-totals";
+import { canEditProduction } from "@/lib/production-access";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -25,7 +30,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const sp = await searchParams;
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const str = (v: unknown) => cleanSearch(v);
   const modelId = str(sp.model);
   const q = str(sp.q);
   const status = STATUS_KEYS.includes(str(sp.status)) ? str(sp.status) : "";
@@ -60,7 +65,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       include: {
         productModel: { select: { name: true } },
         client: { select: { name: true } },
-        materialUsages: { select: { totalCost: true } },
+        materialUsages: {
+          select: {
+            totalCost: true,
+            quantity: true,
+            lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } },
+          },
+        },
         expenses: { select: { amount: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -69,6 +80,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     prisma.client.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
+  const canEdit = canEditProduction(session.user.role);
   const hasFilters = Boolean(q || status || clientId || modelId);
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
@@ -107,6 +119,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     orders.sort((a, b) => (matchOf(a)!.rank - matchOf(b)!.rank) || idx.get(a.id)! - idx.get(b.id)!);
   }
 
+  let sumIncl = new Decimal(0);
+  let sumExcl = new Decimal(0);
+
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="orders" />
@@ -117,9 +132,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <span className="ml-2 text-base font-normal text-neutral-500">— {filterModel.name}</span>
           )}
         </h1>
-        <Link href="/production/new" className={buttonVariants()}>
-          + Новое ТЗ
-        </Link>
+        {canEdit && (
+          <Link href="/production/new" className={buttonVariants()}>
+            + Новое ТЗ
+          </Link>
+        )}
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2">
@@ -167,7 +184,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th>Заказчик</Th>
             <Th>Кол-во</Th>
             <Th>Статус</Th>
-            <Th>Итого себестоимость</Th>
+            <Th>
+              <VatLabel base="Итого себестоимость" />
+            </Th>
             <Th>Наценка</Th>
           </Tr>
         </Thead>
@@ -181,6 +200,15 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               .reduce((s, u) => s.add(u.totalCost), new Decimal(0))
               .add(o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0)));
             const total = o.totalCost ?? projected;
+            // Excl-VAT counterpart, same lines (expenses carry no VAT in this schema).
+            const projectedExcl = materialCostExclVat(o.materialUsages).add(
+              o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0))
+            );
+            const totalExcl = projectedExcl;
+            if (o.status !== "CANCELLED") {
+              sumIncl = sumIncl.add(total);
+              sumExcl = sumExcl.add(totalExcl);
+            }
             const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
             const unit = o.unitCost ?? (qty.isZero() ? new Decimal(0) : projected.div(qty));
             const markup = o.retailPrice && unit.greaterThan(0) ? o.retailPrice.div(unit) : null;
@@ -216,7 +244,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </Link>
                 </Td>
                 <Td className={cell}>
-                  <Link href={href} className={link}>{total.isZero() ? "—" : formatMoney(total.toString())}</Link>
+                  <Link href={href} className={link}>
+                    {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
+                  </Link>
                 </Td>
                 <Td className={cell}>
                   <Link
@@ -236,6 +266,15 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               </Tr>
             );
           })}
+          {orders.length > 0 && (
+            <Tr className="bg-neutral-50 font-semibold">
+              <Td colSpan={6} className="text-right">
+                <VatLabel base="Итого себестоимость по списку" />
+              </Td>
+              <Td>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</Td>
+              <Td></Td>
+            </Tr>
+          )}
           {orders.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">

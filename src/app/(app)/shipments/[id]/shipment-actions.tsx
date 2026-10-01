@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { DATE_RANGE_ERROR, MAX_DATE, MIN_DATE, isDateInRange } from "@/lib/shipments";
 import { cancelShipment, markShipped, updateShippedShipment } from "../actions";
 
 export function PlannedActions({ id, today }: { id: string; today: string }) {
@@ -51,9 +52,9 @@ export function PlannedActions({ id, today }: { id: string; today: string }) {
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-3">
           <div>
             <Label htmlFor="shippedDate">Фактическая дата отгрузки</Label>
-            <Input id="shippedDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+            <Input id="shippedDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} min={MIN_DATE} max={MAX_DATE} className="w-44" />
           </div>
-          <Button disabled={pending} onClick={() => run(() => markShipped(id, date))}>
+          <Button disabled={pending} onClick={() => (isDateInRange(date) ? run(() => markShipped(id, date)) : setError(DATE_RANGE_ERROR))}>
             {pending ? "Сохраняем..." : "Подтвердить"}
           </Button>
           <Button variant="ghost" onClick={() => setMarking(false)}>
@@ -81,6 +82,8 @@ export function ShippedEdit({ id, shippedDate, notes }: { id: string; shippedDat
         e.preventDefault();
         setError(null);
         setSaved(false);
+        if (!isDateInRange(date)) return setError(DATE_RANGE_ERROR);
+        if (text.trim().length > 2000) return setError("Заметка не длиннее 2000 символов");
         start(async () => {
           const r = await updateShippedShipment(id, date, text);
           if (r.error) setError(r.error);
@@ -94,11 +97,11 @@ export function ShippedEdit({ id, shippedDate, notes }: { id: string; shippedDat
       <div className="text-sm font-medium">Правка отгруженной: только дата и заметка</div>
       <div>
         <Label htmlFor="sd">Фактическая дата отгрузки</Label>
-        <Input id="sd" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" required />
+        <Input id="sd" type="date" value={date} onChange={(e) => setDate(e.target.value)} min={MIN_DATE} max={MAX_DATE} className="w-44" required />
       </div>
       <div>
         <Label htmlFor="sn">Заметка</Label>
-        <Textarea id="sn" value={text} onChange={(e) => setText(e.target.value)} rows={2} />
+        <Textarea id="sn" value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={2000} />
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={pending}>

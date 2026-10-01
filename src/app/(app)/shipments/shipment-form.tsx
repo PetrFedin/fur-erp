@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
-import { suggestSizeRows, type SizeRow } from "@/lib/shipments";
+import { DATE_RANGE_ERROR, MAX_DATE, MAX_LINE_QTY, MAX_TOTAL_QTY, MIN_DATE, isDateInRange, suggestSizeRows, type SizeRow } from "@/lib/shipments";
 import type { ShipmentInput, ShipmentState } from "./actions";
 
 export type FormOrder = {
   id: string;
   label: string; // «ТЗ №141»
+  ref: string; // «П-2026-0141 от 12.03.2026» — различает ТЗ с одинаковым номером
   modelName: string;
   clientKey: string; // id заказчика или "none"
   sizeText: string;
@@ -69,18 +70,25 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
     e.preventDefault();
     setError(null);
     if (!plannedDate) return setError("Укажите плановую дату отгрузки");
+    if (!isDateInRange(plannedDate)) return setError(DATE_RANGE_ERROR);
     const lines: ShipmentInput["lines"] = [];
     for (const o of list) {
       for (const r of rows[o.id] ?? []) {
+        const where = `${o.label} (${o.ref}), размер «${r.size.trim() || "—"}»`;
         const q = r.quantity.trim();
-        if (q === "") continue;
+        if (q === "") return setError(`${where}: не указано количество — заполните или удалите строку (✕)`);
         const n = Number(q.replace(",", "."));
-        if (!Number.isInteger(n)) return setError(`${o.label}: количество должно быть целым числом`);
-        if (n <= 0) continue;
+        if (!Number.isInteger(n)) return setError(`${where}: количество должно быть целым числом`);
+        if (n <= 0) return setError(`${where}: количество должно быть больше 0 — исправьте или удалите строку (✕)`);
+        if (n > MAX_LINE_QTY) return setError(`${where}: количество в строке не больше ${fmt(MAX_LINE_QTY)} шт.`);
         lines.push({ productionOrderId: o.id, size: r.size.trim() || undefined, quantity: n });
       }
     }
     if (lines.length === 0) return setError("Выберите ТЗ и укажите количество больше 0 хотя бы в одной строке");
+    if (lines.reduce((a, l) => a + l.quantity, 0) > MAX_TOTAL_QTY) {
+      return setError(`Общее количество в отгрузке не больше ${fmt(MAX_TOTAL_QTY)} шт.`);
+    }
+    if (notes.trim().length > 2000) return setError("Заметка не длиннее 2000 символов");
     start(async () => {
       const res = await submit({
         plannedDate,
@@ -95,12 +103,12 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-3xl flex-col gap-4">
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
         <div>
           <Label htmlFor="plannedDate">Плановая дата отгрузки</Label>
-          <Input id="plannedDate" type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} className="w-44" required />
+          <Input id="plannedDate" type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} min={MIN_DATE} max={MAX_DATE} className="w-full sm:w-44" required />
         </div>
-        <div className="min-w-64 flex-1">
+        <div className="w-full min-w-0 sm:min-w-64 sm:flex-1">
           <Label htmlFor="client">Заказчик</Label>
           <Select
             id="client"
@@ -140,6 +148,7 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
                 <input type="checkbox" className="mt-0.5 h-4 w-4" checked={on} onChange={(e) => toggle(o, e.target.checked)} />
                 <span>
                   <span className="font-medium">{o.label}</span>{" "}
+                  <span className="text-neutral-500">· {o.ref}</span>{" "}
                   <span className="text-neutral-600">
                     ({o.modelName}
                     {o.sizeText ? `, размеры ${o.sizeText}` : ""}, план {fmt(o.plannedQty)} шт., уже в отгрузках {fmt(o.shippedElsewhere)} шт.)
@@ -147,14 +156,14 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
                 </span>
               </label>
               {on && (
-                <div className="mt-2 flex flex-col gap-1.5 pl-6">
-                  <div className="grid grid-cols-[8rem_6rem_auto] gap-2 text-xs text-neutral-500">
+                <div className="mt-2 flex flex-col gap-1.5 sm:pl-6">
+                  <div className="grid grid-cols-[minmax(0,1fr)_5rem_auto] sm:grid-cols-[8rem_6rem_auto] gap-2 text-xs text-neutral-500">
                     <span>Размер</span>
                     <span>Кол-во</span>
                     <span />
                   </div>
                   {rs.map((r, i) => (
-                    <div key={i} className="grid grid-cols-[8rem_6rem_auto] items-center gap-2">
+                    <div key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_auto] sm:grid-cols-[8rem_6rem_auto] items-center gap-2">
                       <Input value={r.size} onChange={(e) => setRow(o.id, i, { size: e.target.value })} placeholder="—" aria-label="Размер" />
                       <Input
                         value={r.quantity}
@@ -189,7 +198,7 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
 
       <div>
         <Label htmlFor="notes">Заметка</Label>
-        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

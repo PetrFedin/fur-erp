@@ -1,5 +1,6 @@
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/mobile-nav";
 import { VatToggle } from "@/components/vat-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -22,11 +23,14 @@ export function Topbar({
   role: string;
 }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4">
-      <div className="text-sm font-medium text-neutral-700">{organizationName}</div>
-      <div className="flex items-center gap-3">
+    <header className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileNav />
+        <div className="truncate text-sm font-medium text-neutral-700">{organizationName}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 md:gap-3">
         <VatToggle />
-        <div className="text-right text-sm">
+        <div className="hidden text-right text-sm sm:block">
           <div className="font-medium text-neutral-900">{userName}</div>
           <div className="text-xs text-neutral-500">{ROLE_LABELS[role] ?? role}</div>
         </div>

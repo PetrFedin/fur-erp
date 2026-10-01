@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { addPurchaseItemsBulk, type BulkFormState } from "../actions";
-import { PasteBox, IssueList } from "../paste-box";
+import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 import { parsePasteRows, issueLines } from "../parse-rows";
 
 // Paste rows from Excel into an existing draft. Same parser/format as the
@@ -11,8 +11,10 @@ import { parsePasteRows, issueLines } from "../parse-rows";
 export function BulkItemForm({
   purchaseId,
   materialNames,
+  existingLotNumbers,
   currency,
 }: {
+  existingLotNumbers: string[];
   purchaseId: string;
   materialNames: string[];
   currency: string;
@@ -25,12 +27,16 @@ export function BulkItemForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        const result = parsePasteRows(rows, materialNames);
+        const result = parsePasteRows(rows, materialNames, existingLotNumbers);
         if (result.errorCount > 0) {
           setState({
             error: `Ничего не добавлено: ошибок в позициях — ${result.errorCount}.`,
             issues: issueLines(result),
           });
+          return;
+        }
+        if (!confirmNewMaterials(result)) {
+          setState({ issues: issueLines(result) });
           return;
         }
         const fd = new FormData();
@@ -43,7 +49,7 @@ export function BulkItemForm({
       }}
       className="flex flex-col gap-3"
     >
-      <PasteBox value={rows} onChange={setRows} materialNames={materialNames} rows={8} currency={currency} />
+      <PasteBox value={rows} onChange={setRows} materialNames={materialNames} existingLotNumbers={existingLotNumbers} rows={8} currency={currency} />
       <div className="flex items-center gap-3">
         <Button type="submit" variant="outline" size="sm" disabled={pending || !rows.trim()}>
           {pending ? "Добавляем..." : "Добавить в закупку"}

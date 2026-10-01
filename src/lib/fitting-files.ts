@@ -13,6 +13,7 @@ import path from "node:path";
 
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTOS_PER_UPLOAD = 10;
+export const MAX_TOTAL_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_DIR?.trim() || "./uploads");
 
@@ -43,7 +44,13 @@ export type StoredPhoto = { storagePath: string; originalName: string; mimeType:
 export async function readPhotoFiles(
   entries: FormDataEntryValue[],
 ): Promise<{ error: string } | { files: { buf: Buffer; kind: ImageKind; originalName: string }[] }> {
-  const files = entries.filter((e): e is File => typeof e !== "string" && e.size > 0);
+  const files = entries.filter((e): e is File => typeof e !== "string");
+  const empty = files.find((f) => f.size === 0);
+  if (empty) return { error: `Файл «${empty.name || "файл"}» пустой (0 байт) — выберите фото заново` };
+  const totalBytes = files.reduce((a, f) => a + f.size, 0);
+  if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+    return { error: `Общий размер фото больше 50 МБ (${(totalBytes / 1024 / 1024).toFixed(2)} МБ) — загрузите часть файлов отдельно` };
+  }
   if (files.length > MAX_PHOTOS_PER_UPLOAD) {
     return { error: `За один раз можно загрузить не больше ${MAX_PHOTOS_PER_UPLOAD} фото (выбрано ${files.length})` };
   }
@@ -51,11 +58,13 @@ export async function readPhotoFiles(
   for (const f of files) {
     const name = f.name || "файл";
     if (f.size > MAX_PHOTO_BYTES) {
-      return { error: `Файл «${name}» больше 10 МБ (${(f.size / 1024 / 1024).toFixed(1)} МБ)` };
+      return { error: `Файл «${name}» больше 10 МБ (${(f.size / 1024 / 1024).toFixed(2)} МБ)` };
     }
     const declared = (f.type || "").toLowerCase();
     const heicByName = /\.(heic|heif)$/i.test(name);
-    if (!DECLARED_OK.has(declared) && !(declared === "" && heicByName)) {
+    // Chrome вне macOS отдаёт HEIC с пустым типом, а fetch — как octet-stream: решает сигнатура содержимого ниже.
+    const typeless = declared === "" || declared === "application/octet-stream";
+    if (!DECLARED_OK.has(declared) && !(typeless && heicByName)) {
       return { error: `Файл «${name}» не является фото: допустимы JPEG, PNG, WebP, HEIC` };
     }
     const buf = Buffer.from(await f.arrayBuffer());

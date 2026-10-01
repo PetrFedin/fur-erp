@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { orderLabel, orderSortKey } from "@/lib/shipments";
+import { formatDate } from "@/lib/utils";
 import type { FormOrder } from "./shipment-form";
 
 /** Данные для формы отгрузки: заказчики и ТЗ (по № ТЗ) с уже отгруженным количеством. */
@@ -16,6 +17,7 @@ export async function loadShipmentFormData(organizationId: string, excludeShipme
         size: true,
         plannedQuantity: true,
         clientId: true,
+        createdAt: true,
         productModel: { select: { name: true } },
       },
     }),
@@ -37,6 +39,7 @@ export async function loadShipmentFormData(organizationId: string, excludeShipme
     .map((o) => ({
       id: o.id,
       label: orderLabel(o),
+      ref: `${o.number} от ${formatDate(o.createdAt)}`,
       modelName: o.productModel.name,
       clientKey: o.clientId ?? "none",
       sizeText: (o.size ?? "").trim(),

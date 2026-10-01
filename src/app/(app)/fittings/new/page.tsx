@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
-import { orderLabel, dateInputValue } from "@/lib/fittings";
+import { orderLabel, localTodayIso } from "@/lib/fittings";
+import { formatDate } from "@/lib/utils";
 import { NewFittingForm } from "./new-fitting-form";
 
 export const metadata = { title: "Новая примерка" };
@@ -13,13 +14,13 @@ export default async function NewFittingPage({ searchParams }: PageProps<"/fitti
 
   const orders = await prisma.productionOrder.findMany({
     where: { organizationId: session.user.organizationId },
-    select: { id: true, number: true, workOrderNumber: true, size: true, productModel: { select: { name: true } } },
+    select: { id: true, number: true, workOrderNumber: true, size: true, createdAt: true, client: { select: { name: true } }, productModel: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
     take: 1000,
   });
   const options = orders.map((o) => ({
     id: o.id,
-    label: `${orderLabel(o)} · ${o.productModel.name}`,
+    label: `${orderLabel(o)} · ${o.productModel.name} · ${o.number} от ${formatDate(o.createdAt)}${o.client ? ` · ${o.client.name}` : ""}`,
     sizes: (o.size ?? "").split(/[,;/]+/).map((s) => s.trim()).filter(Boolean),
   }));
 
@@ -27,7 +28,7 @@ export default async function NewFittingPage({ searchParams }: PageProps<"/fitti
     <div className="flex flex-col gap-4">
       <ProductionTabs active="fittings" />
       <h1 className="text-xl font-semibold">Новая примерка</h1>
-      <NewFittingForm orders={options} initialOrderId={orderParam} today={dateInputValue(new Date())} />
+      <NewFittingForm orders={options} initialOrderId={orderParam} today={localTodayIso()} />
     </div>
   );
 }

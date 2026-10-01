@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState, Issue } from "../actions";
 import { parsePasteRows, issueLines } from "../parse-rows";
-import { PasteBox, IssueList } from "../paste-box";
+import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 
 type Option = { id: string; name: string; isDefault?: boolean };
 
@@ -17,7 +17,9 @@ export function PurchaseCreateForm({
   suppliers,
   warehouses,
   materialNames,
+  existingLotNumbers,
 }: {
+  existingLotNumbers: string[];
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   suppliers: Option[];
   warehouses: Option[];
@@ -39,14 +41,17 @@ export function PurchaseCreateForm({
         const fd = new FormData(e.currentTarget);
         setState({});
         if (rows.trim()) {
-          const result = parsePasteRows(rows, materialNames);
+          const result = parsePasteRows(rows, materialNames, existingLotNumbers);
           if (result.errorCount > 0) {
             setClientIssues(issueLines(result));
             setState({ error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.` });
             return;
           }
+          setClientIssues(issueLines(result));
+          if (!confirmNewMaterials(result)) return;
+        } else {
+          setClientIssues([]);
         }
-        setClientIssues([]);
         startTransition(async () => {
           const res = await action({}, fd);
           if (res) setState(res);
@@ -132,7 +137,7 @@ export function PurchaseCreateForm({
 
       <details className="rounded-md border border-neutral-200 px-3 py-2">
         <summary className="cursor-pointer text-sm text-neutral-600">Дополнительно</summary>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label htmlFor="transferDocument">УПД / документ передачи</Label>
             <Input id="transferDocument" name="transferDocument" placeholder="№ 143 от 22.09.2025 г." />
@@ -141,14 +146,14 @@ export function PurchaseCreateForm({
             <Label htmlFor="expectedDate">Ожидаемая дата</Label>
             <Input id="expectedDate" name="expectedDate" type="date" />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="notes">Заметки</Label>
             <Textarea id="notes" name="notes" rows={2} />
           </div>
         </div>
       </details>
 
-      <PasteBox value={rows} onChange={setRows} materialNames={materialNames} currency={currency} />
+      <PasteBox value={rows} onChange={setRows} materialNames={materialNames} existingLotNumbers={existingLotNumbers} currency={currency} />
 
       {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
       <IssueList issues={issues} />

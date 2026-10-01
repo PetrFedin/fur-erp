@@ -22,7 +22,12 @@ export function EntryRowForm({
   const boundRemove = removeSupplyPlanEntry.bind(null, entryId);
 
   return (
-    <form action={bound} className="flex flex-wrap items-center gap-1 rounded border border-neutral-200 bg-neutral-50 p-1.5">
+    <form
+      action={async (formData) => {
+        const res = await bound(formData);
+        if (res?.error) window.alert(res.error);
+      }}
+      className="flex flex-wrap items-center gap-1 rounded border border-neutral-200 bg-neutral-50 p-1.5">
       <Select name="status" defaultValue={status} className="h-7 w-auto px-1.5 py-0 text-xs">
         {Object.entries(STATUS_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
@@ -30,7 +35,7 @@ export function EntryRowForm({
           </option>
         ))}
       </Select>
-      <Input name="quantity" type="number" step="0.01" min="0" defaultValue={quantity} className="h-7 w-16 px-1.5 py-0 text-xs" />
+      <Input name="quantity" type="number" step="1" min="1" max="1000000" defaultValue={quantity} className="h-7 w-16 px-1.5 py-0 text-xs" />
       <Input name="eventDate" type="date" defaultValue={eventDate} className="h-7 w-32 px-1.5 py-0 text-xs" />
       <Input name="notes" defaultValue={notes} placeholder="заметка" className="h-7 w-24 px-1.5 py-0 text-xs" />
       <Button type="submit" variant="outline" size="sm" className="h-7 px-1.5 text-xs">

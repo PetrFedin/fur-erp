@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
+import { VatInput } from "@/components/vat-input";
 import { addPurchaseItem } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
 
@@ -32,10 +33,14 @@ export function PurchaseItemForm({
     <form
       ref={formRef}
       action={async (formData) => {
-        await bound(formData);
+        const res = await bound(formData);
+        if (res?.error) {
+          window.alert(res.error);
+          return;
+        }
         formRef.current?.reset();
       }}
-      className="grid grid-cols-8 items-end gap-2"
+      className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 items-end gap-2"
     >
       <div className="col-span-2">
         <label className="mb-1 block text-xs text-neutral-500">Материал</label>
@@ -60,14 +65,7 @@ export function PurchaseItemForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">НДС</label>
-        <Select name="vatRate" defaultValue="22">
-          <option value="0">0%</option>
-          <option value="5">5%</option>
-          <option value="7">7%</option>
-          <option value="10">10%</option>
-          <option value="20">20%</option>
-          <option value="22">22%</option>
-        </Select>
+        <VatInput name="vatRate" defaultValue="22" required />
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Лот (если есть)</label>
@@ -81,7 +79,7 @@ export function PurchaseItemForm({
         <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
         <Input name="color" />
       </div>
-      <div className="col-span-8 flex justify-end">
+      <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex justify-end">
         <Button type="submit" variant="outline" size="sm">
           + Добавить позицию
         </Button>

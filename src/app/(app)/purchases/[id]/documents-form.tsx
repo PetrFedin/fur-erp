@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { uploadPurchaseDocuments, type DocFormState } from "../doc-actions";
 
@@ -13,13 +13,41 @@ const KINDS: [string, string][] = [
   ["OTHER", "Другое"],
 ];
 
+const MAX_TOTAL = 25 * 1024 * 1024;
+
 export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; hasBatch: boolean }) {
-  const [state, action, pending] = useActionState(uploadPurchaseDocuments.bind(null, purchaseId), {} as DocFormState);
+  const [state, setState] = useState<DocFormState>({});
+  const [pending, startTransition] = useTransition();
   const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const files = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
+    const total = files.reduce((s, f) => s + f.size, 0);
+    if (total > MAX_TOTAL) {
+      setState({ error: `Суммарный размер файлов ${(total / 1024 / 1024).toFixed(1)} МБ — больше 25 МБ. Загрузите их по частям.` });
+      return;
+    }
+    setState({});
+    startTransition(async () => {
+      try {
+        const res = await uploadPurchaseDocuments(purchaseId, {}, fd);
+        setState(res ?? {});
+        if (res?.ok) form.reset();
+      } catch {
+        // Запрос упал (слишком большой файл для сервера, обрыв связи, ошибка сервера) —
+        // не оставляем вечное «Загружаем…».
+        setState({ error: "Не удалось загрузить файл: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь. Попробуйте ещё раз." });
+      }
+    });
+  }
+
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
+    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
       <label className="flex flex-col gap-1 text-xs text-neutral-500">
-        Файлы (PDF, XLSX, DOCX, JPEG, PNG)
+        Файлы (PDF, XLSX, DOCX, JPEG, PNG; всего до 25 МБ)
         <input type="file" name="files" multiple required className="text-sm" />
       </label>
       <label className="flex flex-col gap-1 text-xs text-neutral-500">
@@ -49,5 +77,21 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
       {state.error && <p className="w-full text-sm text-red-600">{state.error}</p>}
       {state.ok && <p className="w-full text-sm text-emerald-600">Загружено</p>}
     </form>
+  );
+}
+
+/** Кнопка «Удалить» в серверной форме: спрашивает подтверждение и отменяет отправку при отказе. */
+export function ConfirmSubmitButton({ message, label = "Удалить" }: { message: string; label?: string }) {
+  return (
+    <Button
+      type="submit"
+      variant="ghost"
+      size="sm"
+      onClick={(e) => {
+        if (!window.confirm(message)) e.preventDefault();
+      }}
+    >
+      {label}
+    </Button>
   );
 }

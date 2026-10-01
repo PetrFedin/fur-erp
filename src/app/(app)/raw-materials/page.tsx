@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,7 @@ type Breakdown = {
 
 function toArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
-  return Array.isArray(v) ? v : [v];
+  return (Array.isArray(v) ? v : [v]).map((x) => cleanSearch(x, 200)).filter(Boolean).slice(0, 200);
 }
 
 export default async function RawMaterialsPage({ searchParams }: PageProps<"/raw-materials">) {

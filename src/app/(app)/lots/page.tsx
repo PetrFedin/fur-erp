@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,14 +24,33 @@ const UNIT_LABELS: Record<string, string> = {
 
 export const metadata = { title: "Сырьё" };
 
+/** Сколько лотов меха показываем в развёрнутых списках (остатки по материалам считаются по всем). */
+const FUR_LOTS_LIMIT = 1000;
+
 export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
   const session = await requireSession();
   const sp = await searchParams;
   const tab: "fur" | "lining" = sp.tab === "lining" ? "lining" : "fur";
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
-  const materialId = typeof sp.material === "string" ? sp.material : "";
+  const q = cleanSearch(sp.q);
+  const materialId = cleanSearch(sp.material);
 
-  const [currentLots, allLots, lots, materials] = await Promise.all([
+  const lotsWhere = {
+    organizationId: session.user.organizationId,
+    rawMaterial: tab === "lining" ? { unit: "M" as const } : { unit: { not: "M" as const } },
+    ...(tab === "fur" && materialId ? { rawMaterialId: materialId } : {}),
+    ...(tab === "fur" && q
+      ? {
+          OR: [
+            { lotNumber: { contains: q, mode: "insensitive" as const } },
+            { color: { contains: q, mode: "insensitive" as const } },
+            { grade: { contains: q, mode: "insensitive" as const } },
+            { rawMaterial: { name: { contains: q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [currentLots, allLots, lots, materials, lotsTotal] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: session.user.organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
@@ -40,34 +60,21 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       select: { rawMaterialId: true, quantityReceived: true },
     }),
     prisma.rawMaterialLot.findMany({
-      where: {
-        organizationId: session.user.organizationId,
-        rawMaterial: tab === "lining" ? { unit: "M" } : { unit: { not: "M" } },
-        ...(tab === "fur" && materialId ? { rawMaterialId: materialId } : {}),
-        ...(tab === "fur" && q
-          ? {
-              OR: [
-                { lotNumber: { contains: q, mode: "insensitive" } },
-                { color: { contains: q, mode: "insensitive" } },
-                { grade: { contains: q, mode: "insensitive" } },
-                { rawMaterial: { name: { contains: q, mode: "insensitive" } } },
-              ],
-            }
-          : {}),
-      },
+      where: lotsWhere,
       include: {
         rawMaterial: true,
         purchase: { include: { supplier: true, documents: { orderBy: { createdAt: "asc" } } } },
         usages: { include: { productionOrder: true } },
       },
       orderBy: { receivedDate: tab === "lining" ? "asc" : "desc" },
-      ...(tab === "fur" ? { take: 200 } : {}),
+      ...(tab === "fur" ? { take: FUR_LOTS_LIMIT } : {}),
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId: session.user.organizationId },
       select: { id: true, name: true, unit: true, minStockLevel: true },
       orderBy: { name: "asc" },
     }),
+    tab === "fur" ? prisma.rawMaterialLot.count({ where: lotsWhere }) : Promise.resolve(0),
   ]);
 
   type MaterialAgg = {
@@ -140,7 +147,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">Сырьё</h1>
           <p className="text-sm text-neutral-500">Остаток по материалу — разверните, чтобы увидеть лоты.</p>
@@ -162,7 +169,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <>
           <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
-            <form className="grid grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+            <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
               <div className="col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
                 <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
@@ -188,13 +195,20 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                   Сбросить
                 </Link>
               </div>
-              <div className="col-span-4">
+              <div className="col-span-2 sm:col-span-4">
                 <Link href="/raw-materials" className="text-sm text-neutral-500 hover:underline">
                   Расширенный поиск по лотам и аукционам →
                 </Link>
               </div>
             </form>
           </details>
+
+          {lotsTotal > lots.length && (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              В раскрытых списках показаны первые {lots.length} лотов из {lotsTotal} (самые свежие) — уточните поиск или
+              выберите материал. Остатки и итоги по материалам считаются по всем лотам.
+            </p>
+          )}
 
           <Card>
             <CardHeader>
@@ -449,7 +463,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                               <Money incl={r.value} excl={r.valueExclVat} />
                             </span>
                           </summary>
-                          <div className="grid grid-cols-2 gap-4 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
+                          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
                             <div>
                               <div className="mb-1 text-xs font-semibold text-neutral-500">Закупки</div>
                               <Table>

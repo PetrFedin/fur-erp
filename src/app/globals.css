@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Подсказка горизонтальной прокрутки таблиц на мобильном: тень у края, где есть скрытое содержимое. */
+@media (max-width: 1023px) {
+  .table-scroll {
+    background:
+      linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)) left center / 24px 100% no-repeat local,
+      linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 24px 100% no-repeat local,
+      linear-gradient(to right, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0)) left center / 10px 100% no-repeat scroll,
+      linear-gradient(to left, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0)) right center / 10px 100% no-repeat scroll,
+      #fff;
+  }
+}

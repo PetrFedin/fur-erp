@@ -9,6 +9,15 @@ import type { Issue } from "./actions";
 
 const EXAMPLE = "Соболь дикий выделанный\t21\t60355,15\t22\t15874\tК 2\tтёмный";
 
+/** Подтверждение перед сохранением, если вставка создаст новые материалы (опечатка = тихий дубль). */
+export function confirmNewMaterials(result: ReturnType<typeof parsePasteRows>): boolean {
+  const names = [...new Set(result.rows.filter((r) => r.isNewMaterial).map((r) => r.materialName))];
+  if (names.length === 0) return true;
+  return window.confirm(
+    `Будут созданы новые материалы (${names.length}):\n• ${names.join("\n• ")}\n\nЭтих названий нет в справочнике. Если это опечатка — отмените и исправьте. Создать и сохранить?`,
+  );
+}
+
 export function IssueList({ issues }: { issues: Issue[] }) {
   if (issues.length === 0) return null;
   const errors = issues.filter((i) => i.level === "error");
@@ -46,9 +55,11 @@ export function PasteBox({
   value,
   onChange,
   materialNames,
+  existingLotNumbers = [],
   rows = 10,
   currency = "RUB",
 }: {
+  existingLotNumbers?: string[];
   name?: string;
   value: string;
   onChange: (v: string) => void;
@@ -57,7 +68,7 @@ export function PasteBox({
   currency?: string;
 }) {
   const [checked, setChecked] = useState<string | null>(null);
-  const result = checked !== null ? parsePasteRows(checked, materialNames) : null;
+  const result = checked !== null ? parsePasteRows(checked, materialNames, existingLotNumbers) : null;
   const issues: Issue[] = [];
   if (result) {
     for (const r of result.rows) {

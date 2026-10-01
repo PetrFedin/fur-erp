@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addProductionPayment } from "../actions";
@@ -30,6 +30,8 @@ export function ProductionPaymentForm({
   const [paymentType, setPaymentType] = useState("FINAL");
   const [selected, setSelected] = useState<Set<string>>(() => new Set([orderId]));
   const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const chosen = orders.filter((o) => selected.has(o.id) && o.due !== null);
   const dueSum = chosen.reduce((sum, o) => sum + Number(o.due), 0);
   const restSum = chosen.reduce((sum, o) => sum + (Number(o.due) - Number(o.paid)), 0);
@@ -47,16 +49,30 @@ export function ProductionPaymentForm({
   return (
     <form
       ref={formRef}
-      action={async (formData) => {
-        await bound(formData);
-        formRef.current?.reset();
-        setAmount("");
-        setPaymentType("FINAL");
-        setSelected(new Set([orderId]));
+      onSubmit={(e) => {
+        // Soft guard: paying more than the remaining "К оплате" needs a confirmation.
+        const value = Number(amount);
+        if (chosen.length > 0 && Number.isFinite(value) && value > Math.max(0, restSum) + 0.005) {
+          const ok = confirm(
+            `Сумма оплаты ${rub(value)} ₽ больше остатка к оплате по выбранным ТЗ (${rub(Math.max(0, restSum))} ₽). Всё равно добавить?`
+          );
+          if (!ok) e.preventDefault();
+        }
       }}
+      action={(formData) =>
+        startTransition(async () => {
+          const result = await bound(formData);
+          setError(result.error ?? null);
+          if (result.error) return;
+          formRef.current?.reset();
+          setAmount("");
+          setPaymentType("FINAL");
+          setSelected(new Set([orderId]));
+        })
+      }
       className="flex flex-col gap-2"
     >
-      <div className="grid grid-cols-5 items-end gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">
         <div>
           <label className="mb-1 block text-xs text-neutral-500">Сумма, ₽</label>
           <Input name="amount" type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -103,18 +119,18 @@ export function ProductionPaymentForm({
           <label className="mb-1 block text-xs text-neutral-500">
             Эта оплата покрывает ТЗ этого заказчика (текущее отмечено всегда):
           </label>
-          <div className="flex flex-col gap-1">
+          <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
             {orders.map((o) => {
               const current = o.id === orderId;
               const due = o.due !== null ? Number(o.due) : null;
               const paid = Number(o.paid);
               return (
-                <label key={o.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                <label key={o.id} className="flex items-start gap-2 text-xs text-neutral-700 sm:text-sm">
                   <input
                     type="checkbox"
                     name={current ? undefined : "orderIds"}
                     value={o.id}
-                    className="rounded"
+                    className="mt-0.5 shrink-0 rounded"
                     checked={selected.has(o.id)}
                     disabled={current}
                     onChange={(e) =>
@@ -136,8 +152,9 @@ export function ProductionPaymentForm({
           </div>
         </div>
       )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end">
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="outline" size="sm" disabled={pending}>
           + Добавить оплату от заказчика
         </Button>
       </div>

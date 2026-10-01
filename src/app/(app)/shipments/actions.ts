@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, MAX_TOTAL_QTY, isDateInRange } from "@/lib/shipments";
 
 // Так же, как в разделе ТЗ: планировать отгрузки могут те, кто ведёт ТЗ.
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
@@ -11,21 +12,29 @@ const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 export type ShipmentState = { error?: string; id?: string };
 
 const dateStr = z
-  .string()
+  .string({ error: "Укажите дату" })
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату")
-  .refine((s) => !Number.isNaN(new Date(s).getTime()), "Укажите дату");
+  .refine((s) => !Number.isNaN(new Date(s).getTime()), "Укажите дату")
+  .refine(isDateInRange, DATE_RANGE_ERROR);
 
 const lineSchema = z.object({
-  productionOrderId: z.string().min(1),
-  size: z.string().trim().max(40).optional(),
-  quantity: z.number({ error: "Количество должно быть числом" }).int("Количество должно быть целым").positive("Количество должно быть больше 0"),
+  productionOrderId: z.string({ error: "Выберите ТЗ" }).min(1, "Выберите ТЗ"),
+  size: z.string({ error: "Некорректный размер" }).trim().max(40, "Размер не длиннее 40 символов").optional(),
+  quantity: z
+    .number({ error: "Количество должно быть числом" })
+    .int("Количество должно быть целым")
+    .positive("Количество должно быть больше 0")
+    .max(MAX_LINE_QTY, `Количество в строке не больше ${MAX_LINE_QTY.toLocaleString("ru-RU")} шт.`),
 });
 
 const inputSchema = z.object({
   plannedDate: dateStr,
-  clientId: z.string().optional(),
-  notes: z.string().trim().max(2000).optional(),
-  lines: z.array(lineSchema).min(1, "Добавьте хотя бы одну строку с количеством"),
+  clientId: z.string({ error: "Некорректный заказчик" }).optional(),
+  notes: z.string({ error: "Некорректная заметка" }).trim().max(2000, "Заметка не длиннее 2000 символов").optional(),
+  lines: z
+    .array(lineSchema, { error: "Добавьте хотя бы одну строку с количеством" })
+    .min(1, "Добавьте хотя бы одну строку с количеством")
+    .max(MAX_LINES, `Не больше ${MAX_LINES} строк в одной отгрузке`),
 });
 
 export type ShipmentInput = {
@@ -39,14 +48,24 @@ function firstError(e: z.ZodError) {
   return e.issues[0]?.message ?? "Проверьте форму";
 }
 
-async function checkRefs(organizationId: string, input: z.infer<typeof inputSchema>) {
+async function checkRefs(organizationId: string, input: z.infer<typeof inputSchema>, keepOrderIds: string[] = []) {
+  const total = input.lines.reduce((a, l) => a + l.quantity, 0);
+  if (total > MAX_TOTAL_QTY) return `Общее количество в отгрузке не больше ${MAX_TOTAL_QTY.toLocaleString("ru-RU")} шт.`;
   if (input.clientId) {
     const c = await prisma.client.findFirst({ where: { id: input.clientId, organizationId }, select: { id: true } });
     if (!c) return "Заказчик не найден";
   }
   const ids = [...new Set(input.lines.map((l) => l.productionOrderId))];
-  const n = await prisma.productionOrder.count({ where: { id: { in: ids }, organizationId } });
-  if (n !== ids.length) return "ТЗ не найдено";
+  const found = await prisma.productionOrder.findMany({
+    where: { id: { in: ids }, organizationId },
+    select: { id: true, status: true, clientId: true },
+  });
+  if (found.length !== ids.length) return "ТЗ не найдено";
+  for (const o of found) {
+    // Уже вошедшее в эту отгрузку ТЗ при правке оставляем, даже если его потом отменили.
+    if (o.status === "CANCELLED" && !keepOrderIds.includes(o.id)) return "Нельзя отгружать по отменённому ТЗ";
+    if ((o.clientId ?? null) !== (input.clientId || null)) return "ТЗ не принадлежит выбранному заказчику";
+  }
   return null;
 }
 
@@ -94,7 +113,8 @@ export async function updateShipment(id: string, raw: ShipmentInput): Promise<Sh
   if (cur.status !== "PLANNED") return { error: "Изменить можно только запланированную отгрузку" };
   const parsed = inputSchema.safeParse(raw);
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const bad = await checkRefs(organizationId, parsed.data);
+  const existing = await prisma.shipmentLine.findMany({ where: { shipmentId: id }, select: { productionOrderId: true } });
+  const bad = await checkRefs(organizationId, parsed.data, existing.map((l) => l.productionOrderId));
   if (bad) return { error: bad };
   await prisma.$transaction([
     prisma.shipmentLine.deleteMany({ where: { shipmentId: id } }),
@@ -115,7 +135,7 @@ export async function updateShipment(id: string, raw: ShipmentInput): Promise<Sh
 export async function markShipped(id: string, shippedDate: string): Promise<ShipmentState> {
   const session = await requireRole(...EDIT_ROLES);
   const d = dateStr.safeParse(shippedDate);
-  if (!d.success) return { error: "Укажите фактическую дату отгрузки" };
+  if (!d.success) return { error: d.error.issues[0]?.message ?? "Укажите фактическую дату отгрузки" };
   const cur = await prisma.shipment.findFirst({ where: { id, organizationId: session.user.organizationId } });
   if (!cur) return { error: "Отгрузка не найдена" };
   if (cur.status !== "PLANNED") return { error: "Отметить можно только запланированную отгрузку" };
@@ -128,7 +148,8 @@ export async function markShipped(id: string, shippedDate: string): Promise<Ship
 export async function updateShippedShipment(id: string, shippedDate: string, notes: string): Promise<ShipmentState> {
   const session = await requireRole(...EDIT_ROLES);
   const d = dateStr.safeParse(shippedDate);
-  if (!d.success) return { error: "Укажите фактическую дату отгрузки" };
+  if (!d.success) return { error: d.error.issues[0]?.message ?? "Укажите фактическую дату отгрузки" };
+  if (notes.trim().length > 2000) return { error: "Заметка не длиннее 2000 символов" };
   const cur = await prisma.shipment.findFirst({ where: { id, organizationId: session.user.organizationId } });
   if (!cur) return { error: "Отгрузка не найдена" };
   if (cur.status !== "SHIPPED") return { error: "Правка доступна только для отгруженной отгрузки" };

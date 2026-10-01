@@ -4,18 +4,36 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { zNum, parseDateInput } from "@/lib/input";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
 
 const STATUS_VALUES = ["PLANNED", "LAUNCHED", "WITH_FURRIER", "WITH_TAILOR", "PRODUCED", "CANCELLED"] as const;
 
+const MAX_PLAN_QTY = 1_000_000;
+
+const monthField = z
+  .string()
+  .min(1, "Укажите месяц")
+  .refine((s) => {
+    const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(s);
+    return !!m && Number(m[1]) >= 2020 && Number(m[1]) <= 2100;
+  }, "Месяц должен быть в формате ГГГГ-ММ, год от 2020 до 2100");
+
+const eventDateField = z
+  .string()
+  .optional()
+  .refine((s) => !s || parseDateInput(s) !== null, "Некорректная дата события");
+
+const quantityField = zNum("Количество", { positive: true, int: true, max: MAX_PLAN_QTY });
+
 const entrySchema = z.object({
   productModelId: z.string().min(1, "Выберите артикул"),
-  month: z.string().min(1, "Укажите месяц"),
-  status: z.enum(STATUS_VALUES),
-  quantity: z.coerce.number().positive("Количество должно быть больше 0"),
-  eventDate: z.string().optional(),
-  notes: z.string().trim().optional(),
+  month: monthField,
+  status: z.enum(STATUS_VALUES, { message: "Выберите статус" }),
+  quantity: quantityField,
+  eventDate: eventDateField,
+  notes: z.string().trim().max(1000, "Заметка не длиннее 1000 символов").optional(),
 });
 
 export type FormState = { error?: string };
@@ -54,13 +72,13 @@ export async function addSupplyPlanEntry(_prev: FormState, formData: FormData): 
 }
 
 const updateSchema = z.object({
-  status: z.enum(STATUS_VALUES),
-  quantity: z.coerce.number().positive("Количество должно быть больше 0"),
-  eventDate: z.string().optional(),
-  notes: z.string().trim().optional(),
+  status: z.enum(STATUS_VALUES, { message: "Выберите статус" }),
+  quantity: quantityField,
+  eventDate: eventDateField,
+  notes: z.string().trim().max(1000, "Заметка не длиннее 1000 символов").optional(),
 });
 
-export async function updateSupplyPlanEntry(entryId: string, formData: FormData) {
+export async function updateSupplyPlanEntry(entryId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const parsed = updateSchema.safeParse({
     status: formData.get("status"),
@@ -68,7 +86,7 @@ export async function updateSupplyPlanEntry(entryId: string, formData: FormData)
     eventDate: formData.get("eventDate") || undefined,
     notes: formData.get("notes") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля записи" };
 
   await prisma.supplyPlanEntry.updateMany({
     where: { id: entryId, organizationId: session.user.organizationId },
@@ -81,6 +99,7 @@ export async function updateSupplyPlanEntry(entryId: string, formData: FormData)
   });
 
   revalidatePath("/supply-plan");
+  return {};
 }
 
 export async function removeSupplyPlanEntry(entryId: string) {

@@ -21,12 +21,23 @@ export function orderLabel(o: { workOrderNumber: string | null; number: string }
 /** Дата примерки хранится в полдень UTC, чтобы не «прыгала» по часовым поясам. */
 export function parseFittingDate(v: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  if (v < "2020-01-01" || v > "2100-01-01") return null;
   const d = new Date(`${v}T12:00:00Z`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+export const FITTING_DATE_ERROR = "Укажите дату примерки между 01.01.2020 и 01.01.2100";
+
+/** Дата из БД (полдень UTC) как YYYY-MM-DD. */
 export function dateInputValue(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+/** Сегодняшняя дата по местному времени (YYYY-MM-DD). */
+export function localTodayIso() {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
 export function truncate(s: string | null, n: number) {

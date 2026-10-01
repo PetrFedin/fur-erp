@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanSearch } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants, Button } from "@/components/ui/button";
@@ -15,8 +16,9 @@ export const metadata = { title: "Отгрузки" };
 export default async function ShipmentsPage({ searchParams }: PageProps<"/shipments">) {
   const session = await requireSession();
   const orgId = session.user.organizationId;
+  const canEdit = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session.user.role);
   const sp = await searchParams;
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const str = (v: unknown) => cleanSearch(v);
   const status = str(sp.status) in SHIPMENT_STATUS ? str(sp.status) : "";
   const client = str(sp.client);
 
@@ -65,11 +67,13 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="shipments" />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Отгрузки</h1>
-        <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
-          + Новая отгрузка
-        </Link>
+        {canEdit && (
+          <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
+            + Новая отгрузка
+          </Link>
+        )}
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm">
@@ -80,7 +84,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2">
-        <Select name="status" defaultValue={status} className="w-48">
+        <Select name="status" defaultValue={status} className="w-full sm:w-48">
           <option value="">Все статусы</option>
           {Object.entries(SHIPMENT_STATUS).map(([k, v]) => (
             <option key={k} value={k}>
@@ -88,7 +92,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             </option>
           ))}
         </Select>
-        <Select name="client" defaultValue={client} className="w-56">
+        <Select name="client" defaultValue={client} className="w-full sm:w-56">
           <option value="">Все заказчики</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
@@ -107,7 +111,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         )}
       </form>
 
-      <Table>
+      <Table className="min-w-[720px]">
         <Thead>
           <Tr>
             <Th>Плановая дата</Th>

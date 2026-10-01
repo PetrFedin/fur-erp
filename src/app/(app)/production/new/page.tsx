@@ -4,13 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Decimal } from "@prisma/client/runtime/library";
 import { createProductionOrder } from "../actions";
 import { ProductionCreateForm } from "./form";
+import { canEditProduction } from "@/lib/production-access";
 
 export default async function NewProductionOrderPage() {
   const session = await requireSession();
+  if (!canEditProduction(session.user.role)) {
+    return (
+      <div className="max-w-3xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Новое ТЗ</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-neutral-600">
+              Недостаточно прав для создания ТЗ. Обратитесь к владельцу, администратору или технологу.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const [models, warehouses, clients, liningMaterials, liningLots, contractRows] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, sellingPrice: true },
       orderBy: { name: "asc" },
     }),
     prisma.warehouse.findMany({
@@ -68,7 +85,7 @@ export default async function NewProductionOrderPage() {
         <CardContent>
           <ProductionCreateForm
             action={createProductionOrder}
-            models={models}
+            models={models.map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null }))}
             warehouses={warehouses}
             clients={clients}
             liningOptions={liningOptions}

@@ -77,9 +77,9 @@ export function OrderEditForm({
         <form
           action={formAction}
           onSubmit={() => setSubmitted(true)}
-          className="grid grid-cols-2 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="productModelId">Модель изделия</Label>
             {modelLocked ? (
               <>
@@ -159,7 +159,7 @@ export function OrderEditForm({
             </Select>
           </div>
 
-          <div className="col-span-2 mt-2 border-t border-neutral-200 pt-4">
+          <div className="sm:col-span-2 mt-2 border-t border-neutral-200 pt-4">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
               Заказчик и ТЗ
             </p>
@@ -199,15 +199,15 @@ export function OrderEditForm({
             />
           </div>
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="notes">Заметки</Label>
             <Textarea id="notes" name="notes" rows={2} defaultValue={defaults.notes} />
           </div>
 
           {state.error && (
-            <p className="col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
+            <p className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
           )}
-          <div className="col-span-2 flex justify-end gap-2">
+          <div className="sm:col-span-2 flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>
               Закрыть
             </Button>

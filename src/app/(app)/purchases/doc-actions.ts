@@ -63,8 +63,11 @@ export async function deletePurchaseDocument(purchaseId: string, documentId: str
     where: { id: documentId, organizationId: session.user.organizationId },
   });
   if (!doc) return;
+  // Документ партии (purchaseId = null) принадлежит организации, а не одной закупке —
+  // удалять его могут те же роли. Файл с диска убираем, только если на него больше никто не ссылается.
   await prisma.purchaseDocument.delete({ where: { id: doc.id } });
-  await removeStoredFiles([doc.storagePath]);
+  const stillUsed = await prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } });
+  if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
 }

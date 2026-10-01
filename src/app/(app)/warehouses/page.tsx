@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 
 export default async function WarehousesPage() {
   const session = await requireSession();
+  const canCreate = hasRole(session.user.role, ACCESS.warehouses);
   const warehouses = await prisma.warehouse.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: { name: "asc" },
@@ -16,9 +18,11 @@ export default async function WarehousesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Склады</h1>
-        <Link href="/warehouses/new" className={buttonVariants()}>
-          + Новый склад
-        </Link>
+        {canCreate && (
+          <Link href="/warehouses/new" className={buttonVariants()}>
+            + Новый склад
+          </Link>
+        )}
       </div>
 
       <Table>

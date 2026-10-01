@@ -18,7 +18,14 @@ export function ExchangeRateForm({
   const bound = updatePurchaseExchangeRate.bind(null, purchaseId);
 
   return (
-    <form ref={formRef} action={bound} className="flex items-end gap-2">
+    <form
+      ref={formRef}
+      action={async (formData) => {
+        const res = await bound(formData);
+        if (res?.error) window.alert(res.error);
+      }}
+      className="flex items-end gap-2"
+    >
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Курс {currency} → RUB</label>
         <Input

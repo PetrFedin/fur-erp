@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
 
@@ -7,7 +7,7 @@ import { readStoredFile } from "@/lib/fitting-files";
  * только id), доступ — авторизованному пользователю той же организации.
  */
 export async function GET(_request: Request, ctx: RouteContext<"/api/fittings/photo/[id]">) {
-  const session = await auth();
+  const session = await getFreshSession();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   const photo = await prisma.fittingPhoto.findFirst({

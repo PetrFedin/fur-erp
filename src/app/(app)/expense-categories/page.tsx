@@ -13,8 +13,10 @@ const KIND_LABELS: Record<string, string> = {
   GENERAL: "Общая",
 };
 
-export default async function ExpenseCategoriesPage() {
+export default async function ExpenseCategoriesPage({ searchParams }: PageProps<"/expense-categories">) {
   const session = await requireSession();
+  const sp = await searchParams;
+  const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
   const categories = await prisma.expenseCategory.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: [{ kind: "asc" }, { name: "asc" }],
@@ -23,6 +25,9 @@ export default async function ExpenseCategoriesPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Статьи расходов</h1>
+      {flashError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
+      )}
 
       <Card className="max-w-lg">
         <CardHeader>

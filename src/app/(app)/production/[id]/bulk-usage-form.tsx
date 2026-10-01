@@ -9,8 +9,15 @@ const initialState: BulkUsageState = {};
 
 export function BulkUsageForm({ orderId }: { orderId: string }) {
   const [open, setOpen] = useState(false);
+  // Controlled: React 19 resets uncontrolled fields after a server action,
+  // which would wipe the paste when an error comes back.
+  const [text, setText] = useState("");
   const bound = addMaterialUsagesBulk.bind(null, orderId);
-  const [state, formAction, pending] = useActionState(bound, initialState);
+  const [state, formAction, pending] = useActionState(async (prev: BulkUsageState, fd: FormData) => {
+    const result = await bound(prev, fd);
+    if (result.created !== undefined) setText("");
+    return result;
+  }, initialState);
 
   if (!open) {
     return (
@@ -23,10 +30,18 @@ export function BulkUsageForm({ orderId }: { orderId: string }) {
   return (
     <div className="rounded-md border border-dashed border-neutral-300 p-3">
       <p className="mb-2 text-xs text-neutral-500">
-        Строки «Лот [Tab] Количество», по одной на лот.
+        Строки «Лот [Tab] Количество», по одной на лот (разделитель — Tab, «;» или пробел). Одна неверная строка — не
+        спишется ничего.
       </p>
       <form action={formAction} className="flex flex-col gap-2">
-        <Textarea name="rows" rows={5} placeholder={"15874\t21\n15893\t10\n..."} className="font-mono text-xs" />
+        <Textarea
+          name="rows"
+          rows={5}
+          placeholder={"15874\t21\n15893\t10\n..."}
+          className="font-mono text-xs"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
         <div className="flex items-center gap-2">
           <Button type="submit" variant="outline" size="sm" disabled={pending}>
             {pending ? "Списываем..." : "Списать все строки"}
@@ -39,11 +54,12 @@ export function BulkUsageForm({ orderId }: { orderId: string }) {
           )}
         </div>
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        {state.skipped && state.skipped.length > 0 && (
-          <p className="text-xs text-amber-600">
-            Не удалось (нет такого лота, или не хватает остатка): {state.skipped.length} — {state.skipped.slice(0, 3).join(" | ")}
-            {state.skipped.length > 3 ? "…" : ""}
-          </p>
+        {state.errors && state.errors.length > 0 && (
+          <ul className="list-disc rounded-md bg-red-50 px-6 py-2 text-sm text-red-700">
+            {state.errors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
         )}
       </form>
     </div>

@@ -5,15 +5,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
+import { checkOrgRefs } from "@/lib/org-guard";
+import { zNum, zNumOpt, MAX_MONEY, MAX_QTY, isUniqueViolation } from "@/lib/input";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT_ROLES = ACCESS.models;
 
 const modelSchema = z.object({
-  name: z.string().trim().min(2, "Укажите название модели"),
-  sku: z.string().trim().optional(),
-  category: z.string().trim().optional(),
-  sellingPrice: z.coerce.number().nonnegative().optional().or(z.nan().transform(() => undefined)),
-  description: z.string().trim().optional(),
+  name: z.string().trim().min(2, "Укажите название модели").max(200, "Название слишком длинное"),
+  sku: z.string().trim().max(100, "Артикул слишком длинный").optional(),
+  category: z.string().trim().max(100).optional(),
+  sellingPrice: zNumOpt("Цена продажи"),
+  description: z.string().trim().max(5000).optional(),
 });
 
 export type ModelFormState = { error?: string };
@@ -36,9 +39,15 @@ export async function createModel(
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  const model = await prisma.productModel.create({
-    data: { organizationId: session.user.organizationId, ...parsed.data },
-  });
+  let model;
+  try {
+    model = await prisma.productModel.create({
+      data: { organizationId: session.user.organizationId, ...parsed.data },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: "Модель с таким артикулом уже существует" };
+    throw e;
+  }
 
   revalidatePath("/models");
   redirect(`/models/${model.id}`);
@@ -53,10 +62,16 @@ export async function updateModel(
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  const result = await prisma.productModel.updateMany({
-    where: { id, organizationId: session.user.organizationId },
-    data: parsed.data,
-  });
+  let result;
+  try {
+    result = await prisma.productModel.updateMany({
+      where: { id, organizationId: session.user.organizationId },
+      data: parsed.data,
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: "Модель с таким артикулом уже существует" };
+    throw e;
+  }
   if (result.count === 0) return { error: "Модель не найдена" };
 
   revalidatePath("/models");
@@ -66,46 +81,51 @@ export async function updateModel(
 
 // Kept in sync with ProductionOrder.retailPrice — see the matching note on
 // production/actions.ts's updateRetailPrice.
-export async function updateSellingPrice(modelId: string, formData: FormData) {
+export async function updateSellingPrice(modelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const parsed = z.coerce.number().nonnegative().safeParse(formData.get("sellingPrice"));
-  if (!parsed.success) return;
+  const parsed = zNum("Цена продажи", { max: MAX_MONEY }).safeParse(formData.get("sellingPrice"));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Некорректная цена" };
+  const price = parsed.data as number;
 
   const model = await prisma.productModel.findFirst({
     where: { id: modelId, organizationId: session.user.organizationId },
   });
-  if (!model) return;
+  if (!model) return { error: "Модель не найдена" };
 
   await prisma.$transaction([
-    prisma.productModel.update({ where: { id: modelId }, data: { sellingPrice: parsed.data } }),
+    prisma.productModel.update({ where: { id: modelId }, data: { sellingPrice: price } }),
     prisma.productionOrder.updateMany({
       where: { productModelId: modelId, organizationId: session.user.organizationId },
-      data: { retailPrice: parsed.data },
+      data: { retailPrice: price },
     }),
   ]);
 
   revalidatePath("/articles");
   revalidatePath("/models");
   revalidatePath("/production");
+  return {};
 }
 
 const bomSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите материал"),
-  quantityPerUnit: z.coerce.number().positive("Норма расхода должна быть больше 0"),
+  quantityPerUnit: zNum("Норма расхода", { positive: true, max: MAX_QTY }),
 });
 
-export async function addBomLine(productModelId: string, formData: FormData) {
+export async function addBomLine(productModelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
   const model = await prisma.productModel.findFirst({
-    where: { id: productModelId, organizationId: session.user.organizationId },
+    where: { id: productModelId, organizationId: orgId },
   });
-  if (!model) return;
+  if (!model) return { error: "Модель не найдена" };
 
   const parsed = bomSchema.safeParse({
     rawMaterialId: formData.get("rawMaterialId"),
     quantityPerUnit: formData.get("quantityPerUnit"),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
+  const badRef = await checkOrgRefs(orgId, { rawMaterial: parsed.data.rawMaterialId });
+  if (badRef) return { error: badRef };
 
   await prisma.productModelMaterial.upsert({
     where: {
@@ -119,6 +139,7 @@ export async function addBomLine(productModelId: string, formData: FormData) {
   });
 
   revalidatePath(`/models/${productModelId}`);
+  return {};
 }
 
 export async function removeBomLine(productModelId: string, lineId: string) {
@@ -128,6 +149,7 @@ export async function removeBomLine(productModelId: string, lineId: string) {
   });
   if (!model) return;
 
-  await prisma.productModelMaterial.delete({ where: { id: lineId } });
+  // Строка удаляется только если она принадлежит этой (своей) модели.
+  await prisma.productModelMaterial.deleteMany({ where: { id: lineId, productModelId: model.id } });
   revalidatePath(`/models/${productModelId}`);
 }

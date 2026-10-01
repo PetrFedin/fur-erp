@@ -5,12 +5,23 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 import { createRawMaterialLot, addOrPoolLiningLot } from "@/lib/stock";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
 import { parsePasteRows, issueLines, type ParsedRow } from "./parse-rows";
+import { checkOrgRefs } from "@/lib/org-guard";
+import { MAX_MONEY, MAX_QTY, zNum, parseDateInput } from "@/lib/input";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
+const dateField = (label = "Некорректная дата") =>
+  z.string().refine((s) => parseDateInput(s) !== null, label);
+const currencyField = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Некорректная валюта").default("RUB");
+const vatField = zNum("Ставка НДС", { max: 100 });
+const AMOUNT_TOO_BIG = "Сумма слишком велика — проверьте количество и цену";
+const tooBig = (d: Decimal) => d.gte(MAX_MONEY);
+
+const EDIT_ROLES = ACCESS.purchases;
 const WAREHOUSE_ROLES = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"] as const;
 
 export type OrderRef = { id: string; number: string; quantity: string };
@@ -21,16 +32,26 @@ export type FormState = { error?: string; issues?: Issue[]; orders?: OrderRef[] 
 
 // ---------- Purchase header ----------
 
+const COSTPLAN_PRICE_LOCK =
+  "Цена и количество взяты из расчётного листа — менять их нельзя. Доступны только лот, сорт и цвет.";
+const COSTPLAN_PURCHASE_LOCK =
+  "В закупке есть позиции с расчётом из расчётного листа — валюту и курс менять нельзя (цены уже пересчитаны в расчёте).";
+
+async function hasCostPlanItems(purchaseId: string) {
+  const n = await prisma.purchaseItem.count({ where: { purchaseId, costPlan: { not: Prisma.DbNull } } });
+  return n > 0;
+}
+
 const purchaseSchema = z.object({
   supplierId: z.string().optional(),
   warehouseId: z.string().optional(),
-  currency: z.string().trim().min(1).default("RUB"),
-  exchangeRate: z.coerce.number().positive("Курс должен быть больше 0").default(1),
-  auctionSession: z.string().trim().optional(),
-  invoiceNumber: z.string().trim().optional(),
-  transferDocument: z.string().trim().optional(),
-  orderDate: z.string().min(1, "Укажите дату"),
-  expectedDate: z.string().optional(),
+  currency: currencyField,
+  exchangeRate: zNum("Курс", { positive: true, max: 1_000_000 }),
+  auctionSession: z.string().trim().max(500).optional(),
+  invoiceNumber: z.string().trim().max(200).optional(),
+  transferDocument: z.string().trim().max(200).optional(),
+  orderDate: z.string().min(1, "Укажите дату").pipe(dateField()),
+  expectedDate: dateField().optional(),
   notes: z.string().trim().optional(),
 });
 
@@ -79,7 +100,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
   let issues: Issue[] = [];
   if (rawRows) {
     const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
-    const result = parsePasteRows(rawRows, materials.map((m) => m.name));
+    const result = parsePasteRows(rawRows, materials.map((m) => m.name), await existingLotNumbers(orgId));
     issues = issueLines(result);
     if (result.errorCount > 0) {
       return { error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.`, issues };
@@ -87,7 +108,9 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     pasteRows = result.rows;
   }
 
-  const purchase = await prisma.$transaction(async (tx) => {
+  let purchase: { id: string };
+  try {
+    purchase = await prisma.$transaction(async (tx) => {
     const number = await nextDocumentNumber(tx, "purchase", orgId, "З");
     const created = await tx.purchase.create({
       data: {
@@ -108,10 +131,23 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     });
     if (pasteRows.length > 0) await insertPasteRows(tx, orgId, created.id, pasteRows);
     return created;
-  });
+    });
+  } catch (e) {
+    console.error("createPurchase failed", e);
+    return { error: "Не удалось сохранить закупку: проверьте числа в позициях (слишком большие значения). Введённые данные сохранены в форме.", issues };
+  }
 
   revalidatePath("/purchases");
   redirect(`/purchases/${purchase.id}`);
+}
+
+// Номера лотов, уже существующих на складе организации (для предупреждения о дублях).
+async function existingLotNumbers(orgId: string): Promise<string[]> {
+  const lots = await prisma.rawMaterialLot.findMany({
+    where: { organizationId: orgId, lotNumber: { not: null } },
+    select: { lotNumber: true },
+  });
+  return lots.map((l) => l.lotNumber as string);
 }
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -145,16 +181,18 @@ async function insertPasteRows(tx: Tx, orgId: string, purchaseId: string, rows: 
   });
 }
 
-export async function updatePurchaseExchangeRate(purchaseId: string, formData: FormData) {
+export async function updatePurchaseExchangeRate(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const rate = z.coerce.number().positive().safeParse(formData.get("exchangeRate"));
-  if (!rate.success) return;
+  const rate = zNum("Курс", { positive: true, max: 1_000_000 }).safeParse(formData.get("exchangeRate"));
+  if (!rate.success) return { error: rate.error.issues[0]?.message ?? "Некорректный курс" };
 
+  if (await hasCostPlanItems(purchaseId)) return { error: COSTPLAN_PURCHASE_LOCK };
   await prisma.purchase.updateMany({
     where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
-    data: { exchangeRate: rate.data },
+    data: { exchangeRate: rate.data as number },
   });
   revalidatePath(`/purchases/${purchaseId}`);
+  return {};
 }
 
 // Editing the purchase header itself — supplier, warehouse, auction session,
@@ -173,11 +211,11 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
 const purchaseHeaderSchema = z.object({
   supplierId: z.string().min(1, "Выберите поставщика"),
   warehouseId: z.string().min(1, "Выберите склад"),
-  currency: z.string().trim().min(1).default("RUB"),
-  auctionSession: z.string().trim().optional(),
-  invoiceNumber: z.string().trim().optional(),
-  transferDocument: z.string().trim().optional(),
-  orderDate: z.string().min(1),
+  currency: currencyField,
+  auctionSession: z.string().trim().max(500).optional(),
+  invoiceNumber: z.string().trim().max(200).optional(),
+  transferDocument: z.string().trim().max(200).optional(),
+  orderDate: z.string().min(1, "Укажите дату").pipe(dateField()),
 });
 
 export async function updatePurchase(purchaseId: string, formData: FormData): Promise<FormState> {
@@ -196,8 +234,14 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
     orderDate: formData.get("orderDate"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const badRef = await checkOrgRefs(session.user.organizationId, {
+    supplier: parsed.data.supplierId,
+    warehouse: parsed.data.warehouseId,
+  });
+  if (badRef) return { error: badRef };
 
   const currencyChanged = parsed.data.currency !== purchase.currency;
+  if (currencyChanged && (await hasCostPlanItems(purchaseId))) return { error: COSTPLAN_PURCHASE_LOCK };
 
   // Blank optional fields must clear rather than be left untouched — same
   // "read straight off formData" reasoning as updatePurchaseItem's `cosmetic`.
@@ -246,18 +290,18 @@ export async function setPurchaseStatus(
 
 const itemSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите материал"),
-  quantity: z.coerce.number().positive("Количество должно быть больше 0"),
-  unitPrice: z.coerce.number().nonnegative("Цена не может быть отрицательной"),
-  vatRate: z.coerce.number().min(0, "Ставка НДС не может быть отрицательной").max(100, "Некорректная ставка НДС"),
-  lotNumber: z.string().trim().optional(),
-  grade: z.string().trim().optional(),
-  color: z.string().trim().optional(),
+  quantity: zNum("Количество", { positive: true, max: MAX_QTY }),
+  unitPrice: zNum("Цена"),
+  vatRate: vatField,
+  lotNumber: z.string().trim().max(100).optional(),
+  grade: z.string().trim().max(100).optional(),
+  color: z.string().trim().max(100).optional(),
 });
 
-export async function addPurchaseItem(purchaseId: string, formData: FormData) {
+export async function addPurchaseItem(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
-  if (!purchase) return;
+  if (!purchase) return { error: "Закупку нельзя редактировать — она уже принята на склад или отменена" };
 
   const parsed = itemSchema.safeParse({
     rawMaterialId: formData.get("rawMaterialId"),
@@ -268,9 +312,12 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
     grade: formData.get("grade") || undefined,
     color: formData.get("color") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля позиции" };
+  const badRef = await checkOrgRefs(session.user.organizationId, { rawMaterial: parsed.data.rawMaterialId });
+  if (badRef) return { error: badRef };
 
   const subtotal = new Decimal(parsed.data.quantity).mul(parsed.data.unitPrice);
+  if (tooBig(subtotal)) return { error: AMOUNT_TOO_BIG };
 
   await prisma.purchaseItem.create({
     data: {
@@ -287,6 +334,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData) {
   });
 
   revalidatePath(`/purchases/${purchaseId}`);
+  return {};
 }
 
 // Bulk entry into an existing draft: same paste format and parser as the
@@ -308,14 +356,19 @@ export async function addPurchaseItemsBulk(
   if (!raw) return { error: "Вставьте хотя бы одну строку" };
 
   const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
-  const result = parsePasteRows(raw, materials.map((m) => m.name));
+  const result = parsePasteRows(raw, materials.map((m) => m.name), await existingLotNumbers(orgId));
   const issues = issueLines(result);
   if (result.errorCount > 0) {
     return { error: `Ничего не добавлено: ошибок в позициях — ${result.errorCount}.`, issues };
   }
   if (result.rows.length === 0) return { error: "Не удалось разобрать ни одной строки", issues };
 
-  await prisma.$transaction((tx) => insertPasteRows(tx, orgId, purchaseId, result.rows));
+  try {
+    await prisma.$transaction((tx) => insertPasteRows(tx, orgId, purchaseId, result.rows));
+  } catch (e) {
+    console.error("addPurchaseItemsBulk failed", e);
+    return { error: "Не удалось сохранить позиции: проверьте числа (слишком большие значения). Текст вставки сохранён.", issues };
+  }
 
   revalidatePath(`/purchases/${purchaseId}`);
   return { created: result.rows.length, issues: issues.length ? issues : undefined };
@@ -364,6 +417,20 @@ export async function updatePurchaseItem(
     color: formData.get("color") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const badRef = await checkOrgRefs(session.user.organizationId, { rawMaterial: parsed.data.rawMaterialId });
+  if (badRef) return { error: badRef };
+  if (tooBig(new Decimal(parsed.data.quantity).mul(parsed.data.unitPrice))) return { error: AMOUNT_TOO_BIG };
+
+  // Позиция с расчётом из расчётного листа: цена, количество и НДС взяты из
+  // расчёта — правка сломала бы стоимость лота. Разрешены лот/сорт/цвет.
+  if (
+    item.costPlan != null &&
+    (!new Decimal(parsed.data.quantity).eq(item.quantity) ||
+      !new Decimal(parsed.data.unitPrice).eq(item.unitPrice) ||
+      !new Decimal(parsed.data.vatRate).eq(item.vatRate))
+  ) {
+    return { error: COSTPLAN_PRICE_LOCK };
+  }
 
   // Read these straight off formData (not parsed.data): itemSchema's
   // `.optional()` treats a blank field as "not specified" (right for
@@ -488,6 +555,7 @@ export async function updatePurchaseItem(
   const newInclVatRub = grossUp(newBaseRub, newVatRate);
   const newLandedTotal = newInclVatRub.add(allocatedExpense);
   const newUnitCost = newLandedTotal.div(newQuantity);
+  if (tooBig(newLandedTotal)) return { error: AMOUNT_TOO_BIG };
 
   await prisma.$transaction([
     prisma.purchaseItem.update({
@@ -531,7 +599,8 @@ export async function removePurchaseItem(purchaseId: string, itemId: string) {
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
   if (!purchase) return;
 
-  await prisma.purchaseItem.delete({ where: { id: itemId } });
+  // deleteMany + фильтр по закупке этой организации: чужую позицию не удалить.
+  await prisma.purchaseItem.deleteMany({ where: { id: itemId, purchaseId: purchase.id } });
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
@@ -539,15 +608,15 @@ export async function removePurchaseItem(purchaseId: string, itemId: string) {
 
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Выберите статью расходов"),
-  amount: z.coerce.number().positive("Сумма должна быть больше 0"),
-  vatRate: z.coerce.number().min(0, "Ставка НДС не может быть отрицательной").max(100, "Некорректная ставка НДС"),
-  description: z.string().trim().optional(),
+  amount: zNum("Сумма", { positive: true }),
+  vatRate: vatField,
+  description: z.string().trim().max(500).optional(),
 });
 
-export async function addPurchaseExpense(purchaseId: string, formData: FormData) {
+export async function addPurchaseExpense(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
-  if (!purchase) return;
+  if (!purchase) return { error: "Закупку нельзя редактировать — она уже принята на склад или отменена" };
 
   const parsed = expenseSchema.safeParse({
     categoryId: formData.get("categoryId"),
@@ -555,13 +624,16 @@ export async function addPurchaseExpense(purchaseId: string, formData: FormData)
     vatRate: formData.get("vatRate") ?? 0,
     description: formData.get("description") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля расхода" };
+  const badRef = await checkOrgRefs(session.user.organizationId, { expenseCategory: parsed.data.categoryId });
+  if (badRef) return { error: badRef };
 
   await prisma.purchaseExpense.create({
     data: { purchaseId, ...parsed.data },
   });
 
   revalidatePath(`/purchases/${purchaseId}`);
+  return {};
 }
 
 export async function removePurchaseExpense(purchaseId: string, expenseId: string) {
@@ -569,25 +641,26 @@ export async function removePurchaseExpense(purchaseId: string, expenseId: strin
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
   if (!purchase) return;
 
-  await prisma.purchaseExpense.delete({ where: { id: expenseId } });
+  await prisma.purchaseExpense.deleteMany({ where: { id: expenseId, purchaseId: purchase.id } });
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
 // ---------- Payments ----------
 
 const paymentSchema = z.object({
-  amount: z.coerce.number().positive("Сумма должна быть больше 0"),
-  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
-  paidAt: z.string().min(1),
-  notes: z.string().trim().optional(),
+  amount: zNum("Сумма", { positive: true }),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"], { message: "Выберите способ оплаты" }),
+  paidAt: z.string().min(1, "Укажите дату оплаты").pipe(dateField("Некорректная дата оплаты")),
+  notes: z.string().trim().max(1000).optional(),
 });
 
-export async function addPurchasePayment(purchaseId: string, formData: FormData) {
+export async function addPurchasePayment(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const purchase = await prisma.purchase.findFirst({
     where: { id: purchaseId, organizationId: session.user.organizationId },
   });
-  if (!purchase) return;
+  if (!purchase) return { error: "Закупка не найдена" };
+  if (purchase.status === "CANCELLED") return { error: "Закупка отменена — оплату добавить нельзя" };
 
   const parsed = paymentSchema.safeParse({
     amount: formData.get("amount"),
@@ -595,7 +668,7 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
     paidAt: formData.get("paidAt"),
     notes: formData.get("notes") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля оплаты" };
 
   await prisma.payment.create({
     data: {
@@ -603,7 +676,9 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
       supplierId: purchase.supplierId,
       purchaseId,
       amount: parsed.data.amount,
-      currency: purchase.currency,
+      // Сумма платежа вводится и учитывается в рублях (см. «Оплачено»/остаток
+      // в рублях), поэтому валюту закупки (USD…) сюда не пишем.
+      currency: "RUB",
       method: parsed.data.method,
       status: "COMPLETED",
       paidAt: new Date(parsed.data.paidAt),
@@ -613,6 +688,7 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
 
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/payments");
+  return {};
 }
 
 // ---------- Receiving: this is where landed cost + stock-in happens ----------
@@ -637,17 +713,22 @@ function parseCostPlan(raw: unknown) {
   };
 }
 
+class AlreadyReceivedError extends Error {}
+
 export async function receivePurchase(purchaseId: string): Promise<FormState> {
   const session = await requireRole(...WAREHOUSE_ROLES);
+  const orgId = session.user.organizationId;
 
-  const purchase = await prisma.purchase.findFirst({
-    where: { id: purchaseId, organizationId: session.user.organizationId },
-    include: { items: { include: { rawMaterial: true } }, expenses: true },
+  // Быстрая проверка для понятных сообщений; настоящая защита от двойной
+  // приёмки (две вкладки) — атомарный переход статуса внутри транзакции ниже.
+  const pre = await prisma.purchase.findFirst({
+    where: { id: purchaseId, organizationId: orgId },
+    select: { status: true, _count: { select: { items: true } } },
   });
-  if (!purchase) return { error: "Закупка не найдена" };
-  if (purchase.status === "RECEIVED") return { error: "Закупка уже принята на склад" };
-  if (purchase.status === "CANCELLED") return { error: "Закупка отменена" };
-  if (purchase.items.length === 0) return { error: "В закупке нет позиций" };
+  if (!pre) return { error: "Закупка не найдена" };
+  if (pre.status === "RECEIVED") return { error: "Закупка уже принята на склад" };
+  if (pre.status === "CANCELLED") return { error: "Закупка отменена" };
+  if (pre._count.items === 0) return { error: "В закупке нет позиций" };
 
   // Item prices and expense amounts are entered EXCLUDING VAT; each line
   // carries its own rate since it varies lot to lot (the rate in force
@@ -655,80 +736,122 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   // Expenses are always in RUB; item prices are in the purchase's currency
   // and get converted here. Everything is grossed up to VAT-inclusive RUB,
   // expenses are allocated across items proportionally by their inclusive
-  // subtotal share, and rolled into that item's lot as a fixed landed cost
+  // cost share, and rolled into that item's lot as a fixed landed cost
   // — see src/lib/stock.ts.
   const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
-  const totalExpensesExclVat = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
-  const totalExpensesInclVat = purchase.expenses.reduce(
-    (sum, e) => sum.add(grossUp(e.amount, e.vatRate)),
-    new Decimal(0)
-  );
-  // VAT amount of the total expense pool — used below to split each lot's
-  // allocated share the same way materialCostExclVat/materialVatAmount
-  // already split the item's own price. See RawMaterialLot.expenseCostExclVat
-  // for why applying the item's allocation ratio to this split is exact.
-  const totalExpensesVatAmount = totalExpensesInclVat.sub(totalExpensesExclVat);
-  const itemsInclVatRub = purchase.items.map((item) => {
-    const baseRub = item.subtotal.mul(purchase.exchangeRate);
-    return { item, baseRub, inclVatRub: grossUp(baseRub, item.vatRate) };
-  });
-  const totalItemsInclVatRub = itemsInclVatRub.reduce((sum, i) => sum.add(i.inclVatRub), new Decimal(0));
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        // Атомарный переход статуса: если параллельная приёмка уже выиграла,
+        // count = 0 и лоты не создаются (иначе склад задвоился бы).
+        const claimed = await tx.purchase.updateMany({
+          where: { id: purchaseId, organizationId: orgId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
+          data: { status: "RECEIVED", receivedDate: new Date() },
+        });
+        if (claimed.count === 0) throw new AlreadyReceivedError();
 
-  await prisma.$transaction(async (tx) => {
-    for (const { item, baseRub, inclVatRub } of itemsInclVatRub) {
-      // Same ratio drives both the inclusive allocation and its excl-VAT /
-      // VAT-amount split — exact, since the ratio is applied uniformly to
-      // the whole expense pool (excl + vat = incl by construction).
-      const allocationRatio = totalItemsInclVatRub.isZero()
-        ? new Decimal(0)
-        : inclVatRub.div(totalItemsInclVatRub);
-      const allocatedExpense = totalExpensesInclVat.mul(allocationRatio);
-      const allocatedExpenseExclVat = totalExpensesExclVat.mul(allocationRatio);
-      const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
-      const landedTotal = inclVatRub.add(allocatedExpense);
+        // Позиции и расходы читаем уже после захвата — правки, закоммиченные
+        // до этого момента, попадают в приёмку.
+        const purchase = await tx.purchase.findFirst({
+          where: { id: purchaseId, organizationId: orgId },
+          include: { items: { include: { rawMaterial: true } }, expenses: true },
+        });
+        if (!purchase) throw new Error("Закупка не найдена");
+        if (purchase.items.length === 0) throw new Error("В закупке нет позиций");
 
-      // Позиция с расчётом из расчётного листа (costPlan): стоимость единицы
-      // берётся оттуда как есть (выделка/транспорт — на штуку, а не от цены),
-      // расходы закупки на неё не распределяются, разбивка уходит в лот.
-      const plan = parseCostPlan(item.costPlan);
-      const lotArgs = {
-        organizationId: session.user.organizationId,
-        warehouseId: purchase.warehouseId,
-        rawMaterialId: item.rawMaterialId,
-        lotNumber: item.lotNumber,
-        grade: item.grade,
-        color: item.color,
-        quantity: item.quantity,
-        unitCost: plan ? plan.unitCostInclVat : landedTotal.div(item.quantity),
-        totalCost: plan ? plan.unitCostInclVat.mul(item.quantity) : landedTotal,
-        vatRate: item.vatRate,
-        materialCostExclVat: plan ? plan.materialExclVat : baseRub.div(item.quantity),
-        materialVatAmount: plan ? plan.materialVat : inclVatRub.sub(baseRub).div(item.quantity),
-        expenseCostExclVat: plan ? plan.expenseExclVat : allocatedExpenseExclVat.div(item.quantity),
-        expenseVatAmount: plan ? plan.expenseVat : allocatedExpenseVatAmount.div(item.quantity),
-        purchaseId: purchase.id,
-        purchaseItemId: item.id,
-        ...(plan ? { costBreakdown: plan.costBreakdown } : {}),
-      };
+        const totalExpensesExclVat = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
+        const totalExpensesInclVat = purchase.expenses.reduce(
+          (sum, e) => sum.add(grossUp(e.amount, e.vatRate)),
+          new Decimal(0)
+        );
+        // VAT amount of the total expense pool — used below to split each lot's
+        // allocated share the same way materialCostExclVat/materialVatAmount
+        // already split the item's own price. See RawMaterialLot.expenseCostExclVat
+        // for why applying the item's allocation ratio to this split is exact.
+        const totalExpensesVatAmount = totalExpensesInclVat.sub(totalExpensesExclVat);
 
-      // Lining fabric (tracked by the metre) is one aggregate pool per
-      // fabric, not one lot per receipt — see cfc5cd6 and
-      // addOrPoolLiningLot's own comment. Fur (and every other unit) keeps
-      // the original specific-identification behavior: a fresh lot every
-      // time.
-      if (item.rawMaterial.unit === "M") {
-        await addOrPoolLiningLot(tx, lotArgs);
-      } else {
-        await createRawMaterialLot(tx, lotArgs);
-      }
-    }
+        // Полная стоимость позиции (с НДС, ₽) — база для распределения расходов.
+        // Для позиции с расчётом из расчётного листа (costPlan) это стоимость
+        // единицы из расчёта × количество, для обычной — цена × курс + НДС.
+        const rows = purchase.items.map((item) => {
+          const plan = parseCostPlan(item.costPlan);
+          const baseRub = item.subtotal.mul(purchase.exchangeRate);
+          const inclVatRub = grossUp(baseRub, item.vatRate);
+          const fullInclVatRub = plan ? plan.unitCostInclVat.mul(item.quantity) : inclVatRub;
+          return { item, plan, baseRub, inclVatRub, fullInclVatRub };
+        });
+        const totalFullInclVatRub = rows.reduce((sum, r) => sum.add(r.fullInclVatRub), new Decimal(0));
 
-    await tx.purchase.update({
-      where: { id: purchase.id },
-      data: { status: "RECEIVED", receivedDate: new Date() },
-    });
-  });
+        for (const { item, plan, baseRub, inclVatRub, fullInclVatRub } of rows) {
+          // Same ratio drives both the inclusive allocation and its excl-VAT /
+          // VAT-amount split — exact, since the ratio is applied uniformly to
+          // the whole expense pool (excl + vat = incl by construction).
+          const allocationRatio = totalFullInclVatRub.isZero() ? new Decimal(0) : fullInclVatRub.div(totalFullInclVatRub);
+          const allocatedExpense = totalExpensesInclVat.mul(allocationRatio);
+          const allocatedExpenseExclVat = totalExpensesExclVat.mul(allocationRatio);
+          const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
+          const qty = item.quantity;
+
+          // Позиция с расчётом (costPlan): стоимость единицы из расчёта
+          // (выделка/транспорт — на штуку, а не от цены) + доля расходов закупки.
+          let costBreakdown: Prisma.InputJsonValue | undefined;
+          if (plan) {
+            costBreakdown = plan.costBreakdown;
+            if (allocatedExpense.gt(0)) {
+              const bd = (plan.costBreakdown ?? {}) as { items?: { label: string; value: number }[] };
+              costBreakdown = {
+                ...(bd as object),
+                items: [
+                  ...(Array.isArray(bd.items) ? bd.items : []),
+                  { label: "Расходы закупки (доля), ₽", value: Number(allocatedExpense.div(qty).toDecimalPlaces(2).toString()) },
+                ],
+              } as Prisma.InputJsonValue;
+            }
+          }
+
+          const lotArgs = {
+            organizationId: orgId,
+            warehouseId: purchase.warehouseId,
+            rawMaterialId: item.rawMaterialId,
+            lotNumber: item.lotNumber,
+            grade: item.grade,
+            color: item.color,
+            quantity: qty,
+            unitCost: plan ? plan.unitCostInclVat.add(allocatedExpense.div(qty)) : inclVatRub.add(allocatedExpense).div(qty),
+            totalCost: plan ? plan.unitCostInclVat.mul(qty).add(allocatedExpense) : inclVatRub.add(allocatedExpense),
+            vatRate: item.vatRate,
+            materialCostExclVat: plan ? plan.materialExclVat : baseRub.div(qty),
+            materialVatAmount: plan ? plan.materialVat : inclVatRub.sub(baseRub).div(qty),
+            expenseCostExclVat: plan
+              ? plan.expenseExclVat.add(allocatedExpenseExclVat.div(qty))
+              : allocatedExpenseExclVat.div(qty),
+            expenseVatAmount: plan
+              ? plan.expenseVat.add(allocatedExpenseVatAmount.div(qty))
+              : allocatedExpenseVatAmount.div(qty),
+            purchaseId: purchase.id,
+            purchaseItemId: item.id,
+            ...(costBreakdown !== undefined ? { costBreakdown } : {}),
+          };
+
+          // Lining fabric (tracked by the metre) is one aggregate pool per
+          // fabric, not one lot per receipt — see cfc5cd6 and
+          // addOrPoolLiningLot's own comment. Fur (and every other unit) keeps
+          // the original specific-identification behavior: a fresh lot every
+          // time.
+          if (item.rawMaterial.unit === "M") {
+            await addOrPoolLiningLot(tx, lotArgs);
+          } else {
+            await createRawMaterialLot(tx, lotArgs);
+          }
+        }
+      },
+      { timeout: 60_000, maxWait: 10_000 }
+    );
+  } catch (e) {
+    if (e instanceof AlreadyReceivedError) return { error: "Закупка уже принята на склад" };
+    throw e;
+  }
 
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
@@ -749,9 +872,9 @@ export type LiningPurchaseState = { error?: string; ok?: string };
 const liningSchema = z.object({
   materialId: z.string().optional(),
   newNumber: z.string().trim().optional(),
-  meters: z.coerce.number({ message: "Укажите метры числом" }).positive("Метры должны быть больше 0").max(1_000_000, "Слишком большое количество метров"),
-  pricePerMeter: z.coerce.number({ message: "Укажите цену за метр числом" }).min(0, "Цена не может быть отрицательной").max(10_000_000, "Слишком большая цена"),
-  vatRate: z.coerce.number({ message: "НДС — число" }).min(0, "НДС не может быть отрицательным").max(100, "НДС не может быть больше 100%"),
+  meters: zNum("Метры", { positive: true, max: 1_000_000 }),
+  pricePerMeter: zNum("Цена за метр", { max: 10_000_000 }),
+  vatRate: zNum("НДС", { max: 100 }),
   date: z.string().min(1, "Укажите дату"),
   invoiceNumber: z.string().trim().optional(),
   notes: z.string().trim().optional(),
@@ -769,9 +892,9 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
   const parsed = liningSchema.safeParse({
     materialId: formData.get("materialId") || undefined,
     newNumber: formData.get("newNumber") || undefined,
-    meters: (formData.get("meters") as string | null)?.replace(",", ".") ?? "",
-    pricePerMeter: (formData.get("pricePerMeter") as string | null)?.replace(",", ".") || "",
-    vatRate: (formData.get("vatRate") as string | null)?.replace(",", ".") || 22,
+    meters: formData.get("meters") ?? "",
+    pricePerMeter: formData.get("pricePerMeter") ?? "",
+    vatRate: formData.get("vatRate") || 22,
     date: formData.get("date") || "",
     invoiceNumber: formData.get("invoiceNumber") || undefined,
     notes: formData.get("notes") || undefined,
@@ -779,8 +902,9 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
   const d = parsed.data;
   if (String(formData.get("pricePerMeter") ?? "").trim() === "") return { error: "Укажите цену за метр" };
-  const orderDate = new Date(d.date);
-  if (Number.isNaN(orderDate.getTime())) return { error: "Некорректная дата" };
+  if (tooBig(new Decimal(d.meters).mul(d.pricePerMeter))) return { error: AMOUNT_TOO_BIG };
+  const orderDate = parseDateInput(d.date);
+  if (!orderDate) return { error: "Некорректная дата" };
 
   const [suppliers, warehouses] = await Promise.all([
     prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true } }),
@@ -878,5 +1002,5 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
 
   revalidatePath("/lots");
   revalidatePath("/purchases");
-  return { ok: `Добавлено: ${materialName} — ${d.meters} м` };
+  return { ok: `Добавлено: ${materialName} — ${String(d.meters).replace(".", ",")} м` };
 }

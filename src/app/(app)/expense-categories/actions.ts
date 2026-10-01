@@ -3,12 +3,13 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "ACCOUNTANT"] as const;
 
 const schema = z.object({
-  name: z.string().trim().min(2, "Укажите название статьи"),
+  name: z.string().trim().min(2, "Укажите название статьи").max(100, "Название слишком длинное"),
   kind: z.enum(["PURCHASE", "PRODUCTION", "GENERAL"]),
 });
 
@@ -18,7 +19,9 @@ export async function createExpenseCategory(formData: FormData) {
     name: formData.get("name"),
     kind: formData.get("kind"),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    redirect(`/expense-categories?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Проверьте поля формы")}`);
+  }
 
   await prisma.expenseCategory.upsert({
     where: {

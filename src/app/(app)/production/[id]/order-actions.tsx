@@ -33,10 +33,13 @@ export function CompleteOrderForm({
   orderId,
   plannedQuantity,
   warehouseName,
+  hasUsages,
 }: {
   orderId: string;
   plannedQuantity: string;
   warehouseName: string;
+  /** No write-offs yet -> completion is refused (zero-cost finished goods). */
+  hasUsages: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +53,22 @@ export function CompleteOrderForm({
           setError(result.error ?? null);
         })
       }
+      onSubmit={(e) => {
+        const qty = (e.currentTarget.elements.namedItem("producedQuantity") as HTMLInputElement | null)?.value ?? "";
+        if (
+          !confirm(
+            `Завершить ТЗ? Готовая продукция (${qty} шт.) придёт на склад «${warehouseName}», себестоимость зафиксируется. Действие нельзя откатить.`
+          )
+        ) {
+          e.preventDefault();
+        }
+      }}
       className="flex flex-wrap items-center gap-2"
-      title={`Себестоимость фиксируется, готовая продукция принимается на склад «${warehouseName}»`}
+      title={
+        hasUsages
+          ? `Себестоимость фиксируется, готовая продукция принимается на склад «${warehouseName}»`
+          : "Сначала спишите сырьё: без списаний продукция встанет на склад с нулевой себестоимостью"
+      }
     >
       <label className="text-xs text-neutral-500" htmlFor="completeQty">
         Факт, шт.
@@ -66,7 +83,12 @@ export function CompleteOrderForm({
         required
         className="w-20"
       />
-      <Button type="submit" size="sm" disabled={pending}>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={pending || !hasUsages}
+        title={hasUsages ? undefined : "Нельзя завершить ТЗ без списаний сырья — сначала спишите сырьё"}
+      >
         {pending ? "Завершаем..." : "Завершить"}
       </Button>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -74,18 +96,28 @@ export function CompleteOrderForm({
   );
 }
 
-export function CancelOrderButton({ orderId }: { orderId: string }) {
+export function CancelOrderButton({ orderId, blockedReason }: { orderId: string; blockedReason?: string }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   return (
-    <Button
-      variant="destructive"
-      size="sm"
-      disabled={pending}
-      onClick={() => {
-        if (confirm("Отменить ТЗ? Это действие нельзя отменить.")) startTransition(() => cancelProductionOrder(orderId));
-      }}
-    >
-      Отменить ТЗ
-    </Button>
+    <div className="flex flex-col gap-1">
+      <Button
+        variant="destructive"
+        size="sm"
+        disabled={pending || Boolean(blockedReason)}
+        title={blockedReason}
+        onClick={() => {
+          if (confirm("Отменить ТЗ? Это действие нельзя отменить."))
+            startTransition(async () => {
+              const result = await cancelProductionOrder(orderId);
+              setError(result.error ?? null);
+            });
+        }}
+      >
+        Отменить ТЗ
+      </Button>
+      {blockedReason && <p className="max-w-56 text-xs text-neutral-500">{blockedReason}</p>}
+      {error && <p className="max-w-56 text-xs text-red-600">{error}</p>}
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -16,6 +17,11 @@ export async function ShipmentsBlock({
   organizationId: string;
   plannedQuantity: string;
 }) {
+  const [session, order] = await Promise.all([
+    getFreshSession(),
+    prisma.productionOrder.findFirst({ where: { id: orderId, organizationId }, select: { status: true } }),
+  ]);
+  const canAdd = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session?.user?.role ?? "") && order?.status !== "CANCELLED";
   const shipments = await prisma.shipment.findMany({
     where: { organizationId, lines: { some: { productionOrderId: orderId } } },
     include: { lines: { where: { productionOrderId: orderId }, orderBy: { id: "asc" } } },
@@ -29,9 +35,11 @@ export async function ShipmentsBlock({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle>Отгрузки</CardTitle>
-        <Link href={`/shipments/new?order=${orderId}`} className={buttonVariants({ size: "sm" })}>
-          + Отгрузка
-        </Link>
+        {canAdd && (
+          <Link href={`/shipments/new?order=${orderId}`} className={buttonVariants({ size: "sm" })}>
+            + Отгрузка
+          </Link>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
         <p className="text-neutral-600">

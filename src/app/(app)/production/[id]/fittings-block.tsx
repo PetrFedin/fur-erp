@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { FITTING_STATUS, truncate } from "@/lib/fittings";
 
 /** Блок «Примерки» на карточке ТЗ: последние примерки этого ТЗ. */
 export async function FittingsBlock({ orderId, organizationId, search }: { orderId: string; organizationId: string; search: string }) {
+  const session = await getFreshSession();
+  const canAdd = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session?.user?.role ?? "");
   const where = { productionOrderId: orderId, organizationId };
   const [fittings, total] = await Promise.all([
     prisma.fitting.findMany({
@@ -24,9 +27,11 @@ export async function FittingsBlock({ orderId, organizationId, search }: { order
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Примерки{total > 0 ? ` (${total})` : ""}</CardTitle>
-        <Link href={`/fittings/new?order=${orderId}`} className={buttonVariants({ size: "sm" })}>
-          + Примерка
-        </Link>
+        {canAdd && (
+          <Link href={`/fittings/new?order=${orderId}`} className={buttonVariants({ size: "sm" })}>
+            + Примерка
+          </Link>
+        )}
       </CardHeader>
       <CardContent>
         {fittings.length === 0 ? (
