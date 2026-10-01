@@ -18,18 +18,16 @@ import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
-import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
-import { DriveDocuments } from "@/components/drive-documents";
-import { DocFileButtons } from "@/components/doc-preview";
+import { DocumentsForm } from "./documents-form";
+import { UploadDocument, AddForm } from "@/components/drive-documents";
+import { PurchaseDocumentsList } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
-import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
-import { deletePurchaseDocument } from "../doc-actions";
 import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -164,8 +162,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const grandTotalRub = itemsTotalInclVatRub.add(expensesTotalInclVat);
   const goodsExclVatRub = itemsTotal.mul(purchase.exchangeRate);
   // Расходы, заложенные в расчёт лотов (сборы аукциона, выделка, транспорт, брокер), — тоже «доп. расходы».
-  const extraExclVat = itemsTotalExclVatRub.sub(goodsExclVatRub).add(expensesTotalExclVat);
-  const vatTotal = grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat);
+  // Копейки округления (|x| < 1 ₽) — это ноль, а не «−0,02».
+  const near0 = (x: Decimal) => (x.abs().lessThan(1) ? new Decimal(0) : x);
+  const extraExclVat = near0(itemsTotalExclVatRub.sub(goodsExclVatRub).add(expensesTotalExclVat));
+  const vatTotal = near0(grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat));
   // В «Оплачено» — только факт (запланированные оплаты не в счёт).
   const paidTotal = purchase.payments.filter((p) => p.status === "COMPLETED").reduce((s, p) => s.add(p.amount), new Decimal(0));
   const auctionPay = batchName
@@ -191,7 +191,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true, type: true, position: true },
   });
-  const itemColSpan = 6 + (showGradeColor ? 1 : 0) + (itemsMutable ? 1 : 0) + customFields.length;
+  const hasPlan = planItems.length > 0;
+  const currencySym = purchase.currency === "USD" ? "$" : purchase.currency === "RUB" ? "₽" : purchase.currency;
+  const itemColSpan = 6 + (hasPlan ? 1 : 0) + (showGradeColor ? 1 : 0) + (itemsMutable ? 1 : 0) + customFields.length;
 
   // Which production orders already drew from each consumed lot — so the
   // "locked" hint and the edit error can name them and link to them.
@@ -286,20 +288,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      {auctionPay && (
-        <p className="text-sm text-neutral-600">
-          <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="font-medium text-blue-600 hover:underline">
-            Оплаты Веллмех по аукциону «{auctionPay.name}»
-          </Link>
-          : оплачено {formatMoney(auctionPay.paid.toString())} из {formatMoney(auctionPay.total.toString())}, остаток{" "}
-          {formatMoney(auctionPay.remaining.toString())}
-          {auctionPay.planned.greaterThan(0) && `, запланировано ${formatMoney(auctionPay.planned.toString())}`}.
-          <span className="block text-xs text-neutral-400">
-            Оплаты по аукциону целиком в «Остаток к оплате» этой закупки ниже не входят — он считает только оплаты, внесённые в саму закупку.
-          </span>
-        </p>
-      )}
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <SummaryCard
           label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
@@ -312,11 +300,31 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
           emphasis
         />
-        <SummaryCard
-          label="Остаток к оплате"
-          value={formatMoney(balanceDue.toString())}
-          warn={balanceDue.greaterThan(0)}
-        />
+        {auctionPay ? (
+          <SummaryCard
+            label={
+              <Link
+                href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`}
+                className="text-blue-600 hover:underline"
+                title={`Оплаты ведутся по аукциону «${auctionPay.name}» целиком`}
+              >
+                Оплачено по аукциону
+              </Link>
+            }
+            value={
+              <>
+                {formatMoney(auctionPay.paid.toString())} из {formatMoney(auctionPay.total.toString())}
+                <span className="mt-0.5 block text-xs font-normal text-neutral-500">
+                  остаток по аукциону {formatMoney(auctionPay.remaining.toString())}
+                  {auctionPay.planned.greaterThan(0) && ` · запланировано ${formatMoney(auctionPay.planned.toString())}`}
+                </span>
+              </>
+            }
+            warn={auctionPay.remaining.greaterThan(0)}
+          />
+        ) : (
+          <SummaryCard label="Остаток к оплате" value={formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+        )}
       </div>
 
       <Card>
@@ -358,12 +366,18 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Th>Лот</Th>
                   {showGradeColor && <Th>Сорт / цвет</Th>}
                   <Th>Кол-во</Th>
-                  <Th>Цена без НДС</Th>
+                  <Th>{hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС"}</Th>
                   <Th>НДС</Th>
-                  <Th title={planItems.length > 0 ? "Цена самого лота; выделка и транспорт из расчёта себестоимости (ниже) сюда не входят" : undefined}>
-                    {planItems.length > 0 ? "Цена лота (без расходов)" : "Сумма"}
-                    {isForeignCurrency && " (RUB)"}
-                  </Th>
+                  {hasPlan ? (
+                    <>
+                      <Th title="Расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %, НДС">
+                        Себестоимость единицы
+                      </Th>
+                      <Th>Всего</Th>
+                    </>
+                  ) : (
+                    <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
+                  )}
                   {customFields.map((f) => (
                     <Th key={f.id} title="Свой столбец — правится в режиме «Аукцион» (Лоты)">
                       {f.name}
@@ -378,9 +392,25 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
                   const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
                   // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
-                  const hasPlan = item.costPlan != null;
-                  const canEditFinancials = canEditRole && !hasPlan && (editable || (!!item.lot && !consumed));
+                  const itemPlan = item.costPlan != null;
+                  const canEditFinancials = canEditRole && !itemPlan && (editable || (!!item.lot && !consumed));
                   const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
+                  const planInfo = itemPlan
+                    ? (() => {
+                        const plan = item.costPlan as unknown as {
+                          manualEditedAt?: string;
+                          unitCostInclVat: string;
+                          materialExclVat: string;
+                          expenseExclVat: string;
+                          costBreakdown: never;
+                        };
+                        return {
+                          plan,
+                          excl: new Decimal(plan.materialExclVat).add(plan.expenseExclVat),
+                          total: new Decimal(plan.unitCostInclVat).mul(item.quantity),
+                        };
+                      })()
+                    : null;
                   const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
                   return (
                     <PurchaseItemRow
@@ -397,8 +427,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
                       canEditFinancials={canEditFinancials}
                       lockedNote={
-                        hasPlan
-                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в блоке расчёта ниже. Здесь доступны только лот, сорт и цвет."
+                        itemPlan
+                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в строке позиции. Здесь доступны только лот, сорт и цвет."
                           : item.lot && consumed
                           ? orders && orders.length > 0
                             ? `${lotName} уже списан в ТЗ (${orders
@@ -430,14 +460,60 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       </Td>
                       <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
                       <Td>{item.vatRate.toString()}%</Td>
-                      <Td>
-                        <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                        {isForeignCurrency && (
-                          <span className="ml-1 text-xs text-neutral-400">
-                            ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
-                          </span>
-                        )}
-                      </Td>
+                      {planInfo ? (
+                        <>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
+                            <CostBreakdownToggle
+                              breakdown={planInfo.plan.costBreakdown}
+                              unitCostExcl={planInfo.excl.toString()}
+                              unitCostIncl={planInfo.plan.unitCostInclVat}
+                            />
+                            {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
+                              <div className="text-xs font-normal text-amber-700">
+                                изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
+                              </div>
+                            )}
+                          </Td>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
+                            {canEditPlan && (
+                              <div className="mt-1">
+                                <CostPlanItemEditor
+                                  purchaseId={id}
+                                  currencySymbol={currencySym}
+                                  item={{
+                                    id: item.id,
+                                    lotNumber: item.lotNumber,
+                                    ...deriveCostPlanInputs(item.costPlan, {
+                                      quantity: Number(item.quantity.toString()),
+                                      price: Number(item.unitPrice.toString()),
+                                      rate: Number(purchase.exchangeRate.toString()),
+                                      vat: Number(item.vatRate.toString()),
+                                    }),
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </Td>
+                        </>
+                      ) : hasPlan ? (
+                        <>
+                          <Td className="text-neutral-400">—</Td>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                          </Td>
+                        </>
+                      ) : (
+                        <Td>
+                          <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                          {isForeignCurrency && (
+                            <span className="ml-1 text-xs text-neutral-400">
+                              ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
+                            </span>
+                          )}
+                        </Td>
+                      )}
                       {customFields.map((f) => (
                         <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "—"}</Td>
                       ))}
@@ -466,19 +542,17 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       {planItems.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Расчёт себестоимости по лотам</CardTitle>
+            <CardTitle>Расчёт себестоимости</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <p className="text-xs text-neutral-500">
-              Предварительный расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %,
-              НДС. При приёме на склад эта стоимость единицы переходит в лот, а расходы закупки (блок «Расходы»)
-              добавляются сверху пропорционально стоимости лотов. Колонка «Цена лота (без расходов)» в таблице позиций —
-              только цена лота без этих сборов и расходов, поэтому она меньше итога закупки.
+              Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
+              переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов.
             </p>
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {statusEditable ? (
                 canEditRole ? (
-                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт».</>
+                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт» в строке позиции.</>
                 ) : (
                   <>Расчёт могут менять только владелец, администратор и закупщик.</>
                 )
@@ -507,138 +581,44 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 exchangeRate={purchase.exchangeRate.toString()}
               />
             )}
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Лот</Th>
-                  <Th>Кол-во</Th>
-                  <Th>Цена лота, $</Th>
-                  <Th>Себестоимость единицы</Th>
-                  <Th>Всего</Th>
-                  {canEditPlan && <Th></Th>}
-                </Tr>
-              </Thead>
-              <Tbody>
-                {planItems.map((i) => {
-                  const plan = i.costPlan as unknown as {
-                    manualEditedAt?: string;
-                    unitCostInclVat: string;
-                    materialExclVat: string;
-                    expenseExclVat: string;
-                    costBreakdown: never;
-                  };
-                  const excl = new Decimal(plan.materialExclVat).add(plan.expenseExclVat);
-                  const total = new Decimal(plan.unitCostInclVat).mul(i.quantity);
-                  return (
-                    <Tr key={i.id}>
-                      <Td>
-                        {i.lotNumber ?? "—"}
-                        {plan.manualEditedAt && !Number.isNaN(Date.parse(plan.manualEditedAt)) && (
-                          <div className="text-xs font-normal text-amber-700">
-                            расчёт изменён вручную {formatDate(new Date(plan.manualEditedAt))}
-                          </div>
-                        )}
-                      </Td>
-                      <Td>{formatQty(i.quantity.toString())} шт.</Td>
-                      <Td>{formatCurrency(i.unitPrice.toString(), purchase.currency)}</Td>
-                      <Td className="whitespace-nowrap">
-                        <Money incl={plan.unitCostInclVat} excl={excl.toString()} />
-                        <CostBreakdownToggle
-                          breakdown={plan.costBreakdown}
-                          unitCostExcl={excl.toString()}
-                          unitCostIncl={plan.unitCostInclVat}
-                        />
-                      </Td>
-                      <Td className="whitespace-nowrap">
-                        <Money incl={total.toString()} excl={excl.mul(i.quantity).toString()} />
-                      </Td>
-                      {canEditPlan && (
-                        <Td>
-                          <CostPlanItemEditor
-                            purchaseId={id}
-                            currencySymbol={purchase.currency === "USD" ? "$" : purchase.currency}
-                            item={{
-                              id: i.id,
-                              lotNumber: i.lotNumber,
-                              ...deriveCostPlanInputs(i.costPlan, {
-                                quantity: Number(i.quantity.toString()),
-                                price: Number(i.unitPrice.toString()),
-                                rate: Number(purchase.exchangeRate.toString()),
-                                vat: Number(i.vatRate.toString()),
-                              }),
-                            }}
-                          />
-                        </Td>
-                      )}
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
           </CardContent>
         </Card>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Документы ({purchase.documents.length + batchDocs.length})</CardTitle>
+          <CardTitle>Документы ({purchase.documents.length + batchDocs.length + driveRows.length})</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {[...purchase.documents.map((d) => ({ d, batch: false })), ...batchDocs.map((d) => ({ d, batch: true }))].map(
-            ({ d, batch }) => (
-              <div key={d.id} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <div>
-                  <a href={`/api/purchase-docs/${d.id}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
-                    {d.title}
-                  </a>
-                  <span className="ml-2 text-xs text-neutral-500">
-                    {DOC_KIND_LABELS[d.kind]}
-                    {batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
-                  </span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
-                {canEditRole && (
-                <form
-                  action={async () => {
-                    "use server";
-                    await deletePurchaseDocument(id, d.id);
-                  }}
-                >
-                  <ConfirmSubmitButton
-                    message={
-                      batch
-                        ? `Удалить документ «${d.title}»? Он относится ко всей партии ${batchName} и пропадёт на всех её закупках.`
-                        : `Удалить документ «${d.title}»?`
-                    }
-                  />
-                </form>
-                )}
-                </div>
-              </div>
-            ),
+          <PurchaseDocumentsList
+            purchaseId={id}
+            files={[
+              ...purchase.documents.map((d) => ({ ...d, batch: false })),
+              ...batchDocs.map((d) => ({ ...d, batch: true })),
+            ]}
+            drives={driveRows.map((d, i) => ({ view: driveDocs[i], fileId: d.driveFileId, createdAt: d.createdAt }))}
+            batchName={batchName}
+            canEdit={canEditRole}
+          />
+          {canEditRole && (
+            <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
+              <DocumentsForm purchaseId={id} hasBatch={!!batchName} />
+              <UploadDocument
+                entity="purchase"
+                entityId={id}
+                extraTargets={
+                  hasRole(session.user.role, ["OWNER", "ADMIN"])
+                    ? purchase.payments.map((p) => ({
+                        entity: "payment" as const,
+                        id: p.id,
+                        label: `Оплата ${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}`,
+                      }))
+                    : undefined
+                }
+              />
+              <AddForm entity="purchase" entityId={id} />
+            </div>
           )}
-          {purchase.documents.length + batchDocs.length === 0 && (
-            <p className="text-sm text-neutral-400">Документов пока нет</p>
-          )}
-          {canEditRole && <DocumentsForm purchaseId={id} hasBatch={!!batchName} />}
-          <div className="border-t border-neutral-100 pt-3">
-            <DriveDocuments
-              docs={driveDocs}
-              entity="purchase"
-              entityId={id}
-              canEdit={canEditRole}
-              extraTargets={
-                hasRole(session.user.role, ["OWNER", "ADMIN"])
-                  ? purchase.payments.map((p) => ({
-                      entity: "payment" as const,
-                      id: p.id,
-                      label: `Оплата ${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}`,
-                    }))
-                  : undefined
-              }
-            />
-          </div>
         </CardContent>
       </Card>
 
@@ -759,7 +739,7 @@ function SummaryCard({
   emphasis,
   warn,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   emphasis?: boolean;
   warn?: boolean;

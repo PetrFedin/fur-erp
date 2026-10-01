@@ -300,7 +300,7 @@ export function UploadDocument({
   );
 }
 
-function AddForm({
+export function AddForm({
   entity,
   entityId,
   options,

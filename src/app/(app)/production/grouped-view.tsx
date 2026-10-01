@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatQty } from "@/lib/utils";
-import { batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
+import { batchExtraName, batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
 import { c4Suffix } from "@/lib/commission4";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 
@@ -41,7 +41,7 @@ export function GroupedByBatch({
   if (groups.length === 0) {
     return (
       <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-        {filtered ? "Ничего не найдено" : "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive («поставка N»)."}
+        {filtered ? "Ничего не найдено" : "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive."}
       </p>
     );
   }
@@ -57,8 +57,8 @@ export function GroupedByBatch({
               <span className="inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
               {g.batch ? (
                 <Link href={`/production/batches/${g.batch.number}`} className="font-medium hover:underline">
-                  Партия №{g.batch.number}
-                  {g.batch.name ? ` · ${g.batch.name}` : ""}
+                  Партия {g.batch.number}
+                  {batchExtraName(g.batch.name) ? ` · ${batchExtraName(g.batch.name)}` : ""}
                 </Link>
               ) : (
                 <span className="font-medium">Без партии</span>
@@ -69,8 +69,9 @@ export function GroupedByBatch({
               </span>
               <span className="ml-auto text-xs text-neutral-600">
                 себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
-                <b>{formatMoney(t.paid.toString())}</b> · остаток{" "}
-                <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.toString())}</b>
+                <b>{formatMoney(t.paid.toString())}</b> ·{" "}
+                {t.remaining.lessThan(-0.005) ? "переплата" : "остаток"}{" "}
+                <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.abs().toString())}</b>
               </span>
             </summary>
             <ul className="divide-y divide-neutral-100 border-t border-neutral-100 text-sm">
@@ -97,7 +98,7 @@ export function GroupedByBatch({
       })}
       <p className="text-xs text-neutral-500">
         «Оплачено» — оплаты заказчика по ТЗ партии (каждая оплата учтена один раз, отменённые не входят); остаток = работа
-        минус оплачено. Себестоимость {c4Mode === "on" ? "— с наценкой 4% на сырьё и подкладку (кроме списаний без 4%, напр. партия 6); работа не облагается." : "— без наценки 4% (переключатель «С 4%» в шапке)."}
+        минус оплачено (если оплачено больше — «переплата»). Себестоимость {c4Mode === "on" ? "— с наценкой 4% на сырьё и подкладку (кроме списаний без 4%, напр. партия 6); работа не облагается." : "— без наценки 4% (переключатель «С 4%» в шапке)."}
       </p>
     </div>
   );

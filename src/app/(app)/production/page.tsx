@@ -18,6 +18,7 @@ import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
 import { ResponsiveDetails } from "./filters-details";
 import { GroupedByBatch } from "./grouped-view";
+import { modelCodeVariants } from "@/lib/model-code";
 import { batchOrderInclude } from "@/lib/batch-stats";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -65,7 +66,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           OR: [
             { workOrderNumber: { contains: escapeLike(q), mode: "insensitive" } },
             { number: { contains: escapeLike(q), mode: "insensitive" } },
-            { productModel: { name: { contains: escapeLike(q), mode: "insensitive" } } },
+            ...modelCodeVariants(q).map((v) => ({ productModel: { name: { contains: escapeLike(v), mode: "insensitive" as const } } })),
             { client: { name: { contains: escapeLike(q), mode: "insensitive" } } },
           ],
         }
@@ -116,7 +117,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     if (no === ql) return { rank: 1, label: "совпал № заказа" };
     if (wo.includes(ql)) return { rank: 2, label: "совпал № ТЗ" };
     if (no.includes(ql)) return { rank: 3, label: "совпал № заказа" };
-    if (o.productModel.name.toLowerCase().includes(ql)) return { rank: 4, label: "совпала модель" };
+    if (modelCodeVariants(q).some((v) => o.productModel.name.toLowerCase().includes(v.toLowerCase()))) return { rank: 4, label: "совпала модель" };
     return { rank: 5, label: "совпал заказчик" };
   };
   const woNum = (o: (typeof rawOrders)[number]) => {
@@ -142,6 +143,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const idx = new Map(orders.map((o, i) => [o.id, i]));
     orders.sort((a, b) => (matchOf(a)!.rank - matchOf(b)!.rank) || idx.get(a.id)! - idx.get(b.id)!);
   }
+
+  // Колонку заказчика показываем только если в списке больше одного заказчика.
+  const showClient = new Set(orders.map((o) => o.client?.name ?? "")).size > 1;
 
   let sumIncl = new Decimal(0);
   let sumExcl = new Decimal(0);
@@ -216,7 +220,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <option value="">Все партии</option>
             {batchList.map((b) => (
               <option key={b.id} value={b.number}>
-                Партия №{b.number}
+                Партия {b.number}
                 {b.year ? ` (${b.year})` : ""}
               </option>
             ))}
@@ -248,19 +252,14 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         <Thead>
           <Tr>
             <Th>№ ТЗ</Th>
-            <Th className="hidden sm:table-cell">Заказ</Th>
             <Th>Модель</Th>
-            <Th className="hidden lg:table-cell">Заказчик</Th>
-            <Th className="hidden sm:table-cell">Кол-во</Th>
+            {showClient && <Th className="hidden lg:table-cell">Заказчик</Th>}
+            <Th className="hidden sm:table-cell" title="Запланировано / сделано, шт.">
+              План / факт, шт.
+            </Th>
             <Th>Статус</Th>
             <Th>
               <VatLabel base={`Итого себестоимость${c4}`} />
-            </Th>
-            <Th
-              className="hidden sm:table-cell"
-              title="Наценка = розничная цена / себестоимость единицы. Это не «Маржа» с карточки ТЗ (там работы заказчику минус себестоимость)."
-            >
-              Наценка
             </Th>
           </Tr>
         </Thead>
@@ -269,7 +268,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const st = STATUS_LABELS[o.status];
             const href = `/production/${o.id}`;
             // Same formulas as the order card: booked costs so far (or the
-            // fixed snapshot), markup = retail price / unit cost.
+            // fixed snapshot).
             // Режим «С 4%»: надбавка только к сырью/подкладке (строки списаний),
             // расходы без 4%; снимок totalCost хранится «без 4%», надбавка добавляется сверху.
             const mats = sumUsagesWith4(o.materialUsages, c4Mode);
@@ -283,15 +282,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               sumIncl = sumIncl.add(total);
               sumExcl = sumExcl.add(totalExcl);
             }
-            const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
-            const unit = o.unitCost
-              ? qty.isZero()
-                ? o.unitCost
-                : o.unitCost.add(mats.extraIncl.div(qty))
-              : qty.isZero()
-                ? new Decimal(0)
-                : projected.div(qty);
-            const markup = o.retailPrice && unit.greaterThan(0) ? o.retailPrice.div(unit) : null;
             const cell = "p-0";
             const link = "block px-3 py-2";
             return (
@@ -304,18 +294,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     )}
                   </Link>
                 </Td>
-                <Td className={`${cell} hidden sm:table-cell`}>
-                  <Link href={href} className={link}>{o.number}</Link>
-                </Td>
                 <Td className={cell}>
                   <Link href={href} className={link}>
                     {o.productModel.name}
-                    {o.client && <span className="block text-xs text-neutral-500 lg:hidden">{o.client.name}</span>}
+                    {showClient && o.client && <span className="block text-xs text-neutral-500 lg:hidden">{o.client.name}</span>}
                   </Link>
                 </Td>
-                <Td className={`${cell} hidden lg:table-cell`}>
-                  <Link href={href} className={link}>{o.client?.name ?? "—"}</Link>
-                </Td>
+                {showClient && (
+                  <Td className={`${cell} hidden lg:table-cell`}>
+                    <Link href={href} className={link}>{o.client?.name ?? "—"}</Link>
+                  </Td>
+                )}
                 <Td className={`${cell} hidden sm:table-cell`}>
                   <Link href={href} className={link}>
                     {formatQty(o.plannedQuantity.toString())} / {formatQty(o.producedQuantity.toString())}
@@ -331,27 +320,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
                   </Link>
                 </Td>
-                <Td className={`${cell} hidden sm:table-cell`}>
-                  <Link
-                    href={href}
-                    className={link}
-                    title={
-                      markup
-                        ? undefined
-                        : !o.retailPrice
-                          ? "Розничная цена не задана на карточке ТЗ"
-                          : "Нет себестоимости — списаний ещё нет"
-                    }
-                  >
-                    {markup ? `×${markup.toFixed(2)}` : "—"}
-                  </Link>
-                </Td>
               </Tr>
             );
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={4} className="py-8 text-center text-neutral-400">
+              <Td colSpan={6} className="py-8 text-center text-neutral-400">
                 {hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}
               </Td>
             </Tr>
@@ -364,11 +338,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</span>
         </p>
       )}
-      <p className="text-xs text-neutral-500">
-        Наценка = розничная цена / себестоимость единицы (на мобильном колонка скрыта — она есть на карточке ТЗ).
-        «—» — розничная цена не задана на карточке ТЗ или ещё нет списаний (себестоимости). «Маржа» на карточке ТЗ —
-        другое: работы заказчику минус себестоимость.
-      </p>
       </>
       )}
     </div>

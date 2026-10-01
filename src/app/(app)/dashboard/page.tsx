@@ -10,7 +10,9 @@ import { Money } from "@/components/money";
 import { InclVatOnlyLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
-import { auctionName, buildAuctionSummaries } from "@/lib/auction-payments";
+import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { CompactMoney } from "./compact-money";
+import { formatCompactMoney } from "./compact";
 import { computeAttention, countAttention } from "@/lib/attention";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -33,15 +35,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   const [
     allPurchases,
-    openPurchasesWithPayments,
+    supplierDebt,
     lowStockMaterials,
     allLots,
     materials,
     materialUsedAgg,
     clientOrders,
     clientPayments,
-    unlinkedSupplierPayments,
-    auctionPayments,
     attentionChecks,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
@@ -49,11 +49,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId, status: { not: "CANCELLED" } },
       include: { items: true, expenses: true },
     }),
-    // Отменённые тоже грузим: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
-    prisma.purchase.findMany({
-      where: { organizationId },
-      include: { items: true, expenses: true, payments: { select: { amount: true, status: true } }, supplier: true },
-    }),
+    // Единый расчёт «Долга поставщику» (то же число — везде, см. src/lib/supplier-debt.ts).
+    loadSupplierDebt(prisma, organizationId),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
@@ -83,17 +80,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       include: { client: true },
     }),
     prisma.productionPayment.findMany({
-      where: { organizationId, clientId: { not: null } },
-    }),
-    // Авансы поставщику без привязки к закупке и к аукциону.
-    prisma.payment.findMany({
-      where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
-      select: { supplierId: true, amount: true },
-    }),
-    // Оплаты аукционов целиком (Payment.auctionSession; purchaseId пуст).
-    prisma.payment.findMany({
-      where: { organizationId, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
-      select: { auctionSession: true, amount: true, status: true },
+      where: { organizationId },
+      include: { orders: { select: { id: true } } },
     }),
     computeAttention(prisma, organizationId),
   ]);
@@ -108,65 +96,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     (s, l) => s.add(l.quantityRemaining.mul(lotUnitCostExclVat(l))),
     new Decimal(0)
   );
-  // Supplier balance due: per purchase (real amounts, not affected by the VAT toggle),
-  // then one row per supplier (sum of debt + number of purchases with debt).
-  const supplierMap = new Map<string, { supplier: string; due: Decimal; purchases: number }>();
-  const hasUnlinkedAdvances = unlinkedSupplierPayments.length > 0;
-  // Часть долга приходится на черновики — мех по ним ещё не принят на склад.
-  let draftDebt = new Decimal(0);
-  const addDebt = (supplierId: string, supplier: string, due: Decimal, purchases: number) => {
-    const e = supplierMap.get(supplierId) ?? { supplier, due: new Decimal(0), purchases: 0 };
-    e.due = e.due.add(due);
-    e.purchases += purchases;
-    supplierMap.set(supplierId, e);
-  };
-  // Закупки без аукциона — долг считается по каждой закупке (только оплаты со статусом «Оплачено»).
-  for (const p of openPurchasesWithPayments) {
-    if (p.status === "CANCELLED" || auctionName(p.auctionSession)) continue;
-    const paid = p.payments.filter((x) => x.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-    const due = purchaseTotalInclVat(p).sub(paid);
-    if (!due.greaterThan(0)) continue;
-    if (p.status !== "RECEIVED") draftDebt = draftDebt.add(due);
-    addDebt(p.supplierId, p.supplier.name, due, 1);
-  }
-  // Закупки аукциона — долг считается по аукциону целиком: итог закупок минус оплаты аукциона и его закупок
-  // (так оплата аукциона не вычитается дважды и переплата одной закупки гасит другие). Разбивка по
-  // закупкам/поставщикам — пропорционально их остаткам без оплат аукциона.
-  const auctionSummaries = buildAuctionSummaries(openPurchasesWithPayments, auctionPayments);
-  const auctionDebts = auctionSummaries
-    .map((a) => ({ name: a.name, purchases: a.purchases, total: a.total, paid: a.paid, due: Decimal.max(a.remaining, new Decimal(0)) }))
-    .filter((a) => a.due.greaterThan(0.005))
-    .sort((a, b) => b.due.comparedTo(a.due));
-  for (const a of auctionSummaries) {
-    const due = Decimal.max(a.remaining, new Decimal(0));
-    if (!due.greaterThan(0.005)) continue;
-    const weights = a.perPurchase.map((pp) => ({ pp, w: Decimal.max(pp.total.sub(pp.paid), new Decimal(0)) }));
-    const wSum = weights.reduce((s, x) => s.add(x.w), new Decimal(0));
-    if (!wSum.greaterThan(0)) continue;
-    const bySupplier = new Map<string, { due: Decimal; n: number }>();
-    for (const { pp, w } of weights) {
-      if (!w.greaterThan(0)) continue;
-      const part = due.mul(w).div(wSum);
-      if (pp.status !== "RECEIVED") draftDebt = draftDebt.add(part);
-      const e = bySupplier.get(pp.supplierId) ?? { due: new Decimal(0), n: 0 };
-      e.due = e.due.add(part);
-      e.n += 1;
-      bySupplier.set(pp.supplierId, e);
-    }
-    for (const [supplierId, e] of bySupplier) {
-      const name = a.suppliers.find((x) => x.id === supplierId)?.name ?? "—";
-      addDebt(supplierId, name, e.due, e.n);
-    }
-  }
-  // Аванс без привязки к закупке гасит долг своего поставщика (не глубже нуля).
-  for (const pay of unlinkedSupplierPayments) {
-    const e = supplierMap.get(pay.supplierId);
-    if (!e) continue;
-    e.due = Decimal.max(e.due.sub(pay.amount), new Decimal(0));
-  }
-  const supplierBalances = Array.from(supplierMap.values()).filter((x) => x.due.greaterThan(0)).sort((a, b) => (b.due.greaterThan(a.due) ? 1 : -1));
-  const supplierDebtTotal = supplierBalances.reduce((s, x) => s.add(x.due), new Decimal(0));
-
   // Client production debt (задолженность заказчиков): what clients owe us
   // for давальческая (ТЗ) production work. Billable amount uses
   // clientWorkPricePerUnit — the price charged to the client for the work
@@ -205,10 +134,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }
     clientDebtMap.set(o.clientId, entry);
   }
+  // Авансы заказчика без ТЗ (clientId есть, ни к одному ТЗ не привязаны) вычитаются из долга этого заказчика
+  // наравне с остальными оплатами; оплаты без заказчика в долг не входят.
+  let advancesDeducted = new Decimal(0); // авансы без ТЗ, вычтенные из долга
+  let advancesNotCounted = new Decimal(0); // авансы без ТЗ, которые в долг не вошли (нет заказчика или у него нет ТЗ)
   for (const p of clientPayments) {
-    if (!p.clientId) continue;
-    const entry = clientDebtMap.get(p.clientId);
+    const entry = p.clientId ? clientDebtMap.get(p.clientId) : undefined;
     if (entry) entry.paid = entry.paid.add(p.amount);
+    if (p.orders.length === 0) {
+      if (entry) advancesDeducted = advancesDeducted.add(p.amount);
+      else advancesNotCounted = advancesNotCounted.add(p.amount);
+    }
   }
   const clientDebts = Array.from(clientDebtMap.values())
     .map((c) => ({ ...c, balance: c.billable.sub(c.paid) }))
@@ -252,12 +188,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const materialFlowRows = Array.from(materialFlowMap.values()).filter(
     (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
   );
-  // Скрываем строки, где и остаток, и его стоимость нулевые (полностью израсходованная подкладка);
-  // информация не теряется: сырьё по-прежнему в разделе «Сырьё», ссылка «Подкладка →» под таблицей.
-  const visibleMaterialRows = materialFlowRows.filter(
-    (r) => !(r.remaining.isZero() && r.remainingValue.isZero())
-  );
-  const hiddenMaterialRows = materialFlowRows.length - visibleMaterialRows.length;
+  // Сводка: 5 строк меха (по стоимости остатка), вся подкладка (единица «м») — одной строкой.
+  // Полностью израсходованные материалы скрыты; полный список — в разделе «Сырьё».
+  const liveRows = materialFlowRows.filter((r) => !(r.remaining.isZero() && r.remainingValue.isZero()));
+  const allFurRows = liveRows.filter((r) => r.unit !== "M").sort((a, b) => b.remainingValue.comparedTo(a.remainingValue));
+  const furRows = allFurRows.slice(0, 5);
+  const moreFurRows = allFurRows.length - furRows.length;
+  const liningRows = liveRows.filter((r) => r.unit === "M");
+  const liningRow = liningRows.length
+    ? {
+        key: "lining",
+        name: liningRows.length > 1 ? `Подкладка (${liningRows.length} вида)` : liningRows[0].name,
+        unit: "M",
+        href: "/lots?tab=lining",
+        purchased: liningRows.reduce((s, r) => s.add(r.purchased), new Decimal(0)),
+        remaining: liningRows.reduce((s, r) => s.add(r.remaining), new Decimal(0)),
+        remainingValue: liningRows.reduce((s, r) => s.add(r.remainingValue), new Decimal(0)),
+        remainingValueExclVat: liningRows.reduce((s, r) => s.add(r.remainingValueExclVat), new Decimal(0)),
+      }
+    : null;
 
   const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const totalPurchasedValueExclVat = allPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
@@ -285,32 +234,43 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <KpiCard
           label="Куплено сырья"
           hint="Все закупки, кроме отменённых, вместе с черновиками (мех по ним ещё не принят)."
-          value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />}
+          value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
         />
         <KpiCard
           label={`Списано в ТЗ${c4Suffix(c4Mode)}`}
           hint="Стоимость сырья, уже ушедшего в производство."
-          value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
+          value={<CompactMoney incl={totalMaterialUsedValue.toString()} excl={totalMaterialUsedValueExclVat.toString()} />}
         />
         <KpiCard
           label="Сырьё на складе"
           hint="Во сколько оценивается мех и подкладка, которые лежат на складе."
-          value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />}
+          value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
         />
         <KpiCard
-          label={<InclVatOnlyLabel base="Долг поставщикам" />}
+          label={<InclVatOnlyLabel base="Долг поставщику" />}
           hint={
-            draftDebt.greaterThan(0)
-              ? `Сколько ещё заплатить. Из них ${formatMoney(draftDebt.toString())} — за черновики (мех не принят). Авансы без привязки уже вычтены.`
-              : "Сколько ещё заплатить поставщикам. Авансы без привязки уже вычтены."
+            supplierDebt.draftDebt.greaterThan(0)
+              ? `Сколько ещё заплатить. Из них ${formatMoney(supplierDebt.draftDebt.toString())} — за черновики (мех не принят).`
+              : "Сколько ещё заплатить поставщику."
           }
-          value={formatMoney(supplierDebtTotal.toString())}
-          warn={supplierDebtTotal.greaterThan(0)}
+          note={`стоимость закупок ${formatCompactMoney(supplierDebt.total.toString())} − оплачено ${formatCompactMoney(supplierDebt.paid.toString())} − авансы без привязки ${formatCompactMoney(supplierDebt.unlinkedAdvances.toString())}`}
+          value={<CompactMoney incl={supplierDebt.debt.toString()} />}
+          warn={supplierDebt.debt.greaterThan(0)}
         />
         <KpiCard
           label={<InclVatOnlyLabel base="Долг заказчиков" />}
           hint="Сколько заказчики ещё должны за работу по ТЗ."
-          value={formatMoney(clientDebtTotal.toString())}
+          note={
+            advancesDeducted.greaterThan(0) || advancesNotCounted.greaterThan(0)
+              ? [
+                  advancesDeducted.greaterThan(0) ? `авансы без ТЗ ${formatCompactMoney(advancesDeducted.toString())} уже вычтены` : "",
+                  advancesNotCounted.greaterThan(0) ? `авансы без ТЗ ${formatCompactMoney(advancesNotCounted.toString())} не вычтены (нет заказчика или его ТЗ)` : "",
+                ]
+                  .filter(Boolean)
+                  .join("; ")
+              : "авансов без ТЗ нет"
+          }
+          value={<CompactMoney incl={clientDebtTotal.toString()} />}
           warn={clientDebtTotal.greaterThan(0)}
         />
         <KpiCard
@@ -318,7 +278,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           hint={
             attention.main === 0
               ? "Всё заведено."
-              : `Не заведены документы, даты, оплаты. Срочных: ${attention.red}${attention.gray > 0 ? `, справочно: ${attention.gray}` : ""}.`
+              : "Не заведены документы, даты, оплаты (красные и жёлтые пункты). Серые — справочно, могут быть нормой."
+          }
+          note={
+            attention.main === 0
+              ? attention.gray > 0
+                ? `+${attention.gray} серых`
+                : undefined
+              : `срочных: ${attention.red}${attention.gray > 0 ? `; +${attention.gray} серых` : ""}`
           }
           value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
           warn={attention.main > 0}
@@ -343,10 +310,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               </Tr>
             </Thead>
             <Tbody>
-              {visibleMaterialRows.map((r) => (
-                <Tr key={r.id}>
+              {[...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])].map((r) => (
+                <Tr key={r.key}>
                   <Td className="font-medium">
-                    <Link href={r.unit === "M" ? "/lots?tab=lining" : "/lots"} className="hover:underline">
+                    <Link href={r.href} className="hover:underline">
                       {r.name}
                     </Link>
                   </Td>
@@ -364,7 +331,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   </Td>
                 </Tr>
               ))}
-              {visibleMaterialRows.length === 0 && (
+              {furRows.length === 0 && !liningRow && (
                 <Tr>
                   <Td colSpan={5} className="py-6 text-center text-neutral-400">
                     Сырьё ещё не закупалось
@@ -373,18 +340,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               )}
             </Tbody>
           </Table>
-          <p className="mt-3 flex gap-4 text-sm">
+          <p className="mt-3 text-sm">
             <Link href="/lots" className="text-neutral-600 hover:underline">
-              Мех →
+              Все материалы → Сырьё
             </Link>
-            <Link href="/lots?tab=lining" className="text-neutral-600 hover:underline">
-              Подкладка →
-            </Link>
-            {hiddenMaterialRows > 0 && (
-              <span className="text-neutral-400">
-                Скрыто строк с нулевым остатком: {hiddenMaterialRows}
-              </span>
-            )}
+            {moreFurRows > 0 && <span className="ml-3 text-neutral-400">Меха ещё: {moreFurRows}</span>}
           </p>
         </CardContent>
       </Card>
@@ -392,39 +352,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle><InclVatOnlyLabel base="Долг поставщикам" /></CardTitle>
+            <CardTitle><InclVatOnlyLabel base="Долг по аукционам" /></CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Поставщик</Th>
-                  <Th>Закупок</Th>
-                  <Th>Долг</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {supplierBalances.map((s) => (
-                  <Tr key={s.supplier}>
-                    <Td>{s.supplier}</Td>
-                    <Td>{s.purchases}</Td>
-                    <Td className="text-amber-600">{formatMoney(s.due.toString())}</Td>
-                  </Tr>
-                ))}
-                {supplierBalances.length === 0 && (
-                  <Tr>
-                    <Td colSpan={3} className="py-6 text-center text-neutral-400">
-                      Задолженностей нет
-                    </Td>
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
-            {auctionDebts.length > 0 && (
-              <div className="mt-4">
-                <h3 className="mb-2 text-sm font-semibold">По аукционам (топ-5 по остатку)</h3>
+            {supplierDebt.byAuction.length === 0 ? (
+              <p className="py-6 text-center text-sm text-neutral-400">Задолженностей нет</p>
+            ) : (
+              <>
+                <p className="mb-2 text-xs text-neutral-500">Топ-5 по остатку. Нажмите на аукцион — откроются его оплаты.</p>
                 <div className="flex flex-col gap-2">
-                  {auctionDebts.slice(0, 5).map((a) => (
+                  {supplierDebt.byAuction.slice(0, 5).map((a) => (
                     <Link
                       key={a.name}
                       href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`}
@@ -440,23 +377,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     </Link>
                   ))}
                 </div>
-                {auctionDebts.length > 5 && (
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Ещё аукционов с остатком: {auctionDebts.length - 5} — <Link href="/payments" className="underline">все в разделе «Оплаты»</Link>
-                  </p>
+                {supplierDebt.byAuction.length > 5 && (
+                  <p className="mt-1 text-xs text-neutral-500">Ещё аукционов с остатком: {supplierDebt.byAuction.length - 5}</p>
                 )}
-                {hasUnlinkedAdvances && (
-                  <p className="mt-1 text-xs text-neutral-400">
-                    Авансы поставщикам без аукциона в разбивку не входят — они уменьшают общий долг выше.
-                  </p>
-                )}
-              </div>
+              </>
             )}
-            <p className="mt-3 flex flex-wrap gap-4 text-sm">
-              <Link href="/purchases" className="text-neutral-600 hover:underline">
-                Все закупки →
-              </Link>
-            </p>
           </CardContent>
         </Card>
 
@@ -514,6 +439,7 @@ function KpiCard({
   warn,
   danger,
   hint,
+  note,
   href,
 }: {
   label: React.ReactNode;
@@ -521,6 +447,7 @@ function KpiCard({
   warn?: boolean;
   danger?: boolean;
   hint?: string;
+  note?: string;
   href?: string;
 }) {
   const body = (
@@ -534,7 +461,7 @@ function KpiCard({
       >
         {value}
       </div>
-      {hint && <div className="mt-1 text-xs text-neutral-400">{hint}</div>}
+      {(note ?? hint) && <div className="mt-1 text-xs text-neutral-400">{note ?? hint}</div>}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;

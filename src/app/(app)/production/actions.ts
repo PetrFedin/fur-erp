@@ -1018,7 +1018,7 @@ export async function completeProductionOrder(
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
-  revalidatePath("/finished-stock");
+  revalidatePath("/articles");
   return {};
 }
 
@@ -1087,7 +1087,6 @@ export async function updateProducedQuantity(
 
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
-  revalidatePath("/finished-stock");
   revalidatePath("/articles");
   return {};
 }

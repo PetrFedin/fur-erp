@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { canEditProduction } from "@/lib/production-access";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
-import { batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
+import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
@@ -24,7 +25,7 @@ const PAY_TYPE: Record<string, string> = { ADVANCE: "Аванс", PARTIAL: "До
 
 export async function generateMetadata({ params }: { params: Promise<{ number: string }> }) {
   const { number } = await params;
-  return { title: `Партия №${number}` };
+  return { title: `Партия ${number}` };
 }
 
 export default async function BatchPage({ params }: { params: Promise<{ number: string }> }) {
@@ -61,6 +62,12 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   }
   const payments = Array.from(payMap.values()).sort((a, b) => a.p.paidAt.getTime() - b.p.paidAt.getTime());
 
+  // Переплата: оплата больше работы партии. Если в заметке платежа сказано про шкуры подрядчика — объясняем.
+  const overpaid = t.remaining.lessThan(-0.005);
+  const hidesInPay = payments
+    .map((x) => contractorHidesFromNotes(x.p.notes))
+    .reduce<Decimal | null>((s, v) => (v ? (s ? s.add(v) : v) : s), null);
+
   const orderIds = orders.map((o) => o.id);
   const driveRows = await prisma.driveDocument.findMany({
     where: {
@@ -96,8 +103,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           </Link>
         </p>
         <h1 className="text-xl font-semibold">
-          Партия №{batch.number}
-          {batch.name ? <span className="ml-2 text-base font-normal text-neutral-500">{batch.name}</span> : null}
+          Партия {batch.number}
+          {batchExtraName(batch.name) ? <span className="ml-2 text-base font-normal text-neutral-500">{batchExtraName(batch.name)}</span> : null}
         </h1>
         <p className="text-sm text-neutral-500">
           {[batch.year ? `${batch.year} г.` : null, batch.plannedUnits != null ? `план ${batch.plannedUnits} изд.` : null]
@@ -114,11 +121,17 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
         <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />
         <Stat
-          label="Остаток"
-          value={formatMoney(t.remaining.toString())}
+          label={overpaid ? "Переплата" : "Остаток"}
+          value={formatMoney(t.remaining.abs().toString())}
           warn={t.remaining.greaterThan(0.005)}
         />
       </dl>
+      {overpaid && (
+        <p className="text-sm text-neutral-600">
+          Переплата {formatMoney(t.remaining.abs().toString())}
+          {hidesInPay ? ` (в оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())})` : " — оплаты больше работы партии"}.
+        </p>
+      )}
 
       <Card>
         <CardHeader>

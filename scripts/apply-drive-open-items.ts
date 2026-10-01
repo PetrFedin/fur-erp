@@ -397,7 +397,7 @@ async function unit4(c: Ctx) {
     .map((o) => parseInt(o.number.slice(7), 10)).filter((n) => Number.isFinite(n));
   const number = `П-2026-${String(Math.max(...nums) + 1).padStart(4, "0")}`;
   const order = await createRow(c, "ProductionOrder", {
-    organizationId: orgId, number, productModelId: model.id, rawWarehouseId: lot.warehouseId, finishedWarehouseId: lot.warehouseId,
+    organizationId: orgId, number, productModelId: model!.id, rawWarehouseId: lot.warehouseId, finishedWarehouseId: lot.warehouseId,
     status: "IN_PROGRESS", plannedQuantity: new Decimal(7), producedQuantity: new Decimal(0), workOrderNumber: "116",
     materialDescription: "Шкура норки серебристо-голубая 50 М",
     notes: "[open-items:tz116] ТЗ №116 «Ремонт пальто»: создано по строке единого реестра Drive (21-08 ЕДИНЫЙ_РЕЕСТР_ПО_МЕХУ_MVST, строки 520–521): " +
@@ -489,7 +489,7 @@ function appendJournal(entries: Entry[]) {
   writeFileSync(JOURNAL, JSON.stringify(all, null, 2));
 }
 
-const UNITS: [string, string, (c: Ctx) => Promise<void>][] = [
+const UNITS: [string, string, (c: Ctx) => Promise<unknown>][] = [
   ["1", "Реконструированные закупки З-2026-0030/0031", unit1],
   ["2", "Подкладка (старый склад, УПД №109)", unit2],
   ["3", "ТЗ 157/165/167 и сырьё не склада", unit3],

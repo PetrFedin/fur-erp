@@ -5,6 +5,26 @@ import { prisma } from "@/lib/prisma";
 import { extraInclOnly } from "@/lib/commission4";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 
+/**
+ * Название партии для подписи рядом с «Партия N»: служебное «Поставка N» (то же самое,
+ * что номер) не показываем, чтобы не было двух названий одного.
+ */
+export function batchExtraName(name: string | null | undefined): string | null {
+  const n = (name ?? "").trim();
+  return n && !/^(поставка|партия)\s*№?\s*\d+$/i.test(n) ? n : null;
+}
+
+/**
+ * Сумма «шкур подрядчика», учтённая в оплате (из заметки платежа вида «… шкуры свакары подрядчика 4 584 500 …»),
+ * чтобы объяснить, почему оплата больше работы партии. Нет такой пометки — null.
+ */
+export function contractorHidesFromNotes(notes: string | null | undefined): Decimal | null {
+  const m = /шкур[а-яё]*[^\d.;]{0,40}?(\d[\d\s\u00a0]*\d)/i.exec(notes ?? "");
+  if (!m) return null;
+  const n = m[1].replace(/[\s\u00a0]/g, "");
+  return /^\d+$/.test(n) ? new Decimal(n) : null;
+}
+
 /** ТЗ с данными для сводки по партии (себестоимость, работа, оплаты). */
 export const batchOrderInclude = {
   productModel: { select: { name: true } },
@@ -12,7 +32,7 @@ export const batchOrderInclude = {
   materialUsages: { select: { totalCost: true, commission4: true } },
   expenses: { select: { amount: true } },
   paymentAllocations: {
-    select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true } } },
+    select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true, notes: true } } },
   },
 } satisfies Prisma.ProductionOrderInclude;
 

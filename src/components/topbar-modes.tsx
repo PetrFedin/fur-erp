@@ -49,8 +49,14 @@ export function TopbarModes() {
   if (!narrow) {
     return (
       <>
-        <VatToggle />
-        <Commission4Toggle />
+        <div className="flex items-center gap-1.5">
+          <span className="hidden text-xs text-neutral-500 xl:inline">Цены:</span>
+          <VatToggle />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="hidden text-xs text-neutral-500 xl:inline">4% к сырью:</span>
+          <Commission4Toggle />
+        </div>
       </>
     );
   }
@@ -71,11 +77,11 @@ export function TopbarModes() {
       {open && (
         <div className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 shadow-lg">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">НДС</span>
+            <span className="text-xs text-neutral-500">Цены: с НДС или без НДС</span>
             <VatToggle />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Комиссия 4%</span>
+            <span className="text-xs text-neutral-500">4% к сырью: без или с 4%</span>
             <Commission4Toggle />
           </div>
         </div>

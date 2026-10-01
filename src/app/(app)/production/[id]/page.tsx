@@ -28,6 +28,8 @@ import { OrderEditForm } from "./order-edit-form";
 import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
 import { Section, SectionNav } from "./section";
+import { compareModelNames } from "@/lib/model-code";
+import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
 import Link from "next/link";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
@@ -70,9 +72,27 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const MARGIN_HINT =
-  "Работы заказчику минус себестоимость меха и расходов — прибыль только по пошиву; наценка считается от розничной цены.";
+  "Оплата за работу заказчику минус себестоимость меха, подкладки и расходов. Это не прибыль: если сырьё заказчик оплачивает отдельно (давальческое), вычитать его из оплаты за пошив нельзя. Следует переключателю С НДС / Без НДС.";
 const MARKUP_HINT =
-  "Наценка = розничная цена / себестоимость единицы. Не путать с «Маржей» в расчёте: там работы заказчику минус себестоимость.";
+  "Наценка = розничная цена / себестоимость единицы. Не путать со строкой «Работа минус себестоимость» в расчёте.";
+
+/** «6 6 6 7 7 7 8 8» и «46, 46, 50» -> «6×3, 7×3, 8×2» и «46×2, 50». Нестандартную запись не трогаем. */
+function collapseSizes(raw: string): string {
+  const tokens = raw.split(/[\s,;]+/).filter(Boolean);
+  if (tokens.length < 2 || !tokens.every((t) => /^[\dA-Za-zА-Яа-я.\-/]{1,8}$/.test(t))) return raw;
+  const counts = new Map<string, number>();
+  for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
+  if (counts.size === tokens.length) return raw;
+  return Array.from(counts, ([t, n]) => (n > 1 ? `${t}×${n}` : t)).join(", ");
+}
+
+/** «№ 1605 от 16.05.2025», «Договор подряда № 1605 от 16.05.2025 г.» -> «Договор подряда № 1605 от 16.05.2025». */
+function contractLabel(raw: string): string {
+  let c = raw.replace(/^\s*договор(\s+подряда)?\s*/i, "").replace(/\s*г\.?\s*$/i, "").trim();
+  if (!c) return raw;
+  if (!/^№/.test(c)) c = `№ ${c}`;
+  return `Договор подряда ${c}`;
+}
 
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
@@ -87,7 +107,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       rawWarehouse: true,
       finishedWarehouse: true,
       client: true,
-      batch: { select: { number: true } },
+      batch: { select: { id: true, number: true } },
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
@@ -149,6 +169,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey, "ru", { numeric: true }))
     .map((o) => ({ id: o.id, label: o.label, due: o.due, paid: o.paid }));
 
+  // Оплата одна на несколько ТЗ — остаток по одному ТЗ не считаем (в БД нет суммы по ТЗ), показываем оплату по партии.
+  const batchStat = order.batch
+    ? batchTotals(
+        await prisma.productionOrder.findMany({
+          where: { batchId: order.batch.id, organizationId: session.user.organizationId },
+          include: batchOrderInclude,
+        }),
+        c4Mode,
+      )
+    : null;
+  const [shipmentCount, fittingCount] = await Promise.all([
+    prisma.shipment.count({ where: { organizationId: session.user.organizationId, lines: { some: { productionOrderId: order.id } } } }),
+    prisma.fitting.count({ where: { organizationId: session.user.organizationId, productionOrderId: order.id } }),
+  ]);
+
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
   // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
   // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses/payments).
@@ -204,9 +239,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // them as options, which would silently swap the selection on save. Add
   // them back in explicitly so the edit form always includes the order's
   // current values.
-  const modelOptions = models.some((m) => m.id === order.productModelId)
+  const modelOptions = (models.some((m) => m.id === order.productModelId)
     ? models
-    : [{ id: order.productModelId, name: order.productModel.name }, ...models];
+    : [{ id: order.productModelId, name: order.productModel.name }, ...models]
+  ).sort((a, b) => compareModelNames(a.name, b.name));
   const clientOptions =
     order.clientId && !clients.some((c) => c.id === order.clientId)
       ? [{ id: order.client!.id, name: order.client!.name }, ...clients]
@@ -242,6 +278,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const allLiningLots = allLotOptions.filter((l) => l.unit === "M");
   const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
+  // Строки подкладки в расчёте показываем, только если она есть в списаниях, указана в ТЗ или входит в состав модели.
+  const showLining =
+    liningUsages.length > 0 ||
+    (order.lining ?? "").trim() !== "" ||
+    order.productModel.materials.some((m) => m.rawMaterial.unit === "M");
 
   // Режим «С 4%»: надбавка считается здесь при показе (БД хранит «без 4%»);
   // только сырьё и подкладка со списаний с commission4 = true, работа и
@@ -360,11 +401,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const headerParts = [
     order.productModel.name,
     clean(order.color) && clean(order.color),
-    clean(order.size) && `разм. ${clean(order.size)}`,
+    clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
     qtyLabel,
     order.startDate && `с ${formatDate(order.startDate)}`,
     order.client && <span key="client" className="font-medium text-neutral-700">{order.client.name}</span>,
-    order.client && clean(order.contractNumber) && clean(order.contractNumber),
+    order.client && clean(order.contractNumber) && contractLabel(clean(order.contractNumber)),
     order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
     clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
     clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
@@ -390,7 +431,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <Badge variant={status.variant}>{status.label}</Badge>
           {order.batch && (
             <Link href={`/production/batches/${order.batch.number}`} className="text-sm text-blue-600 hover:underline">
-              Партия №{order.batch.number}
+              Партия {order.batch.number}
             </Link>
           )}
           <div className="ml-auto" />
@@ -458,7 +499,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <CardContent className="flex flex-col gap-3">
           <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white text-sm lg:hidden">
             <SummaryLine label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
-            <SummaryLine label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+            {showLining && <SummaryLine label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />}
             <SummaryLine label="Итого расходы" value={formatMoney(expenseCost.toString())} />
             <SummaryLine
               label={`Итого себестоимость${c4}`}
@@ -474,7 +515,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <>
                 <SummaryLine label="Работа для заказчика" value={formatMoney(clientRevenue.toString())} />
                 <SummaryLine
-                  label={<VatLabel base={`Маржа${c4}`} />}
+                  label={<VatLabel base={`Работа минус себестоимость${c4}`} />}
                   value={<Money incl={margin} excl={marginExcl} />}
                   className={margin.lessThan(0) ? "text-amber-600" : undefined}
                 />
@@ -500,20 +541,24 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
               <TotalRow label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
 
-              <SectionRow>Подкладка</SectionRow>
-              {usageRows(liningUsages, allLiningLots)}
-              {liningUsages.length === 0 && (
-                <EmptyRow>
-                  Подкладка не указана
-                  {canWrite && (
-                    <>
-                      {" — "}
-                      <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
-                    </>
+              {showLining && (
+                <>
+                  <SectionRow>Подкладка</SectionRow>
+                  {usageRows(liningUsages, allLiningLots)}
+                  {liningUsages.length === 0 && (
+                    <EmptyRow>
+                      Подкладка не указана
+                      {canWrite && (
+                        <>
+                          {" — "}
+                          <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
+                        </>
+                      )}
+                    </EmptyRow>
                   )}
-                </EmptyRow>
+                  <TotalRow label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+                </>
               )}
-              <TotalRow label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
 
               <SectionRow>Расходы</SectionRow>
               {order.expenses.map((e) => (
@@ -555,8 +600,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     value={formatMoney(clientRevenue.toString())}
                   />
                   <TotalRow
-                    label={<VatLabel base={`Маржа${c4}`} />}
-                    title={`${MARGIN_HINT} Следует переключателю С НДС / Без НДС.`}
+                    label={<VatLabel base={`Работа минус себестоимость${c4}`} />}
+                    title={MARGIN_HINT}
                     value={<Money incl={margin} excl={marginExcl} />}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}
                   />
@@ -649,17 +694,35 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {clientRevenue && (
               <p className="text-sm text-neutral-600">
                 К оплате <span className="font-medium text-neutral-900">{formatMoney(clientRevenue.toString())}</span>
-                {" · "}
-                {hasSharedPayments ? "оплачено (вкл. общие с др. ТЗ) " : "оплачено "}
-                <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
-                {" · "}
-                {hasSharedPayments ? "остаток к оплате (примерно) " : "остаток к оплате "}
-                <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-600" : "text-neutral-900"}`}>
-                  {formatMoney(balanceDue!.toString())}
-                </span>
+                {hasSharedPayments ? (
+                  batchStat && order.batch ? (
+                    <>
+                      {" · "}
+                      <Link href={`/production/batches/${order.batch.number}`} className="text-blue-600 hover:underline">
+                        оплачено по партии {order.batch.number}:{" "}
+                        <span className="font-medium">{formatMoney(batchStat.paid.toString())}</span> из{" "}
+                        <span className="font-medium">{formatMoney(batchStat.work.toString())}</span>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      {" · "}оплачено общими платежами: <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
+                    </>
+                  )
+                ) : (
+                  <>
+                    {" · оплачено "}
+                    <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
+                    {" · "}
+                    {balanceDue!.lessThan(-0.005) ? "переплата " : "остаток к оплате "}
+                    <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-600" : "text-neutral-900"}`}>
+                      {formatMoney(balanceDue!.abs().toString())}
+                    </span>
+                  </>
+                )}
                 {hasSharedPayments && (
                   <span className="block text-xs text-neutral-500">
-                    Оплат, общих с другими ТЗ: {sharedPayments.length} — учтены целиком, без разбивки по ТЗ.
+                    Платежей на несколько ТЗ: {sharedPayments.length} — сумма по ТЗ не разбивается, остаток по одному ТЗ не считается.
                   </span>
                 )}
               </p>
@@ -713,8 +776,27 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       )}
 
       <Section id="ship" title="Отгрузки и примерки">
-        <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
-        <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
+        {shipmentCount === 0 && fittingCount === 0 ? (
+          <p className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
+            <span>Отгрузки (0) · Примерки (0)</span>
+            {canWrite && (
+              <>
+                <span>·</span>
+                <Link href={`/shipments/new?order=${id}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+                  + Отгрузка
+                </Link>
+                <Link href={`/fittings/new?order=${id}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+                  + Примерка
+                </Link>
+              </>
+            )}
+          </p>
+        ) : (
+          <>
+            <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
+            <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
+          </>
+        )}
       </Section>
 
       <Section id="drive" title="Документы Google Drive">

@@ -49,7 +49,7 @@ export async function createModel(
     throw e;
   }
 
-  revalidatePath("/models");
+  revalidatePath("/articles");
   redirect(`/models/${model.id}`);
 }
 
@@ -74,7 +74,7 @@ export async function updateModel(
   }
   if (result.count === 0) return { error: "Модель не найдена" };
 
-  revalidatePath("/models");
+  revalidatePath("/articles");
   revalidatePath(`/models/${id}`);
   return {};
 }
@@ -101,7 +101,6 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
   ]);
 
   revalidatePath("/articles");
-  revalidatePath("/models");
   revalidatePath("/production");
   return {};
 }

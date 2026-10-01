@@ -5,7 +5,10 @@
 export const AUCTION_NAME_MAX = 40;
 
 /** Служебные «аукционы» — заглушки импорта, а не реальные торги; показываются отдельно, в группе «Прочее». */
-const SERVICE_PREFIXES = ["нет информации", "не в реестре остатков", "подкладочные материалы"];
+const SERVICE_PREFIXES = ["нет информации", "не в реестре остатков", "подкладочные материалы", "доп закупк"];
+
+/** Как показываем служебные метки («Нет информации», «Не в реестре остатков…» и т. п.). */
+export const NO_AUCTION_LABEL = "Без аукциона";
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase().replace(/ё/g, "е");
 
@@ -22,6 +25,7 @@ export function isServiceAuction(name: string | null | undefined): boolean {
 export function shortAuctionName(name: string | null | undefined, max = AUCTION_NAME_MAX): string {
   const clean = (name ?? "").replace(/\s+/g, " ").trim();
   if (!clean) return "";
+  if (isServiceAuction(clean)) return NO_AUCTION_LABEL;
   const spec = /спецификаци[яи]\s*(?:№|N|No\.?)\s*([0-9A-Za-zА-Яа-я][0-9A-Za-zА-Яа-я./-]*)/i.exec(clean);
   if (spec && clean.length > max) return `Спецификация № ${spec[1].replace(/[.,;]+$/, "")}`;
   if (clean.length <= max) return clean;

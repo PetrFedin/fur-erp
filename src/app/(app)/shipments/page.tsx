@@ -63,19 +63,31 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     return rank(a.status) === 0 ? d : -d;
   });
   const hasFilters = Boolean(status || client);
+  const isEmpty = rows.length === 0 && !hasFilters;
 
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Отгрузки</h1>
-        {canEdit && (
+        {canEdit && !isEmpty && (
           <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
             + Новая отгрузка
           </Link>
         )}
       </div>
 
+      {isEmpty ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
+          <p>Отгрузок пока нет. Отгрузка — план и факт отправки готовых изделий заказчику; склад она не списывает.</p>
+          {canEdit && (
+            <Link href="/shipments/new" className={buttonVariants()}>
+              + Новая отгрузка
+            </Link>
+          )}
+        </div>
+      ) : (
+        <>
       <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm">
         На ближайшие 7 дней:{" "}
         <span className="font-semibold">
@@ -158,6 +170,8 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           )}
         </Tbody>
       </Table>
+        </>
+      )}
     </div>
   );
 }

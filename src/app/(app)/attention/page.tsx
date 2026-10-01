@@ -67,13 +67,15 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
 
       <div className="flex flex-wrap items-center gap-2" aria-label="Фильтры">
         <Link href={qs({ section: null })} className={chip(!section)}>
-          Все · {totals.main + (hideGray ? 0 : totals.gray)}
+          Все · {totals.main}
+          {!hideGray && totals.gray > 0 && <span className="ml-1 opacity-70">+{totals.gray} серых</span>}
         </Link>
         {SECTIONS.map((s) => {
           const c = bySection(s);
           return (
             <Link key={s} href={qs({ section: s })} className={chip(section === s)}>
-              {SECTION_LABELS[s]} · {c.main + (hideGray ? 0 : c.gray)}
+              {SECTION_LABELS[s]} · {c.main}
+              {!hideGray && c.gray > 0 && <span className="ml-1 opacity-70">+{c.gray} серых</span>}
             </Link>
           );
         })}

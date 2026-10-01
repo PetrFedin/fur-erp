@@ -38,6 +38,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const materialId = cleanSearch(sp.material);
   const auctionQ = tab === "fur" ? cleanSearch(sp.auction, 200) : "";
   // Вид режима «Аукцион»: по счетам (по умолчанию) или плоским списком лотов; сохраняется при фильтрах.
+  const showZeroLining = tab === "lining" && sp.zero === "1";
   const auctionView: "invoices" | "lots" = cleanSearch(sp.view, 20) === "lots" ? "lots" : "invoices";
 
   const [materials, auctions] = await Promise.all([
@@ -122,7 +123,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     <>
       {auctions.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-xs text-neutral-500">Аукционы:</span>
+          <span className="text-xs text-neutral-500">Партия закупки (аукцион):</span>
           {auctionChips.map(auctionChip)}
           {moreAuctions.length > 0 && (
             <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
@@ -136,30 +137,20 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           {serviceAuctions.length > 0 && (
             <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
               <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
-                Прочее ({serviceAuctions.length})
+                Прочее — без аукциона ({serviceAuctions.length})
               </summary>
               <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
             </details>
           )}
         </div>
       )}
-      <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId || auctionQ)}>
+      <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
         <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
         <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
           {auctionView === "lots" && <input type="hidden" name="view" value="lots" />}
-          <div className="col-span-2 sm:col-span-4">
-            <label className="mb-1 block text-xs text-neutral-500">Аукцион (название — выберите из списка или введите)</label>
-            <Input name="auction" list="auction-options" defaultValue={auctionQ} placeholder="напр. СП 09-26" autoComplete="off" />
-            <datalist id="auction-options">
-              {auctions.map((a) => (
-                <option key={a.name} value={a.name}>
-                  {`${a.name} · ${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
-                </option>
-              ))}
-            </datalist>
-          </div>
+          {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
           <div className="col-span-2">
-            <label className="mb-1 block text-xs text-neutral-500">Поиск (лот, материал, цвет, сорт)</label>
+            <label className="mb-1 block text-xs text-neutral-500">Поиск по № лота, материалу, цвету, сорту</label>
             <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
           </div>
           <div>
@@ -179,13 +170,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <Button type="submit" variant="outline">
               Найти
             </Button>
-            <Link href="/lots" className="flex items-center text-sm text-neutral-500 hover:underline">
+            <Link
+              href={auctionQ ? `/lots?auction=${encodeURIComponent(auctionQ)}${auctionView === "lots" ? "&view=lots" : ""}` : "/lots"}
+              className="flex items-center text-sm text-neutral-500 hover:underline"
+            >
               Сбросить
-            </Link>
-          </div>
-          <div className="col-span-2 sm:col-span-4">
-            <Link href="/raw-materials" className="text-sm text-neutral-500 hover:underline">
-              Расширенный поиск по лотам и аукционам →
             </Link>
           </div>
         </form>
@@ -199,7 +188,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-xl font-semibold">Сырьё</h1>
-            <p className="text-sm text-neutral-500">Режим «Аукцион»: позиции закупок, документы и расчёт цены.</p>
+            <p className="text-sm text-neutral-500">Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>
           </div>
           <Link href="/materials/new" className={buttonVariants()}>
             + Добавить материал
@@ -327,6 +316,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   }
 
   const liningLotsByMaterial = furLotsByMaterial; // (та же группировка: на вкладке «Подкладка» lots — только ткани)
+  // Вкладка «Подкладка»: по умолчанию без тканей с нулевым остатком (нехватку показываем всегда).
+  const poolOf = (id: string) => (liningLotsByMaterial.get(id) ?? []).reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+  const isZeroLining = (r: (typeof liningMaterialRows)[number]) => r.remaining.lessThanOrEqualTo(0) && poolOf(r.id).greaterThanOrEqualTo(0);
+  const liningVisibleRows = showZeroLining ? liningMaterialRows : liningMaterialRows.filter((r) => !isZeroLining(r));
+  const liningHiddenCount = liningMaterialRows.length - liningVisibleRows.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -487,7 +481,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                               <div className="text-xs text-neutral-400">
                                                 {[
                                                   formatDate(l.receivedDate),
-                                                  l.purchase.auctionSession,
+                                                  l.purchase.auctionSession ? shortAuctionName(l.purchase.auctionSession.split("\n")[0], 60) : null,
                                                   l.purchase.transferDocument,
                                                 ]
                                                   .filter(Boolean)
@@ -569,7 +563,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 </Tr>
               </Thead>
               <Tbody>
-                {liningMaterialRows.map((r) => {
+                {liningVisibleRows.map((r) => {
                   const rowLots = liningLotsByMaterial.get(r.id) ?? [];
                   const perOrder = new Map<string, { id: string; number: string; qty: Decimal }>();
                   for (const l of rowLots) {
@@ -690,15 +684,31 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                     </Tr>
                   );
                 })}
-                {liningMaterialRows.length === 0 && (
+                {liningVisibleRows.length === 0 && (
                   <Tr>
                     <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                      Подкладка ещё не закупалась
+                      {liningMaterialRows.length === 0 ? "Подкладка ещё не закупалась" : "Ткани с остатком закончились"}
                     </Td>
                   </Tr>
                 )}
               </Tbody>
             </Table>
+            {(liningHiddenCount > 0 || showZeroLining) && (
+              <p className="mt-2 text-xs text-neutral-500">
+                {showZeroLining ? (
+                  <Link href="/lots?tab=lining" className="text-blue-600 hover:underline">
+                    Скрыть ткани без остатка
+                  </Link>
+                ) : (
+                  <>
+                    Скрыто тканей без остатка: {liningHiddenCount}.{" "}
+                    <Link href="/lots?tab=lining&zero=1" className="text-blue-600 hover:underline">
+                      Показать все
+                    </Link>
+                  </>
+                )}
+              </p>
+            )}
             <div className="mt-3 flex justify-end text-sm">
               <span className="text-neutral-500">Итого стоимость остатков подкладки: </span>
               <span className="ml-1 font-semibold text-neutral-900">

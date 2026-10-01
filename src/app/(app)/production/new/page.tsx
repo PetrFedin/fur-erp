@@ -1,3 +1,4 @@
+import { compareModelNames } from "@/lib/model-code";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,7 +86,7 @@ export default async function NewProductionOrderPage() {
         <CardContent>
           <ProductionCreateForm
             action={createProductionOrder}
-            models={models.map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null }))}
+            models={[...models].sort((a, b) => compareModelNames(a.name, b.name)).map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null }))}
             warehouses={warehouses}
             clients={clients}
             liningOptions={liningOptions}

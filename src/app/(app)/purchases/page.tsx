@@ -9,6 +9,7 @@ import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
+import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
@@ -79,6 +80,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   if (from) moreParams.set("from", from);
   if (to) moreParams.set("to", to);
   moreParams.set("limit", String(limit + PAGE));
+
+  // Оплаты по закупкам с аукционом ведутся по аукциону целиком — «оплачено» берём оттуда.
+  const pageAuctionNames = [...new Set(purchases.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
+  const auctionPays = new Map(
+    (pageAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, pageAuctionNames) : []).map((a) => [a.name, a]),
+  );
 
   const sessions = await prisma.purchase.findMany({
     where: { organizationId: session.user.organizationId, auctionSession: { not: null } },
@@ -183,6 +190,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             const totalExclVat = purchaseTotalExclVat(p);
             const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
             const status = statusView(p.status);
+            const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
             return (
               <Tr key={p.id}>
                 <Td className="font-medium">
@@ -202,8 +210,19 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 <Td>
                   <Money incl={total} excl={totalExclVat} />
                 </Td>
-                <Td className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>
-                  {formatMoney(paid.toString())}
+                <Td className="whitespace-nowrap">
+                  {ap ? (
+                    <Link
+                      href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
+                      className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
+                      title={`Оплаты ведутся по аукциону «${ap.name}» целиком`}
+                    >
+                      {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+                      <span className="block text-xs font-normal text-neutral-400">по аукциону</span>
+                    </Link>
+                  ) : (
+                    <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
+                  )}
                 </Td>
               </Tr>
             );

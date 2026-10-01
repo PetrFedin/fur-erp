@@ -12,6 +12,7 @@ import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
+import { compareModelNames, modelCodeVariants } from "@/lib/model-code";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
@@ -51,7 +52,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const models = await prisma.productModel.findMany({
     where: {
       organizationId: orgId,
-      ...(q ? { name: { contains: escapeLike(q), mode: "insensitive" as const } } : {}),
+      ...(q ? { OR: modelCodeVariants(q).map((v) => ({ name: { contains: escapeLike(v), mode: "insensitive" as const } })) } : {}),
     },
     include: {
       _count: { select: { productionOrders: true } },
@@ -148,7 +149,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const rows = (showEmpty || q ? rows0 : rows0.filter((r) => r.stockQty.greaterThan(0))).sort((a, b) => {
     const wa = a.stockQty.greaterThan(0) || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty.greaterThan(0) || b.orderCount > 0 ? 0 : 1;
-    return wa - wb || a.name.localeCompare(b.name, "ru");
+    return wa - wb || compareModelNames(a.name, b.name);
   });
   const totalStockValue = rows.reduce((s, r) => s.add(r.stockValue), new Decimal(0));
   const totalStockValueExclVat = rows.reduce((s, r) => s.add(r.stockValueExclVat), new Decimal(0));
@@ -185,6 +186,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           </Link>
         )}
       </form>
+      <p className="text-xs text-neutral-500">
+        Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.
+      </p>
       {!q && emptyCount > 0 && (
         <p className="text-sm text-neutral-500">
           {showEmpty ? (

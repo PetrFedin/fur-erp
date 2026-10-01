@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
-import { shortAuctionName } from "@/lib/auction-names";
+import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
@@ -27,6 +27,11 @@ function group<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
 }
 
 const cmpRu = (a: string, b: string) => a.localeCompare(b, "ru", { numeric: true });
+
+/** Ключ аукциона в сводке: служебные метки («Нет информации», «Не в реестре остатков…») — одна группа «Без аукциона». */
+const aKey = (l: Leaf) => (isServiceAuction(l.auction) ? NO_AUCTION_LABEL : l.auction);
+/** «Без аукциона» — в конец списков. */
+const cmpAuction = (a: string, b: string) => Number(a === NO_AUCTION_LABEL) - Number(b === NO_AUCTION_LABEL) || cmpRu(a, b);
 
 function figures(a: Agg, mode: Mode) {
   const price = mode === "excl" ? a.price.excl : a.price.incl;
@@ -60,11 +65,11 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
         </span>
       </span>
       <span className={cell}>
-        <span className={lab}>Закупка по цене лотов</span>
+        <span className={lab}>Цена шкур по счетам</span>
         <span>{money(f.price)}</span>
       </span>
       <span className={cell}>
-        <span className={lab}>Полная стоимость</span>
+        <span className={lab}>С расходами</span>
         <span className="font-medium">{money(f.full)}</span>
       </span>
       <span className={cell}>
@@ -77,12 +82,12 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
           {money(f.remaining)}
         </span>
       </span>
-      <span className={cell} title="Взвешено по количеству шкур: Σ цены лотов ÷ Σ шкур">
+      <span className={cell} title="Цена шкур по счетам ÷ число шкур">
         <span className={lab}>Ср. цена шкуры</span>
         <span>{f.avgPrice == null ? "—" : money(f.avgPrice)}</span>
       </span>
-      <span className={cell} title="Взвешено по количеству шкур: Σ полной стоимости ÷ Σ шкур">
-        <span className={lab}>Ср. полная за шкуру</span>
+      <span className={cell} title="Стоимость с расходами ÷ число шкур">
+        <span className={lab}>Ср. с расходами за шкуру</span>
         <span>{f.avgFull == null ? "—" : money(f.avgFull)}</span>
       </span>
     </>
@@ -158,14 +163,14 @@ export async function PurchaseSummary({
   const [{ leaves: all, purchaseTotals }, advances] = await Promise.all([loadSummary(organizationId), loadUnlinkedAdvances(organizationId)]);
 
   const years = [...new Set(all.map((l) => l.year))].sort((a, b) => b - a);
-  const auctions = [...new Set(all.map((l) => l.auction))].sort(cmpRu);
+  const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
   const materials = [...new Set(all.map((l) => l.material))].sort(cmpRu);
   const yearF = years.includes(Number(searchParams.year)) ? Number(searchParams.year) : null;
   const auctionF = auctions.includes(searchParams.auction ?? "") ? searchParams.auction! : "";
   const materialF = materials.includes(searchParams.material ?? "") ? searchParams.material! : "";
 
   const leaves = all.filter(
-    (l) => (!yearF || l.year === yearF) && (!auctionF || l.auction === auctionF) && (!materialF || l.material === materialF),
+    (l) => (!yearF || l.year === yearF) && (!auctionF || aKey(l) === auctionF) && (!materialF || l.material === materialF),
   );
   const filtered = Boolean(yearF || auctionF || materialF);
 
@@ -201,7 +206,7 @@ export async function PurchaseSummary({
   const grand = aggOf(leaves);
   const views = [
     { name: "по годам", a: sumBy((l) => String(l.year)) },
-    { name: "по аукционам", a: sumBy((l) => l.auction) },
+    { name: "по аукционам", a: sumBy(aKey) },
     { name: "по типам сырья", a: sumBy((l) => l.material) },
   ];
   const pick = (a: Agg) => ({
@@ -313,15 +318,15 @@ export async function PurchaseSummary({
           >
             <span>Год / аукцион / сырьё / лот</span>
             <span className="text-right">Шкур</span>
-            <span className="text-right">Закупка по цене лотов</span>
-            <span className="text-right">Полная стоимость</span>
+            <span className="text-right">Цена шкур по счетам</span>
+            <span className="text-right">С расходами</span>
             <span className="text-right">Оплачено</span>
             <span className="text-right">Остаток</span>
-            <span className="text-right" title="взвешено по количеству шкур">
+            <span className="text-right" title="Цена шкур по счетам ÷ число шкур">
               Ср. цена шкуры
             </span>
-            <span className="text-right" title="взвешено по количеству шкур">
-              Ср. полная за шкуру
+            <span className="text-right" title="Стоимость с расходами ÷ число шкур">
+              Ср. с расходами
             </span>
           </div>
           {byYear.map(([year, yl], yi) => (
@@ -334,8 +339,8 @@ export async function PurchaseSummary({
               level={0}
               open={yi === 0 || byYear.length === 1}
             >
-              {[...group(yl, (l) => l.auction).entries()]
-                .sort((a, b) => cmpRu(a[0], b[0]))
+              {[...group(yl, aKey).entries()]
+                .sort((a, b) => cmpAuction(a[0], b[0]))
                 .map(([auction, al]) => (
                   <Node key={auction} title={shortAuctionName(auction, 70)} sub={`${al.length} лот.`} a={aggOf(al)} mode={mode} level={1}>
                     {[...group(al, (l) => l.material).entries()]
@@ -360,62 +365,67 @@ export async function PurchaseSummary({
         </div>
       )}
 
-      {leaves.length > 0 && (
+      {leaves.length > 0 && (draftCount > 0 || advances.length > 0) && (
         <div className="flex flex-col gap-0.5 text-xs text-neutral-600" data-summary-notes>
           {draftCount > 0 && (
             <div>
-              в т.ч. черновики (мех не принят): {money(draftFull)} ({draftCount} поз.) — расчётная стоимость, не складская.
+              Из них не принято на склад: {money(draftFull)} ({draftCount} поз.) — расчётная стоимость.
             </div>
           )}
           {advances.length > 0 && (
             <div className="text-amber-700">
-              Авансы без привязки: {money(advancesTotal)} ({advances.length} п/п, с НДС) — не разнесены по аукционам и не входят в
-              «Оплачено»; «Остаток» выше — по закупкам без их учёта. Привязать: <Link href="/payments" className="underline">/payments</Link>, блок
-              «Без аукциона».
+              Авансы без аукциона: {money(advancesTotal)} ({advances.length} п/п) — в «Оплачено» не входят.{" "}
+              <Link href="/payments" className="underline">
+                Распределить в «Оплатах»
+              </Link>
             </div>
           )}
         </div>
       )}
 
       {leaves.length > 0 && (
-        <div
-          className={
-            "rounded-md border px-3 py-2 text-sm " +
-            (converges ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800")
-          }
-          data-convergence={converges ? "ok" : "mismatch"}
-        >
-          <div className="font-medium">
-            {converges ? "Сходится" : `Расхождение ${money(maxDiff)}`}: сумма по годам = по аукционам = по типам сырья
-          </div>
-          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-            {views.map((v) => (
-              <li key={v.name}>
-                {v.name}: {money(pick(v.a).full)}
-              </li>
-            ))}
-            <li>итого: {money(gf.full)}</li>
-          </ul>
-          {materialF ? (
-            <div className="mt-1 text-xs text-neutral-600">
-              Сверка с итогами закупок не выполняется при фильтре по сырью (в закупке учтена только часть позиций).
-            </div>
+        <div data-convergence={converges && (materialF || independentOk) ? "ok" : "mismatch"}>
+          {converges && (materialF || independentOk) ? (
+            <details className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <summary className="cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
+                <span aria-hidden>✓ </span>Итоги по годам, аукционам и типам сырья сходятся
+                <span className="ml-2 text-xs font-normal text-emerald-700 underline">как проверено</span>
+              </summary>
+              <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                {views.map((v) => (
+                  <li key={v.name}>
+                    {v.name}: {money(pick(v.a).full)}
+                  </li>
+                ))}
+                <li>итого: {money(gf.full)}</li>
+              </ul>
+              <div className="mt-1 text-xs text-emerald-800">
+                {materialF
+                  ? "Сверка с суммами закупок не делается при выборе сырья: в закупке учтена только часть позиций."
+                  : `Совпадает и с суммами закупок: ${money(independent)}.`}
+              </div>
+            </details>
           ) : (
-            <div
-              className={"mt-1 text-xs " + (independentOk ? "" : "font-semibold text-red-700")}
-              data-independent-check={independentOk ? "ok" : "mismatch"}
-            >
-              {independentOk ? "Сходится" : `Расхождение ${money(independentDiff)}`} с итогами закупок (Σ по закупкам, как «Куплено сырья» на
-              дашборде и «Стоимость» в /payments): листья {money(g0.full)}; закупки {money(independent)}
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              <div className="font-medium">Итоги не сходятся: расхождение {money(converges ? independentDiff : maxDiff)}</div>
+              <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                {views.map((v) => (
+                  <li key={v.name}>
+                    {v.name}: {money(pick(v.a).full)}
+                  </li>
+                ))}
+                <li>итого: {money(gf.full)}</li>
+                {!materialF && <li data-independent-check="mismatch">суммы закупок: {money(independent)}</li>}
+              </ul>
             </div>
           )}
         </div>
       )}
 
       <p className="text-xs text-neutral-500">
-        Год — по дате закупки (для УПД-закупок тоже по дате закупки); отменённые закупки не входят. Средние считаются только
-        взвешенно: Σ суммы ÷ Σ шкур. «Оплачено» ведётся на уровне закупки/аукциона; на уровне типа сырья и лота это
-        распределение пропорционально полной стоимости. В режиме «Без НДС» оплаты пересчитаны той же долей.
+        Год — по дате закупки; отменённые закупки не входят. «Цена шкур по счетам» — цена лотов по курсу, «С расходами» —
+        полная стоимость. Оплаты ведутся по закупке и аукциону; по сырью и лотам показаны пропорционально стоимости (в режиме
+        «Без НДС» — той же долей).
       </p>
     </div>
   );

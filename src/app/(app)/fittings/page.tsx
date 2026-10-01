@@ -64,19 +64,31 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
   ]);
 
   const hasFilters = Boolean(status || modelId || q);
+  const isEmpty = fittings.length === 0 && !hasFilters;
 
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="fittings" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Примерки</h1>
-        {canEdit && (
+        {canEdit && !isEmpty && (
           <Link href="/fittings/new" className={buttonVariants()}>
             + Примерка
           </Link>
         )}
       </div>
 
+      {isEmpty ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
+          <p>Примерок пока нет. Здесь записывают итог примерки изделия по ТЗ и прикладывают фото.</p>
+          {canEdit && (
+            <Link href="/fittings/new" className={buttonVariants()}>
+              + Примерка
+            </Link>
+          )}
+        </div>
+      ) : (
+        <>
       <form method="get" className="flex flex-wrap items-end gap-2">
         <Input name="q" defaultValue={q} placeholder="№ ТЗ или комментарий" className="w-full sm:w-64" />
         <Select name="status" defaultValue={status} className="w-full sm:w-56" aria-label="Итог">
@@ -168,6 +180,8 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
           )}
         </Tbody>
       </Table>
+        </>
+      )}
     </div>
   );
 }

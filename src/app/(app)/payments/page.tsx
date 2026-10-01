@@ -20,6 +20,7 @@ import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_N
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
 import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
 import { DriveDocList, UploadDocument } from "@/components/drive-documents";
+import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { toDriveView } from "@/lib/drive-docs-server";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
@@ -82,7 +83,7 @@ export default async function PaymentsPage({
   const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
   const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
   const onlyRest = tab === "suppliers" && sp.f === "rest";
-  const [payments, suppliers, clientPayments, summaries, auctionPurchases, plainPurchases] = await Promise.all([
+  const [payments, suppliers, clientPayments, summaries, auctionPurchases, plainPurchases, debt] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
       include: {
@@ -102,7 +103,7 @@ export default async function PaymentsPage({
           where: { organizationId: session.user.organizationId },
           include: {
             client: true,
-            orders: { include: { productionOrder: true } },
+            orders: { include: { productionOrder: { include: { batch: { select: { number: true } } } } } },
           },
           orderBy: { paidAt: "desc" },
         })
@@ -121,6 +122,7 @@ export default async function PaymentsPage({
           orderBy: { orderDate: "desc" },
         })
       : Promise.resolve([]),
+    tab === "suppliers" ? loadSupplierDebt(prisma, orgId) : Promise.resolve(null),
   ]);
 
   // По актуальности: 1) с остатком и свежей закупкой (≤ 12 мес.), 2) оплаченные/переплаченные,
@@ -214,42 +216,60 @@ export default async function PaymentsPage({
     </>
   );
 
+  const anyPlanned = auctions.some((a) => a.planned.greaterThan(PAY_EPS));
   const renderAuction = (a: (typeof auctions)[number]) => {
     const active = selected?.name === a.name;
+    const href = `${listParams({ auction: a.name })}#auction-block`;
     return (
-      <Link
-        key={a.name}
-        title={a.name}
-        href={`${listParams({ auction: a.name })}#auction-block`}
-        scroll
-        className={
-          "flex flex-col gap-2 rounded-lg border bg-white p-3 transition-colors hover:border-neutral-400 " +
-          (active ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200")
-        }
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="font-medium" title={a.name}>{shortAuctionName(a.name)}</div>
-            <div className="text-xs text-neutral-500">закупок: {a.purchases}</div>
-          </div>
+      <Tr key={a.name} className={active ? "bg-neutral-50" : undefined}>
+        <Td className="min-w-[10rem] max-w-[18rem] font-medium">
+          <Link href={href} scroll title={a.name} className="hover:underline">
+            {shortAuctionName(a.name)}
+          </Link>
+        </Td>
+        <Td className="text-right">{a.purchases}</Td>
+        <Td className="whitespace-nowrap text-right">{formatMoney(a.total.toString())}</Td>
+        <Td className="whitespace-nowrap text-right">
+          {formatMoney(a.paid.toString())}
+          <span className="block text-xs text-neutral-400">{fmtPct(a.percentPaid)}</span>
+        </Td>
+        {anyPlanned && <Td className="whitespace-nowrap text-right">{a.planned.greaterThan(PAY_EPS) ? formatMoney(a.planned.toString()) : "—"}</Td>}
+        <Td
+          className={
+            "whitespace-nowrap text-right font-semibold " +
+            (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")
+          }
+        >
+          {fmtRemaining(a.remaining)}
+        </Td>
+        <Td>
           <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-          <dt className="text-neutral-500">Стоимость</dt>
-          <dd className="text-right">{formatMoney(a.total.toString())}</dd>
-          <dt className="text-neutral-500">Оплачено</dt>
-          <dd className="text-right">{formatMoney(a.paid.toString())}</dd>
-          <dt className="text-neutral-500">Запланировано</dt>
-          <dd className="text-right">{formatMoney(a.planned.toString())}</dd>
-          <dt className="font-medium">Остаток</dt>
-          <dd className={"text-right font-semibold " + (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")}>
-            {fmtRemaining(a.remaining)}
-          </dd>
-        </dl>
-        <ProgressBar percent={a.percentPaid} status={a.status} />
-      </Link>
+        </Td>
+        <Td>
+          <Link href={href} scroll className={buttonVariants({ variant: active ? "default" : "outline", size: "sm" })}>
+            Оплаты
+          </Link>
+        </Td>
+      </Tr>
     );
   };
+  const auctionsTable = (list: typeof auctions) => (
+    <Table>
+      <Thead>
+        <Tr>
+          <Th>Аукцион</Th>
+          <Th className="text-right">Закупок</Th>
+          <Th className="text-right">Стоимость</Th>
+          <Th className="text-right">Оплачено</Th>
+          {anyPlanned && <Th className="text-right">Запланировано</Th>}
+          <Th className="text-right">Остаток</Th>
+          <Th>Статус</Th>
+          <Th></Th>
+        </Tr>
+      </Thead>
+      <Tbody>{list.map(renderAuction)}</Tbody>
+    </Table>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -309,19 +329,31 @@ export default async function PaymentsPage({
                 <Td>{formatDate(p.paidAt)}</Td>
                 <Td>{p.client?.name ?? "—"}</Td>
                 <Td>
-                  {p.orders.length === 0
-                    ? "—"
-                    : p.orders.map((o, i) => (
-                        <span key={o.id}>
-                          {i > 0 && ", "}
-                          <Link
-                            href={`/production/${o.productionOrderId}`}
-                            className="hover:underline"
-                          >
+                  {p.orders.length === 0 ? (
+                    <span className="text-neutral-500">без ТЗ</span>
+                  ) : p.orders.length <= 3 ? (
+                    p.orders.map((o, i) => (
+                      <span key={o.id}>
+                        {i > 0 && ", "}
+                        <Link href={`/production/${o.productionOrderId}`} className="hover:underline">
+                          {o.productionOrder.number}
+                        </Link>
+                      </span>
+                    ))
+                  ) : (
+                    <details>
+                      <summary className="cursor-pointer whitespace-nowrap">
+                        {p.orders.length} ТЗ{batchLabel(p.orders)}
+                      </summary>
+                      <div className="mt-1 flex max-w-xs flex-wrap gap-x-2 gap-y-0.5 text-xs">
+                        {p.orders.map((o) => (
+                          <Link key={o.id} href={`/production/${o.productionOrderId}`} className="hover:underline">
                             {o.productionOrder.number}
                           </Link>
-                        </span>
-                      ))}
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </Td>
                 <Td>{PAYMENT_TYPE_LABELS[p.paymentType]}</Td>
                 <Td>{formatMoney(p.amount.toString())}</Td>
@@ -349,21 +381,20 @@ export default async function PaymentsPage({
       ) : (
         <>
           <p className="text-sm text-neutral-600">
-            Мы платим не аукциону, а посреднику (поставщику){intermediaries ? ` — ${intermediaries}` : ""}. Аукцион (партия закупок, например «СП 09-26») нужен,
-            чтобы разнести оплаты и видеть остаток к оплате по каждому. Стоимость, оплачено и остаток — всегда с НДС и не
-            зависят от переключателя «С НДС / Без НДС»: это то, что мы должны поставщику.
+            Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}, оплаты разносим по аукционам (партиям закупок). Суммы — с НДС, это наш долг поставщику.
           </p>
 
-          {auctions.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Стоимость аукционов, с НДС" value={formatMoney(sum((a) => a.total))} />
-              <Stat label="Оплачено" value={formatMoney(sum((a) => a.paid))} />
-              <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />
+          {debt && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
+              <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
+              <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
+              {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
+              {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
               <Stat
                 label="Остаток к оплате"
-                value={formatMoney(sum((a) => (a.remaining.greaterThan(0) ? a.remaining : 0)))}
-                note="Только по аукционам. «Долг поставщикам» на Сводке может отличаться: там ещё закупки без аукциона и авансы без привязки."
-                warn
+                value={formatMoney(debt.debt.toString())}
+                note="стоимость − оплачено − авансы без привязки"
+                warn={debt.debt.greaterThan(PAY_EPS)}
               />
             </div>
           )}
@@ -401,13 +432,13 @@ export default async function PaymentsPage({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{mainAuctions.map(renderAuction)}</div>
+          {mainAuctions.length > 0 && auctionsTable(mainAuctions)}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(listQ) || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
                 Прочее (служебные записи без реального аукциона): {serviceAuctions.length}
               </summary>
-              <div className="grid grid-cols-1 gap-3 border-t border-neutral-100 p-3 md:grid-cols-2 xl:grid-cols-3">{serviceAuctions.map(renderAuction)}</div>
+              <div className="border-t border-neutral-100 p-3">{auctionsTable(serviceAuctions)}</div>
             </details>
           )}
           {auctions.length === 0 && (
@@ -452,10 +483,10 @@ export default async function PaymentsPage({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
                     <Stat label="Полная стоимость, с НДС" value={formatMoney(selected.total.toString())} />
                     <Stat label="Оплачено" value={formatMoney(selected.paid.toString())} note={fmtPct(selected.percentPaid)} />
-                    <Stat label="Запланировано" value={formatMoney(selected.planned.toString())} />
+                    {selected.planned.greaterThan(PAY_EPS) && <Stat label="Запланировано" value={formatMoney(selected.planned.toString())} />}
                     <Stat label="ОСТАТОК" value={fmtRemaining(selected.remaining)} warn={selected.remaining.greaterThan(0.005)} />
                   </div>
                   <div className="flex items-center gap-3">
@@ -681,6 +712,14 @@ export default async function PaymentsPage({
       )}
     </div>
   );
+}
+
+/** « (партия 1)» — если все ТЗ платежа из одной партии; иначе пусто. */
+function batchLabel(orders: { productionOrder: { batch: { number: number } | null } }[]): string {
+  const nums = new Set(orders.map((o) => o.productionOrder.batch?.number ?? null));
+  if (nums.size !== 1) return "";
+  const n = [...nums][0];
+  return n == null ? "" : ` (партия ${n})`;
 }
 
 function Stat({ label, value, note, warn }: { label: string; value: string; note?: string; warn?: boolean }) {

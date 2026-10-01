@@ -1,5 +1,6 @@
 import { escapeLike } from "@/lib/input";
-import { auctionName as auctionNameLib, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS } from "@/lib/auction-payments";
+import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
 import { formatMoney } from "@/lib/utils";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -183,7 +184,6 @@ export async function AuctionView({
   ]);
   const payTotal = paySummaries.reduce((s, a) => s.add(a.total), new Decimal(0));
   const payPaid = paySummaries.reduce((s, a) => s.add(a.paid), new Decimal(0));
-  const payPlanned = paySummaries.reduce((s, a) => s.add(a.planned), new Decimal(0));
   const payRemaining = payTotal.sub(payPaid);
   // Без фильтра показываем все закупки аукциона (и пустые); с фильтром — только те, где что-то нашлось.
   const purchases = filtering ? purchasesRaw.filter((p) => p.items.length > 0) : purchasesRaw;
@@ -308,116 +308,85 @@ export async function AuctionView({
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Аукцион: {label}</CardTitle>
+          <CardTitle title={label}>
+            {isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {names.length > 1 && (
-            <p className="text-xs text-neutral-500">Под запрос подходят аукционы: {names.join(", ")}.</p>
+            <p className="text-xs text-neutral-500">Под запрос подходят аукционы: {names.map((n) => shortAuctionName(n, 60)).join(", ")}.</p>
           )}
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-3 text-sm lg:grid-cols-4">
             <div>
-              <dt className="text-xs text-neutral-500">Закупок / счетов</dt>
-              <dd className="text-lg font-semibold">{counted.length}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">Шкур всего</dt>
+              <dt className="text-xs text-neutral-500">Закупок / шкур</dt>
               <dd className="text-lg font-semibold">
-                {formatQty(totalQty.toString())}
-                <span className="ml-1 text-xs font-normal text-neutral-400">({totalLots} лот.)</span>
+                {counted.length} / {formatQty(totalQty.toString())}
+              </dd>
+              <dd className="text-xs text-neutral-400">
+                {totalLots} лот.{statusParts.length > 0 ? ` · ${statusParts.join(", ")}` : ""}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Статус</dt>
-              <dd className="text-sm font-medium">{statusParts.join(" · ") || "—"}</dd>
-            </div>
-            <div>
-              <dt
-                className="text-xs text-neutral-500"
-                title="Без сборов аукциона, выделки, транспорта и брокерских"
-              >
-                Стоимость шкур по счетам (цена лота × курс + НДС)
+              <dt className="text-xs text-neutral-500" title="Цена лота × курс + НДС, без сборов аукциона, выделки, транспорта и брокерских">
+                Цена шкур по счетам
               </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={priceIncl} excl={priceExcl} />
               </dd>
-              <dd className="text-xs text-neutral-400">без сборов аукциона, выделки, транспорта и брокерских</dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Расходы сверх цены лотов</dt>
-              <dd className="text-lg font-semibold">
-                <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
-              </dd>
-              <dd className="text-xs text-neutral-400">сборы, выделка, транспорт, брокер</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">Полная себестоимость (с расходами)</dt>
+              <dt className="text-xs text-neutral-500" title="Цена шкур по счетам плюс сборы аукциона, выделка, транспорт, брокер">
+                С расходами
+              </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={fullIncl} excl={fullExcl} />
               </dd>
-              <dd className="text-xs text-neutral-400">= стоимость шкур + расходы сверх цены лотов</dd>
+              <dd className="text-xs text-neutral-400">
+                расходы <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
+              </dd>
             </div>
             {paySummaries.length > 0 && (
-              <>
-                <div>
-                  <dt className="text-xs text-neutral-500">Оплачено поставщику (с НДС)</dt>
-                  <dd className="text-lg font-semibold">{formatMoney(payPaid.toString())}</dd>
-                  {payPlanned.greaterThan(0) && (
-                    <dd className="text-xs text-neutral-400">запланировано {formatMoney(payPlanned.toString())}</dd>
-                  )}
-                </div>
-                <div>
-                  <dt className="text-xs text-neutral-500">Остаток к оплате (с НДС)</dt>
-                  <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>
-                    {formatMoney(payRemaining.toString())}
-                  </dd>
-                  <dd className="text-xs text-neutral-400">
-                    {paySummaries.length === 1 ? AUCTION_PAY_STATUS_LABELS[paySummaries[0].status] : ""}
-                  </dd>
-                </div>
-              </>
+              <div>
+                <dt className="text-xs text-neutral-500">Остаток к оплате (с НДС)</dt>
+                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>
+                  {formatMoney(payRemaining.toString())}
+                </dd>
+                <dd className="text-xs text-neutral-400">
+                  оплачено {formatMoney(payPaid.toString())} ·{" "}
+                  <Link
+                    href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Оплаты →
+                  </Link>
+                </dd>
+              </div>
             )}
           </dl>
-          {paySummaries.length > 0 && (
-            <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {paySummaries.map((a) => (
-                <Link key={a.name} href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`} className="text-blue-600 hover:underline">
-                  Оплаты аукциона{paySummaries.length > 1 ? ` «${a.name}»` : ""} →
+          {filtering && (
+            <p className="text-xs text-amber-700">Включён поиск по лотам — итоги выше только по найденным лотам, без расходов закупок.</p>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Вид аукциона" data-auction-view-switch>
+              {(
+                [
+                  ["invoices", "По счетам"],
+                  ["lots", "Списком лотов"],
+                ] as const
+              ).map(([v, text]) => (
+                <Link
+                  key={v}
+                  href={viewHref(v)}
+                  aria-current={view === v ? "page" : undefined}
+                  className={
+                    "rounded-md border px-3 py-1 text-sm " +
+                    (view === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+                  }
+                >
+                  {text}
                 </Link>
               ))}
-            </p>
-          )}
-          {filtering && (
-            <p className="text-xs text-amber-700">
-              Включён фильтр по лотам/материалу — итоги считаются только по показанным лотам, расходы закупок в них не
-              входят.
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Вид аукциона" data-auction-view-switch>
-            <span className="text-xs text-neutral-500">Вид:</span>
-            {(
-              [
-                ["invoices", "По счетам"],
-                ["lots", "Списком лотов"],
-              ] as const
-            ).map(([v, text]) => (
-              <Link
-                key={v}
-                href={viewHref(v)}
-                aria-current={view === v ? "page" : undefined}
-                className={
-                  "rounded-md border px-3 py-1 text-sm " +
-                  (view === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-                }
-              >
-                {text}
-              </Link>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-neutral-500">
-              «Полная себестоимость» — расчёт лотов (сборы аукциона, выделка, транспорт, НДС) плюс расходы закупок. У
-              черновиков лотов на складе ещё нет — цифры из расчёта.
-            </p>
+            </div>
             {blocks.length > 0 && !flat && <ToggleAllPurchases />}
           </div>
         </CardContent>
@@ -514,28 +483,6 @@ export async function AuctionView({
           </details>
         );
       })}
-
-      {blocks.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
-          <span className="text-neutral-600">
-            Итого по показанным лотам: {totalLots} лот., {formatQty(totalQty.toString())} шт.
-          </span>
-          <span className="flex flex-wrap gap-x-4">
-            <span>
-              <span className="text-neutral-500">стоимость шкур по счетам: </span>
-              <span className="font-semibold">
-                <Money incl={priceIncl} excl={priceExcl} />
-              </span>
-            </span>
-            <span>
-              <span className="text-neutral-500">полная себестоимость (с расходами): </span>
-              <span className="font-semibold">
-                <Money incl={fullIncl} excl={fullExcl} />
-              </span>
-            </span>
-          </span>
-        </div>
-      )}
 
       {blocks.length > 0 && (flat ? <FlatLotsPanel /> : <AuctionTotalsPanel />)}
       </LotsProvider>
