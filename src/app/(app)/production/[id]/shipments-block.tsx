@@ -31,6 +31,22 @@ export async function ShipmentsBlock({
   const shippedQty = shipments.filter((s) => s.status === "SHIPPED").reduce((a, s) => a + sum(s), 0);
   const plannedQty = shipments.filter((s) => s.status === "PLANNED").reduce((a, s) => a + sum(s), 0);
 
+  if (shipments.length === 0) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
+        Отгрузок пока нет
+        {canAdd && (
+          <>
+            {" · "}
+            <Link href={`/shipments/new?order=${orderId}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+              + Отгрузка
+            </Link>
+          </>
+        )}
+      </p>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -47,9 +63,7 @@ export async function ShipmentsBlock({
           <span className="font-medium text-neutral-900">{formatQty(plannedQuantity)}</span> шт.
           {plannedQty > 0 && <> · запланировано ещё {formatQty(plannedQty)} шт.</>}
         </p>
-        {shipments.length === 0 ? (
-          <p className="text-neutral-500">Отгрузок пока нет</p>
-        ) : (
+        {(
           <ul className="flex flex-col gap-1">
             {shipments.map((s) => {
               const st = SHIPMENT_STATUS[s.status];

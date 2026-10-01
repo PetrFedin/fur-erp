@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ModelForm } from "../model-form";
 import { updateModel, removeBomLine } from "../actions";
 import { BomAddForm } from "./bom-add-form";
@@ -53,8 +53,11 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <CardContent className="flex flex-col gap-3">
           <div className="text-sm text-neutral-600">
             Розничная цена: {model.sellingPrice ? formatMoney(model.sellingPrice.toString()) : "не задана"} ·{" "}
-            <Link href="/articles" className="text-neutral-900 underline">
-              изменить на странице «Изделия»
+            <Link
+              href={`/articles?q=${encodeURIComponent(model.name)}#price-${model.id}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Изменить цену в «Изделиях»
             </Link>
           </div>
           <ModelForm
@@ -81,7 +84,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {model.materials.length === 0 ? (
-            <p className="text-sm text-neutral-400">Нормы нет</p>
+            <p className="text-sm text-neutral-500">
+              Нормы нет: не задан состав (норма расхода) — себестоимость берётся из фактических ТЗ.
+            </p>
           ) : (
           <Table>
               <Thead>

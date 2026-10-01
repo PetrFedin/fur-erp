@@ -1,4 +1,6 @@
 import { escapeLike } from "@/lib/input";
+import { auctionName as auctionNameLib, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS } from "@/lib/auction-payments";
+import { formatMoney } from "@/lib/utils";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -6,21 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatQty } from "@/lib/utils";
+import { formatDate, formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
-import { CostBreakdownToggle } from "./cost-breakdown-toggle";
-import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
-import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
+import { buildAuctionRows } from "./auction-rows";
+import { LotsProvider } from "./lots-state";
+import { AuctionTotalsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
+import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
 /** Название аукциона/партии — первая строка Purchase.auctionSession (так же, как у документов партии). */
-export function auctionName(session: string | null | undefined): string | null {
-  return session?.split(/\r?\n/)[0].trim() || null;
-}
+export const auctionName = auctionNameLib;
 
 export type AuctionSummary = {
   name: string;
@@ -142,7 +143,7 @@ export async function AuctionView({
       : {}),
   };
 
-  const [purchasesRaw, batchDocs] = await Promise.all([
+  const [purchasesRaw, batchDocs, paySummaries] = await Promise.all([
     prisma.purchase.findMany({
       where: { organizationId, id: { in: ids } },
       include: {
@@ -164,7 +165,12 @@ export async function AuctionView({
       where: { organizationId, purchaseId: null, batch: { in: names } },
       orderBy: { createdAt: "asc" },
     }),
+    loadAuctionSummaries(prisma, organizationId, names),
   ]);
+  const payTotal = paySummaries.reduce((s, a) => s.add(a.total), new Decimal(0));
+  const payPaid = paySummaries.reduce((s, a) => s.add(a.paid), new Decimal(0));
+  const payPlanned = paySummaries.reduce((s, a) => s.add(a.planned), new Decimal(0));
+  const payRemaining = payTotal.sub(payPaid);
   // Без фильтра показываем все закупки аукциона (и пустые); с фильтром — только те, где что-то нашлось.
   const purchases = filtering ? purchasesRaw.filter((p) => p.items.length > 0) : purchasesRaw;
 
@@ -235,6 +241,14 @@ export async function AuctionView({
     cancelled ? `отменено: ${cancelled}` : null,
   ].filter(Boolean);
 
+  // Свои столбцы организации и плоские данные лотов для клиентских таблиц (фильтры, выбор, «Итого»).
+  const customFields = await prisma.customField.findMany({
+    where: { organizationId, entity: CUSTOM_FIELD_ENTITY },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, type: true, position: true },
+  });
+  const lotsData = buildAuctionRows(blocks, UNIT_LABELS, canEdit);
+
   const docRows: { d: (typeof batchDocs)[number]; batch: boolean; purchaseId: string; purchaseLabel: string }[] = [
     ...batchDocs.map((d) => ({ d, batch: true, purchaseId: purchasesRaw[0]?.id ?? "", purchaseLabel: "" })),
     ...purchasesRaw.flatMap((p) =>
@@ -253,7 +267,7 @@ export async function AuctionView({
           {names.length > 1 && (
             <p className="text-xs text-neutral-500">Под запрос подходят аукционы: {names.join(", ")}.</p>
           )}
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
             <div>
               <dt className="text-xs text-neutral-500">Закупок / счетов</dt>
               <dd className="text-lg font-semibold">{counted.length}</dd>
@@ -266,22 +280,65 @@ export async function AuctionView({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Закупка по цене лотов</dt>
-              <dd className="text-lg font-semibold">
-                <Money incl={priceIncl} excl={priceExcl} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">Полная себестоимость с расходами</dt>
-              <dd className="text-lg font-semibold">
-                <Money incl={fullIncl} excl={fullExcl} />
-              </dd>
-            </div>
-            <div>
               <dt className="text-xs text-neutral-500">Статус</dt>
               <dd className="text-sm font-medium">{statusParts.join(" · ") || "—"}</dd>
             </div>
+            <div>
+              <dt
+                className="text-xs text-neutral-500"
+                title="Без сборов аукциона, выделки, транспорта и брокерских"
+              >
+                Стоимость шкур по счетам (цена лота × курс + НДС)
+              </dt>
+              <dd className="text-lg font-semibold">
+                <Money incl={priceIncl} excl={priceExcl} />
+              </dd>
+              <dd className="text-xs text-neutral-400">без сборов аукциона, выделки, транспорта и брокерских</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-neutral-500">Расходы сверх цены лотов</dt>
+              <dd className="text-lg font-semibold">
+                <Money incl={fullIncl.sub(priceIncl)} excl={fullExcl.sub(priceExcl)} />
+              </dd>
+              <dd className="text-xs text-neutral-400">сборы, выделка, транспорт, брокер</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-neutral-500">Полная себестоимость (с расходами)</dt>
+              <dd className="text-lg font-semibold">
+                <Money incl={fullIncl} excl={fullExcl} />
+              </dd>
+              <dd className="text-xs text-neutral-400">= стоимость шкур + расходы сверх цены лотов</dd>
+            </div>
+            {paySummaries.length > 0 && (
+              <>
+                <div>
+                  <dt className="text-xs text-neutral-500">Оплачено поставщику (с НДС)</dt>
+                  <dd className="text-lg font-semibold">{formatMoney(payPaid.toString())}</dd>
+                  {payPlanned.greaterThan(0) && (
+                    <dd className="text-xs text-neutral-400">запланировано {formatMoney(payPlanned.toString())}</dd>
+                  )}
+                </div>
+                <div>
+                  <dt className="text-xs text-neutral-500">Остаток к оплате (с НДС)</dt>
+                  <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>
+                    {formatMoney(payRemaining.toString())}
+                  </dd>
+                  <dd className="text-xs text-neutral-400">
+                    {paySummaries.length === 1 ? AUCTION_PAY_STATUS_LABELS[paySummaries[0].status] : ""}
+                  </dd>
+                </div>
+              </>
+            )}
           </dl>
+          {paySummaries.length > 0 && (
+            <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {paySummaries.map((a) => (
+                <Link key={a.name} href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`} className="text-blue-600 hover:underline">
+                  Оплаты аукциона{paySummaries.length > 1 ? ` «${a.name}»` : ""} →
+                </Link>
+              ))}
+            </p>
+          )}
           {filtering && (
             <p className="text-xs text-amber-700">
               Включён фильтр по лотам/материалу — итоги считаются только по показанным лотам, расходы закупок в них не
@@ -304,6 +361,7 @@ export async function AuctionView({
         </p>
       )}
 
+      <LotsProvider rows={lotsData.rows} purchases={lotsData.purchases} fields={customFields} canEdit={canEdit}>
       {blocks.map(({ p, lines, qty, pFullIncl, pFullExcl, expIncl, expExcl, unallocated, invoice }) => {
         const isReceived = p.status === "RECEIVED";
         const statusBadge =
@@ -367,111 +425,11 @@ export async function AuctionView({
                   </span>
                 )}
               </div>
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th>Материал</Th>
-                    <Th>№ лота</Th>
-                    <Th>Сорт / размер</Th>
-                    <Th>Операция</Th>
-                    <Th>Кол-во</Th>
-                    <Th>Цена за шк., {p.currency === "USD" ? "$" : p.currency}</Th>
-                    <Th>Курс</Th>
-                    <Th>Себестоимость ед.</Th>
-                    <Th>Себестоимость всего</Th>
-                    <Th>Остаток на складе</Th>
-                    <Th>Использован в ТЗ</Th>
-                    {canEdit && !isReceived && p.status !== "CANCELLED" && <Th></Th>}
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {lines.map(({ i, unitIncl, unitExcl, totalIncl, totalExcl, breakdown, source }) => {
-                    const unit = UNIT_LABELS[i.rawMaterial.unit] ?? "";
-                    return (
-                      <Tr key={i.id}>
-                        <Td className="font-medium">{i.rawMaterial.name}</Td>
-                        <Td className="whitespace-nowrap">{i.lotNumber ?? "—"}</Td>
-                        <Td>{[i.grade, i.color].filter(Boolean).join(" / ") || "—"}</Td>
-                        <Td className="min-w-32 text-xs text-neutral-600">{i.notes || "—"}</Td>
-                        <Td className="whitespace-nowrap">
-                          {formatQty(i.quantity.toString())} {unit}
-                        </Td>
-                        <Td className="whitespace-nowrap">{formatCurrency(i.unitPrice.toString(), p.currency)}</Td>
-                        <Td className="whitespace-nowrap">{rateText(p.exchangeRate)}</Td>
-                        <Td className="whitespace-nowrap">
-                          <Money incl={unitIncl} excl={unitExcl} />
-                          {source === "price" && (
-                            <div className="text-xs text-neutral-400">по цене лота, без расчёта</div>
-                          )}
-                          {breakdown ? (
-                            <CostBreakdownToggle
-                              breakdown={breakdown as never}
-                              unitCostExcl={unitExcl.toString()}
-                              unitCostIncl={unitIncl.toString()}
-                            />
-                          ) : null}
-                        </Td>
-                        <Td className="whitespace-nowrap font-medium">
-                          <Money incl={totalIncl} excl={totalExcl} />
-                        </Td>
-                        <Td className="whitespace-nowrap">
-                          {i.lot ? (
-                            i.lot.quantityRemaining.isZero() ? (
-                              <Badge>Израсходован</Badge>
-                            ) : (
-                              <>
-                                {formatQty(i.lot.quantityRemaining.toString())} {unit}
-                              </>
-                            )
-                          ) : (
-                            <span className="text-xs text-neutral-400">ещё не на складе</span>
-                          )}
-                        </Td>
-                        <Td>
-                          {!i.lot || i.lot.usages.length === 0
-                            ? "—"
-                            : i.lot.usages.map((u) => (
-                                <div key={u.id} className="whitespace-nowrap">
-                                  <Link href={`/production/${u.productionOrderId}`} className="hover:underline">
-                                    ТЗ {u.productionOrder.number}
-                                  </Link>
-                                  {" — "}
-                                  {formatQty(u.quantity.toString())} {unit}
-                                </div>
-                              ))}
-                        </Td>
-                        {canEdit && !isReceived && p.status !== "CANCELLED" && (
-                          <Td className="whitespace-nowrap">
-                            {i.costPlan != null && (
-                              <CostPlanItemEditor
-                                purchaseId={p.id}
-                                currencySymbol={p.currency === "USD" ? "$" : p.currency}
-                                item={{
-                                  id: i.id,
-                                  lotNumber: i.lotNumber,
-                                  ...deriveCostPlanInputs(i.costPlan, {
-                                    quantity: Number(i.quantity.toString()),
-                                    price: Number(i.unitPrice.toString()),
-                                    rate: Number(p.exchangeRate.toString()),
-                                    vat: Number(i.vatRate.toString()),
-                                  }),
-                                }}
-                              />
-                            )}
-                          </Td>
-                        )}
-                      </Tr>
-                    );
-                  })}
-                  {lines.length === 0 && (
-                    <Tr>
-                      <Td colSpan={12} className="py-4 text-center text-neutral-400">
-                        В закупке нет позиций
-                      </Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
+              <PurchaseLotsTable
+                purchaseId={p.id}
+                currency={p.currency}
+                hasEditCol={canEdit && !isReceived && p.status !== "CANCELLED"}
+              />
               {p.expenses.length > 0 && (
                 <div className="text-xs text-neutral-600">
                   <span className="font-medium">Расходы закупки</span>{" "}
@@ -483,6 +441,7 @@ export async function AuctionView({
                   <Money incl={expIncl} excl={expExcl} />
                 </div>
               )}
+              <PurchaseCostParts purchaseId={p.id} />
             </div>
           </details>
         );
@@ -495,13 +454,13 @@ export async function AuctionView({
           </span>
           <span className="flex flex-wrap gap-x-4">
             <span>
-              <span className="text-neutral-500">по цене лотов: </span>
+              <span className="text-neutral-500">стоимость шкур по счетам: </span>
               <span className="font-semibold">
                 <Money incl={priceIncl} excl={priceExcl} />
               </span>
             </span>
             <span>
-              <span className="text-neutral-500">полная себестоимость: </span>
+              <span className="text-neutral-500">полная себестоимость (с расходами): </span>
               <span className="font-semibold">
                 <Money incl={fullIncl} excl={fullExcl} />
               </span>
@@ -509,6 +468,9 @@ export async function AuctionView({
           </span>
         </div>
       )}
+
+      {blocks.length > 0 && <AuctionTotalsPanel />}
+      </LotsProvider>
 
       <Card>
         <CardHeader>

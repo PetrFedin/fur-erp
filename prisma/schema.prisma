@@ -43,6 +43,7 @@ model Organization {
   shipments              Shipment[]
   fittings               Fitting[]
   purchaseDocuments      PurchaseDocument[]
+  customFields           CustomField[]
 }
 
 enum UserRole {
@@ -299,6 +300,9 @@ model PurchaseItem {
   // транспорт считаются на штуку, а не от цены) и копирует breakdown в лот.
   costPlan Json?
 
+  // Значения «своих столбцов» (CustomField): { [customFieldId]: string | number | boolean }.
+  extra Json?
+
   @@index([purchaseId])
   @@index([rawMaterialId])
   @@index([lotId])
@@ -339,24 +343,42 @@ enum PaymentStatus {
 // Payments to a supplier. purchaseId is optional so advance/prepayments not
 // yet tied to a specific delivery can be recorded and reconciled later.
 model Payment {
-  id             String        @id @default(cuid())
+  id             String            @id @default(cuid())
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplierId     String
-  supplier       Supplier      @relation(fields: [supplierId], references: [id])
+  supplier       Supplier          @relation(fields: [supplierId], references: [id])
   purchaseId     String?
-  purchase       Purchase?     @relation(fields: [purchaseId], references: [id])
-  amount         Decimal       @db.Decimal(14, 2)
-  currency       String        @default("RUB")
-  method         PaymentMethod @default(BANK_TRANSFER)
-  status         PaymentStatus @default(COMPLETED)
-  paidAt         DateTime      @default(now())
+  purchase       Purchase?         @relation(fields: [purchaseId], references: [id])
+  amount         Decimal           @db.Decimal(14, 2)
+  currency       String            @default("RUB")
+  method         PaymentMethod     @default(BANK_TRANSFER)
+  status         PaymentStatus     @default(COMPLETED)
+  paidAt         DateTime          @default(now())
   notes          String?
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime          @default(now())
+  // Оплата аукциона целиком (Purchase.auctionSession, первая строка): purchaseId
+  // при этом пуст. PENDING = запланирована (будущая оплата по графику),
+  // COMPLETED = оплачена. percent — доля от стоимости аукциона, если вводили %.
+  auctionSession String?
+  kind           PaymentKind       @default(OTHER)
+  percent        Decimal?          @db.Decimal(7, 3)
+  // Платёжный документ (PurchaseDocument kind PAYMENT_PROOF, batch = аукцион).
+  documentId     String?
+  document       PurchaseDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([supplierId])
   @@index([purchaseId])
+  @@index([organizationId, auctionSession])
+  @@index([documentId])
+}
+
+enum PaymentKind {
+  ADVANCE // аванс
+  PARTIAL // частичная оплата / доплата
+  FINAL // окончательный расчёт
+  OTHER
 }
 
 // Payments received FROM a client for production work (ТЗ) — a separate
@@ -833,6 +855,7 @@ enum PurchaseDocumentKind {
   ADVANCE_INVOICE // счёт на аванс
   CALC_SHEET // расчётный лист (Excel)
   UPD // УПД / акт
+  PAYMENT_PROOF // платёжный документ (платёжка)
   OTHER
 }
 
@@ -855,7 +878,30 @@ model PurchaseDocument {
   mimeType       String
   sizeBytes      Int
   createdAt      DateTime             @default(now())
+  payments       Payment[]
 
   @@index([organizationId, batch])
   @@index([purchaseId])
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+}
+
+// Свой столбец таблицы лотов (режим «Аукцион» и карточка закупки): общий для всей
+// организации. Значения лежат в PurchaseItem.extra по ключу id столбца.
+model CustomField {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity         String          @default("PURCHASE_ITEM")
+  name           String
+  type           CustomFieldType @default(TEXT)
+  position       Int             @default(0)
+  createdAt      DateTime        @default(now())
+
+  @@unique([organizationId, entity, name])
+  @@index([organizationId, entity, position])
 }

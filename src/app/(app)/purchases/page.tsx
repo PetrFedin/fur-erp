@@ -174,7 +174,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           {purchases.map((p) => {
             const total = purchaseTotalInclVat(p);
             const totalExclVat = purchaseTotalExclVat(p);
-            const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
+            const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
             const status = statusView(p.status);
             return (
               <Tr key={p.id}>

@@ -9,11 +9,12 @@ export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; s
 
   return (
     <form
+      id={`price-${modelId}`}
       action={async (formData) => {
         const res = await bound(formData);
         if (res?.error) window.alert(res.error);
       }}
-      className="flex items-center gap-1"
+      className="flex flex-wrap items-center gap-1"
     >
       <Input
         name="sellingPrice"
@@ -24,8 +25,11 @@ export function ArticlePriceForm({ modelId, sellingPrice }: { modelId: string; s
         className="h-8 w-28"
       />
       <Button type="submit" variant="outline" size="sm">
-        OK
+        Сохранить
       </Button>
+      <span className={`w-full text-xs ${sellingPrice ? "text-neutral-500" : "text-amber-600"}`}>
+        {sellingPrice ? "Задана" : "Не задана"}
+      </span>
     </form>
   );
 }

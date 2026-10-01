@@ -8,6 +8,7 @@ import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { InclVatOnlyLabel } from "@/components/vat-label";
+import { auctionName, buildAuctionSummaries } from "@/lib/auction-payments";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -36,15 +37,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     clientOrders,
     clientPayments,
     unlinkedSupplierPayments,
+    auctionPayments,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
       include: { items: true, expenses: true },
     }),
+    // Отменённые тоже грузим: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
     prisma.purchase.findMany({
-      where: { organizationId, status: { not: "CANCELLED" } },
-      include: { items: true, expenses: true, payments: true, supplier: true },
+      where: { organizationId },
+      include: { items: true, expenses: true, payments: { select: { amount: true, status: true } }, supplier: true },
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, quantityRemaining: { gt: 0 } },
@@ -72,10 +75,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     prisma.productionPayment.findMany({
       where: { organizationId, clientId: { not: null } },
     }),
-    // Авансы поставщику без привязки к закупке (Payment.purchaseId = null).
+    // Авансы поставщику без привязки к закупке и к аукциону.
     prisma.payment.findMany({
-      where: { organizationId, purchaseId: null, status: "COMPLETED" },
+      where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
       select: { supplierId: true, amount: true },
+    }),
+    // Оплаты аукционов целиком (Payment.auctionSession; purchaseId пуст).
+    prisma.payment.findMany({
+      where: { organizationId, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
+      select: { auctionSession: true, amount: true, status: true },
     }),
   ]);
 
@@ -91,17 +99,52 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Supplier balance due: per purchase (real amounts, not affected by the VAT toggle),
   // then one row per supplier (sum of debt + number of purchases with debt).
   const supplierMap = new Map<string, { supplier: string; due: Decimal; purchases: number }>();
+  const hasUnlinkedAdvances = unlinkedSupplierPayments.length > 0;
   // Часть долга приходится на черновики — мех по ним ещё не принят на склад.
   let draftDebt = new Decimal(0);
+  const addDebt = (supplierId: string, supplier: string, due: Decimal, purchases: number) => {
+    const e = supplierMap.get(supplierId) ?? { supplier, due: new Decimal(0), purchases: 0 };
+    e.due = e.due.add(due);
+    e.purchases += purchases;
+    supplierMap.set(supplierId, e);
+  };
+  // Закупки без аукциона — долг считается по каждой закупке (только оплаты со статусом «Оплачено»).
   for (const p of openPurchasesWithPayments) {
-    const paid = p.payments.reduce((s, pay) => s.add(pay.amount), new Decimal(0));
+    if (p.status === "CANCELLED" || auctionName(p.auctionSession)) continue;
+    const paid = p.payments.filter((x) => x.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
     const due = purchaseTotalInclVat(p).sub(paid);
     if (!due.greaterThan(0)) continue;
     if (p.status !== "RECEIVED") draftDebt = draftDebt.add(due);
-    const e = supplierMap.get(p.supplierId) ?? { supplier: p.supplier.name, due: new Decimal(0), purchases: 0 };
-    e.due = e.due.add(due);
-    e.purchases += 1;
-    supplierMap.set(p.supplierId, e);
+    addDebt(p.supplierId, p.supplier.name, due, 1);
+  }
+  // Закупки аукциона — долг считается по аукциону целиком: итог закупок минус оплаты аукциона и его закупок
+  // (так оплата аукциона не вычитается дважды и переплата одной закупки гасит другие). Разбивка по
+  // закупкам/поставщикам — пропорционально их остаткам без оплат аукциона.
+  const auctionSummaries = buildAuctionSummaries(openPurchasesWithPayments, auctionPayments);
+  const auctionDebts = auctionSummaries
+    .map((a) => ({ name: a.name, purchases: a.purchases, total: a.total, paid: a.paid, due: Decimal.max(a.remaining, new Decimal(0)) }))
+    .filter((a) => a.due.greaterThan(0.005))
+    .sort((a, b) => b.due.comparedTo(a.due));
+  for (const a of auctionSummaries) {
+    const due = Decimal.max(a.remaining, new Decimal(0));
+    if (!due.greaterThan(0.005)) continue;
+    const weights = a.perPurchase.map((pp) => ({ pp, w: Decimal.max(pp.total.sub(pp.paid), new Decimal(0)) }));
+    const wSum = weights.reduce((s, x) => s.add(x.w), new Decimal(0));
+    if (!wSum.greaterThan(0)) continue;
+    const bySupplier = new Map<string, { due: Decimal; n: number }>();
+    for (const { pp, w } of weights) {
+      if (!w.greaterThan(0)) continue;
+      const part = due.mul(w).div(wSum);
+      if (pp.status !== "RECEIVED") draftDebt = draftDebt.add(part);
+      const e = bySupplier.get(pp.supplierId) ?? { due: new Decimal(0), n: 0 };
+      e.due = e.due.add(part);
+      e.n += 1;
+      bySupplier.set(pp.supplierId, e);
+    }
+    for (const [supplierId, e] of bySupplier) {
+      const name = a.suppliers.find((x) => x.id === supplierId)?.name ?? "—";
+      addDebt(supplierId, name, e.due, e.n);
+    }
   }
   // Аванс без привязки к закупке гасит долг своего поставщика (не глубже нуля).
   for (const pay of unlinkedSupplierPayments) {
@@ -330,9 +373,44 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 )}
               </Tbody>
             </Table>
-            <p className="mt-3 text-sm">
+            {auctionDebts.length > 0 && (
+              <div className="mt-4">
+                <h3 className="mb-2 text-sm font-semibold">По аукционам (топ-5 по остатку)</h3>
+                <div className="flex flex-col gap-2">
+                  {auctionDebts.slice(0, 5).map((a) => (
+                    <Link
+                      key={a.name}
+                      href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`}
+                      className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50"
+                    >
+                      <span>
+                        <span className="font-medium">{a.name}</span>
+                        <span className="block text-xs text-neutral-500">
+                          оплачено {formatMoney(a.paid.toString())} из {formatMoney(a.total.toString())}
+                        </span>
+                      </span>
+                      <span className="whitespace-nowrap font-semibold text-amber-600">{formatMoney(a.due.toString())}</span>
+                    </Link>
+                  ))}
+                </div>
+                {auctionDebts.length > 5 && (
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Ещё аукционов с остатком: {auctionDebts.length - 5} — <Link href="/payments" className="underline">все в разделе «Оплаты»</Link>
+                  </p>
+                )}
+                {hasUnlinkedAdvances && (
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Авансы поставщикам без аукциона в разбивку не входят — они уменьшают общий долг выше.
+                  </p>
+                )}
+              </div>
+            )}
+            <p className="mt-3 flex flex-wrap gap-4 text-sm">
               <Link href="/purchases" className="text-neutral-600 hover:underline">
                 Все закупки →
+              </Link>
+              <Link href="/payments" className="text-neutral-600 hover:underline">
+                Оплаты →
               </Link>
             </p>
           </CardContent>

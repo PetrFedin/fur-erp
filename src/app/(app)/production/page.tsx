@@ -14,6 +14,7 @@ import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { materialCostExclVat } from "@/lib/purchase-totals";
 import { canEditProduction } from "@/lib/production-access";
+import { ResponsiveDetails } from "./filters-details";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -139,10 +140,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         )}
       </div>
 
+      <ResponsiveDetails summary={`Фильтры и поиск${hasFilters || sort ? " (применены)" : ""}`} forceOpen={hasFilters || Boolean(sort)}>
       <form method="get" className="flex flex-wrap items-end gap-2">
         {modelId && <input type="hidden" name="model" value={modelId} />}
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-72" />
-        <Select name="status" defaultValue={status} className="w-44">
+        <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-full sm:w-72" />
+        <Select name="status" defaultValue={status} className="w-full sm:w-44">
           <option value="">Все статусы</option>
           {STATUS_KEYS.map((k) => (
             <option key={k} value={k}>
@@ -150,7 +152,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </option>
           ))}
         </Select>
-        <Select name="client" defaultValue={clientId} className="w-56">
+        <Select name="client" defaultValue={clientId} className="w-full sm:w-56">
           <option value="">Все заказчики</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
@@ -158,7 +160,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </option>
           ))}
         </Select>
-        <Select name="sort" defaultValue={sort} className="w-48" aria-label="Сортировка">
+        <Select name="sort" defaultValue={sort} className="w-full sm:w-48" aria-label="Сортировка">
           {Object.entries(SORTS).map(([k, label]) => (
             <option key={k} value={k}>
               {label}
@@ -174,20 +176,26 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           </Link>
         )}
       </form>
+      </ResponsiveDetails>
 
       <Table>
         <Thead>
           <Tr>
             <Th>№ ТЗ</Th>
-            <Th>Заказ</Th>
+            <Th className="hidden sm:table-cell">Заказ</Th>
             <Th>Модель</Th>
-            <Th>Заказчик</Th>
-            <Th>Кол-во</Th>
+            <Th className="hidden lg:table-cell">Заказчик</Th>
+            <Th className="hidden sm:table-cell">Кол-во</Th>
             <Th>Статус</Th>
             <Th>
               <VatLabel base="Итого себестоимость" />
             </Th>
-            <Th>Наценка</Th>
+            <Th
+              className="hidden sm:table-cell"
+              title="Наценка = розничная цена / себестоимость единицы. Это не «Маржа» с карточки ТЗ (там работы заказчику минус себестоимость)."
+            >
+              Наценка
+            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -224,16 +232,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     )}
                   </Link>
                 </Td>
-                <Td className={cell}>
+                <Td className={`${cell} hidden sm:table-cell`}>
                   <Link href={href} className={link}>{o.number}</Link>
                 </Td>
                 <Td className={cell}>
-                  <Link href={href} className={link}>{o.productModel.name}</Link>
+                  <Link href={href} className={link}>
+                    {o.productModel.name}
+                    {o.client && <span className="block text-xs text-neutral-500 lg:hidden">{o.client.name}</span>}
+                  </Link>
                 </Td>
-                <Td className={cell}>
+                <Td className={`${cell} hidden lg:table-cell`}>
                   <Link href={href} className={link}>{o.client?.name ?? "—"}</Link>
                 </Td>
-                <Td className={cell}>
+                <Td className={`${cell} hidden sm:table-cell`}>
                   <Link href={href} className={link}>
                     {formatQty(o.plannedQuantity.toString())} / {formatQty(o.producedQuantity.toString())}
                   </Link>
@@ -248,7 +259,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
                   </Link>
                 </Td>
-                <Td className={cell}>
+                <Td className={`${cell} hidden sm:table-cell`}>
                   <Link
                     href={href}
                     className={link}
@@ -266,27 +277,25 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               </Tr>
             );
           })}
-          {orders.length > 0 && (
-            <Tr className="bg-neutral-50 font-semibold">
-              <Td colSpan={6} className="text-right">
-                <VatLabel base="Итого себестоимость по списку" />
-              </Td>
-              <Td>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</Td>
-              <Td></Td>
-            </Tr>
-          )}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={8} className="py-8 text-center text-neutral-400">
+              <Td colSpan={4} className="py-8 text-center text-neutral-400">
                 {hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}
               </Td>
             </Tr>
           )}
         </Tbody>
       </Table>
+      {orders.length > 0 && (
+        <p className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
+          <VatLabel base="Итого себестоимость по списку" />
+          <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</span>
+        </p>
+      )}
       <p className="text-xs text-neutral-500">
-        Наценка = розничная цена / себестоимость единицы. «—» — розничная цена не задана на карточке ТЗ или ещё нет
-        списаний (себестоимости).
+        Наценка = розничная цена / себестоимость единицы (на мобильном колонка скрыта — она есть на карточке ТЗ).
+        «—» — розничная цена не задана на карточке ТЗ или ещё нет списаний (себестоимости). «Маржа» на карточке ТЗ —
+        другое: работы заказчику минус себестоимость.
       </p>
     </div>
   );

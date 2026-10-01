@@ -24,6 +24,7 @@ import { ExpenseRow } from "./expense-row";
 import { OrderEditForm } from "./order-edit-form";
 import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
+import { Section, SectionNav } from "./section";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -60,6 +61,11 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   PARTIAL: "Доплата",
   FINAL: "Окончательная",
 };
+
+const MARGIN_HINT =
+  "Работы заказчику минус себестоимость меха и расходов — прибыль только по пошиву; наценка считается от розничной цены.";
+const MARKUP_HINT =
+  "Наценка = розничная цена / себестоимость единицы. Не путать с «Маржей» в расчёте: там работы заказчику минус себестоимость.";
 
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
@@ -307,6 +313,26 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ? `план ${formatQty(order.plannedQuantity.toString())} / факт ${formatQty(order.producedQuantity.toString())} шт.`
       : `план ${formatQty(order.plannedQuantity.toString())} шт.`;
 
+  const clean = (v: string | null | undefined) => (v ?? "").trim();
+  const headerParts = [
+    order.productModel.name,
+    clean(order.color) && clean(order.color),
+    clean(order.size) && `разм. ${clean(order.size)}`,
+    qtyLabel,
+    order.startDate && `с ${formatDate(order.startDate)}`,
+    order.client && <span key="client" className="font-medium text-neutral-700">{order.client.name}</span>,
+    order.client && clean(order.contractNumber) && clean(order.contractNumber),
+    order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
+    clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
+    clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
+  ].filter((x) => Boolean(x)) as React.ReactNode[];
+  const navItems = [
+    { id: "calc", label: "К расчёту" },
+    ...(order.client ? [{ id: "pay", label: "К оплатам" }] : []),
+    { id: "ship", label: "К отгрузкам" },
+    { id: "finish", label: "К цене и завершению" },
+  ];
+
   return (
     <div className="flex max-w-4xl flex-col gap-4">
       <div>
@@ -364,26 +390,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           )}
         </div>
         <p className="mt-1 text-sm text-neutral-500">
-          {order.productModel.name}
-          {order.color && ` · ${order.color}`}
-          {order.size && ` · разм. ${order.size}`} · {qtyLabel}
-          {order.startDate && ` · с ${formatDate(order.startDate)}`}
-          {order.client && (
-            <>
-              {" · "}
-              <span className="font-medium text-neutral-700">{order.client.name}</span>
-              {order.contractNumber && ` · ${order.contractNumber}`}
-              {order.workOrderDate && ` · ТЗ от ${formatDate(order.workOrderDate)}`}
-            </>
-          )}
-          {order.materialDescription && ` · Материал: ${order.materialDescription}`}
-          {order.lining && ` · Подкладка: ${order.lining}`}
+          {headerParts.map((part, i) => (
+            <span key={i}>
+              {i > 0 && " · "}
+              {part}
+            </span>
+          ))}
         </p>
       </div>
 
+      <SectionNav items={navItems} />
+
+      <Section id="calc" title="Расчёт и списание" defaultOpenMobile>
       <Card>
-        <CardHeader>
-          <CardTitle>Расчёт</CardTitle>
+        <CardHeader className="hidden sm:flex">
+          <CardTitle>Расчёт и списание</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white text-sm lg:hidden">
@@ -408,6 +429,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   value={<Money incl={margin} excl={marginExcl} />}
                   className={margin.lessThan(0) ? "text-amber-600" : undefined}
                 />
+                <p className="px-3 py-2 text-xs font-normal text-neutral-500">{MARGIN_HINT}</p>
               </>
             )}
           </dl>
@@ -485,10 +507,15 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   />
                   <TotalRow
                     label={<VatLabel base="Маржа" />}
-                    title="Работа для заказчика минус себестоимость ТЗ (следует переключателю С НДС / Без НДС)"
+                    title={`${MARGIN_HINT} Следует переключателю С НДС / Без НДС.`}
                     value={<Money incl={margin} excl={marginExcl} />}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}
                   />
+                  <Tr>
+                    <Td colSpan={7} className="py-1 text-right text-xs text-neutral-500">
+                      {MARGIN_HINT}
+                    </Td>
+                  </Tr>
                 </>
               ) : (
                 <EmptyRow>Цена работы для заказчика не указана</EmptyRow>
@@ -559,36 +586,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </details>
             )}
           </div>
-
-          {canEdit && order.status === "COMPLETED" && (
-            <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />
-          )}
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-200 bg-white p-3">
-        {canEdit ? (
-          <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
-        ) : (
-          <div className="text-sm text-neutral-600">
-            Розничная цена за ед.{" "}
-            <span className="font-semibold text-neutral-900">
-              {order.retailPrice ? formatMoney(order.retailPrice.toString()) : "—"}
-            </span>
-          </div>
-        )}
-        <div className="text-sm text-neutral-600">
-          Наценка{" "}
-          <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
-        </div>
-      </div>
-
-      <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
-      <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
+      </Section>
 
       {order.client && (
+        <Section id="pay" title="Оплаты от заказчика">
         <Card>
-          <CardHeader>
+          <CardHeader className="hidden sm:flex">
             <CardTitle>Оплаты от заказчика</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -655,7 +660,39 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </Table>
           </CardContent>
         </Card>
+        </Section>
       )}
+
+      <Section id="ship" title="Отгрузки и примерки">
+        <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
+        <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
+      </Section>
+
+      <Section id="finish" title="Завершение и цена" defaultOpenMobile>
+      {canEdit && order.status === "COMPLETED" && (
+        <div className="rounded-lg border border-neutral-200 bg-white p-3">
+          <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-200 bg-white p-3">
+        {canEdit ? (
+          <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
+        ) : (
+          <div className="text-sm text-neutral-600">
+            Розничная цена за ед.{" "}
+            <span className="font-semibold text-neutral-900">
+              {order.retailPrice ? formatMoney(order.retailPrice.toString()) : "—"}
+            </span>
+          </div>
+        )}
+        <div className="text-sm text-neutral-600" title={MARKUP_HINT}>
+          Наценка{" "}
+          <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
+        </div>
+        <p className="w-full text-xs text-neutral-500">{MARKUP_HINT}</p>
+      </div>
+      </Section>
+
     </div>
   );
 }

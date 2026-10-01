@@ -10,6 +10,7 @@ const KINDS: [string, string][] = [
   ["ADVANCE_INVOICE", "Счёт на аванс"],
   ["CALC_SHEET", "Расчётный лист"],
   ["UPD", "УПД / акт"],
+  ["PAYMENT_PROOF", "Платёжный документ"],
   ["OTHER", "Другое"],
 ];
 

@@ -23,6 +23,22 @@ export async function FittingsBlock({ orderId, organizationId, search }: { order
     prisma.fitting.count({ where }),
   ]);
 
+  if (total === 0) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
+        Примерок пока нет
+        {canAdd && (
+          <>
+            {" · "}
+            <Link href={`/fittings/new?order=${orderId}`} className="text-neutral-700 underline underline-offset-2 hover:text-neutral-900">
+              + Примерка
+            </Link>
+          </>
+        )}
+      </p>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -34,9 +50,7 @@ export async function FittingsBlock({ orderId, organizationId, search }: { order
         )}
       </CardHeader>
       <CardContent>
-        {fittings.length === 0 ? (
-          <p className="text-sm text-neutral-400">Примерок по этому ТЗ пока нет</p>
-        ) : (
+        {(
           <ul className="flex flex-col divide-y divide-neutral-100">
             {fittings.map((f) => {
               const st = FITTING_STATUS[f.status];

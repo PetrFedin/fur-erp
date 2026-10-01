@@ -17,9 +17,10 @@ import { WriteOffForm } from "../finished-stock/write-off-form";
 
 export const metadata = { title: "Изделия" };
 
-export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
-  const { q: rawQ } = await searchParams;
+export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string | string[]; empty?: string | string[] }> }) {
+  const { q: rawQ, empty: rawEmpty } = await searchParams;
   const q = cleanSearch(rawQ);
+  const showEmpty = cleanSearch(rawEmpty) === "1";
   const session = await requireSession();
   const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
@@ -119,7 +120,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     };
   });
 
-  const rows = [...rows0].sort((a, b) => {
+  // Строки с нулевым остатком готовой продукции скрыты по умолчанию (?empty=1 — показать).
+  // При поиске по названию показываем всё найденное, чтобы нужную модель не пришлось искать по скрытым.
+  const emptyCount = rows0.filter((r) => !r.stockQty.greaterThan(0)).length;
+  const rows = (showEmpty || q ? rows0 : rows0.filter((r) => r.stockQty.greaterThan(0))).sort((a, b) => {
     const wa = a.stockQty.greaterThan(0) || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty.greaterThan(0) || b.orderCount > 0 ? 0 : 1;
     return wa - wb || a.name.localeCompare(b.name, "ru");
@@ -152,12 +156,32 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         <Button type="submit" variant="outline" size="sm">
           Найти
         </Button>
+        {showEmpty && <input type="hidden" name="empty" value="1" />}
         {q && (
-          <Link href="/articles" className="text-sm text-neutral-500 hover:underline">
+          <Link href={showEmpty ? "/articles?empty=1" : "/articles"} className="text-sm text-neutral-500 hover:underline">
             Сбросить
           </Link>
         )}
       </form>
+      {!q && emptyCount > 0 && (
+        <p className="text-sm text-neutral-500">
+          {showEmpty ? (
+            <>
+              Показаны и модели с нулевым остатком.{" "}
+              <Link href="/articles" className="underline underline-offset-2 hover:text-neutral-800">
+                Скрыть пустые ({emptyCount})
+              </Link>
+            </>
+          ) : (
+            <>
+              Модели с нулевым остатком скрыты.{" "}
+              <Link href="/articles?empty=1" className="underline underline-offset-2 hover:text-neutral-800">
+                Показать пустые ({emptyCount})
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       <Table>
         <Thead>
@@ -166,7 +190,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th>Остаток готовой, шт.</Th>
             <Th>Себестоимость за ед.</Th>
             <Th>Розничная цена</Th>
-            <Th>Наценка</Th>
+            <Th title="Наценка = розничная цена / средняя себестоимость единицы по завершённым ТЗ">Наценка</Th>
             <Th>ТЗ</Th>
             <Th></Th>
           </Tr>
@@ -243,7 +267,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={7} className="py-8 text-center text-neutral-400">
-                {q ? "Ничего не найдено" : "Моделей пока нет"}
+                {q ? "Ничего не найдено" : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
               </Td>
             </Tr>
           )}

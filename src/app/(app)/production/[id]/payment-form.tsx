@@ -31,6 +31,7 @@ export function ProductionPaymentForm({
   const [selected, setSelected] = useState<Set<string>>(() => new Set([orderId]));
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
   const chosen = orders.filter((o) => selected.has(o.id) && o.due !== null);
   const dueSum = chosen.reduce((sum, o) => sum + Number(o.due), 0);
@@ -68,6 +69,7 @@ export function ProductionPaymentForm({
           setAmount("");
           setPaymentType("FINAL");
           setSelected(new Set([orderId]));
+          setSearch("");
         })
       }
       className="flex flex-col gap-2"
@@ -115,42 +117,61 @@ export function ProductionPaymentForm({
         </div>
       )}
       {orders.length > 1 && (
-        <div>
-          <label className="mb-1 block text-xs text-neutral-500">
-            Эта оплата покрывает ТЗ этого заказчика (текущее отмечено всегда):
-          </label>
-          <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
-            {orders.map((o) => {
-              const current = o.id === orderId;
-              const due = o.due !== null ? Number(o.due) : null;
-              const paid = Number(o.paid);
-              return (
-                <label key={o.id} className="flex items-start gap-2 text-xs text-neutral-700 sm:text-sm">
-                  <input
-                    type="checkbox"
-                    name={current ? undefined : "orderIds"}
-                    value={o.id}
-                    className="mt-0.5 shrink-0 rounded"
-                    checked={selected.has(o.id)}
-                    disabled={current}
-                    onChange={(e) =>
-                      setSelected((prev) => {
-                        const next = new Set(prev);
-                        if (e.target.checked) next.add(o.id);
-                        else next.delete(o.id);
-                        return next;
-                      })
-                    }
-                  />
-                  {o.label}
-                  {" — "}
-                  {due !== null ? `К оплате ${rub(due)} ₽` : "цена работы не указана"} (оплачено {rub(paid)} ₽)
-                  {current && <span className="text-xs text-neutral-400">· это ТЗ</span>}
-                </label>
-              );
-            })}
+        <details className="rounded-md border border-neutral-200 p-2">
+          <summary className="cursor-pointer text-xs text-neutral-600 sm:text-sm">
+            Распределить оплату на другие ТЗ заказчика ({orders.length - 1})
+            {selected.size > 1 && <span className="text-neutral-900"> · выбрано ещё {selected.size - 1}</span>}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-xs text-neutral-500">
+              По умолчанию оплата относится только к этому ТЗ. Отметьте другие ТЗ заказчика, если оплата покрывает и их.
+            </p>
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по номеру ТЗ"
+              aria-label="Поиск ТЗ по номеру"
+              className="h-8"
+            />
+            <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+              {orders.map((o) => {
+                const current = o.id === orderId;
+                const due = o.due !== null ? Number(o.due) : null;
+                const paid = Number(o.paid);
+                const term = search.trim().toLowerCase();
+                // Скрываем, а не удаляем из DOM — отмеченные ТЗ должны уходить в форму при любом поиске.
+                const hidden = term !== "" && !current && !o.label.toLowerCase().includes(term);
+                return (
+                  <label key={o.id} className={`${hidden ? "hidden" : "flex"} items-start gap-2 text-xs text-neutral-700 sm:text-sm`}>
+                    <input
+                      type="checkbox"
+                      name={current ? undefined : "orderIds"}
+                      value={o.id}
+                      className="mt-0.5 shrink-0 rounded"
+                      checked={selected.has(o.id)}
+                      disabled={current}
+                      onChange={(e) =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(o.id);
+                          else next.delete(o.id);
+                          return next;
+                        })
+                      }
+                    />
+                    <span>
+                      {o.label}
+                      {" — "}
+                      {due !== null ? `К оплате ${rub(due)} ₽` : "цена работы не указана"} (оплачено {rub(paid)} ₽)
+                      {current && <span className="text-xs text-neutral-400"> · это ТЗ</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </details>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end">

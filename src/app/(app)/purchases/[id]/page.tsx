@@ -22,8 +22,10 @@ import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
+import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
+import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { deletePurchaseDocument } from "../doc-actions";
 import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
@@ -143,7 +145,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   // Расходы, заложенные в расчёт лотов (сборы аукциона, выделка, транспорт, брокер), — тоже «доп. расходы».
   const extraExclVat = itemsTotalExclVatRub.sub(goodsExclVatRub).add(expensesTotalExclVat);
   const vatTotal = grandTotalRub.sub(itemsTotalExclVatRub).sub(expensesTotalExclVat);
-  const paidTotal = purchase.payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
+  // В «Оплачено» — только факт (запланированные оплаты не в счёт).
+  const paidTotal = purchase.payments.filter((p) => p.status === "COMPLETED").reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const auctionPay = batchName
+    ? (await loadAuctionSummaries(prisma, session.user.organizationId, [batchName]))[0] ?? null
+    : null;
   const balanceDue = grandTotalRub.sub(paidTotal);
   const status = statusView(purchase.status);
 
@@ -158,7 +164,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
   const allMaterials = materials;
   const showGradeColor = purchase.items.some((i) => i.grade || i.color);
-  const itemColSpan = 6 + (showGradeColor ? 1 : 0) + (itemsMutable ? 1 : 0);
+  // Свои столбцы организации (общие с режимом «Аукцион»): здесь только показ значений.
+  const customFields = await prisma.customField.findMany({
+    where: { organizationId: session.user.organizationId, entity: CUSTOM_FIELD_ENTITY },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, type: true, position: true },
+  });
+  const itemColSpan = 6 + (showGradeColor ? 1 : 0) + (itemsMutable ? 1 : 0) + customFields.length;
 
   // Which production orders already drew from each consumed lot — so the
   // "locked" hint and the edit error can name them and link to them.
@@ -253,6 +265,20 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
+      {auctionPay && (
+        <p className="text-sm text-neutral-600">
+          <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="font-medium text-blue-600 hover:underline">
+            Оплаты Веллмех по аукциону «{auctionPay.name}»
+          </Link>
+          : оплачено {formatMoney(auctionPay.paid.toString())} из {formatMoney(auctionPay.total.toString())}, остаток{" "}
+          {formatMoney(auctionPay.remaining.toString())}
+          {auctionPay.planned.greaterThan(0) && `, запланировано ${formatMoney(auctionPay.planned.toString())}`}.
+          <span className="block text-xs text-neutral-400">
+            Оплаты по аукциону целиком в «Остаток к оплате» этой закупки ниже не входят — он считает только оплаты, внесённые в саму закупку.
+          </span>
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <SummaryCard
           label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
@@ -317,6 +343,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {planItems.length > 0 ? "Цена лота (без расходов)" : "Сумма"}
                     {isForeignCurrency && " (RUB)"}
                   </Th>
+                  {customFields.map((f) => (
+                    <Th key={f.id} title="Свой столбец — правится в режиме «Аукцион» (Лоты)">
+                      {f.name}
+                    </Th>
+                  ))}
                   {itemsMutable && <Th></Th>}
                 </Tr>
               </Thead>
@@ -386,6 +417,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                           </span>
                         )}
                       </Td>
+                      {customFields.map((f) => (
+                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "—"}</Td>
+                      ))}
                     </PurchaseItemRow>
                   );
                 })}
@@ -656,7 +690,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Tr key={p.id}>
                   <Td>{formatDate(p.paidAt)}</Td>
                   <Td>{METHOD_LABELS[p.method] ?? p.method}</Td>
-                  <Td>{formatMoney(p.amount.toString())}</Td>
+                  <Td>
+                    {formatMoney(p.amount.toString())}
+                    {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
+                  </Td>
                   <Td>{p.notes ?? "—"}</Td>
                 </Tr>
               ))}

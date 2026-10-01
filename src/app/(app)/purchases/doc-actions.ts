@@ -8,7 +8,7 @@ import { removeStoredFiles } from "@/lib/fitting-files";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
-const KINDS = ["AUCTION_INVOICE", "SPECIFICATION", "ADVANCE_INVOICE", "CALC_SHEET", "UPD", "OTHER"] as const;
+const KINDS = ["AUCTION_INVOICE", "SPECIFICATION", "ADVANCE_INVOICE", "CALC_SHEET", "UPD", "PAYMENT_PROOF", "OTHER"] as const;
 type Kind = (typeof KINDS)[number];
 
 export type DocFormState = { error?: string; ok?: boolean };
