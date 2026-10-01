@@ -19,6 +19,9 @@ import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
 import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
+import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
+import { deriveCostPlanInputs } from "@/lib/cost-plan";
+import { ACCESS, hasRole } from "@/lib/access";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { deletePurchaseDocument } from "../doc-actions";
 import { removePurchaseItem, removePurchaseExpense, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
@@ -78,6 +81,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const planItems = purchase.items.filter((i) => i.costPlan != null);
 
   const editable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
+  const canEditPlan = editable && hasRole(session.user.role, ACCESS.purchases);
 
   const [materials, expenseCategories, suppliers, warehouses, existingLots] = editable
     ? await Promise.all([
@@ -331,7 +335,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       canEditFinancials={canEditFinancials}
                       lockedNote={
                         hasPlan
-                          ? "Цена и количество взяты из расчётного листа — менять их нельзя. Доступны только лот, сорт и цвет."
+                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в блоке расчёта ниже. Здесь доступны только лот, сорт и цвет."
                           : item.lot && consumed
                           ? orders && orders.length > 0
                             ? `${lotName} уже списан в ТЗ (${orders
@@ -403,26 +407,26 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               Предварительный расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %,
               НДС. При приёме на склад эта стоимость единицы переходит в лот, а расходы закупки (блок «Расходы»)
               добавляются сверху пропорционально стоимости лотов. Колонка «Цена лота (без расходов)» в таблице позиций —
-              только цена лота без этих сборов и расходов, поэтому она меньше итога закупки. Цена и количество таких
-              позиций взяты из расчётного листа и не редактируются.
+              только цена лота без этих сборов и расходов, поэтому она меньше итога закупки.
             </p>
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <span className="font-medium">Как скорректировать цену или количество.</span>{" "}
               {editable ? (
-                <>
-                  Из интерфейса расчёт изменить нельзя. Чтобы изменить цену/количество: удалите позицию и добавьте
-                  заново, либо обратитесь к администратору. Учтите: заново добавленная позиция идёт без расчёта из
-                  расчётного листа — её стоимость считается от цены лота и расходов закупки, без выделки, сборов и
-                  транспорта на штуку. Если нужны точные цифры расчёта — обратитесь к администратору (расчёт перезаливается
-                  из исправленного расчётного листа). Исправленные документы можно заменить в блоке «Документы» ниже.
-                </>
+                <>Цена, количество и расходы лота правятся кнопкой «Править расчёт».</>
               ) : (
                 <>
-                  Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — цену и количество
-                  менять нельзя; обратитесь к администратору. Документы можно заменить в блоке «Документы» ниже.
+                  Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — расчёт менять нельзя;
+                  обратитесь к администратору. Документы можно заменить в блоке «Документы» ниже.
                 </>
               )}
             </p>
+            {canEditPlan && (
+              <CostPlanRateForm
+                key={purchase.exchangeRate.toString()}
+                purchaseId={id}
+                currency={purchase.currency}
+                exchangeRate={purchase.exchangeRate.toString()}
+              />
+            )}
             <Table>
               <Thead>
                 <Tr>
@@ -431,11 +435,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Th>Цена лота, $</Th>
                   <Th>Себестоимость единицы</Th>
                   <Th>Всего</Th>
+                  {canEditPlan && <Th></Th>}
                 </Tr>
               </Thead>
               <Tbody>
                 {planItems.map((i) => {
                   const plan = i.costPlan as unknown as {
+                    manualEditedAt?: string;
                     unitCostInclVat: string;
                     materialExclVat: string;
                     expenseExclVat: string;
@@ -445,7 +451,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   const total = new Decimal(plan.unitCostInclVat).mul(i.quantity);
                   return (
                     <Tr key={i.id}>
-                      <Td>{i.lotNumber ?? "—"}</Td>
+                      <Td>
+                        {i.lotNumber ?? "—"}
+                        {plan.manualEditedAt && !Number.isNaN(Date.parse(plan.manualEditedAt)) && (
+                          <div className="text-xs font-normal text-amber-700">
+                            расчёт изменён вручную {formatDate(new Date(plan.manualEditedAt))}
+                          </div>
+                        )}
+                      </Td>
                       <Td>{formatQty(i.quantity.toString())} шт.</Td>
                       <Td>{formatCurrency(i.unitPrice.toString(), purchase.currency)}</Td>
                       <Td className="whitespace-nowrap">
@@ -459,6 +472,24 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       <Td className="whitespace-nowrap">
                         <Money incl={total.toString()} excl={excl.mul(i.quantity).toString()} />
                       </Td>
+                      {canEditPlan && (
+                        <Td>
+                          <CostPlanItemEditor
+                            purchaseId={id}
+                            currencySymbol={purchase.currency === "USD" ? "$" : purchase.currency}
+                            item={{
+                              id: i.id,
+                              lotNumber: i.lotNumber,
+                              ...deriveCostPlanInputs(i.costPlan, {
+                                quantity: Number(i.quantity.toString()),
+                                price: Number(i.unitPrice.toString()),
+                                rate: Number(purchase.exchangeRate.toString()),
+                                vat: Number(i.vatRate.toString()),
+                              }),
+                            }}
+                          />
+                        </Td>
+                      )}
                     </Tr>
                   );
                 })}

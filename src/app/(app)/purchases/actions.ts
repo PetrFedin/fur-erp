@@ -13,6 +13,7 @@ import { Prisma } from "@prisma/client";
 import { parsePasteRows, issueLines, type ParsedRow } from "./parse-rows";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_MONEY, MAX_QTY, zNum, parseDateInput } from "@/lib/input";
+import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
   z.string().refine((s) => parseDateInput(s) !== null, label);
@@ -33,9 +34,9 @@ export type FormState = { error?: string; issues?: Issue[]; orders?: OrderRef[] 
 // ---------- Purchase header ----------
 
 const COSTPLAN_PRICE_LOCK =
-  "Цена и количество взяты из расчётного листа — менять их нельзя. Доступны только лот, сорт и цвет.";
+  "Цена и количество взяты из расчётного листа — здесь их менять нельзя: используйте кнопку «Править расчёт» в блоке «Расчёт себестоимости по лотам». Тут доступны только лот, сорт и цвет.";
 const COSTPLAN_PURCHASE_LOCK =
-  "В закупке есть позиции с расчётом из расчётного листа — валюту и курс менять нельзя (цены уже пересчитаны в расчёте).";
+  "В закупке есть позиции с расчётом из расчётного листа — валюту менять нельзя, а курс меняется формой «Курс закупки» в блоке «Расчёт себестоимости по лотам» (она пересчитывает расчёт всех лотов).";
 
 async function hasCostPlanItems(purchaseId: string) {
   const n = await prisma.purchaseItem.count({ where: { purchaseId, costPlan: { not: Prisma.DbNull } } });
@@ -192,6 +193,142 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
     data: { exchangeRate: rate.data as number },
   });
   revalidatePath(`/purchases/${purchaseId}`);
+  return {};
+}
+
+const NOT_DRAFT = "Закупка уже принята на склад или отменена — расчёт лота менять нельзя";
+
+function revalidateCostPlan(purchaseId: string) {
+  revalidatePath(`/purchases/${purchaseId}`);
+  revalidatePath("/purchases");
+  revalidatePath("/lots");
+  revalidatePath("/dashboard");
+}
+
+const costPlanItemSchema = z.object({
+  quantity: zNum("Количество", { positive: true, max: MAX_QTY }),
+  price: zNum("Цена лота", { positive: true, max: 1_000_000 }),
+  feePct: zNum("% сборов аукциона", { max: 100 }),
+  dressing: zNum("Выделка", { max: 1_000_000 }),
+  transport: zNum("Транспорт на выделку", { max: 1_000_000 }),
+  brokerPct: zNum("Брокерский %", { max: 100 }),
+  transit: zNum("Комиссия за транзит", { max: 1_000_000 }),
+  vat: zNum("Ставка НДС", { max: 100 }),
+});
+
+// «Править расчёт лота»: позиция черновика с расчётом (costPlan). Пересчитывает
+// costPlan целиком по формулам расчётного листа и обновляет количество, цену,
+// сумму и НДС позиции. Курс здесь не меняется — он общий на закупку
+// (updateCostPlanRate). Обычная правка позиции с расчётом по-прежнему заблокирована.
+export async function updateCostPlanItem(purchaseId: string, itemId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const purchase = await prisma.purchase.findFirst({
+    where: { id: purchaseId, organizationId: session.user.organizationId },
+  });
+  if (!purchase) return { error: "Закупка не найдена" };
+  if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
+  const item = await prisma.purchaseItem.findFirst({ where: { id: itemId, purchaseId } });
+  if (!item) return { error: "Позиция не найдена" };
+  if (item.costPlan == null) return { error: "У позиции нет расчёта из расчётного листа" };
+
+  const parsed = costPlanItemSchema.safeParse({
+    quantity: formData.get("quantity"),
+    price: formData.get("price"),
+    feePct: formData.get("feePct"),
+    dressing: formData.get("dressing"),
+    transport: formData.get("transport"),
+    brokerPct: formData.get("brokerPct"),
+    transit: formData.get("transit") || 0,
+    vat: formData.get("vat"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const v = parsed.data;
+  const rate = Number(purchase.exchangeRate.toString());
+  const plan = item.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
+  const inputs = { ...v, rate };
+  const calc = computeCostPlan(inputs);
+  const subtotal = new Decimal(v.price).mul(v.quantity);
+  if (tooBig(subtotal) || tooBig(new Decimal(calc.totalIncl))) return { error: AMOUNT_TOO_BIG };
+
+  const now = new Date();
+  const res = await prisma.$transaction(async (tx) => {
+    // Статус проверяем в момент записи: закупка могла быть принята между чтением и правкой.
+    const draft = await tx.purchase.count({
+      where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
+    });
+    if (draft === 0) return false;
+    await tx.purchaseItem.update({
+      where: { id: itemId },
+      data: {
+        quantity: v.quantity,
+        unitPrice: v.price,
+        subtotal,
+        vatRate: v.vat,
+        costPlan: buildCostPlanJson(
+          inputs,
+          { furDescription: plan.costBreakdown?.furDescription, exchangeRateFixed: plan.costBreakdown?.exchangeRateFixed },
+          now.toISOString(),
+        ),
+      },
+    });
+    return true;
+  });
+  if (!res) return { error: NOT_DRAFT };
+  revalidateCostPlan(purchaseId);
+  return {};
+}
+
+// Курс закупки с расчётом: общий для всех позиций, поэтому меняется одной
+// формой с пересчётом costPlan каждой позиции (сборы и брокерский % берутся
+// как проценты, выделка/транспорт/транзит — фиксированные суммы).
+export async function updateCostPlanRate(purchaseId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const rateParsed = zNum("Курс", { positive: true, max: 1_000_000 }).safeParse(formData.get("exchangeRate"));
+  if (!rateParsed.success) return { error: rateParsed.error.issues[0]?.message ?? "Некорректный курс" };
+  const rate = rateParsed.data as number;
+
+  const purchase = await prisma.purchase.findFirst({
+    where: { id: purchaseId, organizationId: session.user.organizationId },
+    include: { items: true },
+  });
+  if (!purchase) return { error: "Закупка не найдена" };
+  if (purchase.status === "RECEIVED" || purchase.status === "CANCELLED") return { error: NOT_DRAFT };
+  const planItems = purchase.items.filter((i) => i.costPlan != null);
+  if (planItems.length === 0) return { error: "В закупке нет позиций с расчётом — используйте обычную форму курса" };
+
+  const now = new Date().toISOString();
+  const updates = planItems.map((i) => {
+    const prev = i.costPlan as { costBreakdown?: { furDescription?: unknown; exchangeRateFixed?: unknown } };
+    const base = deriveCostPlanInputs(i.costPlan, {
+      quantity: Number(i.quantity.toString()),
+      price: Number(i.unitPrice.toString()),
+      rate: Number(purchase.exchangeRate.toString()),
+      vat: Number(i.vatRate.toString()),
+    });
+    const inputs = { ...base, rate };
+    return {
+      id: i.id,
+      costPlan: buildCostPlanJson(
+        inputs,
+        { furDescription: prev.costBreakdown?.furDescription, exchangeRateFixed: prev.costBreakdown?.exchangeRateFixed },
+        now,
+      ),
+      total: computeCostPlan(inputs).totalIncl,
+    };
+  });
+  if (updates.some((u) => tooBig(new Decimal(u.total)))) return { error: AMOUNT_TOO_BIG };
+
+  const ok = await prisma.$transaction(async (tx) => {
+    const r = await tx.purchase.updateMany({
+      where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
+      data: { exchangeRate: rate },
+    });
+    if (r.count === 0) return false;
+    for (const u of updates) await tx.purchaseItem.update({ where: { id: u.id }, data: { costPlan: u.costPlan } });
+    return true;
+  }, { timeout: 30000 });
+  if (!ok) return { error: NOT_DRAFT };
+  revalidateCostPlan(purchaseId);
   return {};
 }
 

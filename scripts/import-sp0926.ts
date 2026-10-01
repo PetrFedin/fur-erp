@@ -126,7 +126,7 @@ async function main() {
             { label: "Цена за ед., $", value: l.priceUsd },
             { label: "Курс ЦБ на дату счёта", value: p.rate },
             { label: "Цена за ед. по курсу, ₽", value: goods.toNumber() },
-            { label: "Аукционный сбор, маркетинговый сбор, сбор за доставку (7,35% от цены), ₽", value: l.auctionFee },
+            { label: `Аукционный сбор, маркетинговый сбор, сбор за доставку (${(Math.round((l.auctionFee / goods.toNumber()) * 10000) / 100).toString().replace(".", ",")}% от цены), ₽`, value: l.auctionFee },
             { label: "НДС на аукционный сбор, ₽", value: l.auctionFeeVat },
             { label: "НДС 22% на товар, ₽", value: l.goodsVat },
             { label: "Выделка (с НДС 22%), ₽", value: l.dressing },

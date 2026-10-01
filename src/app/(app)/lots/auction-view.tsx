@@ -10,6 +10,8 @@ import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
+import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
+import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
@@ -338,7 +340,7 @@ export async function AuctionView({
                   <Link
                     href={`/purchases/${p.id}`}
                     className={buttonVariants({ variant: "default", size: "sm" })}
-                    title="Позиции с расчётом из расчётного листа не правятся по цене/количеству — см. подсказку на карточке"
+                    title="Курс, документы и расходы закупки; цена, количество и расходы лота — кнопкой «Править расчёт» у строки лота"
                   >
                     Править закупку →
                   </Link>
@@ -375,6 +377,7 @@ export async function AuctionView({
                     <Th>Себестоимость всего</Th>
                     <Th>Остаток на складе</Th>
                     <Th>Использован в ТЗ</Th>
+                    {canEdit && !isReceived && p.status !== "CANCELLED" && <Th></Th>}
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -433,12 +436,32 @@ export async function AuctionView({
                                 </div>
                               ))}
                         </Td>
+                        {canEdit && !isReceived && p.status !== "CANCELLED" && (
+                          <Td className="whitespace-nowrap">
+                            {i.costPlan != null && (
+                              <CostPlanItemEditor
+                                purchaseId={p.id}
+                                currencySymbol={p.currency === "USD" ? "$" : p.currency}
+                                item={{
+                                  id: i.id,
+                                  lotNumber: i.lotNumber,
+                                  ...deriveCostPlanInputs(i.costPlan, {
+                                    quantity: Number(i.quantity.toString()),
+                                    price: Number(i.unitPrice.toString()),
+                                    rate: Number(p.exchangeRate.toString()),
+                                    vat: Number(i.vatRate.toString()),
+                                  }),
+                                }}
+                              />
+                            )}
+                          </Td>
+                        )}
                       </Tr>
                     );
                   })}
                   {lines.length === 0 && (
                     <Tr>
-                      <Td colSpan={11} className="py-4 text-center text-neutral-400">
+                      <Td colSpan={12} className="py-4 text-center text-neutral-400">
                         В закупке нет позиций
                       </Td>
                     </Tr>
