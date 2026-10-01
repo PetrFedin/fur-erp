@@ -10,6 +10,8 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
+import { useCommission4Display } from "@/lib/commission4-display";
+import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4";
 import { formatAvg, formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
 import { emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
@@ -410,6 +412,7 @@ function LotRowView({
       <Td className="whitespace-nowrap">{rateFmt(r.rate)}</Td>
       <Td className="whitespace-nowrap">
         <Money incl={r.unitIncl} excl={r.unitExcl} />
+        <Unit4Note incl={r.unitIncl} excl={r.unitExcl} />
         {r.source === "price" && <div className="text-xs text-neutral-400">по цене лота, без расчёта</div>}
         {r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null}
       </Td>
@@ -675,5 +678,20 @@ export function FlatLotsPanel() {
       </Table>
       <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость" />
     </section>
+  );
+}
+
+/**
+ * Справочно, только в режиме «С 4%»: себестоимость единицы лота +4% («с 4%: X»).
+ * Закупки, суммы лотов и долги остаются без 4% — 4% начисляется при списании в ТЗ.
+ */
+function Unit4Note({ incl, excl }: { incl: number; excl: number }) {
+  const { mode } = useCommission4Display();
+  if (mode !== "on") return null;
+  const k = 1 + COMMISSION_RATE;
+  return (
+    <div className="whitespace-nowrap text-xs text-neutral-500" title={COMMISSION4_HINT}>
+      с 4%: <Money incl={incl * k} excl={excl * k} />
+    </div>
   );
 }

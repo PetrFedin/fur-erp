@@ -2,12 +2,14 @@ import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { extraInclOnly } from "@/lib/commission4";
+import type { Commission4Mode } from "@/lib/commission4-mode";
 
 /** ТЗ с данными для сводки по партии (себестоимость, работа, оплаты). */
 export const batchOrderInclude = {
   productModel: { select: { name: true } },
   client: { select: { name: true } },
-  materialUsages: { select: { totalCost: true } },
+  materialUsages: { select: { totalCost: true, commission4: true } },
   expenses: { select: { amount: true } },
   paymentAllocations: {
     select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true } } },
@@ -18,12 +20,17 @@ export type BatchOrder = Prisma.ProductionOrderGetPayload<{ include: typeof batc
 
 export type OrderStat = { qty: Decimal; cost: Decimal; work: Decimal };
 
-export function orderStat(o: BatchOrder): OrderStat {
+/**
+ * Себестоимость ТЗ; в режиме «С 4%» к ней добавляется надбавка 4% на сырьё и
+ * подкладку (списания с commission4 = true). Снимок totalCost хранится «без 4%».
+ * Работа и расходы не облагаются. Цифры партии — с НДС (как и раньше).
+ */
+export function orderStat(o: BatchOrder, mode: Commission4Mode = "off"): OrderStat {
   const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
   const projected = o.materialUsages
     .reduce((s, u) => s.add(u.totalCost), new Decimal(0))
     .add(o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0)));
-  const cost = o.totalCost ?? projected;
+  const cost = (o.totalCost ?? projected).add(extraInclOnly(o.materialUsages, mode));
   const work = o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.mul(qty) : new Decimal(0);
   return { qty, cost, work };
 }
@@ -38,14 +45,14 @@ export type BatchTotals = {
   remaining: Decimal;
 };
 
-export function batchTotals(orders: BatchOrder[]): BatchTotals {
+export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = "off"): BatchTotals {
   const live = orders.filter((o) => o.status !== "CANCELLED");
   let units = new Decimal(0);
   let cost = new Decimal(0);
   let work = new Decimal(0);
   const pay = new Map<string, Decimal>();
   for (const o of live) {
-    const s = orderStat(o);
+    const s = orderStat(o, mode);
     units = units.add(s.qty);
     cost = cost.add(s.cost);
     work = work.add(s.work);

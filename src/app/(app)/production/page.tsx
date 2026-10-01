@@ -12,7 +12,8 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
-import { materialCostExclVat } from "@/lib/purchase-totals";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
 import { ResponsiveDetails } from "./filters-details";
 import { GroupedByBatch } from "./grouped-view";
@@ -31,6 +32,8 @@ export const metadata = { title: "ТЗ" };
 
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
+  const c4 = c4Suffix(c4Mode);
   const orgId = session.user.organizationId;
   const sp = await searchParams;
   const str = (v: unknown) => cleanSearch(v);
@@ -76,7 +79,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           select: {
             totalCost: true,
             quantity: true,
-            lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } },
+            commission4: true,
+            lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
           },
         },
         expenses: { select: { amount: true } },
@@ -232,7 +236,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </ResponsiveDetails>
 
       {grouped ? (
-        <GroupedByBatch orders={groupedOrders} batches={batchList} />
+        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} />
       ) : (
       <>
       <Table>
@@ -245,7 +249,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th className="hidden sm:table-cell">Кол-во</Th>
             <Th>Статус</Th>
             <Th>
-              <VatLabel base="Итого себестоимость" />
+              <VatLabel base={`Итого себестоимость${c4}`} />
             </Th>
             <Th
               className="hidden sm:table-cell"
@@ -261,21 +265,27 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const href = `/production/${o.id}`;
             // Same formulas as the order card: booked costs so far (or the
             // fixed snapshot), markup = retail price / unit cost.
-            const projected = o.materialUsages
-              .reduce((s, u) => s.add(u.totalCost), new Decimal(0))
-              .add(o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0)));
-            const total = o.totalCost ?? projected;
+            // Режим «С 4%»: надбавка только к сырью/подкладке (строки списаний),
+            // расходы без 4%; снимок totalCost хранится «без 4%», надбавка добавляется сверху.
+            const mats = sumUsagesWith4(o.materialUsages, c4Mode);
+            const expSum = o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
+            const projected = mats.incl.add(expSum);
+            const total = o.totalCost ? o.totalCost.add(mats.extraIncl) : projected;
             // Excl-VAT counterpart, same lines (expenses carry no VAT in this schema).
-            const projectedExcl = materialCostExclVat(o.materialUsages).add(
-              o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0))
-            );
+            const projectedExcl = mats.excl.add(expSum);
             const totalExcl = projectedExcl;
             if (o.status !== "CANCELLED") {
               sumIncl = sumIncl.add(total);
               sumExcl = sumExcl.add(totalExcl);
             }
             const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
-            const unit = o.unitCost ?? (qty.isZero() ? new Decimal(0) : projected.div(qty));
+            const unit = o.unitCost
+              ? qty.isZero()
+                ? o.unitCost
+                : o.unitCost.add(mats.extraIncl.div(qty))
+              : qty.isZero()
+                ? new Decimal(0)
+                : projected.div(qty);
             const markup = o.retailPrice && unit.greaterThan(0) ? o.retailPrice.div(unit) : null;
             const cell = "p-0";
             const link = "block px-3 py-2";
@@ -345,7 +355,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </Table>
       {orders.length > 0 && (
         <p className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
-          <VatLabel base="Итого себестоимость по списку" />
+          <VatLabel base={`Итого себестоимость по списку${c4}`} />
           <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</span>
         </p>
       )}

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
+import { c4Suffix } from "@/lib/commission4";
+import type { Commission4Mode } from "@/lib/commission4-mode";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -18,7 +20,15 @@ const woNum = (o: BatchOrder) => {
 };
 
 /** Сгруппированный вид «По партиям»: партия → ТЗ → изделие, с итогами по каждой партии. */
-export function GroupedByBatch({ orders, batches }: { orders: BatchOrder[]; batches: GroupBatch[] }) {
+export function GroupedByBatch({
+  orders,
+  batches,
+  c4Mode = "off",
+}: {
+  orders: BatchOrder[];
+  batches: GroupBatch[];
+  c4Mode?: Commission4Mode;
+}) {
   const groups: { key: string; batch: GroupBatch | null; orders: BatchOrder[] }[] = batches
     .map((b) => ({ key: b.id, batch: b, orders: orders.filter((o) => o.batchId === b.id) }))
     .filter((g) => g.orders.length > 0);
@@ -36,7 +46,7 @@ export function GroupedByBatch({ orders, batches }: { orders: BatchOrder[]; batc
   return (
     <div className="flex flex-col gap-3" data-batch-groups>
       {groups.map((g) => {
-        const t = batchTotals(g.orders);
+        const t = batchTotals(g.orders, c4Mode);
         const sorted = [...g.orders].sort((a, b) => woNum(a) - woNum(b));
         return (
           <details key={g.key} open className="group rounded-lg border border-neutral-200 bg-white">
@@ -55,14 +65,14 @@ export function GroupedByBatch({ orders, batches }: { orders: BatchOrder[]; batc
                 ТЗ: {t.orders} · изделий: {formatQty(t.units.toString())}
               </span>
               <span className="ml-auto text-xs text-neutral-600">
-                себестоимость <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
+                себестоимость{c4Suffix(c4Mode)} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
                 <b>{formatMoney(t.paid.toString())}</b> · остаток{" "}
                 <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.toString())}</b>
               </span>
             </summary>
             <ul className="divide-y divide-neutral-100 border-t border-neutral-100 text-sm">
               {sorted.map((o) => {
-                const s = orderStat(o);
+                const s = orderStat(o, c4Mode);
                 const st = STATUS[o.status];
                 return (
                   <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
@@ -84,7 +94,7 @@ export function GroupedByBatch({ orders, batches }: { orders: BatchOrder[]; batc
       })}
       <p className="text-xs text-neutral-500">
         «Оплачено» — оплаты заказчика по ТЗ партии (каждая оплата учтена один раз, отменённые не входят); остаток = работа
-        минус оплачено. Себестоимость — без учёта наценки 4%.
+        минус оплачено. Себестоимость {c4Mode === "on" ? "— с наценкой 4% на сырьё и подкладку (кроме списаний без 4%, напр. партия 6); работа не облагается." : "— без наценки 4% (переключатель «С 4%» в шапке)."}
       </p>
     </div>
   );

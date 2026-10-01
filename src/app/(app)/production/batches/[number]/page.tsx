@@ -11,6 +11,8 @@ import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix } from "@/lib/commission4";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -28,6 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ number: s
 export default async function BatchPage({ params }: { params: Promise<{ number: string }> }) {
   const { number: numRaw } = await params;
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
   const orgId = session.user.organizationId;
   const number = /^\d{1,6}$/.test(numRaw) ? parseInt(numRaw, 10) : NaN;
   if (!Number.isInteger(number)) notFound();
@@ -38,7 +41,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   });
   if (!batch) notFound();
 
-  const t = batchTotals(batch.orders);
+  const t = batchTotals(batch.orders, c4Mode);
   const orders = [...batch.orders].sort((a, b) => {
     const x = parseInt(a.workOrderNumber ?? "", 10);
     const y = parseInt(b.workOrderNumber ?? "", 10);
@@ -104,7 +107,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="ТЗ" value={String(t.orders)} />
         <Stat label="Изделий" value={formatQty(t.units.toString())} />
-        <Stat label="Себестоимость" value={formatMoney(t.cost.toString())} />
+        <Stat label={`Себестоимость${c4Suffix(c4Mode)}`} value={formatMoney(t.cost.toString())} />
         <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
         <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />
         <Stat
@@ -126,13 +129,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Изделие</Th>
                 <Th>Шт.</Th>
                 <Th>Статус</Th>
-                <Th className="hidden sm:table-cell">Себестоимость</Th>
+                <Th className="hidden sm:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
+                  Себестоимость{c4Suffix(c4Mode)}
+                </Th>
                 <Th className="hidden md:table-cell">Работа</Th>
               </Tr>
             </Thead>
             <Tbody>
               {orders.map((o) => {
-                const s = orderStat(o);
+                const s = orderStat(o, c4Mode);
                 const st = STATUS[o.status];
                 return (
                   <Tr key={o.id}>

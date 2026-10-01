@@ -54,6 +54,10 @@ export function UsageRow({
     unit: string;
     lotCostExclVat: string;
     lotVatRate: string;
+    /** Режим показа 4%: суммы уже пересчитаны на сервере. */
+    c4Mode: "off" | "on";
+    /** Применяется ли 4% к этому списанию (ProductionMaterialUsage.commission4). */
+    commission4: boolean;
     totalCost: string;
     totalCostExclVat: string;
     costBreakdown: unknown;
@@ -95,6 +99,11 @@ export function UsageRow({
         <Td>{usage.lotVatRate}%</Td>
         <Td className="text-right font-medium">
           <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
+          {usage.c4Mode === "on" && !usage.commission4 && (
+            <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-400" title="4% к этому списанию не применяется">
+              без 4%
+            </span>
+          )}
           {usage.costBreakdown != null && (
             <CostBreakdownToggle
               breakdown={usage.costBreakdown as never}

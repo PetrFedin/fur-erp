@@ -702,7 +702,7 @@ async function split88(batch8: string, clientIdVal: string, mgl03: string, mgl01
   const contract = CONTRACT;
 
   // П-2026-0096 → ТЗ 88, позиция MGL02 пастель ×10
-  setOrder(o96, "ТЗ 88", "workOrderNumber" as never, "88", src, `П-2026-0096 (ТЗ 88)`);
+  push({ kind: "update", cat: "ТЗ 88", model: "ProductionOrder", id: o96.id, changes: [{ field: "workOrderNumber", before: null, after: "88" }], label: `П-2026-0096 / workOrderNumber`, source: src });
   o96.tz = "88";
   setOrder(o96, "ТЗ 88", "size", "6 6 6 6 7 7 7 7 8 8", `${src}: MGL02 пастель — размеры 6/7/8 = 4/4/2`, `ТЗ 88 (${o96.number})`);
   if (!o96.color) setOrder(o96, "ТЗ 88", "color", "пастель", src, `ТЗ 88 (${o96.number})`);
@@ -862,12 +862,12 @@ async function plannedDocuments(clientIdVal: string, batchId: Map<number, string
     let docType: string = "OTHER";
     if (/^ПРИЛОЖЕНИЕ/i.test(title)) docType = "TZ_APPENDIX";
     else if (rel.includes("договоры/") && !/image|\.jpe?g$/i.test(title)) docType = "CONTRACT";
+    else if (/\.msg$/i.test(title)) docType = "APPROVAL_EMAIL";
     else if (/^УПД|МФВМ/i.test(title)) docType = "UPD";
     else if (/^Сч[её]т/i.test(title)) docType = "PAYMENT_INVOICE";
     else if (/баланс/i.test(title)) docType = "BALANCE";
     else if (/расч[её]т/i.test(title)) docType = "CALC_SHEET";
     else if (/ЖГУ|МГУ/.test(title)) docType = "SPECIFICATION";
-    else if (/\.msg$/i.test(title)) docType = "APPROVAL_EMAIL";
 
     // --- цели привязки
     const targets: { k: "o" | "b" | "p" | "c"; id: string; label: string }[] = [];
@@ -893,6 +893,12 @@ async function plannedDocuments(clientIdVal: string, batchId: Map<number, string
       if (mf && +mf[1] >= 19 && +mf[1] <= 23) {
         addBatch(2);
         for (const o of tzRows(+mf[1])) targets.push({ k: "o", id: o.id, label: orderLabel(o) });
+      } else if (rel.startsWith("2026/инд пошив кейп/")) {
+        // индивидуальный заказ: кейп М057 — ТЗ 117 (вне партий)
+        for (const o of tzRows(117)) targets.push({ k: "o", id: o.id, label: orderLabel(o) });
+      } else if (/МТО мехового проекта/i.test(title)) {
+        // письмо 22.01.2026 про М021 свакара (ТЗ 90, партия 9)
+        for (const o of tzRows(90)) targets.push({ k: "o", id: o.id, label: orderLabel(o) });
       } else if (/УПД/i.test(title) && /№\s*170/.test(title)) addBatch(1);
       else if (/УПД/i.test(title) && /№\s*171/.test(title)) addBatch(2);
       else addBatch(batchNo);
@@ -931,7 +937,7 @@ async function plannedDocuments(clientIdVal: string, batchId: Map<number, string
   }
   console.log("\nДокументы Drive к созданию (по типу → куда):");
   for (const [k, v] of Object.entries(stats).sort()) console.log(`  ${k}: ${v}`);
-  pend("Документы Drive: не прикреплены к ТЗ/платежам", "Файлы без однозначной привязки (общие договоры, каталоги, планы, рысь, капсула CR01, ЖГУ/МГУ, счета №193/247/251/259/261/145/121/207/237/257/265/275 без заведённой оплаты) привязаны к заказчику «Меркури Мода» или к партии по папке. Счёт №209 и письма — к оплате.", "При необходимости перепривязать в карточках.", "drive-manifest.json");
+  pend("Документы Drive: не прикреплены к ТЗ/платежам", "Общие файлы (договоры, каталоги, планы, рысь, капсула CR01, ЖГУ/МГУ, счета №193/247/251/259/261 без заведённой оплаты, баланс) привязаны к заказчику «Меркури Мода»; счета/расчёты/письма партий — к партии (и к оплате, если она заведена); файлы папки «инд пошив кейп» — к ТЗ 117.", "При необходимости перепривязать в карточках.", "drive-manifest.json");
   pend("Документы Drive: дубли и lock-файлы пропущены", "Пропущены: ~$-файлы Excel; файлы, помеченные в отчётах как ДУБЛЬ; копии одного файла (название+размер) в другой папке на ту же сущность. Не прочитаны отчётами: МФВМ000028/029 (.xls), WhatsApp/jpg.", "—", `${SRC_A} §9; ${SRC_B} §8; ${SRC_C} §11`);
 }
 
@@ -981,7 +987,9 @@ async function main() {
 
   await plan();
   const lines = printPlan();
-  writeFileSync(PLAN_PATH, lines.join("\n") + "\n");
+  // повторный прогон после применения (0 операций) не затирает план и pending предыдущего прогона
+  const keepOld = ops.length === 0 && existsSync(PLAN_PATH);
+  if (!keepOld) writeFileSync(PLAN_PATH, lines.join("\n") + "\n");
 
   // сводка
   const cats = new Map<string, { upd: number; cre: number }>();
@@ -1005,8 +1013,8 @@ async function main() {
   // pending-файл
   const md: string[] = ["# Спорное по производству — требуется решение владельца", "", `Сформировано скриптом apply-drive-production-corrections (${NOW.toISOString().slice(0, 10)}). Ничего из этого в базе не менялось.`, ""];
   for (const p of pending) md.push(`## ${p.id}. ${p.title}`, "", `**Что:** ${p.what}`, "", `**Варианты:** ${p.variants}`, "", `**Источники:** ${p.sources}`, "");
-  writeFileSync(PENDING_PATH, md.join("\n"));
-  console.log(`\nPending записан: ${PENDING_PATH}\nПолный план: ${PLAN_PATH}`);
+  if (!keepOld) writeFileSync(PENDING_PATH, md.join("\n"));
+  console.log(keepOld ? "\nПлан пуст — файлы плана и pending предыдущего прогона не тронуты." : `\nPending записан: ${PENDING_PATH}\nПолный план: ${PLAN_PATH}`);
 
   if (!APPLY) { console.log("\nDRY-RUN: ничего не записано. Для применения добавьте --apply (сначала бэкап!)."); return; }
   if (ops.length === 0) { console.log("Нечего применять — всё уже сделано."); return; }

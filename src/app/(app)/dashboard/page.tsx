@@ -8,6 +8,8 @@ import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { InclVatOnlyLabel } from "@/components/vat-label";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { auctionName, buildAuctionSummaries } from "@/lib/auction-payments";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -22,6 +24,7 @@ export const metadata = { title: "Сводка" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
   // requireRole() redirects here with ?error=forbidden when a role may not do an action.
   const sp = await searchParams;
   const forbidden = sp.error === "forbidden";
@@ -64,7 +67,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.productionMaterialUsage.findMany({
       where: { productionOrder: { organizationId } },
-      select: { quantity: true, totalCost: true, lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } } },
+      select: {
+        quantity: true,
+        totalCost: true,
+        commission4: true,
+        lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+      },
     }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
     // clientId — это собственное производство, не подлежит взысканию.
@@ -249,11 +257,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const totalPurchasedValueExclVat = allPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
-  const totalMaterialUsedValue = materialUsedAgg.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
-  const totalMaterialUsedValueExclVat = materialUsedAgg.reduce(
-    (s, u) => s.add(u.quantity.mul(lotUnitCostExclVat(u.lot))),
-    new Decimal(0)
-  );
+  // «Использовано в ТЗ» в режиме «С 4%»: +4% к строкам списаний с commission4 = true.
+  // Закупки, остатки сырья и долги — всегда без 4%.
+  const usedSum = sumUsagesWith4(materialUsedAgg, c4Mode);
+  const totalMaterialUsedValue = usedSum.incl;
+  const totalMaterialUsedValueExclVat = usedSum.excl;
 
   return (
     <div className="flex flex-col gap-4">
@@ -272,7 +280,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <KpiCard label="Куплено сырья" value={<Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} />} />
         <KpiCard
-          label="Использовано в ТЗ"
+          label={`Использовано в ТЗ${c4Suffix(c4Mode)}`}
           value={<Money incl={totalMaterialUsedValue} excl={totalMaterialUsedValueExclVat} />}
         />
         <KpiCard label="Остаток сырья (в деньгах)" value={<Money incl={rawStockValue} excl={rawStockValueExclVat} />} />

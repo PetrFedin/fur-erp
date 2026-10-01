@@ -10,7 +10,8 @@ import { formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
-import { materialCostExclVat } from "@/lib/purchase-totals";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
@@ -22,6 +23,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const q = cleanSearch(rawQ);
   const showEmpty = cleanSearch(rawEmpty) === "1";
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
+  const c4 = c4Suffix(c4Mode);
   const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
   const [stocks, shipments, warehouses] = await Promise.all([
@@ -60,7 +63,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           materialUsages: {
             select: {
               quantity: true,
-              lot: { select: { materialCostExclVat: true, expenseCostExclVat: true } },
+              totalCost: true,
+              commission4: true,
+              lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
             },
           },
           expenses: { select: { amount: true } },
@@ -82,17 +87,32 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     // excl-VAT snapshot column for unitCost (see schema comment). Production
     // expenses carry no VAT at all, so they contribute the same amount to
     // both incl- and excl-VAT totals.
+    // Режим «С 4%»: надбавка по сырью и подкладке каждого ТЗ (строки списаний с
+    // commission4 = true); снимки unitCost хранятся «без 4%» и не меняются.
+    let extra4Incl = new Decimal(0);
+    let extra4Excl = new Decimal(0);
     const totalCostExclVat = m.productionOrders.reduce((s, o) => {
       const orderExpenseCost = o.expenses.reduce((es, e) => es.add(e.amount), new Decimal(0));
-      return s.add(materialCostExclVat(o.materialUsages).add(orderExpenseCost));
+      const mats = sumUsagesWith4(o.materialUsages, c4Mode);
+      extra4Incl = extra4Incl.add(mats.extraIncl);
+      extra4Excl = extra4Excl.add(mats.extraExcl);
+      return s.add(mats.excl.add(orderExpenseCost));
     }, new Decimal(0));
-    const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.div(totalProduced) : null;
+    const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.add(extra4Incl).div(totalProduced) : null;
     const avgUnitCostExclVat = totalProduced.greaterThan(0) ? totalCostExclVat.div(totalProduced) : null;
+    // Доля 4% в себестоимости модели: по ней пересчитывается себестоимость остатка на складе
+    // (у остатка нет своей разбивки по ТЗ). Нет завершённых ТЗ — показываем «без 4%».
+    const baseAvg = totalProduced.greaterThan(0) ? totalCost.div(totalProduced) : null;
+    const c4Ratio = c4Mode === "on" && baseAvg && baseAvg.greaterThan(0) && avgUnitCost ? avgUnitCost.div(baseAvg) : null;
+    const c4Missing = c4Mode === "on" && c4Ratio === null;
     const markup = m.sellingPrice && avgUnitCost && avgUnitCost.greaterThan(0) ? m.sellingPrice.div(avgUnitCost) : null;
 
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
-    const stockValue = modelStocks.reduce((sum, st) => sum.add(st.quantity.mul(st.avgUnitCost)), new Decimal(0));
+    const stockValue = modelStocks.reduce(
+      (sum, st) => sum.add(st.quantity.mul(st.avgUnitCost).mul(c4Ratio ?? 1)),
+      new Decimal(0),
+    );
     // Excl-VAT стоимость остатка: остаток × средневзвешенная себестоимость без НДС по
     // завершённым ТЗ модели (отдельного снимка нет). Нет данных — берём с НДС.
     const stockValueExclVat = avgUnitCostExclVat ? stockQty.mul(avgUnitCostExclVat) : stockValue;
@@ -115,6 +135,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       totalProduced,
       avgUnitCost,
       avgUnitCostExclVat,
+      c4Ratio,
+      c4Missing,
       sellingPrice: m.sellingPrice,
       markup,
     };
@@ -138,7 +160,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         <h1 className="text-xl font-semibold">Изделия</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-neutral-500">
-            <VatLabel base="Стоимость остатков (по себестоимости)" />:{" "}
+            <VatLabel base={`Стоимость остатков (по себестоимости)${c4}`} />:{" "}
             <span className="font-semibold text-neutral-900">
               <Money incl={totalStockValue} excl={totalStockValueExclVat} />
             </span>
@@ -188,7 +210,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <Tr>
             <Th>Модель</Th>
             <Th>Остаток готовой, шт.</Th>
-            <Th title="Средневзвешенная себестоимость единицы по завершённым ТЗ: Σ(себестоимость ТЗ × выпуск) ÷ Σ выпуск — взвешено по количеству">Ср. взвеш. себестоимость за ед.</Th>
+            <Th title="Средневзвешенная себестоимость единицы по завершённым ТЗ: Σ(себестоимость ТЗ × выпуск) ÷ Σ выпуск — взвешено по количеству. В режиме «С 4%» надбавка 4% только на сырьё и подкладку, у ТЗ без 4% (партия 6 и др.) не добавляется.">Ср. взвеш. себестоимость за ед.{c4}</Th>
             <Th>Розничная цена</Th>
             <Th title="Наценка = розничная цена / средневзвешенная (по количеству) себестоимость единицы по завершённым ТЗ">Наценка</Th>
             <Th>ТЗ</Th>
@@ -208,11 +230,16 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                       r.modelStocks.map((st) => (
                         <div key={st.id}>
                           {st.warehouse.name}: {formatQty(st.quantity.toString())} шт., себестоимость{" "}
-                          <Money incl={st.avgUnitCost} excl={r.avgUnitCostExclVat ?? st.avgUnitCost} />, стоимость остатка{" "}
+                          <Money incl={st.avgUnitCost.mul(r.c4Ratio ?? 1)} excl={r.avgUnitCostExclVat ?? st.avgUnitCost} />, стоимость остатка{" "}
                           <Money
-                            incl={st.quantity.mul(st.avgUnitCost)}
+                            incl={st.quantity.mul(st.avgUnitCost).mul(r.c4Ratio ?? 1)}
                             excl={st.quantity.mul(r.avgUnitCostExclVat ?? st.avgUnitCost)}
                           />
+                          {r.c4Missing && (
+                            <span className="ml-1 text-neutral-400" title="Нет завершённых ТЗ с разбивкой по сырью — 4% не посчитан">
+                              (без 4%)
+                            </span>
+                          )}
                         </div>
                       ))
                     )}

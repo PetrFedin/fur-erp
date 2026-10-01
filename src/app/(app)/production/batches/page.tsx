@@ -4,13 +4,16 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix } from "@/lib/commission4";
 
 export const metadata = { title: "Партии" };
 
 export default async function BatchesPage() {
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
   const batches = await loadBatchesWithOrders(session.user.organizationId);
-  const rows = batches.map((b) => ({ b, t: batchTotals(b.orders) }));
+  const rows = batches.map((b) => ({ b, t: batchTotals(b.orders, c4Mode) }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -28,7 +31,9 @@ export default async function BatchesPage() {
             <Th className="hidden sm:table-cell">Год</Th>
             <Th>ТЗ</Th>
             <Th>Изделий</Th>
-            <Th className="hidden md:table-cell">Себестоимость</Th>
+            <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
+              Себестоимость{c4Suffix(c4Mode)}
+            </Th>
             <Th className="hidden md:table-cell">Работа</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
             <Th>Остаток</Th>

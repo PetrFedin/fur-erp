@@ -10,7 +10,9 @@ import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { canEditProduction } from "@/lib/production-access";
 import { RemovePaymentButton } from "./remove-payment-button";
-import { materialCostExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, COMMISSION4_HINT } from "@/lib/commission4";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { ProductionExpenseForm } from "./expense-form";
@@ -73,6 +75,8 @@ const MARKUP_HINT =
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
   const session = await requireSession();
+  const c4Mode = await getCommission4Mode();
+  const c4 = c4Suffix(c4Mode);
 
   const order = await prisma.productionOrder.findFirst({
     where: { id, organizationId: session.user.organizationId },
@@ -235,7 +239,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
 
-  const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  // Режим «С 4%»: надбавка считается здесь при показе (БД хранит «без 4%»);
+  // только сырьё и подкладка со списаний с commission4 = true, работа и
+  // расходы не облагаются.
+  const furSum = sumUsagesWith4(furUsages, c4Mode);
+  const liningSum = sumUsagesWith4(liningUsages, c4Mode);
+  const materialCost = furSum.incl.add(liningSum.incl);
+  const extra4Incl = furSum.extraIncl.add(liningSum.extraIncl);
   // materialUsages.totalCost = quantity * lot.unitCost, and lot.unitCost is
   // VAT-inclusive by definition (see schema) — so materialCost above is
   // incl-VAT. Its excl-VAT counterpart uses the same lines' own excl-VAT lot
@@ -243,7 +253,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // comment on the latter). expenseCost has no excl-VAT counterpart:
   // ProductionExpense has no vatRate field at all (no VAT tracked for
   // production expenses in this schema) — shown the same in both modes.
-  const materialCostExcl = materialCostExclVat(order.materialUsages);
+  const materialCostExcl = furSum.excl.add(liningSum.excl);
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
   const projectedTotalExclVat = materialCostExcl.add(expenseCost);
@@ -256,7 +266,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   // unitCost is fixed once the order completes; while in progress, estimate
   // from costs booked so far so retail pricing can be planned ahead of time.
-  const estimatedUnitCost = order.unitCost ?? (producedOrPlanned.isZero() ? new Decimal(0) : projectedTotal.div(producedOrPlanned));
+  // Снимок unitCost хранится «без 4%» — в режиме «С 4%» добавляем надбавку на единицу.
+  const estimatedUnitCost = order.unitCost
+    ? producedOrPlanned.isZero()
+      ? order.unitCost
+      : order.unitCost.add(extra4Incl.div(producedOrPlanned))
+    : producedOrPlanned.isZero()
+      ? new Decimal(0)
+      : projectedTotal.div(producedOrPlanned);
   // No excl-VAT snapshot column exists for unitCost, so this is always
   // computed live from the same lines behind estimatedUnitCost above —
   // exact even once the order is COMPLETED, since materialUsages/expenses
@@ -298,10 +315,15 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           lotNumber: u.lot.lotNumber,
           quantity: u.quantity.toString(),
           unit: u.rawMaterial.unit,
-          lotCostExclVat: u.lot.materialCostExclVat.toString(),
+          lotCostExclVat: lineWith4(
+            { incl: u.lot.materialCostExclVat, excl: u.lot.materialCostExclVat, commission4: u.commission4 },
+            c4Mode,
+          ).excl.toString(),
+          c4Mode,
+          commission4: u.commission4,
           lotVatRate: u.lot.vatRate.toString(),
-          totalCost: u.totalCost.toString(),
-          totalCostExclVat: u.quantity.mul(lotUnitCostExclVat(u.lot)).toString(),
+          totalCost: lineWith4(usageInput(u), c4Mode).incl.toString(),
+          totalCostExclVat: lineWith4(usageInput(u), c4Mode).excl.toString(),
           costBreakdown: u.lot.costBreakdown,
           lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
           lotUnitCostIncl: u.lot.unitCost.toString(),
@@ -316,10 +338,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       />
     ));
 
-  const furCost = furUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
-  const furCostExcl = materialCostExclVat(furUsages);
-  const liningCost = liningUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
-  const liningCostExcl = materialCostExclVat(liningUsages);
+  const furCost = furSum.incl;
+  const furCostExcl = furSum.excl;
+  const liningCost = liningSum.incl;
+  const liningCostExcl = liningSum.excl;
   const margin = clientRevenue ? clientRevenue.sub(projectedTotal) : null;
   // Excl-VAT margin: same work revenue minus the excl-VAT cost, matching the toggle.
   const marginExcl = clientRevenue ? clientRevenue.sub(projectedTotalExclVat) : null;
@@ -431,16 +453,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white text-sm lg:hidden">
-            <SummaryLine label="Итого мех" value={<Money incl={furCost} excl={furCostExcl} />} />
-            <SummaryLine label="Итого подкладка" value={<Money incl={liningCost} excl={liningCostExcl} />} />
+            <SummaryLine label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
+            <SummaryLine label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
             <SummaryLine label="Итого расходы" value={formatMoney(expenseCost.toString())} />
             <SummaryLine
-              label="Итого себестоимость"
+              label={`Итого себестоимость${c4}`}
               value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
               strong
             />
             <SummaryLine
-              label={order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)"}
+              label={(order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)") + c4}
               value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
               strong
             />
@@ -448,7 +470,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <>
                 <SummaryLine label="Работа для заказчика" value={formatMoney(clientRevenue.toString())} />
                 <SummaryLine
-                  label={<VatLabel base="Маржа" />}
+                  label={<VatLabel base={`Маржа${c4}`} />}
                   value={<Money incl={margin} excl={marginExcl} />}
                   className={margin.lessThan(0) ? "text-amber-600" : undefined}
                 />
@@ -462,9 +484,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Лот</Th>
                 <Th>Материал</Th>
                 <Th>Кол-во</Th>
-                <Th>Цена за ед. без НДС</Th>
+                <Th title={c4Mode === "on" ? COMMISSION4_HINT : undefined}>Цена за ед. без НДС{c4}</Th>
                 <Th>НДС</Th>
-                <Th className="text-right" title="Сумма по лоту с НДС (переключатель НДС меняет отображение)">Сумма с НДС</Th>
+                <Th className="text-right" title={`Сумма по лоту с НДС (переключатель НДС меняет отображение). ${c4Mode === "on" ? COMMISSION4_HINT : ""}`}>Сумма с НДС{c4}</Th>
                 <Th></Th>
               </Tr>
             </Thead>
@@ -472,7 +494,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <SectionRow>Мех</SectionRow>
               {usageRows(furUsages, allFurLots)}
               {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
-              <TotalRow label="Итого мех" value={<Money incl={furCost} excl={furCostExcl} />} />
+              <TotalRow label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
 
               <SectionRow>Подкладка</SectionRow>
               {usageRows(liningUsages, allLiningLots)}
@@ -487,7 +509,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   )}
                 </EmptyRow>
               )}
-              <TotalRow label="Итого подкладка" value={<Money incl={liningCost} excl={liningCostExcl} />} />
+              <TotalRow label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
 
               <SectionRow>Расходы</SectionRow>
               {order.expenses.map((e) => (
@@ -512,12 +534,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <TotalRow label="Итого расходы" value={formatMoney(expenseCost.toString())} />
 
               <TotalRow
-                label="Итого себестоимость"
+                label={`Итого себестоимость${c4}`}
                 value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
                 strong
               />
               <TotalRow
-                label={order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)"}
+                label={(order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)") + c4}
                 value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
                 strong
               />
@@ -529,7 +551,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     value={formatMoney(clientRevenue.toString())}
                   />
                   <TotalRow
-                    label={<VatLabel base="Маржа" />}
+                    label={<VatLabel base={`Маржа${c4}`} />}
                     title={`${MARGIN_HINT} Следует переключателю С НДС / Без НДС.`}
                     value={<Money incl={margin} excl={marginExcl} />}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}

@@ -2,6 +2,7 @@ import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { VatToggle } from "@/components/vat-toggle";
+import { Commission4Toggle } from "@/components/commission4-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Владелец",
@@ -30,6 +31,7 @@ export function Topbar({
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
         <VatToggle />
+        <Commission4Toggle />
         <div className="hidden text-right text-sm sm:block">
           <div className="font-medium text-neutral-900">{userName}</div>
           <div className="text-xs text-neutral-500">{ROLE_LABELS[role] ?? role}</div>
