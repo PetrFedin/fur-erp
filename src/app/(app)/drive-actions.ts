@@ -7,6 +7,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { parseDateInput } from "@/lib/input";
 import { DRIVE_DOC_TYPES, parseDriveLink, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { driveDocRemoveRoles } from "@/lib/drive-docs-server";
 
 export type DriveDocState = { error?: string; ok?: boolean };
 
@@ -29,6 +30,8 @@ function revalidateFor(entity: Entity, id: string, extra?: string | number | nul
     if (extra != null) revalidatePath(`/production/batches/${extra}`);
   }
 }
+
+const DUP_ERROR = "Эта ссылка уже добавлена к этому объекту";
 
 /** Добавляет ссылку на файл Google Drive к закупке / ТЗ / партии. */
 export async function addDriveDocument(
@@ -69,15 +72,18 @@ export async function addDriveDocument(
   if (entity === "purchase") {
     const p = await prisma.purchase.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
     if (!p) return { error: "Закупка не найдена" };
+    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, purchaseId: p.id }, select: { id: true } })) return { error: DUP_ERROR };
     await prisma.driveDocument.create({ data: { ...base, purchaseId: p.id } });
   } else if (entity === "order") {
     const o = await prisma.productionOrder.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
     if (!o) return { error: "ТЗ не найдено" };
+    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, productionOrderId: o.id }, select: { id: true } })) return { error: DUP_ERROR };
     await prisma.driveDocument.create({ data: { ...base, productionOrderId: o.id } });
   } else {
     const b = await prisma.productionBatch.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true, number: true } });
     if (!b) return { error: "Партия не найдена" };
     batchNumber = b.number;
+    if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, productionBatchId: b.id }, select: { id: true } })) return { error: DUP_ERROR };
     await prisma.driveDocument.create({ data: { ...base, productionBatchId: b.id } });
   }
   revalidateFor(entity, entityId, batchNumber);
@@ -90,15 +96,45 @@ export async function removeDriveDocument(documentId: string): Promise<DriveDocS
   const orgId = session.user.organizationId;
   const doc = await prisma.driveDocument.findFirst({
     where: { id: documentId, organizationId: orgId },
-    include: { productionBatch: { select: { number: true } } },
+    include: {
+      productionBatch: { select: { number: true } },
+      payment: { select: { purchaseId: true } },
+      lot: { select: { purchaseId: true } },
+      productionPayment: { select: { clientId: true, orders: { select: { productionOrderId: true } } } },
+    },
   });
   if (!doc) return { error: "Документ не найден" };
-  const entity: Entity | null = doc.purchaseId ? "purchase" : doc.productionOrderId ? "order" : doc.productionBatchId ? "batch" : null;
-  if (entity && !hasRole(session.user.role, ROLES[entity])) return { error: "Недостаточно прав для удаления документов" };
-  if (!entity && !hasRole(session.user.role, ["OWNER", "ADMIN"])) return { error: "Недостаточно прав для удаления документов" };
+  if (!hasRole(session.user.role, driveDocRemoveRoles(doc))) return { error: "Недостаточно прав для удаления документов" };
   await prisma.driveDocument.delete({ where: { id: doc.id } });
-  if (entity === "purchase") revalidateFor("purchase", doc.purchaseId!);
-  else if (entity === "order") revalidateFor("order", doc.productionOrderId!);
-  else if (entity === "batch") revalidateFor("batch", doc.productionBatchId!, doc.productionBatch?.number);
+
+  // Сбрасываем кэш всех страниц, где документ мог быть показан.
+  if (doc.purchaseId) revalidateFor("purchase", doc.purchaseId);
+  if (doc.productionOrderId) revalidateFor("order", doc.productionOrderId);
+  if (doc.productionBatchId) revalidateFor("batch", doc.productionBatchId, doc.productionBatch?.number);
+  if (doc.paymentId) {
+    revalidatePath("/payments");
+    revalidatePath("/lots");
+    const pid = doc.payment?.purchaseId;
+    if (pid) revalidatePath(`/purchases/${pid}`);
+  }
+  if (doc.lotId) {
+    revalidatePath("/lots");
+    const pid = doc.lot?.purchaseId;
+    if (pid) revalidatePath(`/purchases/${pid}`);
+  }
+  if (doc.productionPaymentId) {
+    revalidatePath("/production");
+    revalidatePath("/payments");
+    for (const o of doc.productionPayment?.orders ?? []) revalidatePath(`/production/${o.productionOrderId}`);
+    if (doc.productionPayment?.clientId) revalidatePath(`/clients/${doc.productionPayment.clientId}`);
+  }
+  if (doc.clientId) {
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${doc.clientId}`);
+  }
+  if (doc.supplierId) {
+    revalidatePath("/suppliers");
+    revalidatePath(`/suppliers/${doc.supplierId}`);
+  }
   return { ok: true };
 }

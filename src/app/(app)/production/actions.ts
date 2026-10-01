@@ -13,6 +13,7 @@ import { PRODUCTION_EDIT_ROLES as EDIT_ROLES } from "@/lib/production-access";
 import { parseLotLines } from "@/lib/lot-lines";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_QTY, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
+import { defaultCommission4 } from "@/lib/commission4-const";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -484,8 +485,17 @@ export async function updateRetailPrice(orderId: string, formData: FormData): Pr
 async function getEditableOrder(organizationId: string, orderId: string) {
   return prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId },
-    include: { productModel: { include: { materials: true } } },
+    include: { productModel: { include: { materials: true } }, batch: { select: { number: true } } },
   });
+}
+
+/**
+ * «Начислять 4%» из формы списания: чекбокс commission4 при маркере c4form=1 (снятый чекбокс браузер не шлёт);
+ * без маркера (импорт/старые формы) — по умолчанию: true, для ТЗ из партии 6 — false.
+ */
+function readCommission4(formData: FormData, batchNumber: number | null | undefined): boolean {
+  if (formData.get("c4form") === "1") return formData.get("commission4") === "on";
+  return defaultCommission4(batchNumber);
 }
 
 /**
@@ -577,6 +587,7 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
           quantity: parsed.data.quantity,
           unitCost,
           totalCost,
+          commission4: readCommission4(formData, order.batch?.number),
         },
       });
 
@@ -640,6 +651,7 @@ export async function addMaterialUsagesBulk(
               quantity: r.quantity,
               unitCost,
               totalCost,
+              commission4: readCommission4(formData, order.batch?.number),
             },
           });
         } catch (e) {
@@ -799,7 +811,13 @@ export async function updateMaterialUsage(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const commission4 = formData.get("c4form") === "1" ? formData.get("commission4") === "on" : usage.commission4;
   if (parsed.data.lotId === usage.lotId && new Decimal(parsed.data.quantity).eq(usage.quantity)) {
+    if (commission4 !== usage.commission4) {
+      await prisma.productionMaterialUsage.update({ where: { id: usageId }, data: { commission4 } });
+      revalidatePath(`/production/${orderId}`);
+      revalidatePath("/production");
+    }
     return {};
   }
 
@@ -819,7 +837,7 @@ export async function updateMaterialUsage(
       });
       await tx.productionMaterialUsage.update({
         where: { id: usageId },
-        data: { lotId: parsed.data.lotId, rawMaterialId, quantity: parsed.data.quantity, unitCost, totalCost },
+        data: { lotId: parsed.data.lotId, rawMaterialId, quantity: parsed.data.quantity, unitCost, totalCost, commission4 },
       });
       await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
     });

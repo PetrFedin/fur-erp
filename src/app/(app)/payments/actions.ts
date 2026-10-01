@@ -11,6 +11,7 @@ import { removeStoredFiles } from "@/lib/fitting-files";
 import { readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
 import { loadAuctionSummaries, lockAuction, PAY_EPS, CLOSING_NOTE } from "@/lib/auction-payments";
 import { formatMoney } from "@/lib/utils";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"] as const;
 
@@ -93,6 +94,135 @@ export async function deleteAdvancePayment(paymentId: string): Promise<PayState>
   revalidatePath("/payments");
   revalidatePath("/dashboard");
   return { ok: true };
+}
+
+export type AllocPart = { target: string; amount: string };
+
+const PURCHASE_LOCK = "purchase:";
+
+/**
+ * «Привязать / разнести» аванс без привязки по аукционам и/или закупкам без аукциона.
+ * target: "a:<название аукциона>" либо "p:<id закупки>". Сумма частей не больше суммы аванса: остаток
+ * (если есть) остаётся авансом без привязки. Исходный платёж становится первой строкой (его документы
+ * и платёжка сохраняются), остальные — новые платежи; в заметках — журнал «разнесён из п/п …».
+ * Всё в одной транзакции под блокировками аукционов/закупок; переплата аукциона — с подтверждением.
+ */
+export async function allocateAdvance(paymentId: string, parts: AllocPart[], confirmOverpay = false): Promise<PayState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  if (!Array.isArray(parts) || parts.length === 0) return { error: "Добавьте хотя бы одну строку: аукцион или закупка и сумма" };
+  if (parts.length > 20) return { error: "Не больше 20 строк за раз" };
+
+  const rows: { kind: "a" | "p"; ref: string; amount: Decimal }[] = [];
+  for (const part of parts) {
+    const m = /^([ap]):([\s\S]+)$/.exec(String(part?.target ?? ""));
+    if (!m) return { error: "В каждой строке выберите аукцион или закупку" };
+    const a = zMoney("Сумма").safeParse(part.amount);
+    if (!a.success) return { error: a.error.issues[0]?.message ?? "Сумма: некорректное значение" };
+    rows.push({ kind: m[1] as "a" | "p", ref: m[2], amount: new Decimal(a.data as number).toDecimalPlaces(2) });
+  }
+  const lockKeys = [...new Set([...rows.map((r) => (r.kind === "a" ? r.ref : PURCHASE_LOCK + r.ref)), "advance:" + paymentId])].sort();
+
+  const result = await prisma.$transaction(async (tx): Promise<PayState> => {
+    for (const k of lockKeys) await lockAuction(tx, orgId, k);
+    const cur = await tx.payment.findFirst({
+      where: { id: paymentId, organizationId: orgId, purchaseId: null, auctionSession: null },
+    });
+    if (!cur) return { error: "Аванс не найден или уже привязан (обновите страницу)" };
+    if (cur.status === "CANCELLED") return { error: "Отменённый платёж привязывать нельзя" };
+    const sum = rows.reduce((s, r) => s.add(r.amount), new Decimal(0));
+    if (sum.sub(cur.amount).greaterThan(PAY_EPS)) {
+      return { error: `Сумма частей ${formatMoney(sum.toString())} больше суммы аванса ${formatMoney(cur.amount.toString())}` };
+    }
+
+    // Итог по каждой цели (несколько строк на один аукцион складываем) и проверка переплаты.
+    const addByAuction = new Map<string, Decimal>();
+    const addByPurchase = new Map<string, Decimal>();
+    for (const r of rows) {
+      const m = r.kind === "a" ? addByAuction : addByPurchase;
+      m.set(r.ref, (m.get(r.ref) ?? new Decimal(0)).add(r.amount));
+    }
+    const overpay: string[] = [];
+    if (addByAuction.size > 0) {
+      const summaries = await loadAuctionSummaries(tx, orgId, [...addByAuction.keys()]);
+      for (const [name, add] of addByAuction) {
+        const s = summaries.find((x) => x.name === name);
+        if (!s || s.purchases === 0) return { error: `Аукцион «${name}» не найден или в нём нет действующих закупок` };
+        if (!s.suppliers.some((x) => x.id === cur.supplierId)) return { error: `Аукцион «${name}» оформлен на другого поставщика, чем этот аванс` };
+        const after = cur.status === "COMPLETED" ? s.paid.add(add) : s.paid.add(s.planned).add(add);
+        if (after.sub(s.total).greaterThan(PAY_EPS)) overpay.push(`«${name}»: ${overpayText(after, s.total, cur.status).replace(" Всё равно записать?", "")}`);
+      }
+    }
+    for (const [pid, add] of addByPurchase) {
+      const pu = await tx.purchase.findFirst({
+        where: { id: pid, organizationId: orgId },
+        include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, select: { amount: true } } },
+      });
+      if (!pu || pu.status === "CANCELLED") return { error: "Закупка не найдена или отменена" };
+      if (pu.auctionSession) return { error: `Закупка ${pu.number} входит в аукцион — привяжите аванс к аукциону` };
+      if (pu.supplierId !== cur.supplierId) return { error: `Закупка ${pu.number} оформлена на другого поставщика, чем этот аванс` };
+      const total = purchaseTotalInclVat(pu);
+      const after = pu.payments.reduce((x, y) => x.add(y.amount), new Decimal(0)).add(add);
+      if (after.sub(total).greaterThan(PAY_EPS)) {
+        overpay.push(`закупка ${pu.number}: оплачено станет ${formatMoney(after.toString())} при стоимости ${formatMoney(total.toString())}`);
+      }
+    }
+    if (overpay.length > 0 && !confirmOverpay) return { confirm: `Переплата: ${overpay.join("; ")}. Всё равно привязать?` };
+
+    const when = cur.paidAt.toISOString().slice(0, 10);
+    const journal = (i: number) =>
+      [
+        cur.notes,
+        `разнесён из п/п ${cur.id} (аванс ${formatMoney(cur.amount.toString())} от ${when}), часть ${i + 1} из ${rows.length}`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+        .slice(0, 1000);
+    const link = (r: (typeof rows)[number]) => (r.kind === "a" ? { auctionSession: r.ref, purchaseId: null } : { purchaseId: r.ref, auctionSession: null });
+
+    await tx.payment.update({ where: { id: cur.id }, data: { amount: rows[0].amount, percent: null, notes: journal(0), ...link(rows[0]) } });
+    for (let i = 1; i < rows.length; i++) {
+      await tx.payment.create({
+        data: {
+          organizationId: orgId,
+          supplierId: cur.supplierId,
+          amount: rows[i].amount,
+          currency: cur.currency,
+          method: cur.method,
+          status: cur.status,
+          paidAt: cur.paidAt,
+          kind: cur.kind,
+          docRef: cur.docRef,
+          confirmed: cur.confirmed,
+          documentId: cur.documentId,
+          notes: journal(i),
+          ...link(rows[i]),
+        },
+      });
+    }
+    const rest = cur.amount.sub(sum);
+    if (rest.greaterThan(PAY_EPS)) {
+      await tx.payment.create({
+        data: {
+          organizationId: orgId,
+          supplierId: cur.supplierId,
+          amount: rest,
+          currency: cur.currency,
+          method: cur.method,
+          status: cur.status,
+          paidAt: cur.paidAt,
+          kind: cur.kind,
+          docRef: cur.docRef,
+          confirmed: cur.confirmed,
+          documentId: cur.documentId,
+          notes: [cur.notes, `остаток аванса после разнесения (из п/п ${cur.id})`].filter(Boolean).join(" · ").slice(0, 1000),
+        },
+      });
+    }
+    return { ok: true };
+  });
+  if (result.ok) revalidateAll();
+  return result;
 }
 
 // ---------- Оплаты аукциона (вся партия закупок) ----------

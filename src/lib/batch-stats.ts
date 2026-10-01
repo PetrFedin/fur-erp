@@ -43,6 +43,8 @@ export type BatchTotals = {
   /** Оплаты по ТЗ партии: каждая оплата учитывается один раз, даже если покрывает несколько ТЗ. */
   paid: Decimal;
   remaining: Decimal;
+  /** Применяется ли 4% хоть к одному списанию действующих ТЗ (иначе подпись «с 4%» не ставим). */
+  c4Applies: boolean;
 };
 
 export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = "off"): BatchTotals {
@@ -51,6 +53,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = "off")
   let cost = new Decimal(0);
   let work = new Decimal(0);
   const pay = new Map<string, Decimal>();
+  const c4Applies = live.some((o) => o.materialUsages.some((u) => u.commission4));
   for (const o of live) {
     const s = orderStat(o, mode);
     units = units.add(s.qty);
@@ -61,7 +64,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = "off")
     }
   }
   const paid = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
-  return { orders: live.length, units, cost, work, paid, remaining: work.sub(paid) };
+  return { orders: live.length, units, cost, work, paid, remaining: work.sub(paid), c4Applies };
 }
 
 /** Партии организации с их ТЗ (для списка партий и сгруппированного вида). */

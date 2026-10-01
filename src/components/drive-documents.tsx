@@ -87,7 +87,7 @@ function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
         ) : (
           <span className="text-xs text-neutral-400">нет ссылки</span>
         )}
-        {canEdit && (
+        {canEdit && d.canRemove !== false && (
           <Button
             type="button"
             variant="ghost"

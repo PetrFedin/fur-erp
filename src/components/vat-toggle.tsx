@@ -17,8 +17,9 @@ export function VatToggle() {
       <button
         type="button"
         onClick={() => setMode("incl")}
+        aria-pressed={mode === "incl"}
         className={cn(
-          "rounded-sm px-2 py-1 font-medium transition-colors",
+          "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
           mode === "incl" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
         )}
       >
@@ -27,8 +28,9 @@ export function VatToggle() {
       <button
         type="button"
         onClick={() => setMode("excl")}
+        aria-pressed={mode === "excl"}
         className={cn(
-          "rounded-sm px-2 py-1 font-medium transition-colors",
+          "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
           mode === "excl" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
         )}
       >

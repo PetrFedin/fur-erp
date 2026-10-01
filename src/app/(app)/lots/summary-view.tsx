@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { shortAuctionName } from "@/lib/auction-names";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
-import { addLeaf, aggOf, emptyAgg, loadSummaryLeaves, type Agg, type Leaf } from "@/lib/purchase-summary";
+import { parseVatModeCookie } from "@/lib/vat-mode";
+import { addLeaf, aggOf, emptyAgg, loadSummary, loadUnlinkedAdvances, type Agg, type Leaf } from "@/lib/purchase-summary";
+import { VatSync } from "./vat-sync";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 const COLS = "md:min-w-[980px] md:grid-cols-[minmax(200px,2.2fr)_repeat(7,minmax(100px,1fr))]";
@@ -148,8 +151,11 @@ export async function PurchaseSummary({
   organizationId: string;
   searchParams: { year?: string; auction?: string; material?: string; vat?: string };
 }) {
-  const mode: Mode = searchParams.vat === "excl" ? "excl" : "incl";
-  const all = await loadSummaryLeaves(organizationId);
+  // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vat= — только переопределение ссылкой.
+  const vatOverride: Mode | null = searchParams.vat === "excl" ? "excl" : searchParams.vat === "incl" ? "incl" : null;
+  const cookieMode: Mode = parseVatModeCookie((await cookies()).get("vatDisplay")?.value);
+  const mode: Mode = vatOverride ?? cookieMode;
+  const [{ leaves: all, purchaseTotals }, advances] = await Promise.all([loadSummary(organizationId), loadUnlinkedAdvances(organizationId)]);
 
   const years = [...new Set(all.map((l) => l.year))].sort((a, b) => b - a);
   const auctions = [...new Set(all.map((l) => l.auction))].sort(cmpRu);
@@ -168,7 +174,7 @@ export async function PurchaseSummary({
     if (yearF) p.set("year", String(yearF));
     if (auctionF) p.set("auction", auctionF);
     if (materialF) p.set("material", materialF);
-    if (mode === "excl") p.set("vat", "excl");
+    if (vatOverride) p.set("vat", vatOverride);
     for (const [k, v] of Object.entries(over)) {
       if (v) p.set(k, v);
       else p.delete(k);
@@ -216,6 +222,20 @@ export async function PurchaseSummary({
   }
   const converges = maxDiff.lessThan(0.01);
 
+  // Независимая проверка: Σ листьев = Σ итогов закупок (purchaseTotalInclVat/ExclVat — как на дашборде и в /payments).
+  // При фильтре по сырью берётся часть позиций закупки — сравнивать с итогом закупки нельзя.
+  const purchaseIds = [...new Set(leaves.map((l) => l.purchaseId))];
+  const independent = purchaseIds.reduce((sum, id) => {
+    const t = purchaseTotals.get(id);
+    return t ? sum.add(mode === "excl" ? t.excl : t.incl) : sum;
+  }, new Decimal(0));
+  const independentDiff = g0.full.sub(independent).abs();
+  const independentOk = independentDiff.lessThanOrEqualTo(1);
+
+  const draftFull = leaves.filter((l) => l.draft).reduce((s, l) => s.add(mode === "excl" ? l.full.excl : l.full.incl), new Decimal(0));
+  const draftCount = leaves.filter((l) => l.draft).length;
+  const advancesTotal = advances.reduce((s, a) => s.add(a.amount), new Decimal(0));
+
   const byYear = [...group(leaves, (l) => String(l.year)).entries()].sort((a, b) => Number(b[0]) - Number(a[0]));
   const gf = figures(grand, mode);
 
@@ -223,7 +243,7 @@ export async function PurchaseSummary({
     <div className="flex flex-col gap-4">
       <form method="get" className="grid grid-cols-2 items-end gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:grid-cols-5">
         <input type="hidden" name="tab" value="summary" />
-        {mode === "excl" && <input type="hidden" name="vat" value="excl" />}
+        {vatOverride && <input type="hidden" name="vat" value={vatOverride} />}
         <label className="flex flex-col gap-1 text-xs text-neutral-500">
           Год
           <Select name="year" defaultValue={yearF ? String(yearF) : ""}>
@@ -269,27 +289,18 @@ export async function PurchaseSummary({
         </div>
       </form>
 
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="НДС">
-        <span className="text-xs text-neutral-500">Суммы:</span>
-        {(
-          [
-            ["incl", "С НДС"],
-            ["excl", "Без НДС"],
-          ] as const
-        ).map(([m, text]) => (
-          <Link
-            key={m}
-            href={qs({ vat: m === "excl" ? "excl" : "" })}
-            aria-current={mode === m ? "page" : undefined}
-            className={
-              "rounded-md border px-3 py-1 text-sm " +
-              (mode === m ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-            }
-          >
-            {text}
-          </Link>
-        ))}
-      </div>
+      {!vatOverride && <VatSync serverMode={cookieMode} />}
+      <p className="text-xs text-neutral-500" data-vat-mode={mode}>
+        Суммы: <b>{mode === "excl" ? "без НДС" : "с НДС"}</b>
+        {vatOverride ? (
+          <>
+            {" "}
+            (задано ссылкой ?vat={vatOverride}; <Link href={qs({ vat: "" })} className="underline">использовать переключатель в шапке</Link>)
+          </>
+        ) : (
+          " — переключатель «С НДС / Без НДС» в шапке страницы."
+        )}
+      </p>
 
       {leaves.length === 0 ? (
         <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
@@ -350,6 +361,23 @@ export async function PurchaseSummary({
       )}
 
       {leaves.length > 0 && (
+        <div className="flex flex-col gap-0.5 text-xs text-neutral-600" data-summary-notes>
+          {draftCount > 0 && (
+            <div>
+              в т.ч. черновики (мех не принят): {money(draftFull)} ({draftCount} поз.) — расчётная стоимость, не складская.
+            </div>
+          )}
+          {advances.length > 0 && (
+            <div className="text-amber-700">
+              Авансы без привязки: {money(advancesTotal)} ({advances.length} п/п, с НДС) — не разнесены по аукционам и не входят в
+              «Оплачено»; «Остаток» выше — по закупкам без их учёта. Привязать: <Link href="/payments" className="underline">/payments</Link>, блок
+              «Без аукциона».
+            </div>
+          )}
+        </div>
+      )}
+
+      {leaves.length > 0 && (
         <div
           className={
             "rounded-md border px-3 py-2 text-sm " +
@@ -368,6 +396,19 @@ export async function PurchaseSummary({
             ))}
             <li>итого: {money(gf.full)}</li>
           </ul>
+          {materialF ? (
+            <div className="mt-1 text-xs text-neutral-600">
+              Сверка с итогами закупок не выполняется при фильтре по сырью (в закупке учтена только часть позиций).
+            </div>
+          ) : (
+            <div
+              className={"mt-1 text-xs " + (independentOk ? "" : "font-semibold text-red-700")}
+              data-independent-check={independentOk ? "ok" : "mismatch"}
+            >
+              {independentOk ? "Сходится" : `Расхождение ${money(independentDiff)}`} с итогами закупок (Σ по закупкам, как «Куплено сырья» на
+              дашборде и «Стоимость» в /payments): листья {money(g0.full)}; закупки {money(independent)}
+            </div>
+          )}
         </div>
       )}
 

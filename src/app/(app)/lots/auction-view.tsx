@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/utils";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -288,6 +289,7 @@ export async function AuctionView({
     include: { lot: { select: { lotNumber: true } }, purchase: { select: { number: true, invoiceNumber: true } } },
     orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
   });
+  const viewerRole = (await requireSession()).user.role;
   const driveDocs = driveRows.map((d) =>
     toDriveView(
       d,
@@ -298,6 +300,7 @@ export async function AuctionView({
           : d.purchase
             ? `закупка ${d.purchase.invoiceNumber || d.purchase.number}`
             : null,
+      viewerRole,
     ),
   );
 

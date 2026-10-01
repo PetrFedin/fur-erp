@@ -40,15 +40,21 @@ export type DriveDocView = {
   drivePath: string | null;
   /** Подпись «к чему привязан», если документ показан не на своей странице. */
   scope?: string | null;
+  /** Может ли текущий пользователь убрать ссылку (undefined — решает canEdit списка). */
+  canRemove?: boolean;
 };
 
-const ID_RE = /^[A-Za-z0-9_-]{10,}$/;
+/** Id файла Google Drive: 20+ символов [A-Za-z0-9_-]. */
+const ID_RE = /^[A-Za-z0-9_-]{20,}$/;
+/** Похоже на настоящий id: и буквы, и цифры (обычное слово или число id не считается). */
+const looksLikeId = (s: string) => ID_RE.test(s) && /[A-Za-z]/.test(s) && /\d/.test(s);
+const DRIVE_HOSTS = new Set(["drive.google.com", "docs.google.com", "drive.usercontent.google.com"]);
 
 /** Извлекает fileId и нормальную ссылку просмотра из ссылки Google Drive / Docs (или голого id). */
 export function parseDriveLink(raw: string): { fileId: string; viewUrl: string } | null {
   const s = raw.trim();
   if (!s) return null;
-  if (ID_RE.test(s)) return { fileId: s, viewUrl: `https://drive.google.com/file/d/${s}/view` };
+  if (looksLikeId(s)) return { fileId: s, viewUrl: `https://drive.google.com/file/d/${s}/view` };
   let u: URL;
   try {
     u = new URL(s);
@@ -57,10 +63,10 @@ export function parseDriveLink(raw: string): { fileId: string; viewUrl: string }
   }
   if (u.protocol !== "https:") return null;
   const host = u.hostname.toLowerCase();
-  if (host !== "drive.google.com" && host !== "docs.google.com" && !host.endsWith(".google.com")) return null;
-  const m = /\/(?:d|folders)\/([A-Za-z0-9_-]{10,})/.exec(u.pathname);
+  if (!DRIVE_HOSTS.has(host)) return null;
+  const m = /\/(?:d|folders)\/([A-Za-z0-9_-]{20,})/.exec(u.pathname);
   const id = m?.[1] ?? u.searchParams.get("id");
-  if (!id || !ID_RE.test(id)) return null;
+  if (!id || !looksLikeId(id)) return null;
   const isFolder = /\/folders\//.test(u.pathname);
   const viewUrl = isFolder ? `https://drive.google.com/drive/folders/${id}` : `https://drive.google.com/file/d/${id}/view`;
   return { fileId: id, viewUrl };

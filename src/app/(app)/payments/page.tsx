@@ -18,7 +18,9 @@ import { cleanSearch } from "@/lib/input";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
-import { AdvanceForm, AdvanceRowControls } from "./advance-forms";
+import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
+import { DriveDocList } from "@/components/drive-documents";
+import { toDriveView } from "@/lib/drive-docs-server";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -80,13 +82,14 @@ export default async function PaymentsPage({
   const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
   const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
   const onlyRest = tab === "suppliers" && sp.f === "rest";
-  const [payments, suppliers, clientPayments, summaries, auctionPurchases] = await Promise.all([
+  const [payments, suppliers, clientPayments, summaries, auctionPurchases, plainPurchases] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
       include: {
         supplier: true,
         purchase: { select: { id: true, number: true, auctionSession: true, invoiceNumber: true } },
         document: { select: { id: true, originalName: true, mimeType: true, storagePath: true, sizeBytes: true } },
+        driveDocuments: { orderBy: [{ docDate: "asc" }, { createdAt: "asc" }] },
       },
       orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
     }),
@@ -109,6 +112,13 @@ export default async function PaymentsPage({
       ? prisma.purchase.findMany({
           where: { organizationId: orgId, auctionSession: { not: null } },
           select: { id: true, number: true, invoiceNumber: true, auctionSession: true },
+        })
+      : Promise.resolve([]),
+    tab === "suppliers"
+      ? prisma.purchase.findMany({
+          where: { organizationId: orgId, auctionSession: null, status: { not: "CANCELLED" } },
+          select: { id: true, number: true, invoiceNumber: true, supplierId: true },
+          orderBy: { orderDate: "desc" },
         })
       : Promise.resolve([]),
   ]);
@@ -167,6 +177,36 @@ export default async function PaymentsPage({
   for (const p of payments) {
     if (!p.purchaseId && !p.auctionSession && !advSuppliers.some((x) => x.id === p.supplierId)) advSuppliers.push({ id: p.supplierId, name: p.supplier.name });
   }
+
+  // Цели для «Привязать к аукциону»: аукционы (с поставщиками) и закупки без аукциона.
+  const allocTargets: AllocTarget[] = [
+    ...auctions.map((a) => ({ value: `a:${a.name}`, label: `Аукцион: ${shortAuctionName(a.name, 60)}`, supplierIds: a.suppliers.map((x) => x.id) })),
+    ...plainPurchases.map((p) => ({
+      value: `p:${p.id}`,
+      label: `Закупка ${p.invoiceNumber ? `счёт ${p.invoiceNumber} · ` : ""}${p.number}`,
+      supplierIds: [p.supplierId],
+    })),
+  ];
+  const payDocs = (p: (typeof payments)[number]) => p.driveDocuments.map((d) => toDriveView(d, "оплата"));
+  const docBlock = (p: (typeof payments)[number]) => {
+    const docs = payDocs(p);
+    return docs.length > 0 ? (
+      <div className="mt-2">
+        <div className="mb-1 text-xs text-neutral-400">Документы Google Drive ({docs.length})</div>
+        <DriveDocList docs={docs} />
+      </div>
+    ) : null;
+  };
+  const payFlags = (p: (typeof payments)[number]) => (
+    <>
+      {p.docRef && <span className="block text-xs text-neutral-500">п/п / счёт: {p.docRef}</span>}
+      {!p.confirmed && (
+        <span className="mt-0.5 block">
+          <Badge variant="warning">без платёжки / не подтверждён</Badge>
+        </span>
+      )}
+    </>
+  );
 
   const renderAuction = (a: (typeof auctions)[number]) => {
     const active = selected?.name === a.name;
@@ -500,7 +540,9 @@ export default async function PaymentsPage({
                                 )}
                               </Cell>
                             </div>
+                            {(p.docRef || !p.confirmed) && <div className="mt-2 text-sm">{payFlags(p)}</div>}
                             {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
+                            {docBlock(p)}
                             {own && canPay && (
                               <div className="mt-2 border-t border-neutral-100 pt-2">
                                 <PaymentRowControls
@@ -597,9 +639,19 @@ export default async function PaymentsPage({
                   {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                 </Cell>
               </div>
+              {(p.docRef || !p.confirmed) && <div className="mt-2 text-sm">{payFlags(p)}</div>}
               {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
+              {docBlock(p)}
               {canPay && !p.purchaseId && !p.auctionSession && (
-                <div className="mt-2 border-t border-neutral-100 pt-2">
+                <div className="mt-2 flex flex-col gap-2 border-t border-neutral-100 pt-2">
+                  {p.status !== "CANCELLED" && (
+                    <AllocateAdvanceControls
+                      paymentId={p.id}
+                      supplierId={p.supplierId}
+                      amount={p.amount.toString()}
+                      targets={allocTargets}
+                    />
+                  )}
                   <AdvanceRowControls
                     suppliers={advSuppliers}
                     initial={{

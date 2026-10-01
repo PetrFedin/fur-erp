@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { canEditProduction } from "@/lib/production-access";
@@ -33,7 +33,9 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   const c4Mode = await getCommission4Mode();
   const orgId = session.user.organizationId;
   const number = /^\d{1,6}$/.test(numRaw) ? parseInt(numRaw, 10) : NaN;
-  if (!Number.isInteger(number)) notFound();
+  if (!Number.isInteger(number) || number < 1) notFound();
+  // Каноничный адрес без ведущих нулей: /batches/007 → /batches/7.
+  if (numRaw !== String(number)) redirect(`/production/batches/${number}`);
 
   const batch = await prisma.productionBatch.findUnique({
     where: { organizationId_number: { organizationId: orgId, number } },
@@ -80,6 +82,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         : d.productionPaymentId
           ? "оплата"
           : null,
+      session.user.role,
     ),
   );
 
@@ -107,7 +110,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="ТЗ" value={String(t.orders)} />
         <Stat label="Изделий" value={formatQty(t.units.toString())} />
-        <Stat label={`Себестоимость${c4Suffix(c4Mode)}`} value={formatMoney(t.cost.toString())} />
+        <Stat label={`Себестоимость${t.c4Applies ? c4Suffix(c4Mode) : ""}`} value={formatMoney(t.cost.toString())} />
         <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
         <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />
         <Stat
@@ -119,7 +122,10 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
 
       <Card>
         <CardHeader>
-          <CardTitle>ТЗ партии ({batch.orders.length})</CardTitle>
+          <CardTitle>
+            ТЗ партии ({t.orders}
+            {batch.orders.length > t.orders ? ` + ${batch.orders.length - t.orders} отменено` : ""})
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -130,7 +136,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Шт.</Th>
                 <Th>Статус</Th>
                 <Th className="hidden sm:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
-                  Себестоимость{c4Suffix(c4Mode)}
+                  Себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""}
                 </Th>
                 <Th className="hidden md:table-cell">Работа</Th>
               </Tr>

@@ -7,7 +7,7 @@ import { addMaterialUsagesBulk, type BulkUsageState } from "../actions";
 
 const initialState: BulkUsageState = {};
 
-export function BulkUsageForm({ orderId }: { orderId: string }) {
+export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId: string; defaultCommission4?: boolean }) {
   const [open, setOpen] = useState(false);
   // Controlled: React 19 resets uncontrolled fields after a server action,
   // which would wipe the paste when an error comes back.
@@ -42,6 +42,11 @@ export function BulkUsageForm({ orderId }: { orderId: string }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
+<label className="flex items-center gap-2 text-xs text-neutral-600 " title="4% — доп. комиссия посредника к сырью и подкладке; работа не облагается">
+        <input type="hidden" name="c4form" value="1" />
+        <input type="checkbox" name="commission4" defaultChecked={defaultCommission4} className="h-4 w-4" />
+        Начислять 4%
+      </label>
         <div className="flex items-center gap-2">
           <Button type="submit" variant="outline" size="sm" disabled={pending}>
             {pending ? "Списываем..." : "Списать все строки"}

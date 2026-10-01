@@ -1,8 +1,21 @@
 import "server-only";
 import type { DriveDocument } from "@prisma/client";
 import type { DriveDocView } from "@/lib/drive-docs";
+import { ACCESS, hasRole } from "@/lib/access";
+import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 
-export function toDriveView(d: DriveDocument, scope?: string | null): DriveDocView {
+/**
+ * Кому разрешено убирать ссылку: закупка — как закупки; ТЗ/партия — как производство;
+ * документы оплат, лотов без закупки, клиентов и поставщиков — только OWNER/ADMIN.
+ * Один источник правды для сервера (removeDriveDocument) и кнопки «Убрать».
+ */
+export function driveDocRemoveRoles(d: Pick<DriveDocument, "purchaseId" | "productionOrderId" | "productionBatchId">): readonly string[] {
+  if (d.purchaseId) return ACCESS.purchases;
+  if (d.productionOrderId || d.productionBatchId) return PRODUCTION_EDIT_ROLES;
+  return ["OWNER", "ADMIN"];
+}
+
+export function toDriveView(d: DriveDocument, scope?: string | null, role?: string | null): DriveDocView {
   return {
     id: d.id,
     title: d.title,
@@ -12,5 +25,6 @@ export function toDriveView(d: DriveDocument, scope?: string | null): DriveDocVi
     viewUrl: d.viewUrl,
     drivePath: d.drivePath,
     scope: scope ?? null,
+    canRemove: role === undefined ? undefined : hasRole(role, driveDocRemoveRoles(d)),
   };
 }

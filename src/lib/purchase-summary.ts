@@ -2,7 +2,7 @@ import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
-import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
 
 /**
@@ -10,6 +10,10 @@ import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
  * Лист — одна позиция закупки (PurchaseItem). Не отменённые закупки.
  *
  * Деньги:
+ *  • позиция общего лота (подкладка: один лот на несколько закупок) считается по самой позиции:
+ *    расчётный лист → цена позиции × курс × (1+НДС) + доля расходов закупки, а не по lot.totalCost,
+ *    иначе стоимость лота задвоилась бы;
+ *  • год закупки считается в часовом поясе Europe/Moscow;
  *  • «закупка по цене лотов» — цена лота × курс (+НДС ставки лота);
  *  • «полная стоимость» — как в режиме «Аукцион»: лот на складе — его стоимость; иначе расчёт из
  *    расчётного листа; иначе цена лота. У черновиков расходы закупки раскладываются по лотам
@@ -42,7 +46,32 @@ export type Leaf = {
   full: Money2;
   /** Оплачено с НДС (распределено). */
   paidIncl: Decimal;
+  /** Закупка не принята (черновик/заказана): мех на складе ещё не стоит, стоимость — расчётная. */
+  draft: boolean;
 };
+
+/** Год даты в часовом поясе Europe/Moscow (сервер может жить в UTC: 31 декабря 22:00 UTC уже новый год). */
+export function moscowYear(d: Date): number {
+  return Number(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric" }).format(d));
+}
+
+export type SummaryData = {
+  leaves: Leaf[];
+  /** Независимый путь: итог закупки по purchaseTotalInclVat / purchaseTotalExclVat (как дашборд и /payments). */
+  purchaseTotals: Map<string, { incl: Decimal; excl: Decimal }>;
+};
+
+export type UnlinkedAdvance = { id: string; amount: Decimal; paidAt: Date; supplier: string; docRef: string | null };
+
+/** Оплаты поставщикам без привязки к закупке и аукциону (COMPLETED): не входят в «Оплачено» сводки. */
+export async function loadUnlinkedAdvances(organizationId: string): Promise<UnlinkedAdvance[]> {
+  const rows = await prisma.payment.findMany({
+    where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
+    include: { supplier: { select: { name: true } } },
+    orderBy: { paidAt: "asc" },
+  });
+  return rows.map((r) => ({ id: r.id, amount: r.amount, paidAt: r.paidAt, supplier: r.supplier.name, docRef: r.docRef }));
+}
 
 export type Agg = {
   qty: Decimal;
@@ -80,13 +109,19 @@ export function aggOf(leaves: Leaf[]): Agg {
   return a;
 }
 
-export async function loadSummaryLeaves(organizationId: string): Promise<Leaf[]> {
+export async function loadSummary(organizationId: string): Promise<SummaryData> {
   const [purchases, summaries] = await Promise.all([
     prisma.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
       include: {
         expenses: true,
-        items: { include: { rawMaterial: { select: { name: true, unit: true } }, lot: true }, orderBy: { id: "asc" } },
+        items: {
+          include: {
+            rawMaterial: { select: { name: true, unit: true } },
+            lot: { include: { _count: { select: { purchaseItems: true } } } },
+          },
+          orderBy: { id: "asc" },
+        },
       },
       orderBy: [{ orderDate: "asc" }, { number: "asc" }],
     }),
@@ -94,17 +129,21 @@ export async function loadSummaryLeaves(organizationId: string): Promise<Leaf[]>
   ]);
   const byName = new Map(summaries.map((s) => [s.name, s]));
   const leaves: Leaf[] = [];
+  const purchaseTotals = new Map<string, { incl: Decimal; excl: Decimal }>();
 
   for (const p of purchases) {
     const auction = auctionName(p.auctionSession) ?? NO_AUCTION;
-    const year = p.orderDate.getFullYear();
+    const year = moscowYear(p.orderDate);
+    purchaseTotals.set(p.id, { incl: purchaseTotalInclVat(p), excl: purchaseTotalExclVat(p) });
     const lines = p.items.map((i) => {
       const base = i.subtotal.mul(p.exchangeRate);
       const priceIncl = grossUp(base, i.vatRate);
       let fullIncl: Decimal;
       let fullExcl: Decimal;
       const c = i.costPlan as Record<string, unknown> | null;
-      if (i.lot) {
+      // Общий лот (несколько позиций): lot.totalCost принадлежит всем позициям сразу — берём по самой позиции.
+      const own = Boolean(i.lot) && i.lot!._count.purchaseItems <= 1;
+      if (i.lot && own) {
         fullIncl = i.lot.totalCost;
         fullExcl = lotUnitCostExclVat(i.lot).mul(i.quantity);
       } else if (c && c.unitCostInclVat != null && c.materialExclVat != null && c.expenseExclVat != null) {
@@ -114,14 +153,16 @@ export async function loadSummaryLeaves(organizationId: string): Promise<Leaf[]>
         fullIncl = priceIncl;
         fullExcl = base;
       }
-      return { i, base, priceIncl, fullIncl, fullExcl };
+      return { i, base, priceIncl, fullIncl, fullExcl, own };
     });
-    // Расходы закупки у принятой уже внутри лотов; у черновика раскладываем по лотам пропорционально цене.
-    if (p.status !== "RECEIVED" && p.expenses.length > 0 && lines.length > 0) {
+    // Расходы закупки у принятой уже внутри собственных лотов; у черновика и у позиций общих лотов
+    // раскладываем по позициям пропорционально цене.
+    if (p.expenses.length > 0 && lines.length > 0) {
       const expIncl = p.expenses.reduce((s, e) => s.add(grossUp(e.amount, e.vatRate)), zero());
       const expExcl = p.expenses.reduce((s, e) => s.add(e.amount), zero());
       const sumBase = lines.reduce((s, l) => s.add(l.base), zero());
       for (const l of lines) {
+        if (p.status === "RECEIVED" && l.own) continue;
         const share = sumBase.isZero() ? new Decimal(1).div(lines.length) : l.base.div(sumBase);
         l.fullIncl = l.fullIncl.add(expIncl.mul(share));
         l.fullExcl = l.fullExcl.add(expExcl.mul(share));
@@ -153,8 +194,9 @@ export async function loadSummaryLeaves(organizationId: string): Promise<Leaf[]>
         price: { incl: l.priceIncl, excl: l.base },
         full: { incl: l.fullIncl, excl: l.fullExcl },
         paidIncl: paid.mul(share),
+        draft: p.status !== "RECEIVED",
       });
     }
   }
-  return leaves;
+  return { leaves, purchaseTotals };
 }

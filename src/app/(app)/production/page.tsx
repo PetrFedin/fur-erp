@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -33,7 +34,7 @@ export const metadata = { title: "ТЗ" };
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
-  const c4 = c4Suffix(c4Mode);
+  let c4 = c4Suffix(c4Mode);
   const orgId = session.user.organizationId;
   const sp = await searchParams;
   const str = (v: unknown) => cleanSearch(v);
@@ -47,8 +48,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     num_asc: "№ ТЗ: по возрастанию",
   };
   const sort = str(sp.sort) in SORTS ? str(sp.sort) : "";
-  const batchRaw = parseInt(str(sp.batch), 10);
-  const batchNum = Number.isInteger(batchRaw) && batchRaw > 0 && batchRaw < 1_000_000 ? batchRaw : null;
+  // ?batch= — только целое число 1…999999 («1e3», «3abc», «0» — 404, а не молчаливое «всё»/другая партия).
+  const batchParam = str(sp.batch);
+  if (batchParam && (!/^\d{1,6}$/.test(batchParam) || parseInt(batchParam, 10) < 1)) notFound();
+  const batchNum = batchParam ? parseInt(batchParam, 10) : null;
   const grouped = str(sp.view) === "batches";
 
   const where: Prisma.ProductionOrderWhereInput = {
@@ -121,6 +124,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return Number.isNaN(n) ? null : n;
   };
   const orders = [...rawOrders];
+  // 4% не применено ни к одному списанию в списке — подпись «(с 4%)» не ставим.
+  if (!orders.some((o) => o.materialUsages.some((u) => u.commission4))) c4 = "";
   if (sort) {
     const dir = sort === "num_asc" ? 1 : -1;
     // ТЗ without a numeric number go last in either direction.
@@ -236,7 +241,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </ResponsiveDetails>
 
       {grouped ? (
-        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} />
+        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} />
       ) : (
       <>
       <Table>

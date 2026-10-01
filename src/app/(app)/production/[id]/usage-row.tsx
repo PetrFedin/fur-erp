@@ -157,6 +157,11 @@ export function UsageRow({
                 <label className="mb-1 block text-xs text-neutral-500">Количество</label>
                 <Input name="quantity" type="number" step="0.001" min="0" required defaultValue={usage.quantity} />
               </div>
+<label className="flex items-center gap-2 text-xs text-neutral-600 " title="4% — доп. комиссия посредника к сырью и подкладке; работа не облагается">
+        <input type="hidden" name="c4form" value="1" />
+        <input type="checkbox" name="commission4" defaultChecked={usage.commission4} className="h-4 w-4" />
+        Начислять 4%
+      </label>
               <div className="flex items-center justify-between gap-4">
                 {state.error && <p className="text-sm text-red-600">{state.error}</p>}
                 <Button type="submit" variant="outline" size="sm" disabled={pending}>

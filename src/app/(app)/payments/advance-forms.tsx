@@ -3,7 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { createAdvancePayment, updateAdvancePayment, deleteAdvancePayment } from "./actions";
+import { createAdvancePayment, updateAdvancePayment, deleteAdvancePayment, allocateAdvance } from "./actions";
 
 const METHODS: [string, string][] = [
   ["BANK_TRANSFER", "Банк. перевод"],
@@ -175,6 +175,123 @@ export function AdvanceRowControls({ suppliers, initial }: { suppliers: { id: st
           <AdvanceForm suppliers={suppliers} initial={initial} onDone={() => setEditing(false)} />
         </div>
       )}
+    </div>
+  );
+}
+
+export type AllocTarget = { value: string; label: string; supplierIds: string[] };
+
+/** «Привязать к аукциону»: одна или несколько строк «аукцион/закупка + сумма»; сумма частей не больше суммы аванса. */
+export function AllocateAdvanceControls({
+  paymentId,
+  supplierId,
+  amount,
+  targets,
+}: {
+  paymentId: string;
+  supplierId: string;
+  amount: string;
+  targets: AllocTarget[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<{ target: string; amount: string }[]>([{ target: "", amount: amount.replace(".", ",") }]);
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
+  const mine = targets.filter((t) => t.supplierIds.includes(supplierId));
+  const total = Number(amount);
+  const num = (v: string) => Number(v.replace(/\s/g, "").replace(",", ".")) || 0;
+  const sum = rows.reduce((a, r) => a + num(r.amount), 0);
+  const rest = Math.round((total - sum) * 100) / 100;
+
+  function send(confirmOverpay: boolean) {
+    setError("");
+    startTransition(async () => {
+      try {
+        const res = await allocateAdvance(paymentId, rows, confirmOverpay);
+        if (res.confirm) {
+          if (window.confirm(res.confirm)) send(true);
+          return;
+        }
+        if (res.error) setError(res.error);
+        else setOpen(false);
+      } catch {
+        setError("Не удалось привязать: сервер отклонил запрос или пропала связь. Попробуйте ещё раз.");
+      }
+    });
+  }
+
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Привязать к аукциону
+      </Button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-left">
+      <p className="text-xs text-neutral-600">
+        Аванс {amount.replace(".", ",")} ₽. Можно разнести на несколько аукционов: сумма частей не больше суммы аванса, остаток
+        останется авансом без привязки. Исходный платёж станет первой строкой, в заметке будет «разнесён из п/п …».
+      </p>
+      {rows.map((r, i) => (
+        <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_10rem_auto]">
+          <Select
+            aria-label="Аукцион или закупка"
+            value={r.target}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))}
+          >
+            <option value="" disabled>
+              Аукцион / закупка…
+            </option>
+            {mine.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </Select>
+          <Input
+            aria-label="Сумма части, ₽"
+            inputMode="decimal"
+            autoComplete="off"
+            value={r.amount}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))}
+          />
+          {rows.length > 1 && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+              Убрать
+            </Button>
+          )}
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setRows([...rows, { target: "", amount: rest > 0 ? String(rest).replace(".", ",") : "" }])}
+          disabled={rows.length >= 20}
+        >
+          + Разнести ещё на один аукцион
+        </Button>
+        <span>
+          Разнесено: {sum.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽; остаток без привязки:{" "}
+          {rest.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽
+        </span>
+      </div>
+      {mine.length === 0 && <p className="text-xs text-amber-700">Нет аукционов и закупок этого поставщика, к которым можно привязать аванс.</p>}
+      {error && (
+        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="button" size="sm" disabled={pending || rows.some((r) => !r.target || num(r.amount) <= 0) || rest < -0.005} onClick={() => send(false)}>
+          {pending ? "Привязываем…" : "Привязать"}
+        </Button>
+        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => setOpen(false)}>
+          Отмена
+        </Button>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, COMMISSION4_HINT } from "@/lib/commission4";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
+import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
@@ -76,7 +77,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const { id } = await params;
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
-  const c4 = c4Suffix(c4Mode);
+  let c4 = c4Suffix(c4Mode);
 
   const order = await prisma.productionOrder.findFirst({
     where: { id, organizationId: session.user.organizationId },
@@ -95,6 +96,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     },
   });
   if (!order) notFound();
+  // Нет списаний с 4% (напр. ТЗ из партии 6) — подпись «(с 4%)» не ставим.
+  if (!order.materialUsages.some((u) => u.commission4)) c4 = "";
 
   const payments = order.paymentAllocations.map((a) => a.productionPayment);
 
@@ -109,7 +112,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     },
     orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
   });
-  const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null));
+  const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null, session.user.role));
 
   // All ТЗ of this client (incl. the current one) for the payment form:
   // "К оплате" / "оплачено" per ТЗ follow the same rule as this page — work
@@ -579,14 +582,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <details>
               <summary className="cursor-pointer text-neutral-600">+ лот</summary>
               <div className="mt-2">
-                <UsageForm orderId={id} lots={furLots} />
+                <UsageForm orderId={id} lots={furLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
               </div>
             </details>
-            <BulkUsageForm orderId={id} />
+            <BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />
             <details id="add-lining">
               <summary className="cursor-pointer text-neutral-600">+ подкладка</summary>
               <div className="mt-2">
-                <UsageForm orderId={id} lots={liningLots} />
+                <UsageForm orderId={id} lots={liningLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
               </div>
             </details>
             <details>

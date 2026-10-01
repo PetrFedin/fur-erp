@@ -15,7 +15,7 @@ export function Commission4Toggle() {
       onClick={() => mode !== m && setMode(m)}
       aria-pressed={mode === m}
       className={cn(
-        "rounded-sm px-2 py-1 font-medium transition-colors",
+        "rounded-sm px-2 py-1 font-medium transition-colors max-md:min-h-8",
         mode === m ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900",
       )}
     >

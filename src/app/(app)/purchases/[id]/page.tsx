@@ -100,7 +100,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
   });
   const driveDocs = driveRows.map((d) =>
-    toDriveView(d, d.lotId ? `лот ${d.lot?.lotNumber ?? "без номера"}` : d.paymentId ? "оплата" : null),
+    toDriveView(d, d.lotId ? `лот ${d.lot?.lotNumber ?? "без номера"}` : d.paymentId ? "оплата" : null, session.user.role),
   );
 
   const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";

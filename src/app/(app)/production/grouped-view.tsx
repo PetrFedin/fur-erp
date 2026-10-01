@@ -24,10 +24,13 @@ export function GroupedByBatch({
   orders,
   batches,
   c4Mode = "off",
+  filtered = false,
 }: {
   orders: BatchOrder[];
   batches: GroupBatch[];
   c4Mode?: Commission4Mode;
+  /** Применён фильтр (поиск, статус, заказчик, модель, партия): пустой результат — «Ничего не найдено». */
+  filtered?: boolean;
 }) {
   const groups: { key: string; batch: GroupBatch | null; orders: BatchOrder[] }[] = batches
     .map((b) => ({ key: b.id, batch: b, orders: orders.filter((o) => o.batchId === b.id) }))
@@ -38,7 +41,7 @@ export function GroupedByBatch({
   if (groups.length === 0) {
     return (
       <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-        Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive («поставка N»).
+        {filtered ? "Ничего не найдено" : "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive («поставка N»)."}
       </p>
     );
   }
@@ -65,7 +68,7 @@ export function GroupedByBatch({
                 ТЗ: {t.orders} · изделий: {formatQty(t.units.toString())}
               </span>
               <span className="ml-auto text-xs text-neutral-600">
-                себестоимость{c4Suffix(c4Mode)} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
+                себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
                 <b>{formatMoney(t.paid.toString())}</b> · остаток{" "}
                 <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.toString())}</b>
               </span>

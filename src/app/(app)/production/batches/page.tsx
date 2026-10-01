@@ -6,6 +6,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Партии" };
 
@@ -13,7 +14,33 @@ export default async function BatchesPage() {
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
   const batches = await loadBatchesWithOrders(session.user.organizationId);
-  const rows = batches.map((b) => ({ b, t: batchTotals(b.orders, c4Mode) }));
+  // «Документы» — как на карточке партии: документы самой партии + её ТЗ + оплат этих ТЗ (каждый документ один раз).
+  const orgId = session.user.organizationId;
+  const orderIds = batches.flatMap((b) => b.orders.map((o) => o.id));
+  const payIds = [...new Set(batches.flatMap((b) => b.orders.flatMap((o) => o.paymentAllocations.map((a) => a.productionPayment.id))))];
+  const docRows = await prisma.driveDocument.findMany({
+    where: {
+      organizationId: orgId,
+      OR: [
+        { productionBatchId: { in: batches.map((b) => b.id) } },
+        ...(orderIds.length ? [{ productionOrderId: { in: orderIds } }] : []),
+        ...(payIds.length ? [{ productionPaymentId: { in: payIds } }] : []),
+      ],
+    },
+    select: { id: true, productionBatchId: true, productionOrderId: true, productionPaymentId: true },
+  });
+  const docsOf = (b: (typeof batches)[number]) => {
+    const orders = new Set(b.orders.map((o) => o.id));
+    const pays = new Set(b.orders.flatMap((o) => o.paymentAllocations.map((a) => a.productionPayment.id)));
+    return docRows.filter(
+      (d) =>
+        d.productionBatchId === b.id ||
+        (d.productionOrderId != null && orders.has(d.productionOrderId)) ||
+        (d.productionPaymentId != null && pays.has(d.productionPaymentId)),
+    ).length;
+  };
+  const rows = batches.map((b) => ({ b, t: batchTotals(b.orders, c4Mode), docs: docsOf(b) }));
+  const anyC4 = rows.some((r) => r.t.c4Applies);
 
   return (
     <div className="flex flex-col gap-4">
@@ -32,7 +59,7 @@ export default async function BatchesPage() {
             <Th>ТЗ</Th>
             <Th>Изделий</Th>
             <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
-              Себестоимость{c4Suffix(c4Mode)}
+              Себестоимость{anyC4 ? c4Suffix(c4Mode) : ""}
             </Th>
             <Th className="hidden md:table-cell">Работа</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
@@ -41,7 +68,7 @@ export default async function BatchesPage() {
           </Tr>
         </Thead>
         <Tbody>
-          {rows.map(({ b, t }) => (
+          {rows.map(({ b, t, docs }) => (
             <Tr key={b.id}>
               <Td className="font-medium">
                 <Link href={`/production/batches/${b.number}`} className="hover:underline">
@@ -59,13 +86,15 @@ export default async function BatchesPage() {
                 {formatQty(t.units.toString())}
                 {b.plannedUnits != null && <span className="block text-xs text-neutral-400">план {b.plannedUnits}</span>}
               </Td>
-              <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}</Td>
+              <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
+                {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-400">без 4%</span>}
+              </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{t.paid.isZero() ? "—" : formatMoney(t.paid.toString())}</Td>
               <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-600" : "")}>
                 {t.work.isZero() && t.paid.isZero() ? "—" : formatMoney(t.remaining.toString())}
               </Td>
-              <Td className="hidden sm:table-cell">{b._count.driveDocuments || "—"}</Td>
+              <Td className="hidden sm:table-cell">{docs || "—"}</Td>
             </Tr>
           ))}
           {rows.length === 0 && (
