@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
 import { Tr, Td } from "@/components/ui/table";
+import { RowCard, type RowField } from "@/components/responsive-rows";
 import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
 
@@ -33,7 +34,12 @@ export function PurchaseItemRow({
   materials,
   currency,
   defaults,
+  variant = "row",
+  card,
 }: {
+  /** «card» — карточка для телефона: вместо ячеек (children) берутся поля card. */
+  variant?: "row" | "card";
+  card?: { title: ReactNode; subtitle?: ReactNode; fields: RowField[]; details?: RowField[] };
   colSpan: number;
   children: ReactNode;
   removeAction?: () => Promise<void>;
@@ -74,12 +80,7 @@ export function PurchaseItemRow({
     }
   }
 
-  return (
-    <>
-      <Tr>
-        {children}
-        {(updateAction || removeAction) && (
-          <Td>
+  const actions = (updateAction || removeAction) && (
             <div className="flex gap-2">
               {updateAction && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
@@ -99,12 +100,8 @@ export function PurchaseItemRow({
                 </form>
               )}
             </div>
-          </Td>
-        )}
-      </Tr>
-      {isEditing && updateAction && (
-        <Tr>
-          <Td colSpan={colSpan} className="bg-neutral-50">
+  );
+  const editForm = (
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
@@ -196,6 +193,38 @@ export function PurchaseItemRow({
                 </Button>
               </div>
             </form>
+  );
+  if (variant === "card" && card) {
+    return (
+      <RowCard
+        title={card.title}
+        subtitle={card.subtitle}
+        fields={card.fields}
+        details={card.details}
+        extra={
+          (actions || (isEditing && updateAction)) && (
+            <div className="flex flex-col gap-2">
+              {actions}
+              {isEditing && updateAction && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
+            </div>
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <>
+      <Tr>
+        {children}
+        {(updateAction || removeAction) && (
+          <Td>{actions}</Td>
+        )}
+      </Tr>
+      {isEditing && updateAction && (
+        <Tr>
+          <Td colSpan={colSpan} className="bg-neutral-50">
+            {editForm}
           </Td>
         </Tr>
       )}

@@ -11,6 +11,7 @@ export const ACCESS = {
   models: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   purchases: ["OWNER", "ADMIN", "PURCHASER"],
   users: ["OWNER", "ADMIN"],
+  supplyPlan: ["OWNER", "ADMIN", "TECHNOLOGIST"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {

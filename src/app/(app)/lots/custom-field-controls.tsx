@@ -83,7 +83,7 @@ function FieldDialog({
               {(Object.keys(FIELD_TYPE_LABELS) as CustomFieldType[]).map((t) => (
                 <label
                   key={t}
-                  className={`flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1.5 text-sm ${type === t ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700"}`}
+                  className={`relative flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1.5 text-sm ${type === t ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700"}`}
                 >
                   <input type="radio" name="ftype" className="sr-only" checked={type === t} onChange={() => setType(t)} />
                   {FIELD_TYPE_LABELS[t]}

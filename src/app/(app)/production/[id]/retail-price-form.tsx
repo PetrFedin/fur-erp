@@ -14,6 +14,13 @@ export function RetailPriceForm({ orderId, retailPrice }: { orderId: string; ret
     <form
       action={(formData) =>
         startTransition(async () => {
+          const raw = String(formData.get("retailPrice") ?? "").replace(/[\s\u00a0]/g, "").replace(",", ".");
+          const n = Number(raw);
+          const msg = raw === "" ? "Введите цену" : !Number.isFinite(n) ? "Цена: укажите число" : n < 0 ? "Цена не может быть отрицательной" : n === 0 ? "Цена должна быть больше 0" : null;
+          if (msg) {
+            setError(msg);
+            return;
+          }
           const result = await bound(formData);
           setError(result.error ?? null);
         })
@@ -26,9 +33,8 @@ export function RetailPriceForm({ orderId, retailPrice }: { orderId: string; ret
       <Input
         id="retailPrice"
         name="retailPrice"
-        type="number"
-        step="0.01"
-        min="0.01"
+        type="text"
+        inputMode="decimal"
         defaultValue={retailPrice}
         className="w-36"
       />

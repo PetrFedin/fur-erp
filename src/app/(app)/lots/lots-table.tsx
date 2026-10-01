@@ -237,6 +237,48 @@ function MobileSummary({ view }: { view: ScopeView }) {
   );
 }
 
+/** Итог аукциона для телефона: список «подпись: значение» вместо таблицы шириной в тысячу пикселей. */
+function TotalsList({ view, fields }: { view: ScopeView; fields: CustomFieldDef[] }) {
+  const t = view.totals;
+  const b = view.breakdown;
+  const single = t.currencies.length === 1 ? t.currencies[0] : null;
+  const q = t.qty;
+  const empty = t.count === 0;
+  const withExp = b.unallocatedIncl !== 0 || b.unallocatedExcl !== 0;
+  const items: { label: string; value: ReactNode }[] = [
+    { label: "Лотов", value: t.count },
+    { label: "Кол-во шкур", value: empty ? "0" : formatQty(q) },
+  ];
+  if (!empty && t.avgPrice != null && single) items.push({ label: "Цена за шк., ср. взвеш.", value: formatCurrency(t.avgPrice, single) });
+  if (!empty && t.rateAvg != null && single) items.push({ label: "Курс, ср. взвеш.", value: rateFmt(t.rateAvg) });
+  if (!empty && q > 0) items.push({ label: "Себестоимость ед., ср. взвеш.", value: <Money incl={t.totalIncl / q} excl={t.totalExcl / q} /> });
+  items.push({ label: "Себестоимость всего", value: empty ? "0" : <Money incl={t.totalIncl} excl={t.totalExcl} /> });
+  items.push({ label: "Остаток на складе", value: t.onStock > 0 ? `${formatQty(t.remaining)} (на складе ${t.onStock} лот.)` : empty ? "—" : "ещё не на складе" });
+  if (t.used > 0) items.push({ label: "Использовано в ТЗ", value: formatQty(t.used) });
+  for (const f of fields) {
+    const c = t.custom[f.id];
+    if (!c || c.n === 0) continue;
+    items.push({
+      label: f.name,
+      value: f.type === "NUMBER" ? `Σ ${formatExtra("NUMBER", c.sum)}` : f.type === "BOOLEAN" ? `Да ${c.yes} / Нет ${c.no}` : `уник. ${c.uniq}`,
+    });
+  }
+  if (withExp) {
+    items.push({ label: "Расходы закупки (не распределены)", value: <Money incl={b.unallocatedIncl} excl={b.unallocatedExcl} /> });
+    items.push({ label: "Всего с расходами закупки", value: <Money incl={b.totalIncl} excl={b.totalExcl} /> });
+  }
+  return (
+    <ul className="flex flex-col divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm md:hidden" data-totals-list>
+      {items.map((it) => (
+        <li key={it.label} className="flex items-baseline justify-between gap-3 py-1.5">
+          <span className="text-neutral-500">{it.label}:</span>
+          <span className="text-right font-medium tabular-nums">{it.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Панель над таблицей: «Фильтр», выбор лотов, «Только выбранные», «Сбросить», «+ Столбец». */
 function LotsControls({ scope }: { scope: string }) {
   const { setFilters, setSelected, canEdit } = useLots();
@@ -328,6 +370,9 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
     <div className="flex flex-col gap-2">
       <LotsControls scope={purchaseId} />
       <div className="flex flex-col gap-2 md:hidden">
+        {rows.length > 0 && rows.every((r) => !r.onStock) && (
+          <p className="text-xs text-neutral-500">Мех по этому счёту ещё не принят на склад — остаток появится после приёмки.</p>
+        )}
         {rows.map((r) => (
           <LotCardView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />
         ))}
@@ -490,6 +535,7 @@ function LotCardView({
   return (
     <RowCard
       className={checked ? "border-blue-300 bg-blue-50/60" : undefined}
+      badge={r.onStock ? undefined : <Badge>не принят</Badge>}
       title={
         <label className="flex cursor-pointer items-start gap-2">
           <input
@@ -516,10 +562,10 @@ function LotCardView({
         { label: "Кол-во", value: `${formatQty(r.qty)} ${r.unit}` },
         { label: "Себестоимость всего", value: <Money incl={r.totalIncl} excl={r.totalExcl} />, strong: true },
         { label: "Себестоимость ед.", value: <Money incl={r.unitIncl} excl={r.unitExcl} /> },
-        {
-          label: "Остаток на складе",
-          value: r.onStock ? (r.remaining === 0 ? <Badge>Израсходован</Badge> : `${formatQty(r.remaining)} ${r.unit}`) : "ещё не на складе",
-        },
+        // Лот ещё не принят на склад: «Остатка на складе» нет вовсе, вместо повтора в каждой карточке — бейдж «не принят».
+        ...(r.onStock
+          ? [{ label: "Остаток на складе", value: r.remaining === 0 ? <Badge>Израсходован</Badge> : `${formatQty(r.remaining)} ${r.unit}` }]
+          : []),
       ]}
       details={[
         { label: "Сорт / размер", value: r.size },
@@ -650,6 +696,8 @@ export function AuctionTotalsPanel() {
         <Legend />
       </div>
       <LotsControls scope={ALL_SCOPE} />
+      <TotalsList view={view} fields={fields} />
+      <div className="hidden md:block">
       <Table>
         <Thead>
           <Tr>
@@ -667,6 +715,7 @@ export function AuctionTotalsPanel() {
         </Thead>
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol />
       </Table>
+      </div>
       <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость аукциона" />
     </section>
   );

@@ -223,8 +223,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
                       title={`Оплаты ведутся по аукциону «${ap.name}» целиком`}
                     >
-                      {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
-                      <span className="block text-xs font-normal text-neutral-400">по аукциону</span>
+                      <span className="block text-xs font-normal text-neutral-400">по аукциону:</span>
+                      оплачено {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
                     </Link>
                   ) : (
                     <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
@@ -256,7 +256,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               className={ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}
             >
               {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
-              <span className="block text-xs text-neutral-400">по аукциону</span>
             </Link>
           ) : (
             <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
@@ -270,7 +269,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               badge={<Badge variant={st.variant}>{st.label}</Badge>}
               fields={[
                 { label: "Сумма", value: <Money incl={total} excl={totalExclVat} />, strong: true },
-                { label: "Оплачено", value: paidView },
+                { label: ap ? "По аукциону: оплачено" : "Оплачено", value: paidView },
                 { label: "Дата", value: formatDate(p.orderDate) },
               ]}
               details={[

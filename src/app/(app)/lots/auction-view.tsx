@@ -418,7 +418,7 @@ export async function AuctionView({
           <details
             key={p.id}
             data-auction-purchase
-            open
+            open={filtering || blocks.length === 1}
             className="group rounded-lg border border-neutral-200 bg-white"
           >
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">

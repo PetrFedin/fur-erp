@@ -41,6 +41,8 @@ export type SupplierDebt = {
   byAuction: SupplierDebtAuction[];
   /** Долг по закупкам вне аукционов (до вычета авансов). */
   nonAuctionDebt: Decimal;
+  /** Сколько закупок (без отменённых) вне аукционов. */
+  nonAuctionPurchases: number;
   /** Часть долга до вычета авансов, приходящаяся на черновики (мех не принят). */
   draftDebt: Decimal;
 };
@@ -62,11 +64,13 @@ export function computeSupplierDebt(
   let dueSum = zero();
   let draftDebt = zero();
   let nonAuctionDebt = zero();
+  let nonAuctionPurchases = 0;
 
   for (const p of purchases) {
     if (p.status === "CANCELLED" || auctionName(p.auctionSession)) continue;
     const t = purchaseTotalInclVat(p);
     total = total.add(t);
+    nonAuctionPurchases += 1;
     const paid = p.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), zero());
     const due = t.sub(paid);
     if (!due.greaterThan(0)) continue;
@@ -101,6 +105,7 @@ export function computeSupplierDebt(
     debt,
     byAuction,
     nonAuctionDebt,
+    nonAuctionPurchases,
     draftDebt,
   };
 }

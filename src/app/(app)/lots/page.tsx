@@ -15,6 +15,7 @@ import { LiningPurchaseForm } from "./lining-purchase-form";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { LazyDetails } from "./lazy-details";
 import { PurchaseSummary } from "./summary-view";
 import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
 
@@ -379,7 +380,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                     return (
                       <Tr key={r.id}>
                         <Td colSpan={5} className="p-0">
-                          <details className="group" open={filtering}>
+                          <LazyDetails className="group" defaultOpen={filtering} summary={
                             <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 md:grid-cols-5 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
                               <span className="col-span-2 font-medium md:col-span-1">
                                 <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
@@ -405,6 +406,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                 <Money incl={r.value} excl={r.valueExclVat} />
                               </span>
                             </summary>
+                          }>
                             <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2">
                               <ResponsiveRows
                                 table={
@@ -591,7 +593,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                               </ResponsiveRows>
                               <p className="mt-1 text-xs text-neutral-400">Цены — за единицу материала.</p>
                             </div>
-                          </details>
+                          </LazyDetails>
                         </Td>
                       </Tr>
                     );
@@ -692,6 +694,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
                             <div>
                               <div className="mb-1 text-xs font-semibold text-neutral-500">Закупки</div>
+                              <ResponsiveRows
+                                table={
                               <Table>
                                 <Thead>
                                   <Tr>
@@ -729,9 +733,34 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                   )}
                                 </Tbody>
                               </Table>
+                                }
+                              >
+                                {rowLots.map((l) => (
+                                  <RowCard
+                                    key={l.id}
+                                    title={
+                                      l.purchase ? (
+                                        <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
+                                          {l.purchase.supplier.name} ({l.purchase.number})
+                                        </Link>
+                                      ) : (
+                                        "—"
+                                      )
+                                    }
+                                    subtitle={formatDate(l.receivedDate)}
+                                    fields={[
+                                      { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} м` },
+                                      { label: "Цена за м", value: <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /> },
+                                    ]}
+                                  />
+                                ))}
+                                {rowLots.length === 0 && <p className="py-3 text-center text-sm text-neutral-400">Эта ткань пока не закупалась</p>}
+                              </ResponsiveRows>
                             </div>
                             <div>
                               <div className="mb-1 text-xs font-semibold text-neutral-500">Использована в ТЗ</div>
+                              <ResponsiveRows
+                                table={
                               <Table>
                                 <Thead>
                                   <Tr>
@@ -759,6 +788,21 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                   )}
                                 </Tbody>
                               </Table>
+                                }
+                              >
+                                {Array.from(perOrder.values()).map((o) => (
+                                  <RowCard
+                                    key={o.id}
+                                    title={
+                                      <Link href={`/production/${o.id}`} className="hover:underline">
+                                        ТЗ {o.number}
+                                      </Link>
+                                    }
+                                    fields={[{ label: "Метров", value: `${formatQty(o.qty.toString())} м` }]}
+                                  />
+                                ))}
+                                {perOrder.size === 0 && <p className="py-3 text-center text-sm text-neutral-400">Пока не использовалась</p>}
+                              </ResponsiveRows>
                             </div>
                           </div>
                         </details>

@@ -60,6 +60,17 @@ export function zNumOpt(label: string, opts: NumOpts = {}) {
   return z.preprocess(normalizeNumberInput, numberSchema(label, opts).optional());
 }
 
+/** Цена изделия (розничная): понятные сообщения для пусто / 0 / отрицательного. */
+export function parsePrice(raw: unknown): { value: number } | { error: string } {
+  const n = normalizeNumberInput(raw);
+  if (n === undefined) return { error: "Введите цену" };
+  if (typeof n !== "number" || !Number.isFinite(n)) return { error: "Цена: укажите число" };
+  if (n < 0) return { error: "Цена не может быть отрицательной" };
+  if (n === 0) return { error: "Цена должна быть больше 0" };
+  const r = zNum("Цена", { max: MAX_MONEY, positive: true }).safeParse(raw);
+  return r.success ? { value: r.data as number } : { error: r.error.issues[0]?.message ?? "Цена: некорректное значение" };
+}
+
 /** Удобный парсер одиночного значения формы. Возвращает число или текст ошибки. */
 export function parseNumber(
   raw: unknown,

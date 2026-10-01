@@ -100,8 +100,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       extra4Excl = extra4Excl.add(mats.extraExcl);
       return s.add(mats.excl.add(orderExpenseCost));
     }, new Decimal(0));
-    const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.add(extra4Incl).div(totalProduced) : null;
-    const avgUnitCostExclVat = totalProduced.greaterThan(0) ? totalCostExclVat.div(totalProduced) : null;
+    const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.add(extra4Incl).div(totalProduced).toDecimalPlaces(2) : null;
+    const avgUnitCostExclVat = totalProduced.greaterThan(0) ? totalCostExclVat.div(totalProduced).toDecimalPlaces(2) : null;
     // Доля 4% в себестоимости модели: по ней пересчитывается себестоимость остатка на складе
     // (у остатка нет своей разбивки по ТЗ). Нет завершённых ТЗ — показываем «без 4%».
     const baseAvg = totalProduced.greaterThan(0) ? totalCost.div(totalProduced) : null;
@@ -111,10 +111,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
 
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
-    const stockValue = modelStocks.reduce(
-      (sum, st) => sum.add(st.quantity.mul(st.avgUnitCost).mul(c4Ratio ?? 1)),
-      new Decimal(0),
-    );
+    // Себестоимость единицы — одно число (с одним округлением до копеек) и в таблице, и в раскрытии, и в стоимости остатка.
+    const unitOf = (st: (typeof modelStocks)[number]) => avgUnitCost ?? st.avgUnitCost.mul(c4Ratio ?? 1).toDecimalPlaces(2);
+    const stockValue = modelStocks.reduce((sum, st) => sum.add(st.quantity.mul(unitOf(st))), new Decimal(0));
     // Excl-VAT стоимость остатка: остаток × средневзвешенная себестоимость без НДС по
     // завершённым ТЗ модели (отдельного снимка нет). Нет данных — берём с НДС.
     const stockValueExclVat = avgUnitCostExclVat ? stockQty.mul(avgUnitCostExclVat) : stockValue;
@@ -133,6 +132,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       stockQty,
       stockValue,
       stockValueExclVat,
+      unitOf,
       modelShipments,
       totalProduced,
       avgUnitCost,
@@ -187,9 +187,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           </Link>
         )}
       </form>
-      <p className="text-xs text-neutral-500">
-        Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.
-      </p>
+      {canCreate && (
+        <p className="text-xs text-neutral-500">
+          Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.
+        </p>
+      )}
       {!q && emptyCount > 0 && (
         <p className="text-sm text-neutral-500">
           {showEmpty ? (
@@ -236,9 +238,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                       r.modelStocks.map((st) => (
                         <div key={st.id}>
                           {st.warehouse.name}: {formatQty(st.quantity.toString())} шт., себестоимость{" "}
-                          <Money incl={st.avgUnitCost.mul(r.c4Ratio ?? 1)} excl={r.avgUnitCostExclVat ?? st.avgUnitCost} />, стоимость остатка{" "}
+                          <Money incl={r.unitOf(st)} excl={r.avgUnitCostExclVat ?? st.avgUnitCost} />, стоимость остатка{" "}
                           <Money
-                            incl={st.quantity.mul(st.avgUnitCost).mul(r.c4Ratio ?? 1)}
+                            incl={st.quantity.mul(r.unitOf(st))}
                             excl={st.quantity.mul(r.avgUnitCostExclVat ?? st.avgUnitCost)}
                           />
                           {r.c4Missing && (
@@ -280,7 +282,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 )}
               </Td>
               <Td>
-                <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} />
+                <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </Td>
               <Td className="font-medium">{r.markup ? `×${r.markup.toFixed(2)}` : "—"}</Td>
               <Td>
@@ -327,7 +329,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             extra={
               <div>
                 <div className="mb-1 text-xs text-neutral-500">Розничная цена</div>
-                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} />
+                <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </div>
             }
             details={[

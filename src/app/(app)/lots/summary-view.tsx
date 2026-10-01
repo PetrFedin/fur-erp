@@ -231,7 +231,7 @@ export async function PurchaseSummary({
     const dq = v.a.qty.sub(grand.qty).abs();
     if (dq.greaterThan(maxDiff)) maxDiff = dq;
   }
-  const converges = maxDiff.lessThan(0.01);
+  const converges = maxDiff.lessThanOrEqualTo(1);
 
   // Независимая проверка: Σ листьев = Σ итогов закупок (purchaseTotalInclVat/ExclVat — как на дашборде и в /payments).
   // При фильтре по сырью берётся часть позиций закупки — сравнивать с итогом закупки нельзя.
@@ -242,6 +242,8 @@ export async function PurchaseSummary({
   }, new Decimal(0));
   const independentDiff = g0.full.sub(independent).abs();
   const independentOk = independentDiff.lessThanOrEqualTo(1);
+  // Расхождение в копейках (до 1 ₽) — округление, итоги считаем сошедшимися, но говорим об этом прямо.
+  const roundingOnly = maxDiff.greaterThanOrEqualTo(0.005) || (!materialF && independentDiff.greaterThanOrEqualTo(0.005));
 
   const draftFull = leaves.filter((l) => l.draft).reduce((s, l) => s.add(mode === "excl" ? l.full.excl : l.full.incl), new Decimal(0));
   const draftCount = leaves.filter((l) => l.draft).length;
@@ -413,7 +415,7 @@ export async function PurchaseSummary({
           {converges && (materialF || independentOk) ? (
             <details className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <summary className="cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
-                <span aria-hidden>✓ </span>Итоги по годам, аукционам и типам сырья сходятся
+                <span aria-hidden>✓ </span>Итоги по годам, аукционам и типам сырья сходятся{roundingOnly ? " (в пределах округления 1 ₽)" : ""}
                 <span className="ml-2 text-xs font-normal text-emerald-700 underline">как проверено</span>
               </summary>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">

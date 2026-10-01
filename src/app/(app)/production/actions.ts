@@ -12,7 +12,7 @@ import type { Prisma } from "@prisma/client";
 import { PRODUCTION_EDIT_ROLES as EDIT_ROLES } from "@/lib/production-access";
 import { parseLotLines } from "@/lib/lot-lines";
 import { checkOrgRefs } from "@/lib/org-guard";
-import { MAX_QTY, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
+import { MAX_QTY, parsePrice, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 import { defaultCommission4 } from "@/lib/commission4-const";
 
 const optDate = (label: string) =>
@@ -448,9 +448,7 @@ export async function updateRetailPrice(orderId: string, formData: FormData): Pr
   const session = await requireRole(...EDIT_ROLES);
   // Empty must not become 0 (z.coerce turns "" into 0) and 0 must never
   // overwrite the article's sellingPrice: both are rejected explicitly.
-  const rawPrice = formData.get("retailPrice");
-  if (typeof rawPrice !== "string" || !rawPrice.trim()) return { error: "Введите розничную цену" };
-  const priceRes = parseNumber(rawPrice, "Розничная цена", { positive: true });
+  const priceRes = parsePrice(formData.get("retailPrice"));
   if ("error" in priceRes) return { error: priceRes.error };
   const price = priceRes.value;
 

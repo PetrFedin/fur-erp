@@ -10,6 +10,7 @@ import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils"
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
@@ -222,6 +223,162 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const expensePerUnit = singleUnit && totalQty.greaterThan(0) ? expensesTotalInclVat.div(totalQty) : null;
   const expensePct = itemsInclVatRub.greaterThan(0) ? expensesTotalInclVat.div(itemsInclVatRub).mul(100) : null;
 
+  const itemRow = (item: (typeof purchase.items)[number], variant: "row" | "card") => {
+                  const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
+                  const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
+                  const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
+                  // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
+                  const itemPlan = item.costPlan != null;
+                  const canEditFinancials = canEditRole && !itemPlan && (editable || (!!item.lot && !consumed));
+                  const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
+                  const planInfo = itemPlan
+                    ? (() => {
+                        const plan = item.costPlan as unknown as {
+                          manualEditedAt?: string;
+                          unitCostInclVat: string;
+                          materialExclVat: string;
+                          expenseExclVat: string;
+                          costBreakdown: never;
+                        };
+                        return {
+                          plan,
+                          excl: new Decimal(plan.materialExclVat).add(plan.expenseExclVat),
+                          total: new Decimal(plan.unitCostInclVat).mul(item.quantity),
+                        };
+                      })()
+                    : null;
+                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
+                  const unitNode = planInfo ? (
+                    <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
+                  ) : null;
+                  const totalNode = planInfo ? (
+                    <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
+                  ) : (
+                    <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                  );
+                  const card = {
+                    title: item.rawMaterial.name,
+                    subtitle: [item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера", [item.grade, item.color].filter(Boolean).join(" / ")].filter(Boolean).join(" · "),
+                    fields: [
+                      { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
+                      { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
+                      { label: "НДС", value: `${item.vatRate.toString()}%` },
+                      ...(hasPlan ? [{ label: "Себестоимость ед.", value: unitNode ?? "—" }] : []),
+                      { label: hasPlan ? "Всего" : `Сумма${isForeignCurrency ? " (RUB)" : ""}`, value: totalNode, strong: true },
+                    ],
+                    details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
+                  };
+                  return (
+                    <PurchaseItemRow
+                      key={item.id}
+                      variant={variant}
+                      card={variant === "card" ? card : undefined}
+                      colSpan={itemColSpan}
+                      removeAction={
+                        editable
+                          ? async () => {
+                              "use server";
+                              await boundRemoveItem(item.id);
+                            }
+                          : undefined
+                      }
+                      updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
+                      canEditFinancials={canEditFinancials}
+                      lockedNote={
+                        itemPlan
+                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в строке позиции. Здесь доступны только лот, сорт и цвет."
+                          : item.lot && consumed
+                          ? orders && orders.length > 0
+                            ? `${lotName} уже списан в ТЗ (${orders
+                                .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
+                                .join(", ")}). Сначала удалите там списание. Доступны только лот, сорт и цвет:`
+                            : `${lotName} уже частично израсходован (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
+                          : undefined
+                      }
+                      lockedOrders={orders}
+                      canEditMaterial={editable}
+                      materials={allMaterials}
+                      currency={purchase.currency}
+                      defaults={{
+                        rawMaterialId: item.rawMaterialId,
+                        rawMaterialName: item.rawMaterial.name,
+                        quantity: item.quantity.toString(),
+                        unitPrice: item.unitPrice.toString(),
+                        vatRate: item.vatRate.toString(),
+                        lotNumber: item.lotNumber ?? "",
+                        grade: item.grade ?? "",
+                        color: item.color ?? "",
+                      }}
+                    >
+                      <Td>{item.rawMaterial.name}</Td>
+                      <Td>{item.lotNumber ?? "—"}</Td>
+                      {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
+                      <Td>
+                        {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
+                      </Td>
+                      <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
+                      <Td>{item.vatRate.toString()}%</Td>
+                      {planInfo ? (
+                        <>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
+                            <CostBreakdownToggle
+                              breakdown={planInfo.plan.costBreakdown}
+                              unitCostExcl={planInfo.excl.toString()}
+                              unitCostIncl={planInfo.plan.unitCostInclVat}
+                            />
+                            {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
+                              <div className="text-xs font-normal text-amber-700">
+                                изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
+                              </div>
+                            )}
+                          </Td>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
+                            {canEditPlan && (
+                              <div className="mt-1">
+                                <CostPlanItemEditor
+                                  purchaseId={id}
+                                  currencySymbol={currencySym}
+                                  item={{
+                                    id: item.id,
+                                    lotNumber: item.lotNumber,
+                                    ...deriveCostPlanInputs(item.costPlan, {
+                                      quantity: Number(item.quantity.toString()),
+                                      price: Number(item.unitPrice.toString()),
+                                      rate: Number(purchase.exchangeRate.toString()),
+                                      vat: Number(item.vatRate.toString()),
+                                    }),
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </Td>
+                        </>
+                      ) : hasPlan ? (
+                        <>
+                          <Td className="text-neutral-400">—</Td>
+                          <Td className="whitespace-nowrap">
+                            <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                          </Td>
+                        </>
+                      ) : (
+                        <Td>
+                          <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                          {isForeignCurrency && (
+                            <span className="ml-1 text-xs text-neutral-400">
+                              ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
+                            </span>
+                          )}
+                        </Td>
+                      )}
+                      {customFields.map((f) => (
+                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "—"}</Td>
+                      ))}
+                    </PurchaseItemRow>
+                  );
+  };
+
   return (
     <div className="flex max-w-4xl flex-col gap-4">
       <div className="flex items-start justify-between">
@@ -359,6 +516,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 ? `Список позиций (${purchase.items.length})`
                 : "Список позиций"}
             </summary>
+            <ResponsiveRows
+              table={
             <Table>
               <Thead>
                 <Tr>
@@ -387,139 +546,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 </Tr>
               </Thead>
               <Tbody>
-                {purchase.items.map((item) => {
-                  const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
-                  const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
-                  const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
-                  // Позиция с расчётом из расчётного листа: цена/кол-во/НДС не правятся никогда.
-                  const itemPlan = item.costPlan != null;
-                  const canEditFinancials = canEditRole && !itemPlan && (editable || (!!item.lot && !consumed));
-                  const orders = item.lot ? ordersByLot.get(item.lot.id) : undefined;
-                  const planInfo = itemPlan
-                    ? (() => {
-                        const plan = item.costPlan as unknown as {
-                          manualEditedAt?: string;
-                          unitCostInclVat: string;
-                          materialExclVat: string;
-                          expenseExclVat: string;
-                          costBreakdown: never;
-                        };
-                        return {
-                          plan,
-                          excl: new Decimal(plan.materialExclVat).add(plan.expenseExclVat),
-                          total: new Decimal(plan.unitCostInclVat).mul(item.quantity),
-                        };
-                      })()
-                    : null;
-                  const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
-                  return (
-                    <PurchaseItemRow
-                      key={item.id}
-                      colSpan={itemColSpan}
-                      removeAction={
-                        editable
-                          ? async () => {
-                              "use server";
-                              await boundRemoveItem(item.id);
-                            }
-                          : undefined
-                      }
-                      updateAction={itemsMutable ? boundUpdateItem.bind(null, item.id) : undefined}
-                      canEditFinancials={canEditFinancials}
-                      lockedNote={
-                        itemPlan
-                          ? "Цена и количество взяты из расчётного листа — меняйте их кнопкой «Править расчёт» в строке позиции. Здесь доступны только лот, сорт и цвет."
-                          : item.lot && consumed
-                          ? orders && orders.length > 0
-                            ? `${lotName} уже списан в ТЗ (${orders
-                                .map((o) => `${o.number}: ${formatQty(o.quantity)} ${UNIT_LABELS[item.rawMaterial.unit]}`)
-                                .join(", ")}). Сначала удалите там списание. Доступны только лот, сорт и цвет:`
-                            : `${lotName} уже частично израсходован (${formatQty(item.lot.quantityReceived.sub(item.lot.quantityRemaining).toString())} ${UNIT_LABELS[item.rawMaterial.unit]}) — доступны только лот, сорт и цвет`
-                          : undefined
-                      }
-                      lockedOrders={orders}
-                      canEditMaterial={editable}
-                      materials={allMaterials}
-                      currency={purchase.currency}
-                      defaults={{
-                        rawMaterialId: item.rawMaterialId,
-                        rawMaterialName: item.rawMaterial.name,
-                        quantity: item.quantity.toString(),
-                        unitPrice: item.unitPrice.toString(),
-                        vatRate: item.vatRate.toString(),
-                        lotNumber: item.lotNumber ?? "",
-                        grade: item.grade ?? "",
-                        color: item.color ?? "",
-                      }}
-                    >
-                      <Td>{item.rawMaterial.name}</Td>
-                      <Td>{item.lotNumber ?? "—"}</Td>
-                      {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
-                      <Td>
-                        {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
-                      </Td>
-                      <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                      <Td>{item.vatRate.toString()}%</Td>
-                      {planInfo ? (
-                        <>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
-                            <CostBreakdownToggle
-                              breakdown={planInfo.plan.costBreakdown}
-                              unitCostExcl={planInfo.excl.toString()}
-                              unitCostIncl={planInfo.plan.unitCostInclVat}
-                            />
-                            {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
-                              <div className="text-xs font-normal text-amber-700">
-                                изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
-                              </div>
-                            )}
-                          </Td>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
-                            {canEditPlan && (
-                              <div className="mt-1">
-                                <CostPlanItemEditor
-                                  purchaseId={id}
-                                  currencySymbol={currencySym}
-                                  item={{
-                                    id: item.id,
-                                    lotNumber: item.lotNumber,
-                                    ...deriveCostPlanInputs(item.costPlan, {
-                                      quantity: Number(item.quantity.toString()),
-                                      price: Number(item.unitPrice.toString()),
-                                      rate: Number(purchase.exchangeRate.toString()),
-                                      vat: Number(item.vatRate.toString()),
-                                    }),
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </Td>
-                        </>
-                      ) : hasPlan ? (
-                        <>
-                          <Td className="text-neutral-400">—</Td>
-                          <Td className="whitespace-nowrap">
-                            <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                          </Td>
-                        </>
-                      ) : (
-                        <Td>
-                          <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
-                          {isForeignCurrency && (
-                            <span className="ml-1 text-xs text-neutral-400">
-                              ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
-                            </span>
-                          )}
-                        </Td>
-                      )}
-                      {customFields.map((f) => (
-                        <Td key={f.id}>{formatExtra(f.type, readExtra(item.extra)[f.id]) || "—"}</Td>
-                      ))}
-                    </PurchaseItemRow>
-                  );
-                })}
+                {purchase.items.map((item) => itemRow(item, "row"))}
                 {purchase.items.length === 0 && (
                   <Tr>
                     <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
@@ -529,6 +556,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 )}
               </Tbody>
             </Table>
+              }
+            >
+              {purchase.items.map((item) => itemRow(item, "card"))}
+              {purchase.items.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Позиций пока нет</p>}
+            </ResponsiveRows>
           </details>
           {purchase.items.length > EXPANDED_ITEMS_LIMIT && (
             <p className="text-right text-sm font-medium">
@@ -629,6 +661,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <CardContent className="flex flex-col gap-4">
           {editable && <PurchaseExpenseForm purchaseId={id} categories={expenseCategories} />}
           {purchase.expenses.length > 0 && (
+            <ResponsiveRows
+              table={
             <Table>
               <Thead>
                 <Tr>
@@ -668,6 +702,35 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 ))}
               </Tbody>
             </Table>
+              }
+            >
+              {purchase.expenses.map((e) => (
+                <RowCard
+                  key={e.id}
+                  title={e.category.name}
+                  subtitle={e.description}
+                  fields={[
+                    { label: "Сумма (без НДС)", value: formatMoney(e.amount.toString()) },
+                    { label: "НДС", value: `${e.vatRate.toString()}%` },
+                    { label: "Сумма", value: <Money incl={grossUp(e.amount, e.vatRate)} excl={e.amount} />, strong: true },
+                  ]}
+                  extra={
+                    editable && (
+                      <form
+                        action={async () => {
+                          "use server";
+                          await boundRemoveExpense(e.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Удалить
+                        </Button>
+                      </form>
+                    )
+                  }
+                />
+              ))}
+            </ResponsiveRows>
           )}
           {purchase.expenses.length === 0 && <p className="text-sm text-neutral-400">Расходов нет</p>}
           {purchase.expenses.length > 0 && expensesTotalInclVat.greaterThan(0) && (
@@ -697,6 +760,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           ) : !canEditRole ? null : (
             <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
           )}
+          <ResponsiveRows
+            table={
           <Table>
             <Thead>
               <Tr>
@@ -727,6 +792,22 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               )}
             </Tbody>
           </Table>
+            }
+          >
+            {purchase.payments.map((p) => (
+              <RowCard
+                key={p.id}
+                title={formatMoney(p.amount.toString())}
+                subtitle={formatDate(p.paidAt)}
+                badge={p.status === "PENDING" ? <span className="text-xs text-amber-600">запланирована</span> : undefined}
+                fields={[
+                  { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
+                  ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
+                ]}
+              />
+            ))}
+            {purchase.payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Оплат пока нет</p>}
+          </ResponsiveRows>
         </CardContent>
       </Card>
     </div>

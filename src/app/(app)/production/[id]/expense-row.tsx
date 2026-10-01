@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Tr, Td } from "@/components/ui/table";
+import { RowCard } from "@/components/responsive-rows";
 import { formatMoney } from "@/lib/utils";
 import type { FormState } from "../actions";
 import type { ExpenseCategory } from "@prisma/client";
@@ -16,6 +17,7 @@ export function ExpenseRow({
   updateAction,
   removeAction,
   readOnly = false,
+  variant = "row",
 }: {
   expense: { id: string; categoryId: string; categoryName: string; amount: string; description: string | null };
   categories: ExpenseCategory[];
@@ -23,6 +25,8 @@ export function ExpenseRow({
   removeAction: () => Promise<void>;
   /** No edit rights: hide the change/remove buttons. */
   readOnly?: boolean;
+  /** «card» — карточка для телефона вместо строки таблицы. */
+  variant?: "row" | "card";
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -39,16 +43,8 @@ export function ExpenseRow({
     }
   }
 
-  return (
-    <>
-      <Tr>
-        <Td colSpan={5}>
-          {expense.categoryName}
-          {expense.description && <span className="text-neutral-500"> — {expense.description}</span>}
-        </Td>
-        <Td className="text-right font-medium">{formatMoney(expense.amount)}</Td>
-        <Td>
-          {!readOnly && <div className="flex gap-2">
+  const actions = !readOnly && (
+          <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
               {isEditing ? "Закрыть" : "Изменить"}
             </Button>
@@ -62,12 +58,9 @@ export function ExpenseRow({
                 Удалить
               </Button>
             </form>
-          </div>}
-        </Td>
-      </Tr>
-      {isEditing && !readOnly && (
-        <Tr>
-          <Td colSpan={7} className="bg-neutral-50">
+          </div>
+  );
+  const editForm = (
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
@@ -98,6 +91,41 @@ export function ExpenseRow({
                 </Button>
               </div>
             </form>
+  );
+  if (variant === "card") {
+    return (
+      <RowCard
+        title={expense.categoryName}
+        subtitle={expense.description}
+        fields={[{ label: "Сумма", value: formatMoney(expense.amount), strong: true }]}
+        extra={
+          !readOnly && (
+            <div className="flex flex-col gap-2">
+              {actions}
+              {isEditing && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
+            </div>
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <>
+      <Tr>
+        <Td colSpan={5}>
+          {expense.categoryName}
+          {expense.description && <span className="text-neutral-500"> — {expense.description}</span>}
+        </Td>
+        <Td className="text-right font-medium">{formatMoney(expense.amount)}</Td>
+        <Td>
+          {actions}
+        </Td>
+      </Tr>
+      {isEditing && !readOnly && (
+        <Tr>
+          <Td colSpan={7} className="bg-neutral-50">
+            {editForm}
           </Td>
         </Tr>
       )}

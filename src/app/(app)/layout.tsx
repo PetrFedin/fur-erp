@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             userName={session.user.name}
             role={session.user.role}
           />
-          <main className="flex-1 overflow-y-auto p-3 md:p-6">{children}</main>
+          <main className="relative flex-1 overflow-y-auto p-3 md:p-6">{children}</main>
         </div>
       </div>
     </Commission4DisplayProvider>

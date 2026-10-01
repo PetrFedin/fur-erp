@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatQty, formatDate } from "@/lib/utils";
@@ -16,8 +17,19 @@ function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function EntryReadOnly({ status, eventDate, notes }: { status: SupplyPlanStatusValue; eventDate: Date | null; notes: string | null }) {
+  return (
+    <div className="text-xs text-neutral-600">
+      {STATUS_LABELS[status]}
+      {eventDate ? `, ${formatDate(eventDate)}` : ""}
+      {notes ? ` — ${notes}` : ""}
+    </div>
+  );
+}
+
 export default async function SupplyPlanPage() {
   const session = await requireSession();
+  const canEdit = hasRole(session.user.role, ACCESS.supplyPlan);
   const organizationId = session.user.organizationId;
 
   const [entries, allModels] = await Promise.all([
@@ -84,14 +96,16 @@ export default async function SupplyPlanPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Добавить запись в план</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddSupplyPlanForm models={allModels} />
-        </CardContent>
-      </Card>
+      {canEdit && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Добавить запись в план</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AddSupplyPlanForm models={allModels} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -122,13 +136,17 @@ export default async function SupplyPlanPage() {
                   {e.productModel.name} — {MONTH_NAMES[new Date(e.month).getMonth()]} {new Date(e.month).getFullYear()},{" "}
                   {formatQty(e.quantity.toString())} шт.
                 </span>
-                <EntryRowForm
-                  entryId={e.id}
-                  status={e.status as SupplyPlanStatusValue}
-                  quantity={e.quantity.toString()}
-                  eventDate={e.eventDate ? new Date(e.eventDate).toISOString().slice(0, 10) : ""}
-                  notes={e.notes ?? ""}
-                />
+                {canEdit ? (
+                  <EntryRowForm
+                    entryId={e.id}
+                    status={e.status as SupplyPlanStatusValue}
+                    quantity={e.quantity.toString()}
+                    eventDate={e.eventDate ? new Date(e.eventDate).toISOString().slice(0, 10) : ""}
+                    notes={e.notes ?? ""}
+                  />
+                ) : (
+                  <EntryReadOnly status={e.status as SupplyPlanStatusValue} eventDate={e.eventDate} notes={e.notes} />
+                )}
               </div>
             ))}
           </CardContent>
@@ -166,13 +184,17 @@ export default async function SupplyPlanPage() {
                               </Badge>
                               {e.eventDate && <span>{formatDate(e.eventDate)}</span>}
                             </div>
-                            <EntryRowForm
-                              entryId={e.id}
-                              status={e.status as SupplyPlanStatusValue}
-                              quantity={e.quantity.toString()}
-                              eventDate={e.eventDate ? new Date(e.eventDate).toISOString().slice(0, 10) : ""}
-                              notes={e.notes ?? ""}
-                            />
+                            {canEdit ? (
+                              <EntryRowForm
+                                entryId={e.id}
+                                status={e.status as SupplyPlanStatusValue}
+                                quantity={e.quantity.toString()}
+                                eventDate={e.eventDate ? new Date(e.eventDate).toISOString().slice(0, 10) : ""}
+                                notes={e.notes ?? ""}
+                              />
+                            ) : (
+                              <EntryReadOnly status={e.status as SupplyPlanStatusValue} eventDate={null} notes={e.notes} />
+                            )}
                           </div>
                         ))}
                       </div>
@@ -184,7 +206,7 @@ export default async function SupplyPlanPage() {
             {rowList.length === 0 && (
               <tr>
                 <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-400">
-                  План пуст — добавьте первую запись выше
+                  План пуст{canEdit ? " — добавьте первую запись выше" : ""}
                 </td>
               </tr>
             )}

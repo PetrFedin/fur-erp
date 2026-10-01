@@ -88,7 +88,7 @@ const smallBtn =
 function FilePicker({ d, label, onError }: { d: DriveDocView; label: string; onError: (m: string | null) => void }) {
   const [pending, start] = useTransition();
   return (
-    <label className={`${smallBtn} ${pending ? "opacity-50" : ""}`}>
+    <label className={`relative overflow-hidden ${smallBtn} ${pending ? "opacity-50" : ""}`}>
       {pending ? "Загружаем…" : label}
       <input
         type="file"

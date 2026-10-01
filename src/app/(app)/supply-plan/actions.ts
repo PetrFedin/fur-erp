@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { zNum, parseDateInput } from "@/lib/input";
+import { ACCESS } from "@/lib/access";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"] as const;
+const EDIT_ROLES = ACCESS.supplyPlan;
 
 const STATUS_VALUES = ["PLANNED", "LAUNCHED", "WITH_FURRIER", "WITH_TAILOR", "PRODUCED", "CANCELLED"] as const;
 

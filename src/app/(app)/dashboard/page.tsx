@@ -11,6 +11,7 @@ import { InclVatOnlyLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { CompactMoney } from "./compact-money";
 import { formatCompactMoney } from "./compact";
 import { computeAttention, countAttention } from "@/lib/attention";
@@ -299,47 +300,79 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <CardTitle>Сырьё по материалам</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Материал</Th>
-                <Th>Куплено</Th>
-                <Th>Использовано</Th>
-                <Th>Остаток</Th>
-                <Th>Стоимость остатка</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {[...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])].map((r) => (
-                <Tr key={r.key}>
-                  <Td className="font-medium">
-                    <Link href={r.href} className="hover:underline">
-                      {r.name}
-                    </Link>
-                  </Td>
-                  <Td>
-                    {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td>
-                    {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
-                    {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
-                  </Td>
-                  <Td>
-                    <Money incl={r.remainingValue} excl={r.remainingValueExclVat} />
-                  </Td>
-                </Tr>
-              ))}
-              {furRows.length === 0 && !liningRow && (
+          {(() => {
+            const matRows = [...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])];
+            const emptyText = "Сырьё ещё не закупалось";
+            return (
+              <ResponsiveRows
+                table={
+            <Table>
+              <Thead>
                 <Tr>
-                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                    Сырьё ещё не закупалось
-                  </Td>
+                  <Th>Материал</Th>
+                  <Th>Куплено</Th>
+                  <Th>Использовано</Th>
+                  <Th>Остаток</Th>
+                  <Th>Стоимость остатка</Th>
                 </Tr>
-              )}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {[...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])].map((r) => (
+                  <Tr key={r.key}>
+                    <Td className="font-medium">
+                      <Link href={r.href} className="hover:underline">
+                        {r.name}
+                      </Link>
+                    </Td>
+                    <Td>
+                      {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
+                    </Td>
+                    <Td>
+                      {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
+                    </Td>
+                    <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
+                      {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
+                    </Td>
+                    <Td>
+                      <Money incl={r.remainingValue} excl={r.remainingValueExclVat} />
+                    </Td>
+                  </Tr>
+                ))}
+                {furRows.length === 0 && !liningRow && (
+                  <Tr>
+                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                      Сырьё ещё не закупалось
+                    </Td>
+                  </Tr>
+                )}
+              </Tbody>
+            </Table>
+                }
+              >
+                {matRows.map((r) => (
+                  <RowCard
+                    key={r.key}
+                    title={r.name}
+                    href={r.href}
+                    fields={[
+                      { label: "Куплено", value: `${formatQty(r.purchased.toString())} ${UNIT_LABELS[r.unit]}` },
+                      { label: "Использовано", value: `${formatQty(r.purchased.sub(r.remaining).toString())} ${UNIT_LABELS[r.unit]}` },
+                      {
+                        label: "Остаток",
+                        value: (
+                          <span className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
+                            {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
+                          </span>
+                        ),
+                      },
+                      { label: "Стоимость остатка", value: <Money incl={r.remainingValue} excl={r.remainingValueExclVat} /> },
+                    ]}
+                  />
+                ))}
+                {matRows.length === 0 && <p className="py-6 text-center text-neutral-400">{emptyText}</p>}
+              </ResponsiveRows>
+            );
+          })()}
           <p className="mt-3 text-sm">
             <Link href="/lots" className="text-neutral-600 hover:underline">
               Все материалы → Сырьё

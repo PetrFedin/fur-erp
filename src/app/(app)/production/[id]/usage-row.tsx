@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Tr, Td } from "@/components/ui/table";
+import { RowCard } from "@/components/responsive-rows";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
@@ -43,6 +44,7 @@ export function UsageRow({
   updateAction,
   removeAction,
   readOnly = false,
+  variant = "row",
 }: {
   usage: {
     id: string;
@@ -69,6 +71,8 @@ export function UsageRow({
   removeAction: () => Promise<void>;
   /** No edit rights: hide the change/remove buttons. */
   readOnly?: boolean;
+  /** «card» — карточка для телефона вместо строки таблицы. */
+  variant?: "row" | "card";
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -87,33 +91,8 @@ export function UsageRow({
     }
   }
 
-  return (
-    <>
-      <Tr>
-        <Td title={`Списано ${formatDate(usage.date)}`}>{usage.lotNumber ?? "без номера"}</Td>
-        <Td>{usage.rawMaterialName}</Td>
-        <Td>
-          {formatQty(usage.quantity)} {UNIT_LABELS[usage.unit] ?? usage.unit}
-        </Td>
-        <Td>{formatMoney(usage.lotCostExclVat)}</Td>
-        <Td>{usage.lotVatRate}%</Td>
-        <Td className="text-right font-medium">
-          <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
-          {usage.c4Mode === "on" && !usage.commission4 && (
-            <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-400" title="4% к этому списанию не применяется">
-              без 4%
-            </span>
-          )}
-          {usage.costBreakdown != null && (
-            <CostBreakdownToggle
-              breakdown={usage.costBreakdown as never}
-              unitCostExcl={usage.lotUnitCostExcl}
-              unitCostIncl={usage.lotUnitCostIncl}
-            />
-          )}
-        </Td>
-        <Td>
-          {!readOnly && <div className="flex gap-2">
+  const actions = !readOnly && (
+          <div className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
               {isEditing ? "Закрыть" : "Изменить"}
             </Button>
@@ -128,12 +107,9 @@ export function UsageRow({
                 Удалить
               </Button>
             </form>
-          </div>}
-        </Td>
-      </Tr>
-      {isEditing && !readOnly && (
-        <Tr>
-          <Td colSpan={7} className="bg-neutral-50">
+          </div>
+  );
+  const editForm = (
             <form
               action={formAction}
               onSubmit={() => setSubmitted(true)}
@@ -169,6 +145,75 @@ export function UsageRow({
                 </Button>
               </div>
             </form>
+  );
+  if (variant === "card") {
+    return (
+      <RowCard
+        title={`${usage.rawMaterialName} · лот ${usage.lotNumber ?? "без номера"}`}
+        subtitle={`Списано ${formatDate(usage.date)}`}
+        fields={[
+          { label: "Кол-во", value: `${formatQty(usage.quantity)} ${UNIT_LABELS[usage.unit] ?? usage.unit}` },
+          { label: "Цена за ед. без НДС", value: formatMoney(usage.lotCostExclVat) },
+          { label: "НДС", value: `${usage.lotVatRate}%` },
+          {
+            label: "Сумма с НДС",
+            strong: true,
+            value: (
+              <>
+                <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
+                {usage.c4Mode === "on" && !usage.commission4 && <span className="ml-1 text-xs font-normal text-neutral-400">без 4%</span>}
+                {usage.costBreakdown != null && (
+                  <CostBreakdownToggle breakdown={usage.costBreakdown as never} unitCostExcl={usage.lotUnitCostExcl} unitCostIncl={usage.lotUnitCostIncl} />
+                )}
+              </>
+            ),
+          },
+        ]}
+        extra={
+          !readOnly && (
+            <div className="flex flex-col gap-2">
+              {actions}
+              {isEditing && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
+            </div>
+          )
+        }
+      />
+    );
+  }
+
+  return (
+    <>
+      <Tr>
+        <Td title={`Списано ${formatDate(usage.date)}`}>{usage.lotNumber ?? "без номера"}</Td>
+        <Td>{usage.rawMaterialName}</Td>
+        <Td>
+          {formatQty(usage.quantity)} {UNIT_LABELS[usage.unit] ?? usage.unit}
+        </Td>
+        <Td>{formatMoney(usage.lotCostExclVat)}</Td>
+        <Td>{usage.lotVatRate}%</Td>
+        <Td className="text-right font-medium">
+          <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
+          {usage.c4Mode === "on" && !usage.commission4 && (
+            <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-400" title="4% к этому списанию не применяется">
+              без 4%
+            </span>
+          )}
+          {usage.costBreakdown != null && (
+            <CostBreakdownToggle
+              breakdown={usage.costBreakdown as never}
+              unitCostExcl={usage.lotUnitCostExcl}
+              unitCostIncl={usage.lotUnitCostIncl}
+            />
+          )}
+        </Td>
+        <Td>
+          {actions}
+        </Td>
+      </Tr>
+      {isEditing && !readOnly && (
+        <Tr>
+          <Td colSpan={7} className="bg-neutral-50">
+            {editForm}
           </Td>
         </Tr>
       )}

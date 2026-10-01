@@ -267,13 +267,20 @@ export default async function PaymentsPage({
   const sumTotal = svcTotal.add(noAucTotal);
   const sumPaid = svcPaid.add(noAucPaid);
   const sumRemaining = svcRemaining.add(noAucDebt);
+  // «Оплачено» в шапке — без переплат (они не гасят чужой долг), а в столбце таблицы переплата видна: подписываем разницу.
+  const overpaidList = auctions.filter((a) => a.remaining.lessThan(PAY_EPS.neg()));
+  const overpaidSum = overpaidList.reduce((acc, a) => acc.add(a.remaining.neg()), zeroD);
+  const overpaidNote = overpaidList.length > 0
+    ? `в т.ч. переплата ${overpaidList.map((a) => shortAuctionName(a.name)).join(", ")} ${formatMoney(overpaidSum.toString())}`
+    : undefined;
   const showServiceSum = !listQ && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS)) && (!onlyRest || sumRemaining.greaterThan(PAY_EPS));
+  const svcPurchases = svcAll.reduce((n, a) => n + a.purchases, 0) + (debt ? debt.nonAuctionPurchases : 0);
   const serviceSumRow = (
     <Tr key="__service_sum">
       <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Служебные записи импорта и закупки без аукциона, все вместе">
         Без аукциона (служебные записи)
       </Td>
-      <Td className="text-right">{svcAll.reduce((n, a) => n + a.purchases, 0)}</Td>
+      <Td className="text-right">{svcPurchases}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumPaid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
@@ -315,7 +322,7 @@ export default async function PaymentsPage({
         { label: "Стоимость", value: formatMoney(sumTotal.toString()) },
         { label: "Оплачено", value: formatMoney(sumPaid.toString()) },
       ]}
-      details={[{ label: "Закупок", value: svcAll.reduce((n, a) => n + a.purchases, 0) }]}
+      details={[{ label: "Закупок", value: svcPurchases }]}
     />
   );
   const auctionsTable = (list: typeof auctions, extraRow?: React.ReactNode) => (
@@ -335,6 +342,27 @@ export default async function PaymentsPage({
         </Tr>
       </Thead>
       <Tbody>{list.map(renderAuction)}{extraRow}</Tbody>
+      {(list.length > 0 || extraRow) && (() => {
+        const tCount = list.reduce((n, a) => n + a.purchases, 0) + (extraRow ? svcPurchases : 0);
+        const tTotal = list.reduce((acc, a) => acc.add(a.total), zeroD).add(extraRow ? sumTotal : zeroD);
+        const tPaid = list.reduce((acc, a) => acc.add(a.paid), zeroD).add(extraRow ? sumPaid : zeroD);
+        const tPlanned = list.reduce((acc, a) => acc.add(a.planned), zeroD);
+        const tRem = list.reduce((acc, a) => acc.add(a.remaining), zeroD).add(extraRow ? sumRemaining : zeroD);
+        return (
+          <tfoot className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold" data-payments-total>
+            <tr>
+              <Td>Итого</Td>
+              <Td className="text-right">{tCount}</Td>
+              <Td className="whitespace-nowrap text-right">{formatMoney(tTotal.toString())}</Td>
+              <Td className="whitespace-nowrap text-right">{formatMoney(tPaid.toString())}</Td>
+              {anyPlanned && <Td className="whitespace-nowrap text-right">{tPlanned.greaterThan(PAY_EPS) ? formatMoney(tPlanned.toString()) : "—"}</Td>}
+              <Td className={"whitespace-nowrap text-right " + (tRem.greaterThan(0.005) ? "text-amber-600" : "")}>{fmtRemaining(tRem)}</Td>
+              <Td></Td>
+              <Td></Td>
+            </tr>
+          </tfoot>
+        );
+      })()}
     </Table>
       }
     >
@@ -495,7 +523,11 @@ export default async function PaymentsPage({
           {debt && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
               <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
-              <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
+              <Stat
+                label="Оплачено"
+                value={formatMoney(debt.paid.toString())}
+                note={overpaidNote}
+              />
               {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
               {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
               <Stat

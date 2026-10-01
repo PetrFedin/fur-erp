@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
-import { zNum, zNumOpt, MAX_MONEY, MAX_QTY, isUniqueViolation } from "@/lib/input";
+import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation } from "@/lib/input";
 
 const EDIT_ROLES = ACCESS.models;
 
@@ -83,9 +83,9 @@ export async function updateModel(
 // production/actions.ts's updateRetailPrice.
 export async function updateSellingPrice(modelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const parsed = zNum("Цена продажи", { max: MAX_MONEY }).safeParse(formData.get("sellingPrice"));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Некорректная цена" };
-  const price = parsed.data as number;
+  const parsed = parsePrice(formData.get("sellingPrice"));
+  if ("error" in parsed) return { error: parsed.error };
+  const price = parsed.value;
 
   const model = await prisma.productModel.findFirst({
     where: { id: modelId, organizationId: session.user.organizationId },

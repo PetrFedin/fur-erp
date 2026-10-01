@@ -27,6 +27,7 @@ import { ExpenseRow } from "./expense-row";
 import { OrderEditForm } from "./order-edit-form";
 import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Section, SectionNav } from "./section";
 import { compareModelNames } from "@/lib/model-code";
 import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
@@ -348,10 +349,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const sharedPayments = payments.filter((p) => p.orders.some((a) => a.productionOrder.id !== id));
   const hasSharedPayments = sharedPayments.length > 0;
 
-  const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[]) =>
+  const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[], variant: "row" | "card" = "row") =>
     list.map((u) => (
       <UsageRow
         key={u.id}
+        variant={variant}
         usage={{
           id: u.id,
           date: u.date,
@@ -379,6 +381,28 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         removeAction={async () => {
           "use server";
           await boundRemoveUsage(u.id);
+        }}
+      />
+    ));
+
+  const expenseRows = (variant: "row" | "card") =>
+    order.expenses.map((e) => (
+      <ExpenseRow
+        key={e.id}
+        variant={variant}
+        expense={{
+          id: e.id,
+          categoryId: e.categoryId,
+          categoryName: e.category.name,
+          amount: e.amount.toString(),
+          description: e.description,
+        }}
+        categories={expenseCategories}
+        readOnly={!canEdit}
+        updateAction={boundUpdateExpense.bind(null, e.id)}
+        removeAction={async () => {
+          "use server";
+          await boundRemoveExpense(e.id);
         }}
       />
     ));
@@ -523,6 +547,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </>
             )}
           </dl>
+          <ResponsiveRows
+            table={
           <Table>
             <Thead>
               <Tr>
@@ -561,25 +587,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               )}
 
               <SectionRow>Расходы</SectionRow>
-              {order.expenses.map((e) => (
-                <ExpenseRow
-                  key={e.id}
-                  expense={{
-                    id: e.id,
-                    categoryId: e.categoryId,
-                    categoryName: e.category.name,
-                    amount: e.amount.toString(),
-                    description: e.description,
-                  }}
-                  categories={expenseCategories}
-                  readOnly={!canEdit}
-                  updateAction={boundUpdateExpense.bind(null, e.id)}
-                  removeAction={async () => {
-                    "use server";
-                    await boundRemoveExpense(e.id);
-                  }}
-                />
-              ))}
+              {expenseRows("row")}
               <TotalRow label="Итого расходы" value={formatMoney(expenseCost.toString())} />
 
               <TotalRow
@@ -616,6 +624,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               )}
             </Tbody>
           </Table>
+            }
+          >
+            <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Мех</div>
+            {usageRows(furUsages, allFurLots, "card")}
+            {furUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Мех ещё не списан</p>}
+            {showLining && (
+              <>
+                <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Подкладка</div>
+                {usageRows(liningUsages, allLiningLots, "card")}
+                {liningUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Подкладка не указана</p>}
+              </>
+            )}
+            <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Расходы</div>
+            {expenseRows("card")}
+            {order.expenses.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Расходов нет</p>}
+          </ResponsiveRows>
 
           <div className="flex flex-col gap-2 text-sm">
             {cancelled && (
@@ -728,6 +752,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </p>
             )}
             {canWrite && <ProductionPaymentForm orderId={id} orders={paymentOrders} />}
+            <ResponsiveRows
+              table={
             <Table>
               <Thead>
                 <Tr>
@@ -770,6 +796,36 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 {payments.length === 0 && <EmptyRow cols={7}>Оплат пока нет</EmptyRow>}
               </Tbody>
             </Table>
+              }
+            >
+              {payments.map((p) => {
+                const otherOrders = p.orders.map((a) => a.productionOrder).filter((o) => o.id !== id);
+                return (
+                  <RowCard
+                    key={p.id}
+                    title={formatMoney(p.amount.toString())}
+                    subtitle={`${formatDate(p.paidAt)} · ${PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}`}
+                    fields={[
+                      { label: "Способ", value: PAYMENT_METHOD_LABELS[p.method] ?? p.method },
+                      { label: "Также покрывает", value: otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—" },
+                      ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
+                    ]}
+                    extra={
+                      canEdit && (
+                        <RemovePaymentButton
+                          summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                          action={async () => {
+                            "use server";
+                            await boundRemovePayment(p.id);
+                          }}
+                        />
+                      )
+                    }
+                  />
+                );
+              })}
+              {payments.length === 0 && <p className="py-3 text-center text-sm text-neutral-400">Оплат пока нет</p>}
+            </ResponsiveRows>
           </CardContent>
         </Card>
         </Section>

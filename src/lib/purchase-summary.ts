@@ -178,6 +178,12 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
       paid = paid.add(a.paidByAuction.mul(pp.total).div(a.total));
     }
 
+    // «С расходами» не меньше «Цены шкур по счетам»: у принятого лота стоимость хранится округлённой до копеек,
+    // а цена по счёту — нет; различие в пределах 1 ₽ — это округление, выравниваем на цену.
+    for (const l of lines) {
+      if (l.fullIncl.lessThan(l.priceIncl) && l.priceIncl.sub(l.fullIncl).lessThanOrEqualTo(1)) l.fullIncl = l.priceIncl;
+      if (l.fullExcl.lessThan(l.base) && l.base.sub(l.fullExcl).lessThanOrEqualTo(1)) l.fullExcl = l.base;
+    }
     for (const l of lines) {
       const share = purchaseFull.isZero() ? zero() : l.fullIncl.div(purchaseFull);
       leaves.push({
