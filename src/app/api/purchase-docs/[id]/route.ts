@@ -1,6 +1,15 @@
 import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
+import { fixFileNameExt } from "@/lib/purchase-files";
+
+const MIME_EXT: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+};
 
 /** Выдача документа закупки по id; путь берётся из БД, доступ — только своей организации. */
 export async function GET(request: Request, ctx: RouteContext<"/api/purchase-docs/[id]">) {
@@ -15,8 +24,11 @@ export async function GET(request: Request, ctx: RouteContext<"/api/purchase-doc
   const buf = await readStoredFile(doc.storagePath);
   if (!buf) return new Response("Not found", { status: 404 });
   // RFC 5987: кодируем и «'», «(», «)», «*»; для старых клиентов — ASCII-запасной filename без кавычек.
-  const encoded = encodeURIComponent(doc.originalName).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
-  const fallback = doc.originalName.replace(/[^\x20-\x7e]|["\\%;]/g, "_");
+  // Расширение — по реальному типу файла (у старых документов имя могло быть с подменённым расширением).
+  const ext = MIME_EXT[doc.mimeType];
+  const fileName = ext ? fixFileNameExt(doc.originalName, ext) : doc.originalName;
+  const encoded = encodeURIComponent(fileName).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  const fallback = fileName.replace(/[^\x20-\x7e]|["\\%;]/g, "_");
   // ?download=1 — всегда скачивание (attachment), иначе PDF/картинки открываются во вкладке.
   const forceDownload = new URL(request.url).searchParams.get("download") === "1";
   const inline = !forceDownload && (doc.mimeType === "application/pdf" || doc.mimeType.startsWith("image/"));

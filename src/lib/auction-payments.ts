@@ -17,6 +17,9 @@ type Db = PrismaClient | Prisma.TransactionClient;
 
 export const PAY_EPS = new Decimal("0.005");
 
+/** Заметка оплаты «закрытие остатка»: по ней в списке ставится бейдж и оплату можно откатить удалением. */
+export const CLOSING_NOTE = "Оплачено до начала учёта в системе (закрытие остатка)";
+
 export function auctionName(session: string | null | undefined): string | null {
   return session?.split(/\r?\n/)[0].trim() || null;
 }
@@ -36,6 +39,8 @@ export type PurchaseForPay = {
   supplierId: string;
   auctionSession: string | null;
   exchangeRate: Prisma.Decimal;
+  /** Дата закупки — для сортировки аукционов по актуальности. */
+  orderDate?: Date | null;
   items: { subtotal: Prisma.Decimal; vatRate: Prisma.Decimal; quantity?: Prisma.Decimal; costPlan?: unknown }[];
   expenses: { amount: Prisma.Decimal; vatRate: Prisma.Decimal }[];
   payments: { amount: Prisma.Decimal; status: string }[];
@@ -57,6 +62,8 @@ export type AuctionPay = {
   /** total − paid; отрицательный — переплата. */
   remaining: Decimal;
   percentPaid: number;
+  /** Самая свежая дата закупки (не отменённой, иначе любой). */
+  lastPurchaseAt: Date | null;
   status: AuctionPayStatus;
   suppliers: { id: string; name: string }[];
   /** По не отменённым закупкам: итог, оплачено по самой закупке, поставщик, статус (для Сводки). */
@@ -90,11 +97,13 @@ export function buildAuctionSummaries(purchases: PurchaseForPay[], auctionPaymen
         planned: zero(),
         remaining: zero(),
         percentPaid: 0,
+        lastPurchaseAt: null,
         status: "UNPAID",
         suppliers: [],
         perPurchase: [],
       };
     a.purchasesAll++;
+    if (p.orderDate && (!a.lastPurchaseAt || p.orderDate > a.lastPurchaseAt)) a.lastPurchaseAt = p.orderDate;
     // Деньги, реально ушедшие по закупке, учитываем даже если закупку потом отменили.
     const done = p.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), zero());
     const plan = p.payments.filter((x) => x.status === "PENDING").reduce((s, x) => s.add(x.amount), zero());
@@ -118,7 +127,7 @@ export function buildAuctionSummaries(purchases: PurchaseForPay[], auctionPaymen
   for (const a of map.values()) {
     a.paid = a.paidByPurchases.add(a.paidByAuction);
     a.remaining = a.total.sub(a.paid);
-    a.percentPaid = a.total.greaterThan(0) ? Number(a.paid.div(a.total).mul(100).toFixed(1)) : 0;
+    a.percentPaid = a.total.greaterThan(0) ? Number(a.paid.div(a.total).mul(100).toFixed(3)) : 0;
     a.status = payStatus(a.total, a.paid);
   }
   return Array.from(map.values());

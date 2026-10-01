@@ -10,7 +10,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
+import { formatAvg, formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
 import { emptyFilters, type LotRow } from "@/lib/lot-table";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
@@ -79,7 +79,11 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.lotNumber}</Stat>}</Td>
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.size}</Stat>}</Td>
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.op}</Stat>}</Td>
-        <Td className="whitespace-nowrap">{!empty && <Stat k="Σ" tip={TIP.sum}>{formatQty(q)}</Stat>}</Td>
+        <Td className="whitespace-nowrap">
+          <Stat k="Σ" tip={TIP.sum}>
+            {empty ? "0" : formatQty(q)}
+          </Stat>
+        </Td>
         <Td>
           {!empty && t.avgPrice != null && (
             <>
@@ -98,7 +102,8 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
           )}
         </Td>
         <Td>
-          {!empty && t.rateAvg != null && (
+          {!empty && t.rateAvg != null && !single && <Note>разные валюты</Note>}
+          {!empty && t.rateAvg != null && single && (
             <>
               <Stat k="ср." tip={TIP.rate}>
                 {rateFmt(t.rateAvg)}
@@ -120,7 +125,11 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
           )}
         </Td>
         <Td className="whitespace-nowrap">
-          {!empty && (
+          {empty ? (
+            <Stat k="Σ" tip={TIP.sum}>
+              0
+            </Stat>
+          ) : (
             <Stat k="Σ" tip={TIP.sum}>
               <Money incl={t.totalIncl} excl={t.totalExcl} />
             </Stat>
@@ -146,13 +155,16 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
               {!c || c.n === 0 ? null : f.type === "NUMBER" ? (
                 <>
                   <Stat k="Σ" tip={TIP.sum}>{formatExtra("NUMBER", c.sum)}</Stat>
-                  <Stat k="ср." tip={TIP.avg}>{c.wavg != null ? formatExtra("NUMBER", Math.round(c.wavg * 1e6) / 1e6) : "—"}</Stat>
+                  <Stat k="ср." tip={TIP.avg}>{c.wavg != null ? formatAvg(c.wavg) : "—"}</Stat>
                   <Note>заполнено у {c.n} из {t.count}</Note>
                 </>
               ) : f.type === "BOOLEAN" ? (
-                <Stat k="да" tip="Сколько лотов с «Да» / «Нет»">
-                  {c.yes} / {c.no}
-                </Stat>
+                <>
+                  <Stat k="лотов" tip="Сколько лотов с ответом «Да» и сколько с «Нет» (пустые не считаются)">
+                    Да {c.yes} / Нет {c.no}
+                  </Stat>
+                  <Note>заполнено у {c.n} из {t.count}</Note>
+                </>
               ) : (
                 <Stat k="уник." tip={TIP.uniq}>{c.uniq}</Stat>
               )}
@@ -188,16 +200,37 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
   );
 }
 
+/** Компактная сводка «Итого» для телефона: строка итога в таблице уходит за правый край. */
+function MobileSummary({ view }: { view: ScopeView }) {
+  const t = view.totals;
+  const single = t.currencies.length === 1;
+  return (
+    <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm md:hidden" data-totals-summary>
+      <span className="font-semibold">Итого:</span>{" "}
+      {t.count === 0 ? (
+        <span>Σ 0</span>
+      ) : (
+        <>
+          {formatQty(t.qty)} шкур · Σ <Money incl={t.totalIncl} excl={t.totalExcl} className="font-medium" /> ·{" "}
+          {t.rateAvg == null ? "ср. курс —" : single ? `ср. курс ${rateFmt(t.rateAvg)}` : "ср. курс: разные валюты"}
+        </>
+      )}
+      <span className="block text-xs text-neutral-500">{view.label}</span>
+    </p>
+  );
+}
+
 /** Панель над таблицей: «Фильтр», выбор лотов, «Только выбранные», «Сбросить», «+ Столбец». */
 function LotsControls({ scope }: { scope: string }) {
   const { setFilters, setSelected, canEdit } = useLots();
   const view = useScope(scope);
   const [open, setOpen] = useState(false);
   const f = view.filters;
-  const selectedAll = view.all.filter((r) => view.selectedVisible.some((s) => s.id === r.id)).length;
+  const selectedAll = view.selectedAll;
   const allVisibleSelected = view.visible.length > 0 && view.selectedVisible.length === view.visible.length;
   return (
     <div className="flex flex-col gap-2">
+      <MobileSummary view={view} />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <button
           type="button"
@@ -215,8 +248,8 @@ function LotsControls({ scope }: { scope: string }) {
         >
           {allVisibleSelected ? "Снять выбор" : "Выбрать все"}
         </button>
-        <label className="inline-flex h-8 cursor-pointer items-center gap-1 text-xs">
-          <input type="checkbox" checked={f.onlySelected} onChange={(e) => setFilters(scope, { ...f, onlySelected: e.target.checked })} />
+        <label className="inline-flex h-8 cursor-pointer items-center gap-2 text-xs">
+          <input type="checkbox" className="h-5 w-5 sm:h-4 sm:w-4" checked={f.onlySelected} onChange={(e) => setFilters(scope, { ...f, onlySelected: e.target.checked })} />
           Только выбранные
         </label>
         {view.filterCount > 0 && (
@@ -234,6 +267,16 @@ function LotsControls({ scope }: { scope: string }) {
           {view.label}
         </span>
       </div>
+      {view.hiddenSelected > 0 && (
+        <p className="flex flex-wrap items-center gap-x-2 text-xs text-amber-700" data-hidden-selection>
+          <span>
+            Выбрано {selectedAll} (из них скрыто фильтром {view.hiddenSelected})
+          </span>
+          <button type="button" className="inline-flex h-8 items-center text-blue-600 hover:underline" onClick={() => setSelected(view.all.map((r) => r.id), false)}>
+            Снять выбор
+          </button>
+        </p>
+      )}
       {scope !== ALL_SCOPE && view.globalFilterCount > 0 && (
         <p className="text-xs text-amber-700">Действует общий фильтр аукциона ({view.globalFilterCount}) — часть лотов скрыта.</p>
       )}
@@ -270,14 +313,17 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
       <Table>
         <Thead>
           <Tr>
-            <Th className="w-8">
+            <Th className="w-10 sm:w-8">
+              <label className="flex h-8 w-8 cursor-pointer items-center justify-center sm:h-auto sm:w-auto">
               <input
                 ref={headRef}
+                className="h-5 w-5 sm:h-4 sm:w-4"
                 type="checkbox"
                 aria-label="Выбрать все лоты счёта"
                 checked={allSel}
                 onChange={() => setSelected(rows.map((r) => r.id), !allSel)}
               />
+              </label>
             </Th>
             {h.map((x) => (
               <Th key={x}>{x}</Th>
@@ -314,8 +360,10 @@ function LotRowView({ row: r, fields, hasEditCol, currency }: { row: LotRow; fie
   const checked = selected.has(r.id);
   return (
     <Tr className={checked ? "bg-blue-50/60" : undefined} data-lot-row={r.id}>
-      <Td className="w-8">
-        <input type="checkbox" aria-label={`Выбрать лот ${r.lotNumber || r.material}`} checked={checked} onChange={() => setSelected([r.id], !checked)} />
+      <Td className="w-10 sm:w-8">
+        <label className="flex h-8 w-8 cursor-pointer items-center justify-center sm:h-auto sm:w-auto">
+          <input type="checkbox" className="h-5 w-5 sm:h-4 sm:w-4" aria-label={`Выбрать лот ${r.lotNumber || r.material}`} checked={checked} onChange={() => setSelected([r.id], !checked)} />
+        </label>
       </Td>
       <Td className="font-medium">{r.material}</Td>
       <Td className="whitespace-nowrap">{r.lotNumber || "—"}</Td>
@@ -375,7 +423,11 @@ function LotRowView({ row: r, fields, hasEditCol, currency }: { row: LotRow; fie
   );
 }
 
-const pct = (v: number, total: number) => (Math.abs(total) < 0.005 ? "—" : `${((v / total) * 100).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`);
+const pct = (v: number, total: number) => {
+  if (Math.abs(total) < 0.005) return "—";
+  const p = Math.round((v / total) * 1000) / 10;
+  return `${(p === 0 ? 0 : p).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+};
 
 /** «Из чего складывается стоимость»: вертикальный список частей с долями; сумма частей = полной стоимости. */
 export function CostPartsBlock({ scope, title }: { scope: string; title?: string }) {
@@ -384,7 +436,8 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
   const b = view.breakdown;
   const val = (l: { incl: number; excl: number }) => (mode === "excl" ? l.excl : l.incl);
   const total = mode === "excl" ? b.totalExcl : b.totalIncl;
-  const lines = b.lines.filter((l) => Math.abs(val(l)) >= 0.005);
+  // «Не разложено» меньше 1 ₽ — округление, строку не показываем.
+  const lines = b.lines.filter((l) => (l.kind === "unresolved" ? Math.abs(val(l)) >= 1 : Math.abs(val(l)) >= 0.005));
   const sum = lines.reduce((s, l) => s + val(l), 0);
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-3" data-cost-parts>
@@ -425,7 +478,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             <span className="w-14 text-right text-xs font-normal text-neutral-500">100 %</span>
           </li>
           <li className="text-xs text-neutral-400">
-            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < 0.01 ? "= итогу" : "≠ итогу"}.
+            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < 1 ? "= итогу" : "≠ итогу"}.
             {b.skippedUnallocated && " Расходы закупки не входят: выбрана только часть лотов закупки."}
           </li>
         </ul>

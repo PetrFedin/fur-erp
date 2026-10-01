@@ -97,6 +97,10 @@ export type ScopeView = {
   all: LotRow[];
   /** После общего и локального фильтров */
   visible: LotRow[];
+  /** Сколько лотов области выбрано всего (включая скрытые фильтрами) */
+  selectedAll: number;
+  /** Из них скрыто фильтрами области */
+  hiddenSelected: number;
   /** Выбранные среди видимых */
   selectedVisible: LotRow[];
   /** По чему считается «Итого»: выбранные, если выбор есть, иначе все видимые */
@@ -125,6 +129,7 @@ export function useScope(scope: string): ScopeView {
         rowMatches(r, global, fields, vat, extraOf, selected) &&
         (scope === ALL_SCOPE || rowMatches(r, local, fields, vat, extraOf, selected)),
     );
+    const selectedAll = all.filter((r) => selected.has(r.id)).length;
     const selectedVisible = visible.filter((r) => selected.has(r.id));
     const hasSel = selectedVisible.length > 0;
     const basis = hasSel ? selectedVisible : visible;
@@ -152,6 +157,8 @@ export function useScope(scope: string): ScopeView {
       scope,
       all,
       visible,
+      selectedAll,
+      hiddenSelected: selectedAll - visible.filter((r) => selected.has(r.id)).length,
       selectedVisible,
       basis,
       mode: m,

@@ -8,17 +8,36 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Input, Label, Select } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
-import { createAdvancePayment } from "./actions";
 import { hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cleanSearch } from "@/lib/input";
-import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
-import { AuctionPaymentForm, PaymentRowControls } from "./auction-payment-form";
+import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
+import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
+import { AdvanceForm, AdvanceRowControls } from "./advance-forms";
+
+// Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
+const FLASH_ERRORS: Record<string, string> = {
+  forbidden: "Недостаточно прав для этого действия",
+  "not-found": "Запись не найдена или уже удалена",
+  invalid: "Проверьте поля формы",
+};
+
+/** Процент с нужной точностью: малые доли не округляем до нуля. */
+function fmtPct(v: number): string {
+  if (v > 0 && v < 0.01) return "<0,01 %";
+  return `${v.toLocaleString("ru-RU", { maximumFractionDigits: v < 1 ? 2 : 1 })} %`;
+}
+
+/** Остаток: отрицательный — «переплата X ₽». */
+function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
+  return r.lessThan(-0.005) ? `переплата ${formatMoney(r.neg().toString())}` : formatMoney(r.toString());
+}
+
+const FRESH_MS = 365 * 24 * 3600 * 1000;
 
 const METHOD_LABELS: Record<string, string> = {
   CASH: "Наличные",
@@ -53,11 +72,13 @@ export default async function PaymentsPage({
   const session = await requireSession();
   const sp = await searchParams;
   const canPay = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"]);
-  const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
+  const flashError = typeof sp.error === "string" ? (FLASH_ERRORS[sp.error] ?? "") : "";
   const tab: "suppliers" | "clients" =
     sp.tab === "clients" ? "clients" : "suppliers";
   const orgId = session.user.organizationId;
   const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
+  const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
+  const onlyRest = tab === "suppliers" && sp.f === "rest";
   const [payments, suppliers, clientPayments, summaries, auctionPurchases] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
@@ -91,13 +112,37 @@ export default async function PaymentsPage({
       : Promise.resolve([]),
   ]);
 
-  // Какой аукцион к оплате: по порядку — самые большие остатки сверху, оплаченные внизу.
+  // По актуальности: 1) с остатком и свежей закупкой (≤ 12 мес.), 2) оплаченные/переплаченные,
+  // 3) исторические с остатком (старые, оплаты не заведены). Внутри — свежая закупка выше, затем больший остаток.
+  const nowMs = new Date().getTime();
+  const rank = (a: AuctionPay) =>
+    a.remaining.greaterThan(PAY_EPS)
+      ? a.lastPurchaseAt && nowMs - a.lastPurchaseAt.getTime() <= FRESH_MS
+        ? 0
+        : 2
+      : 1;
   const auctions = [...summaries].sort(
     (a, b) =>
-      Number(a.status === "PAID") - Number(b.status === "PAID") ||
+      rank(a) - rank(b) ||
+      (b.lastPurchaseAt?.getTime() ?? 0) - (a.lastPurchaseAt?.getTime() ?? 0) ||
       b.remaining.comparedTo(a.remaining) ||
       a.name.localeCompare(b.name, "ru"),
   );
+  const listQLower = listQ.toLowerCase();
+  const visibleAuctions = auctions.filter(
+    (a) => (!listQLower || a.name.toLowerCase().includes(listQLower)) && (!onlyRest || a.remaining.greaterThan(PAY_EPS)),
+  );
+  const listParams = (extra: Record<string, string>) => {
+    const u = new URLSearchParams();
+    if (listQ) u.set("q", listQ);
+    if (onlyRest) u.set("f", "rest");
+    for (const [k, v] of Object.entries(extra)) {
+      if (v === "") u.delete(k);
+      else u.set(k, v);
+    }
+    const qs = u.toString();
+    return `/payments${qs ? `?${qs}` : ""}`;
+  };
   const selected = auctionQ ? auctions.find((a) => a.name === auctionQ) ?? null : null;
   const auctionPurchaseMap = new Map(auctionPurchases.map((p) => [p.id, p]));
   const inAuction = (p: (typeof payments)[number]) =>
@@ -106,6 +151,18 @@ export default async function PaymentsPage({
   const sum = (f: (a: AuctionPay) => { toString(): string }) => auctions.reduce((acc, a) => acc + Number(f(a).toString()), 0);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Имена посредников берём из данных аукционов (не хардкодим).
+  const supplierNamesOf = (list: AuctionPay[]) => {
+    const names = Array.from(new Set(list.flatMap((a) => a.suppliers.map((x) => x.name))));
+    return names.length <= 4 ? names.join(", ") : `${names.slice(0, 4).join(", ")} и ещё ${names.length - 4}`;
+  };
+  const intermediaries = supplierNamesOf(auctions);
+  // Поставщики для формы аванса: активные плюс те, на кого уже записаны авансы (даже неактивные).
+  const advSuppliers = suppliers.map((x) => ({ id: x.id, name: x.name }));
+  for (const p of payments) {
+    if (!p.purchaseId && !p.auctionSession && !advSuppliers.some((x) => x.id === p.supplierId)) advSuppliers.push({ id: p.supplierId, name: p.supplier.name });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -205,9 +262,9 @@ export default async function PaymentsPage({
       ) : (
         <>
           <p className="text-sm text-neutral-600">
-            Мы платим не аукциону, а посреднику — ООО «Веллмех». Аукцион (партия закупок, например «СП 09-26») нужен,
+            Мы платим не аукциону, а посреднику (поставщику){intermediaries ? ` — ${intermediaries}` : ""}. Аукцион (партия закупок, например «СП 09-26») нужен,
             чтобы разнести оплаты и видеть остаток к оплате по каждому. Стоимость, оплачено и остаток — всегда с НДС и не
-            зависят от переключателя «С НДС / Без НДС»: это то, что мы должны Веллмех.
+            зависят от переключателя «С НДС / Без НДС»: это то, что мы должны поставщику.
           </p>
 
           {auctions.length > 0 && (
@@ -215,17 +272,55 @@ export default async function PaymentsPage({
               <Stat label="Стоимость аукционов, с НДС" value={formatMoney(sum((a) => a.total))} />
               <Stat label="Оплачено" value={formatMoney(sum((a) => a.paid))} />
               <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />
-              <Stat label="Остаток к оплате" value={formatMoney(sum((a) => a.remaining.greaterThan(0) ? a.remaining : 0))} warn />
+              <Stat
+                label="Остаток к оплате"
+                value={formatMoney(sum((a) => (a.remaining.greaterThan(0) ? a.remaining : 0)))}
+                note="Только по аукционам. «Долг поставщикам» на Сводке может отличаться: там ещё закупки без аукциона и авансы без привязки."
+                warn
+              />
+            </div>
+          )}
+
+          {auctions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <form method="get" action="/payments" className="flex flex-wrap items-center gap-2">
+                {onlyRest && <input type="hidden" name="f" value="rest" />}
+                {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
+                <label htmlFor="auction-q" className="text-sm text-neutral-600">
+                  Поиск
+                </label>
+                <Input id="auction-q" name="q" defaultValue={listQ} placeholder="название аукциона" className="w-56" autoComplete="off" />
+                <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Найти
+                </button>
+              </form>
+              <div className="flex gap-1" role="group" aria-label="Фильтр аукционов">
+                <Link
+                  href={listParams({ f: "", ...(auctionQ ? { auction: auctionQ } : {}) })}
+                  className={"rounded-md px-3 py-1 text-sm " + (!onlyRest ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
+                >
+                  Все
+                </Link>
+                <Link
+                  href={listParams({ f: "rest", ...(auctionQ ? { auction: auctionQ } : {}) })}
+                  className={"rounded-md px-3 py-1 text-sm " + (onlyRest ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
+                >
+                  С остатком
+                </Link>
+              </div>
+              <span className="text-xs text-neutral-500">
+                Показано {visibleAuctions.length} из {auctions.length}
+              </span>
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {auctions.map((a) => {
+            {visibleAuctions.map((a) => {
               const active = selected?.name === a.name;
               return (
                 <Link
                   key={a.name}
-                  href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`}
+                  href={`${listParams({ auction: a.name })}#auction-block`}
                   scroll
                   className={
                     "flex flex-col gap-2 rounded-lg border bg-white p-3 transition-colors hover:border-neutral-400 " +
@@ -248,7 +343,7 @@ export default async function PaymentsPage({
                     <dd className="text-right">{formatMoney(a.planned.toString())}</dd>
                     <dt className="font-medium">Остаток</dt>
                     <dd className={"text-right font-semibold " + (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")}>
-                      {formatMoney(a.remaining.toString())}
+                      {fmtRemaining(a.remaining)}
                     </dd>
                   </dl>
                   <ProgressBar percent={a.percentPaid} status={a.status} />
@@ -260,6 +355,9 @@ export default async function PaymentsPage({
             <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
               Аукционов пока нет: укажите «Аукцион / сессию» в карточке закупки, и партия появится здесь.
             </p>
+          )}
+          {auctions.length > 0 && visibleAuctions.length === 0 && (
+            <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этому поиску и фильтру аукционов нет.</p>
           )}
 
           <div id="auction-block" className="scroll-mt-4" />
@@ -297,9 +395,9 @@ export default async function PaymentsPage({
                 <CardContent className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <Stat label="Полная стоимость, с НДС" value={formatMoney(selected.total.toString())} />
-                    <Stat label="Оплачено" value={formatMoney(selected.paid.toString())} note={`${selected.percentPaid.toLocaleString("ru-RU")} %`} />
+                    <Stat label="Оплачено" value={formatMoney(selected.paid.toString())} note={fmtPct(selected.percentPaid)} />
                     <Stat label="Запланировано" value={formatMoney(selected.planned.toString())} />
-                    <Stat label="ОСТАТОК" value={formatMoney(selected.remaining.toString())} warn={selected.remaining.greaterThan(0.005)} />
+                    <Stat label="ОСТАТОК" value={fmtRemaining(selected.remaining)} warn={selected.remaining.greaterThan(0.005)} />
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
@@ -324,6 +422,7 @@ export default async function PaymentsPage({
                       {rows.map((p) => {
                         const amountN = Number(p.amount.toString());
                         const own = Boolean(p.auctionSession) && !p.purchaseId;
+                        const closing = own && p.notes === CLOSING_NOTE;
                         const overdue = p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today;
                         const pu = p.purchaseId ? auctionPurchaseMap.get(p.purchaseId) : null;
                         return (
@@ -335,6 +434,11 @@ export default async function PaymentsPage({
                               <Cell label="Дата">{formatDate(p.paidAt)}</Cell>
                               <Cell label="Тип">
                                 {own ? KIND_LABELS[p.kind] ?? p.kind : <span className="text-neutral-500">Оплата закупки</span>}
+                                {closing && (
+                                  <span className="mt-0.5 block">
+                                    <Badge variant="info">закрытие остатка</Badge>
+                                  </span>
+                                )}
                                 {pu && (
                                   <Link href={`/purchases/${pu.id}`} className="block text-xs hover:underline">
                                     {pu.invoiceNumber ? `Счёт ${pu.invoiceNumber}` : pu.number}
@@ -344,7 +448,7 @@ export default async function PaymentsPage({
                               <Cell label="Сумма">
                                 <span className="font-semibold">{formatMoney(p.amount.toString())}</span>
                                 <span className="block text-xs text-neutral-500">
-                                  {total > 0 ? `${((amountN / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} % от стоимости` : "—"}
+                                  {total > 0 ? `${fmtPct((amountN / total) * 100)} от стоимости` : "—"}
                                 </span>
                               </Cell>
                               <Cell label="Способ">{METHOD_LABELS[p.method] ?? p.method}</Cell>
@@ -402,6 +506,7 @@ export default async function PaymentsPage({
                                     method: p.method,
                                     notes: p.notes ?? "",
                                     docName: p.document ? p.document.originalName : null,
+                                    closing,
                                   }}
                                 />
                               </div>
@@ -410,10 +515,19 @@ export default async function PaymentsPage({
                         );
                       })}
                       {rows.length === 0 && (
-                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">По этому аукциону оплат Веллмех пока нет</p>
+                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">По этому аукциону оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
                       )}
                     </div>
                   </div>
+
+                  {canPay && selected.purchases > 0 && selected.remaining.greaterThan(PAY_EPS) && (
+                    <div className="flex flex-col gap-1">
+                      <CloseRemainderButton auction={selected.name} remaining={formatMoney(selected.remaining.toString())} />
+                      <p className="text-xs text-neutral-500">
+                        Для старых аукционов, которые уже оплачены, но оплат в системе нет. Ничего не закрывается автоматически — только по вашему подтверждению.
+                      </p>
+                    </div>
+                  )}
 
                   {canPay && selected.purchases > 0 ? (
                     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
@@ -440,78 +554,19 @@ export default async function PaymentsPage({
             <CardHeader>
               <CardTitle>Аванс / предоплата поставщику</CardTitle>
               <CardDescription>
-                Аванс без привязки к аукциону и закупке — гасит общий долг поставщика. Оплату Веллмех по конкретному аукциону вносите в блоке этого аукциона выше.
+                Аванс без привязки к аукциону и закупке — гасит общий долг поставщика. Оплату посреднику по конкретному аукциону вносите в блоке этого аукциона выше.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form
-                action={createAdvancePayment}
-                className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4"
-              >
-                <div>
-                  <Label htmlFor="supplierId">Поставщик</Label>
-                  <Select
-                    id="supplierId"
-                    name="supplierId"
-                    required
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      Выберите
-                    </option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="amount">Сумма, ₽</Label>
-                  <Input
-                    id="amount"
-                    name="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="method">Способ</Label>
-                  <Select
-                    id="method"
-                    name="method"
-                    defaultValue="BANK_TRANSFER"
-                  >
-                    {Object.entries(METHOD_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="paidAt">Дата</Label>
-                  <Input
-                    id="paidAt"
-                    name="paidAt"
-                    type="date"
-                    defaultValue={today}
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-2 lg:col-span-4">
-                  <Button type="submit">Добавить платёж</Button>
-                </div>
-              </form>
+              <AdvanceForm suppliers={advSuppliers.filter((x) => suppliers.some((y) => y.id === x.id))} />
             </CardContent>
           </Card>
           )}
 
           <div className="flex flex-col gap-2">
             {outside.map((p) => (
-              <div key={p.id} className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-neutral-200 bg-white p-3 text-sm md:grid-cols-5">
+              <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-5">
                 <Cell label="Дата">{formatDate(p.paidAt)}</Cell>
                 <Cell label="Поставщик">{p.supplier.name}</Cell>
                 <Cell label="Закупка">
@@ -528,6 +583,23 @@ export default async function PaymentsPage({
                   {formatMoney(p.amount.toString())}
                   {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                 </Cell>
+              </div>
+              {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
+              {canPay && !p.purchaseId && !p.auctionSession && (
+                <div className="mt-2 border-t border-neutral-100 pt-2">
+                  <AdvanceRowControls
+                    suppliers={advSuppliers}
+                    initial={{
+                      id: p.id,
+                      supplierId: p.supplierId,
+                      amount: p.amount.toString(),
+                      method: p.method,
+                      paidAt: p.paidAt.toISOString().slice(0, 10),
+                      notes: p.notes ?? "",
+                    }}
+                  />
+                </div>
+              )}
               </div>
             ))}
             {outside.length === 0 && (
@@ -566,7 +638,7 @@ function ProgressBar({ percent, status }: { percent: number; status: AuctionPayS
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100" role="progressbar" aria-valuenow={Math.min(percent, 100)} aria-valuemin={0} aria-valuemax={100}>
         <div className={`h-full ${color}`} style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
       </div>
-      <span className="w-14 text-right text-xs text-neutral-500">{percent.toLocaleString("ru-RU")} %</span>
+      <span className="w-16 text-right text-xs text-neutral-500">{fmtPct(percent)}</span>
     </div>
   );
 }

@@ -257,7 +257,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Сводка</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold">Сводка</h1>
+        <Link href="/payments" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">
+          Оплаты →
+        </Link>
+      </div>
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           Недостаточно прав для этого действия
@@ -275,7 +280,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           label={<InclVatOnlyLabel base="Долг поставщикам" />}
           value={formatMoney(supplierDebtTotal.toString())}
           warn={supplierDebtTotal.greaterThan(0)}
-          note={draftDebt.greaterThan(0) ? `в т.ч. черновики (мех ещё не принят): ${formatMoney(draftDebt.toString())}` : undefined}
+          note={
+            <>
+              {draftDebt.greaterThan(0) && <span className="block">{`в т.ч. черновики (мех ещё не принят): ${formatMoney(draftDebt.toString())}`}</span>}
+              <span className="block">
+                Может отличаться от «Остатка к оплате» в разделе «Оплаты»: здесь ещё закупки без аукциона, а авансы без привязки уменьшают долг.
+              </span>
+            </>
+          }
         />
         <KpiCard label={<InclVatOnlyLabel base="Долг заказчиков" />} value={formatMoney(clientDebtTotal.toString())} warn={clientDebtTotal.greaterThan(0)} />
       </div>
@@ -473,7 +485,7 @@ function KpiCard({
   label: React.ReactNode;
   value: React.ReactNode;
   warn?: boolean;
-  note?: string;
+  note?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4">

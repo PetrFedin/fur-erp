@@ -12,7 +12,10 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
 import { parsePasteRows, issueLines, type ParsedRow } from "./parse-rows";
 import { checkOrgRefs } from "@/lib/org-guard";
-import { MAX_MONEY, MAX_QTY, zNum, parseDateInput } from "@/lib/input";
+import { MAX_MONEY, MAX_QTY, zNum, zMoney, parseDateInput } from "@/lib/input";
+import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/auction-payments";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { formatMoney } from "@/lib/utils";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -29,7 +32,7 @@ export type OrderRef = { id: string; number: string; quantity: string };
 export type Issue = { level: "error" | "warning"; text: string };
 const UNIT_SHORT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
-export type FormState = { error?: string; issues?: Issue[]; orders?: OrderRef[] };
+export type FormState = { error?: string; issues?: Issue[]; orders?: OrderRef[]; confirm?: string };
 
 // ---------- Purchase header ----------
 
@@ -793,7 +796,7 @@ export async function removePurchaseExpense(purchaseId: string, expenseId: strin
 // ---------- Payments ----------
 
 const paymentSchema = z.object({
-  amount: zNum("Сумма", { positive: true }),
+  amount: zMoney("Сумма"),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"], { message: "Выберите способ оплаты" }),
   paidAt: z.string().min(1, "Укажите дату оплаты").pipe(dateField("Некорректная дата оплаты")),
   notes: z.string().trim().max(1000).optional(),
@@ -801,8 +804,9 @@ const paymentSchema = z.object({
 
 export async function addPurchasePayment(purchaseId: string, formData: FormData): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
   const purchase = await prisma.purchase.findFirst({
-    where: { id: purchaseId, organizationId: session.user.organizationId },
+    where: { id: purchaseId, organizationId: orgId },
   });
   if (!purchase) return { error: "Закупка не найдена" };
   if (purchase.status === "CANCELLED") return { error: "Закупка отменена — оплату добавить нельзя" };
@@ -814,25 +818,61 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля оплаты" };
+  const amount = new Decimal(parsed.data.amount);
+  const confirmed = formData.get("confirmOverpay") === "1";
+  const auction = auctionName(purchase.auctionSession);
 
-  await prisma.payment.create({
-    data: {
-      organizationId: session.user.organizationId,
-      supplierId: purchase.supplierId,
-      purchaseId,
-      amount: parsed.data.amount,
-      // Сумма платежа вводится и учитывается в рублях (см. «Оплачено»/остаток
-      // в рублях), поэтому валюту закупки (USD…) сюда не пишем.
-      currency: "RUB",
-      method: parsed.data.method,
-      status: "COMPLETED",
-      paidAt: new Date(parsed.data.paidAt),
-      notes: parsed.data.notes,
-    },
+  // Та же защита от переплаты и та же блокировка, что при оплате аукциона целиком:
+  // параллельные оплаты одного аукциона идут по очереди и не обходят проверку.
+  const result = await prisma.$transaction(async (tx): Promise<FormState> => {
+    if (auction) {
+      await lockAuction(tx, orgId, auction);
+      const [s] = await loadAuctionSummaries(tx, orgId, [auction]);
+      if (s) {
+        const after = s.paid.add(amount);
+        if (after.sub(s.total).greaterThan(PAY_EPS) && !confirmed) {
+          return {
+            confirm: `Оплачено станет ${formatMoney(after.toString())} при стоимости аукциона ${formatMoney(s.total.toString())} — переплата ${formatMoney(after.sub(s.total).toString())}. Всё равно записать?`,
+          };
+        }
+      }
+    } else {
+      const full = await tx.purchase.findFirst({
+        where: { id: purchaseId, organizationId: orgId },
+        include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, select: { amount: true } } },
+      });
+      if (full) {
+        const total = purchaseTotalInclVat(full);
+        const after = full.payments.reduce((x, p) => x.add(p.amount), new Decimal(0)).add(amount);
+        if (after.sub(total).greaterThan(PAY_EPS) && !confirmed) {
+          return {
+            confirm: `Оплачено станет ${formatMoney(after.toString())} при стоимости закупки ${formatMoney(total.toString())} — переплата ${formatMoney(after.sub(total).toString())}. Всё равно записать?`,
+          };
+        }
+      }
+    }
+    await tx.payment.create({
+      data: {
+        organizationId: orgId,
+        supplierId: purchase.supplierId,
+        purchaseId,
+        amount,
+        // Сумма платежа вводится и учитывается в рублях (см. «Оплачено»/остаток
+        // в рублях), поэтому валюту закупки (USD…) сюда не пишем.
+        currency: "RUB",
+        method: parsed.data.method,
+        status: "COMPLETED",
+        paidAt: new Date(parsed.data.paidAt),
+        notes: parsed.data.notes,
+      },
+    });
+    return {};
   });
+  if (result.error || result.confirm) return result;
 
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/payments");
+  revalidatePath("/dashboard");
   return {};
 }
 

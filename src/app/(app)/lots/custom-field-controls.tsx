@@ -16,7 +16,7 @@ import { createCustomField, deleteCustomField, moveCustomField, renameCustomFiel
 import { useLots } from "./lots-state";
 
 const iconBtn =
-  "inline-flex h-6 min-w-6 items-center justify-center rounded border border-neutral-200 bg-white px-1 text-xs font-normal normal-case text-neutral-600 hover:bg-neutral-100 disabled:opacity-40";
+  "inline-flex h-8 min-h-8 min-w-8 items-center justify-center rounded border border-neutral-200 bg-white px-1 text-xs font-normal normal-case text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 sm:h-6 sm:min-h-6 sm:min-w-6";
 
 /** Модальное окно: создать столбец (название + тип) или переименовать. */
 function FieldDialog({
@@ -149,7 +149,7 @@ export function CustomFieldHeader({ field, index, count }: { field: CustomFieldD
     <div className="flex min-w-24 flex-col gap-1">
       <div className="flex items-center gap-1">
         {canEdit && <AddFieldButton beforeId={field.id} />}
-        <span className="break-words">{field.name}</span>
+        <span className="min-w-0 break-words">{field.name}</span>
         <span className="rounded bg-neutral-100 px-1 text-[10px] font-normal normal-case text-neutral-500">{FIELD_TYPE_LABELS[field.type]}</span>
       </div>
       {canEdit && (
@@ -243,7 +243,7 @@ export function CustomCell({ row, field }: { row: LotRow; field: CustomFieldDef 
           setErr("");
           setEditing(true);
         }}
-        className="min-h-6 min-w-16 cursor-text rounded px-1 text-left hover:bg-neutral-100"
+        className="min-h-8 min-w-16 cursor-text sm:min-h-6 rounded px-1 text-left hover:bg-neutral-100"
       >
         {shown || <span className="text-neutral-300">—</span>}
       </button>

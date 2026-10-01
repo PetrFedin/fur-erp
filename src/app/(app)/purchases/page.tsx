@@ -91,11 +91,16 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Закупки</h1>
-        {canCreate && (
-          <Link href="/purchases/new" className={buttonVariants()}>
-            + Новая закупка
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/payments" className={buttonVariants({ variant: "outline" })}>
+            Оплаты
           </Link>
-        )}
+          {canCreate && (
+            <Link href="/purchases/new" className={buttonVariants()}>
+              + Новая закупка
+            </Link>
+          )}
+        </div>
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">

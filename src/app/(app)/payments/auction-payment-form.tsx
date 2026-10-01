@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { createAuctionPayment, updateAuctionPayment, deleteAuctionPayment, type PayState } from "./actions";
+import { createAuctionPayment, updateAuctionPayment, deleteAuctionPayment, closeAuctionRemainder, type PayState } from "./actions";
 
 export type PaymentInitial = {
   id: string;
@@ -15,6 +15,8 @@ export type PaymentInitial = {
   method: string;
   notes: string;
   docName: string | null;
+  /** Оплата «закрытие остатка» (откат — удаление). */
+  closing?: boolean;
 };
 
 const KINDS: [string, string][] = [
@@ -69,11 +71,14 @@ export function AuctionPaymentForm({
 }) {
   const [kind, setKind] = useState(initial?.kind ?? "ADVANCE");
   const [status, setStatus] = useState(initial?.status ?? "COMPLETED");
-  const [amount, setAmount] = useState(initial ? initial.amount.replace(".", ",") : "");
+  const [amount, setAmount] = useState(initial ? toInput2(Number(initial.amount)) : "");
+  // Процент в правке — справочный: сохранённый (если вводили %) или доля суммы от текущей стоимости.
   const [percent, setPercent] = useState(
     initial ? (initial.percent ? initial.percent.replace(".", ",") : total > 0 ? toInputPct((Number(initial.amount) / total) * 100) : "") : "",
   );
-  const [mode, setMode] = useState<"amount" | "percent">(initial?.percent ? "percent" : "amount");
+  // При правке сохранённая сумма — источник истины: режим "keep", пока пользователь сам не тронул «%» или «сумму».
+  const [mode, setMode] = useState<"keep" | "amount" | "percent">(initial ? "keep" : "amount");
+  const uid = useId();
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -107,8 +112,12 @@ export function AuctionPaymentForm({
     const fd = new FormData(form);
     fd.set("mode", mode);
     const file = fd.get("file");
+    if (typeof file !== "string" && file && file.name !== "" && file.size === 0) {
+      setError(`Файл «${file.name}» пустой (0 байт) — выберите другой файл`);
+      return;
+    }
     if (typeof file !== "string" && file && file.size > MAX_FILE) {
-      setError("Файл больше 25 МБ");
+      setError(`Файл «${file.name}» (${(Math.ceil((file.size / 1024 / 1024) * 100) / 100).toFixed(2).replace(".", ",")} МБ) больше лимита 25 МБ`);
       return;
     }
     const paidAt = String(fd.get("paidAt") ?? "");
@@ -142,11 +151,12 @@ export function AuctionPaymentForm({
   }
 
   const lab = "mb-1 block text-xs text-neutral-500";
+  const fid = (n: string) => `${uid}-${n}`;
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div>
-        <label className={lab}>Тип оплаты</label>
-        <Select name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <label htmlFor={fid("kind")} className={lab}>Тип оплаты</label>
+        <Select id={fid("kind")} name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
           {KINDS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
@@ -155,19 +165,19 @@ export function AuctionPaymentForm({
         </Select>
       </div>
       <div>
-        <label className={lab}>Статус</label>
-        <Select name="status" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <label htmlFor={fid("status")} className={lab}>Статус</label>
+        <Select id={fid("status")} name="status" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="COMPLETED">Оплачено</option>
           <option value="PENDING">Запланировано</option>
         </Select>
       </div>
       <div>
-        <label className={lab}>{status === "PENDING" ? "Плановая дата" : "Дата оплаты"}</label>
-        <Input name="paidAt" type="date" defaultValue={initial?.paidAt ?? localToday()} required />
+        <label htmlFor={fid("paidAt")} className={lab}>{status === "PENDING" ? "Плановая дата" : "Дата оплаты"}</label>
+        <Input id={fid("paidAt")} name="paidAt" type="date" defaultValue={initial?.paidAt ?? localToday()} required />
       </div>
       <div>
-        <label className={lab}>Способ</label>
-        <Select name="method" defaultValue={initial?.method ?? "BANK_TRANSFER"}>
+        <label htmlFor={fid("method")} className={lab}>Способ</label>
+        <Select id={fid("method")} name="method" defaultValue={initial?.method ?? "BANK_TRANSFER"}>
           {METHODS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
@@ -177,8 +187,9 @@ export function AuctionPaymentForm({
       </div>
 
       <div>
-        <label className={lab}>% от стоимости аукциона</label>
+        <label htmlFor={fid("percent")} className={lab}>% от стоимости аукциона</label>
         <Input
+          id={fid("percent")}
           name="percent"
           inputMode="decimal"
           value={percent}
@@ -189,8 +200,9 @@ export function AuctionPaymentForm({
         />
       </div>
       <div>
-        <label className={lab}>или сумма, ₽</label>
+        <label htmlFor={fid("amount")} className={lab}>или сумма, ₽</label>
         <Input
+          id={fid("amount")}
           name="amount"
           inputMode="decimal"
           value={amount}
@@ -224,8 +236,8 @@ export function AuctionPaymentForm({
 
       {suppliers.length > 1 && (
         <div>
-          <label className={lab}>Кому платим (посредник)</label>
-          <Select name="supplierId" defaultValue={suppliers[0].id} disabled={Boolean(initial)}>
+          <label htmlFor={fid("supplierId")} className={lab}>Кому платим (посредник)</label>
+          <Select id={fid("supplierId")} name="supplierId" defaultValue={suppliers[0].id} disabled={Boolean(initial)}>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -235,14 +247,14 @@ export function AuctionPaymentForm({
         </div>
       )}
       <div className="sm:col-span-2">
-        <label className={lab}>Заметка</label>
-        <Input name="notes" defaultValue={initial?.notes ?? ""} maxLength={1000} autoComplete="off" />
+        <label htmlFor={fid("notes")} className={lab}>Заметка</label>
+        <Input id={fid("notes")} name="notes" defaultValue={initial?.notes ?? ""} maxLength={1000} autoComplete="off" />
       </div>
       <div className="sm:col-span-2">
-        <label className={lab}>
+        <label htmlFor={fid("file")} className={lab}>
           {initial?.docName ? `Заменить платёжку (сейчас: ${initial.docName})` : "Платёжный документ (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ)"}
         </label>
-        <input type="file" name="file" accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="w-full text-sm" />
+        <input id={fid("file")} type="file" name="file" accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="w-full text-sm" />
         {initial?.docName && (
           <label className="mt-1 flex items-center gap-2 text-xs text-neutral-600">
             <input type="checkbox" name="removeDocument" value="1" /> Убрать документ без замены
@@ -291,7 +303,10 @@ export function PaymentRowControls({
   const [error, setError] = useState("");
 
   function remove() {
-    if (!window.confirm("Удалить эту оплату? Платёжный документ, прикреплённый к ней, тоже будет удалён. Действие нельзя отменить.")) return;
+    const text = initial.closing
+      ? "Удалить закрытие остатка? Остаток аукциона снова станет долгом. Действие нельзя отменить (закрыть остаток можно заново)."
+      : "Удалить эту оплату? Платёжный документ, прикреплённый к ней, тоже будет удалён. Действие нельзя отменить.";
+    if (!window.confirm(text)) return;
     setError("");
     startTransition(async () => {
       try {
@@ -327,6 +342,69 @@ export function PaymentRowControls({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * «Закрыть остаток: оплачено до начала учёта» — явное действие пользователя.
+ * В окне подтверждения можно выбрать дату; откат — удаление созданной оплаты в списке.
+ */
+export function CloseRemainderButton({ auction, remaining }: { auction: string; remaining: string }) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(localToday());
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
+  const uid = useId();
+
+  function confirmClose() {
+    setError("");
+    startTransition(async () => {
+      try {
+        const res = await closeAuctionRemainder(auction, date);
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        setOpen(false);
+      } catch {
+        setError("Не удалось закрыть остаток. Попробуйте ещё раз.");
+      }
+    });
+  }
+
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Закрыть остаток: оплачено до начала учёта
+      </Button>
+    );
+  }
+  return (
+    <div role="dialog" aria-label="Подтверждение закрытия остатка" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+      <p>
+        Будет создана оплата «Оплачено» на весь текущий остаток аукциона «{auction}» — <span className="font-semibold">{remaining}</span>, с пометкой «закрытие
+        остатка». Используйте только если аукцион реально оплачен до начала учёта в системе. Отменить можно удалением этой оплаты в списке.
+      </p>
+      <div className="max-w-xs">
+        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs text-neutral-600">
+          Дата оплаты
+        </label>
+        <Input id={`${uid}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+      </div>
+      {error && (
+        <p role="alert" className="text-red-700">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="button" size="sm" onClick={confirmClose} disabled={pending || !date}>
+          {pending ? "Закрываем…" : "Подтвердить закрытие"}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)} disabled={pending}>
+          Отмена
+        </Button>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { isUniqueViolation } from "@/lib/input";
@@ -10,7 +11,6 @@ import {
   MAX_CUSTOM_FIELDS,
   isFieldType,
   parseCustomValue,
-  readExtra,
   validateFieldName,
   type ExtraValue,
 } from "@/lib/custom-fields";
@@ -25,12 +25,26 @@ function revalidateAll() {
   revalidatePath("/purchases/[id]", "page");
 }
 
-async function orgFields(organizationId: string) {
-  return prisma.customField.findMany({
+const idSchema = z.string().min(1).max(100);
+const BAD_ARGS = "Некорректные параметры запроса — обновите страницу";
+
+/** Блокировка по организации: создание/перенос/удаление столбцов идут строго по очереди. */
+async function lockFields(tx: Prisma.TransactionClient, organizationId: string) {
+  await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${"custom-fields:" + organizationId}))) t`;
+}
+
+async function txFields(tx: Prisma.TransactionClient, organizationId: string) {
+  return tx.customField.findMany({
     where: { organizationId, entity: CUSTOM_FIELD_ENTITY },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
 }
+
+const createSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  beforeId: z.string().max(100).nullish(),
+});
 
 /** Новый столбец; beforeId — вставить перед этим столбцом (иначе в конец). */
 export async function createCustomField(input: {
@@ -40,30 +54,35 @@ export async function createCustomField(input: {
 }): Promise<FieldResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const n = validateFieldName(input.name);
+  const parsedInput = createSchema.safeParse(input);
+  if (!parsedInput.success) return { error: BAD_ARGS };
+  const { beforeId } = parsedInput.data;
+  const n = validateFieldName(parsedInput.data.name);
   if ("error" in n) return n;
-  if (!isFieldType(input.type)) return { error: "Выберите тип столбца: текст, число или да/нет" };
-  const type = input.type;
-  const existing = await orgFields(orgId);
-  if (existing.length >= MAX_CUSTOM_FIELDS) return { error: `Не больше ${MAX_CUSTOM_FIELDS} своих столбцов` };
-  if (existing.some((f) => f.name.toLowerCase() === n.name.toLowerCase()))
-    return { error: `Столбец «${n.name}» уже есть` };
+  if (!isFieldType(parsedInput.data.type)) return { error: "Выберите тип столбца: текст, число или да/нет" };
+  const type = parsedInput.data.type;
   try {
-    const created = await prisma.$transaction(async (tx) => {
+    const res = await prisma.$transaction(async (tx) => {
+      await lockFields(tx, orgId);
+      const existing = await txFields(tx, orgId);
+      if (existing.length >= MAX_CUSTOM_FIELDS) return { error: `Не больше ${MAX_CUSTOM_FIELDS} своих столбцов` };
+      if (existing.some((f) => f.name.toLowerCase() === n.name.toLowerCase()))
+        return { error: `Столбец «${n.name}» уже есть` };
       const c = await tx.customField.create({
         data: { organizationId: orgId, entity: CUSTOM_FIELD_ENTITY, name: n.name, type, position: existing.length },
       });
       const order = existing.map((f) => f.id);
-      const at = input.beforeId ? order.indexOf(input.beforeId) : -1;
+      const at = beforeId ? order.indexOf(beforeId) : -1;
       if (at >= 0) order.splice(at, 0, c.id);
       else order.push(c.id);
       for (let i = 0; i < order.length; i++) {
         await tx.customField.updateMany({ where: { id: order[i], organizationId: orgId }, data: { position: i } });
       }
-      return c;
+      return { ok: true as const, id: c.id };
     });
+    if (!res.ok) return res;
     revalidateAll();
-    return { ok: true, id: created.id };
+    return { ok: true, id: res.id };
   } catch (e) {
     if (isUniqueViolation(e)) return { error: `Столбец «${n.name}» уже есть` };
     throw e;
@@ -73,15 +92,20 @@ export async function createCustomField(input: {
 export async function renameCustomField(id: string, name: string): Promise<FieldResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
+  if (!idSchema.safeParse(id).success || typeof name !== "string") return { error: BAD_ARGS };
   const n = validateFieldName(name);
   if ("error" in n) return n;
-  const all = await orgFields(orgId);
-  const cur = all.find((f) => f.id === id);
-  if (!cur) return { error: "Столбец не найден" };
-  if (all.some((f) => f.id !== id && f.name.toLowerCase() === n.name.toLowerCase()))
-    return { error: `Столбец «${n.name}» уже есть` };
   try {
-    await prisma.customField.updateMany({ where: { id, organizationId: orgId }, data: { name: n.name } });
+    const res = await prisma.$transaction(async (tx) => {
+      await lockFields(tx, orgId);
+      const all = await txFields(tx, orgId);
+      if (!all.some((f) => f.id === id)) return { error: "Столбец не найден" };
+      if (all.some((f) => f.id !== id && f.name.toLowerCase() === n.name.toLowerCase()))
+        return { error: `Столбец «${n.name}» уже есть` };
+      await tx.customField.updateMany({ where: { id, organizationId: orgId }, data: { name: n.name } });
+      return null;
+    });
+    if (res) return res;
   } catch (e) {
     if (isUniqueViolation(e)) return { error: `Столбец «${n.name}» уже есть` };
     throw e;
@@ -93,16 +117,22 @@ export async function renameCustomField(id: string, name: string): Promise<Field
 export async function moveCustomField(id: string, dir: "left" | "right"): Promise<FieldResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const all = await orgFields(orgId);
-  const i = all.findIndex((f) => f.id === id);
-  if (i < 0) return { error: "Столбец не найден" };
-  const j = dir === "left" ? i - 1 : i + 1;
-  if (j < 0 || j >= all.length) return { ok: true };
-  const order = all.map((f) => f.id);
-  [order[i], order[j]] = [order[j], order[i]];
-  await prisma.$transaction(
-    order.map((fid, pos) => prisma.customField.updateMany({ where: { id: fid, organizationId: orgId }, data: { position: pos } })),
-  );
+  if (!idSchema.safeParse(id).success || (dir !== "left" && dir !== "right")) return { error: BAD_ARGS };
+  const res = await prisma.$transaction(async (tx) => {
+    await lockFields(tx, orgId);
+    const all = await txFields(tx, orgId);
+    const i = all.findIndex((f) => f.id === id);
+    if (i < 0) return { error: "Столбец не найден" };
+    const j = dir === "left" ? i - 1 : i + 1;
+    if (j < 0 || j >= all.length) return null;
+    const order = all.map((f) => f.id);
+    [order[i], order[j]] = [order[j], order[i]];
+    for (let pos = 0; pos < order.length; pos++) {
+      await tx.customField.updateMany({ where: { id: order[pos], organizationId: orgId }, data: { position: pos } });
+    }
+    return null;
+  });
+  if (res) return res;
   revalidateAll();
   return { ok: true };
 }
@@ -111,27 +141,23 @@ export async function moveCustomField(id: string, dir: "left" | "right"): Promis
 export async function deleteCustomField(id: string): Promise<FieldResult> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
-  const field = await prisma.customField.findFirst({ where: { id, organizationId: orgId } });
-  if (!field) return { error: "Столбец не найден" };
-  await prisma.$transaction(async (tx) => {
-    const items = await tx.purchaseItem.findMany({
-      where: { purchase: { organizationId: orgId }, NOT: { extra: { equals: Prisma.DbNull } } },
-      select: { id: true, extra: true },
-    });
-    for (const it of items) {
-      const ex = readExtra(it.extra);
-      if (!(id in ex)) continue;
-      delete ex[id];
-      await tx.purchaseItem.update({ where: { id: it.id }, data: { extra: Object.keys(ex).length ? ex : Prisma.DbNull } });
-    }
+  if (!idSchema.safeParse(id).success) return { error: BAD_ARGS };
+  const res = await prisma.$transaction(async (tx) => {
+    await lockFields(tx, orgId);
+    // Блокируем строку столбца: параллельная запись значения (FOR SHARE) подождёт и увидит, что столбца нет.
+    const locked = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "CustomField" WHERE "id" = ${id} AND "organizationId" = ${orgId} FOR UPDATE`;
+    if (locked.length === 0) return { error: "Столбец не найден" };
+    await tx.$executeRaw`
+      UPDATE "PurchaseItem" SET "extra" = NULLIF("extra" - ${id}::text, '{}'::jsonb)
+      WHERE "extra" ? ${id}::text
+        AND "purchaseId" IN (SELECT "id" FROM "Purchase" WHERE "organizationId" = ${orgId})`;
     await tx.customField.deleteMany({ where: { id, organizationId: orgId } });
-    const rest = await tx.customField.findMany({
-      where: { organizationId: orgId, entity: CUSTOM_FIELD_ENTITY },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-      select: { id: true },
-    });
+    const rest = await txFields(tx, orgId);
     for (let i = 0; i < rest.length; i++) await tx.customField.update({ where: { id: rest[i].id }, data: { position: i } });
+    return null;
   });
+  if (res) return res;
   revalidateAll();
   return { ok: true };
 }
@@ -144,20 +170,38 @@ export async function setCustomValue(
 ): Promise<{ ok: true; value: ExtraValue | null } | { ok?: false; error: string }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
+  if (!idSchema.safeParse(itemId).success || !idSchema.safeParse(fieldId).success) return { error: BAD_ARGS };
+  if (raw === undefined) return { error: BAD_ARGS };
   const field = await prisma.customField.findFirst({ where: { id: fieldId, organizationId: orgId } });
   if (!field) return { error: "Столбец не найден (возможно, удалён) — обновите страницу" };
   const parsed = parseCustomValue(field.type, raw, field.name);
   if ("error" in parsed) return parsed;
   const item = await prisma.purchaseItem.findFirst({
     where: { id: itemId, purchase: { organizationId: orgId } },
-    select: { id: true, purchaseId: true, extra: true },
+    select: { id: true, purchaseId: true },
   });
   if (!item) return { error: "Лот не найден" };
-  const ex = readExtra(item.extra);
-  if (parsed.value === null) delete ex[fieldId];
-  else ex[fieldId] = parsed.value;
-  await prisma.purchaseItem.update({ where: { id: item.id }, data: { extra: Object.keys(ex).length ? ex : Prisma.DbNull } });
+  const value = parsed.value;
+  const outcome = await prisma.$transaction(async (tx) => {
+    // FOR SHARE: удаление столбца (FOR UPDATE) и запись значения не пересекаются.
+    const still = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "CustomField" WHERE "id" = ${fieldId} AND "organizationId" = ${orgId} FOR SHARE`;
+    if (still.length === 0) return "no-field" as const;
+    // Одна атомарная запись одного ключа: правки соседних столбцов того же лота не теряются.
+    const n =
+      value === null
+        ? await tx.$executeRaw`
+            UPDATE "PurchaseItem" SET "extra" = NULLIF(COALESCE("extra", '{}'::jsonb) - ${fieldId}::text, '{}'::jsonb)
+            WHERE "id" = ${item.id}`
+        : await tx.$executeRaw`
+            UPDATE "PurchaseItem"
+            SET "extra" = jsonb_set(COALESCE("extra", '{}'::jsonb), ARRAY[${fieldId}::text], ${JSON.stringify(value)}::jsonb, true)
+            WHERE "id" = ${item.id}`;
+    return n === 0 ? ("no-item" as const) : ("ok" as const);
+  });
+  if (outcome === "no-field") return { error: "Столбец не найден (возможно, удалён) — обновите страницу" };
+  if (outcome === "no-item") return { error: "Лот не найден" };
   // Только значения справочные — страницу не перерисовываем целиком, чтобы не сбивать ввод в соседних ячейках.
   revalidatePath(`/purchases/${item.purchaseId}`);
-  return { ok: true, value: parsed.value };
+  return { ok: true, value };
 }

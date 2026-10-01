@@ -54,11 +54,17 @@ export function parseCustomValue(
     return { error: `${label}: допустимо «Да» или «Нет»` };
   }
   if (type === "NUMBER") {
+    if (raw !== null && raw !== undefined && typeof raw !== "string" && typeof raw !== "number")
+      return { error: `${label}: укажите число` };
     if (raw == null || (typeof raw === "string" && raw.trim() === "")) return { value: null };
     const r = parseNumber(raw, label, { min: -MAX_MONEY, max: MAX_MONEY });
     if ("error" in r) return { error: r.error };
-    return { value: Math.round(r.value * 1e6) / 1e6 };
+    // Десятичное округление через строку (v*1e6 на значениях ~1e12 теряет точность); «-0» -> 0.
+    const v = Number(r.value.toFixed(6));
+    if (!Number.isFinite(v) || Math.abs(v) >= 1e12) return { error: `${label}: слишком большое значение` };
+    return { value: v === 0 ? 0 : v };
   }
+  if (raw !== null && raw !== undefined && typeof raw !== "string") return { error: `${label}: ожидается текст` };
   const t = typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim() : "";
   if (!t) return { value: null };
   if (t.length > TEXT_VALUE_MAX) return { error: `${label}: не длиннее ${TEXT_VALUE_MAX} символов` };
@@ -66,6 +72,12 @@ export function parseCustomValue(
 }
 
 const numFmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 6 });
+
+const avgFmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 });
+/** Среднее значение числового столбца: не больше 3 знаков после запятой. */
+export function formatAvg(v: number): string {
+  return avgFmt.format(v === 0 ? 0 : v);
+}
 
 /** Показ значения ячейки; пусто -> пустая строка. */
 export function formatExtra(type: CustomFieldType, v: ExtraValue | undefined): string {

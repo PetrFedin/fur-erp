@@ -39,6 +39,22 @@ export function zNum(label: string, opts: NumOpts = {}) {
   return z.preprocess(normalizeNumberInput, numberSchema(label, opts));
 }
 
+/**
+ * Денежная сумма > 0: меньше полкопейки (0,005) — ошибка, иначе округляется до копеек
+ * (0,006 -> 0,01). Запятая/пробелы допускаются.
+ */
+export function zMoney(label: string) {
+  return z.preprocess(
+    normalizeNumberInput,
+    z
+      .number({ message: `${label}: укажите число` })
+      .finite(`${label}: укажите число`)
+      .min(0.005, `${label}: сумма меньше 0,005 ₽ — укажите не меньше 0,01`)
+      .max(MAX_MONEY, `${label}: слишком большое значение`)
+      .transform((n) => Math.round((n + Number.EPSILON) * 100) / 100),
+  );
+}
+
 /** Необязательное число: пусто -> undefined, но «abc» — ошибка. */
 export function zNumOpt(label: string, opts: NumOpts = {}) {
   return z.preprocess(normalizeNumberInput, numberSchema(label, opts).optional());

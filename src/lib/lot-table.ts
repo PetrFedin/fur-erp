@@ -73,11 +73,24 @@ export function multiValue(row: LotRow, key: string): string {
   return v && v !== "—" ? v : EMPTY_VALUE;
 }
 
+const parseBoundRaw = (s: string): number | null => {
+  const n = normalizeNumberInput(s);
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+};
+
+/** Граница диапазона: пусто или корректное число (иначе поле подсвечивается и фильтр не действует). */
+export function isBoundValid(s: string): boolean {
+  return !s.trim() || parseBoundRaw(s) != null;
+}
+
+const rangeActive = (r: Range) =>
+  (r.from.trim() !== "" && parseBoundRaw(r.from) != null) || (r.to.trim() !== "" && parseBoundRaw(r.to) != null);
+
 export function activeFilterCount(f: Filters): number {
   return (
     Object.values(f.text).filter((v) => v.trim()).length +
     Object.values(f.multi).filter((v) => v.length > 0).length +
-    Object.values(f.range).filter((r) => r.from.trim() || r.to.trim()).length +
+    Object.values(f.range).filter(rangeActive).length +
     Object.keys(f.bool).length +
     (f.onlySelected ? 1 : 0)
   );
@@ -136,7 +149,7 @@ export function rowMatches(
     if (sel && sel.length > 0 && !sel.includes(multiValue(row, k))) return false;
   }
   for (const [k, r] of Object.entries(f.range)) {
-    if (!r.from.trim() && !r.to.trim()) continue;
+    if (!rangeActive(r)) continue;
     const field = fields.find((x) => x.id === k);
     if (field) {
       const v = extraOf(row, k);

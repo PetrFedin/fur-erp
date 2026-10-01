@@ -51,6 +51,22 @@ export function truncateFileName(name: string, maxLen = 200): string {
   return name.slice(0, maxLen - ext.length) + ext;
 }
 
+/** Приводит расширение имени к реальному типу файла (подмена .jpg у PDF исправляется). */
+export function fixFileNameExt(name: string, ext: string): string {
+  const m = /\.([A-Za-z0-9]{1,8})$/.exec(name);
+  if (m) {
+    const cur = m[1].toLowerCase();
+    if (cur === ext || (ext === "jpg" && cur === "jpeg")) return name;
+    return name.slice(0, name.length - m[0].length) + "." + ext;
+  }
+  return name + "." + ext;
+}
+
+/** Размер в МБ с двумя знаками, округлённый вверх (чтобы «больше 25 МБ» не выглядело как «25,00 МБ»). */
+export function formatMb(bytes: number): string {
+  return (Math.ceil((bytes / 1024 / 1024) * 100) / 100).toFixed(2).replace(".", ",");
+}
+
 export type ReadDoc = { buf: Buffer; kind: DocKind; originalName: string };
 
 export async function readDocumentFiles(
@@ -63,17 +79,17 @@ export async function readDocumentFiles(
   }
   const total = files.reduce((s, f) => s + f.size, 0);
   if (total > MAX_TOTAL_BYTES) {
-    return { error: `Суммарный размер файлов больше 25 МБ (${(total / 1024 / 1024).toFixed(1)} МБ) — загрузите их по частям` };
+    return { error: `Суммарный размер файлов ${formatMb(total)} МБ — больше лимита 25 МБ; загрузите файлы по частям` };
   }
   const out: ReadDoc[] = [];
   for (const f of files) {
     // Кавычки и управляющие символы в имени ломают заголовки/ссылки — заменяем на апостроф.
     const name = (f.name || "файл").replace(/["\u0000-\u001f]/g, "'");
-    if (f.size > MAX_DOC_BYTES) return { error: `Файл «${name}» больше 25 МБ` };
+    if (f.size > MAX_DOC_BYTES) return { error: `Файл «${name}» (${formatMb(f.size)} МБ) больше лимита 25 МБ` };
     const buf = Buffer.from(await f.arrayBuffer());
     const kind = detectDocument(buf.subarray(0, 16), name, buf);
     if (!kind) return { error: `Файл «${name}» не подходит: допустимы PDF, XLSX, DOCX, JPEG, PNG` };
-    out.push({ buf, kind, originalName: truncateFileName(name, 200) });
+    out.push({ buf, kind, originalName: truncateFileName(fixFileNameExt(name, kind.ext), 200) });
   }
   return { files: out };
 }

@@ -3,7 +3,7 @@
 // Панель фильтров лотов: выпадающие списки с мультивыбором и поиском (мех, размер, операция),
 // подстрока, диапазоны «от / до», да/нет для своих столбцов.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MULTI_KEYS, multiValue, type Filters, type MultiKey, type Range } from "@/lib/lot-table";
+import { MULTI_KEYS, isBoundValid, multiValue, type Filters, type MultiKey, type Range } from "@/lib/lot-table";
 import { useLots, useScope } from "./lots-state";
 
 const inputCls = "h-8 w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 text-sm";
@@ -75,13 +75,17 @@ function MultiSelect({
 
 function RangeInput({ label, value, onChange }: { label: string; value: Range | undefined; onChange: (r: Range) => void }) {
   const v = value ?? { from: "", to: "" };
+  const bad = "border-red-500 bg-red-50 text-red-700";
+  const badFrom = !isBoundValid(v.from);
+  const badTo = !isBoundValid(v.to);
   return (
-    <div>
-      <span className="mb-1 block text-xs text-neutral-500">{label}</span>
+    <div className="min-w-0">
+      <span className="mb-1 block min-w-0 break-words text-xs text-neutral-500">{label}</span>
       <div className="flex gap-1">
-        <input inputMode="decimal" placeholder="от" value={v.from} onChange={(e) => onChange({ ...v, from: e.target.value })} className={inputCls} />
-        <input inputMode="decimal" placeholder="до" value={v.to} onChange={(e) => onChange({ ...v, to: e.target.value })} className={inputCls} />
+        <input inputMode="decimal" placeholder="от" value={v.from} aria-invalid={badFrom} title={badFrom ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, from: e.target.value })} className={`${inputCls} ${badFrom ? bad : ""}`} />
+        <input inputMode="decimal" placeholder="до" value={v.to} aria-invalid={badTo} title={badTo ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, to: e.target.value })} className={`${inputCls} ${badTo ? bad : ""}`} />
       </div>
+      {(badFrom || badTo) && <span className="mt-0.5 block text-[10px] text-red-600">Некорректное число — фильтр не действует</span>}
     </div>
   );
 }
@@ -113,7 +117,7 @@ export function FilterPanel({ scope }: { scope: string }) {
         {MULTI_KEYS.map((k) => (
           <MultiSelect key={k} label={MULTI_LABELS[k]} options={options[k]} selected={f.multi[k] ?? []} onChange={(v) => set({ multi: { ...f.multi, [k]: v } })} />
         ))}
-        <label className="block">
+        <label className="block min-w-0">
           <span className="mb-1 block text-xs text-neutral-500">№ лота (подстрока)</span>
           <input value={f.text.lotNumber ?? ""} onChange={(e) => set({ text: { ...f.text, lotNumber: e.target.value } })} className={inputCls} placeholder="Часть номера" />
         </label>
@@ -125,15 +129,15 @@ export function FilterPanel({ scope }: { scope: string }) {
         {rng("remaining", "Остаток на складе")}
         {fields.map((fld) =>
           fld.type === "TEXT" ? (
-            <label key={fld.id} className="block">
-              <span className="mb-1 block text-xs text-neutral-500">{fld.name} (подстрока)</span>
+            <label key={fld.id} className="block min-w-0">
+              <span className="mb-1 block min-w-0 break-words text-xs text-neutral-500">{fld.name} (подстрока)</span>
               <input value={f.text[fld.id] ?? ""} onChange={(e) => set({ text: { ...f.text, [fld.id]: e.target.value } })} className={inputCls} />
             </label>
           ) : fld.type === "NUMBER" ? (
             rng(fld.id, fld.name)
           ) : (
-            <label key={fld.id} className="block">
-              <span className="mb-1 block text-xs text-neutral-500">{fld.name}</span>
+            <label key={fld.id} className="block min-w-0">
+              <span className="mb-1 block min-w-0 break-words text-xs text-neutral-500">{fld.name}</span>
               <select
                 value={f.bool[fld.id] ?? ""}
                 onChange={(e) => {
