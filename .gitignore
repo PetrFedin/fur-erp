@@ -43,3 +43,7 @@ next-env.d.ts
 
 # uploads (photos of fittings etc.) - user data, back up together with the DB
 /uploads/
+
+# e2e
+/test-results/
+/playwright-report/
