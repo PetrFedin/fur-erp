@@ -44,6 +44,8 @@ model Organization {
   fittings               Fitting[]
   purchaseDocuments      PurchaseDocument[]
   customFields           CustomField[]
+  productionBatches      ProductionBatch[]
+  driveDocuments         DriveDocument[]
 }
 
 enum UserRole {
@@ -91,8 +93,9 @@ model Supplier {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  purchases Purchase[]
-  payments  Payment[]
+  purchases      Purchase[]
+  payments       Payment[]
+  driveDocuments DriveDocument[]
 
   @@index([organizationId])
 }
@@ -117,6 +120,7 @@ model Client {
   productionOrders   ProductionOrder[]
   productionPayments ProductionPayment[]
   shipments          Shipment[]
+  driveDocuments     DriveDocument[]
 
   @@index([organizationId])
 }
@@ -254,6 +258,7 @@ model Purchase {
   stockMovements  StockMovement[]
   rawMaterialLots RawMaterialLot[]
   documents       PurchaseDocument[]
+  driveDocuments  DriveDocument[]
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -366,6 +371,11 @@ model Payment {
   // Платёжный документ (PurchaseDocument kind PAYMENT_PROOF, batch = аукцион).
   documentId     String?
   document       PurchaseDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  // Номер платёжки / счёта, по которому прошла оплата; confirmed = false — оплата
+  // упомянута в документах, но подтверждения (платёжки) ещё нет.
+  docRef         String?
+  confirmed      Boolean           @default(true)
+  driveDocuments DriveDocument[]
 
   @@index([organizationId])
   @@index([supplierId])
@@ -410,6 +420,9 @@ model ProductionPayment {
   notes          String?
   createdAt      DateTime                 @default(now())
   orders         ProductionPaymentOrder[]
+  docRef         String?
+  confirmed      Boolean                  @default(true)
+  driveDocuments DriveDocument[]
 
   @@index([organizationId])
   @@index([clientId])
@@ -511,6 +524,7 @@ model RawMaterialLot {
 
   stockMovements StockMovement[]
   usages         ProductionMaterialUsage[]
+  driveDocuments DriveDocument[]
 
   @@index([organizationId])
   @@index([warehouseId, rawMaterialId])
@@ -661,6 +675,10 @@ model ProductionOrder {
   // work itself (revenue) — separate from our internal production cost.
   clientWorkPricePerUnit Decimal?  @db.Decimal(14, 2)
 
+  // Партия поставки (в Drive — «поставка N»), к которой относится ТЗ.
+  batchId String?
+  batch   ProductionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
   // Intended/actual retail sale price per unit for this specific batch (own
   // sales channel, not the давалец client) — markup = retailPrice / unitCost.
   retailPrice Decimal? @db.Decimal(14, 2)
@@ -682,9 +700,11 @@ model ProductionOrder {
   fittings               Fitting[]
   stockMovements         StockMovement[]
   finishedGoodsMovements FinishedGoodsMovement[]
+  driveDocuments         DriveDocument[]
 
   @@unique([organizationId, number])
   @@index([organizationId])
+  @@index([batchId])
 }
 
 // Actual raw-material consumption recorded against a production order
@@ -701,6 +721,9 @@ model ProductionMaterialUsage {
   unitCost          Decimal         @db.Decimal(14, 2)
   totalCost         Decimal         @db.Decimal(14, 2)
   date              DateTime        @default(now())
+  // Применять ли к строке надбавку 4% (см. src/lib/commission4.ts): сырьё и
+  // подкладка — да; лоскут, фондю, бобр, отдельные партии — нет.
+  commission4       Boolean         @default(true)
 
   @@index([productionOrderId])
   @@index([lotId])
@@ -904,4 +927,86 @@ model CustomField {
 
   @@unique([organizationId, entity, name])
   @@index([organizationId, entity, position])
+}
+
+// ---------- Партии производства и документы Google Drive ----------
+
+// Партия поставки производства (в Google Drive — «поставка N»): группирует ТЗ.
+model ProductionBatch {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         Int
+  name           String?
+  year           Int?
+  plannedUnits   Int?
+  notes          String?
+  createdAt      DateTime     @default(now())
+
+  orders         ProductionOrder[]
+  driveDocuments DriveDocument[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+}
+
+enum DriveDocType {
+  AUCTION_INVOICE
+  UPD
+  CALC_SHEET
+  SPECIFICATION
+  CONTRACT
+  TZ_APPENDIX
+  PAYMENT_PROOF
+  PAYMENT_INVOICE
+  APPROVAL_EMAIL
+  BALANCE
+  OTHER
+}
+
+// Ссылка на файл в Google Drive (сам файл не хранится). Один файл может быть
+// привязан к нескольким сущностям — отдельной строкой на каждую привязку.
+model DriveDocument {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  driveFileId    String
+  title          String
+  docType        DriveDocType @default(OTHER)
+  mimeType       String?
+  sizeBytes      Int?
+  drivePath      String?
+  viewUrl        String?
+  docDate        DateTime?
+  docNumber      String?
+  year           Int?
+  notes          String?
+  createdAt      DateTime     @default(now())
+
+  purchaseId          String?
+  purchase            Purchase?          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  lotId               String?
+  lot                 RawMaterialLot?    @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  productionOrderId   String?
+  productionOrder     ProductionOrder?   @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  productionBatchId   String?
+  productionBatch     ProductionBatch?   @relation(fields: [productionBatchId], references: [id], onDelete: Cascade)
+  paymentId           String?
+  payment             Payment?           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  productionPaymentId String?
+  productionPayment   ProductionPayment? @relation(fields: [productionPaymentId], references: [id], onDelete: Cascade)
+  clientId            String?
+  client              Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  supplierId          String?
+  supplier            Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, driveFileId])
+  @@index([purchaseId])
+  @@index([lotId])
+  @@index([productionOrderId])
+  @@index([productionBatchId])
+  @@index([paymentId])
+  @@index([productionPaymentId])
+  @@index([clientId])
+  @@index([supplierId])
 }

@@ -1,0 +1,768 @@
+{
+ "_comment": "Построчные данные подписанных УПД (из docs-inventory/extract/p2026a.json и p2026b.json). priceIncl/priceExcl — цена за единицу с НДС/без НДС, sumIncl/sumExcl — сумма строки. Для УПД №229 priceIncl = sumIncl/qty.",
+ "upd201": {
+  "doc": "УПД №201 от 09.07.2026 (Русьпушнина, РП 04-26)",
+  "purchases": [
+   "З-2026-0041",
+   "З-2026-0042",
+   "З-2026-0043",
+   "З-2026-0044",
+   "З-2026-0045",
+   "З-2026-0046"
+  ],
+  "lines": [
+   {
+    "lot": "1",
+    "qty": 55,
+    "priceIncl": 32642.69,
+    "sumIncl": 1795347.95,
+    "priceExcl": 26756.3,
+    "sumExcl": 1471596.68
+   },
+   {
+    "lot": "2",
+    "qty": 55,
+    "priceIncl": 32642.69,
+    "sumIncl": 1795347.95,
+    "priceExcl": 26756.3,
+    "sumExcl": 1471596.68
+   },
+   {
+    "lot": "3",
+    "qty": 55,
+    "priceIncl": 32642.69,
+    "sumIncl": 1795347.95,
+    "priceExcl": 26756.3,
+    "sumExcl": 1471596.68
+   },
+   {
+    "lot": "4",
+    "qty": 55,
+    "priceIncl": 35687.68,
+    "sumIncl": 1962822.4,
+    "priceExcl": 29252.2,
+    "sumExcl": 1608870.82
+   },
+   {
+    "lot": "5",
+    "qty": 53,
+    "priceIncl": 32642.71,
+    "sumIncl": 1730063.63,
+    "priceExcl": 26756.32,
+    "sumExcl": 1418084.94
+   },
+   {
+    "lot": "18",
+    "qty": 60,
+    "priceIncl": 35687.67,
+    "sumIncl": 2141260.2,
+    "priceExcl": 29252.19,
+    "sumExcl": 1755131.31
+   },
+   {
+    "lot": "19",
+    "qty": 55,
+    "priceIncl": 35687.67,
+    "sumIncl": 1962821.85,
+    "priceExcl": 29252.19,
+    "sumExcl": 1608870.37
+   },
+   {
+    "lot": "20",
+    "qty": 50,
+    "priceIncl": 32642.69,
+    "sumIncl": 1632134.5,
+    "priceExcl": 26756.3,
+    "sumExcl": 1337815.16
+   },
+   {
+    "lot": "21",
+    "qty": 50,
+    "priceIncl": 32642.69,
+    "sumIncl": 1632134.5,
+    "priceExcl": 26756.3,
+    "sumExcl": 1337815.16
+   },
+   {
+    "lot": "23",
+    "qty": 50,
+    "priceIncl": 32642.69,
+    "sumIncl": 1632134.5,
+    "priceExcl": 26756.3,
+    "sumExcl": 1337815.16
+   },
+   {
+    "lot": "26",
+    "qty": 55,
+    "priceIncl": 34672.68,
+    "sumIncl": 1906997.4,
+    "priceExcl": 28420.23,
+    "sumExcl": 1563112.62
+   },
+   {
+    "lot": "27",
+    "qty": 55,
+    "priceIncl": 34672.68,
+    "sumIncl": 1906997.4,
+    "priceExcl": 28420.23,
+    "sumExcl": 1563112.62
+   },
+   {
+    "lot": "30",
+    "qty": 50,
+    "priceIncl": 34672.68,
+    "sumIncl": 1733634,
+    "priceExcl": 28420.23,
+    "sumExcl": 1421011.48
+   },
+   {
+    "lot": "32",
+    "qty": 45,
+    "priceIncl": 34672.68,
+    "sumIncl": 1560270.6,
+    "priceExcl": 28420.23,
+    "sumExcl": 1278910.33
+   },
+   {
+    "lot": "33",
+    "qty": 45,
+    "priceIncl": 34672.68,
+    "sumIncl": 1560270.6,
+    "priceExcl": 28420.23,
+    "sumExcl": 1278910.33
+   },
+   {
+    "lot": "51",
+    "qty": 50,
+    "priceIncl": 39747.65,
+    "sumIncl": 1987382.5,
+    "priceExcl": 32580.04,
+    "sumExcl": 1629002.05
+   },
+   {
+    "lot": "52",
+    "qty": 48,
+    "priceIncl": 39747.65,
+    "sumIncl": 1907887.2,
+    "priceExcl": 32580.04,
+    "sumExcl": 1563841.97
+   },
+   {
+    "lot": "53",
+    "qty": 45,
+    "priceIncl": 38732.66,
+    "sumIncl": 1742969.7,
+    "priceExcl": 31748.08,
+    "sumExcl": 1428663.69
+   },
+   {
+    "lot": "54",
+    "qty": 45,
+    "priceIncl": 39747.64,
+    "sumIncl": 1788643.8,
+    "priceExcl": 32580.03,
+    "sumExcl": 1466101.48
+   },
+   {
+    "lot": "55",
+    "qty": 45,
+    "priceIncl": 38732.66,
+    "sumIncl": 1742969.7,
+    "priceExcl": 31748.08,
+    "sumExcl": 1428663.69
+   },
+   {
+    "lot": "59",
+    "qty": 60,
+    "priceIncl": 39747.65,
+    "sumIncl": 2384859,
+    "priceExcl": 32580.04,
+    "sumExcl": 1954802.46
+   },
+   {
+    "lot": "60",
+    "qty": 55,
+    "priceIncl": 39747.65,
+    "sumIncl": 2186120.75,
+    "priceExcl": 32580.04,
+    "sumExcl": 1791902.25
+   },
+   {
+    "lot": "1501",
+    "qty": 47,
+    "priceIncl": 45837.62,
+    "sumIncl": 2154368.14,
+    "priceExcl": 37571.82,
+    "sumExcl": 1765875.52
+   },
+   {
+    "lot": "1502",
+    "qty": 36,
+    "priceIncl": 44822.62,
+    "sumIncl": 1613614.32,
+    "priceExcl": 36739.85,
+    "sumExcl": 1322634.69
+   },
+   {
+    "lot": "1508",
+    "qty": 55,
+    "priceIncl": 43807.63,
+    "sumIncl": 2409419.65,
+    "priceExcl": 35907.89,
+    "sumExcl": 1974934.14
+   },
+   {
+    "lot": "1509",
+    "qty": 55,
+    "priceIncl": 43807.63,
+    "sumIncl": 2409419.65,
+    "priceExcl": 35907.89,
+    "sumExcl": 1974934.14
+   },
+   {
+    "lot": "1510",
+    "qty": 54,
+    "priceIncl": 43807.63,
+    "sumIncl": 2365612.02,
+    "priceExcl": 35907.89,
+    "sumExcl": 1939026.25
+   },
+   {
+    "lot": "1525",
+    "qty": 48,
+    "priceIncl": 57002.56,
+    "sumIncl": 2736122.88,
+    "priceExcl": 46723.41,
+    "sumExcl": 2242723.67
+   },
+   {
+    "lot": "1526",
+    "qty": 45,
+    "priceIncl": 57002.56,
+    "sumIncl": 2565115.2,
+    "priceExcl": 46723.41,
+    "sumExcl": 2102553.44
+   },
+   {
+    "lot": "1572",
+    "qty": 50,
+    "priceIncl": 39747.65,
+    "sumIncl": 1987382.5,
+    "priceExcl": 32580.04,
+    "sumExcl": 1629002.05
+   },
+   {
+    "lot": "1573",
+    "qty": 58,
+    "priceIncl": 39747.65,
+    "sumIncl": 2305363.7,
+    "priceExcl": 32580.04,
+    "sumExcl": 1889642.38
+   },
+   {
+    "lot": "1587",
+    "qty": 42,
+    "priceIncl": 48882.61,
+    "sumIncl": 2053069.62,
+    "priceExcl": 40067.71,
+    "sumExcl": 1682843.95
+   },
+   {
+    "lot": "1589",
+    "qty": 30,
+    "priceIncl": 50912.61,
+    "sumIncl": 1527378.3,
+    "priceExcl": 41731.65,
+    "sumExcl": 1251949.43
+   },
+   {
+    "lot": "2001",
+    "qty": 22,
+    "priceIncl": 39737.26,
+    "sumIncl": 874219.72,
+    "priceExcl": 32571.52,
+    "sumExcl": 716573.54
+   },
+   {
+    "lot": "2002",
+    "qty": 17,
+    "priceIncl": 39737.26,
+    "sumIncl": 675533.42,
+    "priceExcl": 32571.52,
+    "sumExcl": 553715.92
+   },
+   {
+    "lot": "2003",
+    "qty": 23,
+    "priceIncl": 38722.26,
+    "sumIncl": 890611.98,
+    "priceExcl": 31739.56,
+    "sumExcl": 730009.82
+   },
+   {
+    "lot": "2004",
+    "qty": 21,
+    "priceIncl": 38722.26,
+    "sumIncl": 813167.46,
+    "priceExcl": 31739.56,
+    "sumExcl": 666530.7
+   },
+   {
+    "lot": "2005",
+    "qty": 49,
+    "priceIncl": 38722.26,
+    "sumIncl": 1897390.74,
+    "priceExcl": 31739.56,
+    "sumExcl": 1555238.31
+   },
+   {
+    "lot": "2016",
+    "qty": 17,
+    "priceIncl": 37707.28,
+    "sumIncl": 641023.76,
+    "priceExcl": 30907.61,
+    "sumExcl": 525429.31
+   },
+   {
+    "lot": "2017",
+    "qty": 13,
+    "priceIncl": 37707.28,
+    "sumIncl": 490194.64,
+    "priceExcl": 30907.61,
+    "sumExcl": 401798.89
+   },
+   {
+    "lot": "2025",
+    "qty": 13,
+    "priceIncl": 42782.24,
+    "sumIncl": 556169.12,
+    "priceExcl": 35067.41,
+    "sumExcl": 455876.33
+   },
+   {
+    "lot": "2027",
+    "qty": 18,
+    "priceIncl": 41767.25,
+    "sumIncl": 751810.5,
+    "priceExcl": 34235.45,
+    "sumExcl": 616238.11
+   },
+   {
+    "lot": "2030",
+    "qty": 19,
+    "priceIncl": 45827.23,
+    "sumIncl": 870717.37,
+    "priceExcl": 37563.3,
+    "sumExcl": 713702.76
+   },
+   {
+    "lot": "2065",
+    "qty": 11,
+    "priceIncl": 34662.31,
+    "sumIncl": 381285.41,
+    "priceExcl": 28411.73,
+    "sumExcl": 312529.02
+   },
+   {
+    "lot": "2067",
+    "qty": 29,
+    "priceIncl": 33647.31,
+    "sumIncl": 975771.99,
+    "priceExcl": 27579.76,
+    "sumExcl": 799813.11
+   },
+   {
+    "lot": "2068",
+    "qty": 14,
+    "priceIncl": 34662.31,
+    "sumIncl": 485272.34,
+    "priceExcl": 28411.73,
+    "sumExcl": 397764.21
+   },
+   {
+    "lot": "2070",
+    "qty": 15,
+    "priceIncl": 33647.3,
+    "sumIncl": 504709.5,
+    "priceExcl": 27579.75,
+    "sumExcl": 413696.31
+   },
+   {
+    "lot": "2076",
+    "qty": 7,
+    "priceIncl": 38722.27,
+    "sumIncl": 271055.89,
+    "priceExcl": 31739.57,
+    "sumExcl": 222176.96
+   },
+   {
+    "lot": "2077",
+    "qty": 7,
+    "priceIncl": 37707.27,
+    "sumIncl": 263950.89,
+    "priceExcl": 30907.6,
+    "sumExcl": 216353.19
+   },
+   {
+    "lot": "2125",
+    "qty": 21,
+    "priceIncl": 34662.29,
+    "sumIncl": 727908.09,
+    "priceExcl": 28411.71,
+    "sumExcl": 596645.98
+   },
+   {
+    "lot": "2126",
+    "qty": 35,
+    "priceIncl": 34662.29,
+    "sumIncl": 1213180.15,
+    "priceExcl": 28411.71,
+    "sumExcl": 994409.96
+   },
+   {
+    "lot": "2135",
+    "qty": 10,
+    "priceIncl": 37707.27,
+    "sumIncl": 377072.7,
+    "priceExcl": 30907.6,
+    "sumExcl": 309075.98
+   },
+   {
+    "lot": "2137",
+    "qty": 56,
+    "priceIncl": 40752.26,
+    "sumIncl": 2282126.56,
+    "priceExcl": 33403.49,
+    "sumExcl": 1870595.54
+   },
+   {
+    "lot": "2138",
+    "qty": 38,
+    "priceIncl": 40752.26,
+    "sumIncl": 1548585.88,
+    "priceExcl": 33403.49,
+    "sumExcl": 1269332.69
+   },
+   {
+    "lot": "2144",
+    "qty": 20,
+    "priceIncl": 40752.26,
+    "sumIncl": 815045.2,
+    "priceExcl": 33403.49,
+    "sumExcl": 668069.84
+   },
+   {
+    "lot": "2145",
+    "qty": 12,
+    "priceIncl": 40752.26,
+    "sumIncl": 489027.12,
+    "priceExcl": 33403.49,
+    "sumExcl": 400841.9
+   },
+   {
+    "lot": "2146",
+    "qty": 20,
+    "priceIncl": 40752.26,
+    "sumIncl": 815045.2,
+    "priceExcl": 33403.49,
+    "sumExcl": 668069.84
+   },
+   {
+    "lot": "2175",
+    "qty": 59,
+    "priceIncl": 37707.27,
+    "sumIncl": 2224728.93,
+    "priceExcl": 30907.6,
+    "sumExcl": 1823548.3
+   },
+   {
+    "lot": "2182",
+    "qty": 9,
+    "priceIncl": 37707.27,
+    "sumIncl": 339365.43,
+    "priceExcl": 30907.6,
+    "sumExcl": 278168.39
+   },
+   {
+    "lot": "2183",
+    "qty": 14,
+    "priceIncl": 37707.27,
+    "sumIncl": 527901.78,
+    "priceExcl": 30907.6,
+    "sumExcl": 432706.38
+   }
+  ]
+ },
+ "upd199": {
+  "doc": "УПД №199 от 09.07.2026 (Союзпушнина, СП 05-26)",
+  "purchases": [
+   "З-2026-0047",
+   "З-2026-0048"
+  ],
+  "lines": [
+   {
+    "lot": "19",
+    "qty": 63,
+    "priceIncl": 35945.95,
+    "sumIncl": 2264594.85,
+    "priceExcl": 29463.89,
+    "sumExcl": 1856225.29
+   },
+   {
+    "lot": "20",
+    "qty": 78,
+    "priceIncl": 34980.15,
+    "sumIncl": 2728451.7,
+    "priceExcl": 28672.25,
+    "sumExcl": 2236435.82
+   },
+   {
+    "lot": "22",
+    "qty": 50,
+    "priceIncl": 34014.37,
+    "sumIncl": 1700718.5,
+    "priceExcl": 27880.63,
+    "sumExcl": 1394031.56
+   },
+   {
+    "lot": "23",
+    "qty": 47,
+    "priceIncl": 34014.37,
+    "sumIncl": 1598675.39,
+    "priceExcl": 27880.63,
+    "sumExcl": 1310389.66
+   },
+   {
+    "lot": "24",
+    "qty": 47,
+    "priceIncl": 34014.37,
+    "sumIncl": 1598675.39,
+    "priceExcl": 27880.63,
+    "sumExcl": 1310389.66
+   },
+   {
+    "lot": "25",
+    "qty": 45,
+    "priceIncl": 34014.37,
+    "sumIncl": 1530646.65,
+    "priceExcl": 27880.63,
+    "sumExcl": 1254628.4
+   },
+   {
+    "lot": "26",
+    "qty": 45,
+    "priceIncl": 34014.37,
+    "sumIncl": 1530646.65,
+    "priceExcl": 27880.63,
+    "sumExcl": 1254628.4
+   },
+   {
+    "lot": "27",
+    "qty": 45,
+    "priceIncl": 34014.37,
+    "sumIncl": 1530646.65,
+    "priceExcl": 27880.63,
+    "sumExcl": 1254628.4
+   },
+   {
+    "lot": "39",
+    "qty": 60,
+    "priceIncl": 33048.6,
+    "sumIncl": 1982916,
+    "priceExcl": 27089.02,
+    "sumExcl": 1625340.98
+   },
+   {
+    "lot": "3275",
+    "qty": 100,
+    "priceIncl": 38844.27,
+    "sumIncl": 3884427,
+    "priceExcl": 31839.57,
+    "sumExcl": 3183956.56
+   },
+   {
+    "lot": "3278",
+    "qty": 95,
+    "priceIncl": 38844.27,
+    "sumIncl": 3690205.65,
+    "priceExcl": 31839.57,
+    "sumExcl": 3024758.73
+   },
+   {
+    "lot": "3279",
+    "qty": 95,
+    "priceIncl": 38844.27,
+    "sumIncl": 3690205.65,
+    "priceExcl": 31839.57,
+    "sumExcl": 3024758.73
+   }
+  ]
+ },
+ "upd229": {
+  "doc": "УПД №229 от 04.08.2026 (SAGA 03-26)",
+  "purchases": [
+   "З-2026-0033",
+   "З-2026-0034",
+   "З-2026-0035",
+   "З-2026-0036",
+   "З-2026-0037",
+   "З-2026-0038",
+   "З-2026-0039",
+   "З-2026-0040"
+  ],
+  "lines": [
+   {
+    "lot": "740503",
+    "qty": 122,
+    "priceIncl": 24636.69,
+    "sumIncl": 3005676.18,
+    "priceExcl": 20194.01,
+    "sumExcl": 2463669
+   },
+   {
+    "lot": "740504",
+    "qty": 137,
+    "priceIncl": 23277.03,
+    "sumIncl": 3188953.11,
+    "priceExcl": 19079.53,
+    "sumExcl": 2613895.99
+   },
+   {
+    "lot": "740505",
+    "qty": 157,
+    "priceIncl": 27356.23,
+    "sumIncl": 4294928.11,
+    "priceExcl": 22423.14,
+    "sumExcl": 3520432.88
+   },
+   {
+    "lot": "740506",
+    "qty": 100,
+    "priceIncl": 27356.23,
+    "sumIncl": 2735623,
+    "priceExcl": 22423.14,
+    "sumExcl": 2242313.93
+   },
+   {
+    "lot": "355159",
+    "qty": 211,
+    "priceIncl": 10880.75,
+    "sumIncl": 2295838.25,
+    "priceExcl": 8918.65,
+    "sumExcl": 1881834.63
+   },
+   {
+    "lot": "500083",
+    "qty": 205,
+    "priceIncl": 13343.24,
+    "sumIncl": 2735364.2,
+    "priceExcl": 10937.08,
+    "sumExcl": 2242101.8
+   },
+   {
+    "lot": "500084",
+    "qty": 180,
+    "priceIncl": 13074.24,
+    "sumIncl": 2353363.2,
+    "priceExcl": 10716.59,
+    "sumExcl": 1928986.23
+   },
+   {
+    "lot": "503134",
+    "qty": 205,
+    "priceIncl": 9862.4,
+    "sumIncl": 2021792,
+    "priceExcl": 8083.93,
+    "sumExcl": 1657206.56
+   },
+   {
+    "lot": "400101",
+    "qty": 329,
+    "priceIncl": 10661.27,
+    "sumIncl": 3507557.83,
+    "priceExcl": 8738.75,
+    "sumExcl": 2875047.4
+   },
+   {
+    "lot": "400102",
+    "qty": 385,
+    "priceIncl": 9819.15,
+    "sumIncl": 3780372.75,
+    "priceExcl": 8048.48,
+    "sumExcl": 3098666.19
+   },
+   {
+    "lot": "400103",
+    "qty": 360,
+    "priceIncl": 9819.15,
+    "sumIncl": 3534894,
+    "priceExcl": 8048.48,
+    "sumExcl": 2897454.1
+   },
+   {
+    "lot": "400104",
+    "qty": 330,
+    "priceIncl": 9819.15,
+    "sumIncl": 3240319.5,
+    "priceExcl": 8048.48,
+    "sumExcl": 2655999.59
+   },
+   {
+    "lot": "400105",
+    "qty": 68,
+    "priceIncl": 9684.4,
+    "sumIncl": 658539.2,
+    "priceExcl": 7938.03,
+    "sumExcl": 539786.23
+   },
+   {
+    "lot": "400440",
+    "qty": 277,
+    "priceIncl": 9404.4,
+    "sumIncl": 2605018.8,
+    "priceExcl": 7708.52,
+    "sumExcl": 2135261.31
+   },
+   {
+    "lot": "300234",
+    "qty": 165,
+    "priceIncl": 13859.5,
+    "sumIncl": 2286817.5,
+    "priceExcl": 11360.25,
+    "sumExcl": 1874440.57
+   },
+   {
+    "lot": "300235",
+    "qty": 140,
+    "priceIncl": 13859.5,
+    "sumIncl": 1940330,
+    "priceExcl": 11360.25,
+    "sumExcl": 1590434.43
+   },
+   {
+    "lot": "300687",
+    "qty": 110,
+    "priceIncl": 12245.08,
+    "sumIncl": 1346958.8,
+    "priceExcl": 10036.95,
+    "sumExcl": 1104064.59
+   },
+   {
+    "lot": "165270",
+    "qty": 87,
+    "priceIncl": 18064.23,
+    "sumIncl": 1571588.01,
+    "priceExcl": 14806.75,
+    "sumExcl": 1288186.89
+   },
+   {
+    "lot": "302127",
+    "qty": 225,
+    "priceIncl": 10153.29,
+    "sumIncl": 2284490.25,
+    "priceExcl": 8322.37,
+    "sumExcl": 1872532.99
+   }
+  ]
+ }
+}

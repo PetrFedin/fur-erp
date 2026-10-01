@@ -17,6 +17,8 @@ import { buildAuctionRows } from "./auction-rows";
 import { LotsProvider } from "./lots-state";
 import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
+import { DriveDocuments } from "@/components/drive-documents";
+import { toDriveView } from "@/lib/drive-docs-server";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -268,6 +270,37 @@ export async function AuctionView({
   ];
   const editPurchaseId = purchasesRaw[0]?.id ?? "";
 
+  // Документы Google Drive: закупок аукциона, их лотов и оплат.
+  const driveLotIds = purchasesRaw.flatMap((p) => p.items.map((i) => i.lotId)).filter((x): x is string => !!x);
+  const drivePayments = await prisma.payment.findMany({
+    where: { organizationId, OR: [{ purchaseId: { in: ids } }, { auctionSession: { in: names } }] },
+    select: { id: true },
+  });
+  const driveRows = await prisma.driveDocument.findMany({
+    where: {
+      organizationId,
+      OR: [
+        { purchaseId: { in: ids } },
+        ...(driveLotIds.length ? [{ lotId: { in: driveLotIds } }] : []),
+        ...(drivePayments.length ? [{ paymentId: { in: drivePayments.map((p) => p.id) } }] : []),
+      ],
+    },
+    include: { lot: { select: { lotNumber: true } }, purchase: { select: { number: true, invoiceNumber: true } } },
+    orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
+  });
+  const driveDocs = driveRows.map((d) =>
+    toDriveView(
+      d,
+      d.lotId
+        ? `лот ${d.lot?.lotNumber ?? "без номера"}`
+        : d.paymentId
+          ? "оплата"
+          : d.purchase
+            ? `закупка ${d.purchase.invoiceNumber || d.purchase.number}`
+            : null,
+    ),
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -506,7 +539,7 @@ export async function AuctionView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Документы аукциона ({docRows.length})</CardTitle>
+          <CardTitle>Документы аукциона ({docRows.length + driveDocs.length})</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {docRows.length > 0 ? (
@@ -573,6 +606,18 @@ export async function AuctionView({
           ) : (
             <p className="text-sm text-neutral-400">Документов у аукциона пока нет</p>
           )}
+          <div className="border-t border-neutral-100 pt-3">
+            <DriveDocuments
+              docs={driveDocs}
+              entity="purchase"
+              entityId={editPurchaseId}
+              canEdit={canEdit && Boolean(editPurchaseId)}
+              options={purchasesRaw.map((p) => ({
+                id: p.id,
+                label: `${p.invoiceNumber ? `Счёт ${p.invoiceNumber} · ` : ""}${p.number}`,
+              }))}
+            />
+          </div>
           {canEdit && (
             <AuctionDocUpload
               purchases={purchasesRaw.map((p) => ({

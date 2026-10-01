@@ -25,6 +25,9 @@ import { OrderEditForm } from "./order-edit-form";
 import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
 import { Section, SectionNav } from "./section";
+import Link from "next/link";
+import { DriveDocuments } from "@/components/drive-documents";
+import { toDriveView } from "@/lib/drive-docs-server";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -78,6 +81,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       rawWarehouse: true,
       finishedWarehouse: true,
       client: true,
+      batch: { select: { number: true } },
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
@@ -89,6 +93,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   if (!order) notFound();
 
   const payments = order.paymentAllocations.map((a) => a.productionPayment);
+
+  // Документы Google Drive: самого ТЗ и его оплат.
+  const driveRows = await prisma.driveDocument.findMany({
+    where: {
+      organizationId: session.user.organizationId,
+      OR: [
+        { productionOrderId: order.id },
+        ...(payments.length ? [{ productionPaymentId: { in: payments.map((p) => p.id) } }] : []),
+      ],
+    },
+    orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
+  });
+  const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null));
 
   // All ТЗ of this client (incl. the current one) for the payment form:
   // "К оплате" / "оплачено" per ТЗ follow the same rule as this page — work
@@ -330,6 +347,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     { id: "calc", label: "К расчёту" },
     ...(order.client ? [{ id: "pay", label: "К оплатам" }] : []),
     { id: "ship", label: "К отгрузкам" },
+    { id: "drive", label: "К документам" },
     { id: "finish", label: "К цене и завершению" },
   ];
 
@@ -344,6 +362,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <span className="text-sm text-neutral-500">заказ {order.number}</span>
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
+          {order.batch && (
+            <Link href={`/production/batches/${order.batch.number}`} className="text-sm text-blue-600 hover:underline">
+              Партия №{order.batch.number}
+            </Link>
+          )}
           <div className="ml-auto" />
           {canEdit && <OrderEditForm
             action={boundUpdateOrder}
@@ -666,6 +689,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       <Section id="ship" title="Отгрузки и примерки">
         <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
         <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
+      </Section>
+
+      <Section id="drive" title="Документы Google Drive">
+        <Card>
+          <CardContent className="pt-4">
+            <DriveDocuments docs={driveDocs} entity="order" entityId={id} canEdit={canEdit} />
+          </CardContent>
+        </Card>
       </Section>
 
       <Section id="finish" title="Завершение и цена" defaultOpenMobile>

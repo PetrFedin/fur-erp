@@ -19,6 +19,8 @@ import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
 import { DocumentsForm, ConfirmSubmitButton } from "./documents-form";
+import { DriveDocuments } from "@/components/drive-documents";
+import { toDriveView } from "@/lib/drive-docs-server";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
@@ -82,6 +84,24 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       })
     : [];
   const planItems = purchase.items.filter((i) => i.costPlan != null);
+
+  // Документы Google Drive: закупки, её лотов и оплат.
+  const driveLotIds = purchase.items.map((i) => i.lotId).filter((x): x is string => !!x);
+  const driveRows = await prisma.driveDocument.findMany({
+    where: {
+      organizationId: session.user.organizationId,
+      OR: [
+        { purchaseId: purchase.id },
+        ...(driveLotIds.length ? [{ lotId: { in: driveLotIds } }] : []),
+        ...(purchase.payments.length ? [{ paymentId: { in: purchase.payments.map((p) => p.id) } }] : []),
+      ],
+    },
+    include: { lot: { select: { lotNumber: true } } },
+    orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
+  });
+  const driveDocs = driveRows.map((d) =>
+    toDriveView(d, d.lotId ? `лот ${d.lot?.lotNumber ?? "без номера"}` : d.paymentId ? "оплата" : null),
+  );
 
   const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
   // Роль из сессии: формы и кнопки правок видят только OWNER/ADMIN/PURCHASER (сервер всё равно отказывает остальным).
@@ -598,6 +618,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             <p className="text-sm text-neutral-400">Документов пока нет</p>
           )}
           {canEditRole && <DocumentsForm purchaseId={id} hasBatch={!!batchName} />}
+          <div className="border-t border-neutral-100 pt-3">
+            <DriveDocuments docs={driveDocs} entity="purchase" entityId={id} canEdit={canEditRole} />
+          </div>
         </CardContent>
       </Card>
 

@@ -2,13 +2,14 @@ import Link from "next/link";
 
 const TABS = [
   { key: "orders", href: "/production", label: "ТЗ" },
+  { key: "batches", href: "/production/batches", label: "Партии" },
   { key: "shipments", href: "/shipments", label: "Отгрузки" },
   { key: "fittings", href: "/fittings", label: "Примерки" },
 ] as const;
 
 export type ProductionTab = (typeof TABS)[number]["key"];
 
-/** Вкладки раздела «ТЗ»: сами ТЗ, отгрузки, примерки. */
+/** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
     <nav className="flex gap-1 border-b border-neutral-200">

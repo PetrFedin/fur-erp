@@ -15,6 +15,8 @@ import { VatLabel } from "@/components/vat-label";
 import { materialCostExclVat } from "@/lib/purchase-totals";
 import { canEditProduction } from "@/lib/production-access";
 import { ResponsiveDetails } from "./filters-details";
+import { GroupedByBatch } from "./grouped-view";
+import { batchOrderInclude } from "@/lib/batch-stats";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -42,12 +44,16 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     num_asc: "№ ТЗ: по возрастанию",
   };
   const sort = str(sp.sort) in SORTS ? str(sp.sort) : "";
+  const batchRaw = parseInt(str(sp.batch), 10);
+  const batchNum = Number.isInteger(batchRaw) && batchRaw > 0 && batchRaw < 1_000_000 ? batchRaw : null;
+  const grouped = str(sp.view) === "batches";
 
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
     ...(modelId ? { productModelId: modelId } : {}),
     ...(status ? { status: status as "PLANNED" } : {}),
     ...(clientId ? { clientId } : {}),
+    ...(batchNum ? { batch: { number: batchNum } } : {}),
     ...(q
       ? {
           OR: [
@@ -60,7 +66,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       : {}),
   };
 
-  const [rawOrders, filterModel, clients] = await Promise.all([
+  const [rawOrders, filterModel, clients, batchList, groupedOrders] = await Promise.all([
     prisma.productionOrder.findMany({
       where,
       include: {
@@ -79,10 +85,18 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     }),
     modelId ? prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId } }) : null,
     prisma.client.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.productionBatch.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, number: true, name: true, year: true },
+      orderBy: { number: "asc" },
+    }),
+    grouped
+      ? prisma.productionOrder.findMany({ where, include: batchOrderInclude, orderBy: { createdAt: "asc" } })
+      : Promise.resolve([]),
   ]);
 
   const canEdit = canEditProduction(session.user.role);
-  const hasFilters = Boolean(q || status || clientId || modelId);
+  const hasFilters = Boolean(q || status || clientId || modelId || batchNum);
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
   // П-2026-0141) says why it is there. Exact № ТЗ / order number come first.
@@ -140,9 +154,37 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Вид списка">
+        <span className="text-xs text-neutral-500">Вид:</span>
+        {(
+          [
+            [false, "Списком"],
+            [true, "По партиям"],
+          ] as const
+        ).map(([g, text]) => {
+          const qs = new URLSearchParams();
+          if (g) qs.set("view", "batches");
+          if (batchNum) qs.set("batch", String(batchNum));
+          return (
+            <Link
+              key={text}
+              href={`/production${qs.size ? `?${qs}` : ""}`}
+              aria-current={grouped === g ? "page" : undefined}
+              className={
+                "rounded-md border px-3 py-1 " +
+                (grouped === g ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+              }
+            >
+              {text}
+            </Link>
+          );
+        })}
+      </div>
+
       <ResponsiveDetails summary={`Фильтры и поиск${hasFilters || sort ? " (применены)" : ""}`} forceOpen={hasFilters || Boolean(sort)}>
       <form method="get" className="flex flex-wrap items-end gap-2">
         {modelId && <input type="hidden" name="model" value={modelId} />}
+        {grouped && <input type="hidden" name="view" value="batches" />}
         <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-full sm:w-72" />
         <Select name="status" defaultValue={status} className="w-full sm:w-44">
           <option value="">Все статусы</option>
@@ -160,6 +202,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </option>
           ))}
         </Select>
+        {batchList.length > 0 && (
+          <Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-44" aria-label="Партия">
+            <option value="">Все партии</option>
+            {batchList.map((b) => (
+              <option key={b.id} value={b.number}>
+                Партия №{b.number}
+                {b.year ? ` (${b.year})` : ""}
+              </option>
+            ))}
+          </Select>
+        )}
         <Select name="sort" defaultValue={sort} className="w-full sm:w-48" aria-label="Сортировка">
           {Object.entries(SORTS).map(([k, label]) => (
             <option key={k} value={k}>
@@ -171,13 +224,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           Найти
         </button>
         {(hasFilters || sort) && (
-          <Link href="/production" className="text-sm text-neutral-500 hover:underline">
+          <Link href={grouped ? "/production?view=batches" : "/production"} className="text-sm text-neutral-500 hover:underline">
             Сбросить
           </Link>
         )}
       </form>
       </ResponsiveDetails>
 
+      {grouped ? (
+        <GroupedByBatch orders={groupedOrders} batches={batchList} />
+      ) : (
+      <>
       <Table>
         <Thead>
           <Tr>
@@ -297,6 +354,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         «—» — розничная цена не задана на карточке ТЗ или ещё нет списаний (себестоимости). «Маржа» на карточке ТЗ —
         другое: работы заказчику минус себестоимость.
       </p>
+      </>
+      )}
     </div>
   );
 }

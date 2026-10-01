@@ -14,6 +14,7 @@ import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { LiningPurchaseForm } from "./lining-purchase-form";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { PurchaseSummary } from "./summary-view";
 import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -32,7 +33,7 @@ const FUR_LOTS_LIMIT = 1000;
 export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
   const session = await requireSession();
   const sp = await searchParams;
-  const tab: "fur" | "lining" = sp.tab === "lining" ? "lining" : "fur";
+  const tab: "fur" | "lining" | "summary" = sp.tab === "lining" ? "lining" : sp.tab === "summary" ? "summary" : "fur";
   const q = cleanSearch(sp.q);
   const materialId = cleanSearch(sp.material);
   const auctionQ = tab === "fur" ? cleanSearch(sp.auction, 200) : "";
@@ -68,6 +69,29 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       {label}
     </Link>
   );
+
+  if (tab === "summary") {
+    const one = (v: unknown) => (typeof v === "string" ? v.slice(0, 200) : undefined);
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="text-xl font-semibold">Сырьё</h1>
+            <p className="text-sm text-neutral-500">Сводка закупок по годам, аукционам и типам сырья.</p>
+          </div>
+        </div>
+        <div className="flex gap-1 border-b border-neutral-200 pb-2">
+          {tabLink("fur", "Мех")}
+          {tabLink("lining", "Подкладка")}
+          {tabLink("summary", "Сводка по годам")}
+        </div>
+        <PurchaseSummary
+          organizationId={session.user.organizationId}
+          searchParams={{ year: one(sp.year), auction: one(sp.auction), material: one(sp.material), vat: one(sp.vat) }}
+        />
+      </div>
+    );
+  }
 
   const CHIPS_SHOWN = 6;
   // Служебные записи («Нет информации», «Не в реестре остатков…») — отдельной группой «Прочее» в конце.
@@ -184,6 +208,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <div className="flex gap-1 border-b border-neutral-200 pb-2">
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
+          {tabLink("summary", "Сводка по годам")}
         </div>
         {filtersBlock}
         {auctionNames.length === 0 ? (
@@ -321,6 +346,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <div className="flex gap-1 border-b border-neutral-200 pb-2">
         {tabLink("fur", "Мех")}
         {tabLink("lining", "Подкладка")}
+        {tabLink("summary", "Сводка по годам")}
       </div>
 
       {tab === "fur" ? (
