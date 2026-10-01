@@ -1,3 +1,4 @@
+import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import Link from "next/link";
 import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
@@ -67,8 +68,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   );
 
   const CHIPS_SHOWN = 6;
-  const auctionChips = auctions.slice(0, CHIPS_SHOWN);
-  const moreAuctions = auctions.slice(CHIPS_SHOWN);
+  // Служебные записи («Нет информации», «Не в реестре остатков…») — отдельной группой «Прочее» в конце.
+  const realAuctions = auctions.filter((a) => !isServiceAuction(a.name));
+  const serviceAuctions = auctions.filter((a) => isServiceAuction(a.name));
+  const auctionChips = realAuctions.slice(0, CHIPS_SHOWN);
+  const moreAuctions = realAuctions.slice(CHIPS_SHOWN);
+  const isActiveName = (name: string) => auctionNames.length === 1 && auctionNames[0] === name;
   const auctionChip = (a: (typeof auctions)[number]) => {
     const active = auctionNames.length === 1 && auctionNames[0] === a.name;
     return (
@@ -81,9 +86,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             ? "border-neutral-900 bg-neutral-900 text-white"
             : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
         }
-        title={`${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
+        title={`${a.name} — ${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
       >
-        {a.name} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
+        {shortAuctionName(a.name)} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
       </Link>
     );
   };
@@ -94,12 +99,20 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <span className="text-xs text-neutral-500">Аукционы:</span>
           {auctionChips.map(auctionChip)}
           {moreAuctions.length > 0 && (
-            <details className="group/more" open={moreAuctions.some((a) => auctionNames.length === 1 && auctionNames[0] === a.name)}>
+            <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
               <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
                 <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
                 <span className="hidden group-open/more:inline">скрыть</span>
               </summary>
               <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
+            </details>
+          )}
+          {serviceAuctions.length > 0 && (
+            <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
+              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 [&::-webkit-details-marker]:hidden">
+                Прочее ({serviceAuctions.length})
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
             </details>
           )}
         </div>

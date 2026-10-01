@@ -20,6 +20,8 @@ const PW = "TestPass123!";
 const FIX = "/tmp/fur-e2e/fixtures";
 
 const aucUrl = (a: string) => `/payments?auction=${encodeURIComponent(a)}#auction-block`;
+/** href карточки аукциона в списке: query собирает URLSearchParams (пробел -> «+», скобки -> %28/%29), а не encodeURIComponent. */
+const cardHref = (a: string) => `/payments?${new URLSearchParams({ auction: a }).toString()}#auction-block`;
 
 export async function loginAs(page: Page, email: string) {
   await page.goto("/login");
@@ -114,7 +116,7 @@ test("1. /payments: список, итоги, статусы, полоса, св
   for (const n of Object.keys(tot)) {
     if (tot[n].n === 0) continue;
     sumTotal += tot[n].total;
-    const href = `/payments?auction=${encodeURIComponent(n)}#auction-block`;
+    const href = cardHref(n);
     const card = page.locator(`a[href="${href}"]`).first();
     const txt = norm(await card.innerText());
     const ok = txt.includes(norm(rub(tot[n].total)));
@@ -269,7 +271,7 @@ test("2d. Остаток, запланирована->оплачена, пере
   await page.waitForTimeout(1200);
   console.log("after FINAL: dialogs", dialogs.splice(0), "paid", sumOf("COMPLETED"), "planned", sumOf("PENDING"), "total", total, "sum", sumOf("COMPLETED") + sumOf("PENDING"));
   await page.goto(aucUrl(SP));
-  console.log("card:", norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()));
+  console.log("card:", norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText()));
   await page.screenshot({ path: "/tmp/fur-e2e/shots/2d-after-final.png", fullPage: true });
   // планируемая -> оплачена: правка
   const row = page.locator("div.border-dashed").first();
@@ -287,7 +289,7 @@ test("2d. Остаток, запланирована->оплачена, пере
   await page.waitForTimeout(1200);
   console.log("overpay dialogs", dialogs.splice(0), "paid", sumOf("COMPLETED"));
   await page.goto(aucUrl(SP));
-  console.log("card:", norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()));
+  console.log("card:", norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText()));
   console.log("banner:", norm((await page.locator("p.bg-blue-50").allInnerTexts()).join("|")));
   await page.screenshot({ path: "/tmp/fur-e2e/shots/2d-overpaid.png", fullPage: true });
   // будущая дата оплаченной
@@ -494,7 +496,7 @@ test("3. Сводка: долг по аукционам = SQL (оплаты ау
   await page.screenshot({ path: "/tmp/fur-e2e/shots/3-dash.png", fullPage: true });
   // сверка карточки аукциона на /payments с SQL
   await page.goto(aucUrl(SP));
-  const card = norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText());
+  const card = norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText());
   console.log("card:", card, "sql paid", sqlPaid(SP, "COMPLETED"), "planned", sqlPaid(SP, "PENDING"));
   await expectNoErr(errors);
 });
@@ -712,7 +714,7 @@ test("6b. чужая организация не видит и не меняет
   await pb.goto(aucUrl("Закупка меха 04-26"));
   console.log("Bob открыл аукцион org A:", /не найден/.test(norm(await pb.locator("main").innerText())));
   await pb.goto(aucUrl(SP));
-  console.log("Bob на СП 09-26 (его org):", norm(await pb.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()).slice(0, 140));
+  console.log("Bob на СП 09-26 (его org):", norm(await pb.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).slice(0, 140));
   console.log("Bob видит 'A-secret'/4242:", /A-secret|4 242/.test(norm(await pb.locator("main").innerText())));
   // прямые вызовы
   const r1 = await callAction(pb, IDS.update, [payA, "$K1"], payFields({ amount: "1", notes: "HACK" }));
@@ -752,7 +754,7 @@ test("6b. чужая организация не видит и не меняет
   console.log("Anna -> pay B:", q1.text.slice(0, 80), "|", q2.text.slice(0, 80), "still:", sql(`select notes from "Payment" where "organizationId"='org_b'`));
   // Сводка Анны не учла платёж Bob
   await pa.goto(aucUrl(SP));
-  console.log("Anna card:", norm(await pa.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()).slice(0, 170));
+  console.log("Anna card:", norm(await pa.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).slice(0, 170));
   await expectNoErr(eb);
   sql(`delete from "Payment" where "organizationId"='org_b'; delete from "PurchaseDocument" where "organizationId"='org_b'`);
   await ca.close(); await cb.close();
@@ -839,7 +841,7 @@ test("7b. режимы НДС: суммы оплат не зависят от п
     const errors = watchErrors(page);
     await loginAs(page, "anna@qa-test.ru");
     await page.goto(aucUrl(SP));
-    const card = norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText());
+    const card = norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText());
     const top = norm((await page.locator("main").innerText())).match(/Стоимость аукционов, с НДС [\d  ,]+ ₽/)?.[0];
     await page.goto("/dashboard");
     const dash = norm(await page.locator("main").innerText()).match(/Долг поставщикам[^₽]*₽/g)?.slice(0, 2);
@@ -893,7 +895,7 @@ test("2i. правка оплаты: % -> пересчёт суммы при и�
 test("2j. дебаг: актуальность стоимости на странице после правки позиций", async ({ page }) => {
   await loginAs(page, "anna@qa-test.ru");
   const idp = sql(`select id from "Purchase" where "organizationId"='${ORG}' and "auctionSession"='${SP}' order by number limit 1`);
-  const show = async (t: string) => { await page.goto(aucUrl(SP)); console.log(t, norm(await page.locator("main").innerText()).match(/Полная стоимость, с НДС ([\d  ,]+ ₽)/)?.[1], "| карточка:", norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()).match(/Стоимость ([\d  ,]+ ₽)/)?.[1], "sql", sqlTotals()[SP].total); };
+  const show = async (t: string) => { await page.goto(aucUrl(SP)); console.log(t, norm(await page.locator("main").innerText()).match(/Полная стоимость, с НДС ([\d  ,]+ ₽)/)?.[1], "| карточка:", norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).match(/Стоимость ([\d  ,]+ ₽)/)?.[1], "sql", sqlTotals()[SP].total); };
   await show("до");
   sql(`update "PurchaseItem" set "costPlan"=jsonb_set("costPlan",'{unitCostInclVat}', to_jsonb((("costPlan"->>'unitCostInclVat')::numeric*1.01)::text)) where "purchaseId"='${idp}'`);
   await show("после +1%");
@@ -907,7 +909,7 @@ test("2k. дебаг 2", async ({ page }) => {
   await loginAs(page, "anna@qa-test.ru");
   const idp = sql(`select id from "Purchase" where "organizationId"='${ORG}' and "auctionSession"='${SP}' order by number limit 1`);
   const bump = (f: number) => sql(`update "PurchaseItem" set "costPlan"=jsonb_set("costPlan",'{unitCostInclVat}', to_jsonb((("costPlan"->>'unitCostInclVat')::numeric*${f})::text)) where "purchaseId"='${idp}'`);
-  const card = async () => { await page.goto("/payments"); return norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()).match(/Стоимость ([\d  ,]+ ₽)/)?.[1]; };
+  const card = async () => { await page.goto("/payments"); return norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).match(/Стоимость ([\d  ,]+ ₽)/)?.[1]; };
   const dash = async () => (await dashDebt(page)).kpi;
   console.log("до", await card(), await dash());
   bump(1.01);
@@ -975,7 +977,7 @@ test("3b. оплата прямо в закупку аукциона: нет п�
   const r = await callAction(page, IDS.addPurchasePay, [sp1, "$K1"], { amount: "5000000", method: "BANK_TRANSFER", paidAt: "2026-10-01", notes: "purchase-overpay" });
   console.log("оплата закупки 5 000 000 при остатке аукциона 100 ₽:", r.text.slice(0, 100), "dialogs", msgs, "saved", cnt(`notes='purchase-overpay'`));
   await page.goto("/payments?auction=" + encodeURIComponent(SP));
-  console.log(norm(await page.locator(`a[href="${aucUrl(SP)}"]`).first().innerText()));
+  console.log(norm(await page.locator(`a[href="${cardHref(SP)}"]`).first().innerText()));
   // оплата отменённой закупке
   sql(`delete from "Purchase" where id='t_cancel'`);
 });
@@ -991,7 +993,7 @@ test("3c. отменённые закупки: аукцион только из 
   pay("t_oc1", { auction: "ТЕСТ-ОТМЕНА", amount: 1000, notes: "oc" });
   pay("t_oc2", { purchase: "t_only_c", amount: 500, notes: "ocp" });
   await page.goto("/payments");
-  const card = page.locator(`a[href="${aucUrl("ТЕСТ-ОТМЕНА")}"]`).first();
+  const card = page.locator(`a[href="${cardHref("ТЕСТ-ОТМЕНА")}"]`).first();
   console.log("карточка аукциона из отменённых:", (await card.count()) ? norm(await card.innerText()) : "НЕТ КАРТОЧКИ");
   await page.goto("/payments?auction=" + encodeURIComponent("ТЕСТ-ОТМЕНА"));
   const txt = norm(await page.locator("main").innerText());

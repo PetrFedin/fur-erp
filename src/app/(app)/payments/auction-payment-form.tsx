@@ -361,7 +361,11 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
     setError("");
     startTransition(async () => {
       try {
-        const res = await closeAuctionRemainder(auction, date);
+        let res = await closeAuctionRemainder(auction, date);
+        if (res.confirm) {
+          if (!window.confirm(res.confirm)) return;
+          res = await closeAuctionRemainder(auction, date, true);
+        }
         if (res.error) {
           setError(res.error);
           return;

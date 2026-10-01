@@ -1,3 +1,4 @@
+import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -85,7 +86,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     distinct: ["auctionSession"],
     orderBy: { auctionSession: "asc" },
   });
-  const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i);
+  const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i)
+    .sort((x, y) => Number(isServiceAuction(x)) - Number(isServiceAuction(y)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -190,7 +192,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 </Td>
                 <Td>{p.supplier.name}</Td>
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
-                  {p.auctionSession ? firstLine(p.auctionSession) : "—"}
+                  {p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : "—"}
                 </Td>
                 <Td className="text-neutral-500">{p.invoiceNumber ?? "—"}</Td>
                 <Td>{formatDate(p.orderDate)}</Td>

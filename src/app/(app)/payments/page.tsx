@@ -15,6 +15,7 @@ import { hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cleanSearch } from "@/lib/input";
+import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
 import { AdvanceForm, AdvanceRowControls } from "./advance-forms";
@@ -132,6 +133,9 @@ export default async function PaymentsPage({
   const visibleAuctions = auctions.filter(
     (a) => (!listQLower || a.name.toLowerCase().includes(listQLower)) && (!onlyRest || a.remaining.greaterThan(PAY_EPS)),
   );
+  // Служебные записи («Нет информации», «Не в реестре остатков…» и т.п.) — в конец, под группу «Прочее».
+  const mainAuctions = visibleAuctions.filter((a) => !isServiceAuction(a.name));
+  const serviceAuctions = visibleAuctions.filter((a) => isServiceAuction(a.name));
   const listParams = (extra: Record<string, string>) => {
     const u = new URLSearchParams();
     if (listQ) u.set("q", listQ);
@@ -163,6 +167,43 @@ export default async function PaymentsPage({
   for (const p of payments) {
     if (!p.purchaseId && !p.auctionSession && !advSuppliers.some((x) => x.id === p.supplierId)) advSuppliers.push({ id: p.supplierId, name: p.supplier.name });
   }
+
+  const renderAuction = (a: (typeof auctions)[number]) => {
+    const active = selected?.name === a.name;
+    return (
+      <Link
+        key={a.name}
+        title={a.name}
+        href={`${listParams({ auction: a.name })}#auction-block`}
+        scroll
+        className={
+          "flex flex-col gap-2 rounded-lg border bg-white p-3 transition-colors hover:border-neutral-400 " +
+          (active ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200")
+        }
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="font-medium" title={a.name}>{shortAuctionName(a.name)}</div>
+            <div className="text-xs text-neutral-500">закупок: {a.purchases}</div>
+          </div>
+          <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+          <dt className="text-neutral-500">Стоимость</dt>
+          <dd className="text-right">{formatMoney(a.total.toString())}</dd>
+          <dt className="text-neutral-500">Оплачено</dt>
+          <dd className="text-right">{formatMoney(a.paid.toString())}</dd>
+          <dt className="text-neutral-500">Запланировано</dt>
+          <dd className="text-right">{formatMoney(a.planned.toString())}</dd>
+          <dt className="font-medium">Остаток</dt>
+          <dd className={"text-right font-semibold " + (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")}>
+            {fmtRemaining(a.remaining)}
+          </dd>
+        </dl>
+        <ProgressBar percent={a.percentPaid} status={a.status} />
+      </Link>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -314,43 +355,15 @@ export default async function PaymentsPage({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {visibleAuctions.map((a) => {
-              const active = selected?.name === a.name;
-              return (
-                <Link
-                  key={a.name}
-                  href={`${listParams({ auction: a.name })}#auction-block`}
-                  scroll
-                  className={
-                    "flex flex-col gap-2 rounded-lg border bg-white p-3 transition-colors hover:border-neutral-400 " +
-                    (active ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200")
-                  }
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-medium">{a.name}</div>
-                      <div className="text-xs text-neutral-500">закупок: {a.purchases}</div>
-                    </div>
-                    <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
-                  </div>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                    <dt className="text-neutral-500">Стоимость</dt>
-                    <dd className="text-right">{formatMoney(a.total.toString())}</dd>
-                    <dt className="text-neutral-500">Оплачено</dt>
-                    <dd className="text-right">{formatMoney(a.paid.toString())}</dd>
-                    <dt className="text-neutral-500">Запланировано</dt>
-                    <dd className="text-right">{formatMoney(a.planned.toString())}</dd>
-                    <dt className="font-medium">Остаток</dt>
-                    <dd className={"text-right font-semibold " + (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")}>
-                      {fmtRemaining(a.remaining)}
-                    </dd>
-                  </dl>
-                  <ProgressBar percent={a.percentPaid} status={a.status} />
-                </Link>
-              );
-            })}
-          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{mainAuctions.map(renderAuction)}</div>
+          {serviceAuctions.length > 0 && (
+            <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(listQ) || serviceAuctions.some((a) => a.name === selected?.name)}>
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
+                Прочее (служебные записи без реального аукциона): {serviceAuctions.length}
+              </summary>
+              <div className="grid grid-cols-1 gap-3 border-t border-neutral-100 p-3 md:grid-cols-2 xl:grid-cols-3">{serviceAuctions.map(renderAuction)}</div>
+            </details>
+          )}
           {auctions.length === 0 && (
             <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
               Аукционов пока нет: укажите «Аукцион / сессию» в карточке закупки, и партия появится здесь.

@@ -157,7 +157,9 @@ function overpayText(after: Decimal, total: Decimal, status: string) {
 async function readOptionalProof(formData: FormData): Promise<{ error: string } | { file: ReadDoc | null }> {
   // Браузер без выбранного файла шлёт File с пустым именем и размером 0 — это «файла нет».
   // Файл с именем, но 0 байт — настоящий пустой файл: сообщаем, а не игнорируем молча.
-  const entries = formData.getAll("file").filter((e): e is File => typeof e !== "string" && (e.size > 0 || e.name !== ""));
+  const entries = formData.getAll("file").filter(
+    (e): e is File => typeof e !== "string" && (e.size > 0 || (typeof e.name === "string" && e.name !== "")),
+  );
   if (entries.length === 0) return { file: null };
   const empty = entries.find((e) => e.size === 0);
   if (empty) return { error: `Файл «${empty.name}» пустой (0 байт) — выберите другой файл` };
@@ -354,7 +356,11 @@ const closeSchema = z.object({
   paidAt: z
     .string()
     .min(1, "Укажите дату")
-    .refine((s) => parseDateInput(s) !== null, "Некорректная дата"),
+    .refine((s) => parseDateInput(s) !== null, "Некорректная дата")
+    .refine((s) => {
+      const y = Number(s.trim().slice(0, 4));
+      return y >= 2020 && y <= 2100;
+    }, "Дата вне допустимого диапазона (2020–2100)"),
 });
 
 /**
@@ -362,11 +368,18 @@ const closeSchema = z.object({
  * (kind OTHER, заметка CLOSING_NOTE) — для старых аукционов, оплаченных до начала учёта.
  * Откат — обычное удаление этой оплаты.
  */
-export async function closeAuctionRemainder(auction: string, paidAtRaw: string): Promise<PayState> {
+export async function closeAuctionRemainder(auction: string, paidAtRaw: string, confirmFuture = false): Promise<PayState> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
   const parsed = closeSchema.safeParse({ paidAt: paidAtRaw });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Некорректная дата" };
+  // Дата в будущем для «оплачено до начала учёта» почти наверняка опечатка — нужно явное подтверждение.
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const dateIso = parsed.data.paidAt.trim().slice(0, 10);
+  if (dateIso > todayIso && !confirmFuture) {
+    return { confirm: `Дата оплаты (${dateIso}) в будущем. Всё равно закрыть остаток как «Оплачено»?` };
+  }
   const result = await prisma.$transaction(async (tx): Promise<PayState> => {
     await lockAuction(tx, orgId, auction);
     const [s] = await loadAuctionSummaries(tx, orgId, [auction]);

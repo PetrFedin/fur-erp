@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addPurchasePayment } from "../actions";
@@ -8,18 +8,23 @@ import { addPurchasePayment } from "../actions";
 // balanceDue оставлен в сигнатуре для совместимости со страницей: остаток проверяет сервер.
 export function PurchasePaymentForm({ purchaseId }: { purchaseId: string; balanceDue?: string }) {
   const uid = useId();
-  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
   const bound = addPurchasePayment.bind(null, purchaseId);
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-  return (
-    <form
-      ref={formRef}
-      action={async (formData) => {
-        // Подтверждение даты в будущем — здесь; переплату (по закупке или по аукциону целиком) проверяет сервер.
-        const paidAt = String(formData.get("paidAt") ?? "");
-        if (paidAt > today && !window.confirm(`Дата оплаты (${paidAt}) в будущем. Всё равно записать?`)) return;
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    // Подтверждение даты в будущем — здесь; переплату (по закупке или по аукциону целиком) проверяет сервер.
+    // Форма не сбрасывается при отказе и ошибке: введённое сохраняется, очистка — только после успеха.
+    const paidAt = String(formData.get("paidAt") ?? "");
+    if (paidAt > today && !window.confirm(`Дата оплаты (${paidAt}) в будущем. Всё равно записать?`)) return;
+    setError("");
+    startTransition(async () => {
+      try {
         let res = await bound(formData);
         if (res?.confirm) {
           if (!window.confirm(res.confirm)) return;
@@ -27,11 +32,19 @@ export function PurchasePaymentForm({ purchaseId }: { purchaseId: string; balanc
           res = await bound(formData);
         }
         if (res?.error) {
-          window.alert(res.error);
+          setError(res.error);
           return;
         }
-        formRef.current?.reset();
-      }}
+        form.reset();
+      } catch {
+        setError("Не удалось сохранить: сервер отклонил запрос или пропала связь. Попробуйте ещё раз.");
+      }
+    });
+  }
+
+  return (
+    <form
+      onSubmit={submit}
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2"
     >
       <div>
@@ -55,8 +68,13 @@ export function PurchasePaymentForm({ purchaseId }: { purchaseId: string; balanc
         <label htmlFor={`${uid}-notes`} className="mb-1 block text-xs text-neutral-500">Заметка</label>
         <Input id={`${uid}-notes`} name="notes" />
       </div>
+      {error && (
+        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 lg:col-span-5">
+          {error}
+        </p>
+      )}
       <div className="sm:col-span-2 lg:col-span-5 flex justify-end">
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="outline" size="sm" disabled={pending}>
           + Добавить оплату
         </Button>
       </div>

@@ -72,7 +72,8 @@ async function readAuctionRows(page: Page) {
     ds.map((d) => ({
       inv: (d.querySelector("summary span.font-medium")?.textContent ?? "").replace("Счёт ", "").trim(),
       rows: Array.from(d.querySelectorAll(":scope > div > table > tbody > tr, :scope table > tbody > tr")).filter((tr) => tr.closest("details") === d && tr.querySelectorAll(":scope > td").length >= 10).map((tr) =>
-        Array.from(tr.querySelectorAll(":scope > td")).map((td) => (td as HTMLElement).innerText),
+        // первая ячейка — чекбокс выбора лота: в сверке её пропускаем
+        Array.from(tr.querySelectorAll(":scope > td")).slice(1).map((td) => (td as HTMLElement).innerText),
       ),
     })),
   );
@@ -132,9 +133,10 @@ async function readBlocksFull(page: Page) {
   return page.$$eval("details[data-auction-purchase]", (ds) =>
     ds.map((d) => ({
       summary: (d.querySelector("summary") as HTMLElement).innerText,
-      rows: Array.from(d.querySelectorAll("tr")).filter((tr) => tr.closest("details") === d && tr.querySelectorAll(":scope > td").length >= 10).map((tr) => {
-        const tds = Array.from(tr.querySelectorAll(":scope > td")) as HTMLElement[];
-        const links = Array.from(tds[tds.length >= 12 ? 10 : 10].querySelectorAll("a")).map((a) => ({ t: a.textContent, h: a.getAttribute("href") }));
+      // только строки лотов из tbody (строка «Итого» в tfoot не в счёт); первая ячейка — чекбокс выбора лота
+      rows: Array.from(d.querySelectorAll("tbody > tr")).filter((tr) => tr.closest("details") === d && tr.querySelectorAll(":scope > td").length >= 10).map((tr) => {
+        const tds = (Array.from(tr.querySelectorAll(":scope > td")) as HTMLElement[]).slice(1);
+        const links = Array.from(tds[10].querySelectorAll("a")).map((a) => ({ t: a.textContent, h: a.getAttribute("href") }));
         return { cells: tds.map((t) => t.innerText), links };
       }),
     })),
@@ -805,7 +807,7 @@ test.describe("3a. править расчёт: живой пересчёт = с
         await setVat(context, mode);
         await page.goto(url(SP));
         const blk = page.locator("details[data-auction-purchase]", { hasText: "Счёт " + inv });
-        const r = (await blk.locator("tbody > tr").filter({ hasText: lot }).first().locator(":scope > td").allInnerTexts()).map(norm);
+        const r = (await blk.locator("tbody > tr").filter({ hasText: lot }).first().locator(":scope > td").allInnerTexts()).slice(1).map(norm);
         const gotU = num(r[7].split("Из чего")[0]);
         const gotT = num(r[8]);
         const wantU = mode === "incl" ? srvUnitIncl : srvUnitExcl;
@@ -962,7 +964,7 @@ test.describe("3c. Курс закупки пересчитывает все л�
       const blk = page.locator("details[data-auction-purchase]", { hasText: "Счёт " + inv });
       const head = norm(await blk.innerText());
       if (!/курс 90,5/.test(head)) problems.push(`[${mode}] «Аукцион»: в шапке закупки нет «курс 90,5»`);
-      const rows = await blk.locator("tbody > tr").evaluateAll((trs) => trs.filter((t) => t.querySelectorAll(":scope > td").length >= 10).map((t) => Array.from(t.querySelectorAll(":scope > td")).map((x) => (x as HTMLElement).innerText)));
+      const rows = await blk.locator("tbody > tr").evaluateAll((trs) => trs.filter((t) => t.querySelectorAll(":scope > td").length >= 10).map((t) => Array.from(t.querySelectorAll(":scope > td")).slice(1).map((x) => (x as HTMLElement).innerText)));
       rows.forEach((r, k) => {
         const c = r.map(norm);
         const wantU = mode === "incl" ? after[k].unitIncl : after[k].unitExcl;
@@ -1096,7 +1098,7 @@ test.describe("3d. приёмка закупки с изменённым рас�
       await expect(blk.getByText("Принято на склад")).toBeVisible();
       await expect(blk.getByRole("button", { name: "Править расчёт" })).toHaveCount(0);
       await expect(blk.getByRole("link", { name: /Править закупку/ })).toHaveCount(0);
-      const rows = await blk.locator("tbody > tr").evaluateAll((trs) => trs.filter((t) => t.querySelectorAll(":scope > td").length >= 10).map((t) => Array.from(t.querySelectorAll(":scope > td")).map((x) => (x as HTMLElement).innerText)));
+      const rows = await blk.locator("tbody > tr").evaluateAll((trs) => trs.filter((t) => t.querySelectorAll(":scope > td").length >= 10).map((t) => Array.from(t.querySelectorAll(":scope > td")).slice(1).map((x) => (x as HTMLElement).innerText)));
       rows.forEach((r) => {
         const c = r.map(norm);
         const L = lots.find((x) => x[0] === c[1])!;
@@ -1329,7 +1331,7 @@ test.describe("3h. «Править расчёт» из режима «Аукц�
     await page.getByRole("dialog").getByRole("button", { name: "Сохранить расчёт" }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 8000 });
     await page.waitForTimeout(800);
-    const cells = (await blk.locator("tbody > tr").filter({ hasText: "877" }).first().locator(":scope > td").allInnerTexts()).map(norm);
+    const cells = (await blk.locator("tbody > tr").filter({ hasText: "877" }).first().locator(":scope > td").allInnerTexts()).slice(1).map(norm);
     console.log("после правки (без перезагрузки):", cells.slice(4, 9).join(" | "), "форма:", live.unitIncl, live.totalIncl);
     expect(num(cells[4].split("шт")[0])).toBe(50);
     expect(Math.abs(num(cells[7].split("Из чего")[0]) - live.unitIncl)).toBeLessThan(0.006);
@@ -1472,7 +1474,7 @@ test.describe("5. оба режима НДС, консоль", () => {
       const blk = page.locator("details[data-auction-purchase]", { hasText: "Счёт " + inv });
       expect(await blk.getByRole("link", { name: /Карточка закупки/ }).getAttribute("href")).toBe(`/purchases/${pid}`);
       expect(await blk.getByRole("link", { name: /Править закупку/ }).getAttribute("href")).toBe(`/purchases/${pid}`);
-      expect(await blk.getByRole("link", { name: /Счёт аукциона №/ }).getAttribute("href")).toMatch(new RegExp(`^/api/purchase-docs/${did}\\?v=\\d+$`));
+      expect(await blk.getByRole("link", { name: /Счёт аукциона №/ }).getAttribute("href")).toMatch(new RegExp(`^/api/purchase-docs/${did}\\?v=[^&]+$`));
     }
     // принятый аукцион без счёта в документах
     await page.goto(url("SAGA 03-26"));

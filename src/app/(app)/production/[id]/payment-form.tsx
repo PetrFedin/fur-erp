@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addProductionPayment } from "../actions";
@@ -29,7 +29,6 @@ export function ProductionPaymentForm({
   const [amount, setAmount] = useState("");
   const [paymentType, setPaymentType] = useState("FINAL");
   const [selected, setSelected] = useState<Set<string>>(() => new Set([orderId]));
-  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
@@ -49,29 +48,34 @@ export function ProductionPaymentForm({
 
   return (
     <form
-      ref={formRef}
       onSubmit={(e) => {
+        // Без action: React 19 сбрасывает форму после action даже при ошибке, а нам нужно сохранить ввод.
+        e.preventDefault();
+        const form = e.currentTarget;
         // Soft guard: paying more than the remaining "К оплате" needs a confirmation.
         const value = Number(amount);
         if (chosen.length > 0 && Number.isFinite(value) && value > Math.max(0, restSum) + 0.005) {
           const ok = confirm(
             `Сумма оплаты ${rub(value)} ₽ больше остатка к оплате по выбранным ТЗ (${rub(Math.max(0, restSum))} ₽). Всё равно добавить?`
           );
-          if (!ok) e.preventDefault();
+          if (!ok) return;
         }
-      }}
-      action={(formData) =>
+        const formData = new FormData(form);
         startTransition(async () => {
-          const result = await bound(formData);
-          setError(result.error ?? null);
-          if (result.error) return;
-          formRef.current?.reset();
-          setAmount("");
-          setPaymentType("FINAL");
-          setSelected(new Set([orderId]));
-          setSearch("");
-        })
-      }
+          try {
+            const result = await bound(formData);
+            setError(result.error ?? null);
+            if (result.error) return;
+            form.reset();
+            setAmount("");
+            setPaymentType("FINAL");
+            setSelected(new Set([orderId]));
+            setSearch("");
+          } catch {
+            setError("Не удалось сохранить: сервер отклонил запрос или пропала связь. Попробуйте ещё раз.");
+          }
+        });
+      }}
       className="flex flex-col gap-2"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">

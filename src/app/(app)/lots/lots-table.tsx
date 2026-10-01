@@ -253,12 +253,12 @@ function LotsControls({ scope }: { scope: string }) {
           Только выбранные
         </label>
         {view.filterCount > 0 && (
-          <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setFilters(scope, emptyFilters())}>
+          <button type="button" className="inline-flex h-8 items-center text-xs text-blue-600 hover:underline" onClick={() => setFilters(scope, emptyFilters())}>
             Сбросить
           </button>
         )}
         {selectedAll > 0 && (
-          <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => setSelected(view.all.map((r) => r.id), false)}>
+          <button type="button" className="inline-flex h-8 items-center text-xs text-blue-600 hover:underline" onClick={() => setSelected(view.all.map((r) => r.id), false)}>
             Снять выбор ({selectedAll})
           </button>
         )}
@@ -436,9 +436,12 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
   const b = view.breakdown;
   const val = (l: { incl: number; excl: number }) => (mode === "excl" ? l.excl : l.incl);
   const total = mode === "excl" ? b.totalExcl : b.totalIncl;
-  // «Не разложено» меньше 1 ₽ — округление, строку не показываем.
-  const lines = b.lines.filter((l) => (l.kind === "unresolved" ? Math.abs(val(l)) >= 1 : Math.abs(val(l)) >= 0.005));
+  // «Не разложено» < 10 ₽ либо < 0,001 % итога — накопленное округление НДС, строку не показываем;
+  // пояснение «нет детализации» уместно только при заметном остатке.
+  const isNotable = (v: number) => Math.abs(v) >= 10 && Math.abs(v) >= Math.abs(total) * 0.00001;
+  const lines = b.lines.filter((l) => (l.kind === "unresolved" ? isNotable(val(l)) : Math.abs(val(l)) >= 0.005));
   const sum = lines.reduce((s, l) => s + val(l), 0);
+  const roundingHidden = b.lines.some((l) => l.kind === "unresolved") && !lines.some((l) => l.kind === "unresolved");
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-3" data-cost-parts>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
@@ -459,7 +462,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="min-w-0 flex-1 break-words">
                     {l.title}
-                    {l.hint && <span className="block text-xs text-neutral-400">{l.hint}</span>}
+                    {l.hint && (l.kind !== "unresolved" || isNotable(v)) && <span className="block text-xs text-neutral-400">{l.hint}</span>}
                   </span>
                   <span className="whitespace-nowrap font-medium tabular-nums">{formatMoney(v)}</span>
                   <span className="w-14 whitespace-nowrap text-right text-xs text-neutral-500 tabular-nums">{pct(v, total)}</span>
@@ -478,7 +481,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             <span className="w-14 text-right text-xs font-normal text-neutral-500">100 %</span>
           </li>
           <li className="text-xs text-neutral-400">
-            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < 1 ? "= итогу" : "≠ итогу"}.
+            Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "= итогу" : "≠ итогу"}.
             {b.skippedUnallocated && " Расходы закупки не входят: выбрана только часть лотов закупки."}
           </li>
         </ul>
