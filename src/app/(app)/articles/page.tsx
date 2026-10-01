@@ -93,7 +93,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
     const stockValue = modelStocks.reduce((sum, st) => sum.add(st.quantity.mul(st.avgUnitCost)), new Decimal(0));
-    // Excl-VAT стоимость остатка: остаток × средняя себестоимость без НДС по
+    // Excl-VAT стоимость остатка: остаток × средневзвешенная себестоимость без НДС по
     // завершённым ТЗ модели (отдельного снимка нет). Нет данных — берём с НДС.
     const stockValueExclVat = avgUnitCostExclVat ? stockQty.mul(avgUnitCostExclVat) : stockValue;
     // Последние 10 отгрузок, где есть ТЗ этой модели (показываем только строки этой модели).
@@ -188,9 +188,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <Tr>
             <Th>Модель</Th>
             <Th>Остаток готовой, шт.</Th>
-            <Th>Себестоимость за ед.</Th>
+            <Th title="Средневзвешенная себестоимость единицы по завершённым ТЗ: Σ(себестоимость ТЗ × выпуск) ÷ Σ выпуск — взвешено по количеству">Ср. взвеш. себестоимость за ед.</Th>
             <Th>Розничная цена</Th>
-            <Th title="Наценка = розничная цена / средняя себестоимость единицы по завершённым ТЗ">Наценка</Th>
+            <Th title="Наценка = розничная цена / средневзвешенная (по количеству) себестоимость единицы по завершённым ТЗ">Наценка</Th>
             <Th>ТЗ</Th>
             <Th></Th>
           </Tr>
@@ -239,7 +239,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td>{formatQty(r.stockQty.toString())}</Td>
               <Td>
                 {r.avgUnitCost ? (
-                  <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} />
+                  <abbr title="ср. взвеш.: взвешено по количеству выпущенных изделий" className="cursor-help no-underline">
+                    <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} />
+                  </abbr>
                 ) : (
                   "—"
                 )}

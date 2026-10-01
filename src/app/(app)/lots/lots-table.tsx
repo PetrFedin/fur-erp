@@ -3,7 +3,7 @@
 // Таблицы лотов режима «Аукцион»: выбор лотов, фильтры, строка «Итого» со смыслом по каждой колонке,
 // свои столбцы и блок «Из чего складывается стоимость». Всё считается в браузере по тем же формулам,
 // что и серверный итог (без фильтров цифры совпадают).
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -11,7 +11,7 @@ import { Money } from "@/components/money";
 import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatAvg, formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
-import { emptyFilters, type LotRow } from "@/lib/lot-table";
+import { emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
 import type { CostPlanEditorItem } from "../purchases/[id]/cost-plan-editor";
@@ -24,11 +24,11 @@ const symbol = (c: string) => (c === "USD" ? "$" : c);
 
 const TIP = {
   sum: "Σ — сумма по строкам итога",
-  avg: "ср. — среднее взвешенное по количеству шкур: Σ(значение × кол-во) ÷ Σ кол-во",
+  avg: "ср. взвеш. — взвешено по количеству шкур: Σ(значение × кол-во) ÷ Σ кол-во",
   uniq: "уник. — сколько разных значений в колонке (пустые не считаются)",
-  rate: "Средний курс взвешен по сумме закупки в валюте (цена × кол-во). «мин–макс» — разброс курса по лотам. Курс и цена в валюте от режима НДС не зависят.",
-  unit: "ср. себестоимость шкуры = «Себестоимость всего» ÷ Σ шкур, в выбранном режиме С НДС / Без НДС",
-  price: "Средняя цена лота: Σ(цена × кол-во) ÷ Σ шкур. Цена в валюте от НДС не зависит; в ₽ — по курсу лота, в выбранном режиме НДС.",
+  rate: "ср. взвеш. курс — взвешено по сумме закупки в валюте (цена × кол-во). «мин–макс» — разброс курса по лотам. Курс и цена в валюте от режима НДС не зависят.",
+  unit: "ср. взвеш. себестоимость шкуры — взвешено по количеству шкур: «Себестоимость всего» ÷ Σ шкур, в выбранном режиме С НДС / Без НДС",
+  price: "ср. взвеш. цена лота — взвешено по количеству шкур: Σ(цена × кол-во) ÷ Σ шкур. Цена в валюте от НДС не зависит; в ₽ — по курсу лота, в выбранном режиме НДС.",
 };
 
 function Stat({ k, tip, children }: { k: string; tip: string; children: ReactNode }) {
@@ -58,7 +58,19 @@ const heads = (currency: string) => [
   "Использован в ТЗ",
 ];
 
-function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeView; fields: CustomFieldDef[]; hasEditCol: boolean; hasCheckCol: boolean }) {
+function TotalsFooter({
+  view,
+  fields,
+  hasEditCol,
+  hasCheckCol,
+  invoiceCol = false,
+}: {
+  view: ScopeView;
+  fields: CustomFieldDef[];
+  hasEditCol: boolean;
+  hasCheckCol: boolean;
+  invoiceCol?: boolean;
+}) {
   const t = view.totals;
   const b = view.breakdown;
   const single = t.currencies.length === 1 ? t.currencies[0] : null;
@@ -66,6 +78,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
   const empty = t.count === 0;
   const withExp = b.unallocatedIncl !== 0 || b.unallocatedExcl !== 0;
   const tail = fields.length + (hasEditCol ? 1 : 0) + 1; // свои столбцы + правка + «+»
+  const lead = (hasCheckCol ? 1 : 0) + (invoiceCol ? 1 : 0) + 8;
   return (
     <tfoot className="border-t-2 border-neutral-300 bg-neutral-50 align-top text-sm">
       <tr data-totals-row>
@@ -76,6 +89,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
             {view.label}
           </div>
         </Td>
+        {invoiceCol && <Td />}
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.lotNumber}</Stat>}</Td>
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.size}</Stat>}</Td>
         <Td>{!empty && <Stat k="уник." tip={TIP.uniq}>{t.uniq.op}</Stat>}</Td>
@@ -88,13 +102,13 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
           {!empty && t.avgPrice != null && (
             <>
               {single ? (
-                <Stat k="ср." tip={TIP.price}>
+                <Stat k="ср. взвеш." tip={TIP.price}>
                   {formatCurrency(t.avgPrice, single)}
                 </Stat>
               ) : (
                 <Note>разные валюты</Note>
               )}
-              <Stat k="ср. ₽" tip={TIP.price}>
+              <Stat k="ср. взвеш. ₽" tip={TIP.price}>
                 <Money incl={q > 0 ? t.priceIncl / q : 0} excl={q > 0 ? t.priceExcl / q : 0} />
               </Stat>
               <Note>цена в валюте — не зависит от НДС</Note>
@@ -105,7 +119,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
           {!empty && t.rateAvg != null && !single && <Note>разные валюты</Note>}
           {!empty && t.rateAvg != null && single && (
             <>
-              <Stat k="ср." tip={TIP.rate}>
+              <Stat k="ср. взвеш." tip={TIP.rate}>
                 {rateFmt(t.rateAvg)}
               </Stat>
               {t.rateMin != null && t.rateMax != null && t.rateMin !== t.rateMax && (
@@ -119,7 +133,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
         </Td>
         <Td>
           {!empty && q > 0 && (
-            <Stat k="ср." tip={TIP.unit}>
+            <Stat k="ср. взвеш." tip={TIP.unit}>
               <Money incl={t.totalIncl / q} excl={t.totalExcl / q} />
             </Stat>
           )}
@@ -155,7 +169,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
               {!c || c.n === 0 ? null : f.type === "NUMBER" ? (
                 <>
                   <Stat k="Σ" tip={TIP.sum}>{formatExtra("NUMBER", c.sum)}</Stat>
-                  <Stat k="ср." tip={TIP.avg}>{c.wavg != null ? formatAvg(c.wavg) : "—"}</Stat>
+                  <Stat k="ср. взвеш." tip={TIP.avg}>{c.wavg != null ? formatAvg(c.wavg) : "—"}</Stat>
                   <Note>заполнено у {c.n} из {t.count}</Note>
                 </>
               ) : f.type === "BOOLEAN" ? (
@@ -177,7 +191,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
       {withExp && (
         <>
           <tr>
-            <Td colSpan={(hasCheckCol ? 1 : 0) + 8} className="text-right text-xs text-neutral-600">
+            <Td colSpan={lead} className="text-right text-xs text-neutral-600">
               Расходы закупки (не распределены по лотам)
             </Td>
             <Td className="whitespace-nowrap text-xs">
@@ -186,7 +200,7 @@ function TotalsFooter({ view, fields, hasEditCol, hasCheckCol }: { view: ScopeVi
             <Td colSpan={tail + 2} />
           </tr>
           <tr className="font-semibold">
-            <Td colSpan={(hasCheckCol ? 1 : 0) + 8} className="text-right">
+            <Td colSpan={lead} className="text-right">
               Всего с расходами закупки
             </Td>
             <Td className="whitespace-nowrap">
@@ -212,7 +226,7 @@ function MobileSummary({ view }: { view: ScopeView }) {
       ) : (
         <>
           {formatQty(t.qty)} шкур · Σ <Money incl={t.totalIncl} excl={t.totalExcl} className="font-medium" /> ·{" "}
-          {t.rateAvg == null ? "ср. курс —" : single ? `ср. курс ${rateFmt(t.rateAvg)}` : "ср. курс: разные валюты"}
+          {t.rateAvg == null ? "ср. взвеш. курс —" : single ? `ср. взвеш. курс ${rateFmt(t.rateAvg)}` : "ср. взвеш. курс: разные валюты"}
         </>
       )}
       <span className="block text-xs text-neutral-500">{view.label}</span>
@@ -288,8 +302,8 @@ function LotsControls({ scope }: { scope: string }) {
 function Legend() {
   return (
     <p className="text-xs text-neutral-500">
-      «Итого» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср.</b> — среднее
-      взвешенное по количеству шкур (курс — по сумме закупки в валюте), <b>уник.</b> — число разных значений. Цена в валюте и курс от режима
+      «Итого» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср. взвеш.</b> — среднее
+      взвешенное по количеству шкур (курс — по сумме закупки в валюте; никогда не простое среднее), <b>уник.</b> — число разных значений. Цена в валюте и курс от режима
       «С НДС / Без НДС» не зависят.
     </p>
   );
@@ -355,7 +369,20 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
   );
 }
 
-function LotRowView({ row: r, fields, hasEditCol, currency }: { row: LotRow; fields: CustomFieldDef[]; hasEditCol: boolean; currency: string }) {
+function LotRowView({
+  row: r,
+  fields,
+  hasEditCol,
+  currency,
+  invoice,
+}: {
+  row: LotRow;
+  fields: CustomFieldDef[];
+  hasEditCol: boolean;
+  currency: string;
+  /** Плоский список: колонка «Счёт» со ссылкой на закупку */
+  invoice?: { label: string; number: string };
+}) {
   const { selected, setSelected } = useLots();
   const checked = selected.has(r.id);
   return (
@@ -366,6 +393,13 @@ function LotRowView({ row: r, fields, hasEditCol, currency }: { row: LotRow; fie
         </label>
       </Td>
       <Td className="font-medium">{r.material}</Td>
+      {invoice && (
+        <Td className="whitespace-nowrap">
+          <Link href={`/purchases/${r.purchaseId}`} className="text-blue-600 hover:underline" title={`Закупка ${invoice.number}`}>
+            {invoice.label}
+          </Link>
+        </Td>
+      )}
       <Td className="whitespace-nowrap">{r.lotNumber || "—"}</Td>
       <Td>{r.size || "—"}</Td>
       <Td className="min-w-32 text-xs text-neutral-600">{r.op || "—"}</Td>
@@ -533,6 +567,113 @@ export function AuctionTotalsPanel() {
         <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol />
       </Table>
       <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость аукциона" />
+    </section>
+  );
+}
+
+const FLAT_COLS: { key: string; label: (cur: string) => string }[] = [
+  { key: "material", label: () => "Материал" },
+  { key: "invoice", label: () => "Счёт" },
+  { key: "lotNumber", label: () => "№ лота" },
+  { key: "size", label: () => "Сорт / размер" },
+  { key: "op", label: () => "Операция" },
+  { key: "qty", label: () => "Кол-во" },
+  { key: "price", label: (c) => `Цена за шк., ${c}` },
+  { key: "rate", label: () => "Курс" },
+  { key: "unit", label: () => "Себестоимость ед." },
+  { key: "total", label: () => "Себестоимость всего" },
+  { key: "remaining", label: () => "Остаток на складе" },
+  { key: "used", label: () => "Использован в ТЗ" },
+];
+
+function SortButton({ k, sort, onSort, label, children }: { k: string; sort: Sort | null; onSort: (k: string) => void; label: string; children?: ReactNode }) {
+  const active = sort?.key === k;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(k)}
+      data-sort={k}
+      aria-label={`Сортировать по колонке «${label}»`}
+      className={"inline-flex items-center gap-1 whitespace-nowrap uppercase tracking-wide hover:text-neutral-900 " + (active ? "text-neutral-900" : "")}
+    >
+      {children}
+      <span className={active ? "text-neutral-900" : "text-neutral-300"}>{active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}</span>
+    </button>
+  );
+}
+
+/** Вид «Списком лотов»: одна плоская таблица всех лотов аукциона с колонкой «Счёт», сортировкой, фильтрами, выбором и «Итого». */
+export function FlatLotsPanel() {
+  const { fields, purchases, selected, setSelected, extraOf, canEdit } = useLots();
+  const { mode } = useVatDisplay();
+  const view = useScope(ALL_SCOPE);
+  const [sort, setSort] = useState<Sort | null>(null);
+  const label = (id: string) => purchases.get(id)?.label ?? "";
+  const rows = useMemo(() => sortRows(view.visible, sort, mode, extraOf, label), [view.visible, sort, mode, extraOf, purchases]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onSort = (k: string) => setSort((p) => (p?.key === k ? { key: k, dir: p.dir === "asc" ? "desc" : "asc" } : { key: k, dir: "asc" }));
+  const allSel = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const someSel = rows.some((r) => selected.has(r.id));
+  const headRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headRef.current) headRef.current.indeterminate = someSel && !allSel;
+  }, [someSel, allSel]);
+  const cur = view.totals.currencies.length === 1 ? symbol(view.totals.currencies[0]) : "вал.";
+  return (
+    <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" data-auction-flat>
+      <div>
+        <h3 className="text-base font-semibold">Все лоты аукциона списком</h3>
+        <Legend />
+      </div>
+      <LotsControls scope={ALL_SCOPE} />
+      <Table>
+        <Thead>
+          <Tr>
+            <Th className="w-10 sm:w-8">
+              <label className="flex h-8 w-8 cursor-pointer items-center justify-center sm:h-auto sm:w-auto">
+                <input
+                  ref={headRef}
+                  className="h-5 w-5 sm:h-4 sm:w-4"
+                  type="checkbox"
+                  aria-label="Выбрать все показанные лоты"
+                  checked={allSel}
+                  onChange={() => setSelected(rows.map((r) => r.id), !allSel)}
+                />
+              </label>
+            </Th>
+            {FLAT_COLS.map((c) => (
+              <Th key={c.key}>
+                <SortButton k={c.key} sort={sort} onSort={onSort} label={c.label(cur)}>
+                  {c.label(cur)}
+                </SortButton>
+              </Th>
+            ))}
+            {fields.map((f, i) => (
+              <Th key={f.id}>
+                <div className="flex items-center gap-1">
+                  {canEdit ? <CustomFieldHeader field={f} index={i} count={fields.length} /> : <span>{f.name}</span>}
+                  <SortButton k={f.id} sort={sort} onSort={onSort} label={f.name} />
+                </div>
+              </Th>
+            ))}
+            <Th className="w-8">{canEdit && <AddFieldButton />}</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map((r) => {
+            const m = purchases.get(r.purchaseId);
+            return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+          })}
+          {rows.length === 0 && (
+            <Tr>
+              <Td colSpan={FLAT_COLS.length + fields.length + 2} className="py-4 text-center text-neutral-400">
+                {view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}
+              </Td>
+            </Tr>
+          )}
+        </Tbody>
+        <TotalsFooter view={view} fields={fields} hasEditCol={false} hasCheckCol invoiceCol />
+      </Table>
+      <CostPartsBlock scope={ALL_SCOPE} title="Из чего складывается стоимость" />
     </section>
   );
 }

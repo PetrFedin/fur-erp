@@ -36,6 +36,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const q = cleanSearch(sp.q);
   const materialId = cleanSearch(sp.material);
   const auctionQ = tab === "fur" ? cleanSearch(sp.auction, 200) : "";
+  // Вид режима «Аукцион»: по счетам (по умолчанию) или плоским списком лотов; сохраняется при фильтрах.
+  const auctionView: "invoices" | "lots" = cleanSearch(sp.view, 20) === "lots" ? "lots" : "invoices";
 
   const [materials, auctions] = await Promise.all([
     prisma.rawMaterial.findMany({
@@ -79,7 +81,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     return (
       <Link
         key={a.name}
-        href={`/lots?auction=${encodeURIComponent(a.name)}`}
+        href={`/lots?auction=${encodeURIComponent(a.name)}${auctionView === "lots" ? "&view=lots" : ""}`}
         className={
           "rounded-full border px-3 py-1 text-xs " +
           (active
@@ -120,6 +122,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId || auctionQ)}>
         <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
         <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+          {auctionView === "lots" && <input type="hidden" name="view" value="lots" />}
           <div className="col-span-2 sm:col-span-4">
             <label className="mb-1 block text-xs text-neutral-500">Аукцион (название — выберите из списка или введите)</label>
             <Input name="auction" list="auction-options" defaultValue={auctionQ} placeholder="напр. СП 09-26" autoComplete="off" />
@@ -199,6 +202,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             q={q}
             materialId={materialId}
             canEdit={canEditDocs}
+            view={auctionView}
           />
         )}
       </div>

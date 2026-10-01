@@ -35,6 +35,8 @@ type Line = {
 type Block = {
   p: {
     id: string;
+    number: string;
+    invoiceNumber: string | null;
     status: string;
     currency: string;
     exchangeRate: Decimal;
@@ -67,6 +69,8 @@ export function buildAuctionRows(
     const editable = canEdit && p.status !== "RECEIVED" && p.status !== "CANCELLED";
     purchases.push({
       id: p.id,
+      label: p.invoiceNumber ? `Счёт ${p.invoiceNumber}` : p.number,
+      number: p.number,
       counted: b.counted,
       unallocated: b.unallocated,
       received: p.status === "RECEIVED",

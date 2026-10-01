@@ -15,7 +15,7 @@ import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
 import { buildAuctionRows } from "./auction-rows";
 import { LotsProvider } from "./lots-state";
-import { AuctionTotalsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
+import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
@@ -111,6 +111,7 @@ export async function AuctionView({
   q,
   materialId,
   canEdit,
+  view = "invoices",
 }: {
   organizationId: string;
   /** Названия аукционов, подходящих под фильтр (точное совпадение, иначе — вхождение в название). */
@@ -119,7 +120,17 @@ export async function AuctionView({
   q: string;
   materialId: string;
   canEdit: boolean;
+  /** Вид: «По счетам» (сворачиваемые блоки) или «Списком лотов» (плоская таблица) */
+  view?: "invoices" | "lots";
 }) {
+  const flat = view === "lots";
+  const viewHref = (v: "invoices" | "lots") => {
+    const qs = new URLSearchParams({ auction: label });
+    if (q) qs.set("q", q);
+    if (materialId) qs.set("material", materialId);
+    if (v === "lots") qs.set("view", "lots");
+    return `/lots?${qs.toString()}`;
+  };
   const filtering = Boolean(q || materialId);
   // Закупки аукциона: ищем по первой строке auctionSession.
   const candidates = await prisma.purchase.findMany({
@@ -345,12 +356,33 @@ export async function AuctionView({
               входят.
             </p>
           )}
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Вид аукциона" data-auction-view-switch>
+            <span className="text-xs text-neutral-500">Вид:</span>
+            {(
+              [
+                ["invoices", "По счетам"],
+                ["lots", "Списком лотов"],
+              ] as const
+            ).map(([v, text]) => (
+              <Link
+                key={v}
+                href={viewHref(v)}
+                aria-current={view === v ? "page" : undefined}
+                className={
+                  "rounded-md border px-3 py-1 text-sm " +
+                  (view === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+                }
+              >
+                {text}
+              </Link>
+            ))}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-neutral-500">
               «Полная себестоимость» — расчёт лотов (сборы аукциона, выделка, транспорт, НДС) плюс расходы закупок. У
               черновиков лотов на складе ещё нет — цифры из расчёта.
             </p>
-            {blocks.length > 0 && <ToggleAllPurchases />}
+            {blocks.length > 0 && !flat && <ToggleAllPurchases />}
           </div>
         </CardContent>
       </Card>
@@ -362,7 +394,7 @@ export async function AuctionView({
       )}
 
       <LotsProvider rows={lotsData.rows} purchases={lotsData.purchases} fields={customFields} canEdit={canEdit}>
-      {blocks.map(({ p, lines, qty, pFullIncl, pFullExcl, expIncl, expExcl, unallocated, invoice }) => {
+      {!flat && blocks.map(({ p, lines, qty, pFullIncl, pFullExcl, expIncl, expExcl, unallocated, invoice }) => {
         const isReceived = p.status === "RECEIVED";
         const statusBadge =
           p.status === "RECEIVED" ? (
@@ -469,7 +501,7 @@ export async function AuctionView({
         </div>
       )}
 
-      {blocks.length > 0 && <AuctionTotalsPanel />}
+      {blocks.length > 0 && (flat ? <FlatLotsPanel /> : <AuctionTotalsPanel />)}
       </LotsProvider>
 
       <Card>

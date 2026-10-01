@@ -3,6 +3,7 @@
 import type { CustomFieldDef, ExtraValue } from "@/lib/custom-fields";
 import type { Part } from "@/lib/auction-cost-parts";
 import { normalizeNumberInput } from "@/lib/input";
+import { safeRatio } from "@/lib/weighted";
 import type { VatMode } from "@/lib/vat-mode";
 
 export type LotRow = {
@@ -42,6 +43,10 @@ export type LotRow = {
 
 export type PurchaseMeta = {
   id: string;
+  /** «Счёт N» (или номер закупки, если счёта нет) */
+  label: string;
+  /** номер закупки */
+  number: string;
   counted: boolean;
   unallocated: boolean;
   received: boolean;
@@ -261,17 +266,18 @@ export function computeTotals(
         else if (v === false) no++;
       } else uniq.add(String(v).toLowerCase());
     }
-    custom[f.id] = { n, sum, wavg: wq > 0 ? wsum / wq : n > 0 && f.type === "NUMBER" ? sum / n : null, uniq: uniq.size, yes, no };
+    // только взвешенное по количеству шкур; при нулевом весе среднее не показываем (никакого простого среднего)
+    custom[f.id] = { n, sum, wavg: safeRatio(wsum, wq), uniq: uniq.size, yes, no };
   }
   return {
     count: rows.length,
     qty,
     priceSum,
     currencies: Array.from(currencies),
-    avgPrice: qty > 0 ? priceSum / qty : null,
+    avgPrice: safeRatio(priceSum, qty),
     priceIncl,
     priceExcl,
-    rateAvg: rateWSum > 0 ? rateW / rateWSum : qty > 0 ? rateQ / qty : null,
+    rateAvg: rateWSum > 0 ? safeRatio(rateW, rateWSum) : safeRatio(rateQ, qty),
     rateMin,
     rateMax,
     totalIncl,
@@ -287,4 +293,68 @@ export function computeTotals(
     },
     custom,
   };
+}
+
+export type SortDir = "asc" | "desc";
+export type Sort = { key: string; dir: SortDir };
+
+/** Значение колонки для сортировки: число, строка или null (пусто — всегда в конце, при любом направлении). */
+export function sortValue(
+  row: LotRow,
+  key: string,
+  mode: VatMode,
+  extraOf: (row: LotRow, fieldId: string) => ExtraValue | undefined,
+  invoiceLabel: (purchaseId: string) => string,
+): number | string | null {
+  switch (key) {
+    case "material":
+      return row.material || null;
+    case "invoice":
+      return invoiceLabel(row.purchaseId) || null;
+    case "lotNumber":
+      return row.lotNumber || null;
+    case "size":
+      return row.size || null;
+    case "op":
+      return row.op || null;
+    case "qty":
+    case "price":
+    case "rate":
+    case "unit":
+    case "total":
+    case "remaining":
+    case "used":
+      return rowNumber(row, key, mode);
+    default: {
+      const v = extraOf(row, key);
+      if (v === undefined || v === "") return null;
+      if (typeof v === "number") return v;
+      if (typeof v === "boolean") return v ? 1 : 0;
+      return String(v);
+    }
+  }
+}
+
+/** Устойчивая сортировка копии списка; без `sort` порядок не меняется. */
+export function sortRows(
+  rows: LotRow[],
+  sort: Sort | null,
+  mode: VatMode,
+  extraOf: (row: LotRow, fieldId: string) => ExtraValue | undefined,
+  invoiceLabel: (purchaseId: string) => string,
+): LotRow[] {
+  if (!sort) return rows;
+  const sign = sort.dir === "asc" ? 1 : -1;
+  const keyed = rows.map((r, i) => ({ r, i, v: sortValue(r, sort.key, mode, extraOf, invoiceLabel) }));
+  keyed.sort((a, b) => {
+    if (a.v == null && b.v == null) return a.i - b.i;
+    if (a.v == null) return 1;
+    if (b.v == null) return -1;
+    const c =
+      typeof a.v === "number" && typeof b.v === "number"
+        ? a.v - b.v
+        : String(a.v).localeCompare(String(b.v), "ru", { numeric: true, sensitivity: "base" });
+    return c !== 0 ? c * sign : a.i - b.i;
+  });
+  return keyed.map((k) => k.r);
 }
