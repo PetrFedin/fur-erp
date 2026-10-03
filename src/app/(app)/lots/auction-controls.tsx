@@ -90,6 +90,10 @@ export function DocEditControls({
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
+    if (f.size === 0) {
+      setMsg({ error: "Файл пустой (0 байт)" });
+      return;
+    }
     if (f.size > MAX_DOC) {
       setMsg({ error: `Файл больше 25 МБ (${formatMb(f.size)} МБ)` });
       return;

@@ -99,6 +99,16 @@ function FilePicker({ d, label, onError }: { d: DriveDocView; label: string; onE
           const input = e.currentTarget;
           const file = input.files?.[0];
           if (!file) return;
+          if (file.size === 0) {
+            onError("Файл пустой (0 байт)");
+            input.value = "";
+            return;
+          }
+          if (file.size > 25 * 1024 * 1024) {
+            onError(`Файл больше 25 МБ (${formatMb(file.size)} МБ)`);
+            input.value = "";
+            return;
+          }
           const fd = new FormData();
           fd.set("file", file);
           onError(null);
@@ -246,6 +256,10 @@ export function UploadDocument({
     const form = e.currentTarget;
     const fd = new FormData(form);
     const f = fd.get("file");
+    if (f instanceof File && f.name !== "" && f.size === 0) {
+      setState({ error: "Файл пустой (0 байт)" });
+      return;
+    }
     if (f instanceof File && f.size > 25 * 1024 * 1024) {
       setState({ error: `Файл больше 25 МБ (${formatMb(f.size)} МБ)` });
       return;

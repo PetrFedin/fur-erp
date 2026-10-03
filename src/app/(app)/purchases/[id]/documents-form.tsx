@@ -27,6 +27,11 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
     const form = e.currentTarget;
     const fd = new FormData(form);
     const files = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
+    const picked = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.name !== "");
+    if (files.length === 0 && picked.length > 0) {
+      setState({ error: "Файл пустой (0 байт)" });
+      return;
+    }
     const total = files.reduce((s, f) => s + f.size, 0);
     if (total > MAX_TOTAL) {
       setState({ error: (files.length === 1 ? `Файл больше 25 МБ (${formatMb(total)} МБ)` : `Суммарный размер файлов ${formatMb(total)} МБ — больше лимита 25 МБ; загрузите файлы по частям`) });

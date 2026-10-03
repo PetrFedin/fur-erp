@@ -11,6 +11,8 @@ import { addLeaf, aggOf, emptyAgg, loadSummary, loadUnlinkedAdvances, type Agg, 
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { prisma } from "@/lib/prisma";
 import { VatSync } from "./vat-sync";
+import { LazyDetails } from "./lazy-details";
+import { loadSummaryAuction } from "./summary-node-action";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 const COLS = "md:min-w-[980px] md:grid-cols-[minmax(200px,2.2fr)_repeat(7,minmax(100px,1fr))]";
@@ -104,6 +106,7 @@ function Node({
   level,
   open,
   children,
+  load,
 }: {
   title: React.ReactNode;
   sub?: React.ReactNode;
@@ -111,26 +114,56 @@ function Node({
   mode: Mode;
   level: 0 | 1 | 2;
   open?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  /** Серверное действие: содержимое строки подгружается при первом раскрытии (не рендерится вместе со страницей). */
+  load?: () => Promise<React.ReactNode>;
 }) {
   const indent = ["", "md:pl-4", "md:pl-8"][level];
   const tone = ["bg-neutral-50 font-semibold", "bg-white", "bg-white"][level];
+  const summary = (
+    <summary
+      className={`grid cursor-pointer list-none grid-cols-1 gap-x-2 gap-y-1 px-3 py-2 text-sm hover:bg-neutral-100/60 ${COLS} ${tone} [&::-webkit-details-marker]:hidden`}
+    >
+      <span className={`min-w-0 ${indent}`}>
+        <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+        {title}
+        {sub && <span className="ml-2 text-xs font-normal text-neutral-400">{sub}</span>}
+      </span>
+      <Metrics a={a} mode={mode} />
+    </summary>
+  );
+  const cls = "group border-t border-neutral-100 first:border-t-0";
+  if (load) return <LazyDetails className={cls} summary={summary} load={load} />;
   return (
-    <details open={open} className="group border-t border-neutral-100 first:border-t-0">
-      <summary
-        className={`grid cursor-pointer list-none grid-cols-1 gap-x-2 gap-y-1 px-3 py-2 text-sm hover:bg-neutral-100/60 ${COLS} ${tone} [&::-webkit-details-marker]:hidden`}
-      >
-        <span className={`min-w-0 ${indent}`}>
-          <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
-          {title}
-          {sub && <span className="ml-2 text-xs font-normal text-neutral-400">{sub}</span>}
-        </span>
-        <Metrics a={a} mode={mode} />
-      </summary>
+    <details open={open} className={cls}>
+      {summary}
       <div>{children}</div>
     </details>
   );
 }
+
+/** Материалы и лоты одного аукциона внутри года (раскрытая строка аукциона). */
+export function AuctionBody({ al, mode }: { al: Leaf[]; mode: Mode }) {
+  return (
+    <>
+      {[...group(al, (l) => l.material).entries()]
+        .sort((a, b) => cmpRu(a[0], b[0]))
+        .map(([material, ml]) => (
+          <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={2}>
+            {ml.map((l) => (
+              <LotRow key={l.id} l={l} mode={mode} />
+            ))}
+          </Node>
+        ))}
+    </>
+  );
+}
+
+/** Фильтр сводки (как в адресной строке) — применяется и на странице, и в подгрузке строки. */
+export type SummaryFilter = { year: number | null; auction: string; material: string };
+export const filterLeaves = (all: Leaf[], f: SummaryFilter) =>
+  all.filter((l) => (!f.year || l.year === f.year) && (!f.auction || aKey(l) === f.auction) && (!f.material || l.material === f.material));
+export { aKey };
 
 function LotRow({ l, mode }: { l: Leaf; mode: Mode }) {
   const a = emptyAgg();
@@ -175,9 +208,7 @@ export async function PurchaseSummary({
   const auctionF = auctions.includes(searchParams.auction ?? "") ? searchParams.auction! : "";
   const materialF = materials.includes(searchParams.material ?? "") ? searchParams.material! : "";
 
-  const leaves = all.filter(
-    (l) => (!yearF || l.year === yearF) && (!auctionF || aKey(l) === auctionF) && (!materialF || l.material === materialF),
-  );
+  const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF });
   const filtered = Boolean(yearF || auctionF || materialF);
 
   const qs = (over: Record<string, string>) => {
@@ -350,17 +381,15 @@ export async function PurchaseSummary({
               {[...group(yl, aKey).entries()]
                 .sort((a, b) => cmpAuction(a[0], b[0]))
                 .map(([auction, al]) => (
-                  <Node key={auction} title={shortAuctionName(auction, 70)} sub={`${al.length} лот.`} a={aggOf(al)} mode={mode} level={1}>
-                    {[...group(al, (l) => l.material).entries()]
-                      .sort((a, b) => cmpRu(a[0], b[0]))
-                      .map(([material, ml]) => (
-                        <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={2}>
-                          {ml.map((l) => (
-                            <LotRow key={l.id} l={l} mode={mode} />
-                          ))}
-                        </Node>
-                      ))}
-                  </Node>
+                  <Node
+                    key={auction}
+                    title={shortAuctionName(auction, 70)}
+                    sub={`${al.length} лот.`}
+                    a={aggOf(al)}
+                    mode={mode}
+                    level={1}
+                    load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, mode)}
+                  />
                 ))}
             </Node>
           ))}

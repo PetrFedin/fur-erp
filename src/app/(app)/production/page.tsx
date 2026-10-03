@@ -55,6 +55,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   if (batchParam && (!/^\d{1,6}$/.test(batchParam) || parseInt(batchParam, 10) < 1)) notFound();
   const batchNum = batchParam ? parseInt(batchParam, 10) : null;
   const grouped = str(sp.view) === "batches";
+  // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
+  const PAGE_SIZE = 50;
+  const limitRaw = /^\d{1,5}$/.test(str(sp.limit)) ? parseInt(str(sp.limit), 10) : PAGE_SIZE;
+  const limit = Math.min(Math.max(limitRaw, PAGE_SIZE), 100000);
 
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
@@ -151,6 +155,24 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   let sumIncl = new Decimal(0);
   let sumExcl = new Decimal(0);
   const cards: React.ReactNode[] = [];
+  // Те же формулы, что в карточке ТЗ: проведённые затраты на сегодня (или зафиксированный снимок).
+  // Режим «С 4%»: надбавка только к сырью/подкладке (строки списаний),
+  // расходы без 4%; снимок totalCost хранится «без 4%», надбавка добавляется сверху.
+  const priced = orders.map((o) => {
+    const mats = sumUsagesWith4(o.materialUsages, c4Mode);
+    const expSum = o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
+    const projected = mats.incl.add(expSum);
+    const total = o.totalCost ? o.totalCost.add(mats.extraIncl) : projected;
+    // Excl-VAT counterpart, same lines (expenses carry no VAT in this schema).
+    const totalExcl = mats.excl.add(expSum);
+    if (o.status !== "CANCELLED") {
+      sumIncl = sumIncl.add(total);
+      sumExcl = sumExcl.add(totalExcl);
+    }
+    return { o, total, totalExcl };
+  });
+  const shown = priced.slice(0, limit);
+  const hiddenCount = priced.length - shown.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -267,24 +289,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           </Tr>
         </Thead>
         <Tbody>
-          {orders.map((o) => {
+          {shown.map(({ o, total, totalExcl }) => {
             const st = STATUS_LABELS[o.status];
             const href = `/production/${o.id}`;
-            // Same formulas as the order card: booked costs so far (or the
-            // fixed snapshot).
-            // Режим «С 4%»: надбавка только к сырью/подкладке (строки списаний),
-            // расходы без 4%; снимок totalCost хранится «без 4%», надбавка добавляется сверху.
-            const mats = sumUsagesWith4(o.materialUsages, c4Mode);
-            const expSum = o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-            const projected = mats.incl.add(expSum);
-            const total = o.totalCost ? o.totalCost.add(mats.extraIncl) : projected;
-            // Excl-VAT counterpart, same lines (expenses carry no VAT in this schema).
-            const projectedExcl = mats.excl.add(expSum);
-            const totalExcl = projectedExcl;
-            if (o.status !== "CANCELLED") {
-              sumIncl = sumIncl.add(total);
-              sumExcl = sumExcl.add(totalExcl);
-            }
             cards.push(
               <RowCard
                 key={o.id}
@@ -357,6 +364,23 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         {cards}
         {orders.length === 0 && <p className="py-8 text-center text-neutral-400">{hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}</p>}
       </ResponsiveRows>
+      {hiddenCount > 0 && (
+        <p className="flex flex-wrap items-center justify-center gap-3 text-sm text-neutral-500">
+          <span>
+            Показано {shown.length} из {priced.length} ТЗ
+          </span>
+          {([PAGE_SIZE, null] as const).map((step) => {
+            const qs = new URLSearchParams();
+            for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && k !== "limit") qs.set(k, v);
+            qs.set("limit", String(step ? Math.min(limit + step, priced.length) : priced.length));
+            return (
+              <Link key={step ?? "all"} href={`/production?${qs}`} className="text-blue-600 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
+                {step ? `Показать ещё ${Math.min(step, hiddenCount)}` : "Показать все"}
+              </Link>
+            );
+          })}
+        </p>
+      )}
       {orders.length > 0 && (
         <p className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
           <VatLabel base={`Итого себестоимость по списку${c4}`} />

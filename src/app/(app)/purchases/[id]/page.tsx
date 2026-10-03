@@ -252,12 +252,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     : null;
                   const lotName = item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера";
                   const unitNode = planInfo ? (
-                    <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
+                    <Money key="unit" incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
                   ) : null;
                   const totalNode = planInfo ? (
-                    <Money incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
+                    <Money key="total" incl={planInfo.total.toString()} excl={planInfo.excl.mul(item.quantity).toString()} />
                   ) : (
-                    <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
+                    <Money key="total" incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                   );
                   const card = {
                     title: item.rawMaterial.name,
@@ -266,13 +266,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
                       { label: "НДС", value: `${item.vatRate.toString()}%` },
-                      ...(hasPlan ? [{ label: <VatLabel base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
-                      { label: <VatLabel base={hasPlan ? "Всего" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
+                      ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
+                      { label: <VatLabel key="total-label" base={hasPlan ? "Всего" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
                     details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
                     // То же, что в ячейках десктопной строки: «Из чего цена», пометка о ручной правке, «Править расчёт».
                     extra: planInfo ? (
-                      <div className="flex flex-col items-start gap-1.5">
+                      <div key="extra" className="flex flex-col items-start gap-1.5">
                         <CostBreakdownToggle
                           breakdown={planInfo.plan.costBreakdown}
                           unitCostExcl={planInfo.excl.toString()}

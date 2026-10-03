@@ -47,8 +47,14 @@ export type ReadDoc = { buf: Buffer; kind: DocKind; originalName: string };
 export async function readDocumentFiles(
   entries: FormDataEntryValue[],
 ): Promise<{ error: string } | { files: ReadDoc[] }> {
-  const files = entries.filter((e): e is File => typeof e !== "string" && e.size > 0);
-  if (files.length === 0) return { error: "Выберите файл" };
+  const picked = entries.filter((e): e is File => typeof e !== "string" && e.name !== "");
+  const files = picked.filter((f) => f.size > 0);
+  if (files.length === 0) {
+    // Файл выбран, но пустой (size=0) — отдельное сообщение; не выбран вовсе — «Выберите файл».
+    return { error: picked.length > 0 ? "Файл пустой (0 байт)" : "Выберите файл" };
+  }
+  const empty = picked.find((f) => f.size === 0);
+  if (empty) return { error: `Файл «${empty.name}» пустой (0 байт)` };
   if (files.length > MAX_DOCS_PER_UPLOAD) {
     return { error: `За один раз можно загрузить не больше ${MAX_DOCS_PER_UPLOAD} файлов (выбрано ${files.length})` };
   }
