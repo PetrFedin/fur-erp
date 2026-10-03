@@ -70,11 +70,14 @@ export type AuctionPay = {
   perPurchase: { id: string; supplierId: string; status: string; total: Decimal; paid: Decimal }[];
 };
 
+/** Для подписи статуса остаток меньше рубля (копейки округления) — это «Оплачен», а не «Частично»/«Переплата». */
+export const STATUS_EPS = new Decimal(1);
+
 export function payStatus(total: Decimal, paid: Decimal): AuctionPayStatus {
   const remaining = total.sub(paid);
-  if (remaining.lessThan(PAY_EPS.neg())) return "OVERPAID";
+  if (remaining.lessThan(STATUS_EPS.neg())) return "OVERPAID";
   if (paid.lessThanOrEqualTo(PAY_EPS)) return "UNPAID";
-  if (remaining.lessThanOrEqualTo(PAY_EPS)) return "PAID";
+  if (remaining.lessThan(STATUS_EPS)) return "PAID";
   return "PARTIAL";
 }
 

@@ -99,6 +99,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i)
     .sort((x, y) => Number(isServiceAuction(x)) - Number(isServiceAuction(y)));
 
+  // Сумма аукциона одна на все его закупки: полностью — в первой строке аукциона, дальше короткая подпись.
+  const shownTable = new Set<string>();
+  const shownCards = new Set<string>();
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -198,6 +202,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
             const status = statusView(p.status);
             const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
+            const repeat = ap ? shownTable.has(ap.name) : false;
+            if (ap) shownTable.add(ap.name);
             return (
               <Tr key={p.id}>
                 <Td className="font-medium">
@@ -224,8 +230,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
                       title={`Оплаты ведутся по аукциону «${ap.name}» целиком`}
                     >
-                      <span className="block text-xs font-normal text-neutral-400">по аукциону:</span>
-                      оплачено {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+                      {repeat ? (
+                        <span className="text-xs font-normal">по аукциону — см. выше</span>
+                      ) : (
+                        <>
+                          <span className="block text-xs font-normal text-neutral-400">по аукциону:</span>
+                          оплачено {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+                        </>
+                      )}
                     </Link>
                   ) : (
                     <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
@@ -251,12 +263,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
           const st = statusView(p.status);
           const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
+          const repeat = ap ? shownCards.has(ap.name) : false;
+          if (ap) shownCards.add(ap.name);
           const paidView = ap ? (
             <Link
               href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
               className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
             >
-              {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+              {repeat ? "по аукциону — см. выше" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
             </Link>
           ) : (
             <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>

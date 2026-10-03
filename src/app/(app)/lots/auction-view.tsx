@@ -21,6 +21,9 @@ import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
+import { safeViewUrl } from "@/lib/drive-docs";
+import { copiesLabel, countLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
+import { loadSupplierDebt } from "@/lib/supplier-debt";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -185,6 +188,8 @@ export async function AuctionView({
   const payTotal = paySummaries.reduce((s, a) => s.add(a.total), new Decimal(0));
   const payPaid = paySummaries.reduce((s, a) => s.add(a.paid), new Decimal(0));
   const payRemaining = payTotal.sub(payPaid);
+  // Авансы без привязки к аукциону не относятся к этому аукциону — только короткая отсылка в «Оплаты».
+  const hasUnlinkedAdvances = paySummaries.length > 0 ? (await loadSupplierDebt(prisma, organizationId)).unlinkedAdvances.greaterThan(0.005) : false;
   // Без фильтра показываем все закупки аукциона (и пустые); с фильтром — только те, где что-то нашлось.
   const purchases = filtering ? purchasesRaw.filter((p) => p.items.length > 0) : purchasesRaw;
 
@@ -304,6 +309,20 @@ export async function AuctionView({
     ),
   );
 
+  // Один файл — одна строка: ссылки Drive на тот же файл (по имени и размеру) уходят в кнопку «Drive» строки файла,
+  // повторы файлов (то же имя + тип + размер) схлопываются в «×N».
+  const driveMatch = matchDriveToFiles(
+    docRows.map((r) => ({ names: [r.d.originalName, r.d.title], size: r.d.sizeBytes })),
+    driveDocs.map((d) => ({ titles: [d.title, d.storedName ?? ""], size: d.storedSize })),
+  );
+  const pairedDrive = new Set(driveMatch.flat());
+  const driveOnly = driveDocs.filter((_, i) => !pairedDrive.has(i));
+  const fileEntries = docRows.map((r, i) => ({ ...r, driveUrl: driveMatch[i].map((di) => safeViewUrl(driveDocs[di].viewUrl)).find(Boolean) ?? null }));
+  const fileGroups = groupBy(fileEntries, (r) => docGroupKey(r.d.originalName || r.d.title, r.d.kind, r.d.sizeBytes));
+  const driveGroupCount = groupBy(driveOnly, (d) => docGroupKey(d.title, d.docType, d.storedSize)).length;
+  const docGroupTotal = fileGroups.length + driveGroupCount;
+  const docRecords = docRows.length + driveDocs.length;
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -357,7 +376,7 @@ export async function AuctionView({
                   {formatMoney(payRemaining.toString())}
                 </dd>
                 <dd className="text-xs text-neutral-400">
-                  оплачено {formatMoney(payPaid.toString())} ·{" "}
+                  {payPaid.greaterThan(0.005) ? `оплачено ${formatMoney(payPaid.toString())}` : "оплат нет"} ·{" "}
                   <Link
                     href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
                     className="inline-block text-blue-600 hover:underline max-md:py-2"
@@ -365,6 +384,14 @@ export async function AuctionView({
                     Оплаты →
                   </Link>
                 </dd>
+                {hasUnlinkedAdvances && (
+                  <dd className="text-xs text-neutral-400">
+                    Авансы без привязки: в{" "}
+                    <Link href="/payments" className="text-blue-600 hover:underline">
+                      «Оплатах»
+                    </Link>
+                  </dd>
+                )}
               </div>
             )}
           </dl>
@@ -494,10 +521,10 @@ export async function AuctionView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Документы аукциона ({docRows.length + driveDocs.length})</CardTitle>
+          <CardTitle>Документы аукциона ({countLabel(docGroupTotal, docRecords)})</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {docRows.length > 0 ? (
+          {fileGroups.length > 0 ? (
             <Table className="max-md:block">
               <Thead className="max-md:hidden">
                 <Tr>
@@ -511,16 +538,47 @@ export async function AuctionView({
                 </Tr>
               </Thead>
               <Tbody className="max-md:block">
-                {docRows.map(({ d, batch, purchaseId, purchaseLabel }) => {
+                {fileGroups.map((g) => {
+                  const { d } = g[0];
+                  const driveUrl = g.map((x) => x.driveUrl).find(Boolean) ?? null;
                   const v = docVersion(d.storagePath);
+                  const where = (r: (typeof g)[number]) => (r.batch ? `вся партия ${r.d.batch ?? ""}` : `закупка ${r.purchaseLabel}`);
+                  const controls = (r: (typeof g)[number]) => (
+                    <DocEditControls
+                      documentId={r.d.id}
+                      purchaseId={r.purchaseId || editPurchaseId}
+                      title={r.d.title}
+                      kind={r.d.kind}
+                      isBatch={r.batch}
+                      batchName={r.d.batch}
+                    />
+                  );
                   return (
                     <Tr key={d.id} className="align-top max-md:block max-md:space-y-1 max-md:p-3">
                       <Td className="min-w-40 font-medium max-md:block max-md:px-0 max-md:py-0">
                         {d.title}
+                        {g.length > 1 && (
+                          <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-normal text-neutral-600" title="Один и тот же файл привязан несколько раз">
+                            {copiesLabel(g.length)}
+                          </span>
+                        )}
                         <div className="text-xs font-normal text-neutral-400">{d.originalName}</div>
                       </Td>
                       <Td className="whitespace-nowrap max-md:block max-md:px-0 max-md:py-0">{DOC_KIND_LABELS[d.kind]}</Td>
-                      <Td className="text-xs max-md:block max-md:px-0 max-md:py-0">{batch ? `вся партия ${d.batch ?? ""}` : `закупка ${purchaseLabel}`}</Td>
+                      <Td className="text-xs max-md:block max-md:px-0 max-md:py-0">
+                        {g.length === 1 ? (
+                          where(g[0])
+                        ) : (
+                          <details>
+                            <summary className="cursor-pointer">{g.length} привязок</summary>
+                            <ul className="mt-1 list-disc pl-4">
+                              {g.map((r) => (
+                                <li key={r.d.id}>{where(r)}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </Td>
                       <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0 max-md:pr-3">{formatDate(d.createdAt)}</Td>
                       <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0">{fmtSize(d.sizeBytes)}</Td>
                       <Td className="max-md:block max-md:px-0 max-md:py-1">
@@ -539,18 +597,30 @@ export async function AuctionView({
                           >
                             Открыть
                           </a>
+                          {driveUrl && (
+                            <a href={driveUrl} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                              Drive
+                            </a>
+                          )}
                         </div>
                       </Td>
                       {canEdit && (
                         <Td className="min-w-56 max-md:block max-md:min-w-0 max-md:px-0 max-md:py-1">
-                          <DocEditControls
-                            documentId={d.id}
-                            purchaseId={purchaseId || editPurchaseId}
-                            title={d.title}
-                            kind={d.kind}
-                            isBatch={batch}
-                            batchName={d.batch}
-                          />
+                          {g.length === 1 ? (
+                            controls(g[0])
+                          ) : (
+                            <details>
+                              <summary className="cursor-pointer text-xs text-neutral-500">Правки по привязкам ({g.length})</summary>
+                              <div className="mt-2 flex flex-col gap-3">
+                                {g.map((r) => (
+                                  <div key={r.d.id}>
+                                    <div className="mb-1 text-xs text-neutral-500">{where(r)}</div>
+                                    {controls(r)}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </Td>
                       )}
                     </Tr>
@@ -563,7 +633,7 @@ export async function AuctionView({
           )}
           <div className="border-t border-neutral-100 pt-3">
             <DriveDocuments
-              docs={driveDocs}
+              docs={driveOnly}
               entity="purchase"
               entityId={editPurchaseId}
               canEdit={canEdit && Boolean(editPurchaseId)}

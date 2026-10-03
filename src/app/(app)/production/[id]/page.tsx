@@ -122,6 +122,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   if (!order.materialUsages.some((u) => u.commission4)) c4 = "";
 
   const payments = order.paymentAllocations.map((a) => a.productionPayment);
+  // У нескольких заказов бывает один номер ТЗ (напр. ТЗ №88 — 4 строки): в заголовке добавляем модель, чтобы карточки не были «близнецами».
+  const sameTzCount = order.workOrderNumber
+    ? await prisma.productionOrder.count({ where: { organizationId: session.user.organizationId, workOrderNumber: order.workOrderNumber } })
+    : 0;
+  const tzTitle = order.workOrderNumber
+    ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${order.productModel.name}` : ""}`
+    : `Заказ ${order.number}`;
 
   // Документы Google Drive: самого ТЗ и его оплат.
   const driveRows = await prisma.driveDocument.findMany({
@@ -447,7 +454,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">
-            {order.workOrderNumber ? `ТЗ №${order.workOrderNumber}` : `Заказ ${order.number}`}
+            {tzTitle}
           </h1>
           {order.workOrderNumber && (
             <span className="text-sm text-neutral-500">заказ {order.number}</span>
@@ -861,11 +868,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         )}
       </Section>
 
-      <Section id="drive" title="Документы Google Drive">
+      <Section id="drive" title="Документы">
         <Card>
           <CardContent className="pt-4">
             <DriveDocuments
               docs={driveDocs}
+              title="Google Drive"
               entity="order"
               entityId={id}
               canEdit={canEdit}

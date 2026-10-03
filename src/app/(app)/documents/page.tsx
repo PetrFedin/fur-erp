@@ -10,7 +10,6 @@ import {
   computeDocCoverage,
   filterCovRows,
   parseCovFilters,
-  summarize,
   type Cell,
   type ColKey,
   type CovFilters,
@@ -22,6 +21,8 @@ import {
   DOC_LINK_LABELS,
   DOC_PAGE_SIZE,
   filterDocList,
+  groupDocList,
+  type DocGroup,
   loadDocList,
   parseDocListFilters,
 } from "@/lib/drive-doc-list";
@@ -74,9 +75,10 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const totalGaps = cov.rows.filter((r) => r.gaps.length > 0).length;
 
   // ---------- Drive-блок
-  const docsFiltered = filterDocList(docList, df).sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  // Одинаковые файлы (название + тип + размер) схлопнуты в одну строку «×N»; привязки — в раскрывающемся списке.
+  const docsFiltered = groupDocList(filterDocList(docList, df)).sort((a, b) => a.title.localeCompare(b.title, "ru"));
   const typeCounts = new Map<string, number>();
-  for (const d of filterDocList(docList, df, "type")) typeCounts.set(d.docType, (typeCounts.get(d.docType) ?? 0) + 1);
+  for (const d of groupDocList(filterDocList(docList, df, "type"))) typeCounts.set(d.docType, (typeCounts.get(d.docType) ?? 0) + 1);
   const typeTotal = [...typeCounts.values()].reduce((a, b) => a + b, 0);
   const docYears = [...new Set(docList.map((d) => d.year).filter((y): y is number => y !== null))].sort((a, b) => b - a);
   const pages = Math.max(1, Math.ceil(docsFiltered.length / DOC_PAGE_SIZE));
@@ -84,6 +86,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const pageDocs = docsFiltered.slice((page - 1) * DOC_PAGE_SIZE, page * DOC_PAGE_SIZE);
   const unlinked = docList.filter((d) => d.links.length === 0).length;
   const withOriginal = docList.filter((d) => d.hasOriginal).length;
+  const allGroups = groupDocList(docList).length;
 
   const chip = (active: boolean) =>
     cn(
@@ -199,7 +202,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         <div>
           <h2 className="text-lg font-semibold">Все документы</h2>
           <p className="text-sm text-neutral-500">
-            Ссылки Google Drive и файлы закупок вместе: {docList.length} строк (одна строка — одна привязка файла к записи). Не привязаны ни к чему:{" "}
+            Ссылки Google Drive и файлы закупок вместе: {allGroups} файлов ({docList.length} привязок; одинаковый файл, привязанный к нескольким записям, — одна строка «×N»). Не привязаны ни к чему:{" "}
             <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong>.
           </p>
         </div>
@@ -272,7 +275,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
                     {pageDocs.map((d) => (
-                      <tr key={d.id} className="align-top">
+                      <tr key={d.key} className="align-top">
                         <td className="break-words px-3 py-2">
                           {d.openHref ? (
                             <a href={d.openHref} target="_blank" rel="noreferrer" className="hover:underline">
@@ -281,22 +284,13 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                           ) : (
                             d.title
                           )}
+                          {d.count > 1 && <span className="ml-1.5 whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-600">×{d.count}</span>}
                         </td>
                         <td className="px-3 py-2 text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType]}</td>
                         <td className="break-words px-3 py-2 tabular-nums text-neutral-600">{d.number ?? "—"}</td>
                         <td className="px-3 py-2 tabular-nums text-neutral-600">{d.date ? formatDate(d.date) : (d.year ?? "—")}</td>
                         <td className="px-3 py-2">
-                          {d.links.length === 0 ? (
-                            <span className="text-amber-600">не привязан</span>
-                          ) : (
-                            <span className="flex flex-wrap gap-x-3 gap-y-0.5">
-                              {d.links.map((l, i) => (
-                                <Link key={i} href={l.href} className="text-neutral-700 underline hover:text-neutral-900">
-                                  {l.label}
-                                </Link>
-                              ))}
-                            </span>
-                          )}
+                          <GroupLinks d={d} />
                         </td>
                         <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-600">✓ в приложении</span> : <span className="text-neutral-400">только ссылка</span>}</td>
                       </tr>
@@ -308,27 +302,15 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           >
             {pageDocs.map((d) => (
               <RowCard
-                key={d.id}
-                title={d.openHref ? <a href={d.openHref} target="_blank" rel="noreferrer" className="inline-block py-1.5 hover:underline">{d.title}</a> : d.title}
+                key={d.key}
+                title={<>{d.openHref ? <a href={d.openHref} target="_blank" rel="noreferrer" className="inline-block py-1.5 hover:underline">{d.title}</a> : d.title}{d.count > 1 ? <span className="ml-1.5 whitespace-nowrap text-xs font-medium text-neutral-500">×{d.count}</span> : null}</>}
                 subtitle={DRIVE_DOC_TYPE_LABELS[d.docType]}
                 badge={d.hasOriginal ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">файл</span> : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">ссылка</span>}
                 fields={[
                   { label: "№", value: d.number ?? "—" },
                   { label: "Дата", value: d.date ? formatDate(d.date) : (d.year ?? "—") },
                 ]}
-                extra={
-                  d.links.length === 0 ? (
-                    <span className="text-xs text-amber-600">не привязан</span>
-                  ) : (
-                    <span className="flex flex-wrap gap-x-3">
-                      {d.links.map((l, i) => (
-                        <Link key={i} href={l.href} className="inline-block py-1 text-xs underline">
-                          {l.label}
-                        </Link>
-                      ))}
-                    </span>
-                  )
-                }
+                extra={<GroupLinks d={d} mobile />}
               />
             ))}
           </ResponsiveRows>
@@ -358,6 +340,36 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
     </div>
   );
 }
+
+function GroupLinks({ d, mobile }: { d: DocGroup; mobile?: boolean }) {
+  if (d.links.length === 0) return <span className={mobile ? "text-xs text-amber-600" : "text-amber-600"}>не привязан</span>;
+  const cls = mobile ? "inline-block py-1 text-xs underline" : "text-neutral-700 underline hover:text-neutral-900";
+  const list = (
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+      {d.links.map((l, i) => (
+        <Link key={i} href={l.href} className={cls}>
+          {l.label}
+        </Link>
+      ))}
+    </span>
+  );
+  if (d.count === 1 && d.links.length <= 3) return list;
+  return (
+    <details>
+      <summary className={cn("cursor-pointer text-neutral-700", mobile && "py-1 text-xs")}>
+        {d.links.length} {plural(d.links.length, "привязка", "привязки", "привязок")}
+        {d.unlinked > 0 ? <span className="ml-1 text-amber-600">· без привязки: {d.unlinked}</span> : null}
+      </summary>
+      <div className="mt-1">{list}</div>
+    </details>
+  );
+}
+
+const plural = (n: number, one: string, few: string, many: string) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+};
 
 function SummaryTile({ title, stat, href, strong }: { title: string; stat: SectionStat; href: string; strong?: boolean }) {
   return (
@@ -402,7 +414,6 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
   const cols = COLUMNS.filter((c) => rows.some((r) => r.cells[c.key].need !== "na"));
   const withReg = rows.some((r) => r.registry.state !== "none");
   const template = `minmax(0,1fr) repeat(${cols.length}, 4.75rem)${withReg ? " 9.5rem" : ""} 5.5rem`;
-  const stat = summarize(rows).sections.find((s) => s.key === section)!;
 
   const byGap = (a: CovRow, b: CovRow) => b.gaps.length - a.gaps.length;
   const groupMap = new Map<string, Group>();
@@ -506,10 +517,17 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
     <section className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{SECTION_TITLES[section]}</h2>
-        <span className={cn("text-sm font-semibold tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : `${stat.percent}%`}</span>
-        <span className="text-xs text-neutral-500">
-          {rows.length} зап. · пробелов: {rows.filter((r) => r.gaps.length > 0).length}
-        </span>
+        {/* Процент — только в плитках сверху; здесь число пробелов. */}
+        {(() => {
+          const n = rows.filter((r) => r.gaps.length > 0).length;
+          return n > 0 ? (
+            <span className="text-sm font-medium tabular-nums text-red-600">
+              {n} {plural(n, "пробел", "пробела", "пробелов")}
+            </span>
+          ) : (
+            <span className="text-sm text-emerald-600">без пробелов</span>
+          );
+        })()}
       </div>
       <ResponsiveRows table={table}>{cards}</ResponsiveRows>
     </section>

@@ -237,13 +237,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="Куплено сырья"
-          hint="Все закупки, кроме отменённых, вместе с черновиками (мех по ним ещё не принят)."
+          hint="Все закупки, кроме отменённых, вместе с черновиками (мех по ним ещё не принят). Ниже — сколько из этого уже ушло в производство."
           value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
-        />
-        <KpiCard
-          label={`Списано в ТЗ${c4Suffix(c4Mode)}`}
-          hint="Стоимость сырья, уже ушедшего в производство."
-          value={<CompactMoney incl={totalMaterialUsedValue.toString()} excl={totalMaterialUsedValueExclVat.toString()} />}
+          extra={
+            <>
+              списано в ТЗ{c4Suffix(c4Mode)}:{" "}
+              <CompactMoney incl={totalMaterialUsedValue.toString()} excl={totalMaterialUsedValueExclVat.toString()} />
+            </>
+          }
         />
         <KpiCard
           label="Сырьё на складе"
@@ -282,14 +283,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           hint={
             attention.main === 0
               ? "Всё заведено."
-              : "Не заведены документы, даты, оплаты (красные и жёлтые пункты). Серые — справочно, могут быть нормой."
+              : "Закупки, оплаты, ТЗ и партии с пробелами в датах, привязках и оплатах — каждая запись считается один раз. Серые — справочно, могут быть нормой."
           }
           note={
             attention.main === 0
               ? attention.gray > 0
                 ? `+${attention.gray} серых`
                 : undefined
-              : `срочных: ${attention.red}${attention.gray > 0 ? `; +${attention.gray} серых` : ""}`
+              : `записей, из них срочных: ${attention.red}${attention.gray > 0 ? `; +${attention.gray} серых` : ""}`
           }
           value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
           warn={attention.main > 0}
@@ -434,11 +435,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </CardContent>
         </Card>
 
+        {clientDebts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle><InclVatOnlyLabel base="Долг заказчиков" /></CardTitle>
+            <CardTitle><InclVatOnlyLabel base="Остаток к оплате по заказчикам" /></CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="mb-2 text-xs text-neutral-500">Разбивка плитки «Долг заказчиков» по заказчикам.</p>
             <Table>
               <Thead>
                 <Tr>
@@ -466,17 +469,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     </Td>
                   </Tr>
                 ))}
-                {clientDebts.length === 0 && (
-                  <Tr>
-                    <Td colSpan={3} className="py-6 text-center text-neutral-400">
-                      Задолженностей нет
-                    </Td>
-                  </Tr>
-                )}
               </Tbody>
             </Table>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );
@@ -489,6 +486,7 @@ function KpiCard({
   danger,
   hint,
   note,
+  extra,
   href,
 }: {
   label: React.ReactNode;
@@ -497,6 +495,8 @@ function KpiCard({
   danger?: boolean;
   hint?: string;
   note?: string;
+  /** Вторая строка под числом (например, связанный показатель). */
+  extra?: React.ReactNode;
   href?: string;
 }) {
   const body = (
@@ -510,6 +510,7 @@ function KpiCard({
       >
         {value}
       </div>
+      {extra && <div className="mt-1 text-xs text-neutral-500">{extra}</div>}
       {(note ?? hint) && <div className="mt-1 text-xs text-neutral-400">{note ?? hint}</div>}
     </div>
   );

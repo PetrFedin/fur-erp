@@ -58,14 +58,32 @@ export type RowRules = Partial<Record<ColKey, CellRule>>;
 const REQ: CellRule = { need: "required" };
 const OPT: CellRule = { need: "optional" };
 
+/** Метка закупки «сырьё подрядчика» (не отдельная закупка у поставщика, а шкуры, уже входящие в доплату партии). */
+export const CONTRACTOR_RAW_TAG = "[fix-structure:note]";
+
+/**
+ * Закупки с «аукционом», у которого счёта аукциона быть не может: ферма (КФХ), подкладка и доп. материалы по спецификации —
+ * покупаются напрямую у поставщика. Только для правил покрытия: отображение «Без аукциона» (auction-names.ts) не затрагивается.
+ */
+const NO_INVOICE_PREFIXES = ["кфх", "подкладка спец.", "доп. материалы спец."];
+export function noAuctionInvoice(auction: string | null | undefined): boolean {
+  if (!auction) return false;
+  const n = auction.replace(/\s+/g, " ").trim().toLowerCase().replace(/ё/g, "е");
+  return NO_INVOICE_PREFIXES.some((p) => n.startsWith(p));
+}
+
 /** Закупка. Аукцион из заглушек импорта («Нет информации», пусто) — не реальные торги, счёта аукциона у неё быть не может. */
-export function purchaseRules(p: { status: string; realAuction: boolean; hasPayments: boolean }): RowRules {
+export function purchaseRules(p: { status: string; realAuction: boolean; hasPayments: boolean; contractorRaw?: boolean }): RowRules {
   const auctionInvoice: CellRule = p.realAuction ? REQ : { need: "na" };
   const payment: CellRule = {
     need: p.hasPayments ? "required" : "optional",
     label: "Платёжка / счёт на оплату",
     attach: "Платёжка или счёт на оплату (по оплатам закупки или её аукциона)",
   };
+  if (p.contractorRaw) {
+    // Сырьё подрядчика: УПД и спецификации поставщика на него быть не может, расчёт — это расчёт доплаты партии (желателен).
+    return { AUCTION_INVOICE: auctionInvoice, UPD: { need: "na" }, SPECIFICATION: { need: "na" }, CALC_SHEET: OPT, PAYMENT: payment, APPROVAL_EMAIL: OPT };
+  }
   if (p.status === "RECEIVED") {
     // Принятая на склад: счёт аукциона, УПД, расчёт себестоимости, спецификация, документ оплаты
     // (если оплаты есть); письмо-согласование — необязательно.
@@ -238,7 +256,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
   const [purchases, pdocs, ddocs, payments, batches, orders, prodPayments, suppliers, clients] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
-      select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, supplier: { select: { name: true } } },
+      select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, notes: true, supplier: { select: { name: true } } },
       orderBy: { number: "asc" },
     }),
     db.purchaseDocument.findMany({
@@ -330,7 +348,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     base: Pick<CovRow, "id" | "section" | "number" | "title" | "sub" | "href" | "year" | "auction" | "groupKey" | "groupTitle" | "groupSort">,
     rules: RowRules,
     docs: CovDoc[],
-    opts: { docRef?: boolean; docsFor?: Partial<Record<ColKey, CovDoc[]>>; extras?: { text: string; ok: boolean }[]; searchExtra?: string; registry?: RegCell } = {}
+    opts: { docRef?: boolean; docsFor?: Partial<Record<ColKey, CovDoc[]>>; extras?: { text: string; ok: boolean }[]; searchExtra?: string; registry?: RegCell; unconfirmed?: boolean } = {}
   ) => {
     const uniqDocs = uniq(docs);
     const res = evaluate(rules, uniqDocs, !!opts.docRef, opts.docsFor && Object.fromEntries(Object.entries(opts.docsFor).map(([k, v]) => [k, uniq(v ?? [])])));
@@ -342,6 +360,18 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
       required++;
       if (e.ok) have++;
       else gaps.push({ label: e.text, attach: "Платёжка или счёт к оплате — в карточке оплаты" });
+    }
+    // Оплата поставщику «не подтверждена» (confirmed = false) — это пробел «нет платёжки»: тот же счёт, что на /attention.
+    // Он заменяет пробел «Документ к оплате», если тот и так был (одна запись — один пробел).
+    if (opts.unconfirmed) {
+      const docGap = gaps.findIndex((g) => g.label === "Документ к оплате");
+      const gap = { label: "Платёжки нет (оплата не подтверждена)", attach: "Приложите платёжное поручение и подтвердите оплату в карточке оплаты" };
+      if (docGap >= 0) gaps[docGap] = gap;
+      else {
+        gaps.push(gap);
+        required++;
+      }
+      extras.push({ text: "Оплата не подтверждена: платёжки нет", ok: false });
     }
     rows.push({
       ...base,
@@ -385,7 +415,12 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
         groupTitle: `${auction ? (isServiceAuction(auction) ? "Без аукциона" : auction) : "Без аукциона"}${year ? ` · ${year}` : ""}`,
         groupSort: year ?? nowYear + 1,
       },
-      purchaseRules({ status: p.status, realAuction: !!auction && !isServiceAuction(auction), hasPayments: pays.length > 0 }),
+      purchaseRules({
+        status: p.status,
+        realAuction: !!auction && !isServiceAuction(auction) && !noAuctionInvoice(auction),
+        hasPayments: pays.length > 0,
+        contractorRaw: !!p.notes?.includes(CONTRACTOR_RAW_TAG),
+      }),
       [...own, ...fromPayments],
       { searchExtra: auction ?? "", registry: registryCell("purchases", p.number, p.orderDate) }
     );
@@ -455,7 +490,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
       },
       paymentRules(),
       payDocs(pay),
-      { docRef: !!pay.docRef?.trim() }
+      { docRef: !!pay.docRef?.trim(), unconfirmed: !pay.confirmed }
     );
   }
 
@@ -504,7 +539,8 @@ const stat = (key: SectionKey, rs: CovRow[]): SectionStat => {
     rowsWithGaps: rs.filter((r) => r.gaps.length > 0).length,
     required,
     have,
-    percent: required === 0 ? null : Math.round((have / required) * 100),
+    // Округляем вниз: «100%» только при нуле пробелов (иначе 99% при одном пробеле из сотни).
+    percent: required === 0 ? null : rs.some((r) => r.gaps.length > 0) ? Math.min(99, Math.floor((have / required) * 100)) : 100,
   };
 };
 

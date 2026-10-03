@@ -30,6 +30,8 @@ export type DocListItem = {
   date: Date | null;
   year: number | null;
   hasOriginal: boolean;
+  /** Размер файла в байтах (если известен): часть ключа схлопывания одинаковых файлов. */
+  size: number | null;
   /** Ссылка «открыть документ» (файл приложения или Drive) или null, если открыть нечем. */
   openHref: string | null;
   links: { kind: DocLinkKind; label: string; href: string }[];
@@ -76,7 +78,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
     db.driveDocument.findMany({
       where: { organizationId },
       select: {
-        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true,
+        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true, sizeBytes: true, storedSize: true,
         purchase: { select: { id: true, number: true } },
         lot: { select: { purchaseId: true, lotNumber: true } },
         productionOrder: { select: { id: true, number: true } },
@@ -89,7 +91,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
     }),
     db.purchaseDocument.findMany({
       where: { organizationId },
-      select: { id: true, title: true, kind: true, batch: true, createdAt: true, purchase: { select: { id: true, number: true } } },
+      select: { id: true, title: true, kind: true, batch: true, createdAt: true, sizeBytes: true, purchase: { select: { id: true, number: true } } },
     }),
   ]);
 
@@ -112,6 +114,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
       id: `d-${d.id}`, source: "drive", title: d.title, docType: d.docType, number: d.docNumber, date,
       year: d.year ?? (date ? date.getUTCFullYear() : null),
       hasOriginal: !!d.storagePath,
+      size: d.sizeBytes ?? d.storedSize,
       openHref: d.storagePath || d.viewUrl ? `/api/drive-docs/${d.id}` : null,
       links,
     });
@@ -124,7 +127,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
         : [];
     items.push({
       id: `a-${d.id}`, source: "app", title: d.title, docType: PURCHASE_KIND_TO_TYPE[d.kind] ?? "OTHER", number: null, date: null,
-      year: d.createdAt.getUTCFullYear(), hasOriginal: true, openHref: `/api/purchase-docs/${d.id}`, links,
+      year: d.createdAt.getUTCFullYear(), hasOriginal: true, size: d.sizeBytes, openHref: `/api/purchase-docs/${d.id}`, links,
     });
   }
   return items;
@@ -144,3 +147,37 @@ export function filterDocList(items: DocListItem[], f: DocListFilters, ignore?: 
 
 export const DOC_PAGE_SIZE = 50;
 export { DRIVE_DOC_TYPE_LABELS };
+
+/** Одно название подряд — одна строка: файл, привязанный (или загруженный) к нескольким записям, показывается один раз с «×N». */
+export type DocGroup = Omit<DocListItem, "id" | "links" | "source"> & {
+  key: string;
+  count: number;
+  /** Привязки всех строк группы (без повторов), в порядке следования. */
+  links: DocListItem["links"];
+  /** Сколько строк группы вообще без привязки. */
+  unlinked: number;
+};
+
+/** Ключ схлопывания: название без пробелов и регистра + тип + размер. */
+export const docGroupKey = (i: Pick<DocListItem, "title" | "docType" | "size">) =>
+  `${norm(i.title).replace(/\s+/g, "")}|${i.docType}|${i.size ?? ""}`;
+
+export function groupDocList(items: DocListItem[]): DocGroup[] {
+  const map = new Map<string, DocGroup>();
+  for (const i of items) {
+    const key = docGroupKey(i);
+    let g = map.get(key);
+    if (!g) {
+      g = { key, title: i.title, docType: i.docType, number: i.number, date: i.date, year: i.year, hasOriginal: i.hasOriginal, size: i.size, openHref: i.openHref, count: 0, links: [], unlinked: 0 };
+      map.set(key, g);
+    }
+    g.count++;
+    if (i.links.length === 0) g.unlinked++;
+    g.hasOriginal ||= i.hasOriginal;
+    g.openHref ??= i.openHref;
+    g.number ??= i.number;
+    g.date ??= i.date;
+    for (const l of i.links) if (!g.links.some((x) => x.kind === l.kind && x.label === l.label && x.href === l.href)) g.links.push(l);
+  }
+  return Array.from(map.values());
+}

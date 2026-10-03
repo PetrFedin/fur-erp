@@ -23,8 +23,9 @@ import { PurchaseEditForm } from "./purchase-edit-form";
 import { PurchaseItemRow } from "./item-row";
 import { DocumentsForm } from "./documents-form";
 import { UploadDocument, AddForm } from "@/components/drive-documents";
-import { PurchaseDocumentsList } from "./documents-block";
+import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
+import { countLabel } from "@/lib/drive-docs-group";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
@@ -104,6 +105,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const driveDocs = driveRows.map((d) =>
     toDriveView(d, d.lotId ? `лот ${d.lot?.lotNumber ?? "без номера"}` : d.paymentId ? "оплата" : null, session.user.role),
   );
+
+  const docFiles = [
+    ...purchase.documents.map((d) => ({ ...d, batch: false })),
+    ...batchDocs.map((d) => ({ ...d, batch: true })),
+  ];
+  const docDrives = driveRows.map((d, i) => ({ view: driveDocs[i], fileId: d.driveFileId, createdAt: d.createdAt }));
+  const docRecords = docFiles.length + docDrives.length;
+  const docGroupCount = buildDocGroups(docFiles, docDrives).length;
 
   const statusEditable = purchase.status !== "RECEIVED" && purchase.status !== "CANCELLED";
   // Роль из сессии: формы и кнопки правок видят только OWNER/ADMIN/PURCHASER (сервер всё равно отказывает остальным).
@@ -485,7 +494,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
           value={formatMoney(goodsExclVatRub.toString())}
         />
-        <SummaryCard label="Доп. расходы, без НДС" value={formatMoney(extraExclVat.toString())} />
+        <SummaryCard
+          label="Доп. расходы, без НДС"
+          value={formatMoney(extraExclVat.toString())}
+          note={purchase.expenses.length === 0 && extraExclVat.greaterThan(0) ? "в т.ч. сборы аукциона, выделка (из расчёта лотов)" : undefined}
+        />
         <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
         <SummaryCard
           label={<VatLabel base="Итого, RUB" />}
@@ -505,7 +518,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             }
             value={
               <>
-                {formatMoney(auctionPay.paid.toString())} из {formatMoney(auctionPay.total.toString())}
+                {auctionPay.paid.greaterThan(0.005)
+                  ? `${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}`
+                  : "оплат нет"}
                 <span className="mt-0.5 block text-xs font-normal text-neutral-500">
                   остаток по аукциону {formatMoney(auctionPay.remaining.toString())}
                   {auctionPay.planned.greaterThan(0) && ` · запланировано ${formatMoney(auctionPay.planned.toString())}`}
@@ -547,9 +562,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           )}
           <details open={purchase.items.length <= EXPANDED_ITEMS_LIMIT}>
             <summary className="mb-2 cursor-pointer text-sm text-neutral-600 max-md:py-2">
-              {purchase.items.length > EXPANDED_ITEMS_LIMIT
-                ? `Список позиций (${purchase.items.length})`
-                : "Список позиций"}
+              Список позиций
             </summary>
             <ResponsiveRows
               table={
@@ -597,11 +610,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               {purchase.items.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Позиций пока нет</p>}
             </ResponsiveRows>
           </details>
-          {purchase.items.length > EXPANDED_ITEMS_LIMIT && (
-            <p className="text-right text-sm font-medium">
-              Итого по закупке ({purchase.items.length} поз.): <Money incl={itemsTotalInclVatRub} excl={itemsTotalExclVatRub} />
-            </p>
-          )}
         </CardContent>
       </Card>
 
@@ -655,16 +663,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
       <Card>
         <CardHeader>
-          <CardTitle>Документы ({purchase.documents.length + batchDocs.length + driveRows.length})</CardTitle>
+          <CardTitle>Документы ({countLabel(docGroupCount, docRecords)})</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <PurchaseDocumentsList
             purchaseId={id}
-            files={[
-              ...purchase.documents.map((d) => ({ ...d, batch: false })),
-              ...batchDocs.map((d) => ({ ...d, batch: true })),
-            ]}
-            drives={driveRows.map((d, i) => ({ view: driveDocs[i], fileId: d.driveFileId, createdAt: d.createdAt }))}
+            files={docFiles}
+            drives={docDrives}
             batchName={batchName}
             canEdit={canEditRole}
           />
@@ -878,11 +883,13 @@ function SummaryCard({
   value,
   emphasis,
   warn,
+  note,
 }: {
   label: React.ReactNode;
   value: React.ReactNode;
   emphasis?: boolean;
   warn?: boolean;
+  note?: string;
 }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
@@ -892,6 +899,7 @@ function SummaryCard({
       >
         {value}
       </div>
+      {note && <div className="mt-0.5 text-xs text-neutral-500">{note}</div>}
     </div>
   );
 }

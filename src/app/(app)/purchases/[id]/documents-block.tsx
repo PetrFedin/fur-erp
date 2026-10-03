@@ -5,6 +5,8 @@ import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { formatDate } from "@/lib/utils";
 import { deletePurchaseDocument } from "../doc-actions";
 import type { DriveDocView } from "@/lib/drive-docs";
+import { copiesLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
+import { safeViewUrl } from "@/lib/drive-docs";
 
 export type FileDocRow = {
   id: string;
@@ -20,7 +22,44 @@ export type DriveDocRow = { view: DriveDocView; fileId: string; createdAt: Date 
 
 type Entry =
   | { type: "file"; key: string; sort: number; title: string; d: FileDocRow }
-  | { type: "drive"; key: string; sort: number; title: string; d: DriveDocRow };
+  | { type: "drive"; key: string; sort: number; title: string; d: DriveDocRow }
+  | { type: "pair"; key: string; sort: number; title: string; d: FileDocRow; drives: DriveDocRow[] };
+
+/**
+ * Записи документов закупки в группы: пара «загруженный файл + ссылка Drive» одного файла — одна строка,
+ * повторы (название без «(1)»/«копия»/расширения + тип + размер) — одной группой «×N».
+ */
+export function buildDocGroups(files: FileDocRow[], drives: DriveDocRow[]): Entry[][] {
+  const matched = matchDriveToFiles(
+    files.map((f) => ({ names: [f.originalName, f.title], size: f.sizeBytes })),
+    drives.map((d) => ({ titles: [d.view.title, d.view.storedName ?? ""], size: d.view.storedSize })),
+  );
+  const usedDrive = new Set<number>();
+  const entries: Entry[] = [];
+  files.forEach((f, fi) => {
+    const mine = matched[fi].map((i) => drives[i]);
+    matched[fi].forEach((i) => usedDrive.add(i));
+    const key = docGroupKey(f.originalName || f.title, f.kind, f.sizeBytes);
+    if (mine.length > 0) {
+      entries.push({ type: "pair", key: `p|${key}`, sort: f.createdAt.getTime(), title: f.title, d: f, drives: mine });
+    } else {
+      entries.push({ type: "file", key: `f|${key}`, sort: f.createdAt.getTime(), title: f.title, d: f });
+    }
+  });
+  drives.forEach((d, i) => {
+    if (usedDrive.has(i)) return;
+    entries.push({
+      type: "drive",
+      key: `d|${docGroupKey(d.view.title, d.view.docType, d.view.storedSize)}`,
+      sort: d.view.docDate ? Date.parse(d.view.docDate) : d.createdAt.getTime(),
+      title: d.view.title,
+      d,
+    });
+  });
+  return groupBy(entries, (e) => e.key).sort((x, y) => x[0].sort - y[0].sort);
+}
+
+const entryId = (e: Entry) => (e.type === "drive" ? e.d.view.id : e.d.id);
 
 /** Один блок «Документы»: файлы закупки/партии и документы Google Drive вместе, повторы — одной строкой «×N». */
 export function PurchaseDocumentsList({
@@ -36,27 +75,10 @@ export function PurchaseDocumentsList({
   batchName: string | null;
   canEdit: boolean;
 }) {
-  const entries: Entry[] = [
-    ...files.map((d): Entry => ({
-      type: "file",
-      key: `f|${d.title.trim().toLowerCase()}|${d.originalName}|${d.sizeBytes}`,
-      sort: d.createdAt.getTime(),
-      title: d.title,
-      d,
-    })),
-    ...drives.map((d): Entry => ({
-      type: "drive",
-      key: `d|${d.view.title.trim().toLowerCase()}|${d.fileId || d.view.drivePath || d.view.viewUrl || d.view.id}`,
-      sort: d.view.docDate ? Date.parse(d.view.docDate) : d.createdAt.getTime(),
-      title: d.view.title,
-      d,
-    })),
-  ];
-  const groups = new Map<string, Entry[]>();
-  for (const e of entries) groups.set(e.key, [...(groups.get(e.key) ?? []), e]);
-  const list = [...groups.values()].sort((a, b) => a[0].sort - b[0].sort);
+  const list = buildDocGroups(files, drives);
 
-  function fileRow(d: FileDocRow) {
+  function fileRow(d: FileDocRow, drive?: DriveDocRow[]) {
+    const driveUrl = drive?.length ? safeViewUrl(drive[0].view.viewUrl) : null;
     return (
       <div key={d.id} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">
@@ -67,9 +89,19 @@ export function PurchaseDocumentsList({
             {DOC_KIND_LABELS[d.kind as keyof typeof DOC_KIND_LABELS]}
             {d.batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
           </span>
+          {drive && (
+            <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600" title="Файл в приложении и ссылка на Google Drive — один и тот же документ">
+              файл + Drive
+            </span>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
+          {driveUrl && (
+            <a href={driveUrl} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-md px-2 text-sm text-blue-600 hover:bg-neutral-100">
+              Drive
+            </a>
+          )}
           {canEdit && (
             <form
               action={async () => {
@@ -90,24 +122,41 @@ export function PurchaseDocumentsList({
       </div>
     );
   }
-  const body = (e: Entry) => (e.type === "file" ? fileRow(e.d) : <DriveDocList key={e.d.view.id} docs={[e.d.view]} canEdit={canEdit} />);
+  const body = (e: Entry) =>
+    e.type === "file" ? (
+      fileRow(e.d)
+    ) : e.type === "pair" ? (
+      <div className="flex flex-col gap-1">
+        {fileRow(e.d, e.drives)}
+        {canEdit && e.drives.some((x) => x.view.canRemove !== false) && (
+          <details className="text-xs text-neutral-500">
+            <summary className="cursor-pointer">Ссылки Drive (убрать)</summary>
+            <div className="mt-1">
+              <DriveDocList docs={e.drives.map((x) => x.view)} canEdit={canEdit} />
+            </div>
+          </details>
+        )}
+      </div>
+    ) : (
+      <DriveDocList key={e.d.view.id} docs={[e.d.view]} canEdit={canEdit} />
+    );
 
   if (list.length === 0) return <p className="text-sm text-neutral-400">Документов пока нет</p>;
   return (
     <div className="flex flex-col gap-3">
       {list.map((g) =>
         g.length === 1 ? (
-          <div key={g[0].type === "file" ? g[0].d.id : g[0].d.view.id}>{body(g[0])}</div>
+          <div key={entryId(g[0])}>{body(g[0])}</div>
         ) : (
           <details key={g[0].key} className="rounded-md border border-neutral-200 px-3 py-2">
             <summary className="cursor-pointer text-sm">
               <span className="font-medium">{g[0].title}</span>{" "}
-              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">×{g.length}</span>
-              <span className="ml-2 text-xs text-neutral-500">один и тот же файл, показать все</span>
+              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">{copiesLabel(g.length)}</span>
+              <span className="ml-2 text-xs text-neutral-500">один и тот же файл — показать все привязки</span>
             </summary>
             <div className="mt-3 flex flex-col gap-3">
               {g.map((e) => (
-                <div key={e.type === "file" ? e.d.id : e.d.view.id}>{body(e)}</div>
+                <div key={entryId(e)}>{body(e)}</div>
               ))}
             </div>
           </details>

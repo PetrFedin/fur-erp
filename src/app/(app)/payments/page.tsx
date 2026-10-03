@@ -270,15 +270,12 @@ export default async function PaymentsPage({
   // «Оплачено» в шапке — без переплат (они не гасят чужой долг), а в столбце таблицы переплата видна: подписываем разницу.
   const overpaidList = auctions.filter((a) => a.remaining.lessThan(PAY_EPS.neg()));
   const overpaidSum = overpaidList.reduce((acc, a) => acc.add(a.remaining.neg()), zeroD);
-  const overpaidNote = overpaidList.length > 0
-    ? `в т.ч. переплата ${overpaidList.map((a) => shortAuctionName(a.name)).join(", ")} ${formatMoney(overpaidSum.toString())}`
-    : undefined;
   const showServiceSum = !listQ && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS)) && (!onlyRest || sumRemaining.greaterThan(PAY_EPS));
   const svcPurchases = svcAll.reduce((n, a) => n + a.purchases, 0) + (debt ? debt.nonAuctionPurchases : 0);
   const serviceSumRow = (
     <Tr key="__service_sum">
       <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Служебные записи импорта и закупки без аукциона, все вместе">
-        Без аукциона (служебные записи)
+        Служебные записи и закупки без аукциона
       </Td>
       <Td className="text-right">{svcPurchases}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
@@ -316,7 +313,7 @@ export default async function PaymentsPage({
   const serviceSumCard = (
     <RowCard
       key="__service_sum"
-      title="Без аукциона (служебные записи)"
+      title="Служебные записи и закупки без аукциона"
       fields={[
         { label: "Остаток", value: <span className={remClass(sumRemaining)}>{fmtRemaining(sumRemaining)}</span>, strong: true },
         { label: "Стоимость", value: formatMoney(sumTotal.toString()) },
@@ -325,6 +322,39 @@ export default async function PaymentsPage({
       details={[{ label: "Закупок", value: svcPurchases }]}
     />
   );
+  // «Расшифровка»: итоги по строкам таблицы и как они сходятся с «Остатком к оплате» в шапке (второй остаток и второе «оплачено» — только здесь).
+  const showRecon = mainAuctions.length > 0 || showServiceSum;
+  const rTotal = mainAuctions.reduce((acc, a) => acc.add(a.total), zeroD).add(showServiceSum ? sumTotal : zeroD);
+  const rPaid = mainAuctions.reduce((acc, a) => acc.add(a.paid), zeroD).add(showServiceSum ? sumPaid : zeroD);
+  const rPlanned = mainAuctions.reduce((acc, a) => acc.add(a.planned), zeroD);
+  const rRem = mainAuctions.reduce((acc, a) => acc.add(a.remaining), zeroD).add(showServiceSum ? sumRemaining : zeroD);
+  const rCount = mainAuctions.reduce((n, a) => n + a.purchases, 0) + (showServiceSum ? svcPurchases : 0);
+  const reconcilable = Boolean(debt) && !listQ && !onlyRest;
+  const reconRow = (label: string, value: string, strong?: boolean) => (
+    <div className={"flex justify-between gap-4 py-0.5" + (strong ? " border-t border-neutral-200 pt-1 font-semibold" : "")}>
+      <dt className="text-neutral-600">{label}</dt>
+      <dd className="whitespace-nowrap text-right">{value}</dd>
+    </div>
+  );
+  const reconBlock = showRecon ? (
+    <details className="rounded-md border border-neutral-200 bg-white" data-payments-total>
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">Расшифровка</summary>
+      <dl className="flex max-w-xl flex-col gap-0 border-t border-neutral-100 px-3 py-2 text-sm">
+        {reconRow(`Закупок в строках`, String(rCount))}
+        {reconRow("Стоимость по строкам", formatMoney(rTotal.toString()))}
+        {reconRow("Оплачено по строкам (с учётом переплат)", formatMoney(rPaid.toString()))}
+        {rPlanned.greaterThan(PAY_EPS) && reconRow("Запланировано", formatMoney(rPlanned.toString()))}
+        {reconRow("Остаток по строкам", fmtRemaining(rRem), true)}
+        {reconcilable && debt && (
+          <>
+            {reconRow("− авансы без привязки", formatMoney(debt.unlinkedAdvances.toString()))}
+            {overpaidSum.greaterThan(0) && reconRow(`+ переплата ${overpaidList.map((a) => shortAuctionName(a.name)).join(", ")}`, formatMoney(overpaidSum.toString()))}
+            {reconRow("= Остаток к оплате (как в шапке)", formatMoney(debt.debt.toString()), true)}
+          </>
+        )}
+      </dl>
+    </details>
+  ) : null;
   const auctionsTable = (list: typeof auctions, extraRow?: React.ReactNode) => (
     <ResponsiveRows
       table={
@@ -342,27 +372,6 @@ export default async function PaymentsPage({
         </Tr>
       </Thead>
       <Tbody>{list.map(renderAuction)}{extraRow}</Tbody>
-      {(list.length > 0 || extraRow) && (() => {
-        const tCount = list.reduce((n, a) => n + a.purchases, 0) + (extraRow ? svcPurchases : 0);
-        const tTotal = list.reduce((acc, a) => acc.add(a.total), zeroD).add(extraRow ? sumTotal : zeroD);
-        const tPaid = list.reduce((acc, a) => acc.add(a.paid), zeroD).add(extraRow ? sumPaid : zeroD);
-        const tPlanned = list.reduce((acc, a) => acc.add(a.planned), zeroD);
-        const tRem = list.reduce((acc, a) => acc.add(a.remaining), zeroD).add(extraRow ? sumRemaining : zeroD);
-        return (
-          <tfoot className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold" data-payments-total>
-            <tr>
-              <Td>Итого</Td>
-              <Td className="text-right">{tCount}</Td>
-              <Td className="whitespace-nowrap text-right">{formatMoney(tTotal.toString())}</Td>
-              <Td className="whitespace-nowrap text-right">{formatMoney(tPaid.toString())}</Td>
-              {anyPlanned && <Td className="whitespace-nowrap text-right">{tPlanned.greaterThan(PAY_EPS) ? formatMoney(tPlanned.toString()) : "—"}</Td>}
-              <Td className={"whitespace-nowrap text-right " + (tRem.greaterThan(0.005) ? "text-amber-600" : "")}>{fmtRemaining(tRem)}</Td>
-              <Td></Td>
-              <Td></Td>
-            </tr>
-          </tfoot>
-        );
-      })()}
     </Table>
       }
     >
@@ -523,17 +532,13 @@ export default async function PaymentsPage({
           {debt && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
               <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
-              <Stat
-                label="Оплачено"
-                value={formatMoney(debt.paid.toString())}
-                note={overpaidNote}
-              />
+              <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
               {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
               {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
               <Stat
                 label="Остаток к оплате"
                 value={formatMoney(debt.debt.toString())}
-                note="стоимость − оплачено − авансы без привязки"
+                note="стоимость − оплачено − авансы без привязки (расшифровка под таблицей)"
                 warn={debt.debt.greaterThan(PAY_EPS)}
               />
             </div>
@@ -573,10 +578,11 @@ export default async function PaymentsPage({
           )}
 
           {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
+          {reconBlock}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(listQ) || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
-                Прочее (служебные записи без реального аукциона): {serviceAuctions.length}
+                Прочее (служебные записи импорта): {serviceAuctions.length}
               </summary>
               <div className="border-t border-neutral-100 p-3">{auctionsTable(serviceAuctions)}</div>
             </details>
@@ -780,7 +786,7 @@ export default async function PaymentsPage({
             );
           })()}
 
-          <h2 className="mt-2 text-base font-semibold">Без аукциона</h2>
+          <h2 className="mt-2 text-base font-semibold">Авансы и оплаты вне аукционов</h2>
           {canPay && (
           <Card className="max-w-2xl">
             <CardHeader>

@@ -15,6 +15,7 @@ import {
 } from "@/app/(app)/drive-actions";
 import { DocFileButtons } from "@/components/doc-preview";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, safeViewUrl, type DriveDocView } from "@/lib/drive-docs";
+import { copiesLabel, countLabel, docGroupKey, groupBy } from "@/lib/drive-docs-group";
 
 const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
 
@@ -44,17 +45,14 @@ export function DriveDocuments({
   extraTargets?: { entity: "payment" | "productionPayment"; id: string; label: string }[];
   title?: string;
 }) {
+  const groups = groupDocs(docs);
   return (
     <section className="flex flex-col gap-2" data-drive-docs>
       <h3 className="text-sm font-semibold text-neutral-800">
-        {title} <span className="font-normal text-neutral-400">({docs.length})</span>
+        {title} <span className="font-normal text-neutral-400">({countLabel(groups.length, docs.length)})</span>
       </h3>
       {docs.length > 0 ? (
-        <ul className="flex flex-col divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white">
-          {docs.map((d) => (
-            <DocItem key={d.id} d={d} canEdit={canEdit} />
-          ))}
-        </ul>
+        <GroupedItems groups={groups} canEdit={canEdit} />
       ) : (
         <p className="text-sm text-neutral-400">Документов Google Drive пока нет</p>
       )}
@@ -67,10 +65,19 @@ export function DriveDocuments({
 /** Список документов без формы добавления. canEdit включает «Загрузить файл» / «Убрать» (если у документа canRemove не false). */
 export function DriveDocList({ docs, canEdit = false }: { docs: DriveDocView[]; canEdit?: boolean }) {
   if (docs.length === 0) return <p className="text-sm text-neutral-400">Документов нет</p>;
+  return <GroupedItems groups={groupDocs(docs)} canEdit={canEdit} />;
+}
+
+/** Повторы (то же название без «(1)»/«копия»/расширения + тип + размер) — одной группой. */
+function groupDocs(docs: DriveDocView[]): DriveDocView[][] {
+  return groupBy(docs, (d) => docGroupKey(d.title, d.docType, d.storedSize));
+}
+
+function GroupedItems({ groups, canEdit }: { groups: DriveDocView[][]; canEdit: boolean }) {
   return (
     <ul className="flex flex-col divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white">
-      {docs.map((d) => (
-        <DocItem key={d.id} d={d} canEdit={canEdit} />
+      {groups.map((g) => (
+        <DocItem key={g[0].id} d={g[0]} canEdit={canEdit} copies={g.length > 1 ? g : undefined} />
       ))}
     </ul>
   );
@@ -127,12 +134,13 @@ function FilePicker({ d, label, onError }: { d: DriveDocView; label: string; onE
   );
 }
 
-function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
+function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; copies?: DriveDocView[] }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const url = safeViewUrl(d.viewUrl);
   const date = fmtDate(d.docDate);
-  const editable = canEdit && d.canRemove !== false;
+  // У свёрнутой группы правки — только внутри списка привязок (иначе непонятно, какую копию убираем).
+  const editable = canEdit && d.canRemove !== false && !copies;
   const fileHref = `/api/drive-docs/${d.id}`;
   return (
     <li className="flex flex-col gap-2 px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between">
@@ -143,7 +151,12 @@ function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
           {d.hasFile && <Badge variant="success">Файл в приложении</Badge>}
           {date && <span className="text-xs text-neutral-500">{date}</span>}
           {d.docNumber && <span className="text-xs text-neutral-500">№ {d.docNumber}</span>}
-          {d.scope && <span className="text-xs text-neutral-500">· {d.scope}</span>}
+          {d.scope && !copies && <span className="text-xs text-neutral-500">· {d.scope}</span>}
+          {copies && (
+            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600" title="Один и тот же файл привязан несколько раз">
+              {copiesLabel(copies.length)}
+            </span>
+          )}
         </div>
         {d.hasFile && (d.storedName || d.storedSize) && (
           <div className="break-all text-xs text-neutral-500">
@@ -153,6 +166,16 @@ function DocItem({ d, canEdit }: { d: DriveDocView; canEdit: boolean }) {
         )}
         {d.drivePath && <div className="break-all text-xs text-neutral-400">{d.drivePath}</div>}
         {err && <div className="text-xs text-red-600">{err}</div>}
+        {copies && (
+          <details className="mt-1">
+            <summary className="cursor-pointer text-xs text-neutral-500">Показать все привязки ({copies.length})</summary>
+            <ul className="mt-2 flex flex-col divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white">
+              {copies.map((c) => (
+                <DocItem key={c.id} d={c} canEdit={canEdit} />
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {d.hasFile ? (
