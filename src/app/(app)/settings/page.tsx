@@ -12,6 +12,7 @@ const SETTINGS_LINKS = [
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
   { href: "/attention", title: "Что не заведено", description: "Пробелы в данных: документы, даты, привязки" },
   { href: "/documents", title: "Покрытие документами", description: "Какие документы есть, каких не хватает, что приложить" },
+  { href: "/reconciliation", title: "Реестр сверки", description: "Закупки, производство и их оплата: что сходится на 100%, что нет" },
 ];
 
 export const metadata = { title: "Настройки" };
