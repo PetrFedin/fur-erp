@@ -250,14 +250,14 @@ async function unitBeaver(c: Ctx) {
   const number = `З-2026-${String(mx + 1).padStart(4, "0")}`;
   const [dd, mm, yy] = B.dateRaw.split(".");
   const purchase = await createRow(c, "Purchase", {
-    organizationId: orgId, number, supplierId: supplier.id, warehouseId: warehouse.id, status: "DRAFT", currency: "RUB", exchangeRate: 1,
+    organizationId: orgId, number, supplierId: supplier!.id, warehouseId: warehouse.id, status: "DRAFT", currency: "RUB", exchangeRate: 1,
     auctionSession: session, invoiceNumber: B.invoice, orderDate: D(`${yy}-${mm}-${dd}`),
     notes: `[registry-corrections:beaver] Бобр выделанный по инвойсу ${B.invoice} от ${B.dateRaw} (${B.billTo}), 587 шт, ${sum.toFixed(2)} ₽ (цены в отчёте без НДС и без курса, трактованы как ₽). Приход не подтверждён (УПД/платёжек нет): DRAFT, лотов нет. Источник: ${src}.`,
   }, src);
   for (const r of B.rows) {
     let mat = await tx.rawMaterial.findFirst({ where: { organizationId: orgId, name: r.name } });
     if (!mat) mat = await createRow(c, "RawMaterial", { organizationId: orgId, name: r.name, unit: "PIECE" }, src);
-    await createRow(c, "PurchaseItem", { purchaseId: purchase.id, rawMaterialId: mat.id, quantity: new Decimal(r.qty), unitPrice: new Decimal(r.unitPrice), subtotal: new Decimal(r.total), vatRate: 0 }, src);
+    await createRow(c, "PurchaseItem", { purchaseId: purchase.id, rawMaterialId: mat!.id, quantity: new Decimal(r.qty), unitPrice: new Decimal(r.unitPrice), subtotal: new Decimal(r.total), vatRate: 0 }, src);
   }
   say(c, `СОЗДАНА ${number}: DRAFT, ${B.billTo}, ${B.rows.length} позиции, ${sum.toFixed(2)}`);
 }
