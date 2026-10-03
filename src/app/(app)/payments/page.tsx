@@ -24,6 +24,9 @@ import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTar
 import { DriveDocList, UploadDocument } from "@/components/drive-documents";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { toDriveView } from "@/lib/drive-docs-server";
+import { InfoHint } from "@/components/info-hint";
+import { SupplierDebtHint } from "@/components/supplier-debt-hint";
+import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -82,10 +85,11 @@ export default async function PaymentsPage({
   const tab: "suppliers" | "clients" =
     sp.tab === "clients" ? "clients" : "suppliers";
   const orgId = session.user.organizationId;
+  const year = await getYearFilter();
   const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
   const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
   const onlyRest = tab === "suppliers" && sp.f === "rest";
-  const [payments, suppliers, clientPayments, summaries, auctionPurchases, plainPurchases, debt] = await Promise.all([
+  const [payments, suppliers, clientPayments, summariesAll, auctionPurchases, plainPurchases, debt] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
       include: {
@@ -102,7 +106,7 @@ export default async function PaymentsPage({
     }),
     tab === "clients"
       ? prisma.productionPayment.findMany({
-          where: { organizationId: session.user.organizationId },
+          where: { organizationId: session.user.organizationId, ...(yearRange(year) ? { paidAt: yearRange(year) } : {}) },
           include: {
             client: true,
             orders: { include: { productionOrder: { include: { batch: { select: { number: true } } } } } },
@@ -124,9 +128,11 @@ export default async function PaymentsPage({
           orderBy: { orderDate: "desc" },
         })
       : Promise.resolve([]),
-    tab === "suppliers" ? loadSupplierDebt(prisma, orgId) : Promise.resolve(null),
+    tab === "suppliers" ? loadSupplierDebt(prisma, orgId, year) : Promise.resolve(null),
   ]);
 
+  // Общий фильтр года: аукцион — по дате его закупок, оплата вне аукционов — по дате оплаты.
+  const summaries = summariesAll.filter((a) => year === "all" || (a.lastPurchaseAt !== null && inYear(a.lastPurchaseAt, year)));
   // По актуальности: 1) с остатком и свежей закупкой (≤ 12 мес.), 2) оплаченные/переплаченные,
   // 3) исторические с остатком (старые, оплаты не заведены). Внутри — свежая закупка выше, затем больший остаток.
   const nowMs = new Date().getTime();
@@ -165,7 +171,7 @@ export default async function PaymentsPage({
   const auctionPurchaseMap = new Map(auctionPurchases.map((p) => [p.id, p]));
   const inAuction = (p: (typeof payments)[number]) =>
     Boolean(p.auctionSession) || (p.purchase ? Boolean(auctionName(p.purchase.auctionSession)) : false);
-  const outside = payments.filter((p) => !inAuction(p));
+  const outside = payments.filter((p) => !inAuction(p) && inYear(p.paidAt, year));
   const sum = (f: (a: AuctionPay) => { toString(): string }) => auctions.reduce((acc, a) => acc + Number(f(a).toString()), 0);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -382,7 +388,15 @@ export default async function PaymentsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Оплаты</h1>
+      <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold">
+        Оплаты
+        {year !== "all" && <span className="text-sm font-normal text-neutral-500">· {yearLabel(year)}</span>}
+        <InfoHint wide label="О странице оплат">
+          <p>Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}, оплаты разносим по аукционам (партиям закупок). Суммы — с НДС, это наш долг поставщику.</p>
+          <p className="mt-2">Год (переключатель в шапке): аукцион и закупка — по дате заказа, оплата вне аукционов и от заказчиков — по дате оплаты. Оплаты внутри аукциона показываются все.</p>
+          <p className="mt-2">Переключатель «С 4%» оплаты и долг поставщику не меняет.</p>
+        </InfoHint>
+      </h1>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
@@ -525,23 +539,39 @@ export default async function PaymentsPage({
         </>
       ) : (
         <>
-          <p className="text-sm text-neutral-600">
-            Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}, оплаты разносим по аукционам (партиям закупок). Суммы — с НДС, это наш долг поставщику.
-          </p>
-
           {debt && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-              <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
-              <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
-              {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
-              {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
-              <Stat
-                label="Остаток к оплате"
-                value={formatMoney(debt.debt.toString())}
-                note="стоимость − оплачено − авансы без привязки (расшифровка под таблицей)"
-                warn={debt.debt.greaterThan(PAY_EPS)}
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
+                <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
+                <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
+                {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
+                {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
+                <Stat
+                  label="Остаток к оплате"
+                  value={formatMoney(debt.debt.toString())}
+                  hint={<SupplierDebtHint debt={debt} year={year} />}
+                  warn={debt.debt.greaterThan(PAY_EPS)}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Stat
+                  label="К оплате по УПД и счетам"
+                  value={formatMoney(debt.receivedNet.toString())}
+                  hint={<InfoHint wide label="К оплате по УПД и счетам"><p>Мех получен, УПД есть, а оплаты не хватает. Из этой части уже вычтены авансы без привязки ({formatMoney(debt.unlinkedAdvances.toString())}). Это то, что нужно платить в первую очередь.</p></InfoHint>}
+                  warn={debt.receivedNet.greaterThan(PAY_EPS)}
+                />
+                <Stat
+                  label="Счёт выставлен, не оплачен"
+                  value={formatMoney(debt.invoiced.toString())}
+                  hint={<InfoHint wide label="Счёт выставлен, не оплачен"><p>Закупка ещё не получена (черновик), но Веллмех уже выставил на неё счёт: FH 06-26 (счёт №173), СП 09-26 (счёт №271), подкладка спец. 13 (№157), доп. материалы спец. 16 (№181). Суммы счетов взяты из документов Drive; после оплаты или получения меха сумма уйдёт из этой строки.</p></InfoHint>}
+                />
+                <Stat
+                  label="Ожидаемые закупки"
+                  value={formatMoney(debt.expected.toString())}
+                  hint={<InfoHint wide label="Ожидаемые закупки"><p>Закупки не получены и счёта на эту часть ещё нет (например, аванс 3 по рыси «по факту затрат» и часть СП 09-26 «оплата по готовности»). Это не долг сегодня, а то, что придётся заплатить.</p></InfoHint>}
+                />
+              </div>
+            </>
           )}
 
           {auctions.length > 0 && (
@@ -868,10 +898,10 @@ function batchLabel(orders: { productionOrder: { batch: { number: number } | nul
   return n == null ? "" : ` (партия ${n})`;
 }
 
-function Stat({ label, value, note, warn }: { label: string; value: string; note?: string; warn?: boolean }) {
+function Stat({ label, value, note, warn, hint }: { label: string; value: string; note?: string; warn?: boolean; hint?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <div className="text-xs text-neutral-500">{label}</div>
+      <div className="flex items-center gap-1.5 text-xs text-neutral-500">{label}{hint}</div>
       <div className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-600" : ""}`}>{value}</div>
       {note && <div className="text-xs text-neutral-500">{note}</div>}
     </div>

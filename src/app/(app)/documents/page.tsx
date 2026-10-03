@@ -8,6 +8,7 @@ import {
   SECTION_ORDER,
   SECTION_TITLES,
   computeDocCoverage,
+  summarize,
   filterCovRows,
   parseCovFilters,
   type Cell,
@@ -29,6 +30,8 @@ import {
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { REGISTRY_UPDATE_CMD, registryCoverage, type RegCell, type RegStat } from "@/lib/registry-coverage";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { InfoHint } from "@/components/info-hint";
+import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Покрытие документами" };
@@ -47,8 +50,11 @@ const inputCls = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm
 export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   const session = await requireSession(); // чтение — всем ролям
   const sp: SP = await searchParams;
-  const f = parseCovFilters(sp);
-  const df = parseDocListFilters(sp);
+  // Год — общий фильтр из шапки (Все / 2025 / 2026): он применяется и к матрице, и к списку документов.
+  const yf = await getYearFilter();
+  const yNum = yf === "all" ? null : Number(yf);
+  const f = { ...parseCovFilters(sp), year: yNum };
+  const df = { ...parseDocListFilters(sp), year: yNum };
   const orgId = session.user.organizationId;
 
   const [cov, docList] = await Promise.all([computeDocCoverage(prisma, orgId), loadDocList(prisma, orgId)]);
@@ -67,12 +73,13 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
     keys.map((k) => (typeof sp[k] === "string" && sp[k] ? <input key={k} type="hidden" name={k} value={sp[k] as string} /> : null));
 
   // ---------- матрица
-  const years = [...new Set(cov.rows.map((r) => r.year).filter((y): y is number => y !== null))].sort((a, b) => b - a);
+  const yearRows = yNum === null ? cov.rows : cov.rows.filter((r) => r.section === "contracts" || r.year === yNum);
+  const sum = yNum === null ? { sections: cov.sections, total: cov.total } : summarize(yearRows);
   const auctions = [...new Set(cov.rows.map((r) => r.auction).filter((a): a is string => !!a))].sort();
   const visible = filterCovRows(cov.rows, f);
   const exportQs = new URLSearchParams();
   for (const k of ["section", "year", "auction", "q"] as const) if (typeof sp[k] === "string" && sp[k]) exportQs.set(k, sp[k] as string);
-  const totalGaps = cov.rows.filter((r) => r.gaps.length > 0).length;
+  const totalGaps = yearRows.filter((r) => r.gaps.length > 0).length;
 
   // ---------- Drive-блок
   // Одинаковые файлы (название + тип + размер) схлопнуты в одну строку «×N»; привязки — в раскрывающемся списке.
@@ -80,7 +87,6 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const typeCounts = new Map<string, number>();
   for (const d of groupDocList(filterDocList(docList, df, "type"))) typeCounts.set(d.docType, (typeCounts.get(d.docType) ?? 0) + 1);
   const typeTotal = [...typeCounts.values()].reduce((a, b) => a + b, 0);
-  const docYears = [...new Set(docList.map((d) => d.year).filter((y): y is number => y !== null))].sort((a, b) => b - a);
   const pages = Math.max(1, Math.ceil(docsFiltered.length / DOC_PAGE_SIZE));
   const page = Math.min(df.page, pages);
   const pageDocs = docsFiltered.slice((page - 1) * DOC_PAGE_SIZE, page * DOC_PAGE_SIZE);
@@ -98,11 +104,21 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="max-w-3xl">
-          <h1 className="text-xl font-semibold">Покрытие документами</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе
-            прямо сейчас — загрузили файл или добавили ссылку на карточке, и пробел исчезает.
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold">Покрытие документами</h1>
+            <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 text-xs font-medium text-white">Год: {yf === "all" ? "все" : yf}</span>
+            <InfoHint wide label="Что показывает страница и как считается процент">
+              <div className="space-y-2">
+                <p>Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе прямо сейчас — загрузили файл или добавили ссылку на карточке, и пробел исчезает.</p>
+                <p>
+                  <b>Процент</b> — сколько обязательных документов уже есть из тех, что нужны по правилам (правила — в файле src/lib/doc-coverage.ts). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только ссылка на Drive: сейчас {withOriginal} из {docList.length} документов.
+                </p>
+                <p>
+                  <b>Год</b> берётся из шапки (Все / 2025 / 2026): закупка — по дате закупки, ТЗ — по году партии или даты ТЗ, оплата — по дате оплаты, документ Drive — по дате документа. Плитки сверху и таблицы пересчитываются.
+                </p>
+              </div>
+            </InfoHint>
+          </div>
         </div>
         <a
           href={`/documents/export${exportQs.toString() ? `?${exportQs}` : ""}`}
@@ -114,15 +130,11 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
       {/* ---------- сводка */}
       <section aria-label="Сводка покрытия" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-        <SummaryTile title="Всего" stat={cov.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
-        {cov.sections.map((s) => (
+        <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
+        {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
         ))}
       </section>
-      <p className="-mt-2 text-xs text-neutral-500">
-        Процент — сколько обязательных документов уже есть из тех, что нужны по правилам (правила — в файле src/lib/doc-coverage.ts). «Оригинал» —
-        лежит ли сам файл в приложении, а не только ссылка на Drive: в приложении сейчас {withOriginal} из {docList.length} документов.
-      </p>
 
       <RegistryBlock />
 
@@ -136,17 +148,6 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
             {SECTION_ORDER.map((k) => (
               <option key={k} value={k}>
                 {SECTION_TITLES[k]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col text-xs text-neutral-500">
-          Год
-          <select name="year" defaultValue={f.year ?? ""} className={inputCls}>
-            <option value="">Все</option>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
               </option>
             ))}
           </select>
@@ -200,11 +201,15 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- Все документы */}
       <section id="drive" className="flex scroll-mt-4 flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Все документы</h2>
-          <p className="text-sm text-neutral-500">
-            Ссылки Google Drive и файлы закупок вместе: {allGroups} файлов ({docList.length} привязок; одинаковый файл, привязанный к нескольким записям, — одна строка «×N»). Не привязаны ни к чему:{" "}
-            <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong>.
-          </p>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            Все документы
+            <span className="text-sm font-normal text-neutral-500">
+              {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong>
+            </span>
+            <InfoHint wide label="Что в списке документов">
+              Ссылки Google Drive и файлы закупок вместе: {allGroups} файлов ({docList.length} привязок). Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Не привязаны ни к чему: {unlinked}. Год — из шапки.
+            </InfoHint>
+          </h2>
         </div>
 
         <form method="get" action="/documents#drive" className="flex flex-wrap items-end gap-2" aria-label="Фильтры документов">
@@ -213,17 +218,6 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           <label className="flex flex-col text-xs text-neutral-500">
             Поиск по названию / номеру
             <input name="dq" defaultValue={df.q} placeholder="например, УПД 109" className={cn(inputCls, "w-56")} />
-          </label>
-          <label className="flex flex-col text-xs text-neutral-500">
-            Год
-            <select name="dyear" defaultValue={df.year ?? ""} className={inputCls}>
-              <option value="">Все</option>
-              {docYears.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
           </label>
           <label className="flex flex-col text-xs text-neutral-500">
             Привязан к
@@ -395,13 +389,17 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
 
 function Legend({ totalGaps }: { totalGaps: number }) {
   return (
-    <p className="text-xs text-neutral-500">
-      <span className="mr-3 text-emerald-600">✓ 2 — документ есть (сколько)</span>
-      <span className="mr-3 font-semibold text-red-600">нет — нужен по правилам, но не приложен</span>
-      <span className="mr-3">необяз. — желателен, в пробелы не входит</span>
-      <span className="mr-3">не треб. — по правилам не нужен</span>
-      <span className="mr-3">Колонка «Реестр»: <span className="text-emerald-600">✓ лист, строка</span> · <span className="font-semibold text-red-700">нет в реестре</span> · <span className="text-neutral-500">серое — позже реестра</span> · <span className="text-neutral-400">в реестре не ведётся</span></span>
-      <span>Всего записей с пробелами: {totalGaps}</span>
+    <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+      <span>Всего записей с пробелами: <b>{totalGaps}</b></span>
+      <InfoHint wide label="Условные обозначения таблиц">
+        <ul className="space-y-1">
+          <li><b className="text-emerald-600">✓ 2</b> — документ есть (сколько штук).</li>
+          <li><b className="text-red-600">нет</b> — нужен по правилам, но не приложен.</li>
+          <li><b>необяз.</b> — желателен, в пробелы не входит.</li>
+          <li><b>не треб.</b> — по правилам не нужен.</li>
+          <li>Колонка «Реестр»: <b className="text-emerald-600">✓ лист, строка</b> — запись найдена в едином реестре; <b className="text-red-700">нет в реестре</b>; серое — позже даты реестра; бледно-серое — в реестре не ведётся.</li>
+        </ul>
+      </InfoHint>
     </p>
   );
 }
@@ -651,12 +649,19 @@ function RegistryBlock() {
   return (
     <section aria-label="Покрытие реестром" className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-base font-semibold">Покрытие реестром</h2>
-        <p className="text-xs text-neutral-500">
-          Сверка реестра от {regDate(r.checkedAt)} (реестр — от {regDate(r.registryDate)}), обновляется скриптом
-        </p>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          Покрытие реестром
+          <InfoHint wide label="Что такое покрытие реестром и как обновить сверку">
+            <div className="space-y-2">
+              <p>Сколько записей единого реестра (xlsx) нашлось в базе: лоты, остатки, закупки, ТЗ, оплаты. Сверка от {regDate(r.checkedAt)} (реестр — от {regDate(r.registryDate)}).</p>
+              <p><b>Как обновить сверку.</b> Сверка делается вне приложения (реестр xlsx сравнивается с базой, результат — docs-inventory/coverage-matrix.json). После новой сверки обновите данные страницы командой в корне проекта:</p>
+              <p><code className="rounded bg-neutral-100 px-1.5 py-0.5">{REGISTRY_UPDATE_CMD}</code></p>
+              <p>Она пересоберёт src/data/registry-coverage.json; затем закоммитьте файл. Запрос к базе она не делает.</p>
+            </div>
+          </InfoHint>
+        </h2>
+        <span className="text-xs text-neutral-500">сверка от {regDate(r.checkedAt)}</span>
       </div>
-      <p className="-mt-2 text-xs text-neutral-500">Сколько записей единого реестра (xlsx) нашлось в базе: лоты, остатки, закупки, ТЗ, оплаты.</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {r.coverage.map((s) => (
           <RegStatTile key={s.key} s={s} />
@@ -694,26 +699,13 @@ function RegistryBlock() {
           </li>
         ))}
       </ul>
-      <p className="-mt-1 text-xs text-neutral-500">
-        «Как добавить»: откройте «Закупки → Новая закупка», внесите поставщика, лоты и сумму по строкам реестра; УПД и платёжку приложите к закупке
-        позже. Если закупка не ваша — отметьте строки отчёта у владельца как «не наша».
+      <p className="flex items-center gap-2 text-xs text-neutral-500">
+        Как добавить недостающие записи
+        <InfoHint wide label="Как добавить запись из реестра">
+          «Как добавить»: откройте «Закупки → Новая закупка», внесите поставщика, лоты и сумму по строкам реестра; УПД и платёжку приложите к закупке позже. Если закупка не ваша — отметьте строки отчёта у владельца как «не наша».
+        </InfoHint>
       </p>
 
-      <details className="text-xs text-neutral-600">
-        <summary className="inline-flex h-8 cursor-pointer list-none items-center rounded-md border border-neutral-300 bg-white px-3 hover:bg-neutral-100">
-          Как обновить сверку
-        </summary>
-        <div className="mt-2 max-w-3xl space-y-1">
-          <p>
-            Сверка делается вне приложения (реестр xlsx сравнивается с базой, результат — docs-inventory/coverage-matrix.json). После новой сверки
-            обновите данные этой страницы командой в корне проекта:
-          </p>
-          <p>
-            <code className="rounded bg-neutral-100 px-1.5 py-0.5">{REGISTRY_UPDATE_CMD}</code>
-          </p>
-          <p>Она пересоберёт src/data/registry-coverage.json; затем закоммитьте файл. Запрос к базе она не делает.</p>
-        </div>
-      </details>
     </section>
   );
 }

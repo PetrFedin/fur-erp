@@ -12,7 +12,9 @@ import { canEditProduction } from "@/lib/production-access";
 import { RemovePaymentButton } from "./remove-payment-button";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, COMMISSION4_HINT } from "@/lib/commission4";
+import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
+import { InfoHint } from "@/components/info-hint";
+import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
@@ -311,6 +313,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const projectedTotal = materialCost.add(expenseCost);
   const projectedTotalExclVat = materialCostExcl.add(expenseCost);
   const status = STATUS_LABELS[order.status];
+  // Расшифровка 4% по этому ТЗ: сырьё и подкладка × 4% (не зависит от переключателя).
+  const c4Calc = base4AndExtra(order.materialUsages);
+  const c4HasData = order.materialUsages.length > 0;
 
   const producedOrPlanned = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
   const clientRevenue = order.clientWorkPricePerUnit
@@ -335,6 +340,30 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const markup =
     order.retailPrice && estimatedUnitCost.greaterThan(0) ? order.retailPrice.div(estimatedUnitCost) : null;
 
+  const marginHint = <InfoHint label="Что такое «Работа минус себестоимость»" wide>{MARGIN_HINT}</InfoHint>;
+  const c4Info = (
+    <>
+      <Mode4Badge mode={c4Mode} />
+      <C4Hint
+        mode={c4Mode}
+        base={c4HasData ? c4Calc.base.toFixed(2) : null}
+        extra={c4HasData ? c4Calc.extra.toFixed(2) : null}
+        excluded={c4Calc.excluded.toFixed(2)}
+        total={projectedTotal.toFixed(2)}
+        title="Себестоимость и 4%"
+      >
+        {c4HasData && (
+          <>
+            <p className="mt-1">
+              Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка{" "}
+              {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
+            </p>
+            {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
+          </>
+        )}
+      </C4Hint>
+    </>
+  );
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
   const boundRemovePayment = removeProductionPayment.bind(null, id);
@@ -539,7 +568,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {showLining && <SummaryLine label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />}
             <SummaryLine label="Итого расходы" value={formatMoney(expenseCost.toString())} />
             <SummaryLine
-              label={`Итого себестоимость${c4}`}
+              label={<>{`Итого себестоимость${c4}`}{c4Info}</>}
               value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
               strong
             />
@@ -552,11 +581,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <>
                 <SummaryLine label="Работа для заказчика" value={formatMoney(clientRevenue.toString())} />
                 <SummaryLine
-                  label={<VatLabel base={`Работа минус себестоимость${c4}`} />}
+                  label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
                   value={<Money incl={margin} excl={marginExcl} />}
                   className={margin.lessThan(0) ? "text-amber-600" : undefined}
                 />
-                <p className="px-3 py-2 text-xs font-normal text-neutral-500">{MARGIN_HINT}</p>
               </>
             )}
           </dl>
@@ -568,9 +596,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Th>Лот</Th>
                 <Th>Материал</Th>
                 <Th>Кол-во</Th>
-                <Th title={c4Mode === "on" ? COMMISSION4_HINT : undefined}>Цена за ед. без НДС{c4}</Th>
+                <Th>Цена за ед. без НДС{c4}</Th>
                 <Th>НДС</Th>
-                <Th className="text-right" title={`Сумма по лоту с НДС (переключатель НДС меняет отображение). ${c4Mode === "on" ? COMMISSION4_HINT : ""}`}>Сумма с НДС{c4}</Th>
+                <Th className="text-right">
+                  Сумма с НДС{c4}
+                  <InfoHint label="Как считается сумма по лоту" align="right">
+                    <p>Сумма по лоту = количество × цена лота (с НДС); переключатель НДС меняет отображение.</p>
+                    <p className="mt-1">
+                      {c4Mode === "on"
+                        ? "Режим «С 4%»: к сырью и подкладке добавлено 4% (цена × 1,04) — цена за единицу и сумма уже с 4%. Работа и расходы не облагаются."
+                        : "Режим «Без 4%»: цена лота как в закупке. Переключатель «С 4%» добавит 4% к сырью и подкладке."}
+                    </p>
+                  </InfoHint>
+                </Th>
                 <Th></Th>
               </Tr>
             </Thead>
@@ -604,7 +642,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <TotalRow label="Итого расходы" value={formatMoney(expenseCost.toString())} />
 
               <TotalRow
-                label={`Итого себестоимость${c4}`}
+                label={<>{`Итого себестоимость${c4}`}{c4Info}</>}
                 value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
                 strong
               />
@@ -621,16 +659,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     value={formatMoney(clientRevenue.toString())}
                   />
                   <TotalRow
-                    label={<VatLabel base={`Работа минус себестоимость${c4}`} />}
-                    title={MARGIN_HINT}
+                    label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
                     value={<Money incl={margin} excl={marginExcl} />}
                     className={margin.lessThan(0) ? "text-amber-600" : undefined}
                   />
-                  <Tr>
-                    <Td colSpan={7} className="py-1 text-right text-xs text-neutral-500">
-                      {MARGIN_HINT}
-                    </Td>
-                  </Tr>
                 </>
               ) : (
                 <EmptyRow>Цена работы для заказчика не указана</EmptyRow>
@@ -908,11 +940,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </span>
           </div>
         )}
-        <div className="text-sm text-neutral-600" title={MARKUP_HINT}>
+        <div className="text-sm text-neutral-600">
           Наценка{" "}
           <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
+          <InfoHint label="Как считается наценка">
+            {MARKUP_HINT}
+            {markup && order.retailPrice && (
+              <p className="mt-1">
+                Здесь: {formatMoney(order.retailPrice.toString())} ÷ {formatMoney(estimatedUnitCost.toFixed(2))} = ×{markup.toFixed(2)} ({c4Mode === "on" ? "с 4%" : "без 4%"}).
+              </p>
+            )}
+          </InfoHint>
         </div>
-        <p className="w-full text-xs text-neutral-500">{MARKUP_HINT}</p>
       </div>
       </Section>
 

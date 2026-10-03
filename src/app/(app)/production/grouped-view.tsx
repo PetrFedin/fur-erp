@@ -4,6 +4,10 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { batchExtraName, batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
 import { c4Suffix } from "@/lib/commission4";
 import type { Commission4Mode } from "@/lib/commission4-mode";
+import type { YearFilter } from "@/lib/year-filter";
+import { emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
+import { Mode4Badge } from "@/components/c4-note";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -25,12 +29,14 @@ export function GroupedByBatch({
   batches,
   c4Mode = "off",
   filtered = false,
+  year = "all",
 }: {
   orders: BatchOrder[];
   batches: GroupBatch[];
   c4Mode?: Commission4Mode;
   /** Применён фильтр (поиск, статус, заказчик, модель, партия): пустой результат — «Ничего не найдено». */
   filtered?: boolean;
+  year?: YearFilter;
 }) {
   const groups: { key: string; batch: GroupBatch | null; orders: BatchOrder[] }[] = batches
     .map((b) => ({ key: b.id, batch: b, orders: orders.filter((o) => o.batchId === b.id) }))
@@ -41,7 +47,7 @@ export function GroupedByBatch({
   if (groups.length === 0) {
     return (
       <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-        {filtered ? "Ничего не найдено" : "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive."}
+        {filtered ? "Ничего не найдено" : emptyForYear(year, "партий с ТЗ", "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive.")}
       </p>
     );
   }
@@ -96,10 +102,23 @@ export function GroupedByBatch({
           </details>
         );
       })}
-      <p className="text-xs text-neutral-500">
-        «Оплачено» — оплаты заказчика по ТЗ партии (каждая оплата учтена один раз, отменённые не входят); остаток = работа
-        минус оплачено (если оплачено больше — «переплата»). Себестоимость {c4Mode === "on" ? "— с наценкой 4% на сырьё и подкладку (кроме списаний без 4%, напр. партия 6); работа не облагается." : "— без наценки 4% (переключатель «С 4%» в шапке)."}
-      </p>
+      <div className="flex items-center gap-1 text-xs text-neutral-500">
+        Пояснения к цифрам <Mode4Badge mode={c4Mode} />
+        <InfoHint label="Что значат цифры" wide>
+          <p>
+            <b>Оплачено</b> — оплаты заказчика по ТЗ партии (каждая оплата учтена один раз, отменённые не входят).
+          </p>
+          <p className="mt-1">
+            <b>Остаток</b> = работа − оплачено; если оплачено больше — «переплата». Работа = цена работы за единицу × количество (выпущено, иначе план).
+          </p>
+          <p className="mt-1">
+            <b>Себестоимость</b> = сырьё и подкладка (списания) + расходы ТЗ.{" "}
+            {c4Mode === "on"
+              ? "Сейчас с 4%: на сырьё и подкладку добавлено 4% (сырьё × 1,04), кроме списаний без 4% (например, партия 6); работа и расходы не облагаются."
+              : "Сейчас без 4% (переключатель «С 4%» в шапке добавит 4% к сырью и подкладке)."}
+          </p>
+        </InfoHint>
+      </div>
     </div>
   );
 }

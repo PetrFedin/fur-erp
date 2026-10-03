@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { VatToggle } from "@/components/vat-toggle";
 import { Commission4Toggle } from "@/components/commission4-toggle";
+import { YearToggle } from "@/components/year-toggle";
 
 const QUERY = "(max-width: 399px)";
 
@@ -50,6 +51,10 @@ export function TopbarModes() {
     return (
       <>
         <div className="flex items-center gap-1.5">
+          <span className="hidden text-xs text-neutral-500 xl:inline">Год:</span>
+          <YearToggle />
+        </div>
+        <div className="flex items-center gap-1.5">
           <span className="hidden text-xs text-neutral-500 xl:inline">Цены:</span>
           <VatToggle />
         </div>
@@ -76,6 +81,10 @@ export function TopbarModes() {
       </button>
       {open && (
         <div className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-[calc(100vw-1.5rem)] flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 shadow-lg">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Год: все, 2025 или 2026</span>
+            <YearToggle />
+          </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">Цены: с НДС или без НДС</span>
             <VatToggle />

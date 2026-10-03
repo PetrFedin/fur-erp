@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -426,7 +427,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     <div className="flex max-w-4xl flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
+          <h1 className="text-xl font-semibold">
+            Закупка {purchase.number}
+            <InfoHint label="О закупке" wide>
+              <p>Позиции сырья и подкладки, расходы закупки, расчёт себестоимости, оплаты и документы.</p>
+              <p className="mt-1">Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года (2025 / 2026) на страницах «Закупки» и «Сырьё».</p>
+              <p className="mt-1">Переключатель «С 4%» эту страницу не меняет: 4% — наценка посредника на сырьё и подкладку при списании в ТЗ; закупка, оплаты и долг поставщику остаются как есть.</p>
+            </InfoHint>
+          </h1>
           <p className="text-sm text-neutral-500">
             {purchase.supplier.name} · склад «{purchase.warehouse.name}» · {formatDate(purchase.orderDate)}
             {isForeignCurrency && ` · валюта позиций: ${purchase.currency}`}
@@ -577,8 +585,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Th>НДС</Th>
                   {hasPlan ? (
                     <>
-                      <Th title="Расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %, НДС">
+                      <Th>
                         Себестоимость единицы
+                        <InfoHint label="Из чего складывается себестоимость единицы">
+                          Расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %, НДС.
+                        </InfoHint>
                       </Th>
                       <Th>Всего</Th>
                     </>
@@ -586,8 +597,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
                   )}
                   {customFields.map((f) => (
-                    <Th key={f.id} title="Свой столбец — правится в режиме «Аукцион» (Лоты)">
+                    <Th key={f.id}>
                       {f.name}
+                      <InfoHint label="Свой столбец">Свой столбец организации — правится в режиме «Аукцион» (Сырьё → Лоты).</InfoHint>
                     </Th>
                   ))}
                   {itemsMutable && <Th></Th>}
@@ -617,13 +629,15 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       {planItems.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Расчёт себестоимости</CardTitle>
+            <CardTitle>
+              Расчёт себестоимости
+              <InfoHint label="О расчёте себестоимости" wide>
+                Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
+                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4% сюда не входит: оно добавляется только при списании в ТЗ.
+              </InfoHint>
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <p className="text-xs text-neutral-500">
-              Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
-              переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов.
-            </p>
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {statusEditable ? (
                 canEditRole ? (
@@ -775,10 +789,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           )}
           {purchase.expenses.length === 0 && <p className="text-sm text-neutral-400">Расходов нет</p>}
           {purchase.expenses.length > 0 && expensesTotalInclVat.greaterThan(0) && (
-            <p
-              className="text-sm text-neutral-600"
-              title="Справочно: при приёме на склад расходы распределяются по позициям пропорционально их сумме."
-            >
+            <div className="text-sm text-neutral-600">
               Расходы = {formatMoney(expensesTotalInclVat.toString())} (с НДС) → в цену единицы добавится ≈{" "}
               {expensePerUnit
                 ? `${formatMoney(expensePerUnit.toFixed(2))} за 1 ${UNIT_LABELS[singleUnit!]}`
@@ -786,7 +797,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   ? `+${expensePct.toFixed(1)}% к цене каждой единицы`
                   : "—"}
               {expensePct && expensePerUnit && ` (+${expensePct.toFixed(1)}% к стоимости позиций)`}
-            </p>
+              <InfoHint label="Как распределяются расходы">Справочно: при приёме на склад расходы распределяются по позициям пропорционально их сумме.</InfoHint>
+            </div>
           )}
         </CardContent>
       </Card>

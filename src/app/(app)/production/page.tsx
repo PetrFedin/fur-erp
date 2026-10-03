@@ -14,13 +14,17 @@ import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
+import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
 import { ResponsiveDetails } from "./filters-details";
 import { GroupedByBatch } from "./grouped-view";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { batchOrderInclude } from "@/lib/batch-stats";
+import { getYearFilter } from "@/lib/year-filter";
+import { orderYearWhere } from "@/lib/year-scope";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { C4Hint, Mode4Badge } from "@/components/c4-note";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -36,6 +40,7 @@ export const metadata = { title: "ТЗ" };
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
+  const year = await getYearFilter();
   let c4 = c4Suffix(c4Mode);
   const orgId = session.user.organizationId;
   const sp = await searchParams;
@@ -62,6 +67,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
+    // Общий год: дата ТЗ → конец/начало → год партии (см. lib/year-scope.ts).
+    AND: [orderYearWhere(year)],
     ...(modelId ? { productModelId: modelId } : {}),
     ...(status ? { status: status as "PLANNED" } : {}),
     ...(clientId ? { clientId } : {}),
@@ -154,6 +161,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   let sumIncl = new Decimal(0);
   let sumExcl = new Decimal(0);
+  let sumBase = new Decimal(0); // сырьё + подкладка без 4% (с НДС) по действующим ТЗ
+  let sumExtra = new Decimal(0);
+  let sumExcluded = new Decimal(0); // надбавка 4% по ним (в режиме «С 4%» — уже в итоге)
+  let sumMatLines = 0;
   const cards: React.ReactNode[] = [];
   // Те же формулы, что в карточке ТЗ: проведённые затраты на сегодня (или зафиксированный снимок).
   // Режим «С 4%»: надбавка только к сырью/подкладке (строки списаний),
@@ -168,6 +179,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     if (o.status !== "CANCELLED") {
       sumIncl = sumIncl.add(total);
       sumExcl = sumExcl.add(totalExcl);
+      const c = base4AndExtra(o.materialUsages);
+      sumBase = sumBase.add(c.base);
+      sumExtra = sumExtra.add(c.extra);
+      sumExcluded = sumExcluded.add(c.excluded);
+      sumMatLines += o.materialUsages.length;
     }
     return { o, total, totalExcl };
   });
@@ -183,6 +199,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           {filterModel && (
             <span className="ml-2 text-base font-normal text-neutral-500">— {filterModel.name}</span>
           )}
+          <YearNote year={year} />
         </h1>
         {canEdit && (
           <Link href="/production/new" className={buttonVariants()}>
@@ -269,7 +286,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </ResponsiveDetails>
 
       {grouped ? (
-        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} />
+        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} />
       ) : (
       <>
       <ResponsiveRows table={
@@ -354,7 +371,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           {orders.length === 0 && (
             <Tr>
               <Td colSpan={6} className="py-8 text-center text-neutral-400">
-                {hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}
+                {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>
           )}
@@ -362,7 +379,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </Table>
       }>
         {cards}
-        {orders.length === 0 && <p className="py-8 text-center text-neutral-400">{hasFilters ? "Ничего не найдено" : "ТЗ пока нет"}</p>}
+        {orders.length === 0 && <p className="py-8 text-center text-neutral-400">{hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}</p>}
       </ResponsiveRows>
       {hiddenCount > 0 && (
         <p className="flex flex-wrap items-center justify-center gap-3 text-sm text-neutral-500">
@@ -382,10 +399,25 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </p>
       )}
       {orders.length > 0 && (
-        <p className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
-          <VatLabel base={`Итого себестоимость по списку${c4}`} />
+        <div className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
+          <VatLabel base="Итого себестоимость по списку" />
+          <Mode4Badge mode={c4Mode} />
           <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</span>
-        </p>
+          <C4Hint
+            mode={c4Mode}
+            base={sumMatLines ? sumBase.toFixed(2) : null}
+            extra={sumMatLines ? sumExtra.toFixed(2) : null}
+            excluded={sumExcluded.toFixed(2)}
+            total={sumIncl.toFixed(2)}
+            title="Итого по списку"
+            align="right"
+          >
+            <p className="mt-1">
+              Сумма себестоимости всех ТЗ списка, кроме отменённых: сырьё и подкладка (списания) + расходы. Год: {year === "all" ? "все годы" : `${year} (по дате ТЗ)`}.
+            </p>
+            <p className="mt-1">Цифры с НДС; переключатель «Без НДС» показывает ту же сумму без НДС.</p>
+          </C4Hint>
+        </div>
       )}
       </>
       )}

@@ -7,6 +7,9 @@ import { formatQty, formatDate } from "@/lib/utils";
 import { compareModelNames, normalizeModelCode } from "@/lib/model-code";
 import { AddSupplyPlanForm } from "./add-form";
 import { EntryRowForm } from "./entry-row-form";
+import { getYearFilter } from "@/lib/year-filter";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 import { STATUS_LABELS, STATUS_BADGE_VARIANT, type SupplyPlanStatusValue } from "./status";
 
 const MONTH_NAMES = [
@@ -31,6 +34,7 @@ export default async function SupplyPlanPage() {
   const session = await requireSession();
   const canEdit = hasRole(session.user.role, ACCESS.supplyPlan);
   const organizationId = session.user.organizationId;
+  const year = await getYearFilter();
 
   const [entries, allModels] = await Promise.all([
     prisma.supplyPlanEntry.findMany({
@@ -58,8 +62,10 @@ export default async function SupplyPlanPage() {
   const windowEnd = new Date(now);
   windowEnd.setMonth(windowEnd.getMonth() + WINDOW_FWD);
   const inWindow = (d: Date) => d >= windowStart && d <= windowEnd;
-  const shownEntries = entries.filter((e) => inWindow(new Date(e.month)));
-  const hiddenEntries = entries.filter((e) => !inWindow(new Date(e.month)));
+  // Общий год: по месяцу плана; при выбранном годе таблица — ровно январь–декабрь этого года.
+  const yearNum = year === "all" ? null : Number(year);
+  const shownEntries = yearNum ? entries.filter((e) => new Date(e.month).getFullYear() === yearNum) : entries.filter((e) => inWindow(new Date(e.month)));
+  const hiddenEntries = yearNum ? [] : entries.filter((e) => !inWindow(new Date(e.month)));
 
   const monthDates = shownEntries.map((e) => new Date(e.month));
   const minMonth = monthDates.length ? new Date(Math.min(now.getTime(), ...monthDates.map((d) => d.getTime()))) : now;
@@ -68,8 +74,9 @@ export default async function SupplyPlanPage() {
   const maxMonth = monthDates.length ? new Date(Math.max(maxCandidate.getTime(), ...monthDates.map((d) => d.getTime()))) : maxCandidate;
 
   const months: { key: string; label: string; date: Date }[] = [];
-  const cursor = new Date(minMonth);
-  while (cursor <= maxMonth && months.length < 60) {
+  const cursor = yearNum ? new Date(yearNum, 0, 1) : new Date(minMonth);
+  const lastMonth = yearNum ? new Date(yearNum, 11, 1) : maxMonth;
+  while (cursor <= lastMonth && months.length < 60) {
     months.push({ key: monthKey(cursor), label: `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`, date: new Date(cursor) });
     cursor.setMonth(cursor.getMonth() + 1);
   }
@@ -90,10 +97,17 @@ export default async function SupplyPlanPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold">План поставки</h1>
-        <p className="text-sm text-neutral-500">
-          Артикулы по строкам, месяцы по столбцам.
-        </p>
+        <h1 className="text-xl font-semibold">
+          План поставки
+          <YearNote year={year} />
+          <InfoHint label="О плане поставки" wide>
+            <p>Артикулы по строкам, месяцы по столбцам. В ячейке — количество (шт.), статус, дата события и заметка.</p>
+            <p className="mt-1">
+              Год ({year === "all" ? "все годы" : year}): по месяцу плана. {year === "all" ? `Таблица показывает период с ${MONTH_NAMES[windowStart.getMonth()]} ${windowStart.getFullYear()} по ${MONTH_NAMES[windowEnd.getMonth()]} ${windowEnd.getFullYear()}; остальные записи — отдельным списком.` : `Таблица показывает январь–декабрь ${year}.`}
+            </p>
+            <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4%» на эту страницу не влияет.</p>
+          </InfoHint>
+        </h1>
       </div>
 
       {canEdit && (
@@ -126,10 +140,12 @@ export default async function SupplyPlanPage() {
             <CardTitle>Записи вне отображаемого периода ({hiddenEntries.length})</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <p className="text-sm text-neutral-500">
-              Таблица показывает период с {MONTH_NAMES[windowStart.getMonth()]} {windowStart.getFullYear()} по{" "}
-              {MONTH_NAMES[windowEnd.getMonth()]} {windowEnd.getFullYear()}. Остальные записи — здесь.
-            </p>
+            <div className="flex items-center gap-1 text-sm text-neutral-500">
+              Остальные записи
+              <InfoHint label="Почему записи здесь">
+                Таблица показывает период с {MONTH_NAMES[windowStart.getMonth()]} {windowStart.getFullYear()} по {MONTH_NAMES[windowEnd.getMonth()]} {windowEnd.getFullYear()}. Остальные записи — здесь.
+              </InfoHint>
+            </div>
             {hiddenEntries.slice(0, 100).map((e) => (
               <div key={e.id} className="flex flex-col gap-1">
                 <span className="text-xs text-neutral-600">
@@ -206,7 +222,7 @@ export default async function SupplyPlanPage() {
             {rowList.length === 0 && (
               <tr>
                 <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-400">
-                  План пуст{canEdit ? " — добавьте первую запись выше" : ""}
+                  {year === "all" ? `План пуст${canEdit ? " — добавьте первую запись выше" : ""}` : emptyForYear(year, "записей плана", "")}
                 </td>
               </tr>
             )}

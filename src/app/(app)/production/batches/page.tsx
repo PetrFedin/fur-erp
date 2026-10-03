@@ -8,6 +8,12 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { prisma } from "@/lib/prisma";
+import { getYearFilter } from "@/lib/year-filter";
+import { orderInYear } from "@/lib/year-scope";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
+import { C4Hint, Mode4Badge } from "@/components/c4-note";
+import { base4AndExtra } from "@/lib/commission4";
 
 export const metadata = { title: "Партии" };
 
@@ -16,7 +22,15 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   const showEmpty = (Array.isArray(sp.empty) ? sp.empty[0] : sp.empty) === "1";
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
-  const batches = await loadBatchesWithOrders(session.user.organizationId);
+  const year = await getYearFilter();
+  const allBatches = await loadBatchesWithOrders(session.user.organizationId);
+  // Общий год: ТЗ партии отбираются по дате ТЗ (дата ТЗ → конец → начало → год партии); партия без ТЗ за год не показывается.
+  const batches =
+    year === "all"
+      ? allBatches
+      : allBatches
+          .map((b) => ({ ...b, orders: b.orders.filter((o) => orderInYear({ ...o, batch: { year: b.year } }, year)) }))
+          .filter((b) => b.orders.length > 0 || b.year === Number(year));
   // «Документы» — как на карточке партии: документы самой партии + её ТЗ + оплат этих ТЗ (каждый документ один раз).
   const orgId = session.user.organizationId;
   const orderIds = batches.flatMap((b) => b.orders.map((o) => o.id));
@@ -48,15 +62,45 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   const emptyCount = allRows.filter(isEmptyBatch).length;
   const rows = showEmpty ? allRows : allRows.filter((r) => !isEmptyBatch(r));
   const anyC4 = rows.some((r) => r.t.c4Applies);
+  // Расшифровка 4% по всем показанным партиям: сырьё и подкладка × 4%.
+  let c4Base = 0;
+  let c4Extra = 0;
+  let c4Excl = 0;
+  let c4Lines = 0;
+  for (const r of rows) {
+    for (const o of r.b.orders) {
+      if (o.status === "CANCELLED") continue;
+      const on = base4AndExtra(o.materialUsages);
+      c4Base += Number(on.base);
+      c4Extra += Number(on.extra);
+      c4Excl += Number(on.excluded);
+      c4Lines += o.materialUsages.length;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="batches" />
       <div>
-        <h1 className="text-xl font-semibold">Партии</h1>
-        <p className="text-sm text-neutral-500">
-          Партия — группа ТЗ, отправленных одной поставкой. Откройте партию, чтобы увидеть ТЗ, оплаты и документы.
-        </p>
+        <h1 className="text-xl font-semibold">
+          Партии
+          <YearNote year={year} />
+          <InfoHint label="Что такое партия" wide>
+            <p>Партия — группа ТЗ, отправленных одной поставкой. Откройте партию, чтобы увидеть ТЗ, оплаты и документы.</p>
+            <p className="mt-1">
+              Год: {year === "all" ? "все годы" : `${year}`} — партия попадает в год по датам её ТЗ (дата ТЗ, иначе окончание или начало, иначе год партии); в цифрах только ТЗ этого года.
+            </p>
+            <p className="mt-1">
+              <b>Остаток</b> = работа заказчику (цена за ед. × количество) минус оплаты заказчика по ТЗ партии; каждая оплата учитывается один раз.
+            </p>
+            <p className="mt-1">
+              <b>Себестоимость</b> = сырьё и подкладка + расходы ТЗ. «С 4%» добавляет 4% к сырью и подкладке (работа не облагается); оплаты и остаток от 4% не меняются.
+            </p>
+            <p className="mt-1">
+              Группировка ТЗ по партиям — вид «По партиям» на странице <Link href="/production?view=batches" className="underline">ТЗ</Link>.
+            </p>
+          </InfoHint>
+        </h1>
       </div>
       {emptyCount > 0 && (
         <p className="text-sm text-neutral-500">
@@ -86,7 +130,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th>ТЗ</Th>
             <Th>Изделий</Th>
             <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
-              Себестоимость{anyC4 ? c4Suffix(c4Mode) : ""}
+              Себестоимость
+              <Mode4Badge mode={c4Mode} />
+              <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
             <Th className="hidden md:table-cell">Работа</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
@@ -131,7 +177,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={9} className="py-8 text-center text-neutral-400">
-                Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.
+                {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}
               </Td>
             </Tr>
           )}
@@ -166,17 +212,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           );
         })}
         {rows.length === 0 && (
-          <p className="py-8 text-center text-neutral-400">Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.</p>
+          <p className="py-8 text-center text-neutral-400">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}</p>
         )}
       </ResponsiveRows>
-      <p className="text-xs text-neutral-500">
-        Остаток = работа заказчику (цена за ед. × количество) минус оплаты заказчика по ТЗ партии; каждая оплата учитывается
-        один раз. Группировка ТЗ по партиям —{" "}
-        <Link href="/production?view=batches" className="underline">
-          вид «По партиям»
-        </Link>
-        .
-      </p>
+
     </div>
   );
 }

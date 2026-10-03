@@ -10,6 +10,9 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { formatDate, formatQty } from "@/lib/utils";
 import { SHIPMENT_STATUS, summarizeLines, isoDay, todayIso } from "@/lib/shipments";
 import type { Prisma } from "@prisma/client";
+import { getYearFilter, yearRange } from "@/lib/year-filter";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 
 export const metadata = { title: "Отгрузки" };
 
@@ -21,9 +24,12 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const str = (v: unknown) => cleanSearch(v);
   const status = str(sp.status) in SHIPMENT_STATUS ? str(sp.status) : "";
   const client = str(sp.client);
+  const year = await getYearFilter();
 
   const where: Prisma.ShipmentWhereInput = {
     organizationId: orgId,
+    // Общий год — по плановой дате отгрузки.
+    ...(yearRange(year) ? { plannedDate: yearRange(year) } : {}),
     ...(status ? { status: status as "PLANNED" } : {}),
     ...(client === "none" ? { clientId: null } : client ? { clientId: client } : {}),
   };
@@ -63,13 +69,21 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     return rank(a.status) === 0 ? d : -d;
   });
   const hasFilters = Boolean(status || client);
-  const isEmpty = rows.length === 0 && !hasFilters;
+  const isEmpty = rows.length === 0 && !hasFilters && year === "all";
 
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Отгрузки</h1>
+        <h1 className="text-xl font-semibold">
+          Отгрузки
+          <YearNote year={year} />
+          <InfoHint label="Об отгрузках" wide>
+            <p>Отгрузка — план и факт отправки готовых изделий заказчику; склад она не списывает.</p>
+            <p className="mt-1">Год ({year === "all" ? "все годы" : year}): по плановой дате отгрузки. Блок «На ближайшие 7 дней» от года не зависит.</p>
+            <p className="mt-1">Стоимости здесь нет — переключатель «С 4%» на эту страницу не влияет.</p>
+          </InfoHint>
+        </h1>
         {canEdit && !isEmpty && (
           <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
             + Новая отгрузка
@@ -79,7 +93,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
 
       {isEmpty ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
-          <p>Отгрузок пока нет. Отгрузка — план и факт отправки готовых изделий заказчику; склад она не списывает.</p>
+          <p>Отгрузок пока нет.</p>
           {canEdit && (
             <Link href="/shipments/new" className={buttonVariants()}>
               + Новая отгрузка
@@ -164,7 +178,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={6} className="py-8 text-center text-neutral-400">
-                {hasFilters ? "Ничего не найдено" : "Отгрузок пока нет"}
+                {hasFilters ? "Ничего не найдено" : emptyForYear(year, "отгрузок", "Отгрузок пока нет")}
               </Td>
             </Tr>
           )}

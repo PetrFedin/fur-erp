@@ -14,6 +14,10 @@ import { ResponsiveDetails } from "../production/filters-details";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
+import { getYearFilter } from "@/lib/year-filter";
+import { purchaseYear } from "@/lib/year-scope";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
@@ -31,6 +35,7 @@ export const metadata = { title: "Закупки" };
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
   const sp = await searchParams;
+  const year = await getYearFilter();
   const canCreate = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
   const auction = cleanSearch(sp.auction);
   const q = cleanSearch(sp.q);
@@ -45,6 +50,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const purchases = await prisma.purchase.findMany({
     where: {
       organizationId: session.user.organizationId,
+      // Общий год — по дате заказа закупки (вместе с «с / по», если они заданы).
+      AND: [purchaseYear(year)],
       // Two states in the UI: everything not received/cancelled is a draft.
       ...(status === "RECEIVED" ? { status: "RECEIVED" as const } : {}),
       ...(status === "CANCELLED" ? { status: "CANCELLED" as const } : {}),
@@ -91,13 +98,17 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   );
 
   const sessions = await prisma.purchase.findMany({
-    where: { organizationId: session.user.organizationId, auctionSession: { not: null } },
+    where: { organizationId: session.user.organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
     select: { auctionSession: true },
     distinct: ["auctionSession"],
     orderBy: { auctionSession: "asc" },
   });
   const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i)
     .sort((x, y) => Number(isServiceAuction(x)) - Number(isServiceAuction(y)));
+
+  const live = purchases.filter((p) => p.status !== "CANCELLED");
+  const sumIncl = live.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
+  const sumExcl = live.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
 
   // Сумма аукциона одна на все его закупки: полностью — в первой строке аукциона, дальше короткая подпись.
   const shownTable = new Set<string>();
@@ -106,7 +117,20 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Закупки</h1>
+        <h1 className="text-xl font-semibold">
+          Закупки
+          <YearNote year={year} />
+          <InfoHint label="О странице «Закупки»" wide>
+            <p>Список закупок сырья и подкладки: поставщик, аукцион, счёт, сумма и оплата. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
+            <p className="mt-1">
+              Год ({year === "all" ? "все годы" : year}): по дате заказа закупки. Поля «с / по» сужают выбор внутри года.
+            </p>
+            <p className="mt-1">
+              Оплаты закупок с аукционом ведутся по аукциону целиком — «оплачено из» показывает сумму всего аукциона. «Принято на склад» — по закупке уже созданы лоты сырья.
+            </p>
+            <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется — это наценка на сырьё и подкладку в ТЗ.</p>
+          </InfoHint>
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/payments" className={buttonVariants({ variant: "outline" })}>
             Оплаты
@@ -249,7 +273,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           {purchases.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                {q || auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
+                {q || auction || status || from || to ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
               </Td>
             </Tr>
           )}
@@ -296,7 +320,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         })}
         {purchases.length === 0 && (
           <p className="py-8 text-center text-neutral-400">
-            {q || auction || status || from || to ? "По этим фильтрам закупок нет" : "Закупок пока нет"}
+            {q || auction || status || from || to ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
           </p>
         )}
       </ResponsiveRows>
@@ -307,7 +331,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </Link>
         </div>
       )}
-      <p className="text-xs text-neutral-400">Показано закупок: {purchases.length}{hasMore ? " (есть ещё)" : ""}</p>
+      <div className="flex items-center gap-1 text-xs text-neutral-400">
+        Показано закупок: {purchases.length}{hasMore ? " (есть ещё)" : ""}
+        {purchases.length > 0 && (
+          <>
+            <span aria-hidden>·</span>
+            <VatLabel base="сумма без отменённых" />:{" "}
+            <b className="text-neutral-700">
+              <Money incl={sumIncl} excl={sumExcl} />
+            </b>
+            <InfoHint label="Как считается сумма">
+              Сумма всех показанных закупок, кроме отменённых (с НДС; переключатель НДС показывает без НДС): позиции × курс + расходы закупки. Считается только по показанным строкам{hasMore ? " — нажмите «Показать ещё», чтобы добавить остальные" : ""}.
+            </InfoHint>
+          </>
+        )}
+      </div>
     </div>
   );
 }

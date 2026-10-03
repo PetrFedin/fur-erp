@@ -12,6 +12,9 @@ import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { prisma } from "@/lib/prisma";
 import { VatSync } from "./vat-sync";
 import { LazyDetails } from "./lazy-details";
+import type { YearFilter } from "@/lib/year-filter";
+import { emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 import { loadSummaryAuction } from "./summary-node-action";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
@@ -186,10 +189,13 @@ function LotRow({ l, mode }: { l: Leaf; mode: Mode }) {
 
 export async function PurchaseSummary({
   organizationId,
+  year,
   searchParams,
 }: {
   organizationId: string;
-  searchParams: { year?: string; auction?: string; material?: string; vat?: string };
+  /** Общий фильтр года из шапки. */
+  year: YearFilter;
+  searchParams: { auction?: string; material?: string; vat?: string };
 }) {
   // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vat= — только переопределение ссылкой.
   const vatOverride: Mode | null = searchParams.vat === "excl" ? "excl" : searchParams.vat === "incl" ? "incl" : null;
@@ -201,19 +207,17 @@ export async function PurchaseSummary({
     loadSupplierDebt(prisma, organizationId),
   ]);
 
-  const years = [...new Set(all.map((l) => l.year))].sort((a, b) => b - a);
   const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
   const materials = [...new Set(all.map((l) => l.material))].sort(cmpRu);
-  const yearF = years.includes(Number(searchParams.year)) ? Number(searchParams.year) : null;
+  const yearF = year === "all" ? null : Number(year);
   const auctionF = auctions.includes(searchParams.auction ?? "") ? searchParams.auction! : "";
   const materialF = materials.includes(searchParams.material ?? "") ? searchParams.material! : "";
 
   const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF });
-  const filtered = Boolean(yearF || auctionF || materialF);
+  const filtered = Boolean(auctionF || materialF);
 
   const qs = (over: Record<string, string>) => {
     const p = new URLSearchParams({ tab: "summary" });
-    if (yearF) p.set("year", String(yearF));
     if (auctionF) p.set("auction", auctionF);
     if (materialF) p.set("material", materialF);
     if (vatOverride) p.set("vat", vatOverride);
@@ -285,20 +289,9 @@ export async function PurchaseSummary({
 
   return (
     <div className="flex flex-col gap-4">
-      <form method="get" className="grid grid-cols-2 items-end gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:grid-cols-5">
+      <form method="get" className="grid grid-cols-2 items-end gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:grid-cols-4">
         <input type="hidden" name="tab" value="summary" />
         {vatOverride && <input type="hidden" name="vat" value={vatOverride} />}
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Год
-          <Select name="year" defaultValue={yearF ? String(yearF) : ""}>
-            <option value="">Все годы</option>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </Select>
-        </label>
         <label className="col-span-2 flex flex-col gap-1 text-xs text-neutral-500">
           Аукцион
           <Select name="auction" defaultValue={auctionF}>
@@ -326,7 +319,7 @@ export async function PurchaseSummary({
             Показать
           </Button>
           {filtered && (
-            <Link href={qs({ year: "", auction: "", material: "" })} className="text-sm text-neutral-500 hover:underline">
+            <Link href={qs({ auction: "", material: "" })} className="text-sm text-neutral-500 hover:underline">
               Сбросить
             </Link>
           )}
@@ -348,7 +341,7 @@ export async function PurchaseSummary({
 
       {leaves.length === 0 ? (
         <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-          {filtered ? "По выбранным фильтрам закупок нет." : "Закупок пока нет."}
+          {filtered ? "По выбранным фильтрам закупок нет." : emptyForYear(year, "закупок", "Закупок пока нет.")}
         </p>
       ) : (
         <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -361,11 +354,23 @@ export async function PurchaseSummary({
             <span className="text-right">С расходами</span>
             <span className="text-right">Оплачено</span>
             <span className="text-right">Остаток</span>
-            <span className="text-right" title="Цена шкур по счетам ÷ число шкур">
+            <span className="text-right">
               Ср. цена шкуры
+              <InfoHint label="Как считается средняя цена шкуры" align="right">
+                Цена шкур по счетам ÷ число шкур — средневзвешенная: общая сумма делится на общее число шкур, а не среднее из средних.
+                {grand.qty.greaterThan(0) && (
+                  <p className="mt-1">Сейчас: {money(gf.price)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.price).div(grand.qty))}.</p>
+                )}
+              </InfoHint>
             </span>
-            <span className="text-right" title="Стоимость с расходами ÷ число шкур">
+            <span className="text-right">
               Ср. с расходами
+              <InfoHint label="Как считается средняя с расходами" align="right">
+                Стоимость с расходами ÷ число шкур (средневзвешенная).
+                {grand.qty.greaterThan(0) && (
+                  <p className="mt-1">Сейчас: {money(gf.full)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.full).div(grand.qty))}.</p>
+                )}
+              </InfoHint>
             </span>
           </div>
           {byYear.map(([year, yl], yi) => (
@@ -408,10 +413,16 @@ export async function PurchaseSummary({
             <span className="font-medium">Долг поставщику (с НДС, по всей организации)</span>
             <span className="font-semibold">{money(debt.debt)}</span>
           </div>
-          <div className="mt-0.5 text-xs text-neutral-500">
-            Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
-            {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}. Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».
-            {filtered ? " Фильтры на это число не влияют." : ""}
+          <div className="mt-0.5 flex items-center gap-1 text-xs text-neutral-500">
+            Откуда цифра
+            <InfoHint label="Как считается долг поставщику" wide>
+              <p>
+                Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
+                {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}.
+              </p>
+              <p className="mt-1">Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».</p>
+              <p className="mt-1">Год и другие фильтры на это число не влияют; 4% на долг не влияет (4% — только наценка на сырьё и подкладку в ТЗ).</p>
+            </InfoHint>
           </div>
           {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) && (
             <div className="mt-0.5 text-xs text-neutral-500">
@@ -478,11 +489,14 @@ export async function PurchaseSummary({
         </div>
       )}
 
-      <p className="text-xs text-neutral-500">
-        Год — по дате закупки; отменённые закупки не входят. «Цена шкур по счетам» — цена лотов по курсу, «С расходами» —
-        полная стоимость. Оплаты ведутся по закупке и аукциону; по сырью и лотам показаны пропорционально стоимости (в режиме
-        «Без НДС» — той же долей).
-      </p>
+      <div className="flex items-center gap-1 text-xs text-neutral-500">
+        Пояснения к таблице
+        <InfoHint label="Как читать сводку" wide>
+          <p>Год — по дате заказа закупки (выбирается в шапке); отменённые закупки не входят.</p>
+          <p className="mt-1">«Цена шкур по счетам» — цена лотов по курсу (с НДС); «С расходами» — полная стоимость: плюс сборы аукциона, выделка, транспорт, брокер.</p>
+          <p className="mt-1">Оплаты ведутся по закупке и аукциону; по сырью и лотам показаны пропорционально стоимости (в режиме «Без НДС» — той же долей).</p>
+        </InfoHint>
+      </div>
     </div>
   );
 }

@@ -128,3 +128,24 @@ export function extraInclOnly(usages: { totalCost: Decimal.Value; commission4: b
 export function c4Suffix(mode: Commission4Mode): string {
   return mode === "on" ? " (с 4%)" : "";
 }
+
+/** Для подсказок: сырьё/подкладка (с НДС) без 4% и сколько добавит 4% (только строки с commission4). Не зависит от режима. */
+export function base4AndExtra(usages: { totalCost: Decimal.Value; commission4: boolean }[]): {
+  /** Все сырьё и подкладка (с НДС, без 4%). */
+  all: Decimal;
+  /** Из них строки, к которым 4% применяется. */
+  base: Decimal;
+  /** Строки без 4% (лоскут, партия 6 и др.). */
+  excluded: Decimal;
+  /** Надбавка 4% = base × 4%. */
+  extra: Decimal;
+} {
+  let all = new Decimal(0);
+  let base = new Decimal(0);
+  for (const u of usages) {
+    const t = new Decimal(u.totalCost);
+    all = all.add(t);
+    if (u.commission4) base = base.add(t);
+  }
+  return { all, base, excluded: all.sub(base), extra: base.mul(RATE) };
+}

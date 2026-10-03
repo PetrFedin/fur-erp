@@ -3,21 +3,40 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName, buildAuctionSummaries, type PurchaseForPay } from "@/lib/auction-payments";
+import { inYear, type YearFilter } from "@/lib/year-filter";
 
 /**
- * ЕДИНЫЙ расчёт «Долга поставщику» (с НДС, в рублях) — одно число для Сводки, Оплат и Сводки по годам.
+ * ЕДИНЫЙ расчёт «Долга поставщику» (с НДС, в рублях) — одно число для Сводки, Оплат и закупок.
  *
  *   долг = стоимость закупок (без отменённых)
  *        − оплачено (COMPLETED: оплаты закупок и аукционов целиком; переплата одного аукциона/закупки
  *          не гасит другой — остаток каждого не ниже нуля)
  *        − авансы без привязки (COMPLETED, нет ни закупки, ни аукциона), итог не ниже нуля.
  *
- * Строка-расшифровка в интерфейсе: «стоимость закупок {total} − оплачено {paid} − авансы без привязки {unlinkedAdvances}»,
- * и total − paid − unlinkedAdvances = debt (кроме редкого случая, когда авансы больше всего долга: тогда debt = 0).
- * `paid` — оплаты, засчитанные в долг (переплата сверх стоимости аукциона/закупки в него не входит).
+ * Долг делится на ТРИ понятные части (в сумме — тот же долг):
+ *   1. «К оплате по УПД и счетам» — мех получен (закупка «Принята»), УПД/счёт есть, а оплаты не хватает.
+ *      Из этой части вычитаются авансы без привязки.
+ *   2. «Счёт выставлен, не оплачен» — закупка ещё не получена (черновик), но Веллмех уже выставил на неё счёт
+ *      (см. INVOICES_FOR_DRAFTS: суммы счетов взяты из документов Drive).
+ *   3. «Ожидаемое» — закупка не получена и счёта на эту часть ещё нет.
+ *
+ * Фильтр года: берутся закупки года (по дате заказа); оплаты — те, что привязаны к этим закупкам и их аукционам;
+ * авансы без привязки — по дате оплаты в году.
  */
 
 type Db = PrismaClient | Prisma.TransactionClient;
+
+/**
+ * Счета Веллмех на закупки, по которым мех ещё не получен (черновики). Только то, что назвали документы Drive «мех»:
+ * `total` — сумма выставленных счетов по аукциону (с НДС). Остаток «счёта выставлен» = счета − уже оплачено.
+ * Нет записи — счёт не выставлен, вся неоплаченная часть идёт в «Ожидаемое».
+ */
+export const INVOICES_FOR_DRAFTS: Record<string, { total: number; docs: string }> = {
+  "FH 06-26": { total: 115_723_078, docs: "счета Веллмех №155 от 22.05.2026 (30 660 000) и №173 от 05.06.2026 (85 063 078)" },
+  "СП 09-26": { total: 60_831_100, docs: "счёт Веллмех №271 от 30.09.2026 (срок 05.10.2026)" },
+  "Подкладка Спец. 13": { total: 5_400_000, docs: "счёт Веллмех №157 от 26.05.2026" },
+  "Доп. материалы Спец. 16": { total: 19_870, docs: "счёт Веллмех №181 от 16.06.2026" },
+};
 
 export type SupplierDebtAuction = {
   name: string;
@@ -26,6 +45,14 @@ export type SupplierDebtAuction = {
   paid: Decimal;
   /** Остаток по аукциону, не ниже нуля. */
   due: Decimal;
+  /** Из остатка: мех получен (к оплате по УПД и счетам). */
+  dueReceived: Decimal;
+  /** Из остатка: мех не получен, счёт выставлен. */
+  dueInvoiced: Decimal;
+  /** Из остатка: мех не получен, счёта нет. */
+  dueExpected: Decimal;
+  /** Документы, по которым выставлен счёт на неполученную часть. */
+  invoiceDocs: string | null;
 };
 
 export type SupplierDebt = {
@@ -35,15 +62,23 @@ export type SupplierDebt = {
   paid: Decimal;
   /** Авансы поставщикам без привязки к закупке и аукциону (фактическая сумма). */
   unlinkedAdvances: Decimal;
-  /** Итоговый долг поставщику. */
+  /** Итоговый долг поставщику = receivedNet + invoiced + expected. */
   debt: Decimal;
-  /** Долг по аукционам с остатком, по убыванию. */
+  /** Часть 1: мех получен, к оплате по УПД и счетам — после вычета авансов без привязки. */
+  receivedNet: Decimal;
+  /** Часть 1 до вычета авансов. */
+  receivedGross: Decimal;
+  /** Часть 2: счёт выставлен, мех не получен, не оплачен. */
+  invoiced: Decimal;
+  /** Часть 3: ожидаемые закупки — не получены, счёта нет. */
+  expected: Decimal;
+  /** Аукционы с остатком, по убыванию. */
   byAuction: SupplierDebtAuction[];
   /** Долг по закупкам вне аукционов (до вычета авансов). */
   nonAuctionDebt: Decimal;
   /** Сколько закупок (без отменённых) вне аукционов. */
   nonAuctionPurchases: number;
-  /** Часть долга до вычета авансов, приходящаяся на черновики (мех не принят). */
+  /** Не получено: «счёт выставлен» + «ожидаемое» (до вычета авансов). */
   draftDebt: Decimal;
 };
 
@@ -62,7 +97,9 @@ export function computeSupplierDebt(
 ): SupplierDebt {
   let total = zero();
   let dueSum = zero();
-  let draftDebt = zero();
+  let receivedGross = zero();
+  let invoicedGross = zero();
+  let expectedGross = zero();
   let nonAuctionDebt = zero();
   let nonAuctionPurchases = 0;
 
@@ -76,7 +113,8 @@ export function computeSupplierDebt(
     if (!due.greaterThan(0)) continue;
     dueSum = dueSum.add(due);
     nonAuctionDebt = nonAuctionDebt.add(due);
-    if (p.status !== "RECEIVED") draftDebt = draftDebt.add(due);
+    if (p.status === "RECEIVED") receivedGross = receivedGross.add(due);
+    else expectedGross = expectedGross.add(due); // вне аукциона счёта на черновик нет в документах
   }
 
   const byAuction: SupplierDebtAuction[] = [];
@@ -85,34 +123,69 @@ export function computeSupplierDebt(
     const due = Decimal.max(a.remaining, zero());
     if (!due.greaterThan(EPS)) continue;
     dueSum = dueSum.add(due);
-    byAuction.push({ name: a.name, purchases: a.purchases, total: a.total, paid: a.paid, due });
-    // Доля черновиков в долге аукциона — пропорционально остаткам закупок.
+    // Доля неполученных закупок в остатке аукциона — пропорционально остаткам закупок.
     const weights = a.perPurchase.map((pp) => ({ pp, w: Decimal.max(pp.total.sub(pp.paid), zero()) }));
     const wSum = weights.reduce((s, x) => s.add(x.w), zero());
-    if (!wSum.greaterThan(0)) continue;
-    for (const { pp, w } of weights) {
-      if (pp.status !== "RECEIVED" && w.greaterThan(0)) draftDebt = draftDebt.add(due.mul(w).div(wSum));
+    let draftPart = zero();
+    if (wSum.greaterThan(0)) {
+      for (const { pp, w } of weights) {
+        if (pp.status !== "RECEIVED" && w.greaterThan(0)) draftPart = draftPart.add(due.mul(w).div(wSum));
+      }
     }
+    const receivedPart = due.sub(draftPart);
+    // Счёт выставлен = выставленные счета − всё оплаченное по аукциону, но не больше неполученной части.
+    const inv = INVOICES_FOR_DRAFTS[a.name];
+    const openInvoice = inv ? Decimal.max(new Decimal(inv.total).sub(a.paid), zero()) : zero();
+    const invoicedPart = Decimal.min(draftPart, openInvoice);
+    const expectedPart = draftPart.sub(invoicedPart);
+    receivedGross = receivedGross.add(receivedPart);
+    invoicedGross = invoicedGross.add(invoicedPart);
+    expectedGross = expectedGross.add(expectedPart);
+    byAuction.push({
+      name: a.name,
+      purchases: a.purchases,
+      total: a.total,
+      paid: a.paid,
+      due,
+      dueReceived: receivedPart,
+      dueInvoiced: invoicedPart,
+      dueExpected: expectedPart,
+      invoiceDocs: invoicedPart.greaterThan(EPS) && inv ? inv.docs : null,
+    });
   }
   byAuction.sort((x, y) => y.due.comparedTo(x.due));
 
   const advances = unlinkedAdvances.reduce((s, x) => s.add(x.amount), zero());
-  const debt = Decimal.max(dueSum.sub(advances), zero());
+  // Авансы без привязки гасят сначала «к оплате по УПД и счетам», затем (редко) остальное.
+  let left = advances;
+  const take = (v: Decimal) => {
+    const d = Decimal.min(v, left);
+    left = left.sub(d);
+    return v.sub(d);
+  };
+  const receivedNet = take(receivedGross);
+  const invoiced = take(invoicedGross);
+  const expected = take(expectedGross);
+  const debt = receivedNet.add(invoiced).add(expected);
   return {
     total,
     paid: total.sub(dueSum),
     unlinkedAdvances: advances,
     debt,
+    receivedNet,
+    receivedGross,
+    invoiced,
+    expected,
     byAuction,
     nonAuctionDebt,
     nonAuctionPurchases,
-    draftDebt,
+    draftDebt: invoicedGross.add(expectedGross),
   };
 }
 
-/** Загружает данные организации и считает долг поставщику. */
-export async function loadSupplierDebt(db: Db, organizationId: string): Promise<SupplierDebt> {
-  const [purchases, auctionPayments, advances] = await Promise.all([
+/** Загружает данные организации и считает долг поставщику (при year ≠ "all" — за закупки этого года). */
+export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all"): Promise<SupplierDebt> {
+  const [allPurchases, auctionPayments, advances] = await Promise.all([
     // Отменённые тоже: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
     db.purchase.findMany({
       where: { organizationId },
@@ -129,8 +202,10 @@ export async function loadSupplierDebt(db: Db, organizationId: string): Promise<
     }),
     db.payment.findMany({
       where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
-      select: { amount: true },
+      select: { amount: true, paidAt: true },
     }),
   ]);
-  return computeSupplierDebt(purchases, auctionPayments, advances);
+  const purchases = year === "all" ? allPurchases : allPurchases.filter((p) => inYear(p.orderDate, year));
+  const adv = year === "all" ? advances : advances.filter((a) => inYear(a.paidAt, year));
+  return computeSupplierDebt(purchases, auctionPayments, adv);
 }

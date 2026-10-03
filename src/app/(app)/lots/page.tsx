@@ -19,6 +19,12 @@ import { MaterialLots, furLotsWhere } from "./material-lots";
 import { loadMaterialLots } from "./material-lots-action";
 import { PurchaseSummary } from "./summary-view";
 import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
+import { getYearFilter } from "@/lib/year-filter";
+import { lotYear } from "@/lib/year-scope";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { Ref4 } from "@/components/c4-note";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -33,6 +39,8 @@ export const metadata = { title: "Сырьё" };
 export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
   const session = await requireSession();
   const sp = await searchParams;
+  const year = await getYearFilter();
+  const c4Mode = await getCommission4Mode();
   const tab: "fur" | "lining" | "summary" = sp.tab === "lining" ? "lining" : sp.tab === "summary" ? "summary" : "fur";
   const q = cleanSearch(sp.q);
   const materialId = cleanSearch(sp.material);
@@ -47,7 +55,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       select: { id: true, name: true, unit: true, minStockLevel: true },
       orderBy: { name: "asc" },
     }),
-    tab === "fur" ? loadAuctions(session.user.organizationId) : Promise.resolve([]),
+    tab === "fur" ? loadAuctions(session.user.organizationId, year) : Promise.resolve([]),
   ]);
 
   // Режим «Аукцион»: выбранное название — точное совпадение, иначе вхождение (без учёта регистра).
@@ -77,8 +85,13 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">Сырьё</h1>
-            <p className="text-sm text-neutral-500">Сводка закупок по годам, аукционам и типам сырья.</p>
+            <h1 className="text-xl font-semibold">
+              Сырьё
+              <YearNote year={year} />
+              <InfoHint label="О сводке" wide>
+                <p>Сводка закупок по годам, аукционам и типам сырья. Год выбирается в шапке (Все / 2025 / 2026) и действует на всех страницах; год закупки — по дате заказа.</p>
+              </InfoHint>
+            </h1>
           </div>
         </div>
         <div className="flex gap-1 border-b border-neutral-200 pb-2">
@@ -88,7 +101,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         </div>
         <PurchaseSummary
           organizationId={session.user.organizationId}
-          searchParams={{ year: one(sp.year), auction: one(sp.auction), material: one(sp.material), vat: one(sp.vat) }}
+          year={year}
+          searchParams={{ auction: one(sp.auction), material: one(sp.material), vat: one(sp.vat) }}
         />
       </div>
     );
@@ -187,8 +201,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">Сырьё</h1>
-            <p className="text-sm text-neutral-500">Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>
+            <h1 className="text-xl font-semibold">
+              Сырьё
+              <YearNote year={year} />
+            </h1>
           </div>
           <Link href="/materials/new" className={buttonVariants()}>
             + Добавить материал
@@ -202,7 +218,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         {filtersBlock}
         {auctionNames.length === 0 ? (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Аукцион «{auctionQ}» не найден. Выберите название из списка или{" "}
+            Аукцион «{auctionQ}» не найден{year === "all" ? "" : ` за ${year} год`}. Выберите название из списка или{" "}
             <Link href="/lots" className="underline">
               сбросьте фильтр
             </Link>
@@ -230,7 +246,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // они подгружаются при раскрытии материала (loadMaterialLots), при фильтре — только подходящие.
   const [currentLots, purchasedByMaterial, matchCounts, liningLots] = await Promise.all([
     prisma.rawMaterialLot.findMany({
-      where: { organizationId: orgId, quantityRemaining: { gt: 0 } },
+      where: { organizationId: orgId, quantityRemaining: { gt: 0 }, ...lotYear(year) },
       select: {
         rawMaterialId: true,
         quantityRemaining: true,
@@ -242,20 +258,20 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     }),
     prisma.rawMaterialLot.groupBy({
       by: ["rawMaterialId"],
-      where: { organizationId: orgId },
+      where: { organizationId: orgId, ...lotYear(year) },
       _sum: { quantityReceived: true },
     }),
     filtering
       ? prisma.rawMaterialLot.groupBy({
           by: ["rawMaterialId"],
-          where: furLotsWhere(orgId, { materialId, q }),
+          where: furLotsWhere(orgId, { materialId, q, year }),
           _count: { _all: true },
         })
       : Promise.resolve([]),
     // Подкладка: ткани и их лоты (их мало), с закупками и использованием.
     tab === "lining"
       ? prisma.rawMaterialLot.findMany({
-          where: { organizationId: orgId, rawMaterial: { unit: "M" as const } },
+          where: { organizationId: orgId, rawMaterial: { unit: "M" as const }, ...lotYear(year) },
           include: {
             rawMaterial: true,
             purchase: { include: { supplier: true, documents: { orderBy: { createdAt: "asc" } } } },
@@ -333,8 +349,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">Сырьё</h1>
-          <p className="text-sm text-neutral-500">Остаток по материалу — разверните, чтобы увидеть лоты.</p>
+          <h1 className="text-xl font-semibold">
+            Сырьё
+            <YearNote year={year} />
+            <InfoHint label="О странице «Сырьё»" wide>
+              <p>Остаток по материалу — разверните строку, чтобы увидеть лоты (закупки, цену, использование в ТЗ).</p>
+              <p className="mt-1">
+                Год ({year === "all" ? "все годы" : year}): в таблице только лоты закупок с датой заказа в выбранном году — «Куплено», «Остаток» и «Стоимость остатка» считаются по ним.
+              </p>
+              <p className="mt-1">
+                Стоимость остатка = Σ(остаток лота × цена лота за единицу); цена лота — как в закупке (по курсу, с НДС и расходами). 4% здесь не начисляется: оно считается только при списании сырья и подкладки в ТЗ.
+              </p>
+            </InfoHint>
+          </h1>
         </div>
         <Link
           href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
@@ -400,6 +427,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                               <span>
                                 <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость остатка</span>
                                 <Money incl={r.value} excl={r.valueExclVat} />
+                                <Ref4 mode={c4Mode} incl={r.value} excl={r.valueExclVat} />
                               </span>
                             </summary>
                           }>
@@ -412,7 +440,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                   {furMaterialRows.length === 0 && (
                     <Tr>
                       <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                        Мех ещё не закупался
+                        {emptyForYear(year, "закупок меха", "Мех ещё не закупался")}
                       </Td>
                     </Tr>
                   )}
@@ -423,6 +451,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 <span className="ml-1 font-semibold text-neutral-900">
                   <Money incl={furTotalValue} excl={furTotalValueExclVat} />
                 </span>
+                <Ref4 mode={c4Mode} incl={furTotalValue} excl={furTotalValueExclVat} className="ml-2 inline-block" />
               </div>
             </CardContent>
           </Card>
@@ -500,6 +529,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                             <span>
                               <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость</span>
                               <Money incl={r.value} excl={r.valueExclVat} />
+                              <Ref4 mode={c4Mode} incl={r.value} excl={r.valueExclVat} />
                             </span>
                           </summary>
                           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
@@ -532,6 +562,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                       <Td>{formatQty(l.quantityReceived.toString())} м</Td>
                                       <Td>
                                         <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
+                                        <Ref4 mode={c4Mode} incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
                                       </Td>
                                     </Tr>
                                   ))}
@@ -561,7 +592,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                     subtitle={formatDate(l.receivedDate)}
                                     fields={[
                                       { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} м` },
-                                      { label: "Цена за м", value: <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /> },
+                                      { label: "Цена за м", value: <><Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /><Ref4 mode={c4Mode} incl={l.unitCost} excl={lotUnitCostExclVat(l)} /></> },
                                     ]}
                                   />
                                 ))}
@@ -624,7 +655,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 {liningVisibleRows.length === 0 && (
                   <Tr>
                     <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                      {liningMaterialRows.length === 0 ? "Подкладка ещё не закупалась" : "Ткани с остатком закончились"}
+                      {liningMaterialRows.length === 0 ? emptyForYear(year, "закупок подкладки", "Подкладка ещё не закупалась") : "Ткани с остатком закончились"}
                     </Td>
                   </Tr>
                 )}
@@ -651,6 +682,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <span className="ml-1 font-semibold text-neutral-900">
                 <Money incl={liningTotalValue} excl={liningTotalValueExclVat} />
               </span>
+              <Ref4 mode={c4Mode} incl={liningTotalValue} excl={liningTotalValueExclVat} className="ml-2 inline-block" />
             </div>
           </CardContent>
         </Card>

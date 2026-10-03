@@ -7,6 +7,10 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { getYearFilter, type YearFilter } from "@/lib/year-filter";
+import { lotYear } from "@/lib/year-scope";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { Ref4 } from "@/components/c4-note";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -21,10 +25,11 @@ const UNIT_LABELS: Record<string, string> = {
 export const FUR_LOTS_LIMIT = 1000;
 
 /** Условие выборки лотов меха: организация + (материал) + (поиск по № лота / цвету / сорту / названию). */
-export function furLotsWhere(organizationId: string, opts: { materialId?: string; q?: string }) {
-  const { materialId, q } = opts;
+export function furLotsWhere(organizationId: string, opts: { materialId?: string; q?: string; year?: YearFilter }) {
+  const { materialId, q, year = "all" } = opts;
   return {
     organizationId,
+    ...lotYear(year),
     rawMaterial: { unit: { not: "M" as const } },
     ...(materialId ? { rawMaterialId: materialId } : {}),
     ...(q
@@ -45,8 +50,10 @@ export function furLotsWhere(organizationId: string, opts: { materialId?: string
  * Грузятся только при раскрытии материала — не вместе со всей страницей «Сырьё».
  */
 export async function MaterialLots({ organizationId, materialId, q }: { organizationId: string; materialId: string; q: string }) {
+  const year = await getYearFilter();
+  const c4Mode = await getCommission4Mode();
   const rowLots = await prisma.rawMaterialLot.findMany({
-    where: furLotsWhere(organizationId, { materialId, q }),
+    where: furLotsWhere(organizationId, { materialId, q, year }),
     include: {
       rawMaterial: true,
       purchase: { include: { supplier: true, documents: { orderBy: { createdAt: "asc" } } } },
@@ -106,6 +113,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
               </Td>
               <Td className="whitespace-nowrap font-medium">
                 {formatMoney(l.unitCost.toString())}
+                <Ref4 mode={c4Mode} incl={l.unitCost} excl={excl} />
                 {l.costBreakdown && (
                   <CostBreakdownToggle
                     breakdown={l.costBreakdown as never}
@@ -187,7 +195,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
             fields={[
               { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} ${unit}` },
               { label: "Остаток", value: `${formatQty(l.quantityRemaining.toString())} ${unit}`, strong: true },
-              { label: "Цена за ед. (всего)", value: formatMoney(l.unitCost.toString()), strong: true },
+              { label: "Цена за ед. (всего)", value: <>{formatMoney(l.unitCost.toString())}<Ref4 mode={c4Mode} incl={l.unitCost} excl={excl} /></>, strong: true },
               { label: "Без НДС", value: formatMoney(excl.toString()) },
             ]}
             details={[

@@ -24,6 +24,10 @@ import { toDriveView } from "@/lib/drive-docs-server";
 import { safeViewUrl } from "@/lib/drive-docs";
 import { copiesLabel, countLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { getYearFilter, type YearFilter } from "@/lib/year-filter";
+import { purchaseYear } from "@/lib/year-scope";
+import { YearNote, emptyForYear } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -60,9 +64,9 @@ export function pluralPurchases(n: number): string {
 }
 
 /** Все аукционы организации (distinct Purchase.auctionSession): число закупок, статусы, дата последней. */
-export async function loadAuctions(organizationId: string): Promise<AuctionSummary[]> {
+export async function loadAuctions(organizationId: string, year: YearFilter = "all"): Promise<AuctionSummary[]> {
   const rows = await prisma.purchase.findMany({
-    where: { organizationId, auctionSession: { not: null } },
+    where: { organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
     select: { auctionSession: true, status: true, orderDate: true },
   });
   const map = new Map<string, AuctionSummary>();
@@ -139,9 +143,10 @@ export async function AuctionView({
     return `/lots?${qs.toString()}`;
   };
   const filtering = Boolean(q || materialId);
-  // Закупки аукциона: ищем по первой строке auctionSession.
+  const year = await getYearFilter();
+  // Закупки аукциона: ищем по первой строке auctionSession; год — по дате заказа закупки (общий фильтр).
   const candidates = await prisma.purchase.findMany({
-    where: { organizationId, auctionSession: { not: null } },
+    where: { organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
     select: { id: true, auctionSession: true },
   });
   const ids = candidates.filter((p) => names.includes(auctionName(p.auctionSession) ?? "")).map((p) => p.id);
@@ -329,6 +334,15 @@ export async function AuctionView({
         <CardHeader>
           <CardTitle title={label}>
             {isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
+            <YearNote year={year} />
+            <InfoHint label="Об этом аукционе" wide>
+              <p>Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>
+              <p className="mt-1">Год: {year === "all" ? "все годы" : `${year} — только закупки этого аукциона с датой заказа в ${year} году`}.</p>
+              <p className="mt-1">
+                Закупок {counted.length}, лотов {totalLots}, шкур {formatQty(totalQty.toString())}. Цена шкур по счетам {formatMoney(priceIncl.toString())}, с расходами {formatMoney(fullIncl.toString())} (с НДС).
+              </p>
+              <p className="mt-1">Оплаты и остаток к оплате считаются по аукциону целиком и от года не зависят. 4% на закупки не начисляется — это наценка только на сырьё и подкладку в ТЗ.</p>
+            </InfoHint>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -346,16 +360,26 @@ export async function AuctionView({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500" title="Цена лота × курс + НДС, без сборов аукциона, выделки, транспорта и брокерских">
+              <dt className="text-xs text-neutral-500">
                 Цена шкур по счетам
+                <InfoHint label="Как считается цена шкур по счетам">
+                  <p>Цена лота × курс + НДС, без сборов аукциона, выделки, транспорта и брокерских.</p>
+                  <p className="mt-1">Сейчас: {formatMoney(priceIncl.toString())} с НДС ({formatMoney(priceExcl.toString())} без НДС) по {counted.length} закупкам.</p>
+                </InfoHint>
               </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={priceIncl} excl={priceExcl} />
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500" title="Цена шкур по счетам плюс сборы аукциона, выделка, транспорт, брокер">
+              <dt className="text-xs text-neutral-500">
                 С расходами
+                <InfoHint label="Как считается «С расходами»">
+                  <p>Цена шкур по счетам плюс сборы аукциона, выделка, транспорт, брокер.</p>
+                  <p className="mt-1">
+                    {formatMoney(priceIncl.toString())} + расходы {formatMoney(fullIncl.sub(priceIncl).toString())} = {formatMoney(fullIncl.toString())} (с НДС).
+                  </p>
+                </InfoHint>
               </dt>
               <dd className="text-lg font-semibold">
                 <Money incl={fullIncl} excl={fullExcl} />
@@ -426,7 +450,7 @@ export async function AuctionView({
 
       {blocks.length === 0 && (
         <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-          {filtering ? "По этому аукциону лоты с такими условиями не найдены." : "У аукциона нет закупок."}
+          {filtering ? "По этому аукциону лоты с такими условиями не найдены." : emptyForYear(year, "закупок этого аукциона", "У аукциона нет закупок.")}
         </p>
       )}
 

@@ -1,6 +1,28 @@
 {
  "checkedAt": "2026-10-03",
- "note": "СП — Союзпушнина, РП — Русьпушнина. Платёжек и выписок в папке «мех» нет: «оплачено» — по письмам, балансу и УПД.",
+ "note": "СП — Союзпушнина, РП — Русьпушнина. Платёжек и банковских выписок Меркури Мода в папке «мех» нет: «оплачено» — по письмам, балансу, УПД, единому реестру (п/п) и расчётам fin.",
+ "recheck": {
+  "date": "2026-10-03",
+  "found": [
+   "Папка «мех» в Drive не менялась с 01.10.2026 (после выгрузки нет ни одного нового файла MVST/Веллмех): новых платёжек, писем «оплачено» и актов сверки по счетам нет.",
+   "Счета Веллмех из списка (105, 149, 173, 197 перечитаны напрямую в Drive; остальные — по сверочным отчётам) — PDF-счета, суммы совпадают с реестром.",
+   "Письмо «Аванс за пошив 3» (02–03.09.2026) повторно прочитано: это просьба согласовать и оплатить счёт №251 на 8 290 940 ₽ — факта оплаты нет.",
+   "Банковские выписки в Drive есть, но это счета ИП Яниной Ю. Ф., ООО «Салон Юлия Янина» и ООО «Декор» (другие юрлица, не Меркури Мода); к оплатам Веллмеху отношения не имеют и не использовались.",
+   "Номера п/п 2026 из УПД (36054 от 30.03, 38692 от 13.04, 43831 от 12.05, 46539/46540 от 28.05) остаются без сумм в самих УПД: сопоставление с авансами SAGA, СП 05-26 и FH — догадка по датам, в факты не внесена."
+  ],
+  "notFound": [
+   "Платёжек и банковских выписок ООО «Меркури Мода» (счёт 40702810000010002483) за 30.03, 13.04, 12.05, 28.05, июнь–сентябрь 2026 и сентябрь–декабрь 2025.",
+   "Единый реестр (21-08) содержит таблицу оплат только за 2025 год; за 2026 такой таблицы нет.",
+   "Оплаты производства партий 8–14 и 17–21, авансов №247/251/259/261, кейпа №145, капсулы №193 — ни платёжек, ни писем «оплачено» (только «согласовано»).",
+   "Оплаты 2026 по счетам №173 (FH аванс 2, 85 063 078), №197 (7 236 812,03), №157, №181, №209, №253, №271 — только согласование/обещание."
+  ],
+  "ownerDecisions": [
+   "Прислать выписку Меркури Мода (или платёжки) за 2025 (сент.–дек.) и 2026 (30.03, 13.04, 12.05, 28.05, июнь–сентябрь): без неё оплаты 2026 «подтверждены» только расчётами fin и письмами.",
+   "Подтвердить письмом/платёжкой оплату счёта №149 (19 628 147,54) и FH аванс 2 по №173 (85 063 078): первая в базе, вторая нет.",
+   "Решить, оплачивать ли счёт №265 как есть (занижен на 115 110 ₽) или запросить исправленный.",
+   "Партия 17: аванс 166 600 ₽ оплачен «вместе с авансом по аксессуарам» — отдельного счёта нет; подтвердить разнесение."
+  ]
+ },
  "groups": [
   {
    "id": "P:СП 03.25",
@@ -103,7 +125,24 @@
      "title": "Союзпушнина для УПД.xlsx",
      "fileId": "19Z3urJejy6XDZer-AHdjl76ALE-HHgpN"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:31:2025-02-27",
+    "purchase:37:2025",
+    "purchase:75:2025-05-13"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0020",
+     "З-2026-0021",
+     "З-2026-0022",
+     "З-2026-0023",
+     "З-2026-0024",
+     "З-2026-0025",
+     "З-2026-0026"
+    ]
+   }
   },
   {
    "id": "P:РП 03.25",
@@ -187,7 +226,22 @@
      "title": "расчет себестоимости Соболь (итоговый).xlsx",
      "fileId": "1T5V2EQix0hQsg0JtA9h5dgruPrSHgnSR"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:31:2025-02-27",
+    "purchase:37:2025",
+    "purchase:75:2025-05-13"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0014",
+     "З-2026-0015",
+     "З-2026-0016",
+     "З-2026-0017",
+     "З-2026-0018"
+    ]
+   }
   },
   {
    "id": "P:СП 05.25",
@@ -278,7 +332,19 @@
      "title": "расчет СП-РП 05-2025 (1).xlsx",
      "fileId": "14YvrZbibZZY14tnZA4R6VE7mAmOxrHFu"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:83:2025-05-26",
+    "purchase:143:2025-09-18"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0027",
+     "З-2026-0028",
+     "З-2026-0029"
+    ]
+   }
   },
   {
    "id": "P:РП 05.25",
@@ -367,7 +433,17 @@
      "title": "расчет СП-РП 05-2025 (1).xlsx",
      "fileId": "14YvrZbibZZY14tnZA4R6VE7mAmOxrHFu"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:83:2025-05-26",
+    "purchase:143:2025-09-18"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0019"
+    ]
+   }
   },
   {
    "id": "P:SAGA 03-25",
@@ -470,7 +546,20 @@
      "title": "расчет SAGA (для помежуточного платежа) 150525 (2).xlsx",
      "fileId": "1d8wgqNqxp4NPynyz-ICe5vGZuRovLO2M"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:40:2025-03-10",
+    "purchase:46:2025-03-14",
+    "purchase:76:2025-05-13",
+    "purchase:76 (ранняя редакция)-old:2025-05-13",
+    "purchase:103:2025-07-03"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0002"
+    ]
+   }
   },
   {
    "id": "P:SAGA 06-25",
@@ -557,7 +646,17 @@
      "title": "расчет SAGA 06-2025.xlsx",
      "fileId": "1ZrWLgyE30keLyPAAWmWwPKoTyIOf76Py"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:92:2025-06-16",
+    "purchase:127:2025-08-13"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0003"
+    ]
+   }
   },
   {
    "id": "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)",
@@ -653,7 +752,21 @@
      "title": "Приложение 6 (Фактический расчет).xlsx",
      "fileId": "1yX9MMUdT8MARnD13FD0WHEND103s4htw"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:81:2025-05-26",
+    "purchase:117:2025-07-29",
+    "purchase:95:2025-06-24",
+    "purchase:122:2025-08-04"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0005",
+     "З-2026-0006",
+     "З-2026-0007"
+    ]
+   }
   },
   {
    "id": "P:Белая норка 179 шт (счёт/УПД №80)",
@@ -720,7 +833,16 @@
      "title": "Копия УПД (статус 1) № 80           от 04 июня 2025 г.xlsx",
      "fileId": "19yfmwEyPOKjWZgUIF5Te5OdgsBAJdrmM"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:80:2025-05-26"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0008"
+    ]
+   }
   },
   {
    "id": "P:Белая выбеленная норка 200 шт (счёт/УПД №96)",
@@ -775,7 +897,16 @@
      "title": "Копия УПД (статус 1) № 96           от 15 июля 2025 г.xlsx",
      "fileId": "1YjnZHOTGdthB_blw9RnNTdYaAwyk6Jh8"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:96:2025-06-24"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0009"
+    ]
+   }
   },
   {
    "id": "P:Подкладка 2025 (Спец. №7, УПД №109)",
@@ -843,7 +974,17 @@
      "title": "ПРИЛОЖЕНИЕ 7 (1).docx",
      "fileId": "1YqOfjQMXnEv_1XPkJj1YJwGxEUypR3Ye"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:100:2025-07-01"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0032",
+     "З-2026-0060"
+    ]
+   }
   },
   {
    "id": "P:«Доп закупка сырья партия 5/6/7/9» (З-2026-0010…0013)",
@@ -894,7 +1035,17 @@
      "title": "Расчет по оплатам.xlsx (колонка «Стоимость шкур» в доплатах за пошив партий 5/6/7/9)",
      "fileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0010",
+     "З-2026-0011",
+     "З-2026-0012",
+     "З-2026-0013"
+    ]
+   }
   },
   {
    "id": "P:SAGA 03-26",
@@ -1011,7 +1162,25 @@
      "title": "расчет на 1 лот брауна.xlsx",
      "fileId": "1OTDnWaUxjoQzPgrcbERZqgNVhVmFbZTq"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:93:2026-03-25",
+    "purchase:105:2026-04-06",
+    "purchase:195:2026-07-03"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0033",
+     "З-2026-0034",
+     "З-2026-0035",
+     "З-2026-0036",
+     "З-2026-0037",
+     "З-2026-0038",
+     "З-2026-0039",
+     "З-2026-0040"
+    ]
+   }
   },
   {
    "id": "P:РП 04-26",
@@ -1120,7 +1289,23 @@
      "title": "закупка РП 04-2026.xlsx (23 194 б)",
      "fileId": "1lMjjgxcMILmSRusLKwb92qUGlcqOZr-X"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:117:2026-04-13",
+    "purchase:131:2026-05-04",
+    "purchase:197:2026-07-09"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0041",
+     "З-2026-0042",
+     "З-2026-0043",
+     "З-2026-0044",
+     "З-2026-0045",
+     "З-2026-0046"
+    ]
+   }
   },
   {
    "id": "P:СП 05-26",
@@ -1222,7 +1407,19 @@
      "title": "закупка СП 05-2026 версия 1.xlsx",
      "fileId": "1M-8iMY7B0sZf0eGn2pGazWhIrgSq7-rG"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:117:2026-04-13",
+    "purchase:197:2026-07-09",
+    "purchase:149:2026-05-22"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0047",
+     "З-2026-0048"
+    ]
+   }
   },
   {
    "id": "P:AME 05-26",
@@ -1334,7 +1531,18 @@
      "title": "предварительный расчет на мех ALE 05-26.xlsx",
      "fileId": "18qqVIGFgFiQx3kY7XsUI0JVNjj4CqI8o"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:153:2026-05-22",
+    "purchase:167:2026-05-29",
+    "purchase:253:2026-09-09"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0058"
+    ]
+   }
   },
   {
    "id": "P:Красная лиса (спец. 19, УПД 209)",
@@ -1413,7 +1621,16 @@
      "title": "ПРИЛОЖЕНИЕ 19 (88 шкур красной лисы).docx",
      "fileId": "1p0hX6ROwtej_gZg-yn9m6ecCFdSigOxZ"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:209:2026-07-16"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0059"
+    ]
+   }
   },
   {
    "id": "P:FH 06-26 (рысь)",
@@ -1523,7 +1740,18 @@
      "title": "не прочитан",
      "fileId": "1OwmRhm3wncstf1gH3QNg2oLGeYolq7R4"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:155:2026-05-22",
+    "purchase:173:2026-06-05",
+    "purchase::2026"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0049"
+    ]
+   }
   },
   {
    "id": "P:СП 09-26",
@@ -1604,7 +1832,23 @@
      "title": "расчет закупки СП 09-26.xlsx",
      "fileId": "1aRjMCrsu4lETkvvAubZK1nEkdfLEK_Sy"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:271:2026-09-30"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0050",
+     "З-2026-0051",
+     "З-2026-0052",
+     "З-2026-0053",
+     "З-2026-0054",
+     "З-2026-0055",
+     "З-2026-0056",
+     "З-2026-0057"
+    ]
+   }
   },
   {
    "id": "P:Подкладка 2026 (спец. 13)",
@@ -1681,7 +1925,16 @@
      "title": "инвойс подкладка Лавин.jpg",
      "fileId": "1V37v-vhwSWCeqXRGWPxT_293npCqx_MC"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:157:2026-05-26"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0061"
+    ]
+   }
   },
   {
    "id": "P:Доп. материалы 2026 (спец. 16)",
@@ -1740,7 +1993,16 @@
      "title": "расчет за доп.материалы.xlsx",
      "fileId": "1telqHCAsc9op1sw0HDDgTAIi7y1kfEUC"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "purchase:181:2026-06-16"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0062"
+    ]
+   }
   },
   {
    "id": "P:СП 12.25 (УПД 283, спец. 8)",
@@ -1815,7 +2077,16 @@
      "title": "ПРИЛОЖЕНИЕ_8_152_шкуры_Союзпушнина_12_25.docx",
      "fileId": "1pYggTyZOOWYD_6Y0CL2ZibzVYXtCItf7"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "purchase:241:2025-12-22"
+   ],
+   "dbLink": {
+    "purchases": [
+     "З-2026-0004"
+    ]
+   }
   },
   {
    "id": "P:Бобр (Invoice 1-2026)",
@@ -1863,7 +2134,12 @@
    "notes": [
     "Не удалось найти Invoice 1-2026 в папке Drive «мех» (поиск по названию/тексту и по drive-manifest.json: есть только ПРИЛОЖЕНИЯ 97/104 «МН17 бобр + ткань» по производству)."
    ],
-   "files": []
+   "files": [],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {
+    "purchases": []
+   }
   },
   {
    "id": "W:Аванс 2025 (счёт №110, партии 1–9)",
@@ -1949,7 +2225,25 @@
      "title": "предварительный расчет себестоимости изделий 130825 (1).xlsx",
      "fileId": "1s67X_sKY1eO3cJhPwF1zqGZNWgU7dsCY"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:110:2025-07-21"
+   ],
+   "dbLink": {},
+   "agreements": [
+    {
+     "date": "2025-07-31",
+     "by": "Решетняк В.",
+     "note": "согласован"
+    },
+    {
+     "date": "2025-08-01",
+     "by": "Киржнер",
+     "note": "согласован"
+    }
+   ],
+   "advanceRub": 21627900
   },
   {
    "id": "W:Партия 1",
@@ -2073,7 +2367,22 @@
      "title": "ПРИЛОЖЕНИЕ 5 (1 норка М009)+4%.docx",
      "fileId": "1CyEVpaRaWgQ6FVGge0CvjUjgG82qAoCR"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:147:2025-09-22"
+   ],
+   "dbLink": {
+    "batch": 1
+   },
+   "agreements": [
+    {
+     "date": "2025-10-01",
+     "by": "Решетняк/Киржнер",
+     "note": "доплата согласована (письмо «1-я отгрузка 41 ед – 1 866 490 руб»)"
+    }
+   ],
+   "advanceRub": 4603900
   },
   {
    "id": "W:Партия 2",
@@ -2197,7 +2506,16 @@
      "title": "ПРИЛОЖЕНИЕ 21 (соболь 2 изд).docx",
      "fileId": "1a74cVyxiRWo28CNIpa2GOvy4QiT80783"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:170:2025-09-30"
+   ],
+   "dbLink": {
+    "batch": 2
+   },
+   "agreements": [],
+   "advanceRub": 2840600
   },
   {
    "id": "W:Партия 3",
@@ -2314,7 +2632,16 @@
      "title": "ПРИЛОЖЕНИЕ 29 (1 соболь 002А).docx",
      "fileId": "1SVtK_XkWfLW_HLWx21vtmDddduquQMAB"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:181:2025-10-17"
+   ],
+   "dbLink": {
+    "batch": 3
+   },
+   "agreements": [],
+   "advanceRub": 4714500
   },
   {
    "id": "W:Партия 4",
@@ -2443,7 +2770,16 @@
      "title": "ПРИЛОЖЕНИЕ 48 (М022 каракульча).docx",
      "fileId": "1nICxk8RVJkf2i2M91k471hxouwC-y786"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:203:2025-11-14"
+   ],
+   "dbLink": {
+    "batch": 4
+   },
+   "agreements": [],
+   "advanceRub": 3942400
   },
   {
    "id": "W:Партия 5",
@@ -2573,7 +2909,22 @@
      "title": "ПРИЛОЖЕНИЕ 54 (М022 каракульча).docx",
      "fileId": "1xYf_RkHa2YvzppQrJhf_Rq8zUICXGOpb"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:235:2025-12-04"
+   ],
+   "dbLink": {
+    "batch": 5
+   },
+   "agreements": [
+    {
+     "date": "2025-12-15",
+     "by": "Киржнер",
+     "note": "согласовано"
+    }
+   ],
+   "advanceRub": 2455600
   },
   {
    "id": "W:Партия 6",
@@ -2692,7 +3043,22 @@
      "title": "ПРИЛОЖЕНИЕ 69 (MH04 соболь тортора).docx",
      "fileId": "1Ya1kHvnri1uleGjKZ1k5ncW5r8sxe2k5"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:239:2025-12-18"
+   ],
+   "dbLink": {
+    "batch": 6
+   },
+   "agreements": [
+    {
+     "date": "2025-12-23",
+     "by": "Решетняк В.",
+     "note": "оплата согласована"
+    }
+   ],
+   "advanceRub": 1114750
   },
   {
    "id": "W:Партия 7",
@@ -2822,7 +3188,27 @@
      "title": "ПРИЛОЖЕНИЕ 75 (MH07 соболь повязка).docx",
      "fileId": "1TA_14f8YqEpwUBKXt0HPfqs4XOgJ0Gsi"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:1:2026-01-15"
+   ],
+   "dbLink": {
+    "batch": 7
+   },
+   "agreements": [
+    {
+     "date": "2026-01-18",
+     "by": "Решетняк В.",
+     "note": "«Подтверждаю» по сумме письма 2 081 387,54"
+    },
+    {
+     "date": "2026-01-20",
+     "by": "—",
+     "note": "«Ок. Согласовано»"
+    }
+   ],
+   "advanceRub": 2072665
   },
   {
    "id": "W:Партия 8",
@@ -2945,7 +3331,14 @@
      "title": "ПРИЛОЖЕНИЕ 89 (MH15 бейсболка) 3 шт + 4 % YLC 22%.docx",
      "fileId": "1G8KwphUW64FIBZsbXa-EgedoSir3BeGD"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {
+    "batch": 8
+   },
+   "agreements": [],
+   "advanceRub": 814949.8
   },
   {
    "id": "W:Партия 9",
@@ -3048,7 +3441,22 @@
      "title": "ПРИЛОЖЕНИЕ 96 (МН06 норка 2 шт.).docx",
      "fileId": "1PQmsz87Rqu0FFH1k06gfDxJP55QtQUHy"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:7:2026-02-04"
+   ],
+   "dbLink": {
+    "batch": 9
+   },
+   "agreements": [
+    {
+     "date": "2026-02-09",
+     "by": "Решетняк В.",
+     "note": "«Согласовано» доплата 427 227,39 (не оплата)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 10",
@@ -3149,7 +3557,22 @@
      "title": "ПРИЛОЖЕНИЕ 100 (варежки).docx",
      "fileId": "15prqOieeBqIC_xa2-ce5JsrfLASW-ctr"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:41:2026-02-18"
+   ],
+   "dbLink": {
+    "batch": 10
+   },
+   "agreements": [
+    {
+     "date": "2026-02-19",
+     "by": "Решетняк В.",
+     "note": "«Согласовано» 303 372 (не оплата)"
+    }
+   ],
+   "advanceRub": 3580
   },
   {
    "id": "W:Партия 11",
@@ -3238,7 +3661,22 @@
      "title": "ПРИЛОЖЕНИЕ 104 (МН17 бобр + ткань).docx",
      "fileId": "1-MDCEaSq2yZnFGJsonYSvzUOFPBH4kW0"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:51:2026-02-24"
+   ],
+   "dbLink": {
+    "batch": 11
+   },
+   "agreements": [
+    {
+     "date": "2026-02-27",
+     "by": "Решетняк В.",
+     "note": "«Подтверждаю» 347 895 (не оплата)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 12",
@@ -3353,7 +3791,28 @@
      "title": "ПРИЛОЖЕНИЕ 110 (М003 соболь 1 изд)+4%.docx",
      "fileId": "175oLGSC8A8vq1s5rOPm-VTqaL3YAOBkL"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:65:2026-03-02",
+    "production:63:2026-03-02"
+   ],
+   "dbLink": {
+    "batch": 12
+   },
+   "agreements": [
+    {
+     "date": "2026-03-10",
+     "by": "Решетняк В.",
+     "note": "№65 согласован"
+    },
+    {
+     "date": "2026-04-17",
+     "by": "Решетняк В.",
+     "note": "№63 согласован; письмо 20.04: оплата задержана из-за бухсверки 15.04.2026 (Желнина О.: «расчёты по оплатам совпались» — документа сверки в Drive нет)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 13",
@@ -3418,7 +3877,22 @@
      "title": "ПРИЛОЖЕНИЕ 112 (MH13 - 12 шт.).docx",
      "fileId": "1aZOIVfP5t3Uuz4Y3NSzXC0Y1mssryl3G"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:71:2026-03-06"
+   ],
+   "dbLink": {
+    "batch": 13
+   },
+   "agreements": [
+    {
+     "date": "2026-04-17",
+     "by": "Решетняк В.",
+     "note": "№71 согласован (не оплата)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 14",
@@ -3515,7 +3989,27 @@
      "title": "ПРИЛОЖЕНИЕ 115 (MH11 - 8 шт.).docx",
      "fileId": "1Z-r8kqd0I0OY3yN0hR3NI-z3eBzkesBk"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:121:2026-06-24"
+   ],
+   "dbLink": {
+    "batch": 14
+   },
+   "agreements": [
+    {
+     "date": "2026-07-01",
+     "by": "Денисюк А.",
+     "note": "партия №14 подтверждена, просьба оформить"
+    },
+    {
+     "date": "2026-08-12",
+     "by": "Коношенко/Киржнер",
+     "note": "«Ок — если получили, естественно доплачиваем» (не оплата)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 15",
@@ -3556,7 +4050,14 @@
    "notes": [
     "Партия 15 есть в БД как пустая запись (без ТЗ). В Drive нет папки, ТЗ, расчётов и счетов — не запускалась или номер пропущен между партиями 14 и 17."
    ],
-   "files": []
+   "files": [],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {
+    "batch": 15
+   },
+   "agreements": [],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 16",
@@ -3597,7 +4098,14 @@
    "notes": [
     "Партия 16 есть в БД как пустая запись (без ТЗ). В Drive нет папки, ТЗ, расчётов и счетов — не запускалась или номер пропущен между партиями 14 и 17."
    ],
-   "files": []
+   "files": [],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {
+    "batch": 16
+   },
+   "agreements": [],
+   "advanceRub": 0
   },
   {
    "id": "W:Партия 17",
@@ -3676,7 +4184,22 @@
      "title": "ПРИЛОЖЕНИЕ 118 (4 шт. аксессуары).docx",
      "fileId": "1tfJdtNt_rdK5uJdYRwqs2b93WcNcvViY"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:207:2026-07-16"
+   ],
+   "dbLink": {
+    "batch": 17
+   },
+   "agreements": [
+    {
+     "date": "2026-08-12",
+     "by": "Киржнер",
+     "note": "«Ок. Тогда можно доплатить» 71 400 (не оплата)"
+    }
+   ],
+   "advanceRub": 166600
   },
   {
    "id": "W:Партия 18",
@@ -3800,7 +4323,22 @@
      "title": "ПРИЛОЖЕНИЕ 130 (МSC04 - 4 шарфа блэкглама)+.docx",
      "fileId": "15SSE8e3SPIjsYdYVBZ98_94MvPpqiKVW"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:237:2026-08-25"
+   ],
+   "dbLink": {
+    "batch": 18
+   },
+   "agreements": [
+    {
+     "date": "2026-09-01",
+     "by": "Киржнер/Решетняк",
+     "note": "«согласовано», «доплату поставим на исполнение 02 или 03.09» (не оплата)"
+    }
+   ],
+   "advanceRub": 5783190
   },
   {
    "id": "W:Партия 19",
@@ -3923,7 +4461,27 @@
      "title": "ПРИЛОЖЕНИЕ 147 (M012 - 3 шт)+.docx",
      "fileId": "1sch4xGlHbNfGkilBB2vSWVBjH8Y4-UgZ"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:257:2026-09-15"
+   ],
+   "dbLink": {
+    "batch": 19
+   },
+   "agreements": [
+    {
+     "date": "2026-09-17",
+     "by": "—",
+     "note": "поставка принята"
+    },
+    {
+     "date": "2026-09-18",
+     "by": "Киржнер",
+     "note": "оплата доплаты согласована (не оплата)"
+    }
+   ],
+   "advanceRub": 4346300
   },
   {
    "id": "W:Партия 20",
@@ -4048,7 +4606,22 @@
      "title": "ПРИЛОЖЕНИЕ 162 (МН-05 норка браун- 14 шт).docx",
      "fileId": "1GvFXDWuiA5Pxhmx5Xgi2jLlWgD4nrLau"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:265:2026-09-22"
+   ],
+   "dbLink": {
+    "batch": 20
+   },
+   "agreements": [
+    {
+     "date": "2026-09-25",
+     "by": "Киржнер",
+     "note": "принята, «Ок» (не оплата)"
+    }
+   ],
+   "advanceRub": 3452260
   },
   {
    "id": "W:Партия 21",
@@ -4139,7 +4712,16 @@
      "title": "ПРИЛОЖЕНИЕ 168 (М012 - 6 манишки браун).docx",
      "fileId": "1c-n4t0GHH1IwpOWZaXijyxROCR_FNre2"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:275:2026-10-01"
+   ],
+   "dbLink": {
+    "batch": 21
+   },
+   "agreements": [],
+   "advanceRub": 1033620
   },
   {
    "id": "W:Аксессуары 2025 (аванс №209)",
@@ -4228,7 +4810,20 @@
      "title": "ЖГУ (норка) 171125.xlsx",
      "fileId": "1D7LSQhki7J_U7kCGcGxkV8KYGYu4_Omm"
     }
-   ]
+   ],
+   "year": 2025,
+   "invoiceIds": [
+    "production:209:2025-11-19"
+   ],
+   "dbLink": {},
+   "agreements": [
+    {
+     "date": "2025-11-25",
+     "by": "—",
+     "note": "аванс подтверждён"
+    }
+   ],
+   "advanceRub": 1766870
   },
   {
    "id": "W:Аксессуары 2026 (аванс №143)",
@@ -4311,7 +4906,14 @@
      "title": "Таблица_по_аксессуарам_на_МАСТ_2026_2027_15_05_2026.xlsx",
      "fileId": "1bSCMtcVo8BbyjmrVKBIof2EGi28u3nMK"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:143:2026-05-15"
+   ],
+   "dbLink": {},
+   "agreements": [],
+   "advanceRub": 3230780
   },
   {
    "id": "W:Авансы 2026 (счета №141, №247, №251)",
@@ -4426,7 +5028,32 @@
      "title": "в работе на 01.09.2026 (без аванса).xlsx",
      "fileId": "1Awrb-m1kyBe3Ol7iUcLX98ggQNGiUuTI"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:141:2026-05-15",
+    "production:247:2026-09-01",
+    "production:251:2026-09-02"
+   ],
+   "dbLink": {},
+   "agreements": [
+    {
+     "date": "2026-09-03",
+     "by": "Киржнер",
+     "note": "аванс 2 (№247) согласован — не оплата"
+    },
+    {
+     "date": "2026-09-03",
+     "by": "Киржнер",
+     "note": "аванс 3 (№251) согласован, отгрузки до 15.10 — не оплата"
+    },
+    {
+     "date": "2026-06-29",
+     "by": "Киржнер",
+     "note": "возражал против 70% авансов (также 16.09) — риск пересмотра порядка"
+    }
+   ],
+   "advanceRub": 22423870
   },
   {
    "id": "W:Кейп (ТЗ 117, М057)",
@@ -4507,7 +5134,20 @@
      "title": "ПРИЛОЖЕНИЕ 117 (М057- 1 шт).docx",
      "fileId": "1TBPynU--oedyKNIyEP1i5o6ryUYpgGAG"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:145:2026-05-21"
+   ],
+   "dbLink": {},
+   "agreements": [
+    {
+     "date": "2026-05-26",
+     "by": "Решетняк В.",
+     "note": "согласовано, срок 15.06 (не оплата)"
+    }
+   ],
+   "advanceRub": 0
   },
   {
    "id": "W:Капсула CR01 (M26.TMW.CR01)",
@@ -4572,7 +5212,14 @@
      "title": "Каталог товаров RT Рус Мех.docx",
      "fileId": "1PFxvfvBRmSM7g6W_r-4Z3m5kpNrWKs7Y"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:193:2026-07-02"
+   ],
+   "dbLink": {},
+   "agreements": [],
+   "advanceRub": 660000
   },
   {
    "id": "W:Рысь (LYNX, FW26)",
@@ -4635,7 +5282,12 @@
      "title": "image0.jpeg",
      "fileId": "1C2LoiJi1sT-3B54KIqV1OgUnjdSn9yU2"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {},
+   "agreements": [],
+   "advanceRub": 0
   },
   {
    "id": "W:Дозаказы (счета №259, №261)",
@@ -4708,7 +5360,21 @@
      "title": "ПРИЛОЖЕНИЕ 158 (М029 красная лиса - 3in).docx",
      "fileId": "1EQXu5LpwsLwJSdjRBM-p9yoC17WhxdDy"
     }
-   ]
+   ],
+   "year": 2026,
+   "invoiceIds": [
+    "production:259:2026-09-15",
+    "production:261:2026-09-15"
+   ],
+   "dbLink": {},
+   "agreements": [
+    {
+     "date": "2026-09-16",
+     "by": "Киржнер",
+     "note": "аванс 259 и 261 согласованы (не оплата)"
+    }
+   ],
+   "advanceRub": 1813000
   },
   {
    "id": "W:Ремонт пальто (ТЗ 116)",
@@ -4756,7 +5422,1937 @@
    "notes": [
     "Чтобы подтвердить ТЗ 116 нужен документ (ТЗ/акт/счёт)."
    ],
-   "files": []
+   "files": [],
+   "year": 2026,
+   "invoiceIds": [],
+   "dbLink": {},
+   "agreements": [],
+   "advanceRub": 0
+  }
+ ],
+ "invoices": [
+  {
+   "id": "purchase:31:2025-02-27",
+   "section": "purchase",
+   "no": "31",
+   "date": "2025-02-27",
+   "year": 2025,
+   "amountRub": 34825000,
+   "purpose": "аванс 35% по Спец. №1 (СП+РП 03.25, общий на оба аукциона)",
+   "fileId": "13zGQV6j2mIzmtJuR6KNkSkRGZRRvLXXE",
+   "fileTitle": "Счет на оплату № 31          от 27 февраля 2025 г-1.pdf",
+   "groupIds": [
+    "P:СП 03.25",
+    "P:РП 03.25"
+   ],
+   "shares": {
+    "P:СП 03.25": 24100964.1,
+    "P:РП 03.25": 10724035.9
+   },
+   "paid": [
+    {
+     "date": "2025-02-28",
+     "amountRub": 34825000,
+     "ppNo": "440",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №77 п.(5); письмо юристов; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:40:2025-03-10",
+   "section": "purchase",
+   "no": "40",
+   "date": "2025-03-10",
+   "year": 2025,
+   "amountRub": 24556500,
+   "purpose": "аванс 50% по Спец. №2",
+   "fileId": "1Iq6ZknAoEqTnCSLvdF9so_dV-5cXgwUf",
+   "fileTitle": "Счет на оплату № 40          от 10 марта 2025 г.pdf",
+   "groupIds": [
+    "P:SAGA 03-25"
+   ],
+   "shares": {
+    "P:SAGA 03-25": 24556500
+   },
+   "paid": [
+    {
+     "date": "2025-03-14",
+     "amountRub": 24556500,
+     "ppNo": "33980",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №103 п.(8); письмо 20.03; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:46:2025-03-14",
+   "section": "purchase",
+   "no": "46",
+   "date": "2025-03-14",
+   "year": 2025,
+   "amountRub": 11950000,
+   "purpose": "аванс 2 по Спец. №2",
+   "fileId": "1n1MGcyaCQcpeL0Ggx6hOPDgW-l6Dl9IZ",
+   "fileTitle": "Счет на оплату № 46          от 14 марта 2025 г.pdf",
+   "groupIds": [
+    "P:SAGA 03-25"
+   ],
+   "shares": {
+    "P:SAGA 03-25": 11950000
+   },
+   "paid": [
+    {
+     "date": "2025-03-26",
+     "amountRub": 11950000,
+     "ppNo": "36343",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №103 п.(8); реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:75:2025-05-13",
+   "section": "purchase",
+   "no": "75",
+   "date": "2025-05-13",
+   "year": 2025,
+   "amountRub": 11146950,
+   "purpose": "окончательный платёж по Спец. №1 (СП+РП 03.25)",
+   "fileId": "1Cxd10vDTjGQJPYM8E8MacODoVooZEzAy",
+   "fileTitle": "счет 75 СП 1 от 13.05.25 (финальный платеж) СП-РП 03-25.pdf",
+   "groupIds": [
+    "P:СП 03.25",
+    "P:РП 03.25"
+   ],
+   "shares": {
+    "P:СП 03.25": 7714350.09,
+    "P:РП 03.25": 3432599.91
+   },
+   "paid": [
+    {
+     "date": "2025-05-16",
+     "amountRub": 11146950,
+     "ppNo": "45637",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 15.05.2025 (оплата подтверждена; реестр датирует 16.05); реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:76:2025-05-13",
+   "section": "purchase",
+   "no": "76",
+   "date": "2025-05-13",
+   "year": 2025,
+   "amountRub": 10924000,
+   "purpose": "промежуточный платёж (30% на таможню) — версия в «Счета.pdf» и в письме 15.05.2025",
+   "fileId": "1qt1ts_j31vvX5TwLqE1mSxujwT_c9IeB",
+   "fileTitle": "Счета.pdf",
+   "groupIds": [
+    "P:SAGA 03-25"
+   ],
+   "shares": {
+    "P:SAGA 03-25": 10924000
+   },
+   "paid": [
+    {
+     "date": "2025-05-16",
+     "amountRub": 10924000,
+     "ppNo": "45675",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 15.05.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:76 (ранняя редакция)-old:2025-05-13",
+   "section": "purchase",
+   "no": "76",
+   "date": "2025-05-13",
+   "year": 2025,
+   "amountRub": 12744000,
+   "purpose": "35% — НЕ оплачен, заменён версией 10 924 000",
+   "fileId": "1R1f_ubqgvZyQRjhSec7GEyGw28Bi0TvH",
+   "fileTitle": "счет 76 СП 2 от 13.05.25 (промежуточный платеж) SAGA 03-25.pdf",
+   "groupIds": [
+    "P:SAGA 03-25"
+   ],
+   "shares": {
+    "P:SAGA 03-25": 12744000
+   },
+   "paid": [],
+   "approvals": [],
+   "superseded": true,
+   "notes": []
+  },
+  {
+   "id": "purchase:83:2025-05-26",
+   "section": "purchase",
+   "no": "83",
+   "date": "2025-05-26",
+   "year": 2025,
+   "amountRub": 30666300,
+   "purpose": "аванс по Спец. №4 (СП 05.25 + РП 05.25, один счёт на оба аукциона)",
+   "fileId": "1Jrgpj-93k2gsz0ppIp-l5_Kv142fEPJW",
+   "fileTitle": "Счет 83 от 26052025 - аванс соболь 05-2025 (1).pdf",
+   "groupIds": [
+    "P:СП 05.25",
+    "P:РП 05.25"
+   ],
+   "shares": {
+    "P:СП 05.25": 27346320.8,
+    "P:РП 05.25": 3319979.2
+   },
+   "paid": [
+    {
+     "date": "2025-06-27",
+     "amountRub": 30666300,
+     "ppNo": "53423",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №143 п.(8); письмо 24.09.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:81:2025-05-26",
+   "section": "purchase",
+   "no": "81",
+   "date": "2025-05-26",
+   "year": 2025,
+   "amountRub": 1632000,
+   "purpose": "аванс по Спец. №3 (200 шт коричневой)",
+   "fileId": "1wniieGUjEkkRqH4LLDNuNtphV1zEp1Zz",
+   "fileTitle": "Счет 81 от 26052025 - аванс норка коричневая 200 шт. (1).pdf",
+   "groupIds": [
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
+   ],
+   "shares": {
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)": 1632000
+   },
+   "paid": [
+    {
+     "date": "2025-05-30",
+     "amountRub": 1632000,
+     "ppNo": "48466",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "финрасчёт («Аванс 5/30/2025»); реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:80:2025-05-26",
+   "section": "purchase",
+   "no": "80",
+   "date": "2025-05-26",
+   "year": 2025,
+   "amountRub": 1718400,
+   "purpose": "100% за 179 шкур белой выделанной норки",
+   "fileId": "1SO7Vn1YWQJhOpszOJLuFnhGSxaonOvB-",
+   "fileTitle": "Счет 80 от 26052025 - норка белая 179 шт. (2).pdf",
+   "groupIds": [
+    "P:Белая норка 179 шт (счёт/УПД №80)"
+   ],
+   "shares": {
+    "P:Белая норка 179 шт (счёт/УПД №80)": 1718400
+   },
+   "paid": [
+    {
+     "date": "2025-06-04",
+     "amountRub": 1718400,
+     "ppNo": "49288",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 26–29.05.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:92:2025-06-16",
+   "section": "purchase",
+   "no": "92",
+   "date": "2025-06-16",
+   "year": 2025,
+   "amountRub": 1210000,
+   "purpose": "аванс по Спец. №5",
+   "fileId": "1LFeLxoIJ3l4QXar_p_Hu6fVVgX8UCe1W",
+   "fileTitle": "Счет на оплату № 92 от 16.06.2025 (аванс за каракуль).pdf",
+   "groupIds": [
+    "P:SAGA 06-25"
+   ],
+   "shares": {
+    "P:SAGA 06-25": 1210000
+   },
+   "paid": [
+    {
+     "date": "2025-06-19",
+     "amountRub": 1210000,
+     "ppNo": "51723",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №127 п.(8); реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:95:2025-06-24",
+   "section": "purchase",
+   "no": "95",
+   "date": "2025-06-24",
+   "year": 2025,
+   "amountRub": 1537404,
+   "purpose": "аванс по Спец. №6 (150 коричн. + 70 серо-голуб.)",
+   "fileId": "1-40DV93U_QKgXjkgQWavmnizzNazXoKs",
+   "fileTitle": "Счет 95 аванс. ПРИЛОЖЕНИЕ 6 (норка браун 150+ сергол 70).pdf",
+   "groupIds": [
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
+   ],
+   "shares": {
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)": 1537404
+   },
+   "paid": [
+    {
+     "date": "2025-07-03",
+     "amountRub": 1537404,
+     "ppNo": "54215",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 26.06–02.07.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:96:2025-06-24",
+   "section": "purchase",
+   "no": "96",
+   "date": "2025-06-24",
+   "year": 2025,
+   "amountRub": 2000000,
+   "purpose": "100% за 200 шкур белой отбеленной норки (лоты 5023/5022/5037/5028, 5020, 300302)",
+   "fileId": "1Ge8J1VCFA-1kN8pgstt8Ca1a7m1o-M6Z",
+   "fileTitle": "Счет 96 - 200 шкур белой норки.pdf",
+   "groupIds": [
+    "P:Белая выбеленная норка 200 шт (счёт/УПД №96)"
+   ],
+   "shares": {
+    "P:Белая выбеленная норка 200 шт (счёт/УПД №96)": 2000000
+   },
+   "paid": [
+    {
+     "date": "2025-07-15",
+     "amountRub": 2000000,
+     "ppNo": "56327",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ) (п/п 56327 от 15.07.2025)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:100:2025-07-01",
+   "section": "purchase",
+   "no": "100",
+   "date": "2025-07-01",
+   "year": 2025,
+   "amountRub": 1455842,
+   "purpose": "100% за 680,3 м подкладки (8 тканей, 2140 ₽/м с НДС)",
+   "fileId": "1xntI0mZhdvsrpzP4N9RtYDOOz6gCZRur",
+   "fileTitle": "Счет на оплату № 100         от 01 июля 2025 г.pdf",
+   "groupIds": [
+    "P:Подкладка 2025 (Спец. №7, УПД №109)"
+   ],
+   "shares": {
+    "P:Подкладка 2025 (Спец. №7, УПД №109)": 1455842
+   },
+   "paid": [
+    {
+     "date": "2025-07-03",
+     "amountRub": 1455842,
+     "ppNo": "54214",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №109 п.(8); письма 01.07.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:103:2025-07-03",
+   "section": "purchase",
+   "no": "103",
+   "date": "2025-07-03",
+   "year": 2025,
+   "amountRub": 1695778,
+   "purpose": "окончательный платёж по Спец. №2",
+   "fileId": "15zHh7JFmtf9E13xztKb59nvpE6AEDepN",
+   "fileTitle": "Счет на оплату № 103         от 03 июля 2025 г (1).pdf",
+   "groupIds": [
+    "P:SAGA 03-25"
+   ],
+   "shares": {
+    "P:SAGA 03-25": 1695778
+   },
+   "paid": [
+    {
+     "date": "2025-08-04",
+     "amountRub": 1695778,
+     "ppNo": "60611",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "счёт №103; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:110:2025-07-21",
+   "section": "production",
+   "no": "110",
+   "date": "2025-07-21",
+   "year": 2025,
+   "amountRub": 21627900,
+   "purpose": "аванс 70% за пошив по предварительному расчёту (НДС 20% 3 604 650)",
+   "fileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "fileTitle": "Счет на оплату № 110         от 21 июля 2025 г.pdf",
+   "groupIds": [
+    "W:Аванс 2025 (счёт №110, партии 1–9)"
+   ],
+   "shares": {
+    "W:Аванс 2025 (счёт №110, партии 1–9)": 21627900
+   },
+   "paid": [
+    {
+     "date": "2025-08-04",
+     "amountRub": 21627900,
+     "ppNo": "60610",
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "письмо 26.08.2025 («оплачен 04.08»), баланс 040226 («авг. 2025»), единый реестр п/п 60610 от 04.08.2025"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2025-07-31",
+     "by": "Решетняк В.",
+     "note": "согласован"
+    },
+    {
+     "date": "2025-08-01",
+     "by": "Киржнер",
+     "note": "согласован"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "purchase:117:2025-07-29",
+   "section": "purchase",
+   "no": "117",
+   "date": "2025-07-29",
+   "year": 2025,
+   "amountRub": 195404,
+   "purpose": "доплата по Спец. №3",
+   "fileId": "1nSY2vAIXoHuEAx_HaLUtWYXylZf_O6LW",
+   "fileTitle": "счет 117 29072025 (1).pdf",
+   "groupIds": [
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
+   ],
+   "shares": {
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)": 195404
+   },
+   "paid": [
+    {
+     "date": "2025-08-22",
+     "amountRub": 195404,
+     "ppNo": "64015",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 19–20.08.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:122:2025-08-04",
+   "section": "purchase",
+   "no": "122",
+   "date": "2025-08-04",
+   "year": 2025,
+   "amountRub": 123836,
+   "purpose": "доплата по Спец. №6",
+   "fileId": "1HZbb_cdFXNWxjNDLl3ILWoX_kS6sGE4v",
+   "fileTitle": "Счет на оплату № 122         от 04 августа 2025 г.pdf",
+   "groupIds": [
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
+   ],
+   "shares": {
+    "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)": 123836
+   },
+   "paid": [
+    {
+     "date": "2025-08-26",
+     "amountRub": 123836,
+     "ppNo": "64499",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 19–21.08.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:127:2025-08-13",
+   "section": "purchase",
+   "no": "127",
+   "date": "2025-08-13",
+   "year": 2025,
+   "amountRub": 1061306,
+   "purpose": "доплата (финал) по Спец. №5",
+   "fileId": "17phLbMUwjhVIxM_-i3MnpdodUacdny7Y",
+   "fileTitle": "Счет 127 от 13.08.2025.pdf",
+   "groupIds": [
+    "P:SAGA 06-25"
+   ],
+   "shares": {
+    "P:SAGA 06-25": 1061306
+   },
+   "paid": [
+    {
+     "date": "2025-08-22",
+     "amountRub": 1061306,
+     "ppNo": "64014",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "письмо 19–20.08.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:143:2025-09-18",
+   "section": "purchase",
+   "no": "143",
+   "date": "2025-09-18",
+   "year": 2025,
+   "amountRub": 2533779.2,
+   "purpose": "финальный платёж (остаток УПД №143)",
+   "fileId": "1keyPDjfnuVemkc5IP0Ea6HEPybB06-Po",
+   "fileTitle": "Счет на оплату № 143         от 18 сентября 2025 г.pdf",
+   "groupIds": [
+    "P:СП 05.25",
+    "P:РП 05.25"
+   ],
+   "shares": {
+    "P:СП 05.25": 2259468.5,
+    "P:РП 05.25": 274310.7
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 2533779.2,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "счёт №143 от 18.09; письмо согласования 25.09.2025; дата и п/п платежа НЕ найдены (после 29.09.2025)"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "Финальный платёж 2 533 779,20: письма согласования 25.09 и 29.09.2025; в едином реестре (21-08) этой оплаты нет, п/п и даты нет."
+   ]
+  },
+  {
+   "id": "production:147:2025-09-22",
+   "section": "production",
+   "no": "147",
+   "date": "2025-09-22",
+   "year": 2025,
+   "amountRub": 1866490,
+   "purpose": "доплата за пошив, партия 1 (41 ед.)",
+   "fileId": "1EJKI0G6eLBAAcgr4u980qaNs7_CE2GEw",
+   "fileTitle": "Счет 147 от 22.09.2025 (доплата).pdf",
+   "groupIds": [
+    "W:Партия 1"
+   ],
+   "shares": {
+    "W:Партия 1": 1866490
+   },
+   "paid": [
+    {
+     "date": "2025-10-02",
+     "amountRub": 1866490,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 (колонка оплат); письмо согласования 01.10.2025"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2025-10-01",
+     "by": "Решетняк/Киржнер",
+     "note": "доплата согласована (письмо «1-я отгрузка 41 ед – 1 866 490 руб»)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:170:2025-09-30",
+   "section": "production",
+   "no": "170",
+   "date": "2025-09-30",
+   "year": 2025,
+   "amountRub": 1208570,
+   "purpose": "доплата за пошив, партия 2 (23 ед.)",
+   "fileId": "1ejea5hoBTplNE9cHabWmp-yJrrcHtmKY",
+   "fileTitle": "Счет на оплату № 170         от 30 сентября 2025 г.pdf",
+   "groupIds": [
+    "W:Партия 2"
+   ],
+   "shares": {
+    "W:Партия 2": 1208570
+   },
+   "paid": [
+    {
+     "date": "2025-10-15",
+     "amountRub": 1208570,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:181:2025-10-17",
+   "section": "production",
+   "no": "181",
+   "date": "2025-10-17",
+   "year": 2025,
+   "amountRub": 2081360,
+   "purpose": "доплата за пошив, партия 3 (34 ед.), оплатить до 22.10.2025",
+   "fileId": "1VpEtEtU7gWVEWaxJw892IEt2-krP7_ds",
+   "fileTitle": "Счет на оплату № 181         от 17 октября 2025 г (2).pdf",
+   "groupIds": [
+    "W:Партия 3"
+   ],
+   "shares": {
+    "W:Партия 3": 2081360
+   },
+   "paid": [
+    {
+     "date": "2025-10-22",
+     "amountRub": 2081360,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226; согласовано 20–21.10.2025 (письмо)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:203:2025-11-14",
+   "section": "production",
+   "no": "203",
+   "date": "2025-11-14",
+   "year": 2025,
+   "amountRub": 1759800,
+   "purpose": "доплата за пошив, партия 4 (30 ед.)",
+   "fileId": "1V8thN1d1Uie79YU8vqAt42bQ_Y94I3pA",
+   "fileTitle": "Счет на оплату № 203         от 14 ноября 2025 г (2).pdf",
+   "groupIds": [
+    "W:Партия 4"
+   ],
+   "shares": {
+    "W:Партия 4": 1759800
+   },
+   "paid": [
+    {
+     "date": "2025-11-20",
+     "amountRub": 1759800,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 (писем согласования нет)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:209:2025-11-19",
+   "section": "production",
+   "no": "209",
+   "date": "2025-11-19",
+   "year": 2025,
+   "amountRub": 1766870,
+   "purpose": "аванс 70% × 2 524 100 (ЖГУ соболь 1 270 900 + ЖГУ норка 464 000 + МГУ 789 200), НДС 20% 294 478,33; оплатить до 24.11.2025",
+   "fileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "fileTitle": "Счет на оплату № 209         от 19 ноября 2025 г.pdf",
+   "groupIds": [
+    "W:Аксессуары 2025 (аванс №209)"
+   ],
+   "shares": {
+    "W:Аксессуары 2025 (аванс №209)": 1766870
+   },
+   "paid": [
+    {
+     "date": "2025-11-27",
+     "amountRub": 1766870,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 («70% аванс за пошив головных уборов»); письмо подтверждения 25.11.2025"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2025-11-25",
+     "by": "—",
+     "note": "аванс подтверждён"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:235:2025-12-04",
+   "section": "production",
+   "no": "235",
+   "date": "2025-12-04",
+   "year": 2025,
+   "amountRub": 5669120,
+   "purpose": "доплата за пошив, партия 5 (25 ед.) + шкуры свакары подрядчика 4 584 500; оплатить до 09.12.2025",
+   "fileId": "1tpAlY0HjHUqV6TiMxk1Uhu_Mf-HUxAbl",
+   "fileTitle": "Счет на оплату № 235 от 04 декабря 2025 г.pdf",
+   "groupIds": [
+    "W:Партия 5"
+   ],
+   "shares": {
+    "W:Партия 5": 5669120
+   },
+   "paid": [
+    {
+     "date": "2025-12-22",
+     "amountRub": 5669120,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 («оплата 12/22/2025»); согласовано Киржнер 15.12.2025"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2025-12-15",
+     "by": "Киржнер",
+     "note": "согласовано"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:239:2025-12-18",
+   "section": "production",
+   "no": "239",
+   "date": "2025-12-18",
+   "year": 2025,
+   "amountRub": 946870,
+   "purpose": "доплата за пошив, партия 6 (37 ед.), НДС 20% 157 811,67; оплатить до 23.12.2025",
+   "fileId": "1QGwUhGSTuxMR2OIj0Ftz7BScBlQjqYfT",
+   "fileTitle": "Счет на оплату № 239 от 18 декабря 2025 г.pdf",
+   "groupIds": [
+    "W:Партия 6"
+   ],
+   "shares": {
+    "W:Партия 6": 946870
+   },
+   "paid": [
+    {
+     "date": "2025-12-26",
+     "amountRub": 946870,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 («партия 6 (оплачено)»); согласовано 23.12.2025 (Решетняк)"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2025-12-23",
+     "by": "Решетняк В.",
+     "note": "оплата согласована"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "purchase:241:2025-12-22",
+   "section": "purchase",
+   "no": "241",
+   "date": "2025-12-22",
+   "year": 2025,
+   "amountRub": 4836327.52,
+   "purpose": "100% предоплата СП 12.25 (Спец. №8), срок 25.12.2025",
+   "fileId": "1GVCK-3w2TncU73dV_36hKWqjUpaIeghW",
+   "fileTitle": "Счет на оплату № 241 от 22 декабря 2025 г.pdf",
+   "groupIds": [
+    "P:СП 12.25 (УПД 283, спец. 8)"
+   ],
+   "shares": {
+    "P:СП 12.25 (УПД 283, спец. 8)": 4836327.52
+   },
+   "paid": [
+    {
+     "date": "2025-12-24",
+     "amountRub": 4836327.52,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "письмо «СРОЧНОЕ СОГЛАСОВАНИЕ» 22–23.12.2025: оплатить 100% до 24.12 — ДАТА/П/П ФАКТА ОПЛАТЫ НЕ НАЙДЕНЫ"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "Письма 22–23.12.2025: «планируем оплатить до 24 декабря», «согласовано». Дата 24.12 — плановая, факт оплаты не найден."
+   ]
+  },
+  {
+   "id": "purchase:37:2025",
+   "section": "purchase",
+   "no": "37",
+   "date": null,
+   "year": 2025,
+   "amountRub": 79898902,
+   "purpose": "промежуточный платёж по Спец. №1 (СП+РП 03.25)",
+   "fileId": null,
+   "fileTitle": null,
+   "groupIds": [
+    "P:СП 03.25",
+    "P:РП 03.25"
+   ],
+   "shares": {
+    "P:СП 03.25": 55294775.85,
+    "P:РП 03.25": 24604126.15
+   },
+   "paid": [
+    {
+     "date": "2025-03-14",
+     "amountRub": 79898902,
+     "ppNo": "33979",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД №78 п.(5); письмо 13.03.2025; реестр «TTL сырье» (единый реестр, Drive 11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:1:2026-01-15",
+   "section": "production",
+   "no": "1",
+   "date": "2026-01-15",
+   "year": 2026,
+   "amountRub": 2075122.54,
+   "purpose": "доплата за пошив, партия 7 (50 ед.), НДС 22% 374 202,43; срок в счёте «30.12.2025» (опечатка)",
+   "fileId": "1cJ2ZRUp3-1DQBxHScv1eb4-x4m1q0Bv4",
+   "fileTitle": "Счет на оплату № 1 от 15 января 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 7"
+   ],
+   "shares": {
+    "W:Партия 7": 2075122.54
+   },
+   "paid": [
+    {
+     "date": "2026-01-21",
+     "amountRub": 2075122.54,
+     "ppNo": null,
+     "basis": "balance",
+     "evidence": "fact",
+     "source": "баланс 040226 («оплачено» 21.01.2026); письмо 16.01.2026 (запрос 2 081 387,54, подтверждено 18.01, «Ок. Согласовано» 20.01)"
+    }
+   ],
+   "approvals": [
+    {
+     "date": "2026-01-18",
+     "by": "Решетняк В.",
+     "note": "«Подтверждаю» по сумме письма 2 081 387,54"
+    },
+    {
+     "date": "2026-01-20",
+     "by": "—",
+     "note": "«Ок. Согласовано»"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:7:2026-02-04",
+   "section": "production",
+   "no": "7",
+   "date": "2026-02-04",
+   "year": 2026,
+   "amountRub": 427227.39,
+   "purpose": "доплата за пошив, партия 9 (26 ед.), НДС 22% 77 041,00; срок 09.02.2026",
+   "fileId": "1ECULFylYEu9gCQeBiZl6011B6oCxkDsU",
+   "fileTitle": "Счет на оплату № 7 от 04 февраля 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 9"
+   ],
+   "shares": {
+    "W:Партия 9": 427227.39
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-02-09",
+     "by": "Решетняк В.",
+     "note": "«Согласовано» доплата 427 227,39 (не оплата)"
+    }
+   ],
+   "notes": [
+    "Счёт №7 (427 227,39) = доплата партии 8 (400 625,59) + партия 9 нетто (26 601,80 = 858 427 − зачёт неизрасходованного аванса 831 825,20). Отдельного счёта на партию 8 нет."
+   ]
+  },
+  {
+   "id": "production:41:2026-02-18",
+   "section": "production",
+   "no": "41",
+   "date": "2026-02-18",
+   "year": 2026,
+   "amountRub": 303372,
+   "purpose": "доплата за пошив, партия 10 (26 ед.), НДС 22% 54 706,43; срок 24.02.2026",
+   "fileId": "1iIFZkqVMGLIZpjUWq0f1aDR7BxQLwjhV",
+   "fileTitle": "Счет на оплату № 41 от 18 февраля 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 10"
+   ],
+   "shares": {
+    "W:Партия 10": 303372
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-02-19",
+     "by": "Решетняк В.",
+     "note": "«Согласовано» 303 372 (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:51:2026-02-24",
+   "section": "production",
+   "no": "51",
+   "date": "2026-02-24",
+   "year": 2026,
+   "amountRub": 347895,
+   "purpose": "доплата за пошив, партия 11 (14 ед.), НДС 22% 62 735,16; срок 27.02.2026",
+   "fileId": "1NNGFOlV-_GORVSmYS7n_rrWGTB_ofCRC",
+   "fileTitle": "Счет на оплату № 51 от 24 февраля 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 11"
+   ],
+   "shares": {
+    "W:Партия 11": 347895
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-02-27",
+     "by": "Решетняк В.",
+     "note": "«Подтверждаю» 347 895 (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:65:2026-03-02",
+   "section": "production",
+   "no": "65",
+   "date": "2026-03-02",
+   "year": 2026,
+   "amountRub": 1183135,
+   "purpose": "доплата за пошив, 48 ед. (шарфы MSC-01, варежки MGL01; ТЗ 105–109), НДС 22% 213 352,21; срок 05.03.2026",
+   "fileId": "12aRzjJUwlih4TFuYBq00QBSLvg2SqbP0",
+   "fileTitle": "Счет на оплату № 65 от 02 марта 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 12"
+   ],
+   "shares": {
+    "W:Партия 12": 1183135
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-03-10",
+     "by": "Решетняк В.",
+     "note": "№65 согласован"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:63:2026-03-02",
+   "section": "production",
+   "no": "63",
+   "date": "2026-03-02",
+   "year": 2026,
+   "amountRub": 217350,
+   "purpose": "доплата за пошив, 1 ед. (жилет из соболя М003, ТЗ 110), НДС 22% 39 194,26; срок 05.03.2026",
+   "fileId": "1Mtf3i--2seE1p2-kNfEYJ9s2aQhe0PF0",
+   "fileTitle": "Счет на оплату № 63 от 02 марта 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 12"
+   ],
+   "shares": {
+    "W:Партия 12": 217350
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-04-17",
+     "by": "Решетняк В.",
+     "note": "№63 согласован; письмо 20.04: оплата задержана из-за бухсверки 15.04.2026 (Желнина О.: «расчёты по оплатам совпались» — документа сверки в Drive нет)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:71:2026-03-06",
+   "section": "production",
+   "no": "71",
+   "date": "2026-03-06",
+   "year": 2026,
+   "amountRub": 183400,
+   "purpose": "доплата за пошив, партия 13 (20 ед.), НДС 22% 33 072,13; срок 12.03.2026",
+   "fileId": "1HYL_0BA5TZXP0JEPeJBNv5EmmFYp6CFu",
+   "fileTitle": "Счет на оплату № 71 от 06 марта 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 13"
+   ],
+   "shares": {
+    "W:Партия 13": 183400
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-04-17",
+     "by": "Решетняк В.",
+     "note": "№71 согласован (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "purchase:93:2026-03-25",
+   "section": "purchase",
+   "no": "93",
+   "date": "2026-03-25",
+   "year": 2026,
+   "amountRub": 24200000,
+   "purpose": "аванс по спец. 9",
+   "fileId": "1Oi4KODg-KyLNgXLzIe2lTPnKl4zk9pIi",
+   "fileTitle": "Счет на оплату № 93 от 25 марта 2026 г.pdf",
+   "groupIds": [
+    "P:SAGA 03-26"
+   ],
+   "shares": {
+    "P:SAGA 03-26": 24200000
+   },
+   "paid": [
+    {
+     "date": "2026-03-30",
+     "amountRub": 24200000,
+     "ppNo": null,
+     "basis": "calc",
+     "evidence": "fact",
+     "source": "fin SAGA 03-26: «Оплата 1 — оплачено — 30.03.2026»; письмо 25-27.03.2026",
+     "note": "п/п 36054 от 30.03.2026 (назван в УПД 201 без суммы) - совпадает по дате"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "П/п 36054 от 30.03.2026 назван в УПД №201 без суммы: совпадает по дате — это гипотеза, не факт."
+   ]
+  },
+  {
+   "id": "purchase:105:2026-04-06",
+   "section": "purchase",
+   "no": "105",
+   "date": "2026-04-06",
+   "year": 2026,
+   "amountRub": 22891800,
+   "purpose": "аванс 2 по спец. 9",
+   "fileId": "1PH70z18oOUYONem1CnlesucSCDZ1XqwG",
+   "fileTitle": "Счет на оплату № 105 от 06 апреля 2026 г.pdf",
+   "groupIds": [
+    "P:SAGA 03-26"
+   ],
+   "shares": {
+    "P:SAGA 03-26": 22891800
+   },
+   "paid": [
+    {
+     "date": "2026-04-14",
+     "dateApprox": true,
+     "amountRub": 22891800,
+     "ppNo": null,
+     "basis": "calc",
+     "evidence": "fact",
+     "source": "fin SAGA 03-26: «Оплата 2 — оплачено — 3/14/2026» (дата невозможна: счёт от 06.04.2026); письмо 08-09.04.2026 (опечатка 22 891 000)",
+     "note": "вероятно 13.04.2026, п/п 38692 от 13.04.2026 (назван в УПД 201 без суммы); догадка"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "В расчёте fin дата «3/14/2026» невозможна (счёт от 06.04.2026). Вероятная оплата — п/п 38692 от 13.04.2026 (назван в УПД №201 без суммы) — догадка."
+   ]
+  },
+  {
+   "id": "purchase:117:2026-04-13",
+   "section": "purchase",
+   "no": "117",
+   "date": "2026-04-13",
+   "year": 2026,
+   "amountRub": 27912500,
+   "purpose": "аванс 1 = 25% x 2900 шкур (спец. 10); доля РП 25% x 2245 x 38 500 = 21 608 125",
+   "fileId": "1H1OZ9KANrFUNsE0hbRDy2smgsoVwEMgx",
+   "fileTitle": "Счет на оплату № 117 от 13 апреля 2026 г (2).pdf",
+   "groupIds": [
+    "P:РП 04-26",
+    "P:СП 05-26"
+   ],
+   "shares": {
+    "P:РП 04-26": 21608125,
+    "P:СП 05-26": 6304375
+   },
+   "paid": [
+    {
+     "date": "2026-04-22",
+     "amountRub": 27912500,
+     "ppNo": "40593",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД 201; письма"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:131:2026-05-04",
+   "section": "purchase",
+   "no": "131",
+   "date": "2026-05-04",
+   "year": 2026,
+   "amountRub": 60271506.34,
+   "purpose": "аванс 2 (РП)",
+   "fileId": "11Zhm6jgNDr6GHKEGoOfdb-7En0IYIfqa",
+   "fileTitle": "Счет на оплату № 131 от 04 мая 2026 г (аванс 2).pdf",
+   "groupIds": [
+    "P:РП 04-26"
+   ],
+   "shares": {
+    "P:РП 04-26": 60271506.34
+   },
+   "paid": [
+    {
+     "date": "2026-05-12",
+     "amountRub": 60271506.34,
+     "ppNo": "43831",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД 201; письма"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:143:2026-05-15",
+   "section": "production",
+   "no": "143",
+   "date": "2026-05-15",
+   "year": 2026,
+   "amountRub": 3230780,
+   "purpose": "аванс 70% × 4 615 400 (245 шт.) за пошив аксессуаров, НДС 22% 582 599,67",
+   "fileId": "1YYGR4c0SFf2vbP59eyDjd5xW6UoJxD6m",
+   "fileTitle": "Счет на оплату № 143 от 15 мая 2026 г (аксессуары).pdf",
+   "groupIds": [
+    "W:Аксессуары 2026 (аванс №143)"
+   ],
+   "shares": {
+    "W:Аксессуары 2026 (аванс №143)": 3230780
+   },
+   "paid": [
+    {
+     "date": "2026-07-06",
+     "amountRub": 3230780,
+     "ppNo": null,
+     "basis": "letter",
+     "evidence": "fact",
+     "source": "письмо Коношенко 27.08/01.09.2026 («аванс 70% оплачен 06.07.2026»); согласован Киржнер 03.07.2026"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:141:2026-05-15",
+   "section": "production",
+   "no": "141",
+   "date": "2026-05-15",
+   "year": 2026,
+   "amountRub": 11860870,
+   "purpose": "аванс 70% за 82 изделия в работе (первая часть), НДС 22% 2 138 845,41",
+   "fileId": "1pIETQH62YlpGa4SpiMt7wWlXcprbXPTa",
+   "fileTitle": "Счет на оплату № 141 от 15 мая 2026 г (на изделия в работе).pdf",
+   "groupIds": [
+    "W:Авансы 2026 (счета №141, №247, №251)"
+   ],
+   "shares": {
+    "W:Авансы 2026 (счета №141, №247, №251)": 11860870
+   },
+   "paid": [
+    {
+     "date": "2026-07-06",
+     "amountRub": 11860870,
+     "ppNo": null,
+     "basis": "letter",
+     "evidence": "fact",
+     "source": "письма Коношенко 27.08/01.09.2026 и 12.08.2026 («аванс 70% оплачен 06.07.2026»); согласован Киржнер 03.07.2026"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:145:2026-05-21",
+   "section": "production",
+   "no": "145",
+   "date": "2026-05-21",
+   "year": 2026,
+   "amountRub": 248000,
+   "purpose": "оплата пошива кейпа (ТЗ 117) 100% работы, НДС 22% 44 721,31; срок 15.06.2026",
+   "fileId": "1e126X2lOa7oe48nAkdnbEXnA8a_tqbh0",
+   "fileTitle": "Счет на оплату № 145 от 21 мая 2026 г (2).pdf",
+   "groupIds": [
+    "W:Кейп (ТЗ 117, М057)"
+   ],
+   "shares": {
+    "W:Кейп (ТЗ 117, М057)": 248000
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-05-26",
+     "by": "Решетняк В.",
+     "note": "согласовано, срок 15.06 (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "purchase:149:2026-05-22",
+   "section": "purchase",
+   "no": "149",
+   "date": "2026-05-22",
+   "year": 2026,
+   "amountRub": 19628147.54,
+   "purpose": "аванс 3 (СП 05-26)",
+   "fileId": "14uyYhkshlps9mL1OVJczoDetCeQkhDSi",
+   "fileTitle": "Счет на оплату № 149 от 22 мая 2026 г.pdf",
+   "groupIds": [
+    "P:СП 05-26"
+   ],
+   "shares": {
+    "P:СП 05-26": 19628147.54
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 19628147.54,
+     "ppNo": null,
+     "basis": "letter",
+     "evidence": "fact",
+     "source": "письмо 09.07.2026 «было оплачено»"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "Оплата подтверждена письмами 09.07 и 13–17.07.2026 («было оплачено: аванс 3 19 628 147,54, итого 107 812 153,88»); даты и п/п нет. Догадка по датам: п/п 46539 или 46540 от 28.05.2026."
+   ]
+  },
+  {
+   "id": "purchase:153:2026-05-22",
+   "section": "purchase",
+   "no": "153",
+   "date": "2026-05-22",
+   "year": 2026,
+   "amountRub": 761250,
+   "purpose": "аванс 1 (25% молотка), ссылка «спец. 11 от 25.03.26» - опечатка",
+   "fileId": "1bxWXBbd4y7bUilvEhN821Qm_bqTPdTog",
+   "fileTitle": "Счет на оплату № 153 от 22 мая 2026 г.pdf",
+   "groupIds": [
+    "P:AME 05-26"
+   ],
+   "shares": {
+    "P:AME 05-26": 761250
+   },
+   "paid": [
+    {
+     "date": "2026-05-28",
+     "amountRub": 761250,
+     "ppNo": "46538",
+     "basis": "pp",
+     "evidence": "fact",
+     "source": "УПД 253 (п/п 46538 от 28.05.2026); fin; письмо 22-27.05"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:155:2026-05-22",
+   "section": "purchase",
+   "no": "155",
+   "date": "2026-05-22",
+   "year": 2026,
+   "amountRub": 30660000,
+   "purpose": "аванс 1 по спец. 12",
+   "fileId": "1wEN3d58nkJvg3du5bvurzLbrDs8fwByy",
+   "fileTitle": "Счет на оплату № 155 от 22 мая 2026 г (2).pdf",
+   "groupIds": [
+    "P:FH 06-26 (рысь)"
+   ],
+   "shares": {
+    "P:FH 06-26 (рысь)": 30660000
+   },
+   "paid": [
+    {
+     "date": "2026-05-28",
+     "amountRub": 30660000,
+     "ppNo": null,
+     "basis": "calc",
+     "evidence": "fact",
+     "source": "расчет закупки.xlsx («Аванс 1» 5/28/2026); письмо 22-27.05"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "Дата 28.05.2026 — по расчёту закупки.xlsx («Аванс 1»). Догадка: п/п 46539 или 46540 от 28.05.2026 (оба названы в УПД №229 без суммы)."
+   ]
+  },
+  {
+   "id": "purchase:157:2026-05-26",
+   "section": "purchase",
+   "no": "157",
+   "date": "2026-05-26",
+   "year": 2026,
+   "amountRub": 5400000,
+   "purpose": "спец. 13: 1200 м.п. x 4 500 с НДС 22% (Турция, поставка июль-август 2026)",
+   "fileId": "1silgJ-GXA4Ap9WQFcVbR7A83PJ7dacib",
+   "fileTitle": "Счет на оплату № 157 от 26 мая 2026 г.pdf",
+   "groupIds": [
+    "P:Подкладка 2026 (спец. 13)"
+   ],
+   "shares": {
+    "P:Подкладка 2026 (спец. 13)": 5400000
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 5400000,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "согласовано 28.05.2026; «оплата 01.06.2026» в письме - платёж Веллмеха в Турцию, не оплата Меркури Мода; косвенно: зачёт «переплата подкладка 55 594,50» в счёте AME №253"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:167:2026-05-29",
+   "section": "purchase",
+   "no": "167",
+   "date": "2026-05-29",
+   "year": 2026,
+   "amountRub": 2466573,
+   "purpose": "аванс 2",
+   "fileId": "1I6c1vN2sjnQugoGsVznMA9pRqWgQnx3d",
+   "fileTitle": "Счет на оплату № 167 от 29 мая 2026 г.pdf",
+   "groupIds": [
+    "P:AME 05-26"
+   ],
+   "shares": {
+    "P:AME 05-26": 2466573
+   },
+   "paid": [
+    {
+     "date": "2026-06-04",
+     "amountRub": 2466573,
+     "ppNo": null,
+     "basis": "calc",
+     "evidence": "fact",
+     "source": "fin «оплачено 04.06.2026»; письмо 29.05-03.06 (срок 03.06)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:173:2026-06-05",
+   "section": "purchase",
+   "no": "173",
+   "date": "2026-06-05",
+   "year": 2026,
+   "amountRub": 85063078,
+   "purpose": "аванс 2 по спец. 12",
+   "fileId": "1fPrYO2algdiwm5axrOXMFkSMIVUMJB6-",
+   "fileTitle": "Счет на оплату № 173 от 05 июня 2026 г.pdf",
+   "groupIds": [
+    "P:FH 06-26 (рысь)"
+   ],
+   "shares": {
+    "P:FH 06-26 (рысь)": 85063078
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 85063078,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "расчет закупки.xlsx: строка «Аванс 2, 85063078» без даты; согласовано 09-10.06.2026 (дедлайн 10.06) - оплата не подтверждена"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:181:2026-06-16",
+   "section": "purchase",
+   "no": "181",
+   "date": "2026-06-16",
+   "year": 2026,
+   "amountRub": 19870,
+   "purpose": "спец. 16: шерсть/альпака/шёлк 2 м x 6 985 + кожа 0,5 м x 11 800",
+   "fileId": "1vtFw75lMuiNczTMdSdXdHk1SZd0k0iAI",
+   "fileTitle": "Счет на оплату № 181 от 16 июня 2026 г.pdf",
+   "groupIds": [
+    "P:Доп. материалы 2026 (спец. 16)"
+   ],
+   "shares": {
+    "P:Доп. материалы 2026 (спец. 16)": 19870
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 19870,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "согласовано Решетняком 29.06.2026 - не оплата"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:121:2026-06-24",
+   "section": "production",
+   "no": "121",
+   "date": "2026-06-24",
+   "year": 2026,
+   "amountRub": 158600,
+   "purpose": "доплата 100%, партия 14 (14 остатков муж. шапок SS25; ТЗ 113–115), НДС 22% 28 600,00",
+   "fileId": "19ltnYtaZ6d0ZquWiB4soC25dz826UHyV",
+   "fileTitle": "Счет на оплату № 121 от 24 июня 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 14"
+   ],
+   "shares": {
+    "W:Партия 14": 158600
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-07-01",
+     "by": "Денисюк А.",
+     "note": "партия №14 подтверждена, просьба оформить"
+    },
+    {
+     "date": "2026-08-12",
+     "by": "Коношенко/Киржнер",
+     "note": "«Ок — если получили, естественно доплачиваем» (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:193:2026-07-02",
+   "section": "production",
+   "no": "193",
+   "date": "2026-07-02",
+   "year": 2026,
+   "amountRub": 660000,
+   "purpose": "аванс за пошив M26.TMW.CR01 (70% работы + 100% шкур), НДС 22% 119 016,39",
+   "fileId": "13DiguSf7im1Fk-6UeUfU1Id-TaeyLFVS",
+   "fileTitle": "Счет на оплату № 193 от 02 июля 2026 г.pdf",
+   "groupIds": [
+    "W:Капсула CR01 (M26.TMW.CR01)"
+   ],
+   "shares": {
+    "W:Капсула CR01 (M26.TMW.CR01)": 660000
+   },
+   "paid": [],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:195:2026-07-03",
+   "section": "purchase",
+   "no": "195",
+   "date": "2026-07-03",
+   "year": 2026,
+   "amountRub": 2380500,
+   "purpose": "аванс по спец. 18 (лот 302127, 225 шт)",
+   "fileId": "1JbmgkJEUvVTWH5EmEfLBHior26Bh6aP1",
+   "fileTitle": "Счет на оплату № 195 от 03 июля 2026 г.pdf",
+   "groupIds": [
+    "P:SAGA 03-26"
+   ],
+   "shares": {
+    "P:SAGA 03-26": 2380500
+   },
+   "paid": [
+    {
+     "date": "2026-07-20",
+     "amountRub": 2380500,
+     "ppNo": null,
+     "basis": "calc",
+     "evidence": "fact",
+     "source": "fin SAGA 03-26: «Оплата 3 — 20.07.2026» (счёт 195 от 03.07, срок 08.07)"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:197:2026-07-09",
+   "section": "purchase",
+   "no": "197",
+   "date": "2026-07-09",
+   "year": 2026,
+   "amountRub": 7236812.03,
+   "purpose": "доплата по УПД 199+201 (3015 шкур)",
+   "fileId": "1kzqrHs7H_nWHQaEuN7MwSRAVZgi_t3ng",
+   "fileTitle": "Счет на оплату № 197 от 09 июля 2026 г.pdf",
+   "groupIds": [
+    "P:РП 04-26",
+    "P:СП 05-26"
+   ],
+   "shares": {
+    "P:РП 04-26": 5438524.49,
+    "P:СП 05-26": 1798287.54
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 7236812.03,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "только согласовано 17.07.2026"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase:209:2026-07-16",
+   "section": "purchase",
+   "no": "209",
+   "date": "2026-07-16",
+   "year": 2026,
+   "amountRub": 1408000,
+   "purpose": "спец. 19, 88 шт x 16 000 с НДС 22%",
+   "fileId": "1gwhXiS0W_yz1eQQao6Moe5aQRf4RjYuN",
+   "fileTitle": "Счет на оплату № 209 от 16 июля 2026 г.pdf",
+   "groupIds": [
+    "P:Красная лиса (спец. 19, УПД 209)"
+   ],
+   "shares": {
+    "P:Красная лиса (спец. 19, УПД 209)": 1408000
+   },
+   "paid": [],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:207:2026-07-16",
+   "section": "production",
+   "no": "207",
+   "date": "2026-07-16",
+   "year": 2026,
+   "amountRub": 71400,
+   "purpose": "доплата 30%, партия 17 (ТЗ 118, 4 аксессуара: MSC03, MSC04 ×2, MSC05), НДС 22% 12 875,41",
+   "fileId": "18nPMFHQBKlFuv7xE8mIMBgEy8j4BbXOh",
+   "fileTitle": "Счет на оплату № 207 от 16 июля 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 17"
+   ],
+   "shares": {
+    "W:Партия 17": 71400
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-08-12",
+     "by": "Киржнер",
+     "note": "«Ок. Тогда можно доплатить» 71 400 (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:237:2026-08-25",
+   "section": "production",
+   "no": "237",
+   "date": "2026-08-25",
+   "year": 2026,
+   "amountRub": 3397795,
+   "purpose": "доплата 30% + сырьё подрядчика 880 000 + доп.материалы 27 085, партия 18 (64 изд.), НДС 22% 612 717,13",
+   "fileId": "1cnOqdZtAaOT4v2aWe5S5WnYlVVFHWCjy",
+   "fileTitle": "Счет на оплату № 237 от 25 августа 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 18"
+   ],
+   "shares": {
+    "W:Партия 18": 3397795
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-01",
+     "by": "Киржнер/Решетняк",
+     "note": "«согласовано», «доплату поставим на исполнение 02 или 03.09» (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:247:2026-09-01",
+   "section": "production",
+   "no": "247",
+   "date": "2026-09-01",
+   "year": 2026,
+   "amountRub": 2272060,
+   "purpose": "аванс 2 (26 изд., «на просмотр без подклада»), НДС 22% 409 715,74",
+   "fileId": "1FhGN7vXVrBl8idCkuuqnPAAAzgYLtE62",
+   "fileTitle": "Счет на оплату № 247 от 01 сентября 2026 г.pdf",
+   "groupIds": [
+    "W:Авансы 2026 (счета №141, №247, №251)"
+   ],
+   "shares": {
+    "W:Авансы 2026 (счета №141, №247, №251)": 2272060
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-03",
+     "by": "Киржнер",
+     "note": "аванс 2 (№247) согласован — не оплата"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:251:2026-09-02",
+   "section": "production",
+   "no": "251",
+   "date": "2026-09-02",
+   "year": 2026,
+   "amountRub": 8290940,
+   "purpose": "аванс 3 (55 изд.; отгрузки до 15.10), НДС 22% 1 495 087,54",
+   "fileId": "1jJTnV47N8hzhr2AUTbgsQZxrZB9RmjSA",
+   "fileTitle": "Счет на оплату № 251 от 02 сентября 2026 г (аванс 3).pdf",
+   "groupIds": [
+    "W:Авансы 2026 (счета №141, №247, №251)"
+   ],
+   "shares": {
+    "W:Авансы 2026 (счета №141, №247, №251)": 8290940
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-03",
+     "by": "Киржнер",
+     "note": "аванс 3 (№251) согласован, отгрузки до 15.10 — не оплата"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "purchase:253:2026-09-09",
+   "section": "purchase",
+   "no": "253",
+   "date": "2026-09-09",
+   "year": 2026,
+   "amountRub": 214522.92,
+   "purpose": "финал: 353 992,79 минус зачёты 83 875,37 (SAGA) и 55 594,50 (подкладка)",
+   "fileId": "1antkxJrM7Hq1GrrSpAa-CrUfdJh_ebgq",
+   "fileTitle": "Счет на оплату № 253 от 09 сентября 2026 г.pdf",
+   "groupIds": [
+    "P:AME 05-26"
+   ],
+   "shares": {
+    "P:AME 05-26": 214522.92
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 214522.92,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "письмо 15.09.2026: запрошено, «Ок» Киржнер - согласовано, оплата не подтверждена"
+    }
+   ],
+   "approvals": [],
+   "notes": [
+    "Сумма счёта 214 522,92 = 353 992,79 минус зачёты переплат 83 875,37 (SAGA 03-26) и 55 594,50 (подкладка). Зачёты в оплату счёта не засчитаны."
+   ]
+  },
+  {
+   "id": "production:257:2026-09-15",
+   "section": "production",
+   "no": "257",
+   "date": "2026-09-15",
+   "year": 2026,
+   "amountRub": 2126255,
+   "purpose": "доплата 30%, партия 19 (41 изд.), НДС 22% 383 423,03",
+   "fileId": "1OpiX7SLTIfz99lT9GRpieLv14TSvLyiY",
+   "fileTitle": "Счет на оплату № 257 от 15 сентября 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 19"
+   ],
+   "shares": {
+    "W:Партия 19": 2126255
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-17",
+     "by": "—",
+     "note": "поставка принята"
+    },
+    {
+     "date": "2026-09-18",
+     "by": "Киржнер",
+     "note": "оплата доплаты согласована (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:259:2026-09-15",
+   "section": "production",
+   "no": "259",
+   "date": "2026-09-15",
+   "year": 2026,
+   "amountRub": 1008000,
+   "purpose": "аванс 70% дозаказ 6 × М001Е арктическая лиса (6 × 240 000 = 1 440 000), НДС 22% 181 770,49",
+   "fileId": "1g1Cfzm71bS9RRX8RZuLQO8Wc47n0YQZb",
+   "fileTitle": "Счет на оплату № 259 от 15 сентября 2026 г (аванс за арк.лису).pdf",
+   "groupIds": [
+    "W:Дозаказы (счета №259, №261)"
+   ],
+   "shares": {
+    "W:Дозаказы (счета №259, №261)": 1008000
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-16",
+     "by": "Киржнер",
+     "note": "аванс 259 и 261 согласованы (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:261:2026-09-15",
+   "section": "production",
+   "no": "261",
+   "date": "2026-09-15",
+   "year": 2026,
+   "amountRub": 805000,
+   "purpose": "аванс 70% дозаказ 10 × М029 красная лиса (10 × 115 000 = 1 150 000), НДС 22% 145 163,93",
+   "fileId": "1dJ3TdIfumX6AbOGOdi1FYM2ivB6OitEt",
+   "fileTitle": "Счет на оплату № 261 от 15 сентября 2026 г (аванс за красную лису 10 шт).pdf",
+   "groupIds": [
+    "W:Дозаказы (счета №259, №261)"
+   ],
+   "shares": {
+    "W:Дозаказы (счета №259, №261)": 805000
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-16",
+     "by": "Киржнер",
+     "note": "аванс 259 и 261 согласованы (не оплата)"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "id": "production:265:2026-09-22",
+   "section": "production",
+   "no": "265",
+   "date": "2026-09-22",
+   "year": 2026,
+   "amountRub": 1892430,
+   "purpose": "доплата 30% + сырьё подрядчика 528 000, партия 20 (68 изд.), НДС 22% 341 257,87",
+   "fileId": "1tsvhd8XVWPkajKqF4MrptC8wUmR8JwNt",
+   "fileTitle": "Счет на оплату № 265 от 22 сентября 2026 г (1).pdf",
+   "groupIds": [
+    "W:Партия 20"
+   ],
+   "shares": {
+    "W:Партия 20": 1892430
+   },
+   "paid": [],
+   "approvals": [
+    {
+     "date": "2026-09-25",
+     "by": "Киржнер",
+     "note": "принята, «Ок» (не оплата)"
+    }
+   ],
+   "notes": [
+    "Счёт занижен на 115 110 ₽: верная доплата по партии 20 — 2 007 540 ₽ (нужен исправленный счёт)."
+   ]
+  },
+  {
+   "id": "purchase:271:2026-09-30",
+   "section": "purchase",
+   "no": "271",
+   "date": "2026-09-30",
+   "year": 2026,
+   "amountRub": 60831100,
+   "purpose": "аванс по спец. 20 (1271 соболь + 55 лиса)",
+   "fileId": "1XLjZLnG6JMIlLlveiq0Y_SKeMIRrDU-B",
+   "fileTitle": "Счет на оплату № 271 от 30 сентября 2026 г.pdf",
+   "groupIds": [
+    "P:СП 09-26"
+   ],
+   "shares": {
+    "P:СП 09-26": 60831100
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 60831100,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "approved",
+     "source": "письмо Киржнера 30.09.2026 «оперативно платим»; срок по счёту 05.10.2026; факта оплаты нет"
+    }
+   ],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "production:275:2026-10-01",
+   "section": "production",
+   "no": "275",
+   "date": "2026-10-01",
+   "year": 2026,
+   "amountRub": 442980,
+   "purpose": "доплата 30%, партия 21 (14 изд.), НДС 22% 79 881,64; срок оплаты 06.10.2026",
+   "fileId": "1o6LjPGT8Sgv4S79myKBtLLl_LXJJHBCB",
+   "fileTitle": "Счет на оплату № 275 от 01 октября 2026 г.pdf",
+   "groupIds": [
+    "W:Партия 21"
+   ],
+   "shares": {
+    "W:Партия 21": 442980
+   },
+   "paid": [],
+   "approvals": [],
+   "notes": []
+  },
+  {
+   "id": "purchase::2026",
+   "section": "purchase",
+   "no": null,
+   "date": null,
+   "year": 2026,
+   "amountRub": 3603475.98,
+   "purpose": "расчётно: 119 326 553,98 - 115 723 078 (затраты и комиссия РМ 4,5%)",
+   "fileId": null,
+   "fileTitle": null,
+   "groupIds": [
+    "P:FH 06-26 (рысь)"
+   ],
+   "shares": {
+    "P:FH 06-26 (рысь)": 3603475.98
+   },
+   "paid": [
+    {
+     "date": null,
+     "amountRub": 3603475.98,
+     "ppNo": null,
+     "basis": null,
+     "evidence": "planned",
+     "source": "расчёт: «аванс 3 по факту затрат и комиссия РМ», «ожидается»"
+    }
+   ],
+   "approvals": [],
+   "noInvoice": true,
+   "notes": []
   }
  ]
 }
