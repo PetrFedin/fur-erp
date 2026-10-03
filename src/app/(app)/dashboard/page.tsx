@@ -15,6 +15,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { CompactMoney } from "./compact-money";
 import { formatCompactMoney } from "./compact";
 import { computeAttention, countAttention } from "@/lib/attention";
+import { computeDocCoverage } from "@/lib/doc-coverage";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -44,6 +45,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     clientOrders,
     clientPayments,
     attentionChecks,
+    docCoverage,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
@@ -85,6 +87,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       include: { orders: { select: { id: true } } },
     }),
     computeAttention(prisma, organizationId),
+    computeDocCoverage(prisma, organizationId),
   ]);
   const attention = countAttention(attentionChecks);
 
@@ -292,6 +295,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           warn={attention.main > 0}
           danger={attention.red > 0}
           href="/attention"
+        />
+        <KpiCard
+          label="Покрытие документами"
+          hint="Сколько обязательных документов (счета, УПД, расчёты, спецификации, ТЗ-приложения, платёжки, договоры) уже приложено."
+          note={
+            docCoverage.total.rowsWithGaps > 0
+              ? `есть ${docCoverage.total.have} из ${docCoverage.total.required}; записей с пробелами: ${docCoverage.total.rowsWithGaps}`
+              : `есть ${docCoverage.total.have} из ${docCoverage.total.required}`
+          }
+          value={docCoverage.total.percent === null ? "—" : `${docCoverage.total.percent}%`}
+          warn={(docCoverage.total.percent ?? 100) < 90}
+          danger={(docCoverage.total.percent ?? 100) < 60}
+          href="/documents"
         />
       </div>
 

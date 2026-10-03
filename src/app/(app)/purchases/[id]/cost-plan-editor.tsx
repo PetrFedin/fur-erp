@@ -1,5 +1,6 @@
 "use client";
 
+import { CbrRateButton } from "../cbr-rate-button";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,10 +164,13 @@ export function CostPlanRateForm({
   purchaseId,
   currency,
   exchangeRate,
+  orderDate,
 }: {
   purchaseId: string;
   currency: string;
   exchangeRate: string;
+  /** Дата закупки «ГГГГ-ММ-ДД» — дата курса ЦБ по умолчанию. */
+  orderDate?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -188,6 +192,7 @@ export function CostPlanRateForm({
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Пересчёт…" : "Пересчитать все лоты"}
       </Button>
+      <CbrRateButton currency={currency} defaultDate={orderDate} />
       {error && <span className="text-sm text-red-600">{error}</span>}
     </form>
   );

@@ -474,6 +474,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               purchaseId={id}
               currency={purchase.currency}
               exchangeRate={purchase.exchangeRate.toString()}
+              orderDate={purchase.orderDate.toISOString().slice(0, 10)}
             />
           </CardContent>
         </Card>
@@ -645,6 +646,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 purchaseId={id}
                 currency={purchase.currency}
                 exchangeRate={purchase.exchangeRate.toString()}
+                orderDate={purchase.orderDate.toISOString().slice(0, 10)}
               />
             )}
           </CardContent>

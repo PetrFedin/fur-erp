@@ -6,6 +6,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState, Issue } from "../actions";
 import { parsePasteRows, issueLines } from "../parse-rows";
 import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
+import { CbrRateButton } from "../cbr-rate-button";
 
 type Option = { id: string; name: string; isDefault?: boolean };
 
@@ -92,6 +93,9 @@ export function PurchaseCreateForm({
               required
               placeholder="например, 79.75"
             />
+            <div className="mt-1">
+              <CbrRateButton currency={currency} dateInputId="orderDate" />
+            </div>
           </div>
         )}
         {suppliers.length > 1 ? (

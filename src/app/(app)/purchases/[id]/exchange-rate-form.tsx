@@ -4,15 +4,19 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updatePurchaseExchangeRate } from "../actions";
+import { CbrRateButton } from "../cbr-rate-button";
 
 export function ExchangeRateForm({
   purchaseId,
   currency,
   exchangeRate,
+  orderDate,
 }: {
   purchaseId: string;
   currency: string;
   exchangeRate: string;
+  /** Дата закупки «ГГГГ-ММ-ДД» — дата курса ЦБ по умолчанию. */
+  orderDate?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const bound = updatePurchaseExchangeRate.bind(null, purchaseId);
@@ -24,7 +28,7 @@ export function ExchangeRateForm({
         const res = await bound(formData);
         if (res?.error) window.alert(res.error);
       }}
-      className="flex items-end gap-2"
+      className="flex flex-wrap items-end gap-2"
     >
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Курс {currency} → RUB</label>
@@ -40,6 +44,7 @@ export function ExchangeRateForm({
       <Button type="submit" variant="outline" size="sm">
         Обновить курс
       </Button>
+      <CbrRateButton currency={currency} defaultDate={orderDate} />
     </form>
   );
 }

@@ -11,6 +11,7 @@ const SETTINGS_LINKS = [
   { href: "/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
   { href: "/attention", title: "Что не заведено", description: "Пробелы в данных: документы, даты, привязки" },
+  { href: "/documents", title: "Покрытие документами", description: "Какие документы есть, каких не хватает, что приложить" },
 ];
 
 export const metadata = { title: "Настройки" };

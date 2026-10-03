@@ -459,6 +459,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </Link>
           )}
           <div className="ml-auto" />
+          <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
+            Печать / PDF
+          </Link>
+          <a href={`/api/production/${id}/docx`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
+            Скачать .docx
+          </a>
           {canEdit && <OrderEditForm
             action={boundUpdateOrder}
             models={modelOptions}

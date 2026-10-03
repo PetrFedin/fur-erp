@@ -97,9 +97,12 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     <div className="flex max-w-5xl flex-col gap-4">
       <ProductionTabs active="batches" />
       <div>
-        <p className="text-sm">
+        <p className="flex items-center gap-3 text-sm">
           <Link href="/production/batches" className="text-neutral-500 hover:underline">
             ← Все партии
+          </Link>
+          <Link href={`/production/batches/${batch.number}/print`} className="ml-auto rounded border border-neutral-300 px-2 py-1 text-neutral-700 hover:bg-neutral-50">
+            Печать сводки партии
           </Link>
         </p>
         <h1 className="text-xl font-semibold">

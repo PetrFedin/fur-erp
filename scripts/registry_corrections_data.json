@@ -1,0 +1,275 @@
+{
+ "_source": {
+  "registry": "21-08 ЕДИНЫЙ_РЕЕСТР_ПО_МЕХУ_MVST 2.xlsx",
+  "report": "08_06_2026_Отчет_по_закупке_мехового_сырья_MVST.xlsx",
+  "note": "Разовая выгрузка нужных строк (openpyxl read_only, data_only). Скрипт apply-registry-corrections.ts читает этот JSON, xlsx не нужен."
+ },
+ "tz": [
+  {
+   "tz": 75,
+   "row": 390,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 75",
+   "batch": 7,
+   "item": "Головной убор\n(ободок)",
+   "model": "MH07",
+   "qty": 4.0,
+   "workPerUnit": 8641.666666666668,
+   "extraPerUnit": null,
+   "workTotal": 34566.66666666667
+  },
+  {
+   "tz": 110,
+   "row": 505,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 110",
+   "batch": 12,
+   "item": "Жилет женский из соболя",
+   "model": "М003",
+   "qty": 3.0,
+   "workPerUnit": 72450.0,
+   "extraPerUnit": null,
+   "workTotal": 217350.0
+  },
+  {
+   "tz": 116,
+   "row": 520,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 116",
+   "batch": null,
+   "item": "Ремонт пальто",
+   "model": null,
+   "qty": 7.0,
+   "workPerUnit": null,
+   "extraPerUnit": null,
+   "workTotal": 218860.0
+  },
+  {
+   "tz": 122,
+   "row": 548,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 122",
+   "batch": null,
+   "item": "Косынка норка белая ",
+   "model": "MSC03",
+   "qty": 5.0,
+   "workPerUnit": 18000.0,
+   "extraPerUnit": 4080.0,
+   "workTotal": 110400.0
+  },
+  {
+   "tz": 131,
+   "row": 593,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 131",
+   "batch": null,
+   "item": "Шарф меховой",
+   "model": "MSC06",
+   "qty": 5.0,
+   "workPerUnit": 29500.0,
+   "extraPerUnit": 1337.0,
+   "workTotal": 154185.0
+  },
+  {
+   "tz": 144,
+   "row": 705,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 144",
+   "batch": null,
+   "item": "Полупальто из дикого соболя",
+   "model": "М028",
+   "qty": 1.0,
+   "workPerUnit": null,
+   "extraPerUnit": null,
+   "workTotal": 0.0
+  },
+  {
+   "tz": 146,
+   "row": 718,
+   "title": "ТЕХНИЧЕСКОЕ ЗАДАНИЕ № 146",
+   "batch": null,
+   "item": "Шарф меховой",
+   "model": "MSC06",
+   "qty": 5.0,
+   "workPerUnit": 28163.0,
+   "extraPerUnit": null,
+   "workTotal": 140815.0
+  }
+ ],
+ "payments": [
+  {
+   "row": 16,
+   "invoiceText": "Счет 83 от 26-05-2025",
+   "kind": "Аванс",
+   "amount": 30666300.0,
+   "ppNumber": "53423",
+   "paidAt": "2025-06-27",
+   "ppText": "53423 от 27-06-2025"
+  },
+  {
+   "row": 17,
+   "invoiceText": "Счет 31 от",
+   "kind": "Аванс",
+   "amount": 34825000.0,
+   "ppNumber": "440",
+   "paidAt": "2025-02-28",
+   "ppText": "00440 от 28-02-2025"
+  },
+  {
+   "row": 18,
+   "invoiceText": "Счет 37 от",
+   "kind": "Промежуточный платеж",
+   "amount": 79898902.0,
+   "ppNumber": "33980",
+   "paidAt": "2025-03-14",
+   "ppText": "33980 от 14-03-2025"
+  },
+  {
+   "row": 19,
+   "invoiceText": "Счет 75 от 13 05 2025",
+   "kind": "Итоговый платеж",
+   "amount": 11146950.0,
+   "ppNumber": "45637",
+   "paidAt": "2025-05-16",
+   "ppText": "45637 от 16-05-2025"
+  },
+  {
+   "row": 20,
+   "invoiceText": "Счет 81 от 26-05-2025",
+   "kind": "Аванс",
+   "amount": 1632000.0,
+   "ppNumber": "48466",
+   "paidAt": "2025-05-30",
+   "ppText": "48466 от 30-05-2025"
+  },
+  {
+   "row": 21,
+   "invoiceText": "Счет 117 от 29-07-2025",
+   "kind": "Остаток",
+   "amount": 195404.0,
+   "ppNumber": "64015",
+   "paidAt": "2025-08-22",
+   "ppText": "64015 от 22-08-2025"
+  },
+  {
+   "row": 22,
+   "invoiceText": "Счет 95 от 24-06-2025",
+   "kind": "Аванс",
+   "amount": 1537404.0,
+   "ppNumber": "54215",
+   "paidAt": "2025-07-03",
+   "ppText": "54215 от 03-07-2025"
+  },
+  {
+   "row": 23,
+   "invoiceText": "Счет 122 от 04-08-2025",
+   "kind": "Остаток",
+   "amount": 123836.0,
+   "ppNumber": "64499",
+   "paidAt": "2025-08-26",
+   "ppText": "64499 от 26-08-2025"
+  },
+  {
+   "row": 24,
+   "invoiceText": "Счет 96 от 24-06-2025",
+   "kind": null,
+   "amount": 2000000.0,
+   "ppNumber": "56327",
+   "paidAt": "2025-07-15",
+   "ppText": "56327 от 15-07-2025"
+  },
+  {
+   "row": 25,
+   "invoiceText": "Счет 80 от 26-05-2025",
+   "kind": null,
+   "amount": 1718400.0,
+   "ppNumber": "49288",
+   "paidAt": "2025-06-04",
+   "ppText": "49288 от 04-06-2025"
+  },
+  {
+   "row": 26,
+   "invoiceText": "Счет 92 от 16-06-2025",
+   "kind": "Аванс",
+   "amount": 1210000.0,
+   "ppNumber": "51723",
+   "paidAt": "2025-06-19",
+   "ppText": "51723 от 19-06-2025"
+  },
+  {
+   "row": 27,
+   "invoiceText": "Счет 127 от 13-08-2025",
+   "kind": "Остаток",
+   "amount": 1061306.0,
+   "ppNumber": "64014",
+   "paidAt": "2025-08-22",
+   "ppText": "64014 от 22-08-2025"
+  },
+  {
+   "row": 28,
+   "invoiceText": "Счет 40 от 10.03.2025",
+   "kind": "Аванс",
+   "amount": 24556500.0,
+   "ppNumber": "33979",
+   "paidAt": "2025-03-14",
+   "ppText": "33979 от 14-03-2025"
+  },
+  {
+   "row": 29,
+   "invoiceText": "Счет 46 от 14.03.2025",
+   "kind": "Аванс",
+   "amount": 11950000.0,
+   "ppNumber": "36343",
+   "paidAt": "2025-03-26",
+   "ppText": "36343 от 26-03-2025"
+  },
+  {
+   "row": 30,
+   "invoiceText": "Счет 76 от 13.05.2025",
+   "kind": "Промежуточный платеж",
+   "amount": 10924000.0,
+   "ppNumber": "45675",
+   "paidAt": "2025-05-16",
+   "ppText": "45675 от 16-05-2025"
+  },
+  {
+   "row": 31,
+   "invoiceText": "Счет 103 от 03.07.2025",
+   "kind": "Итоговый платеж",
+   "amount": 1695778.0,
+   "ppNumber": "60611",
+   "paidAt": "2025-08-04",
+   "ppText": "60611 от 04-08-2025"
+  }
+ ],
+ "beaver": {
+  "sheet": "закупка FW26",
+  "invoice": "1-2026",
+  "dateRaw": "06.08.2026",
+  "billTo": "YUSUFOĞULLARI TEKSTİL DERİ",
+  "rows": [
+   {
+    "row": 165,
+    "name": "Dressed beaver skin color black",
+    "fur": "Beaver",
+    "qty": 49,
+    "unitPrice": 7870.0,
+    "total": 385630.0,
+    "header": "Invoice Nr: 1-2026\nDate: 06.08.2026\nClient/Bill to: YUSUFOĞULLARI TEKSTİL DERİ"
+   },
+   {
+    "row": 166,
+    "name": "Dressed beaver skin color brown",
+    "fur": "Beaver",
+    "qty": 376,
+    "unitPrice": 7870.0,
+    "total": 2959120.0,
+    "header": "Invoice Nr: 1-2026\nDate: 06.08.2026\nClient/Bill to: YUSUFOĞULLARI TEKSTİL DERİ"
+   },
+   {
+    "row": 167,
+    "name": "Dressed beaver skin color deep blue",
+    "fur": "Beaver",
+    "qty": 162,
+    "unitPrice": 7070.0,
+    "total": 1145340.0,
+    "header": "Invoice Nr: 1-2026\nDate: 06.08.2026\nClient/Bill to: YUSUFOĞULLARI TEKSTİL DERİ"
+   }
+  ],
+  "total": 4490090.0
+ }
+}
