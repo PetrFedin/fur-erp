@@ -1,3 +1,4 @@
+import { OrderDocsPay } from "../docs-pay";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -751,6 +752,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </div>
         </CardContent>
       </Card>
+      </Section>
+
+      <Section id="docpay" title="Документы и оплата" defaultOpenMobile>
+        <OrderDocsPay orderId={id} />
       </Section>
 
       {order.client && (

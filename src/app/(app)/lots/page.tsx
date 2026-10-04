@@ -25,6 +25,8 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { Ref4 } from "@/components/c4-note";
+import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
+import { TONE_DOT, overallTone, payShort } from "@/lib/doc-panel";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -66,6 +68,16 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     : [];
   const auctionMode = tab === "fur" && Boolean(auctionQ);
   const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+  // Индикатор у чипа аукциона: цветная точка (нет документов / не оплачено — красная, частично или нет платёжки — жёлтая, всё есть — зелёная).
+  const docInfo = new Map<string, { dot: string; text: string }>();
+  if (tab === "fur") {
+    for (const d of await loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false })) {
+      const tone = overallTone(d.panel.missingCount, d.panel.pay, d.panel.proofMissing);
+      const parts = [d.panel.missingCount > 0 ? `нет документов: ${d.panel.missingCount}` : "документы есть", payShort(d.panel.pay)];
+      if (d.panel.proofMissing > 0) parts.push(`платёжек нет: ${d.panel.proofMissing}`);
+      docInfo.set(d.key, { dot: TONE_DOT[tone], text: parts.join(", ") });
+    }
+  }
 
   const tabLink = (t: string, label: string) => (
     <Link
@@ -127,8 +139,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             ? "border-neutral-900 bg-neutral-900 text-white"
             : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
         }
-        title={`${a.name} — ${pluralPurchases(a.count)} · ${auctionStatusText(a)}`}
+        title={`${a.name} — ${pluralPurchases(a.count)} · ${auctionStatusText(a)}${docInfo.get(a.name) ? ` · ${docInfo.get(a.name)!.text}` : ""}`}
       >
+        {docInfo.get(a.name) && <span aria-hidden className={`mr-1.5 inline-block size-2 rounded-full ${docInfo.get(a.name)!.dot}`} />}
         {shortAuctionName(a.name)} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
       </Link>
     );
@@ -362,6 +375,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               </p>
             </InfoHint>
           </h1>
+          <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
         <Link
           href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}

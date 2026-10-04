@@ -33,6 +33,7 @@ import { formatDate, formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
+import { TodoSummary } from "./todo-summary";
 
 export const metadata = { title: "Покрытие документами" };
 
@@ -135,6 +136,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
         ))}
       </section>
+
+      <TodoSummary organizationId={orgId} year={yf} />
 
       <RegistryBlock />
 

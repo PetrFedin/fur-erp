@@ -3,19 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS } from "./nav-links";
+import { NAV_LINKS, activeNavHref } from "./nav-links";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const activeHref = activeNavHref(pathname);
 
   return (
     <nav className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 md:flex">
       <div className="px-2 text-lg font-semibold">МехУчёт</div>
       <div className="flex flex-col gap-0.5">
         {NAV_LINKS.map((link) => {
-          const active = [link.href, ...link.also].some(
-            (h) => pathname === h || pathname.startsWith(h + "/")
-          );
+          const active = activeHref === link.href;
           return (
             <Link
               key={link.href}

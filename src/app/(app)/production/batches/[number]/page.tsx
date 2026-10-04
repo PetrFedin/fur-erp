@@ -14,6 +14,7 @@ import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotal
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
+import { BatchDocsPay } from "../../docs-pay";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -193,10 +194,12 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Оплаты ({payments.length})</CardTitle>
-        </CardHeader>
+      <BatchDocsPay batchNumber={batch.number} />
+
+      {/* Список оплат с покрываемыми ТЗ — справка; статус, платёжки и отметка оплаты — в блоке «Документы и оплата» выше. */}
+      <details className="rounded-lg border border-neutral-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Какие ТЗ покрывает каждая оплата ({payments.length})</summary>
+      <Card className="border-0 shadow-none">
         <CardContent>
           <Table>
             <Thead>
@@ -233,6 +236,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           </Table>
         </CardContent>
       </Card>
+      </details>
 
       <Card>
         <CardContent className="pt-4">

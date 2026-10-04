@@ -14,6 +14,9 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { base4AndExtra } from "@/lib/commission4";
+import { loadBatchPanels } from "@/lib/production-doc-checklist";
+import { DocsPayBadge } from "@/components/docs-pay-badge";
+import { payShort } from "@/lib/doc-panel";
 
 export const metadata = { title: "Партии" };
 
@@ -60,7 +63,25 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   // Пустые партии (ни одного ТЗ) скрыты по умолчанию; ?empty=1 показывает.
   const isEmptyBatch = (r: (typeof allRows)[number]) => r.b.orders.length === 0;
   const emptyCount = allRows.filter(isEmptyBatch).length;
-  const rows = showEmpty ? allRows : allRows.filter((r) => !isEmptyBatch(r));
+  // Индикатор «документы и оплата» и фильтр «только без документов / без оплаты».
+  const need = (Array.isArray(sp.need) ? sp.need[0] : sp.need) === "docs" ? "docs" : (Array.isArray(sp.need) ? sp.need[0] : sp.need) === "pay" ? "pay" : "";
+  const panelByNumber = new Map((await loadBatchPanels(prisma, orgId, { c4Mode, canUpload: false, canMark: false })).map((p) => [p.number, p]));
+  const needsOf = (n: number) => {
+    const d = panelByNumber.get(n);
+    if (!d) return null;
+    return { docs: d.panel.missingCount > 0 || d.unmatched, pay: d.panel.pay.state === "UNPAID" || d.panel.pay.state === "PARTIAL" || d.panel.proofMissing > 0 };
+  };
+  const rows = (showEmpty ? allRows : allRows.filter((r) => !isEmptyBatch(r))).filter((r) => {
+    if (!need) return true;
+    const n = needsOf(r.b.number);
+    return n ? n[need] : false;
+  });
+  const needHref = (v: string) => {
+    const qs = new URLSearchParams();
+    if (showEmpty) qs.set("empty", "1");
+    if (v) qs.set("need", v);
+    return `/production/batches${qs.size ? `?${qs}` : ""}`;
+  };
   const anyC4 = rows.some((r) => r.t.c4Applies);
   // Расшифровка 4% по всем показанным партиям: сырьё и подкладка × 4%.
   let c4Base = 0;
@@ -121,6 +142,32 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           )}
         </p>
       )}
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Фильтр по документам и оплате">
+        <span className="text-xs text-neutral-500">Документы и оплата:</span>
+        {(
+          [
+            ["", "Все"],
+            ["docs", "Только без документов"],
+            ["pay", "Только без оплаты"],
+          ] as const
+        ).map(([v, text]) => (
+          <Link
+            key={v}
+            href={needHref(v)}
+            aria-current={need === v ? "page" : undefined}
+            className={
+              "rounded-md border px-3 py-1 max-md:inline-flex max-md:min-h-8 max-md:items-center " +
+              (need === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+            }
+          >
+            {text}
+          </Link>
+        ))}
+        <InfoHint label="Что значат цвета" wide>
+          <p>Красная точка — у партии не хватает обязательных документов или работа не оплачена; жёлтая — оплата частичная или по оплатам нет платёжки; зелёная — документы есть и всё оплачено.</p>
+          <p className="mt-1">«Без оплаты» — не оплачено или оплачено частично, либо по оплате нет платёжки. Откройте партию: там чек-лист, загрузка файлов и кнопка «Отметить оплату».</p>
+        </InfoHint>
+      </div>
       <ResponsiveRows table={
       <Table>
         <Thead>
@@ -138,6 +185,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th className="hidden lg:table-cell">Оплачено</Th>
             <Th>Остаток</Th>
             <Th className="hidden sm:table-cell" title="Файлы из Google Drive: самой партии, её ТЗ и оплат">Файлов в Drive</Th>
+            <Th className="hidden lg:table-cell" title="Чего не хватает по документам и оплачена ли работа заказчиком">Документы и оплата</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -172,11 +220,26 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                     : formatMoney(t.remaining.toString())}
               </Td>
               <Td className="hidden sm:table-cell">{docs || "—"}</Td>
+              <Td className="hidden lg:table-cell">
+                {panelByNumber.get(b.number) ? (
+                  <Link href={`/production/batches/${b.number}`} className="inline-block">
+                    <DocsPayBadge
+                      tone={panelByNumber.get(b.number)!.tone}
+                      missing={panelByNumber.get(b.number)!.panel.missingCount}
+                      noDocs={panelByNumber.get(b.number)!.unmatched}
+                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${Math.round(panelByNumber.get(b.number)!.panel.pay.percent)}%` : payShort(panelByNumber.get(b.number)!.panel.pay)}
+                      proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
+                    />
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </Td>
             </Tr>
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={9} className="py-8 text-center text-neutral-400">
+              <Td colSpan={10} className="py-8 text-center text-neutral-400">
                 {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}
               </Td>
             </Tr>
@@ -207,6 +270,18 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
                 { label: "Файлов в Drive", value: docs || "—" },
+                {
+                  label: "Документы и оплата",
+                  value: panelByNumber.get(b.number) ? (
+                    <DocsPayBadge
+                      tone={panelByNumber.get(b.number)!.tone}
+                      missing={panelByNumber.get(b.number)!.panel.missingCount}
+                      noDocs={panelByNumber.get(b.number)!.unmatched}
+                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${Math.round(panelByNumber.get(b.number)!.panel.pay.percent)}%` : payShort(panelByNumber.get(b.number)!.panel.pay)}
+                      proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
+                    />
+                  ) : null,
+                },
               ]}
             />
           );

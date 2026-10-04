@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS } from "./nav-links";
+import { NAV_LINKS, activeNavHref } from "./nav-links";
 
 /** Гамбургер и выезжающее меню для узких экранов (<768px); на десктопе скрыто. */
 export function MobileNav() {
@@ -47,7 +47,7 @@ export function MobileNav() {
             </div>
             <div className="flex flex-col gap-0.5">
               {NAV_LINKS.map((link) => {
-                const active = [link.href, ...link.also].some((h) => pathname === h || pathname.startsWith(h + "/"));
+                const active = activeNavHref(pathname) === link.href;
                 return (
                   <Link
                     key={link.href}

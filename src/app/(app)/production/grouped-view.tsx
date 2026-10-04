@@ -8,6 +8,8 @@ import type { YearFilter } from "@/lib/year-filter";
 import { emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { Mode4Badge } from "@/components/c4-note";
+import { DocsPayBadge } from "@/components/docs-pay-badge";
+import type { OrderIndicator } from "@/lib/production-doc-checklist";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -30,6 +32,7 @@ export function GroupedByBatch({
   c4Mode = "off",
   filtered = false,
   year = "all",
+  indicators,
 }: {
   orders: BatchOrder[];
   batches: GroupBatch[];
@@ -37,6 +40,8 @@ export function GroupedByBatch({
   /** Применён фильтр (поиск, статус, заказчик, модель, партия): пустой результат — «Ничего не найдено». */
   filtered?: boolean;
   year?: YearFilter;
+  /** Индикаторы «документы и оплата» по id ТЗ (необязательно). */
+  indicators?: Map<string, OrderIndicator>;
 }) {
   const groups: { key: string; batch: GroupBatch | null; orders: BatchOrder[] }[] = batches
     .map((b) => ({ key: b.id, batch: b, orders: orders.filter((o) => o.batchId === b.id) }))
@@ -92,6 +97,17 @@ export function GroupedByBatch({
                     <span className="text-neutral-700">{o.productModel.name}</span>
                     <span className="text-xs text-neutral-500">{formatQty(s.qty.toString())} шт.</span>
                     <Badge variant={st.variant}>{st.label}</Badge>
+                    {indicators?.get(o.id) && (
+                      <Link href={`/production/${o.id}#docpay`} className="inline-flex">
+                        <DocsPayBadge
+                          tone={indicators.get(o.id)!.tone}
+                          missing={indicators.get(o.id)!.missing.length}
+                          noDocs={indicators.get(o.id)!.noDocs}
+                          payText={indicators.get(o.id)!.payText}
+                          proofMissing={indicators.get(o.id)!.proofMissing}
+                        />
+                      </Link>
+                    )}
                     <span className="ml-auto text-xs text-neutral-600">
                       {s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}
                     </span>

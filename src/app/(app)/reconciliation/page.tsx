@@ -6,6 +6,14 @@ import { cn } from "@/lib/utils";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
 import data from "@/data/reconciliation.json";
 import { loadLive, type Live } from "./live";
+import { prisma } from "@/lib/prisma";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
+import { loadBatchPanels } from "@/lib/production-doc-checklist";
+import { TONE_DOT, overallTone } from "@/lib/doc-panel";
+
+/** Документы и оплата по группе — те же панели и статусы, что в карточках аукциона/партии и на «Документах». */
+type DocInfo = { href: string; label: string; missing: number; proofMissing: number; dot: string };
 import {
   ALL_INVOICES,
   RECHECK,
@@ -82,7 +90,7 @@ function HowToRead() {
   );
 }
 
-function GroupBlock({ g, ids, live }: { g: Group; ids: Set<string>; live: Live }) {
+function GroupBlock({ g, ids, live, doc }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null }) {
   const list = groupInvoices(g, ids);
   const t = totalsOf(list);
   const db = live.group.get(g.id);
@@ -183,6 +191,17 @@ function GroupBlock({ g, ids, live }: { g: Group; ids: Set<string>; live: Live }
               </ul>
             </InfoHint>
           ) : null}
+          {doc ? (
+            <Link href={doc.href} className="inline-flex flex-wrap items-center gap-1.5 hover:underline" title="Чек-лист документов, загрузка и отметка оплаты — в карточке">
+              <span aria-hidden className={cn("inline-block size-2.5 rounded-full", doc.dot)} />
+              <span>
+                Документы и оплата: <b>{doc.label}</b>
+                {doc.missing > 0 ? <span className="font-semibold text-red-700"> · нет документов: {doc.missing}</span> : null}
+                {doc.proofMissing > 0 ? <span className="text-amber-700"> · платёжек нет: {doc.proofMissing}</span> : null}
+              </span>
+              <span className="text-blue-600">→</span>
+            </Link>
+          ) : null}
           {g.section === "production" && g.advanceRub ? (
             <span className="text-neutral-600">аванс, засчитанный в расчёте партии: <b className="tabular-nums">{money(g.advanceRub)}</b></span>
           ) : null}
@@ -228,6 +247,26 @@ export default async function ReconciliationPage() {
   const year = await getYearFilter();
   const live = await loadLive(session.user.organizationId);
   const { invs, ids, groups } = visibleFor(year);
+  const c4Mode = await getCommission4Mode();
+  const [auctionPanels, batchPanels] = await Promise.all([
+    loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false }),
+    loadBatchPanels(prisma, session.user.organizationId, { c4Mode, canUpload: false, canMark: false }),
+  ]);
+  const docFor = (g: Group): DocInfo | null => {
+    const hit =
+      g.section === "production"
+        ? batchPanels.find((b) => b.number === g.dbLink.batch)
+        : auctionPanels.find((a) => (g.dbLink.purchases ?? []).some((n) => a.purchaseNumbers.includes(n)));
+    if (!hit) return null;
+    const p = hit.panel;
+    return {
+      href: "batchId" in hit ? `/production/batches/${hit.number}` : (p.href ?? "/lots"),
+      label: p.pay.label,
+      missing: p.missingCount,
+      proofMissing: p.proofMissing,
+      dot: TONE_DOT[overallTone(p.missingCount, p.pay, p.proofMissing)],
+    };
+  };
 
   const sections = [
     { key: "purchase", title: "Закупка меха и сырья ↔ счета ↔ оплата" },
@@ -342,7 +381,7 @@ export default async function ReconciliationPage() {
               <CountsLine t={t} />
             </Card>
             <div className="space-y-2">
-              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} />)}
+              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} doc={docFor(g)} />)}
             </div>
           </section>
         );

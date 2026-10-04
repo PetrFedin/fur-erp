@@ -33,6 +33,7 @@ import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
+import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -674,6 +675,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           </CardContent>
         </Card>
       )}
+
+      <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
 
       <Card>
         <CardHeader>

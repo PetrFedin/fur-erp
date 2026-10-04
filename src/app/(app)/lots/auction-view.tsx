@@ -28,6 +28,7 @@ import { getYearFilter, type YearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { AuctionDocsPay } from "./auction-docs-pay";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -542,6 +543,8 @@ export async function AuctionView({
 
       {blocks.length > 0 && (flat ? <FlatLotsPanel /> : <AuctionTotalsPanel />)}
       </LotsProvider>
+
+      <AuctionDocsPay organizationId={organizationId} names={names} />
 
       <Card>
         <CardHeader>

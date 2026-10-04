@@ -190,12 +190,12 @@ export type DocCoverage = { rows: CovRow[]; sections: SectionStat[]; total: Sect
 
 // ====================================================================== МЕХАНИКА
 
-type CovDoc = { type: DriveDocTypeKey; keys: string[]; original: boolean };
+export type CovDoc = { type: DriveDocTypeKey; keys: string[]; original: boolean };
 
-const normTitle = (s: string) =>
+export const normTitle = (s: string) =>
   s.toLowerCase().replace(/\.[a-z0-9]{2,5}$/, "").replace(/[^a-zа-яё0-9]+/g, "");
 
-const PURCHASE_KIND_TO_TYPE: Record<string, DriveDocTypeKey> = {
+export const PURCHASE_KIND_TO_TYPE: Record<string, DriveDocTypeKey> = {
   AUCTION_INVOICE: "AUCTION_INVOICE",
   SPECIFICATION: "SPECIFICATION",
   ADVANCE_INVOICE: "PAYMENT_INVOICE",
@@ -206,7 +206,7 @@ const PURCHASE_KIND_TO_TYPE: Record<string, DriveDocTypeKey> = {
 };
 
 /** Один документ — один раз: по типу + названию или по id файла Drive. */
-function uniq(docs: CovDoc[]): CovDoc[] {
+export function uniq(docs: CovDoc[]): CovDoc[] {
   const seen = new Set<string>();
   const out: CovDoc[] = [];
   for (const d of docs) {
@@ -227,7 +227,7 @@ const get = <T,>(m: Map<string, T[]>, k: string | null | undefined): T[] => (k ?
 
 const yearOf = (d: Date | null | undefined) => (d ? d.getUTCFullYear() : null);
 
-function evaluate(rules: RowRules, docs: CovDoc[], docRef: boolean, docsFor?: Partial<Record<ColKey, CovDoc[]>>) {
+export function evaluate(rules: RowRules, docs: CovDoc[], docRef: boolean, docsFor?: Partial<Record<ColKey, CovDoc[]>>) {
   const cells = {} as Record<ColKey, Cell>;
   const gaps: Gap[] = [];
   let required = 0;

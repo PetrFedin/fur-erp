@@ -25,6 +25,8 @@ import { getYearFilter } from "@/lib/year-filter";
 import { orderYearWhere } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
+import { loadOrderIndicators } from "@/lib/production-doc-checklist";
+import { DocsPayBadge } from "@/components/docs-pay-badge";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -60,6 +62,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   if (batchParam && (!/^\d{1,6}$/.test(batchParam) || parseInt(batchParam, 10) < 1)) notFound();
   const batchNum = batchParam ? parseInt(batchParam, 10) : null;
   const grouped = str(sp.view) === "batches";
+  // Фильтр «документы и оплата»: только без документов / только без оплаты (не оплачено полностью).
+  const NEEDS: Record<string, string> = { "": "Документы и оплата: все", docs: "Только без документов", pay: "Только без оплаты" };
+  const need = str(sp.need) in NEEDS ? str(sp.need) : "";
   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
   const PAGE_SIZE = 50;
   const limitRaw = /^\d{1,5}$/.test(str(sp.limit)) ? parseInt(str(sp.limit), 10) : PAGE_SIZE;
@@ -116,7 +121,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   ]);
 
   const canEdit = canEditProduction(session.user.role);
-  const hasFilters = Boolean(q || status || clientId || modelId || batchNum);
+  const hasFilters = Boolean(q || status || clientId || modelId || batchNum || need);
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
   // П-2026-0141) says why it is there. Exact № ТЗ / order number come first.
@@ -136,7 +141,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const n = parseInt(o.workOrderNumber ?? "", 10);
     return Number.isNaN(n) ? null : n;
   };
-  const orders = [...rawOrders];
+  const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
+  const orders = rawOrders.filter((o) => {
+    if (!need) return true;
+    const ind = indicators.get(o.id);
+    if (!ind) return false;
+    return need === "docs" ? ind.missing.length > 0 || ind.noDocs : ind.pay.state === "UNPAID" || ind.pay.state === "PARTIAL";
+  });
   // 4% не применено ни к одному списанию в списке — подпись «(с 4%)» не ставим.
   if (!orders.some((o) => o.materialUsages.some((u) => u.commission4))) c4 = "";
   if (sort) {
@@ -176,17 +187,18 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const total = o.totalCost ? o.totalCost.add(mats.extraIncl) : projected;
     // Excl-VAT counterpart, same lines (expenses carry no VAT in this schema).
     const totalExcl = mats.excl.add(expSum);
-    if (o.status !== "CANCELLED") {
-      sumIncl = sumIncl.add(total);
-      sumExcl = sumExcl.add(totalExcl);
-      const c = base4AndExtra(o.materialUsages);
-      sumBase = sumBase.add(c.base);
-      sumExtra = sumExtra.add(c.extra);
-      sumExcluded = sumExcluded.add(c.excluded);
-      sumMatLines += o.materialUsages.length;
-    }
     return { o, total, totalExcl };
   });
+  for (const { o, total, totalExcl } of priced) {
+    if (o.status === "CANCELLED") continue;
+    sumIncl = sumIncl.add(total);
+    sumExcl = sumExcl.add(totalExcl);
+    const c = base4AndExtra(o.materialUsages);
+    sumBase = sumBase.add(c.base);
+    sumExtra = sumExtra.add(c.extra);
+    sumExcluded = sumExcluded.add(c.excluded);
+    sumMatLines += o.materialUsages.length;
+  }
   const shown = priced.slice(0, limit);
   const hiddenCount = priced.length - shown.length;
 
@@ -267,6 +279,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             ))}
           </Select>
         )}
+        <Select name="need" defaultValue={need} className="w-full sm:w-56" aria-label="Документы и оплата">
+          {Object.entries(NEEDS).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </Select>
         <Select name="sort" defaultValue={sort} className="w-full sm:w-48" aria-label="Сортировка">
           {Object.entries(SORTS).map(([k, label]) => (
             <option key={k} value={k}>
@@ -286,7 +305,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </ResponsiveDetails>
 
       {grouped ? (
-        <GroupedByBatch orders={groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} />
+        <GroupedByBatch orders={need ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} />
       ) : (
       <>
       <ResponsiveRows table={
@@ -300,6 +319,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
               План / факт, шт.
             </Th>
             <Th>Статус</Th>
+            <Th className="hidden lg:table-cell" title="Какие документы не хватает и оплачена ли работа заказчиком">Документы и оплата</Th>
             <Th>
               <VatLabel base={`Итого себестоимость${c4}`} />
             </Th>
@@ -309,6 +329,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           {shown.map(({ o, total, totalExcl }) => {
             const st = STATUS_LABELS[o.status];
             const href = `/production/${o.id}`;
+            const ind = indicators.get(o.id);
             cards.push(
               <RowCard
                 key={o.id}
@@ -324,7 +345,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     strong: true,
                   },
                 ]}
-                details={[{ label: "Заказчик", value: o.client?.name }]}
+                details={[
+                  { label: "Заказчик", value: o.client?.name },
+                  { label: "Документы и оплата", value: ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : null },
+                ]}
               />,
             );
             const cell = "p-0";
@@ -360,6 +384,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     <Badge variant={st.variant}>{st.label}</Badge>
                   </Link>
                 </Td>
+                <Td className={`${cell} hidden lg:table-cell`}>
+                  <Link href={`${href}#docpay`} className={link}>
+                    {ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : "—"}
+                  </Link>
+                </Td>
                 <Td className={cell}>
                   <Link href={href} className={link}>
                     {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
@@ -370,7 +399,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={7} className="py-8 text-center text-neutral-400">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

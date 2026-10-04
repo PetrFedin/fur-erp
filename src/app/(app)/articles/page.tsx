@@ -234,6 +234,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               )}
             </C4Hint>
           </span>
+          <Link href="/analytics/products" className={buttonVariants({ variant: "outline" })} title="Что произведено, из чего складывается себестоимость, наценки и рекомендуемые цены">
+            Аналитика изделий и цены
+          </Link>
           {canCreate && (
             <Link href="/models/new" className={buttonVariants()}>
               + Новая модель
