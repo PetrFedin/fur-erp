@@ -291,7 +291,10 @@ function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment;
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         {p.docRef && <span className="text-neutral-600">п/п / документ: {p.docRef}</span>}
         {p.hasProof ? (
-          <span className="text-emerald-700">платёжка есть{p.proofTitle ? `: ${p.proofTitle}` : ""}</span>
+          <span className="text-emerald-700">
+            {/сч[её]т|invoice|УПД/i.test(p.proofTitle ?? "") ? "основание: счёт (платёжки нет)" : "платёжка есть"}
+            {p.proofTitle ? `: ${p.proofTitle}` : ""}
+          </span>
         ) : (
           <span className="font-semibold text-amber-800">платёжки нет{p.confirmed ? "" : " (оплата не подтверждена)"}</span>
         )}

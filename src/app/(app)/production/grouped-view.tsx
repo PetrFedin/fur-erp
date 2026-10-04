@@ -84,7 +84,7 @@ export function GroupedByBatch({
               <span className="ml-auto text-xs text-neutral-600">
                 себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
                 <b>{formatMoney(t.paid.toString())}</b> ·{" "}
-                {t.remaining.lessThan(-0.005) ? "переплата" : "остаток"}{" "}
+                {t.remaining.lessThan(-0.005) ? "оплачено сверх работы" : "остаток"}{" "}
                 <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.abs().toString())}</b>
               </span>
             </summary>
@@ -129,7 +129,7 @@ export function GroupedByBatch({
             <b>Оплачено</b> — оплаты заказчика по ТЗ партии (каждая оплата учтена один раз, отменённые не входят).
           </p>
           <p className="mt-1">
-            <b>Остаток</b> = работа − оплачено; если оплачено больше — «переплата». Работа = цена работы за единицу × количество (выпущено, иначе план).
+            <b>Остаток</b> = работа − оплачено; если оплачено больше — «оплачено сверх работы» (чаще всего это шкуры подрядчика внутри платежа: см. заметку платежа в карточке партии). Работа = цена работы за единицу × количество (выпущено, иначе план).
           </p>
           <p className="mt-1">
             <b>Себестоимость</b> = сырьё и подкладка (списания) + расходы ТЗ.{" "}

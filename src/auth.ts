@@ -28,6 +28,16 @@ declare module "@auth/core/jwt" {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
+  // Уникальные имена кук: на localhost куки общие для всех портов, и соседние проекты на Auth.js
+  // (одинаковое имя authjs.session-token, другой секрет) иначе выкидывают из сессии.
+  cookies: {
+    sessionToken: {
+      name: "furerp.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" },
+    },
+    callbackUrl: { name: "furerp.callback-url", options: { sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" } },
+    csrfToken: { name: "furerp.csrf-token", options: { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" } },
+  },
   pages: { signIn: "/login" },
   providers: [
     Credentials({

@@ -180,8 +180,10 @@ export function buildPanelPay(
       note: mentions.length > 0 ? `в документах оплата упомянута (${mentions[0]}), но в учёте её нет — отметьте оплату` : null,
     };
   }
-  if (remaining.lessThan(ONE)) {
-    return { ...base, state: "PAID", tone: noProof > 0 ? "warn" : "ok", label: "Оплачено полностью", note: proofNote };
+  if (remaining.lessThan(new Decimal(50))) {
+    // остаток до 50 ₽ — округление расчёта против УПД, не недоплата
+    const roundNote = remaining.greaterThanOrEqualTo(ONE) ? `расхождение ${formatMoney(remaining.toString())} — округление расчёта против УПД` : null;
+    return { ...base, state: "PAID", tone: noProof > 0 ? "warn" : "ok", label: "Оплачено полностью", note: [proofNote, roundNote].filter(Boolean).join("; ") || null };
   }
   return {
     ...base,

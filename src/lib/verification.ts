@@ -38,6 +38,9 @@ import { loadLive, type Live } from "@/app/(app)/reconciliation/live";
 type Db = PrismaClient | Prisma.TransactionClient;
 
 import { VERIFY_KINDS, type VerifyKind } from "@/lib/verification-kinds";
+/** Допуск на округление лотов в расчёте себестоимости против УПД (максимум ≈0,65 ₽ на лот × десятки лотов). */
+export const ROUND_TOL_RUB = 50;
+
 export { VERIFY_KINDS, KIND_LABEL, type VerifyKind } from "@/lib/verification-kinds";
 
 /** Основание автоподтверждения (verifiedBy = «auto:<основание>»). */
@@ -367,18 +370,20 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       if (!g) blockers.push({ text: "закупки нет в реестре сверки: сумму проверить не с чем", href: "/reconciliation" });
       else {
         const gHref = `/reconciliation#${encodeURIComponent(g.id)}`;
-        const failed = (g.checks ?? []).filter((c) => !c.ok);
-        for (const c of failed) blockers.push({ text: `в реестре сверки не сошлось: ${c.label}`, href: gHref });
-        if (g.status !== "ok" && failed.length === 0) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "реестр сверки: не сходится на 100%", href: gHref });
         const gd = live?.group.get(g.id);
         const docCost = g.doc?.costRub ?? null;
+        // Расхождение в копейках-десятках рублей — округление лотов в расчёте себестоимости против УПД, не ошибка.
+        const costDiff = docCost != null && gd?.cost != null ? gd.cost - docCost : null;
+        const roundingOnly = costDiff != null && Math.abs(costDiff) <= ROUND_TOL_RUB;
+        const failed = (g.checks ?? []).filter((c) => !c.ok && !(roundingOnly && /УПД|расч[её]т/i.test(c.label)));
+        for (const c of failed) blockers.push({ text: `в реестре сверки не сошлось: ${c.label}`, href: gHref });
+        if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "реестр сверки: не сходится на 100%", href: gHref });
         if (docCost == null) blockers.push({ text: "в документах нет итоговой суммы (УПД/счёта) — сравнить не с чем", href: gHref });
-        else if (gd?.cost != null) {
-          const diff = gd.cost - docCost;
-          if (Math.abs(diff) > 1) blockers.push({ text: `сумма в базе ≠ УПД на ${fmtRub(Math.abs(diff))} (в базе ${fmtRub(gd.cost)}, по документам ${fmtRub(docCost)})`, href });
+        else if (costDiff != null) {
+          if (Math.abs(costDiff) > ROUND_TOL_RUB) blockers.push({ text: `сумма в базе ≠ УПД на ${fmtRub(Math.abs(costDiff))} (в базе ${fmtRub(gd!.cost!)}, по документам ${fmtRub(docCost)})`, href });
         }
         const docPaid = g.doc?.paidRub ?? null;
-        if (docPaid != null && gd && Math.abs(gd.paid - docPaid) > 1) blockers.push({ text: `оплата в базе ≠ оплате по документам на ${fmtRub(Math.abs(gd.paid - docPaid))}`, href: gHref });
+        if (docPaid != null && gd && Math.abs(gd.paid - docPaid) > ROUND_TOL_RUB) blockers.push({ text: `оплата в базе ≠ оплате по документам на ${fmtRub(Math.abs(gd.paid - docPaid))}`, href: gHref });
       }
       const panel = panelOf.get(p.id);
       if (!panel) blockers.push({ text: "нет панели документов и оплаты для закупки", href });

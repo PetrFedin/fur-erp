@@ -226,7 +226,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 {t.work.isZero() && t.paid.isZero()
                   ? "—"
                   : t.remaining.lessThan(-0.005)
-                    ? `переплата ${formatMoney(t.remaining.abs().toString())}`
+                    ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
                     : formatMoney(t.remaining.toString())}
               </Td>
               <Td className="hidden sm:table-cell">{docs || "—"}</Td>
@@ -264,7 +264,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           const rem = t.work.isZero() && t.paid.isZero()
             ? "—"
             : t.remaining.lessThan(-0.005)
-              ? `переплата ${formatMoney(t.remaining.abs().toString())}`
+              ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
               : formatMoney(t.remaining.toString());
           return (
             <RowCard
