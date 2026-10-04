@@ -167,7 +167,7 @@ export function ProductionPaymentForm({
                     <span>
                       {o.label}
                       {" — "}
-                      {due !== null ? `К оплате ${rub(due)} ₽` : "цена работы не указана"} (оплачено {rub(paid)} ₽)
+                      {due !== null ? `К оплате ${rub(due)} ₽` : "цена работы не указана"} (платежи, покрывающие это ТЗ: {rub(paid)} ₽)
                       {current && <span className="text-xs text-neutral-400"> · это ТЗ</span>}
                     </span>
                   </label>

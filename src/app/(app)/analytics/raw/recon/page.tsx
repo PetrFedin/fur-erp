@@ -126,7 +126,7 @@ export default async function ReconPage() {
             <span className="ml-auto">{csv("dormant")}</span>
           </CardTitle>
           {dormant.length > 0 && (
-            <p className="text-sm text-neutral-600">Всего: <b>{dormant.length}</b> лотов, стоимость остатка <Money incl={q2(dormantIncl)} excl={q2(dormantExcl)} /><Ref4 mode={c4} incl={q2(dormantIncl)} excl={q2(dormantExcl)} /></p>
+            <div className="text-sm text-neutral-600">Всего: <b>{dormant.length}</b> лотов, стоимость остатка <Money incl={q2(dormantIncl)} excl={q2(dormantExcl)} /><Ref4 mode={c4} incl={q2(dormantIncl)} excl={q2(dormantExcl)} /></div>
           )}
         </CardHeader>
         <CardContent>

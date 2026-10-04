@@ -7,14 +7,10 @@ import { getYearFilter, yearLabel } from "@/lib/year-filter";
 import data from "@/data/reconciliation.json";
 import { loadLive, type Live } from "./live";
 import { prisma } from "@/lib/prisma";
-import { getCommission4Mode } from "@/lib/commission4-mode";
-import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
-import { loadBatchPanels } from "@/lib/production-doc-checklist";
-import { TONE_DOT, overallTone } from "@/lib/doc-panel";
 import { loadVerifyFlags, type VerifyFlags } from "@/lib/verification";
+import { LazyDetails } from "../lots/lazy-details";
+import { loadReconGroup } from "./group-action";
 
-/** Документы и оплата по группе — те же панели и статусы, что в карточках аукциона/партии и на «Документах». */
-type DocInfo = { href: string; label: string; missing: number; proofMissing: number; dot: string };
 import {
   ALL_INVOICES,
   RECHECK,
@@ -28,7 +24,7 @@ import {
   type RecStatus,
   type Totals,
 } from "./model";
-import { ConfirmLine, CountsLine, GroupDbLine, INV_TONE, InvoiceHeader, InvoiceRow, Progress, driveUrl, money } from "./parts";
+import { ConfirmLine, CountsLine, INV_TONE, Progress, money } from "./parts";
 
 export const metadata = { title: "Реестр сверки" };
 export const dynamic = "force-dynamic"; // цифры «в базе» читаются из БД при каждом заходе
@@ -40,11 +36,6 @@ const STATUS: Record<RecStatus, { label: string; hint: string; cls: string }> = 
   conflict: { label: "Не сходится", hint: "документы противоречат базе или друг другу", cls: "bg-red-50 text-red-800 border-red-200" },
   empty: { label: "Нет данных", hint: "в папке и в базе пусто", cls: "bg-neutral-100 text-neutral-600 border-neutral-200" },
 };
-
-function Mark({ ok }: { ok: boolean | null }) {
-  if (ok === null) return <span className="text-neutral-400">нет данных</span>;
-  return ok ? <span className="text-emerald-600">✓</span> : <span className="text-red-600">✗</span>;
-}
 
 function groupTone(list: InvCalc[]): keyof typeof INV_TONE | null {
   if (!list.length) return null;
@@ -105,7 +96,7 @@ function verifyMark(g: Group, vf: VerifyFlags): { text: string; cls: string } | 
   return { text: "Ждёт проверки", cls: "border-amber-300 bg-amber-50 text-amber-900" };
 }
 
-function GroupBlock({ g, ids, live, doc, ver }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null; ver: { text: string; cls: string } | null }) {
+function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: Live; ver: { text: string; cls: string } | null }) {
   const list = groupInvoices(g, ids);
   const t = totalsOf(list);
   const db = live.group.get(g.id);
@@ -113,7 +104,11 @@ function GroupBlock({ g, ids, live, doc, ver }: { g: Group; ids: Set<string>; li
   const st = STATUS[g.status];
   const dbShare = db && t.amount > 0 ? Math.min(100, (db.paid / t.amount) * 100) : 0;
   return (
-    <details className="group rounded-lg border border-neutral-200 bg-white" id={g.id}>
+    <LazyDetails
+      className="group rounded-lg border border-neutral-200 bg-white"
+      id={g.id}
+      load={loadReconGroup.bind(null, g.id)}
+      summary={
       <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 text-sm [&::-webkit-details-marker]:hidden">
         <span className={cn("inline-block size-2.5 shrink-0 rounded-full", tone ? INV_TONE[tone].dot : "bg-neutral-400")} />
         <span className="min-w-0 flex-1 basis-56 font-medium">
@@ -138,107 +133,8 @@ function GroupBlock({ g, ids, live, doc, ver }: { g: Group; ids: Set<string>; li
           </Link>
         )}
       </summary>
-
-      <div className="border-t border-neutral-100">
-        {list.length > 0 ? (
-          <>
-            <InvoiceHeader />
-            {list.map((c) => (
-              <InvoiceRow key={c.inv.id} c={c} db={live.inv.get(c.inv.id)} groupId={g.id} />
-            ))}
-          </>
-        ) : (
-          <p className="px-3 py-2 text-xs text-neutral-500">Счетов Веллмех по этой группе в документах нет.</p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
-          <GroupDbLine db={db} t={t} />
-          {db?.note ? <span className="text-neutral-500">{db.note}</span> : null}
-          <span>
-            Документы: стоимость <b className="tabular-nums">{money(g.doc.costRub)}</b>, оплачено <b className="tabular-nums">{money(g.doc.paidRub)}</b>
-          </span>
-          <InfoHint label="Проверки и расхождения" wide>
-            <div className="space-y-2">
-              <div className="font-semibold text-neutral-900">Проверки</div>
-              <ul className="space-y-0.5">
-                {g.checks.map((c) => (
-                  <li key={c.label} className="flex justify-between gap-3">
-                    <span>{c.label}</span>
-                    <Mark ok={c.ok} />
-                  </li>
-                ))}
-              </ul>
-              <dl className="space-y-0.5 tabular-nums">
-                <div className="flex justify-between gap-3"><dt>Счета по документам</dt><dd>{money(g.doc.invoicesRub)}</dd></div>
-                <div className="flex justify-between gap-3"><dt>Снимок базы: стоимость</dt><dd>{money(g.db.costRub)}</dd></div>
-                <div className="flex justify-between gap-3"><dt>Снимок базы: оплачено</dt><dd>{money(g.db.paidRub)}</dd></div>
-                <div className="flex justify-between gap-3"><dt>Снимок базы: остаток</dt><dd>{money(g.db.remainingRub)}</dd></div>
-              </dl>
-              {g.db.refs ? <p className="text-neutral-500">{g.db.refs}</p> : null}
-              {g.diffs.length > 0 && (
-                <>
-                  <div className="font-semibold text-neutral-900">Расхождения ({g.diffs.length})</div>
-                  <ul className="space-y-2">
-                    {g.diffs.map((d, i) => (
-                      <li key={i} className="rounded bg-neutral-50 p-2">
-                        <div className="font-medium">{d.what}</div>
-                        {d.doc && <div>Документ: {d.doc}</div>}
-                        {d.db && <div>База: {d.db}</div>}
-                        {d.why && <div className="text-neutral-500">Почему: {d.why}</div>}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              {g.notes.length > 0 && (
-                <>
-                  <div className="font-semibold text-neutral-900">Заметки</div>
-                  <ul className="list-disc space-y-1 pl-4">
-                    {g.notes.map((n, i) => (
-                      <li key={i}>{n}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          </InfoHint>
-          {g.agreements && g.agreements.length > 0 ? (
-            <InfoHint label="Согласования по группе" wide>
-              <ul className="space-y-1">
-                {g.agreements.map((a, i) => (
-                  <li key={i}>{a.date ?? "—"} · {a.by || "—"} — {a.note}</li>
-                ))}
-              </ul>
-            </InfoHint>
-          ) : null}
-          {doc ? (
-            <Link href={doc.href} className="inline-flex flex-wrap items-center gap-1.5 hover:underline" title="Чек-лист документов, загрузка и отметка оплаты — в карточке">
-              <span aria-hidden className={cn("inline-block size-2.5 rounded-full", doc.dot)} />
-              <span>
-                Документы и оплата: <b>{doc.label}</b>
-                {doc.missing > 0 ? <span className="font-semibold text-red-700"> · нет документов: {doc.missing}</span> : null}
-                {doc.proofMissing > 0 ? <span className="text-amber-700"> · платёжек нет: {doc.proofMissing}</span> : null}
-              </span>
-              <span className="text-blue-600">→</span>
-            </Link>
-          ) : null}
-          {g.section === "production" && g.advanceRub ? (
-            <span className="text-neutral-600">аванс, засчитанный в расчёте партии: <b className="tabular-nums">{money(g.advanceRub)}</b></span>
-          ) : null}
-          {g.files.length > 0 && (
-            <InfoHint label="Документы Drive" wide>
-              <ul className="space-y-0.5">
-                {g.files.map((f) => (
-                  <li key={f.fileId} className="truncate">
-                    <a href={driveUrl(f.fileId)} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{f.title}</a>
-                  </li>
-                ))}
-              </ul>
-            </InfoHint>
-          )}
-        </div>
-      </div>
-    </details>
+      }
+    />
   );
 }
 
@@ -267,27 +163,7 @@ export default async function ReconciliationPage() {
   const year = await getYearFilter();
   const live = await loadLive(session.user.organizationId);
   const { invs, ids, groups } = visibleFor(year);
-  const c4Mode = await getCommission4Mode();
   const vf = await loadVerifyFlags(prisma, session.user.organizationId);
-  const [auctionPanels, batchPanels] = await Promise.all([
-    loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false }),
-    loadBatchPanels(prisma, session.user.organizationId, { c4Mode, canUpload: false, canMark: false }),
-  ]);
-  const docFor = (g: Group): DocInfo | null => {
-    const hit =
-      g.section === "production"
-        ? batchPanels.find((b) => b.number === g.dbLink.batch)
-        : auctionPanels.find((a) => (g.dbLink.purchases ?? []).some((n) => a.purchaseNumbers.includes(n)));
-    if (!hit) return null;
-    const p = hit.panel;
-    return {
-      href: "batchId" in hit ? `/production/batches/${hit.number}` : (p.href ?? "/lots"),
-      label: p.pay.label,
-      missing: p.missingCount,
-      proofMissing: p.proofMissing,
-      dot: TONE_DOT[overallTone(p.missingCount, p.pay, p.proofMissing)],
-    };
-  };
 
   const sections = [
     { key: "purchase", title: "Закупка меха и сырья ↔ счета ↔ оплата" },
@@ -402,7 +278,7 @@ export default async function ReconciliationPage() {
               <CountsLine t={t} />
             </Card>
             <div className="space-y-2">
-              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} doc={docFor(g)} ver={verifyMark(g, vf)} />)}
+              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} />)}
             </div>
           </section>
         );

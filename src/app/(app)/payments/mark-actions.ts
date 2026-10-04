@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { parseDateInput, zMoney, zNum } from "@/lib/input";
 import { removeStoredFiles } from "@/lib/fitting-files";
-import { readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
+import { isPickedFile, readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
 import { loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { MANUAL_PREFIX } from "@/lib/doc-panel";
@@ -58,7 +58,7 @@ function parseMark(formData: FormData): { error: string } | Parsed {
 
 /** Файл-основание (необязательный), как у платёжки аукциона. */
 async function readProof(formData: FormData): Promise<{ error: string } | { file: ReadDoc | null }> {
-  const entries = formData.getAll("file").filter((e): e is File => typeof e !== "string" && (e.size > 0 || e.name !== ""));
+  const entries = formData.getAll("file").filter(isPickedFile);
   if (entries.length === 0) return { file: null };
   if (entries.length > 1) return { error: "Прикрепите один файл платёжки" };
   const read = await readDocumentFiles(entries);

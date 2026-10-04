@@ -5,16 +5,17 @@ import { revalidatePath } from "next/cache";
 import { resetVerification } from "@/lib/verification";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { zNum, zMoney, parseDateInput } from "@/lib/input";
 import { Decimal } from "@prisma/client/runtime/library";
 import { removeStoredFiles } from "@/lib/fitting-files";
-import { readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
+import { isPickedFile, readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
 import { loadAuctionSummaries, lockAuction, PAY_EPS, CLOSING_NOTE } from "@/lib/auction-payments";
 import { formatMoney } from "@/lib/utils";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 
-const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"] as const;
+const EDIT_ROLES = ACCESS.supplierPayments;
 
 const schema = z.object({
   supplierId: z.string().min(1, "Выберите поставщика"),
@@ -297,9 +298,7 @@ function overpayText(after: Decimal, total: Decimal, status: string) {
 async function readOptionalProof(formData: FormData): Promise<{ error: string } | { file: ReadDoc | null }> {
   // Браузер без выбранного файла шлёт File с пустым именем и размером 0 — это «файла нет».
   // Файл с именем, но 0 байт — настоящий пустой файл: сообщаем, а не игнорируем молча.
-  const entries = formData.getAll("file").filter(
-    (e): e is File => typeof e !== "string" && (e.size > 0 || (typeof e.name === "string" && e.name !== "")),
-  );
+  const entries = formData.getAll("file").filter(isPickedFile);
   if (entries.length === 0) return { file: null };
   const empty = entries.find((e) => e.size === 0);
   if (empty) return { error: `Файл «${empty.name}» пустой (0 байт) — выберите другой файл` };

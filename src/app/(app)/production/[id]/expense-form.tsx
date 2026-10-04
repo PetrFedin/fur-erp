@@ -21,13 +21,16 @@ export function ProductionExpenseForm({
   return (
     <form
       ref={formRef}
-      action={(formData) =>
+      // onSubmit, а не action: React 19 стирает поля формы после action даже при ошибке — человек терял статью и сумму.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
           if (!result.error) formRef.current?.reset();
-        })
-      }
+        });
+      }}
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2"
     >
       <div className="sm:col-span-2">

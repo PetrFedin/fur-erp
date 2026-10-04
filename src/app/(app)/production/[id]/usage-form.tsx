@@ -56,7 +56,10 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
   return (
     <form
       ref={formRef}
-      action={(formData) => {
+      // onSubmit, а не action: React 19 стирает поля формы после action даже при ошибке — человек терял выбор лота и количество.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { requireSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import { loadTzDoc, type TzLine } from "@/lib/tz-print";
 import { parseCommission4Cookie } from "@/lib/commission4-mode";
 import { parseVatModeCookie } from "@/lib/vat-mode";
@@ -8,7 +9,13 @@ import { PrintToolbar } from "../../../print-toolbar";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return { title: `Печать ТЗ ${id.slice(-6)}` };
+  const session = await requireSession();
+  const o = await prisma.productionOrder.findFirst({
+    where: { id, organizationId: session.user.organizationId },
+    select: { number: true, workOrderNumber: true },
+  });
+  // Имя файла при «Сохранить как PDF» берётся из заголовка вкладки — пусть это будет номер ТЗ, а не хвост id.
+  return { title: o ? `ТЗ ${o.workOrderNumber ?? o.number}` : "Печать ТЗ" };
 }
 
 const th = "border border-neutral-700 px-2 py-1 text-left font-semibold bg-neutral-100";

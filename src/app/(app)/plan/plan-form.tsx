@@ -33,7 +33,8 @@ export type PlanInitial = {
 
 let counter = 0;
 const newKey = () => `r${++counter}`;
-const emptyRow = (): Row => ({ key: newKey(), article: { code: "", modelId: null }, name: "", color: "", furType: "", notes: "", qty: {} });
+// Ключ первой строки фиксирован: счётчик модуля на сервере растёт между запросами и давал рассинхрон гидрации (name c-r5 против c-r1).
+const emptyRow = (key: string = newKey()): Row => ({ key, article: { code: "", modelId: null }, name: "", color: "", furType: "", notes: "", qty: {} });
 const initialState: PlanFormState = {};
 
 export function PlanForm({
@@ -61,8 +62,8 @@ export function PlanForm({
   );
   const [rows, setRows] = useState<Row[]>(() =>
     initial
-      ? [{ key: newKey(), article: initial.article, name: initial.name, color: initial.color, furType: initial.furType, notes: initial.notes, qty: Object.fromEntries(Object.entries(initial.sizes).map(([k, v]) => [k, String(v)])) }]
-      : [emptyRow()],
+      ? [{ key: "r0", article: initial.article, name: initial.name, color: initial.color, furType: initial.furType, notes: initial.notes, qty: Object.fromEntries(Object.entries(initial.sizes).map(([k, v]) => [k, String(v)])) }]
+      : [emptyRow("r0")],
   );
   const [addSize, setAddSize] = useState("");
   const [paste, setPaste] = useState("");

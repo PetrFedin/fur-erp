@@ -128,7 +128,7 @@ export function AdvanceForm({
       )}
       <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
         <Button type="submit" disabled={pending}>
-          {pending ? "Сохраняем…" : initial ? "Сохранить" : "Добавить платёж"}
+          {pending ? "Сохраняем…" : initial ? "Сохранить" : "Добавить аванс"}
         </Button>
         {initial && onDone && (
           <Button type="button" variant="outline" onClick={onDone} disabled={pending}>

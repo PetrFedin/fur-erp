@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
-import { hasRole } from "@/lib/access";
+import { ACCESS, hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cleanSearch } from "@/lib/input";
@@ -82,7 +82,7 @@ export default async function PaymentsPage({
 }: PageProps<"/payments">) {
   const session = await requireSession();
   const sp = await searchParams;
-  const canPay = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"]);
+  const canPay = hasRole(session.user.role, ACCESS.supplierPayments);
   const flashError = typeof sp.error === "string" ? (FLASH_ERRORS[sp.error] ?? "") : "";
   const tab: "suppliers" | "clients" =
     sp.tab === "clients" ? "clients" : "suppliers";
@@ -833,17 +833,15 @@ export default async function PaymentsPage({
 
           <h2 className="mt-2 text-base font-semibold">Авансы и оплаты вне аукционов</h2>
           {canPay && (
-          <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Аванс / предоплата поставщику</CardTitle>
-              <CardDescription>
-                Аванс без привязки к аукциону и закупке — гасит общий долг поставщика. Оплату посреднику по конкретному аукциону вносите в блоке этого аукциона выше.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <details className="max-w-2xl rounded-lg border border-neutral-200 bg-white" open={!selected}>
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Аванс поставщику без привязки к аукциону</summary>
+            <div className="border-t border-neutral-100 p-3">
+              <p className="mb-3 text-xs text-neutral-500">
+                Гасит общий долг поставщика. Оплату по конкретному аукциону вносите в блоке этого аукциона выше («Добавить оплату»).
+              </p>
               <AdvanceForm suppliers={advSuppliers.filter((x) => suppliers.some((y) => y.id === x.id))} />
-            </CardContent>
-          </Card>
+            </div>
+          </details>
           )}
 
           <div className="flex flex-col gap-2">

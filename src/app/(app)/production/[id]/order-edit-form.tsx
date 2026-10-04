@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -18,6 +18,7 @@ export function OrderEditForm({
   models,
   warehouses,
   clients,
+  batches,
   modelLocked,
   defaults,
   colorOptions,
@@ -27,6 +28,7 @@ export function OrderEditForm({
   models: ModelOption[];
   warehouses: Warehouse[];
   clients: ClientOption[];
+  batches: { id: string; label: string }[];
   modelLocked: boolean;
   colorOptions: ColorSelectOption[];
   canAddColor: boolean;
@@ -44,6 +46,7 @@ export function OrderEditForm({
     startDate: string;
     notes: string;
     clientId: string;
+    batchId: string;
     contractNumber: string;
     workOrderNumber: string;
     workOrderDate: string;
@@ -51,20 +54,8 @@ export function OrderEditForm({
   };
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
-    return (await action(fd)) ?? {};
-  }, initialState);
-
-  const [prevPending, setPrevPending] = useState(pending);
-  if (pending !== prevPending) {
-    setPrevPending(pending);
-    if (submitted && !pending) {
-      if (!state.error) setIsEditing(false);
-      setSubmitted(false);
-    }
-  }
-
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState<FormState>(initialState);
   if (!isEditing) {
     return (
       <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
@@ -81,8 +72,16 @@ export function OrderEditForm({
       </CardHeader>
       <CardContent>
         <form
-          action={formAction}
-          onSubmit={() => setSubmitted(true)}
+          // onSubmit, а не action: React 19 стирает поля формы после action даже при ошибке — правки терялись.
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            startTransition(async () => {
+              const r = (await action(fd)) ?? {};
+              setState(r);
+              if (!r.error) setIsEditing(false);
+            });
+          }}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
           <div className="sm:col-span-2">
@@ -203,6 +202,19 @@ export function OrderEditForm({
               min="0"
               defaultValue={defaults.clientWorkPricePerUnit}
             />
+          </div>
+
+          <div>
+            <Label htmlFor="batchId">Партия (поставка)</Label>
+            <Select id="batchId" name="batchId" defaultValue={defaults.batchId}>
+              <option value="">Без партии</option>
+              {batches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-neutral-500">Оплата работы у ТЗ в партии отмечается по партии, а не на самом ТЗ.</p>
           </div>
 
           <div className="sm:col-span-2">

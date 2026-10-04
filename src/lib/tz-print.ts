@@ -134,7 +134,9 @@ export async function loadTzDoc(
   const vatRatesNote =
     vb.rows.length === 0
       ? ""
-      : `НДС по ставке лота: ${vb.rows.map((r) => `${r.rate}% — ${rub(vatMode === "excl" ? r.excl : r.incl)}`).join(", ")}${vb.kind === "mixed" ? " (смешанные ставки)" : ""}.`;
+      : `НДС по ставке лота: ${vb.rows
+          .map((r) => `${r.rate}% — сырьё и подкладка на ${rub(vatMode === "excl" ? r.excl : r.incl)}${vatMode === "excl" ? " без НДС" : " с НДС"}, из них НДС ${rub(r.incl.sub(r.excl))}`)
+          .join("; ")}${vb.kind === "mixed" ? " (смешанные ставки)" : ""}.`;
 
   const num = order.workOrderNumber?.trim() || order.number;
   const liningText = (order.lining ?? "").trim();

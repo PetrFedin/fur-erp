@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { groupBreakdownItems, labelUnit } from "@/lib/cost-breakdown-groups";
 
 type Breakdown = {
@@ -28,14 +28,20 @@ export function CostBreakdownToggle({
   unitCostIncl?: number | string | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const groups = groupBreakdownItems(breakdown.items ?? []);
+  // Содержимое окна рисуем только после первого открытия: на странице закупки таких окон по числу позиций (десятки),
+  // и каждое раньше сидело в разметке со всей таблицей составляющих.
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (opened && dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal();
+  }, [opened]);
+  const groups = opened ? groupBreakdownItems(breakdown.items ?? []) : [];
   const excl = toNum(unitCostExcl);
   const incl = toNum(unitCostIncl);
   const showFinal = excl != null && incl != null && Number.isFinite(excl) && Number.isFinite(incl);
 
   return (
     <div className="text-xs">
-      <button type="button" onClick={() => dialogRef.current?.showModal()} className="text-neutral-500 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
+      <button type="button" onClick={() => (opened ? dialogRef.current?.showModal() : setOpened(true))} className="text-neutral-500 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
         Из чего цена →
       </button>
       <dialog
@@ -45,6 +51,7 @@ export function CostBreakdownToggle({
         }}
         className="m-auto max-h-[85vh] w-[34rem] max-w-[95vw] overflow-y-auto overflow-x-hidden whitespace-normal break-words rounded-lg border border-neutral-200 bg-white p-0 text-left text-xs font-normal shadow-xl backdrop:bg-black/30"
       >
+        {opened && (
         <div className="p-4">
           <div className="mb-2 flex items-start justify-between gap-4">
             <p className="text-sm font-semibold text-neutral-800">Из чего складывается цена лота</p>
@@ -114,6 +121,7 @@ export function CostBreakdownToggle({
           )}
           <p className="mt-2 text-neutral-400">Числа — из отчёта поставщика, в его единицах.</p>
         </div>
+        )}
       </dialog>
     </div>
   );

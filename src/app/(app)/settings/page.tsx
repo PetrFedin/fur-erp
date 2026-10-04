@@ -4,17 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 
 const SETTINGS_LINKS = [
   { href: "/materials", title: "Справочник материалов", description: "Названия, единицы измерения, категории" },
-  { href: "/suppliers", title: "Поставщик", description: "Поставщики и их контакты" },
+  { href: "/suppliers", title: "Поставщики", description: "Поставщики и их контакты" },
   { href: "/clients", title: "Заказчики", description: "Кому шьём и кто платит" },
   { href: "/settings/colors", title: "Справочник цветов", description: "Единые названия цветов, синонимы, объединение и привязка" },
   { href: "/settings/furs", title: "Справочник меха", description: "Вид меха по-русски и по-английски, синонимы из инвойсов и ТЗ" },
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Наш код и код/название в системе продаж, другие написания, объединение дублей" },
+  { href: "/payments", title: "Оплаты", description: "Оплаты поставщикам и заказчиков по аукционам, авансы, долг" },
   { href: "/supply-plan", title: "План поставки", description: "Что и когда должно прийти" },
   { href: "/warehouses", title: "Склады", description: "Места хранения" },
   { href: "/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
   { href: "/attention", title: "Что не заведено", description: "Пробелы в данных: документы, даты, привязки" },
-  { href: "/verify", title: "Ждёт проверки", description: "Подтверждение платежей, закупок, ТЗ и партий: что подтверждено, что ждёт ручной проверки" },
+  { href: "/verify", title: "Ждёт проверки", description: "Подтверждение оплат, закупок, ТЗ и партий: что подтверждено, что ждёт ручной проверки" },
   { href: "/documents", title: "Покрытие документами", description: "Какие документы есть, каких не хватает, что приложить" },
   { href: "/reconciliation", title: "Реестр сверки", description: "Закупки, производство и их оплата: что сходится на 100%, что нет" },
 ];

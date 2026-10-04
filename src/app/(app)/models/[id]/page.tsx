@@ -20,6 +20,13 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const m = await prisma.productModel.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
+  return { title: m ? `Модель ${m.name}` : "Модель" };
+}
+
 export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
   const { id } = await params;
   const session = await requireSession();

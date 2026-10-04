@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, type ReactNode } from "react";
+import { createContext, useActionState, useContext, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
@@ -23,6 +23,17 @@ const UNIT_LABELS: Record<string, string> = {
 
 type MaterialOption = { id: string; name: string; unit: MaterialUnit };
 
+type Shared = { colorOptions: ColorSelectOption[]; canAddColor: boolean; materials: MaterialOption[]; currency: string };
+const SharedCtx = createContext<Shared | null>(null);
+
+/**
+ * Общие для всех строк закупки справочники (цвета, материалы, валюта) — передаём один раз на страницу.
+ * Раньше список цветов уходил отдельным свойством в каждую строку (десятки строк × два вида = сотни копий в странице).
+ */
+export function ItemRowShared({ value, children }: { value: Shared; children: ReactNode }) {
+  return <SharedCtx.Provider value={value}>{children}</SharedCtx.Provider>;
+}
+
 export function PurchaseItemRow({
   colSpan,
   children,
@@ -32,10 +43,6 @@ export function PurchaseItemRow({
   lockedNote,
   lockedOrders,
   canEditMaterial,
-  colorOptions,
-  canAddColor,
-  materials,
-  currency,
   defaults,
   variant = "row",
   card,
@@ -51,10 +58,6 @@ export function PurchaseItemRow({
   lockedNote?: string;
   lockedOrders?: OrderRef[];
   canEditMaterial: boolean;
-  colorOptions: ColorSelectOption[];
-  canAddColor: boolean;
-  materials: MaterialOption[];
-  currency: string;
   defaults: {
     rawMaterialId: string;
     rawMaterialName: string;
@@ -67,6 +70,7 @@ export function PurchaseItemRow({
     colorRefId: string;
   };
 }) {
+  const { colorOptions, canAddColor, materials, currency } = useContext(SharedCtx) ?? { colorOptions: [], canAddColor: false, materials: [], currency: "RUB" };
   const [isEditing, setIsEditing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {

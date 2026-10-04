@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { parseDateInput, zMoney, zNum } from "@/lib/input";
+import { isPickedFile } from "@/lib/purchase-files";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readOneDriveFile, writeDriveFile } from "@/lib/drive-files";
 import { batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
@@ -68,7 +69,7 @@ export async function markProductionPayment(scope: "batch" | "order", id: string
     percentIn = p.data as number;
   }
   const basis = String(formData.get("basis") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 300);
-  const fileEntries = formData.getAll("file").filter((e): e is File => typeof e !== "string" && (e.size > 0 || e.name !== ""));
+  const fileEntries = formData.getAll("file").filter(isPickedFile);
   if (fileEntries.length > 1) return { error: "Прикрепите один файл платёжки" };
   let read: Awaited<ReturnType<typeof readOneDriveFile>> | null = null;
   if (fileEntries.length === 1) {

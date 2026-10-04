@@ -203,7 +203,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             {canCreate && <p className="mt-1">Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.</p>}
           </InfoHint>
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-neutral-500">
             <VatLabel base="Стоимость остатков (по себестоимости)" />
             <Mode4Badge mode={c4Mode} />:{" "}

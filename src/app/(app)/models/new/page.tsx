@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModelForm } from "../model-form";
 import { createModel } from "../actions";
 
+export const metadata = { title: "Новая модель" };
+
 export default function NewModelPage() {
   return (
     <div className="max-w-2xl">

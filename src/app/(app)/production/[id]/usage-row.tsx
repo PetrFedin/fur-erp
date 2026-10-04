@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -150,6 +151,7 @@ export function UsageRow({
     return (
       <RowCard
         title={`${usage.rawMaterialName} · лот ${usage.lotNumber ?? "без номера"}`}
+        href={`/analytics/raw/lot/${usage.lotId}`}
         subtitle={`Списано ${formatDate(usage.date)}`}
         fields={[
           { label: "Кол-во", value: `${formatQty(usage.quantity)} ${UNIT_LABELS[usage.unit] ?? usage.unit}` },
@@ -184,7 +186,11 @@ export function UsageRow({
   return (
     <>
       <Tr>
-        <Td title={`Списано ${formatDate(usage.date)}`}>{usage.lotNumber ?? "без номера"}</Td>
+        <Td title={`Списано ${formatDate(usage.date)}`}>
+          <Link href={`/analytics/raw/lot/${usage.lotId}`} className="underline underline-offset-2" title="Карточка лота: закупка, где ещё использован, остаток">
+            {usage.lotNumber ?? "без номера"}
+          </Link>
+        </Td>
         <Td>{usage.rawMaterialName}</Td>
         <Td>
           {formatQty(usage.quantity)} {UNIT_LABELS[usage.unit] ?? usage.unit}

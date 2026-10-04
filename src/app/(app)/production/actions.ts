@@ -418,9 +418,23 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     clientWorkPricePerUnit = new Decimal(n.value);
   }
 
+  // Партия — необязательное поле формы правки: меняем только если оно пришло (пусто = «без партии»).
+  let batchPatch: { batchId: string | null } | Record<string, never> = {};
+  if (formData.has("batchId")) {
+    const batchIdRaw = ((formData.get("batchId") as string | null) ?? "").trim();
+    if (batchIdRaw) {
+      const b = await prisma.productionBatch.findFirst({ where: { id: batchIdRaw, organizationId: session.user.organizationId }, select: { id: true } });
+      if (!b) return { error: "Партия не найдена" };
+      batchPatch = { batchId: b.id };
+    } else {
+      batchPatch = { batchId: null };
+    }
+  }
+
   await prisma.productionOrder.update({
     where: { id: orderId },
     data: {
+      ...batchPatch,
       productModelId: parsed.data.productModelId,
       rawWarehouseId: parsed.data.rawWarehouseId,
       finishedWarehouseId: parsed.data.finishedWarehouseId,

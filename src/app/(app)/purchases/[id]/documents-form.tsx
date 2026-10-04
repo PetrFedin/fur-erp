@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { formatMb } from "@/lib/format-mb";
 import { uploadPurchaseDocuments, type DocFormState } from "../doc-actions";
+import { uploadDriveDocument } from "../../drive-actions";
 
 const KINDS: [string, string][] = [
   ["AUCTION_INVOICE", "Счёт аукциона"],
@@ -17,7 +18,16 @@ const KINDS: [string, string][] = [
 
 const MAX_TOTAL = 25 * 1024 * 1024;
 
-export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; hasBatch: boolean }) {
+export function DocumentsForm({
+  purchaseId,
+  hasBatch,
+  paymentTargets,
+}: {
+  purchaseId: string;
+  hasBatch: boolean;
+  /** Оплаты закупки: документ можно привязать к оплате (платёжка, письмо) — сохраняется как документ Drive. */
+  paymentTargets?: { id: string; label: string }[];
+}) {
   const [state, setState] = useState<DocFormState>({});
   const [pending, startTransition] = useTransition();
   const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
@@ -27,7 +37,13 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
     const form = e.currentTarget;
     const fd = new FormData(form);
     const files = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
-    const picked = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.name !== "");
+    const picked = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.name !== "" && f.name !== "undefined");
+    const scope = String(fd.get("scope") ?? "purchase");
+    const payId = scope.startsWith("payment:") ? scope.slice("payment:".length) : null;
+    if (payId && files.length > 1) {
+      setState({ error: "К оплате — по одному файлу" });
+      return;
+    }
     if (files.length === 0 && picked.length > 0) {
       setState({ error: "Файл пустой (0 байт)" });
       return;
@@ -40,7 +56,16 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
     setState({});
     startTransition(async () => {
       try {
-        const res = await uploadPurchaseDocuments(purchaseId, {}, fd);
+        let res: DocFormState | void;
+        if (payId) {
+          const one = new FormData();
+          one.set("file", files[0] ?? picked[0]);
+          one.set("title", String(fd.get("title") ?? ""));
+          one.set("docType", String(fd.get("kind") ?? "OTHER"));
+          res = await uploadDriveDocument("payment", payId, one);
+        } else {
+          res = await uploadPurchaseDocuments(purchaseId, {}, fd);
+        }
         setState(res ?? {});
         if (res?.ok) form.reset();
       } catch {
@@ -72,6 +97,11 @@ export function DocumentsForm({ purchaseId, hasBatch }: { purchaseId: string; ha
         <select name="scope" defaultValue="purchase" className={field}>
           <option value="purchase">Только к этой закупке</option>
           {hasBatch && <option value="batch">Ко всей партии (аукцион)</option>}
+          {(paymentTargets ?? []).map((t) => (
+            <option key={t.id} value={`payment:${t.id}`}>
+              К оплате: {t.label}
+            </option>
+          ))}
         </select>
       </label>
       <label className="flex flex-col gap-1 text-xs text-neutral-500">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,8 @@ export default async function NewPurchasePage() {
   ]);
 
   return (
-    <div className="max-w-4xl">
+    <div className="flex max-w-4xl flex-col gap-3">
+      <div className="text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
       <Card>
         <CardHeader>
           <CardTitle>Новая закупка</CardTitle>

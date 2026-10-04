@@ -102,6 +102,13 @@ function contractLabel(raw: string): string {
   return `Договор подряда ${c}`;
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const o = await prisma.productionOrder.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { number: true, workOrderNumber: true } });
+  return { title: o ? `ТЗ ${o.workOrderNumber ?? o.number}` : "ТЗ" };
+}
+
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -116,6 +123,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       finishedWarehouse: true,
       client: true,
       batch: { select: { id: true, number: true } },
+      season: { select: { id: true, code: true } },
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
@@ -168,6 +176,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         },
       })
     : [];
+  const batchOptions = (
+    await prisma.productionBatch.findMany({
+      where: { organizationId: session.user.organizationId },
+      orderBy: { number: "asc" },
+      select: { id: true, number: true, year: true },
+    })
+  ).map((b) => ({ id: b.id, label: `Партия ${b.number}${b.year ? ` (${b.year})` : ""}` }));
   const paymentOrders = clientOrders
     .map((o) => {
       const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
@@ -175,13 +190,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       const paid = o.paymentAllocations.reduce((sum, a) => sum.add(a.productionPayment.amount), new Decimal(0));
       return {
         id: o.id,
-        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
         sortKey: o.workOrderNumber ?? o.number,
         due: due ? due.toFixed(2) : null,
         paid: paid.toFixed(2),
       };
     })
-    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, "ru", { numeric: true }))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, "ru", { numeric: true }) || a.label.localeCompare(b.label, "ru", { numeric: true }))
     .map((o) => ({ id: o.id, label: o.label, due: o.due, paid: o.paid }));
 
   // Оплата одна на несколько ТЗ — остаток по одному ТЗ не считаем (в БД нет суммы по ТЗ), показываем оплату по партии.
@@ -467,7 +482,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const clean = (v: string | null | undefined) => (v ?? "").trim();
   const headerParts = [
-    order.productModel.name,
+    <Link key="model" href={`/models/${order.productModelId}`} className="font-medium text-neutral-800 underline underline-offset-2" title="Карточка изделия: состав, цена">
+      {order.productModel.name}
+    </Link>,
+    order.season && (
+      <Link key="season" href={`/plan?season=${order.season.id}`} className="underline underline-offset-2" title="План и факт сезона">
+        сезон {order.season.code}
+      </Link>
+    ),
     clean(order.color) && clean(order.color),
     clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
     qtyLabel,
@@ -503,6 +525,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               Партия {order.batch.number}
             </Link>
           )}
+          {!order.batch && (
+            <span className="text-sm text-neutral-500" title="Партию можно выбрать в «Изменить». Пока партии нет, оплата работы отмечается прямо на ТЗ, в блоке «Документы и оплата»">
+              без партии
+            </span>
+          )}
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
@@ -515,6 +542,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             models={modelOptions}
             warehouses={warehouses}
             clients={clientOptions}
+            batches={batchOptions}
             modelLocked={modelLocked}
             colorOptions={colorOptions}
             canAddColor={hasRole(session.user.role, ACCESS.colors)}
@@ -532,6 +560,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               startDate: order.startDate ? order.startDate.toISOString().slice(0, 10) : "",
               notes: order.notes ?? "",
               clientId: order.clientId ?? "",
+              batchId: order.batchId ?? "",
               contractNumber: order.contractNumber ?? "",
               workOrderNumber: order.workOrderNumber ?? "",
               workOrderDate: order.workOrderDate ? order.workOrderDate.toISOString().slice(0, 10) : "",

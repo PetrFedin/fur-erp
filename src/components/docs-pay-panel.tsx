@@ -347,7 +347,8 @@ function MarkForm({ target, remaining, remainingText, onDone }: { target: MarkTa
     const fd = new FormData(form);
     fd.set("mode", mode);
     const f = fd.get("file");
-    if (f instanceof File && f.name !== "") {
+    if (f instanceof File && f.name === "" && f.size === 0) fd.delete("file"); // файл не выбран — не отправляем пустышку
+    else if (f instanceof File && f.name !== "") {
       const err = checkFile(f);
       if (err) return setError(err);
     }

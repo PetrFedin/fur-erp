@@ -4,15 +4,12 @@ import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import {
-  COLUMNS,
   SECTION_ORDER,
   SECTION_TITLES,
   computeDocCoverage,
   summarize,
   filterCovRows,
   parseCovFilters,
-  type Cell,
-  type ColKey,
   type CovFilters,
   type CovRow,
   type SectionKey,
@@ -28,12 +25,15 @@ import {
   parseDocListFilters,
 } from "@/lib/drive-doc-list";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
-import { REGISTRY_UPDATE_CMD, registryCoverage, type RegCell, type RegStat } from "@/lib/registry-coverage";
+import { REGISTRY_UPDATE_CMD, registryCoverage, type RegStat } from "@/lib/registry-coverage";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
+import { LazyDetails } from "../lots/lazy-details";
+import { loadDocGroup } from "./group-actions";
+import { GroupCards, GroupTableRows, MatrixRow, MobileCard, OrigCell, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
 
 export const metadata = { title: "Покрытие документами" };
 
@@ -412,11 +412,8 @@ function Legend({ totalGaps }: { totalGaps: number }) {
 type Group = { key: string; title: string; sort: number; rows: CovRow[] };
 
 function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow[]; f: CovFilters }) {
-  const cols = COLUMNS.filter((c) => rows.some((r) => r.cells[c.key].need !== "na"));
-  const withReg = rows.some((r) => r.registry.state !== "none");
-  const template = `minmax(0,1fr) repeat(${cols.length}, 4.75rem)${withReg ? " 9.5rem" : ""} 5.5rem`;
+  const { cols, withReg, template } = sectionLayout(rows);
 
-  const byGap = (a: CovRow, b: CovRow) => b.gaps.length - a.gaps.length;
   const groupMap = new Map<string, Group>();
   for (const r of rows) {
     const g = groupMap.get(r.groupKey) ?? { key: r.groupKey, title: r.groupTitle, sort: r.groupSort, rows: [] };
@@ -428,10 +425,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
   if (f.sort === "gaps") groups.sort((a, b) => gapsOf(b) - gapsOf(a));
   else if (section === "purchases") groups.sort((a, b) => b.sort - a.sort || a.title.localeCompare(b.title, "ru"));
   else if (section === "tz") groups.sort((a, b) => b.sort - a.sort);
-  for (const g of groups) {
-    if (f.sort === "gaps") g.rows.sort(byGap);
-    else if (section === "tz" || section === "purchases") g.rows.sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
-  }
+  for (const g of groups) g.rows = sortGroupRows(section, g.rows, f);
   const grouped = groups.length > 1 || (groups.length === 1 && (section === "purchases" || section === "tz"));
   const openAll = !!f.gaps || !!f.q || groups.length === 1;
 
@@ -453,8 +447,12 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
       {header}
       {grouped
         ? groups.map((g) => (
-            <details key={g.key} open={openAll} className="group border-b border-neutral-100 last:border-b-0">
-              <summary className="grid cursor-pointer list-none items-center gap-1 bg-white px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
+            <LazyDetails
+              key={g.key}
+              defaultOpen={openAll}
+              load={openAll ? undefined : loadDocGroup.bind(null, section, g.key, "table", f.auction, f.gaps ? "1" : "", f.q, f.sort)}
+              className="group border-b border-neutral-100 last:border-b-0"
+              summary={<summary className="grid cursor-pointer list-none items-center gap-1 bg-white px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
                   <span className="min-w-0">
@@ -476,13 +474,10 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
                 })}
                 {withReg ? <RegGroupCell rows={g.rows} /> : null}
                 <OrigCell have={g.rows.reduce((s, r) => s + r.origHave, 0)} total={g.rows.reduce((s, r) => s + r.origTotal, 0)} />
-              </summary>
-              <div className="divide-y divide-neutral-100 border-t border-neutral-100">
-                {g.rows.map((r) => (
-                  <MatrixRow key={r.id} r={r} cols={cols.map((c) => c.key)} template={template} withReg={withReg} />
-                ))}
-              </div>
-            </details>
+              </summary>}
+            >
+              {openAll ? <GroupTableRows rows={g.rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} /> : null}
+            </LazyDetails>
           ))
         : (
           <div className="divide-y divide-neutral-100">
@@ -496,19 +491,22 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
 
   const cards = grouped ? (
     groups.map((g) => (
-      <details key={g.key} open={openAll} className="rounded-lg border border-neutral-200 bg-white">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm">
-          <span className="min-w-0 break-words font-medium">{g.title}</span>
-          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", gapsOf(g) > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700")}>
-            {gapsOf(g) > 0 ? gapsOf(g) : "✓"}
-          </span>
-        </summary>
-        <div className="flex flex-col gap-2 p-2 pt-0">
-          {g.rows.map((r) => (
-            <MobileCard key={r.id} r={r} />
-          ))}
-        </div>
-      </details>
+      <LazyDetails
+        key={g.key}
+        defaultOpen={openAll}
+        load={openAll ? undefined : loadDocGroup.bind(null, section, g.key, "cards", f.auction, f.gaps ? "1" : "", f.q, f.sort)}
+        className="rounded-lg border border-neutral-200 bg-white"
+        summary={
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm">
+            <span className="min-w-0 break-words font-medium">{g.title}</span>
+            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", gapsOf(g) > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700")}>
+              {gapsOf(g) > 0 ? gapsOf(g) : "✓"}
+            </span>
+          </summary>
+        }
+      >
+        {openAll ? <GroupCards rows={g.rows} /> : null}
+      </LazyDetails>
     ))
   ) : (
     groups.flatMap((g) => g.rows).map((r) => <MobileCard key={r.id} r={r} />)
@@ -535,101 +533,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
   );
 }
 
-function OrigCell({ have, total }: { have: number; total: number }) {
-  return (
-    <span className={cn("text-center text-xs tabular-nums", total === 0 ? "text-neutral-300" : have === total ? "text-emerald-600" : have === 0 ? "text-neutral-400" : "text-amber-600")} title="Сколько документов записи лежит в приложении файлом (остальные — только ссылка на Drive)">
-      {total === 0 ? "—" : `${have} из ${total}`}
-    </span>
-  );
-}
-
-function MatrixRow({ r, cols, template, withReg }: { r: CovRow; cols: ColKey[]; template: string; withReg: boolean }) {
-  return (
-    <Link href={r.href} className="grid items-center gap-1 px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
-      <span className="min-w-0">
-        <span className="block break-words text-sm font-medium text-neutral-900">{r.title}</span>
-        <span className="block break-words text-xs text-neutral-500">{r.sub}</span>
-        {r.extras.map((e, i) => (
-          <span key={i} className={cn("block text-xs", e.ok ? "text-emerald-600" : "font-medium text-red-600")}>
-            {e.text}
-          </span>
-        ))}
-      </span>
-      {cols.map((c) => (
-        <CellView key={c} cell={r.cells[c]} />
-      ))}
-      {withReg ? <RegView reg={r.registry} /> : null}
-      <OrigCell have={r.origHave} total={r.origTotal} />
-    </Link>
-  );
-}
-
-function CellView({ cell }: { cell: Cell }) {
-  if (cell.need === "na") return <span className="text-center text-[11px] text-neutral-300">не треб.</span>;
-  if (cell.ok)
-    return (
-      <span className="text-center text-sm font-medium text-emerald-600" title={cell.viaRef ? "Есть номер платёжки в карточке оплаты" : undefined}>
-        ✓{cell.count > 0 ? ` ${cell.count}` : " №"}
-      </span>
-    );
-  if (cell.need === "required")
-    return <span className="mx-auto rounded bg-red-50 px-1.5 py-0.5 text-center text-xs font-semibold text-red-700">нет</span>;
-  return <span className="text-center text-[11px] text-neutral-400">необяз.</span>;
-}
-
-function MobileCard({ r }: { r: CovRow }) {
-  const have = COLUMNS.filter((c) => r.cells[c.key].ok).map((c) => (r.cells[c.key].count > 0 ? `${c.label} (${r.cells[c.key].count})` : `${c.label} (№)`));
-  return (
-    <RowCard
-      title={r.title}
-      href={r.href}
-      subtitle={r.sub}
-      badge={
-        r.gaps.length > 0 ? (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">нет: {r.gaps.length}</span>
-        ) : (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">✓</span>
-        )
-      }
-      fields={[
-        { label: "Не хватает", value: r.gaps.length > 0 ? <span className="font-medium text-red-700">{r.gaps.map((g) => g.label).join(", ")}</span> : <span className="text-emerald-600">всё есть</span> },
-        { label: "Оригинал", value: r.origTotal === 0 ? "—" : `${r.origHave} из ${r.origTotal}` },
-        ...(r.registry.state !== "none" ? [{ label: "Реестр", value: <RegView reg={r.registry} inline /> }] : []),
-      ]}
-      details={[{ label: "Есть", value: have.length > 0 ? have.join(", ") : null }, ...(r.extras.length > 0 ? [{ label: "Оплаты", value: r.extras.map((e) => e.text).join("; ") }] : [])]}
-    />
-  );
-}
-
 // ------------------------------------------------------------------ реестр
-
-const regTone: Record<RegCell["state"], string> = {
-  found: "text-emerald-600",
-  partial: "text-amber-600",
-  missing: "rounded bg-red-50 px-1.5 py-0.5 font-semibold text-red-700",
-  later: "text-neutral-500",
-  untracked: "text-neutral-400",
-  none: "text-neutral-300",
-};
-
-function RegView({ reg, inline }: { reg: RegCell; inline?: boolean }) {
-  const text = reg.state === "found" || reg.state === "partial" ? `✓ ${reg.text}` : reg.text;
-  return (
-    <span title={reg.title || undefined} className={cn("break-words text-[11px] leading-tight", inline ? "text-left" : "text-center", regTone[reg.state])}>
-      {text}
-    </span>
-  );
-}
-
-function RegGroupCell({ rows }: { rows: CovRow[] }) {
-  const tracked = rows.filter((r) => r.registry.state !== "none" && r.registry.state !== "untracked" && r.registry.state !== "later");
-  const ok = tracked.filter((r) => r.registry.state === "found" || r.registry.state === "partial").length;
-  return (
-    <span className={cn("text-center text-xs tabular-nums", tracked.length === 0 ? "text-neutral-300" : ok === tracked.length ? "text-emerald-600" : "text-red-600")}>
-      {tracked.length === 0 ? "" : `${ok}/${tracked.length}`}
-    </span>
-  );
-}
 
 const fmtPct = (p: number) => `${String(p).replace(".", ",")}%`;
 const regDate = (iso: string) => formatDate(new Date(iso));

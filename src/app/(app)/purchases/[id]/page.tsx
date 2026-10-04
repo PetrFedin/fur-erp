@@ -21,9 +21,9 @@ import { PaymentDeleteButton } from "./payment-delete-button";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
-import { PurchaseItemRow } from "./item-row";
+import { ItemRowShared, PurchaseItemRow } from "./item-row";
 import { DocumentsForm } from "./documents-form";
-import { UploadDocument, AddForm } from "@/components/drive-documents";
+import { AddForm } from "@/components/drive-documents";
 import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { countLabel } from "@/lib/drive-docs-group";
@@ -346,10 +346,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       }
                       lockedOrders={orders}
                       canEditMaterial={editable}
-                      colorOptions={colorOptions}
-                      canAddColor={canAddColor}
-                      materials={allMaterials}
-                      currency={purchase.currency}
                       defaults={{
                         rawMaterialId: item.rawMaterialId,
                         rawMaterialName: item.rawMaterial.name,
@@ -432,7 +428,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   };
 
   return (
+    <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex max-w-4xl flex-col gap-4">
+      <div className="-mb-2 text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold">
@@ -701,17 +699,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           />
           {canEditRole && (
             <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
-              <DocumentsForm purchaseId={id} hasBatch={!!batchName} />
-              <UploadDocument
-                entity="purchase"
-                entityId={id}
-                extraTargets={
+              <DocumentsForm
+                purchaseId={id}
+                hasBatch={!!batchName}
+                paymentTargets={
                   hasRole(session.user.role, ["OWNER", "ADMIN"])
-                    ? purchase.payments.map((p) => ({
-                        entity: "payment" as const,
-                        id: p.id,
-                        label: `Оплата ${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}`,
-                      }))
+                    ? purchase.payments.map((p) => ({ id: p.id, label: `${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}` }))
                     : undefined
                 }
               />
@@ -899,6 +892,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </CardContent>
       </Card>
     </div>
+    </ItemRowShared>
   );
 }
 

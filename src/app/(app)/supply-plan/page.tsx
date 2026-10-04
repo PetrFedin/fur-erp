@@ -31,6 +31,8 @@ function EntryReadOnly({ status, eventDate, notes }: { status: SupplyPlanStatusV
   );
 }
 
+export const metadata = { title: "План поставки" };
+
 export default async function SupplyPlanPage() {
   const session = await requireSession();
   const canEdit = hasRole(session.user.role, ACCESS.supplyPlan);

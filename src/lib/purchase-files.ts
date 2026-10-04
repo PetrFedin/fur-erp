@@ -42,12 +42,20 @@ export function fixFileNameExt(name: string, ext: string): string {
 
 export { formatMb };
 
+/**
+ * Выбран ли файл в поле. Пустое поле <input type="file"> браузер шлёт как File с пустым именем и размером 0,
+ * а серверное действие Next получает его уже с именем «undefined» — это «файла нет», а не настоящий пустой файл.
+ */
+export function isPickedFile(e: FormDataEntryValue): e is File {
+  return typeof e !== "string" && (e.size > 0 || (e.name !== "" && e.name !== "undefined"));
+}
+
 export type ReadDoc = { buf: Buffer; kind: DocKind; originalName: string };
 
 export async function readDocumentFiles(
   entries: FormDataEntryValue[],
 ): Promise<{ error: string } | { files: ReadDoc[] }> {
-  const picked = entries.filter((e): e is File => typeof e !== "string" && e.name !== "");
+  const picked = entries.filter((e): e is File => typeof e !== "string" && e.name !== "" && (e.name !== "undefined" || e.size > 0));
   const files = picked.filter((f) => f.size > 0);
   if (files.length === 0) {
     // Файл выбран, но пустой (size=0) — отдельное сообщение; не выбран вовсе — «Выберите файл».

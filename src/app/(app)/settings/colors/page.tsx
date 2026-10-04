@@ -64,6 +64,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
   return (
     <div className="flex flex-col gap-4">
       <div>
+        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <h1 className="text-xl font-semibold">Справочник цветов</h1>
         <p className="mt-1 max-w-3xl text-sm text-neutral-600">
           Один цвет — одно название на русском. В ТЗ, закупках и лотах цвет выбирается отсюда; переименование здесь сразу меняет название везде.

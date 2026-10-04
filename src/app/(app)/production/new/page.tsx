@@ -9,6 +9,8 @@ import { canEditProduction } from "@/lib/production-access";
 import { getColorOptions } from "@/lib/colors";
 import { ACCESS, hasRole } from "@/lib/access";
 
+export const metadata = { title: "Новое ТЗ" };
+
 export default async function NewProductionOrderPage() {
   const session = await requireSession();
   if (!canEditProduction(session.user.role)) {

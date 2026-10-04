@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updatePurchaseExchangeRate } from "../actions";
@@ -20,13 +20,25 @@ export function ExchangeRateForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const bound = updatePurchaseExchangeRate.bind(null, purchaseId);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <form
       ref={formRef}
-      action={async (formData) => {
-        const res = await bound(formData);
-        if (res?.error) window.alert(res.error);
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (pending) return;
+        const fd = new FormData(e.currentTarget);
+        setError(null);
+        startTransition(async () => {
+          try {
+            const res = await bound(fd);
+            if (res?.error) setError(res.error);
+          } catch {
+            setError("Не удалось обновить курс: пропала связь или сервер отклонил запрос.");
+          }
+        });
       }}
       className="flex flex-wrap items-end gap-2"
     >
@@ -41,10 +53,15 @@ export function ExchangeRateForm({
           className="w-32"
         />
       </div>
-      <Button type="submit" variant="outline" size="sm">
-        Обновить курс
+      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        {pending ? "Обновляем..." : "Обновить курс"}
       </Button>
       <CbrRateButton currency={currency} defaultDate={orderDate} />
+      {error && (
+        <p role="alert" className="w-full rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

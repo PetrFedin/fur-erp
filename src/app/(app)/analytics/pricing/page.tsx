@@ -82,7 +82,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const year = await getYearFilter();
   const c4Mode = await getCommission4Mode();
   const c4 = c4Suffix(c4Mode);
-  const p = parsePricingParams(await searchParams);
+  const sp = await searchParams;
+  const p = parsePricingParams(sp);
+  // Раскрытая карточка артикула: подробности (лоты, ТЗ, состав) строятся только для неё —
+  // иначе страница весила ~8 МБ и считалась ~9 с.
+  const openRaw = sp.open;
+  const openKey = (Array.isArray(openRaw) ? openRaw[0] : openRaw) ?? "";
   const canEditPrice = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
   const cols = parsePricingCols(p.cols, p.all);
@@ -152,6 +157,21 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   };
   const sortOver = (o: { sort: string; dir: string }) => here({ sort: o.sort, dir: o.dir });
   const thHref = (key: string) => sortHref(sortOver, key, sortState);
+  const openHref = (key: string, idx: number) => {
+    const base = here();
+    return `${base}${base.includes("?") ? "&" : "?"}open=${encodeURIComponent(key)}#row-${idx}`;
+  };
+  const closeHref = (idx: number) => `${here()}#row-${idx}`;
+  // Подробности строки: только у раскрытой; у остальных — ссылка «Показать подробности».
+  const lazyDetails = (a: PriceAgg, idx: number) =>
+    a.key === openKey ? (
+      <div>
+        <Link href={closeHref(idx)} scroll={false} className="text-xs text-neutral-500 underline underline-offset-2">Свернуть подробности</Link>
+        {details(a)}
+      </div>
+    ) : (
+      <Link href={openHref(a.key, idx)} scroll={false} className="text-xs text-neutral-500 underline underline-offset-2">Показать подробности: сводка, состав, лоты, ТЗ</Link>
+    );
 
   const perUnit = (a: PriceAgg, x: number) => (a.unitsCosted > 0 ? x / a.unitsCosted : 0);
 
@@ -366,7 +386,16 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   };
 
   const priceCell = (a: PriceAgg) => {
-    if (a.modelId) return a.price ? formatMoney(a.price.toFixed(2)) : <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">завести цену</span>;
+    if (a.modelId)
+      return a.price ? (
+        formatMoney(a.price.toFixed(2))
+      ) : canEditPrice ? (
+        <Link href={`/articles?q=${encodeURIComponent(a.label)}`} className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 underline underline-offset-2" title="Цена вводится в таблице «Изделия» — откроется строка этой модели">
+          завести цену →
+        </Link>
+      ) : (
+        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">цена не задана</span>
+      );
     if (p.view !== "category") return <span className="text-neutral-400">—</span>;
     const m = catMarkup.get(a.label);
     return m && m.total > 0 ? <span className="text-xs text-neutral-500">цена у {m.priced} из {m.total} моделей</span> : "—";
@@ -606,13 +635,11 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               </Tr>
             </Thead>
             <Tbody>
-              {shown.map((a) => (
-                <Tr key={a.key} className={a.modelId && !a.price ? "bg-amber-50/60" : ""}>
+              {shown.map((a, idx) => (
+                <Tr key={a.key} id={`row-${idx}`} className={a.modelId && !a.price ? "bg-amber-50/60" : ""}>
                   <Td className="font-medium">
-                    <details>
-                      <summary className="cursor-pointer hover:underline">{a.label}</summary>
-                      {details(a)}
-                    </details>
+                    <div>{a.label}</div>
+                    <div className="mt-0.5 font-normal">{lazyDetails(a, idx)}</div>
                     <div className="text-[11px] font-normal text-neutral-500">
                       {a.modelId ? a.category : p.view === "fur" || p.view === "furcat" ? `${a.modelCount} моделей` : `${a.modelCount} моделей`}
                       {a.modelId && (
@@ -653,7 +680,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           </Table>
         }
       >
-        {shown.map((a) => {
+        {shown.map((a, idx) => {
           const r = recOf(a);
           return (
             <RowCard
@@ -679,11 +706,11 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                   )}
                   {recCell(a)}
                   {noteCell(a)}
+                  {lazyDetails(a, idx)}
                 </div>
               }
               details={[
                 ...cols.map((c) => ({ label: colLabel(c, c4), value: <MetricCell col={c} m={a.m} total={a.m} /> })),
-                { label: "Что входит", value: details(a) },
               ]}
             />
           );

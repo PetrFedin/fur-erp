@@ -12,6 +12,8 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { lotYear, purchaseYear } from "@/lib/year-scope";
 import type { YearFilter } from "@/lib/year-filter";
+import { sizeOf, categoryOf } from "@/lib/lot-size";
+export { sizeOf, categoryOf };
 
 /**
  * Аналитика сырья: куплено → использовано в ТЗ → остаток, по аукционам, годам, видам меха,
@@ -39,23 +41,6 @@ export const GROUPS: { key: GroupBy; label: string }[] = [
 
 export const NO_AUCTION_KEY = "__none";
 const zero = () => new Decimal(0);
-const SIZE_RE = /(?:^|[\s,(])(XXXL|XXL|XL|L|M|S|XS)(?=$|[\s,)])/i;
-
-/** Размер из текста сорта: «… XXL 3 - 2.1» → XXL. Нет — «Не указан». */
-export function sizeOf(grade: string | null | undefined): string {
-  const m = SIZE_RE.exec(grade ?? "");
-  return m ? m[1].toUpperCase() : "Не указан";
-}
-/** Сорт/цвет без хвоста с размером: «Соболь баргузинский дикий сырец XXL 3 - 2.1» → «Соболь баргузинский дикий сырец». */
-export function categoryOf(grade: string | null | undefined, color: string | null | undefined): string {
-  const g = (grade ?? "").trim();
-  const m = SIZE_RE.exec(g);
-  const base = (m ? g.slice(0, m.index) : g).trim().replace(/[\s,;-]+$/, "");
-  const c = (color ?? "").trim();
-  if (base && c) return `${base}, ${c}`;
-  return base || c || "Не указано";
-}
-
 export type UsageRef = { id: string; orderId: string; number: string; modelId: string; qty: Decimal };
 
 export type RawLot = {

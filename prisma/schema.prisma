@@ -602,6 +602,8 @@ model RawMaterialLot {
   warehouse      Warehouse    @relation(fields: [warehouseId], references: [id])
   lotNumber      String?
   grade          String?
+  /// Размер лота (XXL, XL, L, M, S…): разбор текста grade, см. src/lib/lot-size.ts. null — не распознан.
+  sizeGrade      String?
   color          String?
   colorRefId     String?
   colorRef       ColorRef?    @relation(fields: [colorRefId], references: [id], onDelete: SetNull)

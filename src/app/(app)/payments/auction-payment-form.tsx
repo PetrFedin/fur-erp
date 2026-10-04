@@ -113,6 +113,7 @@ export function AuctionPaymentForm({
     const fd = new FormData(form);
     fd.set("mode", mode);
     const file = fd.get("file");
+    if (file instanceof File && file.name === "" && file.size === 0) fd.delete("file"); // файл не выбран — не отправляем пустышку
     if (typeof file !== "string" && file && file.name !== "" && file.size === 0) {
       setError(`Файл «${file.name}» пустой (0 байт) — выберите другой файл`);
       return;
