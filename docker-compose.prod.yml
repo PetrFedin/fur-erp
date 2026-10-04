@@ -1,0 +1,64 @@
+# Боевой запуск на сервере: база + приложение + Caddy (сам получает HTTPS-сертификат).
+# Запуск:  cp deploy/.env.prod.example .env  →  заполнить  →  docker compose -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fur_erp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?задайте DB_PASSWORD в .env}
+      POSTGRES_DB: fur_erp
+    volumes:
+      - fur_erp_db_data:/var/lib/postgresql/data
+    # порт наружу НЕ открываем: к базе ходит только приложение внутри сети docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fur_erp -d fur_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://fur_erp:${DB_PASSWORD}@db:5432/fur_erp
+      AUTH_SECRET: ${AUTH_SECRET:?задайте AUTH_SECRET в .env}
+      NEXTAUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: https://${DOMAIN:?задайте DOMAIN в .env}
+      NEXTAUTH_URL: https://${DOMAIN}
+      AUTH_TRUST_HOST: "true"
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      NODE_ENV: production
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - fur_erp_uploads:/app/uploads
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN}
+      BASIC_USER: ${BASIC_USER:-}
+      BASIC_HASH: ${BASIC_HASH:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  fur_erp_db_data:
+  fur_erp_uploads:
+  caddy_data:
+  caddy_config:

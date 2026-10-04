@@ -35,6 +35,7 @@ export async function registerOrganization(
   _prev: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
+  if (process.env.ALLOW_REGISTRATION === "false") return { error: "Регистрация закрыта. Попросите администратора создать вам доступ." };
   const parsed = registerSchema.safeParse({
     companyName: formData.get("companyName"),
     name: formData.get("name"),
