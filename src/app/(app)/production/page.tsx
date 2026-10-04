@@ -27,6 +27,10 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { loadOrderIndicators } from "@/lib/production-doc-checklist";
 import { DocsPayBadge } from "@/components/docs-pay-badge";
+import { VerifyPill } from "@/components/verify-control";
+import { loadVerifyFlags } from "@/lib/verification";
+import { TzVatBadge } from "@/components/tz-vat-badge";
+import { VAT_FILTER, matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -51,6 +55,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const q = str(sp.q);
   const status = STATUS_KEYS.includes(str(sp.status)) ? str(sp.status) : "";
   const clientId = str(sp.client);
+  const seasonF = str(sp.season);
   const SORTS: Record<string, string> = {
     "": "Сначала новые",
     num_desc: "№ ТЗ: по убыванию",
@@ -65,6 +70,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   // Фильтр «документы и оплата»: только без документов / только без оплаты (не оплачено полностью).
   const NEEDS: Record<string, string> = { "": "Документы и оплата: все", docs: "Только без документов", pay: "Только без оплаты" };
   const need = str(sp.need) in NEEDS ? str(sp.need) : "";
+  // Фильтр «Ставка НДС» по лотам в списаниях ТЗ: 20 / 22 / смешанные (?nds=).
+  const vatF = str(sp.nds) in VAT_FILTER ? str(sp.nds) : "";
   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
   const PAGE_SIZE = 50;
   const limitRaw = /^\d{1,5}$/.test(str(sp.limit)) ? parseInt(str(sp.limit), 10) : PAGE_SIZE;
@@ -77,6 +84,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     ...(modelId ? { productModelId: modelId } : {}),
     ...(status ? { status: status as "PLANNED" } : {}),
     ...(clientId ? { clientId } : {}),
+    ...(seasonF === "none" ? { seasonId: null } : seasonF ? { seasonId: seasonF } : {}),
     ...(batchNum ? { batch: { number: batchNum } } : {}),
     ...(q
       ? {
@@ -95,6 +103,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       where,
       include: {
         productModel: { select: { name: true } },
+        season: { select: { code: true } },
         client: { select: { name: true } },
         materialUsages: {
           select: {
@@ -121,7 +130,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   ]);
 
   const canEdit = canEditProduction(session.user.role);
-  const hasFilters = Boolean(q || status || clientId || modelId || batchNum || need);
+  const seasonList = await prisma.season.findMany({ where: { organizationId: orgId }, select: { id: true, code: true }, orderBy: { code: "asc" } });
+  const hasFilters = Boolean(q || status || clientId || modelId || batchNum || need || vatF || seasonF);
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
   // П-2026-0141) says why it is there. Exact № ТЗ / order number come first.
@@ -142,7 +152,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return Number.isNaN(n) ? null : n;
   };
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
+  const vflags = await loadVerifyFlags(prisma, orgId);
   const orders = rawOrders.filter((o) => {
+    if (!matchesVatFilter(vatBreakdown(o.materialUsages, c4Mode).kind, vatF)) return false;
     if (!need) return true;
     const ind = indicators.get(o.id);
     if (!ind) return false;
@@ -213,11 +225,14 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           )}
           <YearNote year={year} />
         </h1>
-        {canEdit && (
-          <Link href="/production/new" className={buttonVariants()}>
-            + Новое ТЗ
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" })}>Сезоны ТЗ</Link>}
+          {canEdit && (
+            <Link href="/production/new" className={buttonVariants()}>
+              + Новое ТЗ
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Вид списка">
@@ -268,6 +283,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </option>
           ))}
         </Select>
+        {seasonList.length > 0 && (
+          <Select name="season" defaultValue={seasonF} className="w-full sm:w-44" aria-label="Сезон">
+            <option value="">Все сезоны</option>
+            <option value="none">Без сезона</option>
+            {seasonList.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.code}
+              </option>
+            ))}
+          </Select>
+        )}
         {batchList.length > 0 && (
           <Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-44" aria-label="Партия">
             <option value="">Все партии</option>
@@ -281,6 +307,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         )}
         <Select name="need" defaultValue={need} className="w-full sm:w-56" aria-label="Документы и оплата">
           {Object.entries(NEEDS).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </Select>
+        <Select name="nds" defaultValue={vatF} className="w-full sm:w-56" aria-label="Ставка НДС">
+          {Object.entries(VAT_FILTER).map(([k, label]) => (
             <option key={k} value={k}>
               {label}
             </option>
@@ -305,7 +338,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </ResponsiveDetails>
 
       {grouped ? (
-        <GroupedByBatch orders={need ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} />
+        <GroupedByBatch orders={need || vatF ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />
       ) : (
       <>
       <ResponsiveRows table={
@@ -320,6 +353,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             </Th>
             <Th>Статус</Th>
             <Th className="hidden lg:table-cell" title="Какие документы не хватает и оплачена ли работа заказчиком">Документы и оплата</Th>
+            <Th className="hidden lg:table-cell" title="Подтверждено ли ТЗ (дата, приложение, количество, работа, материалы) или ждёт ручной проверки">Проверка</Th>
+            <Th className="hidden md:table-cell" title="Ставки НДС лотов в списаниях ТЗ">НДС</Th>
             <Th>
               <VatLabel base={`Итого себестоимость${c4}`} />
             </Th>
@@ -330,6 +365,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const st = STATUS_LABELS[o.status];
             const href = `/production/${o.id}`;
             const ind = indicators.get(o.id);
+            const vatB = vatBreakdown(o.materialUsages, c4Mode);
             cards.push(
               <RowCard
                 key={o.id}
@@ -346,8 +382,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   },
                 ]}
                 details={[
+                  { label: "Сезон", value: o.season?.code },
                   { label: "Заказчик", value: o.client?.name },
+                  { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
                   { label: "Документы и оплата", value: ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : null },
+                  { label: "Проверка", value: <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" /> },
                 ]}
               />,
             );
@@ -366,6 +405,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 <Td className={cell}>
                   <Link href={href} className={link}>
                     {o.productModel.name}
+                    {o.season && <span className="ml-2 text-xs text-neutral-500">{o.season.code}</span>}
                     {showClient && o.client && <span className="block text-xs text-neutral-500 lg:hidden">{o.client.name}</span>}
                   </Link>
                 </Td>
@@ -389,6 +429,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : "—"}
                   </Link>
                 </Td>
+                <Td className="hidden whitespace-nowrap px-3 py-2 lg:table-cell">
+                  <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" />
+                </Td>
+                <Td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
+                  <TzVatBadge b={vatB} />
+                </Td>
                 <Td className={cell}>
                   <Link href={href} className={link}>
                     {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
@@ -399,7 +445,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-400">
+              <Td colSpan={9} className="py-8 text-center text-neutral-400">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

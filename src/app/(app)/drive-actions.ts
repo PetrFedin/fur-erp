@@ -11,6 +11,7 @@ import { driveDocRemoveRoles } from "@/lib/drive-docs-server";
 import { randomUUID } from "node:crypto";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readOneDriveFile, removeDriveFileIfUnused, writeDriveFile } from "@/lib/drive-files";
+import { resetByDriveDoc } from "@/lib/verification";
 
 export type DriveDocState = { error?: string; ok?: boolean };
 
@@ -89,6 +90,7 @@ export async function addDriveDocument(
     if (await prisma.driveDocument.findFirst({ where: { organizationId: orgId, driveFileId: link.fileId, productionBatchId: b.id }, select: { id: true } })) return { error: DUP_ERROR };
     await prisma.driveDocument.create({ data: { ...base, productionBatchId: b.id } });
   }
+  await resetByDriveDoc({ purchaseId: entity === "purchase" ? entityId : null, productionOrderId: entity === "order" ? entityId : null, productionBatchId: entity === "batch" ? entityId : null });
   revalidateFor(entity, entityId, batchNumber);
   return { ok: true };
 }
@@ -126,6 +128,7 @@ export async function removeDriveDocument(documentId: string): Promise<DriveDocS
   await prisma.driveDocument.delete({ where: { id: doc.id } });
   // Оригинал файла убираем с диска, только если на путь больше никто не ссылается.
   await removeDriveFileIfUnused(doc.storagePath);
+  await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
   return { ok: true };
 }
@@ -261,6 +264,7 @@ export async function uploadDriveDocument(
       },
       include: DOC_INCLUDE,
     });
+    await resetByDriveDoc(doc);
     revalidateDriveDoc(doc);
   } catch (e) {
     await removeStoredFiles([stored.storagePath]);
@@ -291,6 +295,7 @@ export async function uploadDriveDocumentFile(documentId: string, formData: Form
   }
   // Старый файл — только после успешной записи и только если на него больше никто не ссылается.
   if (doc.storagePath && doc.storagePath !== stored.storagePath) await removeDriveFileIfUnused(doc.storagePath);
+  await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
   return { ok: true };
 }
@@ -310,6 +315,7 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
     data: { storagePath: null, storedName: null, storedMime: null, storedSize: null, storedAt: null },
   });
   await removeDriveFileIfUnused(doc.storagePath);
+  await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
   return { ok: true };
 }

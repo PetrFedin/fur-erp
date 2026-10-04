@@ -6,6 +6,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { createProductionOrder } from "../actions";
 import { ProductionCreateForm } from "./form";
 import { canEditProduction } from "@/lib/production-access";
+import { getColorOptions } from "@/lib/colors";
+import { ACCESS, hasRole } from "@/lib/access";
 
 export default async function NewProductionOrderPage() {
   const session = await requireSession();
@@ -91,6 +93,8 @@ export default async function NewProductionOrderPage() {
             clients={clients}
             liningOptions={liningOptions}
             lastContractByClient={lastContractByClient}
+            colorOptions={await getColorOptions(session.user.organizationId)}
+            canAddColor={hasRole(session.user.role, ACCESS.colors)}
           />
         </CardContent>
       </Card>

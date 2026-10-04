@@ -170,7 +170,7 @@ function buildDoc(d: TzDoc) {
       sums.map(([k, v, b]) => new TableRow({ children: [cell(k, tw[0], { bold: b }), cell(v, tw[1], { bold: b, right: true })] })),
     ),
   );
-  kids.push(para(`Суммы ${vatNote}${c4Note}.`, { size: 16, before: 60 }));
+  kids.push(para(`Суммы ${vatNote}${c4Note}. ${d.vatRatesNote}`.trim(), { size: 16, before: 60 }));
 
   // Подписи: таблица без рамок, линия — нижняя граница.
   const sw = [4800, 604, 4800];

@@ -206,7 +206,7 @@ export default async function TzPrintPage({
               </tr>
             </tbody>
           </table>
-          <p className="mt-1 text-right text-[11px] text-neutral-600">Суммы {vatNote}{c4Note}.</p>
+          <p className="mt-1 text-right text-[11px] text-neutral-600">Суммы {vatNote}{c4Note}. {d.vatRatesNote}</p>
         </section>
 
         <section className="keep-together mt-10 grid grid-cols-2 gap-10 text-sm">

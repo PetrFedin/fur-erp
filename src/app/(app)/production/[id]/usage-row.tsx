@@ -133,7 +133,7 @@ export function UsageRow({
                 <label className="mb-1 block text-xs text-neutral-500">Количество</label>
                 <Input name="quantity" type="number" step="0.001" min="0" required defaultValue={usage.quantity} />
               </div>
-<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — доп. комиссия посредника к сырью и подкладке; работа не облагается">
+<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
         <input type="hidden" name="c4form" value="1" />
         <input type="checkbox" name="commission4" defaultChecked={usage.commission4} className="h-4 w-4 max-md:h-5 max-md:w-5" />
         Начислять 4%

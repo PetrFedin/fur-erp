@@ -12,6 +12,7 @@ import { loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/auction-paymen
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { MANUAL_PREFIX } from "@/lib/doc-panel";
 import { formatMoney } from "@/lib/utils";
+import { resetVerification } from "@/lib/verification";
 
 /**
  * «Отметить оплату» из панели «Документы и оплата» (аукцион, закупка).
@@ -182,6 +183,7 @@ async function mark(target: Target, formData: FormData): Promise<MarkState> {
     await removeStoredFiles(stored.map((x) => x.storagePath));
     return result;
   }
+  await resetVerification(prisma, orgId, target.kind === "auction" ? { auctions: [target.name] } : { purchaseIds: [target.id] });
   revalidateAll(target.kind === "purchase" ? target.id : null);
   return result;
 }
@@ -228,6 +230,7 @@ export async function attachSupplierPaymentProof(paymentId: string, formData: Fo
     await removeStoredFiles(stored.map((x) => x.storagePath));
     throw e;
   }
+  await resetVerification(prisma, orgId, { paymentIds: [pay.id], purchaseIds: [pay.purchaseId], auctions: [pay.auctionSession] });
   revalidateAll(pay.purchaseId);
   return { ok: true };
 }

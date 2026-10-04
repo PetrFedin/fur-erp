@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { TzVatBadge } from "@/components/tz-vat-badge";
+import { vatBreakdown } from "@/lib/tz-vat";
 import { batchExtraName, batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
@@ -16,6 +18,8 @@ import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { base4AndExtra } from "@/lib/commission4";
 import { loadBatchPanels } from "@/lib/production-doc-checklist";
 import { DocsPayBadge } from "@/components/docs-pay-badge";
+import { VerifyPill } from "@/components/verify-control";
+import { loadVerifyFlags } from "@/lib/verification";
 import { payShort } from "@/lib/doc-panel";
 
 export const metadata = { title: "Партии" };
@@ -66,6 +70,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   // Индикатор «документы и оплата» и фильтр «только без документов / без оплаты».
   const need = (Array.isArray(sp.need) ? sp.need[0] : sp.need) === "docs" ? "docs" : (Array.isArray(sp.need) ? sp.need[0] : sp.need) === "pay" ? "pay" : "";
   const panelByNumber = new Map((await loadBatchPanels(prisma, orgId, { c4Mode, canUpload: false, canMark: false })).map((p) => [p.number, p]));
+  const vflags = await loadVerifyFlags(prisma, orgId);
   const needsOf = (n: number) => {
     const d = panelByNumber.get(n);
     if (!d) return null;
@@ -176,16 +181,18 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th className="hidden sm:table-cell">Год</Th>
             <Th>ТЗ</Th>
             <Th>Изделий</Th>
-            <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
+            <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
               Себестоимость
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
             <Th className="hidden md:table-cell">Работа</Th>
+            <Th className="hidden lg:table-cell" title="Ставки НДС лотов в списаниях ТЗ партии">НДС</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
             <Th>Остаток</Th>
             <Th className="hidden sm:table-cell" title="Файлы из Google Drive: самой партии, её ТЗ и оплат">Файлов в Drive</Th>
             <Th className="hidden lg:table-cell" title="Чего не хватает по документам и оплачена ли работа заказчиком">Документы и оплата</Th>
+            <Th className="hidden lg:table-cell" title="Подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки">Проверка</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -211,6 +218,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-400">без 4%</span>}
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>
+              <Td className="hidden whitespace-nowrap lg:table-cell">
+                <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact />
+              </Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{t.paid.isZero() ? "—" : formatMoney(t.paid.toString())}</Td>
               <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-600" : "")}>
                 {t.work.isZero() && t.paid.isZero()
@@ -235,11 +245,14 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                   "—"
                 )}
               </Td>
+              <Td className="hidden lg:table-cell">
+                <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" />
+              </Td>
             </Tr>
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={10} className="py-8 text-center text-neutral-400">
+              <Td colSpan={12} className="py-8 text-center text-neutral-400">
                 {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}
               </Td>
             </Tr>
@@ -270,6 +283,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
                 { label: "Файлов в Drive", value: docs || "—" },
+                { label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> },
                 {
                   label: "Документы и оплата",
                   value: panelByNumber.get(b.number) ? (

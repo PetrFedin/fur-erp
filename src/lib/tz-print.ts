@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { lineWith4, usageInput, type Commission4Mode } from "@/lib/commission4";
 import type { VatMode } from "@/lib/vat-mode";
+import { vatBreakdown } from "@/lib/tz-vat";
 
 // Данные печатной формы ТЗ («ПРИЛОЖЕНИЕ № N к Договору подряда …»).
 // Один загрузчик на HTML-страницу печати и на .docx — числа не расходятся.
@@ -44,6 +45,8 @@ export type TzDoc = {
   hasLining: boolean;
   c4Applied: boolean;
   vatMode: VatMode;
+  /** Ставки НДС лотов в списаниях: «НДС по ставке лотов: 20% — …, 22% — …» (пусто, если списаний нет). */
+  vatRatesNote: string;
   fur: TzLine[];
   lining: TzLine[];
   expenses: { name: string; description: string; sum: string }[];
@@ -127,6 +130,12 @@ export async function loadTzDoc(
   const work = workPerUnit ? workPerUnit.mul(qty) : new Decimal(0);
   const total = furSum.add(liningSum).add(expenseSum).add(work);
 
+  const vb = vatBreakdown(order.materialUsages, c4Mode);
+  const vatRatesNote =
+    vb.rows.length === 0
+      ? ""
+      : `НДС по ставке лота: ${vb.rows.map((r) => `${r.rate}% — ${rub(vatMode === "excl" ? r.excl : r.incl)}`).join(", ")}${vb.kind === "mixed" ? " (смешанные ставки)" : ""}.`;
+
   const num = order.workOrderNumber?.trim() || order.number;
   const liningText = (order.lining ?? "").trim();
   return {
@@ -148,6 +157,7 @@ export async function loadTzDoc(
     hasLining: lining.length > 0 || liningText !== "",
     c4Applied,
     vatMode,
+    vatRatesNote,
     fur,
     lining,
     expenses: order.expenses.map((e) => ({

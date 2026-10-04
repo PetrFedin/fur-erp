@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
 import { addPurchaseItem } from "../actions";
+import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import type { MaterialUnit } from "@prisma/client";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -21,12 +22,17 @@ export function PurchaseItemForm({
   purchaseId,
   materials,
   currency,
+  colorOptions,
+  canAddColor,
 }: {
   purchaseId: string;
   materials: MaterialOption[];
   currency: string;
+  colorOptions: ColorSelectOption[];
+  canAddColor: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [colorResetKey, setColorResetKey] = useState(0);
   const bound = addPurchaseItem.bind(null, purchaseId);
 
   return (
@@ -39,6 +45,7 @@ export function PurchaseItemForm({
           return;
         }
         formRef.current?.reset();
+        setColorResetKey((k) => k + 1);
       }}
       className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 items-end gap-2"
     >
@@ -77,7 +84,7 @@ export function PurchaseItemForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
-        <Input name="color" />
+        <ColorSelect key={colorResetKey} refs={colorOptions} canCreate={canAddColor} />
       </div>
       <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex justify-end">
         <Button type="submit" variant="outline" size="sm">

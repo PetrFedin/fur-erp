@@ -9,6 +9,7 @@ import { Tr, Td } from "@/components/ui/table";
 import { RowCard, type RowField } from "@/components/responsive-rows";
 import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
+import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 
 const initialState: FormState = {};
 
@@ -31,6 +32,8 @@ export function PurchaseItemRow({
   lockedNote,
   lockedOrders,
   canEditMaterial,
+  colorOptions,
+  canAddColor,
   materials,
   currency,
   defaults,
@@ -48,6 +51,8 @@ export function PurchaseItemRow({
   lockedNote?: string;
   lockedOrders?: OrderRef[];
   canEditMaterial: boolean;
+  colorOptions: ColorSelectOption[];
+  canAddColor: boolean;
   materials: MaterialOption[];
   currency: string;
   defaults: {
@@ -59,6 +64,7 @@ export function PurchaseItemRow({
     lotNumber: string;
     grade: string;
     color: string;
+    colorRefId: string;
   };
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -171,7 +177,7 @@ export function PurchaseItemRow({
               </div>
               <div>
                 <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
-                <Input name="color" defaultValue={defaults.color} />
+                <ColorSelect refs={colorOptions} canCreate={canAddColor} defaultValue={defaults.color} defaultRefId={defaults.colorRefId} />
               </div>
               <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex items-center justify-between gap-4">
                 <div>

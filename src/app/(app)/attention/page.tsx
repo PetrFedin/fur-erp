@@ -14,6 +14,7 @@ import {
   type AttentionPriority,
 } from "@/lib/attention";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
+import { loadVerifyFlags } from "@/lib/verification";
 import { formatMoney, cn } from "@/lib/utils";
 
 export const metadata = { title: "Что не заведено" };
@@ -35,6 +36,8 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
   const year = await getYearFilter();
 
   const all = await computeAttention(prisma, session.user.organizationId, year);
+  const vf = await loadVerifyFlags(prisma, session.user.organizationId, year);
+  const vTotal = Object.values(vf.counts).reduce((a, c) => ({ total: a.total + c.total, verified: a.verified + c.verified }), { total: 0, verified: 0 });
   const blocks = buildAttentionBlocks(all);
   const totals = countAttentionBlocks(blocks);
   const decisions = blocks.filter((b) => b.meta.kind !== "info");
@@ -66,6 +69,9 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/verify" className="inline-flex h-9 items-center rounded-md border border-amber-300 bg-amber-50 px-3 text-sm text-amber-900 hover:bg-amber-100" title="Подтверждение платежей, закупок, ТЗ и партий">
+            Ждёт проверки: {vTotal.total - vTotal.verified}
+          </Link>
           <Link href="/reconciliation" className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
             Реестр сверки
           </Link>

@@ -80,6 +80,11 @@ export type SupplierDebt = {
   nonAuctionPurchases: number;
   /** Не получено: «счёт выставлен» + «ожидаемое» (до вычета авансов). */
   draftDebt: Decimal;
+  /**
+   * Подтверждение оплат (см. src/lib/verification.ts): в расчёт долга входят ВСЕ проведённые оплаты, но часть из них
+   * ещё не подтверждена человеком/документами. Заполняется loadSupplierDebt (computeSupplierDebt оставляет null).
+   */
+  paymentsVerification: { verified: Decimal; waiting: Decimal; noProof: Decimal } | null;
 };
 
 const EPS = new Decimal("0.005");
@@ -180,6 +185,7 @@ export function computeSupplierDebt(
     nonAuctionDebt,
     nonAuctionPurchases,
     draftDebt: invoicedGross.add(expectedGross),
+    paymentsVerification: null,
   };
 }
 
@@ -193,19 +199,33 @@ export async function loadSupplierDebt(db: Db, organizationId: string, year: Yea
         items: true,
         expenses: true,
         supplier: { select: { name: true } },
-        payments: { where: { status: { in: ["COMPLETED", "PENDING"] } }, select: { amount: true, status: true } },
+        payments: { where: { status: { in: ["COMPLETED", "PENDING"] } }, select: { amount: true, status: true, confirmed: true, confirmedAt: true } },
       },
     }),
     db.payment.findMany({
       where: { organizationId, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
-      select: { auctionSession: true, amount: true, status: true },
+      select: { auctionSession: true, amount: true, status: true, confirmed: true, confirmedAt: true },
     }),
     db.payment.findMany({
       where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
-      select: { amount: true, paidAt: true },
+      select: { amount: true, paidAt: true, confirmed: true, confirmedAt: true },
     }),
   ]);
   const purchases = year === "all" ? allPurchases : allPurchases.filter((p) => inYear(p.orderDate, year));
   const adv = year === "all" ? advances : advances.filter((a) => inYear(a.paidAt, year));
-  return computeSupplierDebt(purchases, auctionPayments, adv);
+  const debt = computeSupplierDebt(purchases, auctionPayments, adv);
+  // Подтверждённость оплат (только для подсказки долга): оплаты в расчёте остаются все, как раньше.
+  const v = { verified: zero(), waiting: zero(), noProof: zero() };
+  const count = (x: { amount: Prisma.Decimal; status?: string; confirmed: boolean; confirmedAt: Date | null }) => {
+    if (x.status && x.status !== "COMPLETED") return;
+    if (x.confirmed && x.confirmedAt) v.verified = v.verified.add(x.amount);
+    else {
+      v.waiting = v.waiting.add(x.amount);
+      if (!x.confirmed) v.noProof = v.noProof.add(x.amount);
+    }
+  };
+  for (const p of purchases) for (const x of p.payments as unknown as Parameters<typeof count>[0][]) count(x);
+  for (const x of auctionPayments as unknown as Parameters<typeof count>[0][]) count(x);
+  for (const x of adv as unknown as Parameters<typeof count>[0][]) count(x);
+  return { ...debt, paymentsVerification: v };
 }

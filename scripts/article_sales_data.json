@@ -1,0 +1,681 @@
+{
+ "source": "21-08 ЕДИНЫЙ_РЕЕСТР_ПО_МЕХУ_MVST 2.xlsx: листы «EB заказ», «Лист12», «olap заказ», «Лист14» (артикул в системе заказа/продаж), «Реестр (единый)» (розничное название), «Лист18» (написания)",
+ "articles": {
+  "M001A": {
+   "salesCode": "M001A",
+   "variants": [
+    "M001A/SABLE WILD SILVER 4-5"
+   ],
+   "sheets": [
+    "EB заказ",
+    "Лист14"
+   ],
+   "salesName": "Жакет из соболя в три ряда седой ТОРТОР (Silvery 4/5)"
+  },
+  "M001K": {
+   "salesCode": "M001K",
+   "variants": [
+    "M001K/SABLE FARM SILVER 6"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Полупальто из соболя в два ряда клеточный седой (Темный Silvery 6)"
+  },
+  "M002": {
+   "salesCode": "M002",
+   "variants": [
+    "M002/SABLE WILD SILVER 4-5"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Соболь в 5-ть рядов ТОРТОР (Silvery 4/5)"
+  },
+  "M002A": {
+   "salesCode": "M002A",
+   "variants": [
+    "M002A/SABLE WILD SILVER 4-5"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M003": {
+   "salesCode": "M003",
+   "variants": [
+    "M003/SABLE WILD SILVER 2",
+    "M003/SABLE WILD SILVER 4-5"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Дикий соболь в 4-ре ряда (Темный Silvery 2)"
+  },
+  "M004": {
+   "salesCode": "M004",
+   "variants": [
+    "M004/SABLE FARM NO SILVER"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M005": {
+   "salesCode": "M005",
+   "variants": [
+    "M005/SABLE FARM NO SILVER"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Бомбер из соболя вязаный (клеточный, темный без седины), молния двухзамковая, уплотненные края полочки и капюшона"
+  },
+  "M006": {
+   "salesCode": "M006",
+   "variants": [
+    "M006/SABLE FARM NO SILVER"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M009": {
+   "salesCode": "M009",
+   "variants": [
+    "M009/MINK BGL",
+    "M009/MINK LVD"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Жакет из норки в 1 ряд (самцы) / свободный силуэт-кокон, с нисходящей узкой стойкой-шалькой, спущенным плечом, прорезные карманы из замши"
+  },
+  "M010": {
+   "salesCode": "M010",
+   "variants": [
+    "M010/MINK BROWN",
+    "M010/MINK PST"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Двубортный жакет из норки в 1 ряд (самцы)"
+  },
+  "M011": {
+   "salesCode": "M011",
+   "variants": [
+    "M011/MINK BGL",
+    "M011/MINK PEARL"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Шуба из норки (самки) в 3-и ряда"
+  },
+  "M011A": {
+   "salesCode": "M011A",
+   "variants": [
+    "M011A/MINK BROWN"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M012": {
+   "salesCode": "M012",
+   "variants": [
+    "M012/MINK BGL",
+    "M012/MINK IRIS",
+    "M012/MINK LVD"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Манишка из норки (самцы)"
+  },
+  "M013": {
+   "salesCode": "M013",
+   "variants": [
+    "M013/MINK PERFORATED"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M015": {
+   "salesCode": "M015",
+   "variants": [
+    "M015/MINK SHARED B",
+    "M015/MINK SHARED W"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Бомбер из норки с фигурной стрижкой (самцы), спущенное плечо, отложной воротник. На двухзамковой молнии"
+  },
+  "M016": {
+   "salesCode": "M016",
+   "variants": [
+    "M016/MINK SHARED B",
+    "M016/MINK SHARED W"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M017": {
+   "salesCode": "M017",
+   "variants": [
+    "M017/MINK"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "M018": {
+   "salesCode": "M018",
+   "variants": [
+    "M018/SWAKARA BROWN",
+    "M018/SWAKARA NOUGAT"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Жакет из свакары"
+  },
+  "M019": {
+   "salesCode": "M019",
+   "variants": [
+    "M019/SWAKARA BROWN"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Юбка на запах из свакары с двойной подкладкой из шелка и отделкой из замши, разрез сзади"
+  },
+  "M020": {
+   "salesCode": "M020",
+   "variants": [
+    "M020/SWAKARA NUT"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Бомбер из свакары"
+  },
+  "M021": {
+   "salesCode": "M021",
+   "variants": [
+    "M021/SWAKARA CLOUD",
+    "M021/SWAKARA FONDU"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ],
+   "salesName": "Пальто из свакары"
+  },
+  "M022": {
+   "salesCode": "M022",
+   "variants": [
+    "M022/KARAKULCHA BLACK",
+    "M022/KARAKULCHA NAVY"
+   ],
+   "sheets": [
+    "EB заказ",
+    "olap заказ",
+    "Лист14"
+   ]
+  },
+  "MGL-01": {
+   "salesCode": "MGL-01",
+   "variants": [
+    "MGL-01 SABLE FARM+MINK",
+    "MGL-01 SABLE TORTOR+MINK"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MGL-02": {
+   "salesCode": "MGL-02",
+   "variants": [
+    "MGL-02 MINK BROWN+CASHMERE",
+    "MGL-02 MINK PASTEL+CASHMERE"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MGL-03": {
+   "salesCode": "MGL-03",
+   "variants": [
+    "MGL-03 SABLE FARM NO SILVER+CASHMERE+MINK"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-01": {
+   "salesCode": "MH-01",
+   "variants": [
+    "MH-01 SABLE FARM SIL 6/7"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-02": {
+   "salesCode": "MH-02",
+   "variants": [
+    "MH-02 MINK BGL",
+    "MH-02 MINK LVD",
+    "MH-02 MINK PASTEL"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-03": {
+   "salesCode": "MH-03",
+   "variants": [
+    "MH-03 SABLE FARM SIL 6/7 +MINK",
+    "MH-03 SABLE WILD NO SILVER +MINK"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-04": {
+   "salesCode": "MH-04",
+   "variants": [
+    "MH-04 SABLE WILD NO SILVER"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-05": {
+   "salesCode": "MH-05",
+   "variants": [
+    "MH-05 MINK BROWN",
+    "MH-05 MINK PEARL"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-06": {
+   "salesCode": "MH-06",
+   "variants": [
+    "MH-06 MINK BLACK",
+    "MH-06 MINK IRIS",
+    "MH-06 MINK LVD"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-07": {
+   "salesCode": "MH-07",
+   "variants": [
+    "MH-07 SABLE"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MH-08": {
+   "salesCode": "MH-08",
+   "variants": [
+    "MH-08"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MSC-01": {
+   "salesCode": "MSC-01",
+   "variants": [
+    "MSC-01",
+    "MSC-01 MINK BLACK",
+    "MSC-01 MINK IRIS",
+    "MSC-01 MINK PEARL",
+    "MSC-01 MINK PST",
+    "MSC-01 TORTORA"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  },
+  "MSC-02": {
+   "salesCode": "MSC-02",
+   "variants": [
+    "MSC-02 SABLE WILD SIL 3",
+    "MSC-02 SABLE WILD SIL 4",
+    "MSC-02 SABLE WILD SIL 5"
+   ],
+   "sheets": [
+    "Лист14"
+   ]
+  }
+ },
+ "spellings": [
+  [
+   "1",
+   "Артикул (модель)"
+  ],
+  [
+   "M001A",
+   "М001А"
+  ],
+  [
+   "M001K",
+   "МОО1К"
+  ],
+  [
+   "M002",
+   "М002"
+  ],
+  [
+   "M002A",
+   "М002А"
+  ],
+  [
+   "M003",
+   "М003"
+  ],
+  [
+   "M004",
+   "М004"
+  ],
+  [
+   "M005",
+   "М005"
+  ],
+  [
+   "M006",
+   "М006"
+  ],
+  [
+   "M009",
+   "М009"
+  ],
+  [
+   "M010",
+   "М010"
+  ],
+  [
+   "M011",
+   "М011"
+  ],
+  [
+   "M011A",
+   "М011А"
+  ],
+  [
+   "M012",
+   "М012"
+  ],
+  [
+   "M013",
+   "М013"
+  ],
+  [
+   "M015",
+   "М015"
+  ],
+  [
+   "M016",
+   "М016"
+  ],
+  [
+   "M017",
+   "М017"
+  ],
+  [
+   "M018",
+   "М018"
+  ],
+  [
+   "M019",
+   "М019"
+  ],
+  [
+   "M020",
+   "М020"
+  ],
+  [
+   "M021",
+   "М021"
+  ],
+  [
+   "M022",
+   "М022"
+  ],
+  [
+   "MGL01",
+   "MGL01"
+  ],
+  [
+   "MGL01-MGL02-MGL03",
+   "MGL01-MGL02-MGL03"
+  ],
+  [
+   "MH01",
+   "MH01"
+  ],
+  [
+   "MH02",
+   "МН02"
+  ],
+  [
+   "MH03",
+   "MH03"
+  ],
+  [
+   "MH04",
+   "MH04"
+  ],
+  [
+   "MH05",
+   "MH05"
+  ],
+  [
+   "MH06",
+   "MH06"
+  ],
+  [
+   "MH07",
+   "MH07"
+  ],
+  [
+   "MH08",
+   "MH08"
+  ],
+  [
+   "MH09",
+   "МН09"
+  ],
+  [
+   "MH12",
+   "MH12"
+  ],
+  [
+   "MH13",
+   "MH13"
+  ],
+  [
+   "MH15",
+   "MH15"
+  ],
+  [
+   "MH17",
+   "MH17"
+  ],
+  [
+   "MSC-01",
+   "MSC-01"
+  ],
+  [
+   "MSC-02",
+   "MSC-02"
+  ],
+  [
+   "Артикул (модель)",
+   "1"
+  ],
+  [
+   "М001А",
+   "M001A"
+  ],
+  [
+   "М002",
+   "M002"
+  ],
+  [
+   "М002А",
+   "M002A"
+  ],
+  [
+   "М003",
+   "M003"
+  ],
+  [
+   "М004",
+   "M004"
+  ],
+  [
+   "М005",
+   "M005"
+  ],
+  [
+   "М006",
+   "M006"
+  ],
+  [
+   "М009",
+   "M009"
+  ],
+  [
+   "М010",
+   "M010"
+  ],
+  [
+   "М011",
+   "M011"
+  ],
+  [
+   "М011А",
+   "M011A"
+  ],
+  [
+   "М012",
+   "M012"
+  ],
+  [
+   "М013",
+   "M013"
+  ],
+  [
+   "М015",
+   "M015"
+  ],
+  [
+   "М016",
+   "M016"
+  ],
+  [
+   "М017",
+   "M017"
+  ],
+  [
+   "М018",
+   "M018"
+  ],
+  [
+   "М019",
+   "M019"
+  ],
+  [
+   "М020",
+   "M020"
+  ],
+  [
+   "М021",
+   "M021"
+  ],
+  [
+   "М022",
+   "M022"
+  ],
+  [
+   "МН02",
+   "MH02"
+  ],
+  [
+   "МН06",
+   "MH06"
+  ],
+  [
+   "МН09",
+   "MH09"
+  ],
+  [
+   "МН17",
+   "MH17"
+  ],
+  [
+   "МОО1К",
+   "M001K"
+  ],
+  [
+   "МОО2",
+   "M002"
+  ],
+  [
+   "МОО3",
+   "M003"
+  ]
+ ]
+}

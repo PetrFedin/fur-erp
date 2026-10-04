@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "../actions";
 import type { Warehouse } from "@prisma/client";
+import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 
 const initialState: FormState = {};
 
@@ -19,12 +20,16 @@ export function OrderEditForm({
   clients,
   modelLocked,
   defaults,
+  colorOptions,
+  canAddColor,
 }: {
   action: (formData: FormData) => Promise<FormState>;
   models: ModelOption[];
   warehouses: Warehouse[];
   clients: ClientOption[];
   modelLocked: boolean;
+  colorOptions: ColorSelectOption[];
+  canAddColor: boolean;
   defaults: {
     productModelId: string;
     productModelName: string;
@@ -32,6 +37,7 @@ export function OrderEditForm({
     finishedWarehouseId: string;
     plannedQuantity: string;
     color: string;
+    colorRefId: string;
     size: string;
     materialDescription: string;
     lining: string;
@@ -107,7 +113,7 @@ export function OrderEditForm({
           </div>
           <div>
             <Label htmlFor="color">Цвет</Label>
-            <Input id="color" name="color" defaultValue={defaults.color} />
+            <ColorSelect id="color" refs={colorOptions} canCreate={canAddColor} defaultValue={defaults.color} defaultRefId={defaults.colorRefId} />
           </div>
           <div>
             <Label htmlFor="size">Размер</Label>

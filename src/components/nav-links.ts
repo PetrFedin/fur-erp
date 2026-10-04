@@ -4,7 +4,7 @@ export const NAV_LINKS = [
   { href: "/dashboard", label: "Сводка", also: [] },
   { href: "/lots", label: "Сырьё", also: ["/lining", "/raw-materials", "/analytics"] },
   { href: "/purchases", label: "Закупки", also: [] },
-  { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings"] },
+  { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/analytics/products", "/analytics/pricing"] },
   {
     href: "/settings",
@@ -21,6 +21,7 @@ export const NAV_LINKS = [
       "/attention",
       "/documents",
       "/reconciliation",
+      "/verify",
     ],
   },
 ] as const;

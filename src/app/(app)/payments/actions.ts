@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { resetVerification } from "@/lib/verification";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { checkOrgRefs } from "@/lib/org-guard";
@@ -80,6 +81,7 @@ export async function updateAdvancePayment(paymentId: string, formData: FormData
     },
   });
   if (res.count === 0) return { error: "Аванс не найден (возможно, уже удалён)" };
+  await resetVerification(prisma, orgId, { paymentIds: [paymentId] });
   revalidatePath("/payments");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -221,7 +223,15 @@ export async function allocateAdvance(paymentId: string, parts: AllocPart[], con
     }
     return { ok: true };
   });
-  if (result.ok) revalidateAll();
+  if (result.ok) {
+    // Привязка аванса меняет оплаты аукционов и закупок: их подтверждение сбрасывается.
+    await resetVerification(prisma, orgId, {
+      paymentIds: [paymentId],
+      auctions: parts.filter((x) => x.target.startsWith("a:")).map((x) => x.target.slice(2)),
+      purchaseIds: parts.filter((x) => x.target.startsWith("p:")).map((x) => x.target.slice(2)),
+    });
+    revalidateAll();
+  }
   return result;
 }
 
@@ -375,7 +385,10 @@ export async function createAuctionPayment(auction: string, formData: FormData):
     throw e;
   }
   if (!result.ok) await removeStoredFiles(stored.map((x) => x.storagePath));
-  else revalidateAll();
+  else {
+    await resetVerification(prisma, orgId, { auctions: [auction] });
+    revalidateAll();
+  }
   return result;
 }
 
@@ -461,6 +474,7 @@ export async function updateAuctionPayment(paymentId: string, formData: FormData
   }
   // Старую платёжку убираем, только когда она заменена/снята и на неё больше никто не ссылается.
   if (existing.document && (stored[0] || removeDoc)) await dropUnusedDocument(existing.document);
+  await resetVerification(prisma, orgId, { auctions: [existing.auctionSession], purchaseIds: [existing.purchaseId], paymentIds: [paymentId] });
   revalidateAll();
   return result;
 }
@@ -478,6 +492,7 @@ export async function deleteAuctionPayment(paymentId: string): Promise<PayState>
     await tx.payment.deleteMany({ where: { id: paymentId, organizationId: orgId } });
   });
   if (existing.document && existing.document.kind === "PAYMENT_PROOF") await dropUnusedDocument(existing.document);
+  await resetVerification(prisma, orgId, { auctions: [existing.auctionSession] });
   revalidateAll();
   return { ok: true };
 }
@@ -531,6 +546,9 @@ export async function closeAuctionRemainder(auction: string, paidAtRaw: string, 
     });
     return { ok: true };
   });
-  if (result.ok) revalidateAll();
+  if (result.ok) {
+    await resetVerification(prisma, orgId, { auctions: [auction] });
+    revalidateAll();
+  }
   return result;
 }

@@ -11,6 +11,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
 import { loadBatchPanels } from "@/lib/production-doc-checklist";
 import { TONE_DOT, overallTone } from "@/lib/doc-panel";
+import { loadVerifyFlags, type VerifyFlags } from "@/lib/verification";
 
 /** Документы и оплата по группе — те же панели и статусы, что в карточках аукциона/партии и на «Документах». */
 type DocInfo = { href: string; label: string; missing: number; proofMissing: number; dot: string };
@@ -90,7 +91,21 @@ function HowToRead() {
   );
 }
 
-function GroupBlock({ g, ids, live, doc }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null }) {
+/** Отметка «подтверждено вами / авто / ждёт проверки» для группы (аукцион — по его закупкам, партия — по самой партии). */
+function verifyMark(g: Group, vf: VerifyFlags): { text: string; cls: string } | null {
+  const flags = g.section === "production" ? (g.dbLink.batch != null && vf.batchByNumber.get(g.dbLink.batch) ? [vf.batchByNumber.get(g.dbLink.batch)!] : []) : (g.dbLink.purchases ?? []).map((n) => vf.purchaseByNumber.get(n)).filter((x): x is NonNullable<typeof x> => !!x);
+  if (flags.length === 0) return null;
+  const ok = flags.filter((f) => f.verified);
+  if (ok.length === flags.length) {
+    const auto = ok.every((f) => f.auto);
+    const manual = ok.every((f) => !f.auto);
+    return { text: `Подтверждено ✓ ${auto ? "авто по документам" : manual ? "вами" : "вами и авто"}`, cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
+  }
+  if (ok.length > 0) return { text: `Подтверждено ${ok.length} из ${flags.length}`, cls: "border-amber-300 bg-amber-50 text-amber-900" };
+  return { text: "Ждёт проверки", cls: "border-amber-300 bg-amber-50 text-amber-900" };
+}
+
+function GroupBlock({ g, ids, live, doc, ver }: { g: Group; ids: Set<string>; live: Live; doc: DocInfo | null; ver: { text: string; cls: string } | null }) {
   const list = groupInvoices(g, ids);
   const t = totalsOf(list);
   const db = live.group.get(g.id);
@@ -117,6 +132,11 @@ function GroupBlock({ g, ids, live, doc }: { g: Group; ids: Set<string>; live: L
           {list.length > 0 ? `${list.length} сч.: ✓${t.closed} · ½${t.partial} · согл.${t.approved} · ✗${t.unpaid}` : ""}
         </span>
         <span className={cn("rounded-full border px-2 py-0.5 text-xs", st.cls)} title={st.hint}>Сверка: {st.label.toLowerCase()}</span>
+        {ver && (
+          <Link href="/verify" className={cn("rounded-full border px-2 py-0.5 text-xs", ver.cls)} title="Подтверждение строки: откройте «Ждёт проверки»">
+            {ver.text}
+          </Link>
+        )}
       </summary>
 
       <div className="border-t border-neutral-100">
@@ -248,6 +268,7 @@ export default async function ReconciliationPage() {
   const live = await loadLive(session.user.organizationId);
   const { invs, ids, groups } = visibleFor(year);
   const c4Mode = await getCommission4Mode();
+  const vf = await loadVerifyFlags(prisma, session.user.organizationId);
   const [auctionPanels, batchPanels] = await Promise.all([
     loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false }),
     loadBatchPanels(prisma, session.user.organizationId, { c4Mode, canUpload: false, canMark: false }),
@@ -381,7 +402,7 @@ export default async function ReconciliationPage() {
               <CountsLine t={t} />
             </Card>
             <div className="space-y-2">
-              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} doc={docFor(g)} />)}
+              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} doc={docFor(g)} ver={verifyMark(g, vf)} />)}
             </div>
           </section>
         );

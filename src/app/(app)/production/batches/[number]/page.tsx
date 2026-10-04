@@ -12,9 +12,12 @@ import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
+import { TzVatBadge } from "@/components/tz-vat-badge";
+import { vatBreakdown } from "@/lib/tz-vat";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { BatchDocsPay } from "../../docs-pay";
+import { VerifyBlock } from "../../../verify/verify-block";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -46,6 +49,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   if (!batch) notFound();
 
   const t = batchTotals(batch.orders, c4Mode);
+  // Ставки НДС лотов по действующим ТЗ партии (20% / 22% / смешанные).
+  const batchVat = vatBreakdown(batch.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode);
   const orders = [...batch.orders].sort((a, b) => {
     const x = parseInt(a.workOrderNumber ?? "", 10);
     const y = parseInt(b.workOrderNumber ?? "", 10);
@@ -130,6 +135,11 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           warn={t.remaining.greaterThan(0.005)}
         />
       </dl>
+      {batchVat.kind !== "none" && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+          Ставка НДС в списаниях сырья и подкладки: <TzVatBadge b={batchVat} />
+        </p>
+      )}
       {overpaid && (
         <p className="text-sm text-neutral-600">
           Переплата {formatMoney(t.remaining.abs().toString())}
@@ -152,10 +162,11 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Изделие</Th>
                 <Th>Шт.</Th>
                 <Th>Статус</Th>
-                <Th className="hidden sm:table-cell" title="4% — доп. комиссия посредника к сырью и подкладке (договор, расчёты «+4%»); работа не облагается">
+                <Th className="hidden sm:table-cell" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
                   Себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""}
                 </Th>
                 <Th className="hidden md:table-cell">Работа</Th>
+                <Th className="hidden md:table-cell" title="Ставки НДС лотов в списаниях ТЗ">НДС</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -179,12 +190,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                     </Td>
                     <Td className="hidden whitespace-nowrap sm:table-cell">{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</Td>
+                    <Td className="hidden whitespace-nowrap md:table-cell">
+                      <TzVatBadge b={vatBreakdown(o.materialUsages, c4Mode)} compact />
+                    </Td>
                   </Tr>
                 );
               })}
               {orders.length === 0 && (
                 <Tr>
-                  <Td colSpan={6} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
                     К партии пока не привязано ни одного ТЗ
                   </Td>
                 </Tr>
@@ -193,6 +207,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           </Table>
         </CardContent>
       </Card>
+
+      <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" />
 
       <BatchDocsPay batchNumber={batch.number} />
 

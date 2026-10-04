@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { resetByOrder } from "@/lib/verification";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -14,6 +15,7 @@ import { parseLotLines } from "@/lib/lot-lines";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_QTY, parsePrice, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 import { defaultCommission4 } from "@/lib/commission4-const";
+import { resolveColorInput } from "@/lib/colors";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -181,6 +183,7 @@ export async function createProductionOrder(
   try {
     orderId = await prisma.$transaction(async (tx) => {
       const number = await nextDocumentNumber(tx, "productionOrder", organizationId, "П");
+      const colorRes = await resolveColorInput(tx, organizationId, { color: parsed.data.color, colorRefId: formData.get("colorRefId") as string | null });
       const order = await tx.productionOrder.create({
         data: {
           organizationId,
@@ -189,7 +192,8 @@ export async function createProductionOrder(
           rawWarehouseId: parsed.data.rawWarehouseId,
           finishedWarehouseId: parsed.data.finishedWarehouseId,
           plannedQuantity: parsed.data.plannedQuantity,
-          color: parsed.data.color,
+          color: colorRes.color ?? undefined,
+          colorRefId: colorRes.colorRefId ?? undefined,
           size: parsed.data.size,
           materialDescription: parsed.data.materialDescription,
           lining: parsed.data.lining,
@@ -388,7 +392,8 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   // but on an edit blank means "clear it" — same bug class already fixed
   // for purchase-item and production-expense edits (b17a9bd), avoided here
   // by mapping blank to `null` explicitly instead of `undefined`.
-  const color = (formData.get("color") as string)?.trim() || null;
+  const colorRes = await resolveColorInput(prisma, session.user.organizationId, { color: (formData.get("color") as string) ?? "", colorRefId: formData.get("colorRefId") as string | null });
+  const color = colorRes.color;
   const size = (formData.get("size") as string)?.trim() || null;
   const materialDescription = (formData.get("materialDescription") as string)?.trim() || null;
   const lining = (formData.get("lining") as string)?.trim() || null;
@@ -421,6 +426,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
       finishedWarehouseId: parsed.data.finishedWarehouseId,
       plannedQuantity: newPlannedQuantity,
       color,
+      colorRefId: colorRes.colorRefId,
       size,
       materialDescription,
       lining,
@@ -434,6 +440,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     },
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   return {};
@@ -468,6 +475,7 @@ export async function updateRetailPrice(orderId: string, formData: FormData): Pr
     }),
   ]);
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   revalidatePath("/articles");
@@ -598,6 +606,7 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
     return { error: e instanceof Error ? e.message : "Не удалось списать сырьё" };
   }
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
   return {};
@@ -665,6 +674,7 @@ export async function addMaterialUsagesBulk(
     return { errors: [e instanceof Error ? e.message : "Не удалось списать"] };
   }
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
   return { created: res.resolved.length };
@@ -744,6 +754,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
     return { error: e instanceof Error ? e.message : "Не удалось списать по составу" };
   }
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
   return {};
@@ -769,6 +780,7 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
 }
@@ -813,6 +825,7 @@ export async function updateMaterialUsage(
   if (parsed.data.lotId === usage.lotId && new Decimal(parsed.data.quantity).eq(usage.quantity)) {
     if (commission4 !== usage.commission4) {
       await prisma.productionMaterialUsage.update({ where: { id: usageId }, data: { commission4 } });
+      await resetByOrder(orderId);
       revalidatePath(`/production/${orderId}`);
       revalidatePath("/production");
     }
@@ -843,6 +856,7 @@ export async function updateMaterialUsage(
     return { error: e instanceof Error ? e.message : "Не удалось изменить списание" };
   }
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/lots");
   return {};
@@ -878,6 +892,7 @@ export async function addProductionExpense(orderId: string, formData: FormData):
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   return {};
 }
@@ -892,6 +907,7 @@ export async function removeProductionExpense(orderId: string, expenseId: string
     await tx.productionExpense.deleteMany({ where: { id: expenseId, productionOrderId: orderId } });
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
 }
 
@@ -945,6 +961,7 @@ export async function updateProductionExpense(
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   return {};
 }
@@ -1014,6 +1031,7 @@ export async function completeProductionOrder(
   });
   if (raced) return { error: "ТЗ уже завершено" };
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   revalidatePath("/articles");
@@ -1083,6 +1101,7 @@ export async function updateProducedQuantity(
     });
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   revalidatePath("/articles");
@@ -1150,7 +1169,9 @@ export async function addProductionPayment(orderId: string, formData: FormData):
     },
   });
 
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
+  for (const id of orderIds) await resetByOrder(id);
   for (const id of orderIds) revalidatePath(`/production/${id}`);
   return {};
 }
@@ -1173,6 +1194,7 @@ export async function removeProductionPayment(orderId: string, paymentId: string
   if (!payment) return;
 
   await prisma.productionPayment.delete({ where: { id: paymentId } });
+  for (const alloc of payment.orders) await resetByOrder(alloc.productionOrderId);
   for (const alloc of payment.orders) revalidatePath(`/production/${alloc.productionOrderId}`);
 }
 
@@ -1203,6 +1225,7 @@ export async function cancelProductionOrder(orderId: string): Promise<FormState>
     }
     return { error: "Не удалось отменить ТЗ" };
   }
+  await resetByOrder(orderId);
   revalidatePath(`/production/${orderId}`);
   revalidatePath("/production");
   return {};

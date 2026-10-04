@@ -14,6 +14,7 @@
  *   node --env-file=.env node_modules/.bin/tsx scripts/apply-registry-corrections.ts --rollback docs-inventory/corrections-journal-registry.json [--apply]
  *   --with-beaver-draft  — ДОПОЛНИТЕЛЬНО (по умолчанию ВЫКЛЮЧЕНО, см. pending п. 1) завести черновик закупки «бобр»,
  *                          только после подтверждения владельцем поставщика/валюты/НДС/даты.
+ *                          УСТАРЕЛО: бобр заведён 04.10.2026 скриптом scripts/create-beaver-purchase.ts (не запускайте флаг повторно).
  *
  * ПЕРЕД --apply СДЕЛАЙТЕ БЭКАП БАЗЫ (scripts/backup.sh).
  *

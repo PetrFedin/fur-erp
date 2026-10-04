@@ -13,6 +13,7 @@ import { batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
 import { MANUAL_PREFIX } from "@/lib/doc-panel";
 import { lockAuction } from "@/lib/auction-payments";
 import { formatMoney } from "@/lib/utils";
+import { resetVerification } from "@/lib/verification";
 
 /**
  * «Отметить оплату» по партии или ТЗ (оплата от заказчика за работу).
@@ -161,6 +162,7 @@ export async function markProductionPayment(scope: "batch" | "order", id: string
     if (stored) await removeStoredFiles([stored.storagePath]);
     return result;
   }
+  await resetVerification(prisma, orgId, { orderIds: touched });
   revalidateAll(touched, batchNumber);
   return result;
 }
@@ -199,6 +201,7 @@ export async function attachProductionPaymentProof(paymentId: string, formData: 
     await removeStoredFiles([stored.storagePath]);
     throw e;
   }
+  await resetVerification(prisma, orgId, { prodPaymentIds: [pay.id], orderIds: pay.orders.map((o) => o.productionOrderId) });
   revalidateAll(pay.orders.map((o) => o.productionOrderId), pay.orders[0]?.productionOrder.batch?.number ?? null);
   return { ok: true };
 }

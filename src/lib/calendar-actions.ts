@@ -1,0 +1,34 @@
+// Список действий производственного календаря. Легко расширять: добавьте строку в CALENDAR_ACTIONS.
+// В базе хранится сама подпись действия (CalendarEvent.action — обычная строка), поэтому можно
+// и вписать любое своё действие: оно получит нейтральный цвет «Другое».
+
+export type ActionDef = { label: string; chip: string; dot: string };
+
+export const CALENDAR_ACTIONS: readonly ActionDef[] = [
+  { label: "Раскрой", chip: "bg-sky-100 text-sky-800 border-sky-200", dot: "bg-sky-500" },
+  { label: "Пошив", chip: "bg-violet-100 text-violet-800 border-violet-200", dot: "bg-violet-500" },
+  { label: "Примерка", chip: "bg-pink-100 text-pink-800 border-pink-200", dot: "bg-pink-500" },
+  { label: "Сдача скорняку", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500" },
+  { label: "Сдача портным", chip: "bg-orange-100 text-orange-800 border-orange-200", dot: "bg-orange-500" },
+  { label: "Готово / приёмка", chip: "bg-emerald-100 text-emerald-800 border-emerald-200", dot: "bg-emerald-500" },
+  { label: "Отгрузка", chip: "bg-indigo-100 text-indigo-800 border-indigo-200", dot: "bg-indigo-500" },
+  { label: "Закупка сырья", chip: "bg-teal-100 text-teal-800 border-teal-200", dot: "bg-teal-500" },
+  { label: "Другое", chip: "bg-neutral-100 text-neutral-700 border-neutral-200", dot: "bg-neutral-400" },
+];
+
+export const OTHER_ACTION = "Другое";
+const FALLBACK = CALENDAR_ACTIONS[CALENDAR_ACTIONS.length - 1];
+
+export function actionDef(label: string | null | undefined): ActionDef {
+  const t = (label ?? "").trim().toLowerCase();
+  return CALENDAR_ACTIONS.find((a) => a.label.toLowerCase() === t) ?? FALLBACK;
+}
+
+/** Стили слоя «факты из ТЗ/отгрузок/примерок» (read-only). */
+export const LAYER_STYLES = {
+  supply: { label: "План поставок", chip: "bg-white text-neutral-700 border-dashed border-neutral-400", dot: "bg-neutral-400" },
+  shipment: { label: "Отгрузка (план)", chip: "bg-white text-indigo-700 border-dashed border-indigo-300", dot: "bg-indigo-300" },
+  fitting: { label: "Примерка", chip: "bg-white text-pink-700 border-dashed border-pink-300", dot: "bg-pink-300" },
+  order: { label: "Окончание ТЗ", chip: "bg-white text-emerald-700 border-dashed border-emerald-300", dot: "bg-emerald-300" },
+} as const;
+export type LayerKind = keyof typeof LAYER_STYLES;

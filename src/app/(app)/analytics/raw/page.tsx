@@ -14,11 +14,15 @@ import { Mode4Badge } from "@/components/c4-note";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { isServiceAuction, shortAuctionName, NO_AUCTION_LABEL } from "@/lib/auction-names";
 import {
-  GROUPS, NO_AUCTION_KEY, aggOf, applyFilters, avgPrice, groupLots, loadRawData, parseFilters, pctText, usedPct,
-  type Agg, type Group, type GroupBy, type RawFilters, type RawLot,
+  GROUPS, NO_AUCTION_KEY, aggOf, applyFilters, avgPrice, groupLots, groupUsage, isUsageBy, loadRawData, loadUsageRows, lotIssues, parseFilters, pctText, usedPct,
+  type Agg, type Group, type GroupBy, type LotGroupBy, type RawFilters, type RawLot, type UsageGroup,
 } from "@/lib/raw-analytics";
+import { prisma } from "@/lib/prisma";
 import { LazyDetails } from "../../lots/lazy-details";
-import { loadGroupLots } from "./lots-action";
+import { loadGroupLots, loadUsageGroupLots } from "./lots-action";
+import { LOT_COLS } from "./lot-rows";
+import { USAGE_COLS, perUnit } from "./usage-rows";
+import { CostCell } from "./cost-cell";
 import { MonthlyChart, type MonthPoint } from "./monthly-chart";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 
@@ -34,13 +38,23 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const year = await getYearFilter();
   const c4 = await getCommission4Mode();
   const { f, by } = parseFilters(sp);
-  const data = await loadRawData(session.user.organizationId, year);
+  const [data, usage] = await Promise.all([
+    loadRawData(session.user.organizationId, year),
+    isUsageBy(by) ? loadUsageRows(session.user.organizationId, year) : Promise.resolve([] as Awaited<ReturnType<typeof loadUsageRows>>),
+  ]);
   const unit = f.scope === "lining" ? "м" : "шт.";
 
   const scoped = data.lots.filter((l) => (f.scope === "lining") === (l.unit === "M"));
   const lots = applyFilters(data.lots, f);
   const total = aggOf(lots);
-  const groups = groupLots(lots, by);
+  const groups = isUsageBy(by) ? [] : groupLots(lots, by as LotGroupBy);
+  const usageGroups: UsageGroup[] = isUsageBy(by)
+    ? (() => {
+        const ids = new Set(lots.map((l) => l.id));
+        return groupUsage(usage.filter((r) => ids.has(r.lotId)), by);
+      })()
+    : [];
+  const modelName = f.model ? (await prisma.productModel.findFirst({ where: { id: f.model, organizationId: session.user.organizationId }, select: { name: true } }))?.name ?? null : null;
   const otherQty = lots.reduce((s, l) => s.add(l.otherOut), new Decimal(0));
   const otherIncl = lots.reduce((s, l) => s.add(l.otherOut.mul(l.unitIncl)), new Decimal(0));
   const otherExcl = lots.reduce((s, l) => s.add(l.otherOut.mul(l.unitExcl)), new Decimal(0));
@@ -58,6 +72,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   if (f.kind) params.set("kind", f.kind);
   if (f.onlyRem) params.set("rest", "1");
   if (f.q) params.set("q", f.q);
+  if (f.model) params.set("m", f.model);
   const href = (over: Record<string, string | null>) => {
     const p = new URLSearchParams(params);
     for (const [k, v] of Object.entries(over)) {
@@ -88,20 +103,18 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const noAuction = data.lots.filter((l) => l.auction === NO_AUCTION_KEY || isServiceAuction(l.auction));
   const otherOutLots = data.lots.filter((l) => !l.otherOut.isZero());
   const gapLots = data.lots.filter((l) => !l.movementGap.isZero());
+  const reconLots = data.lots.filter((l) => lotIssues(l).length > 0);
   const purchasedDiff = all.recv.sub(data.purchasedByItems);
   const usageDiff = all.used.sub(data.usageTotal);
   const issues =
     noGrade.length + otherOutLots.length + gapLots.length + data.movementsWithoutLot.count + data.receivedItemsWithoutLot +
     (purchasedDiff.isZero() ? 0 : 1) + (usageDiff.isZero() ? 0 : 1);
 
-  const lotLink = (l: RawLot) =>
-    l.purchaseId ? (
-      <Link href={`/purchases/${l.purchaseId}`} className="underline hover:text-neutral-900">
-        {l.lotNumber}
-      </Link>
-    ) : (
-      <>{l.lotNumber}</>
-    );
+  const lotLink = (l: RawLot) => (
+    <Link href={`/analytics/raw/lot/${l.id}`} className="underline hover:text-neutral-900">
+      {l.lotNumber}
+    </Link>
+  );
   const lotList = (arr: RawLot[], extra?: (l: RawLot) => string) => (
     <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
       {arr.slice(0, 40).map((l) => (
@@ -132,6 +145,9 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </InfoHint>
         </h1>
         <div className="flex flex-wrap gap-2">
+          <Link href="/analytics/raw/recon" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Сверка лотов{reconLots.length > 0 ? ` (${reconLots.length})` : ""}
+          </Link>
           <a href={`/analytics/raw/export?${params.toString()}&part=groups`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             CSV: таблица
           </a>
@@ -153,6 +169,13 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </Link>
         ))}
       </div>
+
+      {f.model && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Показаны лоты, из которых сделано изделие «{modelName ?? "—"}».
+          <Link href={href({ m: null })} className="underline">Показать все</Link>
+        </div>
+      )}
 
       {/* Итоги */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -228,6 +251,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
         <form method="get" className="grid grid-cols-2 items-end gap-2 border-t border-neutral-100 p-3 sm:grid-cols-5">
           <input type="hidden" name="g" value={by} />
+          {f.model && <input type="hidden" name="m" value={f.model} />}
           {f.scope === "lining" && <input type="hidden" name="scope" value="lining" />}
           <div className="col-span-2 sm:col-span-1">
             <label className="mb-1 block text-xs text-neutral-500">Аукцион</label>
@@ -247,7 +271,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </div>
           <div>
             <label className="mb-1 block text-xs text-neutral-500">Поиск по лоту / сорту</label>
-            <Input name="q" defaultValue={f.q} placeholder="напр. 15016" />
+            <Input name="q" defaultValue={f.q} placeholder="напр. 15016" title="Номер лота ищется в любом написании: без пробелов и дефисов, в любом регистре, кириллица = латиница" />
           </div>
           <label className="flex h-9 items-center gap-2 text-sm">
             <input type="checkbox" name="rest" value="1" defaultChecked={f.onlyRem} className="size-4" />
@@ -255,7 +279,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </label>
           <div className="col-span-2 flex items-center gap-3 sm:col-span-1">
             <Button type="submit" variant="outline">Применить</Button>
-            <Link href={href({ auction: null, kind: null, rest: null, q: null })} className="text-sm text-neutral-500 hover:underline">Сбросить</Link>
+            <Link href={href({ auction: null, kind: null, rest: null, q: null, m: null })} className="text-sm text-neutral-500 hover:underline">Сбросить</Link>
           </div>
         </form>
       </details>
@@ -267,6 +291,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             Сводная таблица
             <InfoHint label="О таблице" wide>
               <p>Группируйте по аукциону, году закупки, виду меха, лоту, сорту/цвету или размеру. Строку можно развернуть: внутри — лоты с остатком, ценой и ТЗ, где использован лот.</p>
+              <p className="mt-1"><b>Изделие (артикул)</b> и <b>ТЗ</b> — другой разрез: что ушло на каждое изделие или ТЗ (шкур или метров, ₽, на 1 изделие); строка раскрывается в лоты. У каждого лота есть карточка «Где использован» — в какие изделия он ушёл, учёт и остаток.</p>
               <p className="mt-1">Сорт/цвет и размер берутся из поля «сорт» лота: размер — это XXL, XL, L, M, S (если есть в тексте), сорт — остальной текст до размера. Не распознано — «Не указан».</p>
               <p className="mt-1"><b>Средняя цена</b> = Σ(кол-во × цена лота) ÷ Σ кол-во по лотам группы. <b>Стоимость остатка</b> = Σ(остаток × цена лота). Строка «с 4%» — справочно (режим в шапке).</p>
               {groups[0] && avgPrice(groups[0].agg) && (
@@ -288,24 +313,36 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </div>
         </CardHeader>
         <CardContent>
-          <div className="hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr]">
-            <span>{GROUPS.find((g) => g.key === by)!.label}</span>
-            <span>Куплено</span>
-            <span>Использовано</span>
-            <span>Остаток</span>
-            <span>% исп.</span>
-            <span>Ср. цена закупки</span>
-            <span>Стоимость остатка</span>
-          </div>
-          {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{year === "all" ? "Нет лотов по выбранным фильтрам" : `За ${year} год лотов по выбранным фильтрам нет`}</p>}
-          {groups.map((g) => (
-            <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
-          ))}
-          {groups.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold md:grid-cols-[2fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr]">
-              <span className="col-span-2 md:col-span-1">Σ Итого ({lots.length} лотов)</span>
-              <Cells a={total} unit={unit} c4={c4} />
-            </div>
+          {isUsageBy(by) ? (
+            <UsageTable groups={usageGroups} by={by} f={f} unit={unit} c4={c4} lots={lots.length} year={year} />
+          ) : (
+            <>
+              <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid ${LOT_COLS}`}>
+                <span>{GROUPS.find((g) => g.key === by)!.label}</span>
+                <span>Куплено</span>
+                <span>Использовано</span>
+                <span className="inline-flex items-center gap-1">
+                  В учёте
+                  <InfoHint label="В учёте" wide>
+                    <p>Остаток по журналу движений склада: приход − списания в ТЗ − прочие списания. Должен совпадать с колонкой «Остаток» (остаток самого лота). Расхождение подсвечивается красным, подробности — в карточке лота и в «Сверке лотов».</p>
+                  </InfoHint>
+                </span>
+                <span>Остаток</span>
+                <span>% исп.</span>
+                <span>Ср. цена закупки</span>
+                <span>Стоимость остатка</span>
+              </div>
+              {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{year === "all" ? "Нет лотов по выбранным фильтрам" : `За ${year} год лотов по выбранным фильтрам нет`}</p>}
+              {groups.map((g) => (
+                <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
+              ))}
+              {groups.length > 0 && (
+                <div className={`grid grid-cols-2 gap-2 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold ${LOT_COLS}`}>
+                  <span className="col-span-2 md:col-span-1">Σ Итого ({lots.length} лотов)</span>
+                  <Cells a={total} unit={unit} c4={c4} />
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -488,6 +525,9 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
     <>
       <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(a.recv, unit)}</span>
       <span className="tabular-nums"><span className={lab}>Использовано</span>{qty(a.used, unit)}</span>
+      <span className={"tabular-nums " + (a.jrem.equals(a.rem) ? "text-neutral-600" : "font-medium text-red-700")} title={a.jrem.equals(a.rem) ? undefined : "Остаток по журналу склада не равен остатку лотов"}>
+        <span className={lab}>В учёте</span>{qty(a.jrem, unit)}
+      </span>
       <span className="font-medium tabular-nums"><span className={lab}>Остаток</span>{qty(a.rem, unit)}</span>
       <span className="tabular-nums"><span className={lab}>% исп.</span>{pctText(usedPct(a))}</span>
       <span className="tabular-nums">
@@ -510,7 +550,7 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
       load={loadGroupLots.bind(null, by, g.key, f)}
       summary={
         <summary
-          className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 md:grid-cols-[2fr_1fr_1fr_1fr_0.8fr_1.2fr_1.4fr] [&::-webkit-details-marker]:hidden"
+          className={`grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 ${LOT_COLS} [&::-webkit-details-marker]:hidden`}
           title={g.title}
         >
           <span className="col-span-2 font-medium md:col-span-1">
@@ -522,5 +562,76 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
         </summary>
       }
     />
+  );
+}
+
+function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGroup[]; by: "article" | "order"; f: RawFilters; unit: string; c4: "on" | "off"; lots: number; year: string }) {
+  const lab = "block text-xs font-normal text-neutral-500 md:hidden";
+  const tot = groups.reduce(
+    (a, g) => ({ qty: a.qty.add(g.qty), incl: a.incl.add(g.incl), excl: a.excl.add(g.excl), ei: a.ei.add(g.extraIncl), ee: a.ee.add(g.extraExcl), produced: a.produced.add(g.produced) }),
+    { qty: new Decimal(0), incl: new Decimal(0), excl: new Decimal(0), ei: new Decimal(0), ee: new Decimal(0), produced: new Decimal(0) },
+  );
+  const cells = (g: { orders: number; lots: number; produced: Decimal; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal }, single: boolean) => {
+    const pu = perUnit(g.qty, g.produced);
+    return (
+      <>
+        <span className="tabular-nums"><span className={lab}>{single ? "Лотов" : "ТЗ / лотов"}</span>{single ? g.lots : `${g.orders} / ${g.lots}`}</span>
+        <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(g.produced.toString())} шт.</span>
+        <span className="font-medium tabular-nums"><span className={lab}>Списано</span>{qty(g.qty, unit)}</span>
+        <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{pu ? `${formatQty(pu.toFixed(2))} ${unit}` : "—"}</span>
+        <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={g.incl} excl={g.excl} extraIncl={g.extraIncl} extraExcl={g.extraExcl} c4={c4} /></span>
+        <span className="tabular-nums">
+          <span className={lab}>Стоимость на 1 изделие</span>
+          {g.produced.greaterThan(0) ? <Money incl={q2(g.incl.div(g.produced))} excl={q2(g.excl.div(g.produced))} /> : "—"}
+        </span>
+      </>
+    );
+  };
+  return (
+    <>
+      <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid ${USAGE_COLS}`}>
+        <span>{by === "article" ? "Изделие (артикул)" : "ТЗ"}</span>
+        <span>{by === "article" ? "ТЗ / лотов" : "Лотов"}</span>
+        <span>Произведено</span>
+        <span>Списано</span>
+        <span className="inline-flex items-center gap-1">
+          На 1 изделие
+          <InfoHint label="На 1 изделие" wide>
+            <p>Списано ÷ произведено — средневзвешенно: Σ списано ÷ Σ произведено по всем ТЗ изделия, а не среднее из средних. Если в ТЗ идёт несколько лотов, цифра — общая по ним.</p>
+          </InfoHint>
+        </span>
+        <span>Стоимость списания</span>
+        <span>Стоимость на 1 изделие</span>
+      </div>
+      {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{year === "all" ? "Нет списаний по выбранным фильтрам" : `За ${year} год списаний по выбранным фильтрам нет`}</p>}
+      {groups.map((g) => (
+        <LazyDetails
+          key={g.key}
+          className="group border-b border-neutral-100"
+          load={loadUsageGroupLots.bind(null, by, g.key, f)}
+          summary={
+            <summary className={`grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 ${USAGE_COLS} [&::-webkit-details-marker]:hidden`}>
+              <span className="col-span-2 font-medium md:col-span-1">
+                <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+                {g.label}
+                <span className="block pl-3 text-xs font-normal text-neutral-500">{g.sub}</span>
+              </span>
+              {cells(g, by === "order")}
+            </summary>
+          }
+        />
+      ))}
+      {groups.length > 0 && (
+        <div className={`grid grid-cols-2 gap-2 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold ${USAGE_COLS}`}>
+          <span className="col-span-2 md:col-span-1">Σ Итого ({groups.length} · лотов в выборке: {lots})</span>
+          <span />
+          <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(tot.produced.toString())} шт.</span>
+          <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>
+          <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{tot.produced.greaterThan(0) ? `${formatQty(tot.qty.div(tot.produced).toFixed(2))} ${unit}` : "—"}</span>
+          <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} /></span>
+          <span />
+        </div>
+      )}
+    </>
   );
 }

@@ -8,10 +8,16 @@ export const ACCESS = {
   clients: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   warehouses: ["OWNER", "ADMIN", "WAREHOUSE"],
   materials: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],
+  // Справочник цветов (/settings/colors, добавление цвета из форм) — как справочник материалов.
+  colors: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],
   models: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // Справочник меха (/settings/furs): рус/англ названия и синонимы — как справочник материалов.
+  furRefs: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],
   purchases: ["OWNER", "ADMIN", "PURCHASER"],
   users: ["OWNER", "ADMIN"],
   supplyPlan: ["OWNER", "ADMIN", "TECHNOLOGIST"],
+  // План заказа (/plan), сезоны и производственный календарь (/calendar): редактируют производственные роли, читают все.
+  planning: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   // Отметка оплат поставщикам (аукцион/закупка) и приложение платёжек — как на странице «Оплаты».
   supplierPayments: ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"],
 } as const satisfies Record<string, readonly UserRole[]>;

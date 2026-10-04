@@ -1,4 +1,5 @@
 import { OrderDocsPay } from "../docs-pay";
+import { VerifyBlock } from "../../verify/verify-block";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -15,6 +16,8 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
 import { InfoHint } from "@/components/info-hint";
+import { TzVatBadge } from "@/components/tz-vat-badge";
+import { vatBreakdown } from "@/lib/tz-vat";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
@@ -37,7 +40,8 @@ import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
 import Link from "next/link";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
-import { hasRole } from "@/lib/access";
+import { ACCESS, hasRole } from "@/lib/access";
+import { getColorOptions } from "@/lib/colors";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -199,6 +203,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
   // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses/payments).
   const canEdit = canEditProduction(session.user.role);
+  const colorOptions = canEdit ? await getColorOptions(session.user.organizationId) : [];
   const cancelled = order.status === "CANCELLED";
   const canWrite = canEdit && !cancelled;
 
@@ -317,6 +322,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // Расшифровка 4% по этому ТЗ: сырьё и подкладка × 4% (не зависит от переключателя).
   const c4Calc = base4AndExtra(order.materialUsages);
   const c4HasData = order.materialUsages.length > 0;
+  // Ставки НДС лотов в списаниях (20% / 22% / смешанные): суммы построчно, по ставке каждого лота.
+  const vatB = vatBreakdown(order.materialUsages, c4Mode);
 
   const producedOrPlanned = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
   const clientRevenue = order.clientWorkPricePerUnit
@@ -490,6 +497,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <span className="text-sm text-neutral-500">заказ {order.number}</span>
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
+          <TzVatBadge b={vatB} />
           {order.batch && (
             <Link href={`/production/batches/${order.batch.number}`} className="inline-block text-sm text-blue-600 hover:underline max-md:py-2">
               Партия {order.batch.number}
@@ -508,6 +516,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             warehouses={warehouses}
             clients={clientOptions}
             modelLocked={modelLocked}
+            colorOptions={colorOptions}
+            canAddColor={hasRole(session.user.role, ACCESS.colors)}
             defaults={{
               productModelId: order.productModelId,
               productModelName: order.productModel.name,
@@ -515,6 +525,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               finishedWarehouseId: order.finishedWarehouseId,
               plannedQuantity: order.plannedQuantity.toString(),
               color: order.color ?? "",
+              colorRefId: order.colorRefId ?? "",
               size: order.size ?? "",
               materialDescription: order.materialDescription ?? "",
               lining: order.lining ?? "",
@@ -752,6 +763,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </div>
         </CardContent>
       </Card>
+      </Section>
+
+      <Section id="verify" title="Подтверждение ТЗ" defaultOpenMobile>
+        <VerifyBlock kind="order" id={id} title="Подтверждение ТЗ" />
       </Section>
 
       <Section id="docpay" title="Документы и оплата" defaultOpenMobile>

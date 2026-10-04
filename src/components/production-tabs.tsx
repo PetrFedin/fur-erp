@@ -5,6 +5,8 @@ const TABS = [
   { key: "batches", href: "/production/batches", label: "Партии" },
   { key: "shipments", href: "/shipments", label: "Отгрузки" },
   { key: "fittings", href: "/fittings", label: "Примерки" },
+  { key: "plan", href: "/plan", label: "План заказа" },
+  { key: "calendar", href: "/calendar", label: "Календарь" },
 ] as const;
 
 export type ProductionTab = (typeof TABS)[number]["key"];
@@ -12,7 +14,7 @@ export type ProductionTab = (typeof TABS)[number]["key"];
 /** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
-    <nav className="flex gap-1 border-b border-neutral-200">
+    <nav className="flex gap-1 overflow-x-auto border-b border-neutral-200 whitespace-nowrap">
       {TABS.map((t) => (
         <Link
           key={t.key}

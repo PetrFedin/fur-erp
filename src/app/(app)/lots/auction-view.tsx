@@ -29,6 +29,7 @@ import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { AuctionDocsPay } from "./auction-docs-pay";
+import { AuctionVerify } from "../verify/verify-block";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -543,6 +544,8 @@ export async function AuctionView({
 
       {blocks.length > 0 && (flat ? <FlatLotsPanel /> : <AuctionTotalsPanel />)}
       </LotsProvider>
+
+      <AuctionVerify organizationId={organizationId} names={names} />
 
       <AuctionDocsPay organizationId={organizationId} names={names} />
 

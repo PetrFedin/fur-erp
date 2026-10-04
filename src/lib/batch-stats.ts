@@ -3,7 +3,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { extraInclOnly } from "@/lib/commission4";
-import type { Commission4Mode } from "@/lib/commission4-mode";
+import { DEFAULT_COMMISSION4_MODE, type Commission4Mode } from "@/lib/commission4-mode";
 
 /**
  * Название партии для подписи рядом с «Партия N»: служебное «Поставка N» (то же самое,
@@ -29,7 +29,15 @@ export function contractorHidesFromNotes(notes: string | null | undefined): Deci
 export const batchOrderInclude = {
   productModel: { select: { name: true } },
   client: { select: { name: true } },
-  materialUsages: { select: { totalCost: true, commission4: true } },
+  // quantity и lot — для разбивки по ставкам НДС лотов (lib/tz-vat.ts): в одном ТЗ ставки бывают 20% и 22%.
+  materialUsages: {
+    select: {
+      totalCost: true,
+      commission4: true,
+      quantity: true,
+      lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+    },
+  },
   expenses: { select: { amount: true } },
   paymentAllocations: {
     select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true, notes: true } } },
@@ -45,7 +53,7 @@ export type OrderStat = { qty: Decimal; cost: Decimal; work: Decimal };
  * подкладку (списания с commission4 = true). Снимок totalCost хранится «без 4%».
  * Работа и расходы не облагаются. Цифры партии — с НДС (как и раньше).
  */
-export function orderStat(o: BatchOrder, mode: Commission4Mode = "off"): OrderStat {
+export function orderStat(o: BatchOrder, mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): OrderStat {
   const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
   const projected = o.materialUsages
     .reduce((s, u) => s.add(u.totalCost), new Decimal(0))
@@ -67,7 +75,7 @@ export type BatchTotals = {
   c4Applies: boolean;
 };
 
-export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = "off"): BatchTotals {
+export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): BatchTotals {
   const live = orders.filter((o) => o.status !== "CANCELLED");
   let units = new Decimal(0);
   let cost = new Decimal(0);

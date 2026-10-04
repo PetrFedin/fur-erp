@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
 import { DocsPayPanel } from "@/components/docs-pay-panel";
+import { loadPaymentVerify } from "../verify/verify-block";
 
 /**
  * Блок «Документы и оплата» для аукциона (по одному на каждое подходящее название) или для одной закупки.
@@ -17,10 +18,11 @@ export async function AuctionDocsPay({ organizationId, names, purchaseId }: { or
     canMark: hasRole(session.user.role, ACCESS.supplierPayments),
   });
   if (panels.length === 0) return null;
+  const { verify, canVerify } = await loadPaymentVerify("payment");
   return (
     <>
       {panels.map((p) => (
-        <DocsPayPanel key={p.panel.id} panel={p.panel} compact={panels.length > 1} />
+        <DocsPayPanel key={p.panel.id} panel={p.panel} compact={panels.length > 1} verify={verify} canVerify={canVerify} />
       ))}
     </>
   );

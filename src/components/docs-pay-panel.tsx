@@ -14,6 +14,7 @@ import { deleteAuctionPayment } from "@/app/(app)/payments/actions";
 import { removePurchasePayment } from "@/app/(app)/purchases/actions";
 import { markProductionPayment, attachProductionPaymentProof } from "@/app/(app)/production/mark-actions";
 import { removeProductionPayment } from "@/app/(app)/production/actions";
+import { VerifyControl, type VerifyView } from "@/components/verify-control";
 
 const MAX = 25 * 1024 * 1024;
 const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
@@ -94,7 +95,7 @@ function FileButton({ label, variant = "outline", onFile, disabled, small = true
   );
 }
 
-function UploadButton({ t, variant = "outline" }: { t: UploadTarget; variant?: "outline" | "default" }) {
+export function UploadButton({ t, variant = "outline" }: { t: UploadTarget; variant?: "outline" | "default" }) {
   const { pending, msg, setMsg, run } = useRun();
   return (
     <span className="inline-flex flex-col gap-1">
@@ -274,7 +275,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   );
 }
 
-function PaymentLine({ p, canUpload, canMark }: { p: PanelPayment; canUpload: boolean; canMark: boolean }) {
+function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment; canUpload: boolean; canMark: boolean; v?: VerifyView; canVerify?: boolean }) {
   const { pending, msg, run } = useRun();
   const rb = p.rollback;
   return (
@@ -322,6 +323,7 @@ function PaymentLine({ p, canUpload, canMark }: { p: PanelPayment; canUpload: bo
         )}
         <Msg msg={msg} pending={pending} />
       </div>
+      {v && !p.planned && <VerifyControl v={v} canEdit={!!canVerify} compact />}
     </li>
   );
 }
@@ -435,7 +437,7 @@ function MarkForm({ target, remaining, remainingText, onDone }: { target: MarkTa
  * кнопка «Отметить оплату». Данные готовят src/lib/auction-doc-checklist.ts и src/lib/production-doc-checklist.ts.
  * Чтение — всем; загрузка и отметка — по правам (panel.canUpload / panel.canMark).
  */
-export function DocsPayPanel({ panel, compact = false }: { panel: Panel; compact?: boolean }) {
+export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { panel: Panel; compact?: boolean; verify?: Record<string, VerifyView>; canVerify?: boolean }) {
   const [marking, setMarking] = useState(false);
   const p = panel.pay;
   const canRemain = p.state !== "PAID" && p.state !== "OVERPAID" && p.state !== "NOBASE";
@@ -498,7 +500,7 @@ export function DocsPayPanel({ panel, compact = false }: { panel: Panel; compact
         {panel.payments.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {panel.payments.map((x) => (
-              <PaymentLine key={x.id} p={x} canUpload={panel.canUpload} canMark={panel.canMark} />
+              <PaymentLine key={x.id} p={x} canUpload={panel.canUpload} canMark={panel.canMark} v={verify?.[x.id]} canVerify={canVerify} />
             ))}
           </ul>
         ) : (

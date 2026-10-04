@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -108,6 +109,9 @@ export default async function SupplyPlanPage() {
             <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4%» на эту страницу не влияет.</p>
           </InfoHint>
         </h1>
+        <p className="mt-1 text-xs text-neutral-500">
+          Те же даты по дням — в <Link href="/calendar" className="text-blue-600 hover:underline">производственном календаре</Link>, количества по размерам — в <Link href="/plan" className="text-blue-600 hover:underline">плане заказа</Link>.
+        </p>
       </div>
 
       {canEdit && (

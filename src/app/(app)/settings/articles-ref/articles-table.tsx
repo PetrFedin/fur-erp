@@ -1,0 +1,275 @@
+"use client";
+
+import { Fragment, useMemo, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { articleKey, searchArticleList } from "@/lib/article-key";
+import { mergeArticles, saveArticle, type ArticleInput } from "./actions";
+
+export type ArticleRow = {
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  salesCode: string | null;
+  salesName: string | null;
+  aliases: string[];
+  isActive: boolean;
+  sellingPrice: number | null;
+  seasons: string[];
+  tzCount: number;
+  produced: number;
+};
+
+type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
+const EMPTY: ArticleInput = { name: "", sku: "", category: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", isActive: true };
+const toInput = (r: ArticleRow): ArticleInput => ({
+  name: r.name,
+  sku: r.sku ?? "",
+  category: (r.category ?? "").replace(/\s+/g, " ").trim(),
+  salesCode: r.salesCode ?? "",
+  salesName: r.salesName ?? "",
+  aliases: r.aliases.join(", "),
+  sellingPrice: r.sellingPrice == null ? "" : String(r.sellingPrice).replace(".", ","),
+  isActive: r.isActive,
+});
+const fmtPrice = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU") + " ₽");
+const fmtQty = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function EditForm({ initial, onDone, onCancel, id }: { initial: ArticleInput; id: string | null; onDone: () => void; onCancel: () => void }) {
+  const [v, setV] = useState<ArticleInput>(initial);
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  const set = (k: keyof ArticleInput) => (e: { target: { value: string } }) => setV((p) => ({ ...p, [k]: e.target.value }));
+  const f = (label: string, k: keyof ArticleInput, ph = "", w = "") => (
+    <label className={`flex flex-col gap-1 text-xs text-neutral-600 ${w}`}>
+      {label}
+      <Input value={String(v[k])} onChange={set(k)} placeholder={ph} />
+    </label>
+  );
+  return (
+    <div className="flex flex-col gap-3 bg-neutral-50 p-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {f("Наш код *", "name", "M012")}
+        {f("Название / описание", "category", "Жилет женский из норки")}
+        {f("Наш SKU", "sku")}
+        {f("Цена продажи, ₽", "sellingPrice")}
+        {f("Код в системе продаж", "salesCode", "как в системе продаж")}
+        {f("Название в системе продаж", "salesName", "как в системе продаж", "lg:col-span-2")}
+        {f("Другие написания (через запятую)", "aliases", "М012, M012/MINK BGL")}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={v.isActive} onChange={(e) => setV((p) => ({ ...p, isActive: e.target.checked }))} />
+        Активный артикул
+      </label>
+      {err && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const r = await saveArticle(id, v);
+              if (r.error) setErr(r.error);
+              else onDone();
+            })
+          }
+        >
+          {pending ? "Сохраняю…" : "Сохранить"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
+      </div>
+    </div>
+  );
+}
+
+function MergePanel({ source, rows, onClose }: { source: ArticleRow; rows: ArticleRow[]; onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const [target, setTarget] = useState<ArticleRow | null>(null);
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  const found = useMemo(() => searchArticleList(rows.filter((r) => r.id !== source.id), q, 8), [rows, source.id, q]);
+  return (
+    <div className="flex flex-col gap-2 bg-amber-50 p-3 text-sm">
+      <p>
+        Объединить <b>{source.name}</b> (ТЗ: {source.tzCount}) с другим артикулом. Все ТЗ, плановые поставки, остатки и движения готовой продукции переедут
+        в выбранный, а код и написания <b>{source.name}</b> станут его другими написаниями. Запись <b>{source.name}</b> будет удалена.
+      </p>
+      {!target ? (
+        <>
+          <Input autoFocus placeholder="Какой артикул оставить (код, название, код продаж…)" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
+          <ul className="flex max-w-md flex-col">
+            {found.map((h) => (
+              <li key={h.article.id}>
+                <button type="button" className="w-full rounded px-2 py-1 text-left hover:bg-amber-100" onClick={() => setTarget(rows.find((r) => r.id === h.article.id)!)}>
+                  <b>{h.article.name}</b> <span className="text-neutral-500">{(h.article.category ?? "").replace(/\s+/g, " ")}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p>
+          Оставить: <b>{target.name}</b> <button type="button" className="text-blue-700 underline" onClick={() => setTarget(null)}>выбрать другой</button>
+        </p>
+      )}
+      {err && <p className="rounded-md bg-red-50 px-3 py-2 text-red-700">{err}</p>}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={!target || pending}
+          onClick={() =>
+            start(async () => {
+              const r = await mergeArticles(source.id, target!.id);
+              if (r.error) setErr(r.error);
+              else onClose();
+            })
+          }
+        >
+          {pending ? "Объединяю…" : "Объединить"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onClose}>Отмена</Button>
+      </div>
+    </div>
+  );
+}
+
+export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdit: boolean }) {
+  const [q, setQ] = useState("");
+  const [onlyNoSales, setOnlyNoSales] = useState(false);
+  const [onlyActive, setOnlyActive] = useState(false);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [merging, setMerging] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  const view = useMemo(() => {
+    let list = rows;
+    if (q.trim()) {
+      const ids = new Set(searchArticleList(rows, q, 500).map((h) => h.article.id));
+      list = list.filter((r) => ids.has(r.id));
+    }
+    if (onlyNoSales) list = list.filter((r) => !r.salesCode?.trim());
+    if (onlyActive) list = list.filter((r) => r.isActive);
+    const val = (r: ArticleRow): string | number => {
+      switch (sort.key) {
+        case "name": return articleKey(r.name);
+        case "category": return (r.category ?? "").toLowerCase();
+        case "salesCode": return (r.salesCode ?? "").toLowerCase();
+        case "price": return r.sellingPrice ?? -1;
+        case "tz": return r.tzCount;
+        case "produced": return r.produced;
+      }
+    };
+    return [...list].sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "ru", { numeric: true });
+      return c * sort.dir || a.name.localeCompare(b.name, "ru", { numeric: true });
+    });
+  }, [rows, q, onlyNoSales, onlyActive, sort]);
+
+  const noSales = rows.filter((r) => !r.salesCode?.trim()).length;
+  const th = (label: string, key: SortKey, cls = "") => (
+    <Th className={cls}>
+      <button type="button" className="uppercase hover:underline" onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }))}>
+        {label}
+        {sort.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+      </button>
+    </Th>
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Input placeholder="Поиск: наш код, код в продажах, название, другое написание" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyNoSales} onChange={(e) => setOnlyNoSales(e.target.checked)} />
+          Без кода продаж ({noSales})
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
+          Только активные
+        </label>
+        <span className="text-sm text-neutral-500">Показано {view.length} из {rows.length}</span>
+        <span className="ml-auto flex gap-2">
+          <a href="/settings/articles-ref/export" className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50">Скачать CSV</a>
+          {canEdit && <Button size="sm" onClick={() => { setAdding(true); setEditing(null); }}>+ Новый артикул</Button>}
+        </span>
+      </div>
+
+      {adding && (
+        <div className="overflow-hidden rounded-lg border border-neutral-200">
+          <EditForm id={null} initial={EMPTY} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
+        </div>
+      )}
+
+      <Table>
+        <Thead>
+          <Tr>
+            {th("Наш код", "name")}
+            {th("Название", "category")}
+            <Th>SKU</Th>
+            {th("Код и название в продажах", "salesCode")}
+            <Th>Другие написания</Th>
+            {th("Цена, сезон", "price")}
+            {th("ТЗ", "tz", "text-right")}
+            {th("Произведено", "produced", "text-right")}
+            <Th>Статус</Th>
+            {canEdit && <Th />}
+          </Tr>
+        </Thead>
+        <Tbody>
+          {view.map((r) => {
+            const noCode = !r.salesCode?.trim();
+            const cols = canEdit ? 10 : 9;
+            return (
+              <Fragment key={r.id}>
+                <Tr className={noCode ? "bg-amber-50/50" : ""}>
+                  <Td className="whitespace-nowrap font-medium">{r.name}</Td>
+                  <Td className="max-w-xs text-neutral-600">{(r.category ?? "").replace(/\s+/g, " ") || "—"}</Td>
+                  <Td>{r.sku ?? "—"}</Td>
+                  <Td className="min-w-48">
+                    {noCode && !r.salesName ? (
+                      <Badge variant="warning">не сопоставлено с системой продаж</Badge>
+                    ) : (
+                      <>
+                        <div className="font-medium">{r.salesCode ?? <span className="text-amber-700">кода нет</span>}</div>
+                        {r.salesName && <div className="line-clamp-2 text-xs text-neutral-500">{r.salesName}</div>}
+                      </>
+                    )}
+                  </Td>
+                  <Td className="max-w-56 text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "—"}</Td>
+                  <Td className="whitespace-nowrap">
+                    {fmtPrice(r.sellingPrice)}
+                    {r.seasons.length > 0 && <div className="text-xs text-neutral-500">{r.seasons.join(", ")}</div>}
+                  </Td>
+                  <Td className="text-right">{r.tzCount}</Td>
+                  <Td className="text-right">{fmtQty(r.produced)}</Td>
+                  <Td><Badge variant={r.isActive ? "success" : "default"}>{r.isActive ? "Активен" : "Не активен"}</Badge></Td>
+                  {canEdit && (
+                    <Td className="whitespace-nowrap">
+                      <button type="button" className="text-blue-700 hover:underline" onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); setAdding(false); }}>Изменить</button>
+                      <button type="button" className="ml-3 text-neutral-500 hover:underline" onClick={() => { setMerging(merging === r.id ? null : r.id); setEditing(null); }}>Объединить…</button>
+                    </Td>
+                  )}
+                </Tr>
+                {editing === r.id && (
+                  <Tr><Td colSpan={cols} className="p-0"><EditForm id={r.id} initial={toInput(r)} onDone={() => setEditing(null)} onCancel={() => setEditing(null)} /></Td></Tr>
+                )}
+                {merging === r.id && (
+                  <Tr><Td colSpan={cols} className="p-0"><MergePanel source={r} rows={rows} onClose={() => setMerging(null)} /></Td></Tr>
+                )}
+              </Fragment>
+            );
+          })}
+          {view.length === 0 && (
+            <Tr><Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-400">Ничего не найдено</Td></Tr>
+          )}
+        </Tbody>
+      </Table>
+    </div>
+  );
+}

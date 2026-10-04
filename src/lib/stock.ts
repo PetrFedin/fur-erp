@@ -23,6 +23,7 @@ export async function createRawMaterialLot(
     lotNumber: string | null;
     grade: string | null;
     color: string | null;
+    colorRefId?: string | null;
     quantity: Prisma.Decimal | number;
     unitCost: Prisma.Decimal | number;
     totalCost: Prisma.Decimal | number;
@@ -48,6 +49,7 @@ export async function createRawMaterialLot(
       lotNumber: args.lotNumber,
       grade: args.grade,
       color: args.color,
+      colorRefId: args.colorRefId ?? null,
       quantityReceived: quantity,
       quantityRemaining: quantity,
       unitCost,
@@ -105,6 +107,7 @@ export async function addOrPoolLiningLot(
     lotNumber: string | null;
     grade: string | null;
     color: string | null;
+    colorRefId?: string | null;
     quantity: Prisma.Decimal | number;
     unitCost: Prisma.Decimal | number;
     totalCost: Prisma.Decimal | number;

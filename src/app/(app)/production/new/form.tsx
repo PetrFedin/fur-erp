@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { CreateOrderState } from "../actions";
 import type { Warehouse } from "@prisma/client";
+import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 
 const initialState: CreateOrderState = {};
 
@@ -19,6 +20,8 @@ export function ProductionCreateForm({
   clients,
   liningOptions,
   lastContractByClient,
+  colorOptions,
+  canAddColor,
 }: {
   action: (prev: CreateOrderState, formData: FormData) => Promise<CreateOrderState>;
   models: ModelOption[];
@@ -26,6 +29,8 @@ export function ProductionCreateForm({
   clients: ClientOption[];
   liningOptions: LiningOption[];
   lastContractByClient: Record<string, string>;
+  colorOptions: ColorSelectOption[];
+  canAddColor: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const today = new Date().toISOString().slice(0, 10);
@@ -202,7 +207,7 @@ export function ProductionCreateForm({
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="color">Цвет</Label>
-            <Input id="color" name="color" placeholder="Коричневый" value={f.color ?? ""} onChange={set("color")} />
+            <ColorSelect id="color" refs={colorOptions} canCreate={canAddColor} placeholder="Коричневый" defaultValue={f.color ?? ""} onChange={(t) => setF((p) => ({ ...p, color: t }))} />
           </div>
           <div>
             <Label htmlFor="materialDescription">Материал продукции (описание)</Label>

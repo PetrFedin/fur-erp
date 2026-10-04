@@ -32,8 +32,10 @@ import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
+import { getColorOptions } from "@/lib/colors";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
+import { VerifyBlock } from "../../verify/verify-block";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -122,6 +124,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const canReceive = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"].includes(session.user.role);
   const editable = statusEditable && canEditRole;
   const canEditPlan = editable;
+  const colorOptions = canEditRole ? await getColorOptions(session.user.organizationId) : [];
+  const canAddColor = hasRole(session.user.role, ACCESS.colors);
 
   const [materials, expenseCategories, suppliers, warehouses, existingLots] = editable
     ? await Promise.all([
@@ -342,6 +346,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       }
                       lockedOrders={orders}
                       canEditMaterial={editable}
+                      colorOptions={colorOptions}
+                      canAddColor={canAddColor}
                       materials={allMaterials}
                       currency={purchase.currency}
                       defaults={{
@@ -353,6 +359,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         lotNumber: item.lotNumber ?? "",
                         grade: item.grade ?? "",
                         color: item.color ?? "",
+                        colorRefId: item.colorRefId ?? "",
                       }}
                     >
                       <Td>{item.rawMaterial.name}</Td>
@@ -564,7 +571,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <details className="rounded-md border border-neutral-200 px-3 py-2">
                 <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить одну позицию</summary>
                 <div className="mt-3">
-                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} />
+                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} colorOptions={colorOptions} canAddColor={canAddColor} />
                 </div>
               </details>
             </>
@@ -675,6 +682,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           </CardContent>
         </Card>
       )}
+
+      <VerifyBlock kind="purchase" id={id} title="Подтверждение закупки" />
 
       <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
 

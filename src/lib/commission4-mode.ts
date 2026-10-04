@@ -1,13 +1,15 @@
 import { cookies } from "next/headers";
 
 // Режим показа «Без 4% | С 4%». Не "use client": читается серверными страницами.
-// Cookie `commission4Display`: "on" — показывать с 4%, всё остальное — без 4%.
+// Cookie `commission4Display`: "off" — без 4%; по умолчанию (cookie не задан) — С 4%: мы их платим.
 export type Commission4Mode = "off" | "on";
 
 export const COMMISSION4_COOKIE = "commission4Display";
+/** Режим по умолчанию (cookie не задан): «С 4%» — мы эти 4% платим посреднику сверх. Любой параметр mode без значения берёт его же. */
+export const DEFAULT_COMMISSION4_MODE: Commission4Mode = "on";
 
 export function parseCommission4Cookie(value: string | undefined): Commission4Mode {
-  return value === "on" ? "on" : "off";
+  return value === "off" ? "off" : DEFAULT_COMMISSION4_MODE;
 }
 
 /** Текущий режим из cookie (для серверных компонентов с (app) layout). */

@@ -5,8 +5,8 @@ import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
@@ -16,19 +16,29 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
+  VIEW_LABEL,
   aggregatePricing,
   calcPrice,
   defaultMarkupPct,
   loadModelPrices,
+  parsePricingCols,
   parsePricingParams,
+  parsePricingSort,
   parseTargetMarkup,
-  pricingQuery,
+  pricingParams,
   recommend,
+  sortPricing,
   type PriceAgg,
+  type PricingParams,
+  type PricingView,
 } from "@/lib/analytics-pricing";
+import { applyShared, filterOptions, hasSharedFilter } from "@/lib/analytics-filters";
+import { COLUMNS, derived } from "@/lib/analytics-metrics";
 import { weightedPercent } from "@/lib/weighted";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { AcceptPriceButton } from "./accept-price-button";
+import { FilterPanel } from "../_shared/filter-panel";
+import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
 
 export const metadata = { title: "Себестоимость и цены" };
 
@@ -39,10 +49,9 @@ const orderLabel = (r: { workOrderNumber: string | null; number: string }) => r.
 type Seg = { key: string; label: string; value: number; cls: string };
 
 function segments(a: PriceAgg): Seg[] {
-  const matExcl = (x: number) => x;
   return [
-    { key: "fur", label: "Мех", value: matExcl(a.furExcl), cls: "bg-emerald-600" },
-    { key: "lin", label: "Подкладка", value: matExcl(a.liningExcl), cls: "bg-sky-500" },
+    { key: "fur", label: "Мех", value: a.furExcl, cls: "bg-emerald-600" },
+    { key: "lin", label: "Подкладка", value: a.liningExcl, cls: "bg-sky-500" },
     { key: "c4", label: "4%", value: a.c4Excl, cls: "bg-amber-500" },
     { key: "vat", label: "НДС в материалах", value: a.vat, cls: "bg-neutral-400" },
     { key: "exp", label: "Расходы ТЗ", value: a.expenses, cls: "bg-violet-500" },
@@ -76,8 +85,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const p = parsePricingParams(await searchParams);
   const canEditPrice = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
+  const cols = parsePricingCols(p.cols, p.all);
+  const sortState = parsePricingSort(p.sort, p.dir);
 
-  const [all, prices] = await Promise.all([loadOrderRows(orgId, year, c4Mode), loadModelPrices(orgId)]);
+  const [allYear, prices] = await Promise.all([loadOrderRows(orgId, year, c4Mode), loadModelPrices(orgId)]);
+  const opts = filterOptions(allYear);
+  const all = applyShared(allYear, p);
   const models = aggregatePricing(all, "model", prices);
   const def = defaultMarkupPct(models, p.base);
   const defRounded = def.pct != null ? Math.round(def.pct) : null;
@@ -85,8 +98,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const target = typed ?? defRounded;
   const badInput = p.m !== "" && typed == null;
 
-  const list = p.view === "model" ? models : aggregatePricing(all, "category", prices);
-  const qq = p.q.toLowerCase();
+  const listAll = p.view === "model" ? models : aggregatePricing(all, p.view, prices);
   const calcOf = (a: PriceAgg) => calcPrice(a, p.base, a.price);
   const issuesOf = (a: PriceAgg) => {
     const c = calcOf(a);
@@ -99,9 +111,8 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     if (a.label === UNDEFINED_CATEGORY) out.push("категория не определена");
     return out;
   };
-  const shown = list
-    .filter((a) => !qq || `${a.label} ${a.category}`.toLowerCase().includes(qq))
-    .filter((a) => (p.only === "noprice" ? a.modelId && !a.price : p.only === "issues" ? issuesOf(a).length > 0 : true));
+  const filtered = listAll.filter((a) => (p.only === "noprice" ? a.modelId && !a.price : p.only === "issues" ? issuesOf(a).length > 0 : true));
+  const shown = sortPricing(filtered, sortState.sort, sortState.dir, p.base, target);
 
   // Средняя наценка категории — по её ценообразованным моделям (вес — себестоимость партии).
   const catMarkup = new Map<string, { pct: number | null; priced: number; total: number }>();
@@ -134,8 +145,13 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   const baseLabel = p.base === "full" ? "материалы + работа" : "материалы + расходы (как в «Изделиях»)";
   const basis = `наценка ${target ?? "—"}%, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
-  const qs = pricingQuery(p).replace(/^\?/, "");
-  const here = (over: Partial<typeof p> = {}) => `/analytics/pricing${pricingQuery(p, over)}`;
+  const qs = pricingParams(p).toString();
+  const here = (over: Partial<PricingParams> = {}) => {
+    const s = pricingParams(p, over).toString();
+    return `/analytics/pricing${s ? `?${s}` : ""}`;
+  };
+  const sortOver = (o: { sort: string; dir: string }) => here({ sort: o.sort, dir: o.dir });
+  const thHref = (key: string) => sortHref(sortOver, key, sortState);
 
   const perUnit = (a: PriceAgg, x: number) => (a.unitsCosted > 0 ? x / a.unitsCosted : 0);
 
@@ -196,20 +212,40 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             <Th>Материал</Th>
             <Th className="text-right">Кол-во</Th>
             <Th className="text-right">Цена за ед.</Th>
+            <Th className="text-right">
+              Молоток за шкуру
+              <InfoHint label="О молотке в лоте" align="right" wide>Цена шкуры на аукционе до сборов и выделки, в ₽ по курсу лота (в скобках — в долларах). «нет данных» — в расчёте лота молотка нет, лот в среднее молотка не входит.</InfoHint>
+            </Th>
             <Th className="text-right">Сумма</Th>
             <Th className="text-right">ТЗ</Th>
           </Tr>
         </Thead>
         <Tbody>
-          {a.lots.map((l, i) => (
-            <Tr key={i}>
+          {a.lots.map((l) => (
+            <Tr key={l.lotId}>
               <Td>
-                {l.lotNumber ?? "—"}
+                <Link href={`/analytics/raw/lot/${l.lotId}`} className="underline underline-offset-2" title="Карточка лота: где использован, учёт, остаток">{l.lotNumber ?? "лот"}</Link>
                 {(l.grade || l.color) && <span className="ml-1 text-xs text-neutral-500">{[l.grade, l.color].filter(Boolean).join(", ")}</span>}
+                {l.purchaseId && (
+                  <div className="text-[11px] text-neutral-500">
+                    <Link href={`/purchases/${l.purchaseId}`} className="underline underline-offset-2">закупка {l.purchaseNumber}</Link>
+                    {l.auction ? ` · ${l.auction}` : ""}
+                  </div>
+                )}
               </Td>
               <Td>{l.rawName}</Td>
               <Td className="text-right tabular-nums">{formatQty(l.qty)} {l.isLining ? "м" : "шк."}</Td>
               <Td className="text-right tabular-nums"><Money incl={l.qty > 0 ? l.incl / l.qty : 0} excl={l.qty > 0 ? l.excl / l.qty : 0} /></Td>
+              <Td className="text-right tabular-nums">
+                {l.isLining ? <span className="text-neutral-300">·</span> : l.hammerExcl != null ? (
+                  <>
+                    <Money incl={l.hammerIncl ?? l.hammerExcl} excl={l.hammerExcl} />
+                    {l.hammerUsd != null && <span className="text-[11px] text-neutral-500"> (${formatQty(l.hammerUsd)})</span>}
+                  </>
+                ) : (
+                  <span className="text-[11px] text-neutral-400">нет данных</span>
+                )}
+              </Td>
               <Td className="text-right tabular-nums"><Money incl={l.incl} excl={l.excl} /></Td>
               <Td className="text-right tabular-nums">{l.orders}</Td>
             </Tr>
@@ -225,9 +261,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         .map((r) => (
           <div key={r.id} className="flex flex-wrap gap-x-2">
             <Link href={`/production/${r.id}`} className="font-medium text-neutral-800 underline underline-offset-2">ТЗ {orderLabel(r)}</Link>
-            {p.view === "category" && <span>{r.modelName}</span>}
+            {!a.modelId && <span>{r.modelName}</span>}
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <><Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> за ед.</> : "себестоимость 0"}</span>
+            {r.furQty > 0 && <span>шкур {formatQty(r.furQty)}</span>}
+            {r.batchNumber != null && <span>партия {r.batchNumber}</span>}
+            {r.seasonCode && <span>сезон {r.seasonCode}</span>}
             {r.usageCount === 0 && <span className="text-amber-700">без состава</span>}
             {!(r.work > 0) && <span className="text-amber-700">без цены работы</span>}
           </div>
@@ -235,8 +274,66 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     </div>
   );
 
+  const breakdown = (a: PriceAgg, key: "year" | "season" | "batch") => {
+    const m = new Map<string, number>();
+    for (const r of a.rows) {
+      const k = key === "year" ? (r.year == null ? "год не определён" : String(r.year)) : key === "season" ? (r.seasonCode ?? "сезон не указан") : r.batchNumber == null ? "без партии" : `партия ${r.batchNumber}`;
+      m.set(k, (m.get(k) ?? 0) + r.qty);
+    }
+    return Array.from(m, ([k, v]) => `${k}: ${formatQty(v)}`).sort((x, y) => x.localeCompare(y, "ru", { numeric: true })).join(" · ");
+  };
+
+  // Карточка артикула: сводка по всем показателям и ссылки на ТЗ и лоты.
+  const summary = (a: PriceAgg) => {
+    const d = derived(a.m);
+    const c = calcOf(a);
+    const r = recommend(a, p.base, target);
+    const dash = <span className="text-neutral-400">—</span>;
+    const items: [string, React.ReactNode][] = [
+      ["Произведено", <>{formatQty(a.units)} ед. · ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</>],
+      ["По годам", breakdown(a, "year") || dash],
+      ["По сезонам", a.rows.some((x) => x.seasonCode) ? breakdown(a, "season") : <span className="text-neutral-400">сезон в ТЗ не указан</span>],
+      ["По партиям", breakdown(a, "batch") || dash],
+      ["Шкур на ед.", d.skinsPerUnit != null ? <>{q2(d.skinsPerUnit)} <span className="text-neutral-500">(Σ {formatQty(a.m.skins)})</span></> : dash],
+      ["Подкладка, м на ед.", d.liningPerUnit != null ? <>{q2(d.liningPerUnit)} <span className="text-neutral-500">(Σ {q2(a.m.liningM)} м)</span></> : dash],
+      [`Мех за ед.${c4}`, d.furPerUnit ? <Money incl={d.furPerUnit.incl} excl={d.furPerUnit.excl} /> : dash],
+      [`Мех за шкуру${c4}`, d.furPerSkin ? <Money incl={d.furPerSkin.incl} excl={d.furPerSkin.excl} /> : dash],
+      ["Молоток за шкуру", d.hammerPerSkin ? <><Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} /> <span className="text-neutral-500">(данные: {pct0(d.hammerSkinShare ?? 0)} шкур, лотов {a.m.lotsHammer} из {a.m.lots})</span></> : <span className="text-neutral-400">нет данных (лотов {a.m.lots})</span>],
+      ["Работа за ед.", d.workPerUnit != null ? formatMoney(d.workPerUnit.toFixed(2)) : dash],
+      [`Себестоимость за ед.${c4}`, d.costPerUnit ? <><Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />{a.m.minCostIncl != null && a.m.maxCostIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minCostIncl} excl={a.m.minCostExcl} /> до <Money incl={a.m.maxCostIncl} excl={a.m.maxCostExcl} />)</span>}</> : dash],
+      [`Полная с работой${c4}`, d.fullPerUnit ? <><Money incl={d.fullPerUnit.incl} excl={d.fullPerUnit.excl} />{a.m.minFullIncl != null && a.m.maxFullIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minFullIncl} excl={a.m.minFullExcl} /> до <Money incl={a.m.maxFullIncl} excl={a.m.maxFullExcl} />)</span>}</> : dash],
+    ];
+    if (a.modelId) {
+      items.push(
+        ["Цена", a.price ? formatMoney(a.price.toFixed(2)) : <span className="text-amber-700">не задана</span>],
+        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{Math.round(c.markupPct ?? 0)}%), маржа {pct1(c.marginPct ?? 0)}</> : dash],
+        ["Рекомендуемая цена", r ? <><Money incl={r.incl} excl={r.excl} /> <span className="text-neutral-500">(при наценке {target}%, не факт)</span></> : dash],
+      );
+    }
+    return (
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-lg border border-neutral-200 bg-neutral-50/50 p-3 text-xs sm:grid-cols-2">
+        {items.map(([k, v]) => (
+          <div key={k} className="flex flex-wrap gap-x-2">
+            <dt className="text-neutral-500">{k}:</dt>
+            <dd className="tabular-nums text-neutral-900">{v}</dd>
+          </div>
+        ))}
+        {a.modelId && (
+          <div className="sm:col-span-2">
+            <Link href={`/models/${a.modelId}`} className="underline underline-offset-2">карточка модели</Link>
+            {a.salesCode ? <span className="text-neutral-500"> · код продаж {a.salesCode}</span> : null}
+          </div>
+        )}
+      </dl>
+    );
+  };
+
   const details = (a: PriceAgg) => (
     <div className="mt-2 flex flex-col gap-3 font-normal">
+      <div>
+        <div className="mb-1 text-xs font-medium text-neutral-700">{a.modelId ? "Карточка артикула" : "Сводка"}</div>
+        {summary(a)}
+      </div>
       {composition(a)}
       <div>
         <div className="mb-1 text-xs font-medium text-neutral-700">Из каких лотов (мех и подкладка)</div>
@@ -270,6 +367,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   const priceCell = (a: PriceAgg) => {
     if (a.modelId) return a.price ? formatMoney(a.price.toFixed(2)) : <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">завести цену</span>;
+    if (p.view !== "category") return <span className="text-neutral-400">—</span>;
     const m = catMarkup.get(a.label);
     return m && m.total > 0 ? <span className="text-xs text-neutral-500">цена у {m.priced} из {m.total} моделей</span> : "—";
   };
@@ -285,6 +383,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
       );
     }
+    if (p.view !== "category") return "—";
     const m = catMarkup.get(a.label);
     return m?.pct != null ? <div>средняя +{Math.round(m.pct)}%<div className="text-[11px] text-neutral-500">×{(1 + m.pct / 100).toFixed(2).replace(".", ",")} по моделям с ценой</div></div> : "—";
   };
@@ -338,6 +437,26 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   const tabBtn = (active: boolean) => (active ? "rounded-md bg-neutral-900 px-3 py-1 text-white" : "rounded-md px-3 py-1 hover:bg-neutral-100");
 
+  const hasFilter = hasSharedFilter(p) || !!p.m || p.only !== "all" || p.base !== "mat";
+  const viewHidden: [string, string][] = [];
+  if (p.view !== "model") viewHidden.push(["view", p.view]);
+  if (p.sort) viewHidden.push(["sort", p.sort], ["dir", p.dir]);
+  if (p.all) viewHidden.push(["all", "1"]);
+  if (p.cols.length) viewHidden.push(["cols", p.cols.join(",")]);
+  const pickerHidden = Array.from(pricingParams(p, { cols: [], all: false }).entries()) as [string, string][];
+  const toggleAll = here(p.cols.length > 0 || !p.all ? { cols: [], all: !p.all || p.cols.length > 0 } : { cols: [], all: false });
+  const labelHead = p.view === "model" ? "Модель" : p.view === "category" ? "Категория" : p.view === "fur" ? "Вид меха" : "Мех · категория";
+
+  const mobileSortItems = [
+    { key: "label", label: labelHead, href: thHref("label") },
+    { key: "units", label: "Единиц", href: thHref("units") },
+    { key: "cost", label: "Себестоимость за ед.", href: thHref("cost") },
+    ...cols.map((c) => ({ key: c, label: colLabel(c, c4), href: thHref(c) })),
+    { key: "price", label: "Цена", href: thHref("price") },
+    { key: "markup", label: "Наценка", href: thHref("markup") },
+    { key: "rec", label: "Рекомендуемая цена", href: thHref("rec") },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -346,9 +465,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           <YearNote year={year} />
           <Mode4Badge mode={c4Mode} />
           <InfoHint label="О странице" wide>
-            <p>Из чего складывается себестоимость единицы по моделям (артикулам) и категориям, сколько в ней мех, подкладка, 4%, расходы и работа, и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
+            <p>Из чего складывается себестоимость единицы по моделям (артикулам), категориям и видам меха, сколько в ней мех, подкладка, 4%, расходы и работа, сколько шкур и метров подкладки уходит на единицу, какой был молоток закупки и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
             <p className="mt-1">
               <b>Себестоимость единицы</b> = (мех + подкладка + 4% + расходы ТЗ) ÷ выпущено единиц — средневзвешенная: Σ сумм ÷ Σ единиц. Мех и подкладка — по лотам, из которых списано в ТЗ. 4% ({COMMISSION_RATE * 100}% — доп. комиссия посредника) добавляется к сырью и подкладке в режиме «С 4%»; работа им не облагается. НДС входит в цены лотов; «Без НДС» переключается в шапке.
+            </p>
+            <p className="mt-1">
+              <b>Среднее — только средневзвешенное:</b> стоимость шкуры и молоток — вес в шкурах; шкуры, подкладка, работа и себестоимость на единицу — вес в единицах изделия. Формула каждой колонки — в подсказке у её заголовка. <b>Молоток</b> — цена шкуры на аукционе до сборов и выделки; лоты без молотка («нет данных») в среднее не входят.
             </p>
             <p className="mt-1">
               <b>Работа</b> (цена работы по ТЗ × кол-во) в себестоимость системы не входит. Переключатель «База наценки» решает, считать ли наценку к материалам (как на странице «Изделия») или к материалам вместе с работой.
@@ -362,6 +484,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               </p>
             )}
             <p className="mt-1">Целевая наценка по умолчанию — средневзвешенная по моделям, у которых цена уже есть (вес — себестоимость партии). <b>Рекомендация — расчёт, а не факт</b>: рынок и скидки в нём не учтены.</p>
+            <p className="mt-1"><b>Карточка артикула</b> — раскройте строку: сводка по годам, сезонам и партиям, шкуры и подкладка на единицу, мех, молоток, работа, полная себестоимость с разбросом, цена и наценка, затем состав, лоты (со ссылками) и ТЗ.</p>
           </InfoHint>
         </h1>
         <a href={`/analytics/pricing/export?${qs}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -393,43 +516,46 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      {/* Параметры */}
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-3">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Целевой маркап, %
-          <Input name="m" defaultValue={p.m} placeholder={defRounded != null ? String(defRounded) : "например 300"} inputMode="decimal" className="h-9 w-32" aria-invalid={badInput || undefined} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          База наценки
-          <Select name="base" defaultValue={p.base} className="h-9 w-64">
-            <option value="mat">Материалы + расходы (как в «Изделиях»)</option>
-            <option value="full">Материалы + расходы + работа</option>
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Показывать
-          <Select name="only" defaultValue={p.only} className="h-9 w-44">
-            <option value="all">Все</option>
-            <option value="noprice">Только без цены</option>
-            <option value="issues">Только с замечаниями</option>
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Поиск
-          <Input name="q" defaultValue={p.q} placeholder="Модель, категория" className="h-9 w-44" />
-        </label>
-        <input type="hidden" name="view" value={p.view} />
-        <Button type="submit" size="sm" className="h-9">Пересчитать</Button>
-        {(p.m || p.q || p.only !== "all" || p.base !== "mat") && (
-          <Link href={here({ m: "", q: "", only: "all", base: "mat" })} className="pb-2 text-sm text-neutral-500 underline underline-offset-2">Сбросить</Link>
-        )}
-        {badInput && <span className="pb-2 text-xs text-red-600">Маркап: введите число, например 350 — взято значение по умолчанию.</span>}
-      </form>
+      {/* Параметры и фильтры */}
+      <FilterPanel
+        action="/analytics/pricing"
+        hidden={viewHidden}
+        f={p}
+        opts={opts}
+        active={hasFilter}
+        submitLabel="Пересчитать"
+        resetHref={`/analytics/pricing${p.view !== "model" ? `?view=${p.view}` : ""}`}
+        lead={
+          <>
+            <label className="flex flex-col gap-1 text-xs text-neutral-500">
+              Целевой маркап, %
+              <Input name="m" defaultValue={p.m} placeholder={defRounded != null ? String(defRounded) : "например 300"} inputMode="decimal" className="h-9 w-32" aria-invalid={badInput || undefined} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-500">
+              База наценки
+              <Select name="base" defaultValue={p.base} className="h-9 w-64 max-w-full">
+                <option value="mat">Материалы + расходы (как в «Изделиях»)</option>
+                <option value="full">Материалы + расходы + работа</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-neutral-500">
+              Показывать
+              <Select name="only" defaultValue={p.only} className="h-9 w-44">
+                <option value="all">Все</option>
+                <option value="noprice">Только без цены</option>
+                <option value="issues">Только с замечаниями</option>
+              </Select>
+            </label>
+          </>
+        }
+      />
+      {badInput && <span className="text-xs text-red-600">Маркап: введите число, например 350 — взято значение по умолчанию.</span>}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 text-sm">
-          <Link href={here({ view: "model" })} className={tabBtn(p.view === "model")}>По моделям (артикулам)</Link>
-          <Link href={here({ view: "category" })} className={tabBtn(p.view === "category")}>По категориям</Link>
+        <div className="flex flex-wrap gap-1 text-sm">
+          {(Object.keys(VIEW_LABEL) as PricingView[]).map((v) => (
+            <Link key={v} href={here({ view: v, sort: "", dir: "desc" })} className={`${tabBtn(p.view === v)} max-md:inline-flex max-md:min-h-9 max-md:items-center`}>{VIEW_LABEL[v]}</Link>
+          ))}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-600" aria-label="Обозначения диаграммы">
           {[
@@ -449,21 +575,34 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <ViewBar all={p.all} picked={p.cols.length > 0} cols={cols} toggleAllHref={toggleAll} action="/analytics/pricing" hidden={pickerHidden} />
+        <MobileSort items={mobileSortItems} cur={sortState} />
+        <span className="text-xs text-neutral-500">Клик по заголовку колонки — сортировка. Строк: {shown.length}</span>
+      </div>
+
       <ResponsiveRows
         table={
           <Table>
             <Thead>
               <Tr>
-                <Th>{p.view === "model" ? "Модель" : "Категория"}</Th>
-                <Th className="text-right">Ед.</Th>
-                <Th className="text-right">
-                  Себестоимость за ед.{c4}
-                  <InfoHint label="Что в цифре" align="right">Σ(себестоимость ТЗ) ÷ Σ единиц{p.base === "full" ? " + работа" : ""} по завершённым ТЗ с известной себестоимостью; ниже — разброс себестоимости единицы между ТЗ (мин–макс).</InfoHint>
-                </Th>
+                <SortTh left label={labelHead} href={thHref("label")} active={sortState.sort === "label"} dir={sortState.dir} />
+                <SortTh label="Ед." href={thHref("units")} active={sortState.sort === "units"} dir={sortState.dir} hint="Σ изделий по завершённым ТЗ строки (ниже — число ТЗ)." />
+                <SortTh
+                  label="Себестоимость за ед."
+                  suffix={c4}
+                  href={thHref("cost")}
+                  active={sortState.sort === "cost"}
+                  dir={sortState.dir}
+                  hint={<>Σ(себестоимость ТЗ) ÷ Σ единиц{p.base === "full" ? " + работа" : ""} по завершённым ТЗ с известной себестоимостью; ниже — разброс себестоимости единицы между ТЗ (мин–макс).</>}
+                />
+                {cols.map((c) => (
+                  <SortTh key={c} label={colLabel(c, c4)} hint={COLUMNS[c].hint} href={thHref(c)} active={sortState.sort === c} dir={sortState.dir} />
+                ))}
                 <Th>Структура</Th>
-                <Th className="text-right">Цена</Th>
-                <Th className="text-right">Наценка</Th>
-                <Th className="text-right">Рекомендуемая цена</Th>
+                <SortTh label="Цена" href={thHref("price")} active={sortState.sort === "price"} dir={sortState.dir} hint="Розничная цена модели (поле на странице «Изделия»); у категорий и видов меха своей цены нет." />
+                <SortTh label="Наценка" href={thHref("markup")} active={sortState.sort === "markup"} dir={sortState.dir} hint="Цена ÷ себестоимость (с НДС, по выбранной базе наценки)." />
+                <SortTh label="Рекомендуемая цена" href={thHref("rec")} active={sortState.sort === "rec"} dir={sortState.dir} hint="Себестоимость × (1 + целевая наценка), округлено до 100 ₽. Расчёт, не факт." />
               </Tr>
             </Thead>
             <Tbody>
@@ -475,7 +614,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                       {details(a)}
                     </details>
                     <div className="text-[11px] font-normal text-neutral-500">
-                      {a.modelId ? a.category : `${a.modelCount} моделей`}
+                      {a.modelId ? a.category : p.view === "fur" || p.view === "furcat" ? `${a.modelCount} моделей` : `${a.modelCount} моделей`}
                       {a.modelId && (
                         <>
                           {" · "}
@@ -490,6 +629,11 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                     <div className="text-[11px] text-neutral-500">ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</div>
                   </Td>
                   <Td className="text-right tabular-nums">{costCell(a)}</Td>
+                  {cols.map((c) => (
+                    <Td key={c} className="text-right tabular-nums">
+                      <MetricCell col={c} m={a.m} total={a.m} />
+                    </Td>
+                  ))}
                   <Td className="min-w-40">
                     <Bar a={a} />
                   </Td>
@@ -500,7 +644,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               ))}
               {shown.length === 0 && (
                 <Tr>
-                  <Td colSpan={7} className="py-8 text-center text-neutral-400">
+                  <Td colSpan={7 + cols.length} className="py-8 text-center text-neutral-400">
                     {year !== "all" ? `За ${year} год завершённых ТЗ по этим условиям нет` : "Нет данных по этим условиям"}
                   </Td>
                 </Tr>
@@ -537,7 +681,10 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                   {noteCell(a)}
                 </div>
               }
-              details={[{ label: "Что входит", value: details(a) }]}
+              details={[
+                ...cols.map((c) => ({ label: colLabel(c, c4), value: <MetricCell col={c} m={a.m} total={a.m} /> })),
+                { label: "Что входит", value: details(a) },
+              ]}
             />
           );
         })}
@@ -548,7 +695,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <section className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
         <h2 className="mb-2 text-base font-semibold">
           Качество данных
-          <InfoHint label="О проверках">Проверки по моделям и ТЗ выбранного года. Данные не правятся — только показано, что мешает посчитать цену.</InfoHint>
+          <InfoHint label="О проверках">Проверки по моделям и ТЗ выбранного года (с учётом фильтров). Данные не правятся — только показано, что мешает посчитать цену.</InfoHint>
         </h2>
         <ul className="flex flex-col gap-2">
           <li>

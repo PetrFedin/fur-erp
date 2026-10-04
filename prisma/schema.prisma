@@ -14,6 +14,119 @@ datasource db {
 
 // ---------- Tenancy & auth ----------
 
+/// Справочник цветов: каноническое русское название + синонимы (английские и вариации написания из реестра и приложений ТЗ).
+model ColorRef {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  aliases        String[]
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  purchaseItems PurchaseItem[]
+  lots          RawMaterialLot[]
+  orders        ProductionOrder[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+/// Справочник меха: русское и английское названия + синонимы (в инвойсах — английские, в ТЗ — русские).
+model FurRef {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  nameEn         String?
+  aliases        String[]
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+/// Сезон производства/продаж (например FW26/27).
+model Season {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String?
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime     @default(now())
+
+  orders ProductionOrder[]
+  plans  ProductionPlan[]
+  events CalendarEvent[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+/// План заказа: артикул (из справочника или введённый вручную) и количества по размерам.
+model ProductionPlan {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  seasonId       String?
+  season         Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  modelId        String?
+  articleCode    String
+  articleName    String?
+  color          String?
+  furType        String?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  sizes  ProductionPlanSize[]
+  events CalendarEvent[]
+
+  @@index([organizationId])
+  @@index([seasonId])
+}
+
+model ProductionPlanSize {
+  id       String         @id @default(cuid())
+  planId   String
+  plan     ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  size     String
+  quantity Int
+
+  @@unique([planId, size])
+}
+
+/// Событие производственного календаря: артикул + количество (обязательно), дата, действие.
+/// action — строка из списка в коде (раскрой, пошив, примерка, отгрузка, …), чтобы список можно было расширять без миграций.
+model CalendarEvent {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  date           DateTime
+  endDate        DateTime?
+  articleCode    String
+  articleName    String?
+  quantity       Int
+  action         String
+  seasonId       String?
+  season         Season?         @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  planId         String?
+  plan           ProductionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  orderId        String?
+  notes          String?
+  doneAt         DateTime?
+  createdById    String?
+  createdAt      DateTime        @default(now())
+
+  @@index([organizationId, date])
+  @@index([seasonId])
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -24,6 +137,11 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   users                  User[]
+  colorRefs              ColorRef[]
+  furRefs                FurRef[]
+  seasons                Season[]
+  productionPlans        ProductionPlan[]
+  calendarEvents         CalendarEvent[]
   clients                Client[]
   suppliers              Supplier[]
   warehouses             Warehouse[]
@@ -259,6 +377,11 @@ model Purchase {
   rawMaterialLots RawMaterialLot[]
   documents       PurchaseDocument[]
   driveDocuments  DriveDocument[]
+  // Подтверждение строки человеком (или автоматически по документам): «сумма и документ корректны».
+  // verifiedBy: id пользователя либо "auto:<основание>"; сброс = null.
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  verifyNote      String?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -283,6 +406,8 @@ model PurchaseItem {
   lotNumber     String?
   grade         String?
   color         String?
+  colorRefId    String?
+  colorRef      ColorRef?   @relation(fields: [colorRefId], references: [id], onDelete: SetNull)
   notes         String?
 
   // FK lives here (not on RawMaterialLot) so more than one PurchaseItem can
@@ -370,6 +495,8 @@ model Payment {
   percent        Decimal?          @db.Decimal(7, 3)
   // Платёжный документ (PurchaseDocument kind PAYMENT_PROOF, batch = аукцион).
   documentId     String?
+  confirmedAt    DateTime?
+  confirmedBy    String?
   document       PurchaseDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
   // Номер платёжки / счёта, по которому прошла оплата; confirmed = false — оплата
   // упомянута в документах, но подтверждения (платёжки) ещё нет.
@@ -422,6 +549,8 @@ model ProductionPayment {
   orders         ProductionPaymentOrder[]
   docRef         String?
   confirmed      Boolean                  @default(true)
+  confirmedAt    DateTime?
+  confirmedBy    String?
   driveDocuments DriveDocument[]
 
   @@index([organizationId])
@@ -474,6 +603,8 @@ model RawMaterialLot {
   lotNumber      String?
   grade          String?
   color          String?
+  colorRefId     String?
+  colorRef       ColorRef?    @relation(fields: [colorRefId], references: [id], onDelete: SetNull)
 
   purchaseId    String?
   purchase      Purchase?      @relation(fields: [purchaseId], references: [id])
@@ -569,6 +700,10 @@ model ProductModel {
   name           String
   sku            String?
   category       String?
+  // Справочник артикулов: код и название этого же изделия в системе продаж + прочие написания.
+  salesCode      String?
+  salesName      String?
+  aliases        String[]
   sellingPrice   Decimal?     @db.Decimal(14, 2)
   description    String?
   isActive       Boolean      @default(true)
@@ -652,6 +787,10 @@ model ProductionOrder {
   plannedQuantity     Decimal               @db.Decimal(14, 3)
   producedQuantity    Decimal               @default(0) @db.Decimal(14, 3)
   color               String?
+  seasonId            String?
+  season              Season?               @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  colorRefId          String?
+  colorRef            ColorRef?             @relation(fields: [colorRefId], references: [id], onDelete: SetNull)
   size                String?
   // Free-text description of the product material as written on the ТЗ
   // (e.g. "Соболь выделанный тонированный") — separate from the BOM's raw
@@ -701,6 +840,11 @@ model ProductionOrder {
   stockMovements         StockMovement[]
   finishedGoodsMovements FinishedGoodsMovement[]
   driveDocuments         DriveDocument[]
+  // Подтверждение строки человеком (или автоматически по документам): «сумма и документ корректны».
+  // verifiedBy: id пользователя либо "auto:<основание>"; сброс = null.
+  verifiedAt             DateTime?
+  verifiedBy             String?
+  verifyNote             String?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -945,6 +1089,11 @@ model ProductionBatch {
 
   orders         ProductionOrder[]
   driveDocuments DriveDocument[]
+  // Подтверждение строки человеком (или автоматически по документам): «сумма и документ корректны».
+  // verifiedBy: id пользователя либо "auto:<основание>"; сброс = null.
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  verifyNote     String?
 
   @@unique([organizationId, number])
   @@index([organizationId])

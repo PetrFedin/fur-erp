@@ -14,6 +14,7 @@ import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { CompactMoney } from "./compact-money";
 import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/lib/attention";
+import { loadVerifyFlags } from "@/lib/verification";
 import { computeDocCoverage } from "@/lib/doc-coverage";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
@@ -98,6 +99,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   ]);
   const attentionBlocks = buildAttentionBlocks(attentionChecks);
   const attention = countAttentionBlocks(attentionBlocks);
+  // Подтверждение строк (платежи, закупки, ТЗ, партии): отдельно от «что не заведено».
+  const vf = await loadVerifyFlags(prisma, organizationId, year);
+  const vTotal = Object.values(vf.counts).reduce((a, c) => ({ total: a.total + c.total, verified: a.verified + c.verified }), { total: 0, verified: 0 });
   // Оплаты заказчиков года: привязанные к ТЗ года; без ТЗ — по дате оплаты.
   const yearOrderIds = new Set(clientOrders.map((o) => o.id));
   const clientPayments = clientPaymentsAll.filter((p) =>
@@ -375,6 +379,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   <li key={b.id}>{b.meta.title}: {b.entities.length}{b.meta.kind === "bulk" ? " (одна запись на группу)" : ""}</li>
                 ))}
               </ul>
+              <p className="mt-2">
+                Подтверждение строк: подтверждено <b>{vTotal.verified}</b> из {vTotal.total}, ждёт проверки <b className={vTotal.total - vTotal.verified > 0 ? "text-amber-700" : undefined}>{vTotal.total - vTotal.verified}</b> — страница{" "}
+                <a href="/verify" className="text-blue-700 underline">«Ждёт проверки»</a>.
+              </p>
               <p className="mt-2 text-neutral-500">Весь список, по группам и по сущностям, — на странице «Что не заведено».</p>
             </InfoHint>
           }

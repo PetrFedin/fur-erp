@@ -27,6 +27,8 @@ import { toDriveView } from "@/lib/drive-docs-server";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
+import { VerifyControl } from "@/components/verify-control";
+import { loadPaymentVerify } from "../verify/verify-block";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -86,6 +88,8 @@ export default async function PaymentsPage({
     sp.tab === "clients" ? "clients" : "suppliers";
   const orgId = session.user.organizationId;
   const year = await getYearFilter();
+  // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «Заказчики».
+  const pv = await loadPaymentVerify(tab === "clients" ? "prodPayment" : "payment");
   const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
   const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
   const onlyRest = tab === "suppliers" && sp.f === "rest";
@@ -219,6 +223,11 @@ export default async function PaymentsPage({
       {!p.confirmed && (
         <span className="mt-0.5 block">
           <Badge variant="warning">без платёжки / не подтверждён</Badge>
+        </span>
+      )}
+      {pv.verify[p.id] && p.status === "COMPLETED" && (
+        <span className="mt-1 block">
+          <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />
         </span>
       )}
     </>
@@ -489,6 +498,11 @@ export default async function PaymentsPage({
                   ) : (
                     <span className="text-neutral-400">—</span>
                   )}
+                  {pv.verify[p.id] && (
+                    <div className="mt-1">
+                      <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />
+                    </div>
+                  )}
                 </Td>
               </Tr>
             ))}
@@ -510,6 +524,7 @@ export default async function PaymentsPage({
               fields={[
                 { label: "Сумма", value: formatMoney(p.amount.toString()), strong: true },
                 { label: "Дата", value: formatDate(p.paidAt) },
+                ...(pv.verify[p.id] ? [{ label: "Подтверждение", value: <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact /> }] : []),
                 {
                   label: "ТЗ",
                   value:
@@ -753,7 +768,7 @@ export default async function PaymentsPage({
                                 )}
                               </Cell>
                             </div>
-                            {(p.docRef || !p.confirmed) && <div className="mt-2 text-sm">{payFlags(p)}</div>}
+                            <div className="mt-2 text-sm">{payFlags(p)}</div>
                             {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
                             {docBlock(p)}
                             {own && canPay && (
@@ -852,7 +867,7 @@ export default async function PaymentsPage({
                   {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                 </Cell>
               </div>
-              {(p.docRef || !p.confirmed) && <div className="mt-2 text-sm">{payFlags(p)}</div>}
+              <div className="mt-2 text-sm">{payFlags(p)}</div>
               {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
               {docBlock(p)}
               {canPay && !p.purchaseId && !p.auctionSession && (

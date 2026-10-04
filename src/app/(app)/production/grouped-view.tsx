@@ -9,6 +9,7 @@ import { emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { Mode4Badge } from "@/components/c4-note";
 import { DocsPayBadge } from "@/components/docs-pay-badge";
+import { VerifyPill } from "@/components/verify-control";
 import type { OrderIndicator } from "@/lib/production-doc-checklist";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
@@ -29,10 +30,11 @@ const woNum = (o: BatchOrder) => {
 export function GroupedByBatch({
   orders,
   batches,
-  c4Mode = "off",
+  c4Mode = "on",
   filtered = false,
   year = "all",
   indicators,
+  verified,
 }: {
   orders: BatchOrder[];
   batches: GroupBatch[];
@@ -42,6 +44,7 @@ export function GroupedByBatch({
   year?: YearFilter;
   /** Индикаторы «документы и оплата» по id ТЗ (необязательно). */
   indicators?: Map<string, OrderIndicator>;
+  verified?: Map<string, { verified: boolean; auto: boolean }>;
 }) {
   const groups: { key: string; batch: GroupBatch | null; orders: BatchOrder[] }[] = batches
     .map((b) => ({ key: b.id, batch: b, orders: orders.filter((o) => o.batchId === b.id) }))
@@ -108,6 +111,7 @@ export function GroupedByBatch({
                         />
                       </Link>
                     )}
+                    {verified && <VerifyPill flag={verified.get(o.id)} tab="orders" />}
                     <span className="ml-auto text-xs text-neutral-600">
                       {s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}
                     </span>

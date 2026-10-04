@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { createRawMaterialLot, addOrPoolLiningLot } from "@/lib/stock";
+import { resolveColorInput } from "@/lib/colors";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
@@ -16,6 +17,7 @@ import { MAX_MONEY, MAX_QTY, zNum, zMoney, parseDateInput } from "@/lib/input";
 import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatMoney } from "@/lib/utils";
+import { resetByPurchase } from "@/lib/verification";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -159,6 +161,9 @@ type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 // Writes already-validated pasted lines; unknown materials are created
 // (same find-or-create behaviour as the historical-import scripts).
 async function insertPasteRows(tx: Tx, orgId: string, purchaseId: string, rows: ParsedRow[]) {
+  // Цвет из вставки: сопоставляем со справочником по названию/синониму (латиница, регистр); нет соответствия — текст как есть.
+  const colorByText = new Map<string, { color: string | null; colorRefId: string | null }>();
+  for (const t of new Set(rows.map((r) => r.color).filter((c): c is string => !!c))) colorByText.set(t, await resolveColorInput(tx, orgId, { color: t }));
   const materials = await tx.rawMaterial.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } });
   const idByName = new Map(materials.map((m) => [m.name.trim().toLowerCase(), m.id]));
   for (const r of rows) {
@@ -180,7 +185,8 @@ async function insertPasteRows(tx: Tx, orgId: string, purchaseId: string, rows: 
       vatRate: r.vatRate,
       lotNumber: r.lotNumber,
       grade: r.grade,
-      color: r.color,
+      color: r.color ? colorByText.get(r.color)?.color ?? r.color : r.color,
+      colorRefId: r.color ? colorByText.get(r.color)?.colorRefId ?? null : null,
     })),
   });
 }
@@ -195,6 +201,7 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
     where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
     data: { exchangeRate: rate.data as number },
   });
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   return {};
 }
@@ -286,6 +293,7 @@ export async function updateCostPlanItem(purchaseId: string, itemId: string, for
     return {};
   }, { timeout: 30000 });
   if (res.error) return { error: res.error };
+  await resetByPurchase(purchaseId);
   revalidateCostPlan(purchaseId);
   return {};
 }
@@ -339,6 +347,7 @@ export async function updateCostPlanRate(purchaseId: string, formData: FormData)
     return {};
   }, { timeout: 30000 });
   if (res.error) return { error: res.error };
+  await resetByPurchase(purchaseId);
   revalidateCostPlan(purchaseId);
   return {};
 }
@@ -414,6 +423,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
     },
   });
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   return {};
 }
@@ -431,6 +441,7 @@ export async function setPurchaseStatus(
     },
     data: { status },
   });
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
@@ -467,6 +478,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData): P
   const subtotal = new Decimal(parsed.data.quantity).mul(parsed.data.unitPrice);
   if (tooBig(subtotal)) return { error: AMOUNT_TOO_BIG };
 
+  const colorRes = await resolveColorInput(prisma, session.user.organizationId, { color: parsed.data.color, colorRefId: formData.get("colorRefId") as string | null });
   await prisma.purchaseItem.create({
     data: {
       purchaseId,
@@ -477,10 +489,12 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData): P
       vatRate: parsed.data.vatRate,
       lotNumber: parsed.data.lotNumber,
       grade: parsed.data.grade,
-      color: parsed.data.color,
+      color: colorRes.color ?? undefined,
+      colorRefId: colorRes.colorRefId ?? undefined,
     },
   });
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   return {};
 }
@@ -518,6 +532,7 @@ export async function addPurchaseItemsBulk(
     return { error: "Не удалось сохранить позиции: проверьте числа (слишком большие значения). Текст вставки сохранён.", issues };
   }
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   return { created: result.rows.length, issues: issues.length ? issues : undefined };
 }
@@ -585,10 +600,12 @@ export async function updatePurchaseItem(
   // addPurchaseItem, where blank means "leave unset"), but on an edit blank
   // means "clear this field" — so an empty string here must become `null`,
   // not `undefined` (which Prisma reads as "don't touch").
+  const colorRes = await resolveColorInput(prisma, session.user.organizationId, { color: (formData.get("color") as string) ?? "", colorRefId: formData.get("colorRefId") as string | null });
   const cosmetic = {
     lotNumber: (formData.get("lotNumber") as string)?.trim() || null,
     grade: (formData.get("grade") as string)?.trim() || null,
-    color: (formData.get("color") as string)?.trim() || null,
+    color: colorRes.color,
+    colorRefId: colorRes.colorRefId,
   };
 
   // Not yet received: no lot exists — every field is freely editable, same
@@ -606,6 +623,7 @@ export async function updatePurchaseItem(
         ...cosmetic,
       },
     });
+    await resetByPurchase(purchaseId);
     revalidatePath(`/purchases/${purchaseId}`);
     return {};
   }
@@ -628,6 +646,7 @@ export async function updatePurchaseItem(
       prisma.purchaseItem.update({ where: { id: itemId }, data: cosmetic }),
       ...(lot ? [prisma.rawMaterialLot.update({ where: { id: lot.id }, data: cosmetic })] : []),
     ]);
+    await resetByPurchase(purchaseId);
     revalidatePath(`/purchases/${purchaseId}`);
     revalidatePath("/lots");
     return {};
@@ -737,6 +756,7 @@ export async function updatePurchaseItem(
     }),
   ]);
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
   return {};
@@ -749,6 +769,7 @@ export async function removePurchaseItem(purchaseId: string, itemId: string) {
 
   // deleteMany + фильтр по закупке этой организации: чужую позицию не удалить.
   await prisma.purchaseItem.deleteMany({ where: { id: itemId, purchaseId: purchase.id } });
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
@@ -780,6 +801,7 @@ export async function addPurchaseExpense(purchaseId: string, formData: FormData)
     data: { purchaseId, ...parsed.data },
   });
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   return {};
 }
@@ -790,6 +812,7 @@ export async function removePurchaseExpense(purchaseId: string, expenseId: strin
   if (!purchase) return;
 
   await prisma.purchaseExpense.deleteMany({ where: { id: expenseId, purchaseId: purchase.id } });
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
 }
 
@@ -870,6 +893,7 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
   });
   if (result.error || result.confirm) return result;
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/payments");
   revalidatePath("/dashboard");
@@ -894,6 +918,7 @@ export async function removePurchasePayment(purchaseId: string, paymentId: strin
   });
   if (deleted === 0) return { error: "Оплата не найдена (возможно, уже удалена)" };
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/payments");
   revalidatePath("/dashboard");
@@ -1031,6 +1056,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
             lotNumber: item.lotNumber,
             grade: item.grade,
             color: item.color,
+            colorRefId: item.colorRefId,
             quantity: qty,
             unitCost: plan ? plan.unitCostInclVat.add(allocatedExpense.div(qty)) : inclVatRub.add(allocatedExpense).div(qty),
             totalCost: plan ? plan.unitCostInclVat.mul(qty).add(allocatedExpense) : inclVatRub.add(allocatedExpense),
@@ -1067,6 +1093,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
     throw e;
   }
 
+  await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
   revalidatePath("/purchases");

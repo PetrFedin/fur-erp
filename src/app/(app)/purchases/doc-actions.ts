@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readDocumentFiles, writeDocumentFiles } from "@/lib/purchase-files";
+import { resetByPurchaseDoc } from "@/lib/verification";
 
 const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
 const KINDS = ["AUCTION_INVOICE", "SPECIFICATION", "ADVANCE_INVOICE", "CALC_SHEET", "UPD", "PAYMENT_PROOF", "OTHER"] as const;
@@ -53,6 +54,7 @@ export async function uploadPurchaseDocuments(
     await removeStoredFiles(stored.map((s) => s.storagePath));
     throw e;
   }
+  await resetByPurchaseDoc(orgId, { purchaseId: scope === "batch" ? null : purchase.id, batch: scope === "batch" ? batch : null });
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
   return { ok: true };
@@ -69,6 +71,7 @@ export async function deletePurchaseDocument(purchaseId: string, documentId: str
   await prisma.purchaseDocument.delete({ where: { id: doc.id } });
   const stillUsed = await prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } });
   if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
+  await resetByPurchaseDoc(session.user.organizationId, { purchaseId: doc.purchaseId, batch: doc.batch });
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/lots");
 }
@@ -115,6 +118,7 @@ export async function replacePurchaseDocument(documentId: string, formData: Form
     const stillUsed = await prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } });
     if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
   }
+  await resetByPurchaseDoc(orgId, { purchaseId: doc.purchaseId, batch: doc.batch });
   revalidateDocPages(doc.purchaseId);
   return { ok: true };
 }
@@ -124,7 +128,7 @@ export async function updatePurchaseDocument(documentId: string, formData: FormD
   const session = await requireRole(...EDIT_ROLES);
   const doc = await prisma.purchaseDocument.findFirst({
     where: { id: documentId, organizationId: session.user.organizationId },
-    select: { id: true, purchaseId: true },
+    select: { id: true, purchaseId: true, batch: true },
   });
   if (!doc) return { error: "Документ не найден" };
   const title = String(formData.get("title") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 200);
@@ -132,6 +136,7 @@ export async function updatePurchaseDocument(documentId: string, formData: FormD
   const kindRaw = String(formData.get("kind") ?? "");
   if (!(KINDS as readonly string[]).includes(kindRaw)) return { error: "Неизвестный тип документа" };
   await prisma.purchaseDocument.update({ where: { id: doc.id }, data: { title, kind: kindRaw as Kind } });
+  await resetByPurchaseDoc(session.user.organizationId, { purchaseId: doc.purchaseId, batch: doc.batch });
   revalidateDocPages(doc.purchaseId);
   return { ok: true };
 }

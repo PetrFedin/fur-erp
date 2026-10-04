@@ -20,6 +20,8 @@ import { loadMaterialLots } from "./material-lots-action";
 import { PurchaseSummary } from "./summary-view";
 import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
+import { furEnglish } from "@/lib/fur-ref";
+import { getFurIndex } from "@/lib/fur-ref-server";
 import { lotYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
@@ -254,6 +256,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
   const filtering = tab === "fur" && Boolean(q || materialId);
   const orgId = session.user.organizationId;
+  const furIdx = await getFurIndex(orgId); // справочник меха: английское название — в подсказке к названию материала
 
   // Остатки/суммы по материалам считаем агрегатами по всем лотам; сами лоты меха не грузим —
   // они подгружаются при раскрытии материала (loadMaterialLots), при фильтре — только подходящие.
@@ -423,7 +426,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                                 <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
                                   ›
                                 </span>
-                                {r.name}
+                                <span title={furEnglish(r.name, furIdx) ?? undefined}>{r.name}</span>
                               </span>
                               <span>
                                 <span className="block text-xs font-normal text-neutral-500 md:hidden">Куплено всего</span>

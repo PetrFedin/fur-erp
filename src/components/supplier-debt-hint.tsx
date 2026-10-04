@@ -15,6 +15,13 @@ export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt:
         <b>Долг поставщику (Веллмех), с НДС.</b> Стоимость закупок без отменённых <b>{m(debt.total)}</b> − оплачено <b>{m(debt.paid)}</b> − авансы без привязки{" "}
         <b>{m(debt.unlinkedAdvances)}</b> = <b>{m(debt.debt)}</b>. Переплата одного аукциона не гасит долг другого.
       </p>
+      {debt.paymentsVerification && (
+        <p className="mt-1 text-xs text-neutral-600">
+          Все проведённые оплаты учтены в долге. Из них подтверждено <b>{m(debt.paymentsVerification.verified)}</b>; не подтверждено (ждёт проверки){" "}
+          <b className={debt.paymentsVerification.waiting.greaterThan(0) ? "text-amber-700" : undefined}>{m(debt.paymentsVerification.waiting)}</b>
+          {debt.paymentsVerification.noProof.greaterThan(0) && <>, из них без платёжки <b>{m(debt.paymentsVerification.noProof)}</b></>}. Подтвердить — на странице «Ждёт проверки».
+        </p>
+      )}
       <table className="mt-2 w-full border-collapse text-xs">
         <tbody>
           <tr className="border-t border-neutral-200">
