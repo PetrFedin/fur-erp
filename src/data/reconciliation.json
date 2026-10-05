@@ -1804,15 +1804,11 @@
    "files": [
     {
      "title": "Счет на оплату № 271 от 30 сентября 2026 г.pdf",
-     "fileId": "1XLjZLnG6JMIlLlveiq0Y_SKeMIRrDU-B"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 20 (СП09-26).docx",
-     "fileId": "134ZVpVyM7rrxzu7YXWZQz-YJXMvoMz6Q"
+     "fileId": "1V6jBEGhGPmdIQgxg9NzqnF1QSVl5PBLg"
     },
     {
      "title": "расчет закупки СП 09-26.xlsx",
-     "fileId": "1aRjMCrsu4lETkvvAubZK1nEkdfLEK_Sy"
+     "fileId": "1OJj8zPk06xFePIQXFTDWuis-k2rmGXtp"
     }
    ],
    "year": 2026,
@@ -1835,7 +1831,8 @@
     "Подтвердить допустимость округления +36,13 ₽.",
     "Не создавать фактическую оплату без платёжки/выписки."
    ],
-   "folderPath": "Мех/Приобретение мехового сырья/2026/соболь/закупка 3"
+   "folderPath": "Мех/Приобретение мехового сырья/2026/соболь/закупка 3",
+   "folderUrl": "https://drive.google.com/drive/folders/1h0NHs_YV7IQT-7v0xCKfPh2RNsmfgosQ"
   },
   {
    "id": "P:Подкладка 2026 (спец. 13)",
@@ -2680,60 +2677,12 @@
    ],
    "files": [
     {
-     "title": "Счет на оплату № 203         от 14 ноября 2025 г (2).pdf",
-     "fileId": "1V8thN1d1Uie79YU8vqAt42bQ_Y94I3pA"
-    },
-    {
      "title": "расчет доплаты за пошив 14.11.2025 (ПАРТИЯ 4).xlsx",
-     "fileId": "1RWBJOOBV_NKdXPWtzhxdXJ2F04d066Yc"
+     "fileId": "1UAlWU9EagfEksNN2Zpu4l9ntRpEP1ktu"
     },
     {
-     "title": "ПРИЛОЖЕНИЕ 37 (соболь 004-1 ед).docx",
-     "fileId": "1BeXca0PvF3v82dEvrDhugqsxgDFdaupx"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 38 (5 жакет свакара облако М021).docx",
-     "fileId": "1StUbUoczhGJiopUxHiRx_5Rv4Vo9LFqB"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 39 (020-свакара 6 изд).docx",
-     "fileId": "1wcCsfoqvVH9PJepWXrL7YvEqZhyeLZVI"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 40 (М009  - 1 лаванда + 1 блекглама.docx",
-     "fileId": "13l0S462kjEhApiMmreyocBQZaHf3V-PV"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 41 (М016  - 3 изд).docx",
-     "fileId": "1h8T27lrcY6NJqsU1FGi69zahe4RiyeDP"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 42 (М011  - 4 изд).docx",
-     "fileId": "1jl17ybJvkdtVOvZnwEVjNyT5SA5eZlj9"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 43 (М011  - 3 изд. жемчуг).docx",
-     "fileId": "1ykX93f2BE0hgEP-yRGbzNDmFfOCVdU-k"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 44 (М013  - 1 изд. черн.перф.).docx",
-     "fileId": "1uOHPdrZfmC8tDtAry2Ai2xDxSj86LYid"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 45 (М006 -вязка).docx",
-     "fileId": "1_GCzmOq9tVjL57F1ae32qjdiLEYOYpau"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 46 (М003 -соболь).docx",
-     "fileId": "1tX5kk1t-G36vhfBEYmuMaec8DQwF3laS"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 47 (М011А норка браун - 2 ед).docx",
-     "fileId": "1jI5X2a9-Z_sW0gs3EfrSyD9z77kNAVJ-"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 48 (М022 каракульча).docx",
-     "fileId": "1nICxk8RVJkf2i2M91k471hxouwC-y786"
+     "title": "Счет на оплату № 203 от 14 ноября 2025 г (2).pdf",
+     "fileId": "1J6v9LkTRMV4AxZxouZwXmMhebAvvNVGi"
     }
    ],
    "year": 2025,
@@ -2748,7 +2697,8 @@
    "manualReview": [
     "Объяснить +3 580 ₽ в накопительном балансе либо скорректировать баланс; счёт №203 менять по текущим документам не требуется."
    ],
-   "folderPath": "Мех/Производство меховых изделий/2025/поставка 4"
+   "folderPath": "Мех/Производство меховых изделий/2025/поставка 4",
+   "folderUrl": "https://drive.google.com/drive/folders/1azr2K02DB7KRJ7-FaTB2qEVygJYaozYJ"
   },
   {
    "id": "W:Партия 5",
@@ -3084,60 +3034,12 @@
    ],
    "files": [
     {
+     "title": "расчет доплаты за пошив 14.01.2026 (ПАРТИЯ 7).xlsx",
+     "fileId": "1r9UL0boRD_SdN5cauAAwoSC9kQBuiazx"
+    },
+    {
      "title": "Счет на оплату № 1 от 15 января 2026 г.pdf",
-     "fileId": "1cJ2ZRUp3-1DQBxHScv1eb4-x4m1q0Bv4"
-    },
-    {
-     "title": "расчет доплаты по Партии 7.xlsx",
-     "fileId": "18GqyR6M-9JSsX1cFa-h4jBXD0sXhBZkH"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 70 (MH03)+4% - 22%.docx",
-     "fileId": "1FVhii2YWJSkzXzMyTD0xv8AXScvtqWTq"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 70 (MH03).docx",
-     "fileId": "1yZgMjICnlZpEdhYca4Kn-IFkZlNgmWIR"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 71 (MH03 торторо+пастель)+4%.docx",
-     "fileId": "1aGAXPkGy11jBYBgpL1Yfl234tK12Vjvl"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 71 (MH03 торторо+пастель).docx",
-     "fileId": "1O5dmTsnVj3gxbk0BaYN63mFeEQBDNy34"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 72 (MH05 чалма браун)+4%.docx",
-     "fileId": "1oOwEVx2o2qg-s8KkcbWZLHbolSXP3YHE"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 72 (MH05 чалма браун).docx",
-     "fileId": "1vAWJHWppk9zn5S3WQ5cSN9uhFI50LhSl"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 73 (MH06 ободок)+4%.docx",
-     "fileId": "1A_aH7NOipHeixwd6gYW9h3OEITKPwsHs"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 73 (MH06 ободок).docx",
-     "fileId": "18Zg0nk8Onl__DkkW9sfGU98jX-cNrRfB"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 74 (MH15 бейсболка)+4%.docx",
-     "fileId": "1OdA6NxR9ja0-yg3gGuf9PABn5c45lsOP"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 74 (MH15 бейсболка).docx",
-     "fileId": "1W4DwwDIbOKoHQXDVXM1k33RRzJ7Omwsp"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 75 (MH07 соболь повязка) (тут нет продажи 4%).docx",
-     "fileId": "1mIGP_ENNQK6yog0i1avfKJXIOJth6S68"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 75 (MH07 соболь повязка).docx",
-     "fileId": "1TA_14f8YqEpwUBKXt0HPfqs4XOgJ0Gsi"
+     "fileId": "1QSeE9TX8JVXXTmk_ss23oo26czPGAoCr"
     }
    ],
    "year": 2026,
@@ -3163,7 +3065,8 @@
    "manualReview": [
     "Проверить только разночтение стоимости шкур по ТЗ 79; на сумму счёта №1 оно не влияет."
    ],
-   "folderPath": "Мех/Производство меховых изделий/2025/поставка 7"
+   "folderPath": "Мех/Производство меховых изделий/2025/поставка 7",
+   "folderUrl": "https://drive.google.com/drive/folders/1_n6z4ge9ynYMw8l-cE5jH2zhHpwi9K6S"
   },
   {
    "id": "W:Партия 8",
@@ -3213,60 +3116,8 @@
    ],
    "files": [
     {
-     "title": "расчет производства партии 8.xlsx",
-     "fileId": "12wdlCREXay-VKDjF1_xMGynHaS-BFIRV"
-    },
-    {
-     "title": "расчет пошива 8 партии.xlsx",
-     "fileId": "12EQLSCDGMV-m8tz8QTbXZ7lovE-Tn8_m"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 84 (М001А - соболь торторо 1 шт. )+4%.docx",
-     "fileId": "1HbFIPOQJeQ1114bYfw5n-SM58Q4cD2Ij"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 84 (М001А - соболь торторо 1 шт. ).docx",
-     "fileId": "1QAQLd42qdPszE1UiNd9UlawkRWt21fbM"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 84 (М001А - соболь торторо 1 шт. )+4%.docx",
-     "fileId": "1oJMmpzxolyCud5lZVAlF31hnuTYPWc32"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 85 (М015 норка белая вельвет 1 шт) 4% НДС 22%.docx",
-     "fileId": "1Xx3GVHVpGRp0OWcWdwrbx4eXIshTeZrY"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 85 (М015 норка белая вельвет 1 шт).docx",
-     "fileId": "1N7aHSUb18EJn08ruhleyZzcio7OTd0al"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 86 (М022 каракульча)+4% НДС 22%.docx",
-     "fileId": "1GUaWXnHddOYuV6wZ-ghMTGEbk3khmCDT"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 86 (М022 каракульча 2 шт).docx",
-     "fileId": "1IHlVNq1s6iPUlLqBKIs0ZkFjXIikuSUx"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 87 (MSC-01 шарфы соболь) - 5 шт +4% НДС 22%.docx",
-     "fileId": "16hcUuF3dFriLORCvb831lFEA8-yWsMXg"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 87 (MSC-01 шарфы соболь) - 5 шт.docx",
-     "fileId": "1oE8jacQ-TlliLxWX_-qqzkD_9lgGBqLt"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 88 (варежки)+4% НДС 22%.docx",
-     "fileId": "1-Olj1D4KuO3jDrHqX_vFkMJwSMPyG4x6"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 88 (варежки)34шт.docx",
-     "fileId": "1h-3wuolg8KEhiAkiPwgwhy4geai2XeUY"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 89 (MH15 бейсболка) 3 шт + 4 % YLC 22%.docx",
-     "fileId": "1G8KwphUW64FIBZsbXa-EgedoSir3BeGD"
+     "title": "расчет доплаты за пошив 26.01.2026 (ПАРТИЯ 8).xlsx",
+     "fileId": "14jRybFcRGv5m9P1UTvCeUzCqPi4g2gGv"
     }
    ],
    "year": 2026,
@@ -3281,7 +3132,8 @@
    "manualReview": [
     "Факт банковской оплаты счёта №7 не найден; до платёжки статус не повышать до «оплачено»."
    ],
-   "folderPath": "Мех/Производство меховых изделий/2025/поставка 8"
+   "folderPath": "Мех/Производство меховых изделий/2025/поставка 8",
+   "folderUrl": "https://drive.google.com/drive/folders/1mXgTqZ3xcRZqAf2_PQCup5bMIdwnjA2e"
   },
   {
    "id": "W:Партия 9",
@@ -3331,40 +3183,16 @@
    ],
    "files": [
     {
-     "title": "Счет на оплату № 7 от 04 февраля 2026 г.pdf",
-     "fileId": "1ECULFylYEu9gCQeBiZl6011B6oCxkDsU"
-    },
-    {
      "title": "расчет доплаты за пошив партия 9.xlsx",
-     "fileId": "1rZoiAs3LYJS5YckdDfyM5WR3gaLn87sm"
+     "fileId": "1ytxfYycpqOp4JJEfJZtngiBkbenEGnX9"
     },
     {
-     "title": "ПРИЛОЖЕНИЕ 90 (М021-свакара фондю 1 изд).docx",
-     "fileId": "1FDrTrgx8N1xmp0aEofY3f84hPHbkZnbF"
+     "title": "Счет на оплату № 7 от 04 февраля 2026 г.pdf",
+     "fileId": "1Tr54gUvOR6Ir2BGfKdYS20QZIsOaQqyb"
     },
     {
-     "title": "ПРИЛОЖЕНИЕ 91 (МН02 блэкглама 9 шт).docx",
-     "fileId": "1T91a4KEaSjl840TY6ojgy52CPJUnUTAu"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 92 (МН02 лаванда 5 шт).docx",
-     "fileId": "107ipblI4CKtvc5pSllk8JX8a999UDn1h"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 93 (МН02 пастель 5 шт).docx",
-     "fileId": "1bhgDcdtN-J8Hmg_HdqgMgmeVV75EgiAn"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 94 (МН09 соболь 1 шт).docx",
-     "fileId": "14lpHkv0pbk-Mwe5-MsYtEkaoDpbBM7Je"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 95 (МН17 норка 3 шт.).docx",
-     "fileId": "1LDg4_6QIlM-mK3CXfmdZCAvhMF0RIEKB"
-    },
-    {
-     "title": "ПРИЛОЖЕНИЕ 96 (МН06 норка 2 шт.).docx",
-     "fileId": "1PQmsz87Rqu0FFH1k06gfDxJP55QtQUHy"
+     "title": "баланс 040226.xlsx",
+     "fileId": "1C5PRrPdP5JXEnlDLXTRsJaZkHWfMcCga"
     }
    ],
    "year": 2026,
@@ -3385,7 +3213,8 @@
    "manualReview": [
     "Нужна платёжка/выписка по счёту №7; согласование 09.02.2026 — не факт оплаты."
    ],
-   "folderPath": "Мех/Производство меховых изделий/2025/поставка 9"
+   "folderPath": "Мех/Производство меховых изделий/2025/поставка 9",
+   "folderUrl": "https://drive.google.com/drive/folders/1EVsAk9Li8WpII1pUVq2I0OL33byY6i3z"
   },
   {
    "id": "W:Партия 10",
@@ -4474,55 +4303,55 @@
    "files": [
     {
      "title": "Счет на оплату № 265 от 22 сентября 2026 г (1).pdf",
-     "fileId": "1tsvhd8XVWPkajKqF4MrptC8wUmR8JwNt"
+     "fileId": "1bQlRJYh1Bg3yy5Ic32Op8jVMxHtNPX6z"
     },
     {
      "title": "расчет доплаты по партии 20.xlsx",
-     "fileId": "1rUE9Drlz1Uk8lmrwrfAgxNtE47YnEBZ-"
+     "fileId": "1Tu6MOdwexHH8RLmk8fO4f2vxTmf26A07"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 152 (М002А соболь - 1 шт.) ТОП.docx",
-     "fileId": "1YNtrgBqD4wSOgBxVyH3XEEUEVFPK5LDy"
+     "fileId": "1nxG_ze8x3nJGDRKAWT748PrAd0I6cey_"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 153 (М012 - 4 манишки браун).docx",
-     "fileId": "1p1kxgYGOhqEeyp6bMD7TeioYXS3Oflpt"
+     "fileId": "1YUZgGqSikzlI9A-nVVBJBcqdmH_4BLPo"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 154 (М009 - 8 шт. блэкглама).docx",
-     "fileId": "1bS_PAEQkHIL7ZRk1f7H-li096ZnpaT_9"
+     "fileId": "18FbJux7yaqWSxj9CrWmvqstRAQgtKrK2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 155 (М009 - 7 шт. браун).docx",
-     "fileId": "1RiK9gfIQh-WruppPNTeSzv0vt1ym3i-t"
+     "fileId": "1ylJJlo15QO4h9YNKNJrPzhvaTym6Lr_u"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 156 (MSC-02 шарф соболь - 3 шт).docx",
-     "fileId": "1XTGcAiR9KsQtynzIbFFCghDMmqPtM8jz"
+     "fileId": "11uIErSmUvvXKOBw16qkQJcSNbmQVvs4e"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 157 (М046 - 1 шт).docx",
-     "fileId": "1DXRHMd-Ja5_y4PLN_af3mYWCV2P6gtnL"
+     "fileId": "1ONEUQ8jvl5l5-UbVsfSPi9yIZ6d08E9w"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 158 (М029 красная лиса - 3in).docx",
-     "fileId": "1EQXu5LpwsLwJSdjRBM-p9yoC17WhxdDy"
+     "fileId": "11bQBa1X5O8vr4dDvfpyoMeyNIOD7q5_8"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 159 (MSC03 коричневая косынка).docx",
-     "fileId": "1tDMqIviG_Ur2oPPqm3JDZ5le09dwTqfU"
+     "fileId": "1V0P5vuwSc39H2RxL9sCooCLmzgbaLGiA"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 160 (МН-03 норка+соболь - 8 шт).docx",
-     "fileId": "1TZ_78t-pPGb2JJzpkO2DM5PWRn706NU6"
+     "fileId": "1m_NkCmh_AO7ADyEhHW3qXltyLubRa4SY"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 161 (МН-05 норка жемчуг - 10 шт).docx",
-     "fileId": "12zkyBwqdXzl-EPHZd2PXRVuKsv44bJL_"
+     "fileId": "1yI6oI0aU5KGhx1L5QCMjyQdGUlWW_4AD"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 162 (МН-05 норка браун- 14 шт).docx",
-     "fileId": "1GvFXDWuiA5Pxhmx5Xgi2jLlWgD4nrLau"
+     "fileId": "1WYOjWJpqWcAwGFs_tlIEn0L6BhADhhS6"
     }
    ],
    "year": 2026,
@@ -4799,19 +4628,11 @@
    "files": [
     {
      "title": "Счет на оплату № 143 от 15 мая 2026 г (аксессуары).pdf",
-     "fileId": "1YYGR4c0SFf2vbP59eyDjd5xW6UoJxD6m"
-    },
-    {
-     "title": "Копия_Расчет_стоимости_пошива_ММ_FW26.xlsx",
-     "fileId": "1HwS-OaCE4NvAcjg6LhDwq0TnmXTIQi9S"
+     "fileId": "1cJoEeOaqRr4mZxL-6chtyE4nSXt4UlvA"
     },
     {
      "title": "расчет стоимости пошива ММ.xlsx",
-     "fileId": "1ZbK7rIUi2lfj5hpDN__Njhjo41DNrJUn"
-    },
-    {
-     "title": "Таблица_по_аксессуарам_на_МАСТ_2026_2027_15_05_2026.xlsx",
-     "fileId": "1bSCMtcVo8BbyjmrVKBIof2EGi28u3nMK"
+     "fileId": "1QPAW-6LXLjV4A0L5-TQVJH3mqIHSvKso"
     }
    ],
    "year": 2026,
@@ -4824,7 +4645,8 @@
    "manualReview": [
     "При появлении выписки заменить подтверждение «письмом» на банковский документ."
    ],
-   "folderPath": "Мех/Производство меховых изделий/2026/стоимость пошива"
+   "folderPath": "Мех/Производство меховых изделий/2026/стоимость пошива",
+   "folderUrl": "https://drive.google.com/drive/folders/1xAdtHT2spMntoOse3JetPVmIm78WLEbf"
   },
   {
    "id": "W:Авансы 2026 (счета №141, №247, №251)",
