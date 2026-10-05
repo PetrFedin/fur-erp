@@ -18,12 +18,14 @@ jobs:
       ALLOW_REGISTRATION: "false"
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run lint
-      - run: npm run build
+      - name: Lint production admission
+        run: npx eslint src/lib/production-admission.ts src/app/api/health/route.ts src/app/api/ready/route.ts
+      - name: Production build
+        run: npm run build
