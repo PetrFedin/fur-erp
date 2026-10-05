@@ -34,6 +34,19 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
           <GroupDbLine db={db} t={t} />
           {db?.note ? <span className="text-neutral-500">{db.note}</span> : null}
+          {g.manualReview?.length ? (
+            <div className="w-full rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-950">
+              <div className="font-semibold">Ручная проверка</div>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {g.manualReview.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          {g.folderUrl ? (
+            <a href={g.folderUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+              Папка Drive{g.folderPath ? `: ${g.folderPath}` : ""}
+            </a>
+          ) : g.folderPath ? <span className="text-neutral-500">Папка Drive: {g.folderPath}</span> : null}
           <span>
             Документы: стоимость <b className="tabular-nums">{money(g.doc.costRub)}</b>, оплачено <b className="tabular-nums">{money(g.doc.paidRub)}</b>
           </span>

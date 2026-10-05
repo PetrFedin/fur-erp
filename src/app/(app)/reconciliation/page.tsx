@@ -33,6 +33,7 @@ const STATUS: Record<RecStatus, { label: string; hint: string; cls: string }> = 
   ok: { label: "Сходится на 100%", hint: "документы = база = оплата", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   docs: { label: "По документам сходится", hint: "в базе копейки или оплата не привязана", cls: "bg-lime-50 text-lime-800 border-lime-200" },
   unpaid: { label: "Нет подтверждения оплаты", hint: "стоимость сходится, оплату нечем подтвердить", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+  review: { label: "Ручная проверка", hint: "арифметика понятна, но нужен первичный документ или решение человека", cls: "bg-orange-50 text-orange-900 border-orange-300" },
   conflict: { label: "Не сходится", hint: "документы противоречат базе или друг другу", cls: "bg-red-50 text-red-800 border-red-200" },
   empty: { label: "Нет данных", hint: "в папке и в базе пусто", cls: "bg-neutral-100 text-neutral-600 border-neutral-200" },
 };
@@ -51,7 +52,7 @@ function HowToRead() {
       <div className="space-y-2">
         <div className="font-semibold text-neutral-900">Как читать статусы счёта</div>
         <ul className="list-disc space-y-1 pl-4">
-          <li><b>ЗАКРЫТ</b> — по документам оплачено всё, остаток меньше 1 ₽ (копейки округления).</li>
+          <li><b>ЗАКРЫТ</b> — по документам оплачено всё, остаток не превышает 3,96 ₽ (согласованный допуск на округление).</li>
           <li><b>ЧАСТИЧНО (N %)</b> — часть оплачена подтверждённо; N — доля оплаченного от суммы счёта.</li>
           <li><b>ТОЛЬКО СОГЛАСОВАН</b> — в переписке написано «согласовано / ок», но факта оплаты (платёжки, баланса, письма «оплачено») нет. Это не оплата.</li>
           <li><b>НЕ ОПЛАЧЕН</b> — ни оплаты, ни согласования в документах нет.</li>
