@@ -33,7 +33,7 @@ export type Invoice = {
   noInvoice?: boolean;
   notes: string[];
 };
-export type RecStatus = "ok" | "docs" | "unpaid" | "conflict" | "empty";
+export type RecStatus = "ok" | "docs" | "unpaid" | "review" | "conflict" | "empty";
 export type Group = (typeof data.groups)[number] & {
   status: RecStatus;
   year: number | null;
@@ -41,6 +41,11 @@ export type Group = (typeof data.groups)[number] & {
   dbLink: { purchases?: string[]; batch?: number };
   agreements?: { date: string | null; by: string; note: string }[];
   advanceRub?: number | null;
+  /** Контрольные вопросы, которые нельзя закрыть автоматически по текущим первичным документам. */
+  manualReview?: string[];
+  /** Текущий контур папки Drive после пересборки пользователем. */
+  folderPath?: string;
+  folderUrl?: string;
 };
 
 export const ALL_GROUPS = data.groups as unknown as Group[];
@@ -52,7 +57,7 @@ export const RECHECK =
 export type InvStatus = "closed" | "partial" | "unpaid" | "approved";
 export type Confirm = "docs" | "letter" | "approved" | "none";
 
-export const TOL = 1; // рубль: копейки округления — это «закрыт»
+export const TOL = 3.96; // согласованный допуск: расхождение до 3,96 ₽ включительно считаем совпадением
 
 export type InvCalc = {
   inv: Invoice;
