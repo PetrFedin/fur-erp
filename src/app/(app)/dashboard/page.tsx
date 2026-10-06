@@ -22,6 +22,7 @@ import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { lotYear, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
+import { ProductionCostTotal } from "@/components/production-cost-total";
 import reconciliationData from "@/data/reconciliation.json";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -52,6 +53,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     allLots,
     materials,
     materialUsedAgg,
+    furPurchaseItems,
+    productionCostOrders,
     clientOrders,
     clientPaymentsAll,
     attentionChecks,
@@ -70,7 +73,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, ...lotYear(year) },
-      select: { rawMaterialId: true, quantityReceived: true },
+      select: { rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, rawMaterial: { select: { name: true, unit: true } } },
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId },
@@ -78,12 +81,27 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       orderBy: { name: "asc" },
     }),
     prisma.productionMaterialUsage.findMany({
-      where: { productionOrder: { organizationId, ...orderYearWhere(year) } },
+      where: { productionOrder: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) } },
       select: {
         quantity: true,
         totalCost: true,
         commission4: true,
+        rawMaterial: { select: { name: true, unit: true } },
         lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+      },
+    }),
+    prisma.purchaseItem.findMany({
+      where: {
+        purchase: { organizationId, status: { not: "CANCELLED" }, currency: "USD", ...(range ? { orderDate: range } : {}) },
+        rawMaterial: { unit: { not: "M" } },
+      },
+      select: { quantity: true, subtotal: true },
+    }),
+    prisma.productionOrder.findMany({
+      where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
+      select: {
+        producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
+        materialUsages: { select: { quantity: true, totalCost: true, rawMaterial: { select: { name: true, unit: true } } } },
       },
     }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
@@ -239,6 +257,41 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const totalMaterialUsedValue = usedSum.incl;
   const totalMaterialUsedValueExclVat = usedSum.excl;
 
+  // Тотал по меховому сырью: только физически принятые лоты, подкладка отдельно.
+  const furLots = allLots.filter((l) => l.rawMaterial.unit !== "M");
+  const rawQtyTotal = furLots.reduce((s, l) => s.add(l.quantityReceived), new Decimal(0));
+  const rawCostTotal = furLots.reduce((s, l) => s.add(l.quantityReceived.mul(l.unitCost)), new Decimal(0));
+  const rawRemainingQty = furLots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+  const rawRemainingValue = furLots.reduce((s, l) => s.add(l.quantityRemaining.mul(l.unitCost)), new Decimal(0));
+  const rawAvgFinalRub = rawQtyTotal.greaterThan(0) ? rawCostTotal.div(rawQtyTotal) : new Decimal(0);
+  const usdQty = furPurchaseItems.reduce((s, i) => s.add(i.quantity), new Decimal(0));
+  const usdSubtotal = furPurchaseItems.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
+  const rawAvgPurchaseUsd = usdQty.greaterThan(0) ? usdSubtotal.div(usdQty) : new Decimal(0);
+
+  const furUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit !== "M");
+  const liningUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit === "M");
+  const rawInGoodsQty = furUsed.reduce((s, u) => s.add(u.quantity), new Decimal(0));
+  const rawInGoodsValue = furUsed.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const liningInGoodsValue = liningUsed.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const producedGoodsQty = productionCostOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
+  const productionWorkValue = productionCostOrders.reduce((s, o) => {
+    if (!o.clientWorkPricePerUnit) return s;
+    const q = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+    return s.add(o.clientWorkPricePerUnit.mul(q));
+  }, new Decimal(0));
+  const producedGoodsTotalCost = rawInGoodsValue.add(liningInGoodsValue).add(productionWorkValue);
+  const furCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
+  const liningCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
+  for (const u of materialUsedAgg) {
+    const map = u.rawMaterial.unit === "M" ? liningCostMap : furCostMap;
+    const cur = map.get(u.rawMaterial.name) ?? { value: new Decimal(0), qty: new Decimal(0) };
+    cur.value = cur.value.add(u.totalCost);
+    cur.qty = cur.qty.add(u.quantity);
+    map.set(u.rawMaterial.name, cur);
+  }
+  const furCostDetails = Array.from(furCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
+  const liningCostDetails = Array.from(liningCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
+
   const draftPurchasedValue = allPurchases.filter((p) => p.status !== "RECEIVED").reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const receivedPurchasedValue = totalPurchasedValue.sub(draftPurchasedValue);
   // «С 4%» к остатку на складе: надбавка начисляется при списании в ТЗ (по умолчанию на сырьё и подкладку).
@@ -393,6 +446,64 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <h2 className="mt-1 text-base font-semibold">Что куплено, использовано и осталось</h2>
           </div>
           <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
+        </div>
+
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Тотал сырья
+              <InfoHint wide label="Как считаем тотал сырья">
+                <p>Только меховое сырьё; подкладка вынесена отдельно ниже. Количество и стоимость считаются по фактически принятым лотам.</p>
+                <p className="mt-1">Средняя цена закупки в долларах — средневзвешенная цена по позициям закупок, где валюта документа USD. Финальная цена в рублях — средневзвешенная landed cost лотов.</p>
+              </InfoHint>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th className="min-w-36">Количество сырья ед.</Th>
+                  <Th className="min-w-36">Ср цена закупки долл</Th>
+                  <Th className="min-w-44">Ср цена за ед. сырья руб (финальная)</Th>
+                  <Th className="min-w-48">Себестоимость общая всего сырья руб</Th>
+                  <Th className="min-w-44">Остаток неиспользованного сырья ед.</Th>
+                  <Th className="min-w-48">Остаток неиспользованного сырья руб</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                <Tr>
+                  <Td className="text-lg font-semibold tabular-nums">{formatQty(rawQtyTotal.toString())}</Td>
+                  <Td className="text-lg font-semibold tabular-nums">${rawAvgPurchaseUsd.toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</Td>
+                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawAvgFinalRub.toString())}</Td>
+                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawCostTotal.toString())}</Td>
+                  <Td className="text-lg font-semibold tabular-nums">{formatQty(rawRemainingQty.toString())}</Td>
+                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawRemainingValue.toString())}</Td>
+                </Tr>
+              </Tbody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сырьё уже в изделиях</div>
+            <div className="mt-2 text-xl font-semibold tabular-nums">{formatQty(rawInGoodsQty.toString())} шт.</div>
+            <div className="mt-1 text-sm text-neutral-600">{formatMoney(rawInGoodsValue.toString())}</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Произведено изделий</div>
+            <div className="mt-2 text-xl font-semibold tabular-nums">{formatQty(producedGoodsQty.toString())} шт.</div>
+            <div className="mt-1 text-sm text-neutral-500">по фактическому producedQuantity ТЗ</div>
+          </Card>
+          <ProductionCostTotal
+            total={producedGoodsTotalCost.toNumber()}
+            fur={rawInGoodsValue.toNumber()}
+            lining={liningInGoodsValue.toNumber()}
+            work={productionWorkValue.toNumber()}
+            furDetails={furCostDetails}
+            liningDetails={liningCostDetails}
+            products={producedGoodsQty.toNumber()}
+          />
         </div>
 
         <Card>
