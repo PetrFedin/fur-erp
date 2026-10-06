@@ -29,6 +29,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { Ref4 } from "@/components/c4-note";
 import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
 import { TONE_DOT, overallTone, payShort } from "@/lib/doc-panel";
+import { FurSelectionTotal } from "@/components/fur-selection-total";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -403,6 +404,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <CardTitle>Мех</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <FurSelectionTotal
+                  rows={furMaterialRows.map((r) => ({
+                    id: r.id,
+                    name: r.name,
+                    unit: r.unit,
+                    purchased: r.purchased.toString(),
+                    remaining: r.remaining.toString(),
+                    remainingValue: r.value.toString(),
+                    remainingValueExclVat: r.valueExclVat.toString(),
+                  }))}
+                />
+              </div>
               <Table>
                 <Thead className="max-md:hidden">
                   <Tr>
@@ -463,12 +477,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                   )}
                 </Tbody>
               </Table>
-              <div className="mt-3 flex justify-end text-sm">
-                <span className="text-neutral-500">Итого стоимость остатков меха: </span>
-                <span className="ml-1 font-semibold text-neutral-900">
-                  <Money incl={furTotalValue} excl={furTotalValueExclVat} />
-                </span>
-                <Ref4 mode={c4Mode} incl={furTotalValue} excl={furTotalValueExclVat} className="ml-2 inline-block" />
+              <div className="mt-3 flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
+                <span><span className="text-neutral-500">Всего куплено меха:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.purchased), new Decimal(0)).toString())} шт.</b></span>
+                <span><span className="text-neutral-500">Использовано:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.purchased.sub(r.remaining)), new Decimal(0)).toString())} шт.</b></span>
+                <span><span className="text-neutral-500">Остаток:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.remaining), new Decimal(0)).toString())} шт.</b></span>
+                <span><span className="text-neutral-500">Стоимость остатка:</span> <b><Money incl={furTotalValue} excl={furTotalValueExclVat} /></b><Ref4 mode={c4Mode} incl={furTotalValue} excl={furTotalValueExclVat} className="ml-2 inline-block" /></span>
               </div>
             </CardContent>
           </Card>
