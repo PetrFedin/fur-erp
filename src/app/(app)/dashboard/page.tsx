@@ -22,6 +22,7 @@ import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { lotYear, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
+import reconciliationData from "@/data/reconciliation.json";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -246,6 +247,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const clientPaidTotal = clientDebts.reduce((s, c) => s.add(c.paid), new Decimal(0));
   const clientBillableTotal = clientDebts.reduce((s, c) => s.add(c.billable), new Decimal(0));
   const yl = yearLabel(year);
+  const reconGroups = reconciliationData.groups.filter((g) => year === "all" || g.year === Number(year));
+  const reconConflicts = reconGroups.filter((g) => g.status === "conflict").length;
+  const reconReviews = reconGroups.filter((g) => g.status === "review").length;
+  const reconOpen = reconConflicts + reconReviews;
 
   return (
     <div className="flex flex-col gap-4">
@@ -377,44 +382,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           }
           value={<CompactMoney incl={clientDebtTotal.toString()} />}
           warn={clientDebtTotal.greaterThan(0)}
-        />
-        <KpiCard
-          label="Требует внимания"
-          hint={
-            <InfoHint wide label="Требует внимания">
-              <p>
-                Записей, по которым нужно ваше решение или документ: <b>{attention.main}</b>
-                {attention.red > 0 ? <>, из них срочных блоков: <b>{attention.red}</b></> : null}. Справочно (в число не входит): {attention.info}. Период: {yl}.
-              </p>
-              <ul className="mt-2 list-disc pl-4">
-                {attentionBlocks.filter((b) => b.meta.kind !== "info").map((b) => (
-                  <li key={b.id}>{b.meta.title}: {b.entities.length}{b.meta.kind === "bulk" ? " (одна запись на группу)" : ""}</li>
-                ))}
-              </ul>
-              <p className="mt-2">
-                Подтверждение строк: подтверждено <b>{vTotal.verified}</b> из {vTotal.total}, ждёт проверки <b className={vTotal.total - vTotal.verified > 0 ? "text-amber-700" : undefined}>{vTotal.total - vTotal.verified}</b> — страница{" "}
-                <a href="/verify" className="text-blue-700 underline">«Ждёт проверки»</a>.
-              </p>
-              <p className="mt-2 text-neutral-500">Весь список, по группам и по сущностям, — на странице «Что не заведено».</p>
-            </InfoHint>
-          }
-          value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
-          warn={attention.main > 0}
-          danger={attention.red > 0}
-          href="/attention"
-        />
-        <KpiCard
-          label="Покрытие документами"
-          hint={
-            <InfoHint wide align="right" label="Покрытие документами">
-              <p>Сколько обязательных документов (счета, УПД, расчёты, спецификации, ТЗ-приложения, платёжки, договоры) уже приложено: {docCoverage.total.have} из {docCoverage.total.required}; записей с пробелами: {docCoverage.total.rowsWithGaps}.</p>
-              <p className="mt-2 text-neutral-500">Считается по всем годам сразу.</p>
-            </InfoHint>
-          }
-          value={docCoverage.total.percent === null ? "—" : `${docCoverage.total.percent}%`}
-          warn={(docCoverage.total.percent ?? 100) < 90}
-          danger={(docCoverage.total.percent ?? 100) < 60}
-          href="/documents"
         />
       </div>
       </section>
@@ -599,6 +566,68 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </Card>
         )}
       </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 4 · Контроль и доказательства</div>
+          <h2 className="mt-1 text-base font-semibold">В конце проверяем расхождения, недостающие документы и неподтверждённые строки</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <KpiCard
+            label="Расхождения сверки"
+            value={String(reconOpen)}
+            extra={`${reconConflicts} конфликтов · ${reconReviews} ручных проверок`}
+            warn={reconOpen > 0}
+            danger={reconConflicts > 0}
+            href="/reconciliation"
+          />
+        <KpiCard
+          label="Требует внимания"
+          hint={
+            <InfoHint wide label="Требует внимания">
+              <p>
+                Записей, по которым нужно ваше решение или документ: <b>{attention.main}</b>
+                {attention.red > 0 ? <>, из них срочных блоков: <b>{attention.red}</b></> : null}. Справочно (в число не входит): {attention.info}. Период: {yl}.
+              </p>
+              <ul className="mt-2 list-disc pl-4">
+                {attentionBlocks.filter((b) => b.meta.kind !== "info").map((b) => (
+                  <li key={b.id}>{b.meta.title}: {b.entities.length}{b.meta.kind === "bulk" ? " (одна запись на группу)" : ""}</li>
+                ))}
+              </ul>
+              <p className="mt-2">
+                Подтверждение строк: подтверждено <b>{vTotal.verified}</b> из {vTotal.total}, ждёт проверки <b className={vTotal.total - vTotal.verified > 0 ? "text-amber-700" : undefined}>{vTotal.total - vTotal.verified}</b> — страница{" "}
+                <a href="/verify" className="text-blue-700 underline">«Ждёт проверки»</a>.
+              </p>
+              <p className="mt-2 text-neutral-500">Весь список, по группам и по сущностям, — на странице «Что не заведено».</p>
+            </InfoHint>
+          }
+          value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
+          warn={attention.main > 0}
+          danger={attention.red > 0}
+          href="/attention"
+        />
+        <KpiCard
+          label="Покрытие документами"
+          hint={
+            <InfoHint wide align="right" label="Покрытие документами">
+              <p>Сколько обязательных документов (счета, УПД, расчёты, спецификации, ТЗ-приложения, платёжки, договоры) уже приложено: {docCoverage.total.have} из {docCoverage.total.required}; записей с пробелами: {docCoverage.total.rowsWithGaps}.</p>
+              <p className="mt-2 text-neutral-500">Считается по всем годам сразу.</p>
+            </InfoHint>
+          }
+          value={docCoverage.total.percent === null ? "—" : `${docCoverage.total.percent}%`}
+          warn={(docCoverage.total.percent ?? 100) < 90}
+          danger={(docCoverage.total.percent ?? 100) < 60}
+          href="/documents"
+        />
+          <KpiCard
+            label="Ждёт подтверждения"
+            value={String(vTotal.total - vTotal.verified)}
+            extra={`подтверждено ${vTotal.verified} из ${vTotal.total}`}
+            warn={vTotal.total - vTotal.verified > 0}
+            href="/verify"
+          />
+        </div>
       </section>
     </div>
   );

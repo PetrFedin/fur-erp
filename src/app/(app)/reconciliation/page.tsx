@@ -199,6 +199,27 @@ export default async function ReconciliationPage() {
         </p>
       </div>
 
+      {RECHECK ? (
+        <Card className="border-blue-200 bg-blue-50/60 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold text-blue-950">Перепроверка по актуальной структуре Google Drive · {RECHECK.date}</div>
+              <div className="mt-1 text-xs text-blue-900/80">
+                Подтверждено: {RECHECK.found.length} · не найдено / не подтверждено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
+              </div>
+            </div>
+            <Link href="/documents?gaps=1" className="rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-900 hover:bg-blue-100">
+              Показать пробелы документов →
+            </Link>
+          </div>
+          {RECHECK.notFound.length > 0 ? (
+            <ul className="mt-2 grid gap-1 text-xs text-blue-950 md:grid-cols-2">
+              {RECHECK.notFound.slice(0, 4).map((x, i) => <li key={i}>• {x}</li>)}
+            </ul>
+          ) : null}
+        </Card>
+      ) : null}
+
       <section className="space-y-2" aria-label="Итоги">
         <SummaryCard title="Итого по всему реестру" t={totalAll} />
         <div className="grid gap-2 md:grid-cols-2">
