@@ -521,3 +521,99 @@ AI must not be the authority for stock, payments, cost, traceability status or c
 `authority hardening -> lot genealogy -> traceability passport -> yield ledger -> provider passports -> manifest/verification -> APIs -> benchmark network -> RFQ/marketplace -> institutional adoption`
 
 The first commercially meaningful moat is **Lot Passport + genealogy + yield evidence**. Build that before a broad marketplace.
+
+
+# Wave J — Productization and Production-grade Execution
+
+The next development phase should convert the strategic network plan into a product that can be demonstrated, piloted and sold.
+
+## J1. Canonical Lot Genealogy Data Model — P0
+
+Introduce explicit entities/relations for:
+
+- lot parent/child lineage;
+- transformation type;
+- quantity before/after;
+- source document/evidence;
+- actor;
+- timestamp;
+- reason;
+- immutable lineage event.
+
+Acceptance:
+
+- split/merge can be reconstructed;
+- no negative quantity;
+- genealogy never crosses tenant boundary;
+- historical lineage remains readable after corrections.
+
+## J2. Traceability Passport Read Model — P0
+
+Build a deterministic passport projection from current purchase/lot/movement/production data plus genealogy.
+
+Required views:
+
+- lot identity;
+- source;
+- current balance;
+- movement timeline;
+- processing;
+- production consumption;
+- linked finished goods;
+- documents;
+- conflicts/gaps.
+
+## J3. Yield Ledger — P0
+
+For completed production, calculate and store/reproduce:
+
+`issued - returned = consumed`
+
+and derive:
+
+`yield = finished quantity / consumed quantity`
+
+Only when units/measurement are compatible.
+
+Show:
+
+- numerator;
+- denominator;
+- formula;
+- source rows;
+- confidence/eligibility.
+
+## J4. Provider Passport v1 — P1
+
+Start with factual history from existing suppliers and later processors/logistics.
+
+Do not launch public ranking.
+
+## J5. Traceability Manifest v1 — P1
+
+Generate signed/hashable JSON for an exact passport version.
+
+## J6. Executive / Investor Route — P1
+
+Create a 7–10 minute route:
+
+`purchase -> lot -> genealogy -> production use -> yield -> finished item -> provider history -> traceability manifest -> network opportunity`
+
+The route must visibly distinguish live product capability from roadmap concepts.
+
+## J7. Pilot Economics — P1
+
+For a real pilot define:
+
+- onboarding effort;
+- lots digitized;
+- document completeness;
+- reconciliation issues found;
+- time saved;
+- yield/waste visibility gained;
+- stock accuracy;
+- provider comparison coverage.
+
+No ROI claim without measured baseline.
+
+**Immediate sequencing:** J1 -> J2 -> J3 -> J5 -> J6, then provider/network features.
