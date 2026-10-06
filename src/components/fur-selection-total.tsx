@@ -61,7 +61,16 @@ export function FurSelectionTotal({ rows }: { rows: Row[] }) {
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((r) => (
-          <label key={r.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm">
+          <label
+            key={r.id}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm hover:bg-neutral-50"
+          >
+            <span className="min-w-0">
+              <span className="block font-medium">{r.name}</span>
+              <span className="block text-xs text-neutral-500">
+                остаток {formatQty(r.remaining)} {UNIT_LABELS[r.unit] ?? r.unit} · {formatMoney(mode === "excl" ? r.remainingValueExclVat : r.remainingValue)}
+              </span>
+            </span>
             <input
               type="checkbox"
               checked={selectedSet.has(r.id)}
@@ -70,14 +79,9 @@ export function FurSelectionTotal({ rows }: { rows: Row[] }) {
                   e.target.checked ? [...prev, r.id] : prev.filter((id) => id !== r.id),
                 )
               }
-              className="mt-0.5"
+              aria-label={`Включить ${r.name} в тотал`}
+              className="size-4 shrink-0 cursor-pointer accent-neutral-900"
             />
-            <span className="min-w-0">
-              <span className="block font-medium">{r.name}</span>
-              <span className="block text-xs text-neutral-500">
-                остаток {formatQty(r.remaining)} {UNIT_LABELS[r.unit] ?? r.unit} · {formatMoney(mode === "excl" ? r.remainingValueExclVat : r.remainingValue)}
-              </span>
-            </span>
           </label>
         ))}
       </div>

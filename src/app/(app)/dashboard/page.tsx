@@ -324,7 +324,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1.2 · Денежный контур</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 2 · Денежный контур</div>
           <h2 className="mt-1 text-base font-semibold">Закуплено, оплачено, остатки и контрольные сигналы</h2>
         </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -389,7 +389,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 2 · Сырьё и склад</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 3 · Сырьё и склад</div>
             <h2 className="mt-1 text-base font-semibold">Что куплено, использовано и осталось</h2>
           </div>
           <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
@@ -476,7 +476,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 3 · Расчёты и производство</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 4 · Расчёты и производство</div>
           <h2 className="mt-1 text-base font-semibold">После склада смотрим расчёты по аукционам и заказчикам</h2>
         </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -570,7 +570,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 4 · Контроль и доказательства</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 5 · Контроль и доказательства</div>
           <h2 className="mt-1 text-base font-semibold">В конце проверяем расхождения, недостающие документы и неподтверждённые строки</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
