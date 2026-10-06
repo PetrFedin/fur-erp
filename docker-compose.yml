@@ -26,8 +26,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://fur_erp:fur_erp@db:5432/fur_erp
+      AUTH_URL: http://localhost:3000
       NEXTAUTH_URL: http://localhost:3000
+      AUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
+      AUTH_TRUST_HOST: "true"
       NODE_ENV: production
       UPLOAD_DIR: /app/uploads
       DEMO_LOGIN_EMAIL: ${DEMO_LOGIN_EMAIL:-}

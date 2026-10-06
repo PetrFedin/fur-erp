@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "МехУчёт", template: "%s — МехУчёт" },
+  title: { default: "MVST FUR PRODUCTION", template: "%s — MVST FUR PRODUCTION" },
   description: "Закупки, склад и себестоимость",
 };
 

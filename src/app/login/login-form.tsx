@@ -17,7 +17,7 @@ export function LoginForm({ demoEmail, demoPassword }: { demoEmail?: string; dem
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-lg">Вход в МехУчёт</CardTitle>
+          <CardTitle className="text-lg">Вход в MVST FUR PRODUCTION</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={formAction} className="flex flex-col gap-4">
