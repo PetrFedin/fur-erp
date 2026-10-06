@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { MaterialFormState } from "./actions";
 import type { RawMaterial, RawMaterialCategory } from "@prisma/client";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: MaterialFormState = {};
 
@@ -35,9 +36,10 @@ export function MaterialForm({
   defaultUnit?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
-    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="sm:col-span-2">
         <Label htmlFor="name">Название</Label>
         <Input

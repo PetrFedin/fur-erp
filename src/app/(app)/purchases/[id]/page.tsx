@@ -3,9 +3,9 @@ import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { RecordHistory } from "@/components/record-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -36,6 +36,8 @@ import { getColorOptions } from "@/lib/colors";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { VerifyBlock } from "../../verify/verify-block";
+import { ConfirmSubmitButton } from "./documents-form";
+import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V } from "@/lib/concurrency";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -356,6 +358,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         grade: item.grade ?? "",
                         color: item.color ?? "",
                         colorRefId: item.colorRefId ?? "",
+                        version: rowVersion(item, PURCHASE_ITEM_V),
                       }}
                     >
                       <Td>{item.rawMaterial.name}</Td>
@@ -460,6 +463,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <PurchaseEditForm
                 action={boundUpdatePurchase}
                 currencyLocked={planItems.length > 0}
+                version={rowVersion(purchase, PURCHASE_V)}
                 suppliers={supplierOptions}
                 warehouses={warehouseOptions}
                 defaults={{
@@ -752,9 +756,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                             await boundRemoveExpense(e.id);
                           }}
                         >
-                          <Button type="submit" variant="ghost" size="sm">
-                            Удалить
-                          </Button>
+                          <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." />
                         </form>
                       </Td>
                     )}
@@ -782,9 +784,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                           await boundRemoveExpense(e.id);
                         }}
                       >
-                        <Button type="submit" variant="outline" size="sm" className="max-md:h-10">
-                          Удалить
-                        </Button>
+                        <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." variant="outline" className="max-md:h-10" />
                       </form>
                     )
                   }
@@ -891,6 +891,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           </ResponsiveRows>
         </CardContent>
       </Card>
+      <RecordHistory model="Purchase" recordId={purchase.id} />
     </div>
     </ItemRowShared>
   );

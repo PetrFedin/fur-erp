@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { FITTING_STATUS, FITTING_STATUS_KEYS } from "@/lib/fittings";
 import type { FittingFormState } from "../actions";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 export function EditFittingForm({
   action,
@@ -19,6 +20,7 @@ export function EditFittingForm({
     if (r.ok) setOpen(false);
     return r;
   }, {} as FittingFormState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   if (!open) {
     return (
@@ -30,7 +32,7 @@ export function EditFittingForm({
     );
   }
   return (
-    <form action={formAction} className="flex flex-col gap-3 border-t border-neutral-200 pt-3">
+    <form ref={keepRef} onSubmit={keepSubmit} className="flex flex-col gap-3 border-t border-neutral-200 pt-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="e-date">Дата</Label>

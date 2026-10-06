@@ -10,6 +10,7 @@ import { RowCard, type RowField } from "@/components/responsive-rows";
 import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: FormState = {};
 
@@ -68,6 +69,8 @@ export function PurchaseItemRow({
     grade: string;
     color: string;
     colorRefId: string;
+    /** Версия записи на момент открытия (защита от тихой перезаписи чужой правки). */
+    version?: string;
   };
 }) {
   const { colorOptions, canAddColor, materials, currency } = useContext(SharedCtx) ?? { colorOptions: [], canAddColor: false, materials: [], currency: "RUB" };
@@ -77,6 +80,7 @@ export function PurchaseItemRow({
     if (!updateAction) return {};
     return (await updateAction(fd)) ?? {};
   }, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   // Close the edit form once a submitted save comes back without an error —
   // adjusting state during render (rather than in an effect) so this doesn't
@@ -113,10 +117,11 @@ export function PurchaseItemRow({
   );
   const editForm = (
             <form
-              action={formAction}
-              onSubmit={() => setSubmitted(true)}
+              ref={keepRef}
+              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
               className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 items-end gap-2 py-2"
             >
+              {defaults.version && <input type="hidden" name="_v" value={defaults.version} />}
               <div className="col-span-2">
                 <label className="mb-1 block text-xs text-neutral-500">Материал</label>
                 {canEditMaterial ? (

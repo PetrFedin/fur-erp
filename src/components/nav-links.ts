@@ -22,6 +22,7 @@ export const NAV_LINKS = [
       "/documents",
       "/reconciliation",
       "/verify",
+      "/history",
     ],
   },
 ] as const;

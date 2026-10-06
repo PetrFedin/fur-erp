@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import type { ModelFormState } from "./actions";
 import type { ProductModel } from "@prisma/client";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: ModelFormState = {};
 
@@ -13,14 +14,19 @@ type SerializedModel = Omit<ProductModel, "sellingPrice"> & { sellingPrice: stri
 export function ModelForm({
   action,
   model,
+  version,
 }: {
+  /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
+  version?: string;
   action: (prev: ModelFormState, formData: FormData) => Promise<ModelFormState>;
   model?: SerializedModel;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
-    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {version && <input type="hidden" name="_v" value={version} />}
       <div className="sm:col-span-2">
         <Label htmlFor="name">Название модели</Label>
         <Input id="name" name="name" required defaultValue={model?.name} placeholder="Шуба норковая «Милан»" />

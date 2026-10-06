@@ -20,6 +20,8 @@ export const ACCESS = {
   planning: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   // Отметка оплат поставщикам (аукцион/закупка) и приложение платёжек — как на странице «Оплаты».
   supplierPayments: ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"],
+  // Журнал изменений (/history, блоки «История изменений» на карточках): читают владелец, администратор, бухгалтер.
+  history: ["OWNER", "ADMIN", "ACCOUNTANT"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {

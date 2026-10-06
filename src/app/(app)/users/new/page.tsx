@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createUser, type UserFormState } from "../actions";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: UserFormState = {};
 
@@ -19,6 +20,7 @@ const ROLES = [
 
 export default function NewUserPage() {
   const [state, formAction, pending] = useActionState(createUser, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
     <div className="max-w-md">
@@ -30,7 +32,7 @@ export default function NewUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="flex flex-col gap-4">
+          <form ref={keepRef} onSubmit={keepSubmit} className="flex flex-col gap-4">
             <div>
               <Label htmlFor="name">Имя</Label>
               <Input id="name" name="name" required />

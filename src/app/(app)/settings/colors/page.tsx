@@ -8,6 +8,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@/components/ui/table";
+import { ConfirmSubmitButton } from "../../purchases/[id]/documents-form";
 import { bindColorText, confirmColor, createColor, deleteColor, mergeColors, updateColor } from "./actions";
 
 export const metadata = { title: "Справочник цветов" };
@@ -265,16 +266,12 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                               ))}
                           </Select>
                           <p className="text-xs text-neutral-500">«{r.name}» исчезнет, все его строки получат выбранный цвет, а название станет синонимом.</p>
-                          <Button type="submit" size="sm" variant="outline">
-                            Объединить
-                          </Button>
+                          <ConfirmSubmitButton variant="outline" label="Объединить" message={`Объединить «${r.name}» с выбранным цветом? Запись «${r.name}» будет удалена, все её строки (ТЗ, закупки, лоты) перейдут к выбранному цвету. Отменить нельзя.`} />
                         </form>
                         {used === 0 && (
                           <form action={deleteColor} className="border-t border-neutral-200 pt-3">
                             <input type="hidden" name="id" value={r.id} />
-                            <Button type="submit" size="sm" variant="destructive">
-                              Удалить пустой цвет
-                            </Button>
+                            <ConfirmSubmitButton variant="destructive" label="Удалить пустой цвет" message={`Удалить цвет «${r.name}»? Он нигде не используется.`} />
                           </form>
                         )}
                       </div>

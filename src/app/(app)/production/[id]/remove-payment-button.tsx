@@ -14,7 +14,7 @@ export function RemovePaymentButton({
     <form
       action={action}
       onSubmit={(e) => {
-        if (!confirm(`Удалить оплату ${summary}? Она исчезнет из расчётов по всем ТЗ, которые покрывает.`)) {
+        if (!confirm(`Удалить оплату ${summary}? Она исчезнет из расчётов по всем ТЗ, которые покрывает; прикреплённые к ней документы тоже будут удалены.`)) {
           e.preventDefault();
         }
       }}

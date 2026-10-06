@@ -19,6 +19,8 @@ export type AdvanceInitial = {
   method: string;
   paidAt: string;
   notes: string;
+  /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
+  version?: string;
 };
 
 function localToday() {
@@ -71,6 +73,7 @@ export function AdvanceForm({
   const lab = "mb-1 block text-xs text-neutral-500";
   return (
     <form onSubmit={submit} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {initial?.version && <input type="hidden" name="_v" value={initial.version} />}
       <div>
         <label htmlFor={fid("supplierId")} className={lab}>
           Поставщик
@@ -147,7 +150,7 @@ export function AdvanceRowControls({ suppliers, initial }: { suppliers: { id: st
   const [error, setError] = useState("");
 
   function remove() {
-    if (!window.confirm("Удалить этот аванс? Долг поставщику вырастет на его сумму. Действие нельзя отменить.")) return;
+    if (!window.confirm("Удалить этот аванс? Долг поставщику вырастет на его сумму; прикреплённые к нему документы тоже будут удалены. Действие нельзя отменить.")) return;
     setError("");
     startTransition(async () => {
       try {

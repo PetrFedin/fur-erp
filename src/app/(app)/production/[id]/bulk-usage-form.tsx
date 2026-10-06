@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { addMaterialUsagesBulk, type BulkUsageState } from "../actions";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: BulkUsageState = {};
 
@@ -18,6 +19,7 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
     if (result.created !== undefined) setText("");
     return result;
   }, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   if (!open) {
     return (
@@ -33,7 +35,7 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
         Строки «Лот [Tab] Количество», по одной на лот (разделитель — Tab, «;» или пробел). Одна неверная строка — не
         спишется ничего.
       </p>
-      <form action={formAction} className="flex flex-col gap-2">
+      <form ref={keepRef} onSubmit={keepSubmit} className="flex flex-col gap-2">
         <Textarea
           name="rows"
           rows={5}

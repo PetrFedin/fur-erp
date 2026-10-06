@@ -8,6 +8,7 @@ import { RowCard } from "@/components/responsive-rows";
 import { formatMoney } from "@/lib/utils";
 import type { FormState } from "../actions";
 import type { ExpenseCategory } from "@prisma/client";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: FormState = {};
 
@@ -33,6 +34,7 @@ export function ExpenseRow({
   const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
     return (await updateAction(fd)) ?? {};
   }, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   const [prevPending, setPrevPending] = useState(pending);
   if (pending !== prevPending) {
@@ -62,8 +64,8 @@ export function ExpenseRow({
   );
   const editForm = (
             <form
-              action={formAction}
-              onSubmit={() => setSubmitted(true)}
+              ref={keepRef}
+              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2 py-2"
             >
               <div className="sm:col-span-2">

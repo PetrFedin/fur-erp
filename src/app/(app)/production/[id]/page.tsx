@@ -3,6 +3,7 @@ import { VerifyBlock } from "../../verify/verify-block";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { RecordHistory } from "@/components/record-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -42,6 +43,7 @@ import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getColorOptions } from "@/lib/colors";
+import { rowVersion, ORDER_V } from "@/lib/concurrency";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -565,6 +567,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               workOrderNumber: order.workOrderNumber ?? "",
               workOrderDate: order.workOrderDate ? order.workOrderDate.toISOString().slice(0, 10) : "",
               clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
+              version: rowVersion(order, ORDER_V),
             }}
           />}
           {open && canEdit && (
@@ -1004,6 +1007,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
       </Section>
 
+      <RecordHistory model="ProductionOrder" recordId={order.id} />
     </div>
   );
 }

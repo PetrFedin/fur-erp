@@ -6,6 +6,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { CreateOrderState } from "../actions";
 import type { Warehouse } from "@prisma/client";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: CreateOrderState = {};
 
@@ -33,6 +34,7 @@ export function ProductionCreateForm({
   canAddColor: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
   const today = new Date().toISOString().slice(0, 10);
   const defaultWarehouse = warehouses.find((w) => w.isDefault)?.id ?? warehouses[0]?.id ?? "";
 
@@ -53,7 +55,7 @@ export function ProductionCreateForm({
   const errors = state.errors ?? (state.error ? [state.error] : []);
 
   return (
-    <form action={formAction} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <input type="hidden" name="productModelId" value={modelId} />
       <div className="sm:col-span-2">
         <Label htmlFor="modelText">Модель изделия</Label>
