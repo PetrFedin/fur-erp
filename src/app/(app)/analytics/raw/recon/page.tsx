@@ -13,6 +13,7 @@ import { Money } from "@/components/money";
 import { Ref4, Mode4Badge } from "@/components/c4-note";
 import { formatQty } from "@/lib/utils";
 import { ageText, buildRecon, loadRawData, lotBalances, type RawLot } from "@/lib/raw-analytics";
+import rawAudit from "@/data/raw-audit-2026-02-09.json";
 
 export const metadata = { title: "Сверка лотов" };
 
@@ -35,6 +36,9 @@ export default async function ReconPage() {
   const c4 = await getCommission4Mode();
   const data = await loadRawData(session.user.organizationId, year);
   const { mismatch, dormant, over } = buildRecon(data.lots);
+  const lotByNumber = new Map(data.lots.map((l) => [l.lotNumber, l]));
+  const auditRows = rawAudit.rows.map((r) => ({ ...r, lotRecord: lotByNumber.get(r.lot) ?? null }));
+  const auditOpen = auditRows.filter((r) => r.delta !== 0).length;
   const dormantIncl = dormant.reduce((s, x) => s.add(x.remIncl), new Decimal(0));
   const dormantExcl = dormant.reduce((s, x) => s.add(x.remExcl), new Decimal(0));
   const exp = (part: string) => `/analytics/raw/recon/export?part=${part}`;
@@ -111,6 +115,94 @@ export default async function ReconPage() {
               })}
             </ResponsiveRows>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Историческая сверка из Drive */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            Контроль по «Анализ остатков сырья.xlsx» {badge(auditOpen)}
+            <InfoHint label="Что это" wide>
+              <p>Исторический контрольный файл из папки «Мех», изменён 09.02.2026. Он сопоставляет закупленное количество, расход по перечисленным ТЗ и остаток в производственном файле.</p>
+              <p className="mt-1">Δ = остаток в производственном файле − остаток по ТЗ. Ненулевой Δ не исправляется автоматически: нужно найти недостающий ТЗ/списание либо подтвердить, что производственный файл был неполным.</p>
+              <p className="mt-1 text-neutral-500">Текущий остаток ERP показан отдельно, потому что после 09.02.2026 были новые списания.</p>
+            </InfoHint>
+            <a
+              href="https://docs.google.com/spreadsheets/d/1l3sj71hz5gWEdTWiNgReifzovmfJBDhb/edit"
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto text-xs font-medium text-blue-700 underline"
+            >
+              Открыть исходный файл ↗
+            </a>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveRows
+            table={
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>Лот</Th>
+                    <Th className="text-right">Закуплено</Th>
+                    <Th className="text-right">Расход по ТЗ</Th>
+                    <Th className="text-right">Остаток по ТЗ</Th>
+                    <Th className="text-right">Остаток в файле</Th>
+                    <Th className="text-right">Δ</Th>
+                    <Th className="text-right">Сейчас ERP</Th>
+                    <Th>Контроль</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {auditRows.map((r) => (
+                    <Tr key={r.lot}>
+                      <Td className="font-medium">{r.lotRecord ? <LotLink l={r.lotRecord} /> : r.lot}</Td>
+                      <Td className="text-right tabular-nums">{formatQty(String(r.purchased))} шт.</Td>
+                      <Td className="text-right tabular-nums">{formatQty(String(r.usedByTz))} шт.</Td>
+                      <Td className="text-right tabular-nums">{formatQty(String(r.expectedByTz))} шт.</Td>
+                      <Td className="text-right tabular-nums">{formatQty(String(r.productionFileRemaining))} шт.</Td>
+                      <Td className={"text-right font-semibold tabular-nums " + (r.delta === 0 ? "text-emerald-700" : "text-red-700")}>
+                        {r.delta > 0 ? "+" : ""}{formatQty(String(r.delta))} шт.
+                      </Td>
+                      <Td className="text-right tabular-nums">{r.lotRecord ? qty(r.lotRecord.rem, r.lotRecord) : <span className="text-red-700">лот не найден</span>}</Td>
+                      <Td className="max-w-[22rem] text-xs text-neutral-600">
+                        {r.delta < 0
+                          ? `В производственном файле списано на ${formatQty(String(Math.abs(r.delta)))} шт. больше, чем объясняют перечисленные ТЗ — нужен источник списания.`
+                          : r.delta > 0
+                            ? `По ТЗ должно быть на ${formatQty(String(r.delta))} шт. меньше остатка — нужно проверить, почему расход не отражён в производственном файле.`
+                            : "Историческая строка сходится."}
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            }
+          >
+            {auditRows.map((r) => (
+              <RowCard
+                key={r.lot}
+                title={r.lot}
+                href={r.lotRecord ? `/analytics/raw/lot/${r.lotRecord.id}` : undefined}
+                subtitle={r.delta === 0 ? "Сходится" : `Исторический разрыв ${r.delta > 0 ? "+" : ""}${formatQty(String(r.delta))} шт.`}
+                fields={[
+                  { label: "Закуплено", value: `${formatQty(String(r.purchased))} шт.` },
+                  { label: "Остаток по ТЗ", value: `${formatQty(String(r.expectedByTz))} шт.` },
+                  { label: "В файле", value: `${formatQty(String(r.productionFileRemaining))} шт.` },
+                  { label: "Сейчас ERP", value: r.lotRecord ? qty(r.lotRecord.rem, r.lotRecord) : "лот не найден" },
+                ]}
+                extra={
+                  r.delta !== 0 ? (
+                    <p className="mt-2 text-xs text-red-700">
+                      {r.delta < 0
+                        ? `Не объяснено ТЗ: дополнительное списание ${formatQty(String(Math.abs(r.delta)))} шт.`
+                        : `Не отражено в производственном файле: ${formatQty(String(r.delta))} шт.`}
+                    </p>
+                  ) : null
+                }
+              />
+            ))}
+          </ResponsiveRows>
         </CardContent>
       </Card>
 

@@ -1,0 +1,131 @@
+{
+  "source": {
+    "title": "Анализ остатков сырья.xlsx",
+    "fileId": "1l3sj71hz5gWEdTWiNgReifzovmfJBDhb",
+    "drivePath": "мех/Приобретение мехового сырья/Анализ остатков сырья.xlsx",
+    "modifiedAt": "2026-02-09T10:39:06.071Z",
+    "note": "Исторический контрольный файл. Δ = остаток по файлу производства − остаток, рассчитанный из закупки и перечисленных в файле ТЗ."
+  },
+  "rows": [
+    {
+      "lot": "1301",
+      "usedByTz": 24,
+      "purchased": 39,
+      "expectedByTz": 15,
+      "productionFileRemaining": 3,
+      "delta": -12
+    },
+    {
+      "lot": "10022",
+      "usedByTz": 126,
+      "purchased": 200,
+      "expectedByTz": 74,
+      "productionFileRemaining": 104,
+      "delta": 30
+    },
+    {
+      "lot": "15002",
+      "usedByTz": 30,
+      "purchased": 33,
+      "expectedByTz": 3,
+      "productionFileRemaining": 0,
+      "delta": -3
+    },
+    {
+      "lot": "15022",
+      "usedByTz": 9,
+      "purchased": 45,
+      "expectedByTz": 36,
+      "productionFileRemaining": 6,
+      "delta": -30
+    },
+    {
+      "lot": "15480",
+      "usedByTz": 42,
+      "purchased": 45,
+      "expectedByTz": 3,
+      "productionFileRemaining": 0,
+      "delta": -3
+    },
+    {
+      "lot": "15481",
+      "usedByTz": 42,
+      "purchased": 45,
+      "expectedByTz": 3,
+      "productionFileRemaining": 0,
+      "delta": -3
+    },
+    {
+      "lot": "15482",
+      "usedByTz": 41,
+      "purchased": 44,
+      "expectedByTz": 3,
+      "productionFileRemaining": 0,
+      "delta": -3
+    },
+    {
+      "lot": "15484",
+      "usedByTz": 71,
+      "purchased": 75,
+      "expectedByTz": 4,
+      "productionFileRemaining": 0,
+      "delta": -4
+    },
+    {
+      "lot": "500748",
+      "usedByTz": 89,
+      "purchased": 180,
+      "expectedByTz": 91,
+      "productionFileRemaining": 65,
+      "delta": -26
+    },
+    {
+      "lot": "514038",
+      "usedByTz": 94,
+      "purchased": 164,
+      "expectedByTz": 70,
+      "productionFileRemaining": 58,
+      "delta": -12
+    },
+    {
+      "lot": "728001",
+      "usedByTz": 46,
+      "purchased": 188,
+      "expectedByTz": 142,
+      "productionFileRemaining": 50,
+      "delta": -92
+    },
+    {
+      "lot": "728026",
+      "usedByTz": 92,
+      "purchased": 312,
+      "expectedByTz": 220,
+      "productionFileRemaining": 266,
+      "delta": 46
+    },
+    {
+      "lot": "1498-1",
+      "usedByTz": 12,
+      "purchased": 23,
+      "expectedByTz": 11,
+      "productionFileRemaining": 23,
+      "delta": 12
+    },
+    {
+      "lot": "5017/5020/5016",
+      "usedByTz": 16,
+      "purchased": 179,
+      "expectedByTz": 163,
+      "productionFileRemaining": 157,
+      "delta": -6
+    },
+    {
+      "lot": "15019",
+      "usedByTz": 0,
+      "purchased": 42,
+      "expectedByTz": 42,
+      "productionFileRemaining": 18,
+      "delta": -24
+    }
+  ]
+}
