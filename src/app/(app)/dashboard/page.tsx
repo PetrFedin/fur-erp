@@ -21,6 +21,7 @@ import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { lotYear, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
+import { FurSelectionTotal } from "@/components/fur-selection-total";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -260,6 +261,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       )}
 
+      <section className="space-y-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1 · Закупки и обязательства</div>
+          <h2 className="mt-1 text-base font-semibold">Сначала смотрим, сколько должны и что ещё предстоит оплатить</h2>
+        </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard
           label={<InclVatOnlyLabel base="Долг поставщику" />}
@@ -309,7 +315,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           value={<CompactMoney incl={supplierDebt.expected.toString()} />}
         />
       </div>
+      </section>
 
+      <section className="space-y-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1.2 · Денежный контур</div>
+          <h2 className="mt-1 text-base font-semibold">Закуплено, оплачено, остатки и контрольные сигналы</h2>
+        </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiCard
           label="Куплено сырья"
@@ -405,23 +417,38 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           href="/documents"
         />
       </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Сырьё по материалам
-            <InfoHint wide label="Сырьё по материалам">
-              <p>5 видов меха с самой большой стоимостью остатка и вся подкладка одной строкой. Лоты закупок периода ({yl}). Полностью израсходованные скрыты; полный список — в разделе «Сырьё».</p>
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            const matRows = [...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])];
-            const emptyText = "Сырьё ещё не закупалось";
-            return (
-              <ResponsiveRows
-                table={
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 2 · Сырьё и склад</div>
+            <h2 className="mt-1 text-base font-semibold">Что куплено, использовано и осталось</h2>
+          </div>
+          <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Мех
+              <InfoHint wide label="Мех">
+                <p>Все виды меха отдельно от подкладки. Галочками можно исключить любой вид и мгновенно пересчитать общий остаток и его стоимость.</p>
+              </InfoHint>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <FurSelectionTotal
+              rows={allFurRows.map((r) => ({
+                id: r.id,
+                name: r.name,
+                unit: r.unit,
+                purchased: r.purchased.toString(),
+                remaining: r.remaining.toString(),
+                remainingValue: r.remainingValue.toString(),
+                remainingValueExclVat: r.remainingValueExclVat.toString(),
+              }))}
+            />
             <Table>
               <Thead>
                 <Tr>
@@ -433,71 +460,58 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 </Tr>
               </Thead>
               <Tbody>
-                {[...furRows.map((r) => ({ ...r, key: r.id, name: r.name, href: "/lots" })), ...(liningRow ? [liningRow] : [])].map((r) => (
-                  <Tr key={r.key}>
-                    <Td className="font-medium">
-                      <Link href={r.href} className="hover:underline">
-                        {r.name}
-                      </Link>
-                    </Td>
-                    <Td>
-                      {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
-                    </Td>
-                    <Td>
-                      {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
-                    </Td>
-                    <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
-                      {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
-                    </Td>
-                    <Td>
-                      <Money incl={r.remainingValue} excl={r.remainingValueExclVat} />
-                    </Td>
+                {allFurRows.map((r) => (
+                  <Tr key={r.id}>
+                    <Td className="font-medium"><Link href="/lots" className="hover:underline">{r.name}</Link></Td>
+                    <Td>{formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}</Td>
+                    <Td>{formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}</Td>
+                    <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>{formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}</Td>
+                    <Td><Money incl={r.remainingValue} excl={r.remainingValueExclVat} /></Td>
                   </Tr>
                 ))}
-                {furRows.length === 0 && !liningRow && (
-                  <Tr>
-                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
-                      Сырьё ещё не закупалось
-                    </Td>
-                  </Tr>
-                )}
+                {allFurRows.length === 0 && <Tr><Td colSpan={5} className="py-6 text-center text-neutral-400">Мех ещё не закупался</Td></Tr>}
               </Tbody>
             </Table>
-                }
-              >
-                {matRows.map((r) => (
-                  <RowCard
-                    key={r.key}
-                    title={r.name}
-                    href={r.href}
-                    fields={[
-                      { label: "Куплено", value: `${formatQty(r.purchased.toString())} ${UNIT_LABELS[r.unit]}` },
-                      { label: "Использовано", value: `${formatQty(r.purchased.sub(r.remaining).toString())} ${UNIT_LABELS[r.unit]}` },
-                      {
-                        label: "Остаток",
-                        value: (
-                          <span className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>
-                            {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}
-                          </span>
-                        ),
-                      },
-                      { label: "Стоимость остатка", value: <Money incl={r.remainingValue} excl={r.remainingValueExclVat} /> },
-                    ]}
-                  />
-                ))}
-                {matRows.length === 0 && <p className="py-6 text-center text-neutral-400">{emptyText}</p>}
-              </ResponsiveRows>
-            );
-          })()}
-          <p className="mt-3 text-sm">
-            <Link href="/lots" className="inline-block text-neutral-600 hover:underline max-md:py-2">
-              Все материалы → Сырьё
-            </Link>
-            {moreFurRows > 0 && <span className="ml-3 text-neutral-400">Меха ещё: {moreFurRows}</span>}
-          </p>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Подкладка
+              <InfoHint wide label="Подкладка">
+                <p>Подкладочные материалы вынесены отдельно и больше не смешиваются с мехом в одной таблице.</p>
+              </InfoHint>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {liningRow ? (
+              <Table>
+                <Thead><Tr><Th>Материал</Th><Th>Куплено</Th><Th>Использовано</Th><Th>Остаток</Th><Th>Стоимость остатка</Th></Tr></Thead>
+                <Tbody>
+                  <Tr>
+                    <Td className="font-medium"><Link href={liningRow.href} className="hover:underline">{liningRow.name}</Link></Td>
+                    <Td>{formatQty(liningRow.purchased.toString())} м</Td>
+                    <Td>{formatQty(liningRow.purchased.sub(liningRow.remaining).toString())} м</Td>
+                    <Td className={liningRow.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>{formatQty(liningRow.remaining.toString())} м</Td>
+                    <Td><Money incl={liningRow.remainingValue} excl={liningRow.remainingValueExclVat} /></Td>
+                  </Tr>
+                </Tbody>
+              </Table>
+            ) : <p className="py-6 text-center text-sm text-neutral-400">Подкладка ещё не закупалась</p>}
+            <div className="mt-3 flex justify-end text-sm">
+              <span className="text-neutral-500">Тотал подкладки:</span>
+              <span className="ml-1 font-semibold"><Money incl={liningRow?.remainingValue ?? 0} excl={liningRow?.remainingValueExclVat ?? 0} /></span>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 3 · Расчёты и производство</div>
+          <h2 className="mt-1 text-base font-semibold">После склада смотрим расчёты по аукционам и заказчикам</h2>
+        </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -585,6 +599,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </Card>
         )}
       </div>
+      </section>
     </div>
   );
 }
