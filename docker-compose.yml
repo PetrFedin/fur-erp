@@ -30,6 +30,8 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-me}
       NODE_ENV: production
       UPLOAD_DIR: /app/uploads
+      DEMO_LOGIN_EMAIL: ${DEMO_LOGIN_EMAIL:-}
+      DEMO_LOGIN_PASSWORD: ${DEMO_LOGIN_PASSWORD:-}
     volumes:
       - fur_erp_uploads:/app/uploads
     ports:
