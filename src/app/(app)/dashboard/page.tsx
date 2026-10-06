@@ -24,6 +24,7 @@ import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
 import { ProductionCostTotal } from "@/components/production-cost-total";
 import reconciliationData from "@/data/reconciliation.json";
+import driveSyncSnapshot from "@/data/drive-sync-snapshot.json";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -100,7 +101,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     prisma.productionOrder.findMany({
       where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
       select: {
-        producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
+        id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
         materialUsages: { select: { quantity: true, totalCost: true, rawMaterial: { select: { name: true, unit: true } } } },
       },
     }),
@@ -305,6 +306,32 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const reconReviews = reconGroups.filter((g) => g.status === "review").length;
   const reconOpen = reconConflicts + reconReviews;
 
+  const docStats = new Map(docCoverage.sections.map((s) => [s.key, s]));
+  const purchaseDocGaps = docStats.get("purchases")?.rowsWithGaps ?? 0;
+  const supplierPaymentDocGaps = docStats.get("payments")?.rowsWithGaps ?? 0;
+  const tzDocGaps = docStats.get("tz")?.rowsWithGaps ?? 0;
+  const batchDocGaps = docStats.get("batches")?.rowsWithGaps ?? 0;
+  const productionPaymentDocGaps = docStats.get("prodPayments")?.rowsWithGaps ?? 0;
+  const productionDocGaps = tzDocGaps + batchDocGaps;
+
+  const productionPaymentTotal = clientPaymentsAll
+    .filter((p) => p.status !== "CANCELLED")
+    .reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const productionPaymentConfirmed = clientPaymentsAll
+    .filter((p) => p.status === "COMPLETED" && p.confirmed)
+    .reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const productionPaymentNoProof = clientPaymentsAll
+    .filter((p) => p.status === "COMPLETED" && !p.confirmed)
+    .reduce((s, p) => s.add(p.amount), new Decimal(0));
+  const productionPaymentNoProofCount = clientPaymentsAll.filter((p) => p.status === "COMPLETED" && !p.confirmed).length;
+
+  const supplierNoProof = supplierDebt.paymentsVerification?.noProof ?? new Decimal(0);
+  const supplierWaitingProof = supplierDebt.paymentsVerification?.waiting ?? new Decimal(0);
+  const productionStatusReview = productionCostOrders.filter(
+    (o) => (o.status === "PLANNED" && o.producedQuantity.greaterThan(0)) || (o.status === "COMPLETED" && o.producedQuantity.isZero() && o.plannedQuantity.greaterThan(0)),
+  ).length;
+  const manualReviewTotal = reconOpen + purchaseDocGaps + supplierPaymentDocGaps + productionDocGaps + productionPaymentDocGaps + productionStatusReview;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -318,6 +345,98 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           Недостаточно прав для этого действия
         </div>
       )}
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Контроль синхронизации</div>
+            <h2 className="mt-1 text-base font-semibold">Документы «Мех» ↔ цифры ERP ↔ ручная проверка</h2>
+            <p className="mt-1 text-sm text-neutral-500">Сначала закрываем evidence-разрывы, затем используем тоталы для управленческих решений.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/attention" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100">
+              Ручная проверка: {manualReviewTotal}
+            </Link>
+            <Link href="/documents?gaps=1" className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100">Пробелы документов →</Link>
+            <Link href="/reconciliation" className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100">Расхождения цифр →</Link>
+          </div>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-5">
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Google Drive · «Мех»</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-semibold">{driveSyncSnapshot.meaningfulCoveragePct}%</span>
+              <span className="text-xs text-emerald-700">значимых файлов учтено</span>
+            </div>
+            <div className="mt-2 text-xs leading-relaxed text-neutral-500">
+              {driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} копий распознано · {driveSyncSnapshot.ignoredTemporaryFiles} временный файл игнорируется.
+            </div>
+            <div className="mt-2 text-xs font-medium text-emerald-700">Непривязанных значимых файлов: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">1 · Закупки сырья</div>
+            <div className="mt-2 text-xl font-semibold">{allPurchases.length} закупок</div>
+            <div className="mt-1 text-sm font-medium"><Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} /></div>
+            <div className={"mt-2 text-xs font-medium " + (purchaseDocGaps ? "text-amber-700" : "text-emerald-700")}>
+              {purchaseDocGaps ? `Пробелы первички: ${purchaseDocGaps}` : "Первичка по правилам закрыта"}
+            </div>
+            <Link href="/documents?section=purchases&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Открыть проверку →</Link>
+          </Card>
+
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">2 · Оплаты сырья</div>
+            <div className="mt-2 text-xl font-semibold">{formatMoney(supplierDebt.paid.toString())}</div>
+            <div className="mt-1 text-xs text-neutral-500">проведённые оплаты, учтённые в расчёте долга</div>
+            <div className={"mt-2 text-xs font-medium " + (supplierNoProof.greaterThan(0) || supplierPaymentDocGaps ? "text-red-700" : "text-emerald-700")}>
+              {supplierNoProof.greaterThan(0) ? `Без платёжки: ${formatMoney(supplierNoProof.toString())}` : "Все проведённые оплаты подтверждены"}
+            </div>
+            {supplierWaitingProof.greaterThan(0) ? <div className="mt-1 text-xs text-amber-700">Ждёт проверки: {formatMoney(supplierWaitingProof.toString())}</div> : null}
+            <Link href="/documents?section=payments&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Проверить оплаты →</Link>
+          </Card>
+
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">3 · Производство</div>
+            <div className="mt-2 text-xl font-semibold">{formatQty(producedGoodsQty.toString())} изделий</div>
+            <div className="mt-1 text-sm font-medium">сырья в изделиях: {formatMoney(rawInGoodsValue.add(liningInGoodsValue).toString())}</div>
+            <div className={"mt-2 text-xs font-medium " + (productionDocGaps || productionStatusReview ? "text-amber-700" : "text-emerald-700")}>
+              {productionDocGaps ? `Пробелы ТЗ/партий: ${productionDocGaps}` : "Документы ТЗ/партий закрыты"}
+            </div>
+            {productionStatusReview ? <div className="mt-1 text-xs text-amber-700">Статус/количество вручную: {productionStatusReview}</div> : null}
+            <Link href="/attention?all=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Открыть контроль →</Link>
+          </Card>
+
+          <Card className="p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">4 · Оплаты производства</div>
+            <div className="mt-2 text-xl font-semibold">{formatMoney(productionPaymentTotal.toString())}</div>
+            <div className="mt-1 text-xs text-neutral-500">подтверждено: {formatMoney(productionPaymentConfirmed.toString())}</div>
+            <div className={"mt-2 text-xs font-medium " + (productionPaymentNoProofCount || productionPaymentDocGaps ? "text-red-700" : "text-emerald-700")}>
+              {productionPaymentNoProofCount ? `Без подтверждения: ${productionPaymentNoProofCount} · ${formatMoney(productionPaymentNoProof.toString())}` : "Все оплаты производства подтверждены"}
+            </div>
+            {productionPaymentDocGaps ? <div className="mt-1 text-xs text-amber-700">Документных пробелов: {productionPaymentDocGaps}</div> : null}
+            <Link href="/documents?section=prodPayments&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Проверить оплаты →</Link>
+          </Card>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card className={"p-3 " + (reconConflicts ? "border-red-200 bg-red-50/60" : "")}>
+            <div className="text-xs text-neutral-500">Конфликты цифр</div>
+            <div className="mt-1 text-xl font-semibold">{reconConflicts}</div>
+            <div className="text-xs text-neutral-500">математически не сходятся и требуют документа/корректировки</div>
+          </Card>
+          <Card className={"p-3 " + (reconReviews ? "border-amber-200 bg-amber-50/60" : "")}>
+            <div className="text-xs text-neutral-500">Ручные решения</div>
+            <div className="mt-1 text-xl font-semibold">{reconReviews}</div>
+            <div className="text-xs text-neutral-500">источник есть, но нужен выбор трактовки или подтверждение</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-neutral-500">Итого открытых evidence-задач</div>
+            <div className="mt-1 text-xl font-semibold">{manualReviewTotal}</div>
+            <div className="text-xs text-neutral-500">сумма открытых групп контроля; после исправления пересчитывается автоматически</div>
+          </Card>
+        </div>
+      </section>
 
       <section className="space-y-3">
         <div>

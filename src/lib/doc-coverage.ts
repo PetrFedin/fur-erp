@@ -507,7 +507,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
       },
       paymentRules(),
       get(dProdPayment, pp.id),
-      { docRef: !!pp.docRef?.trim() }
+      { docRef: !!pp.docRef?.trim(), unconfirmed: !pp.confirmed }
     );
   }
 
