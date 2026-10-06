@@ -13,9 +13,6 @@ import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { CompactMoney } from "./compact-money";
-import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/lib/attention";
-import { loadVerifyFlags } from "@/lib/verification";
-import { computeDocCoverage } from "@/lib/doc-coverage";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
@@ -23,8 +20,6 @@ import { lotYear, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
 import { ProductionCostTotal } from "@/components/production-cost-total";
-import reconciliationData from "@/data/reconciliation.json";
-import driveSyncSnapshot from "@/data/drive-sync-snapshot.json";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -56,10 +51,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     materialUsedAgg,
     furPurchaseItems,
     productionCostOrders,
+    annualPurchases,
+    annualSupplierPayments,
+    annualProductionOrders,
     clientOrders,
     clientPaymentsAll,
-    attentionChecks,
-    docCoverage,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
@@ -102,7 +98,26 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
       select: {
         id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
+        materialCost: true, expenseCost: true, totalCost: true,
         materialUsages: { select: { quantity: true, totalCost: true, rawMaterial: { select: { name: true, unit: true } } } },
+        expenses: { select: { amount: true } },
+      },
+    }),
+    prisma.purchase.findMany({
+      where: { organizationId, status: { not: "CANCELLED" } },
+      include: { items: true, expenses: true },
+      orderBy: { orderDate: "asc" },
+    }),
+    prisma.payment.findMany({
+      where: { organizationId, status: "COMPLETED" },
+      select: { amount: true, paidAt: true },
+      orderBy: { paidAt: "asc" },
+    }),
+    prisma.productionOrder.findMany({
+      where: { organizationId, status: { not: "CANCELLED" } },
+      select: {
+        producedQuantity: true, workOrderDate: true, startDate: true, createdAt: true,
+        materialUsages: { select: { totalCost: true } },
       },
     }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
@@ -115,14 +130,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId },
       include: { orders: { select: { productionOrderId: true } } },
     }),
-    computeAttention(prisma, organizationId, year),
-    computeDocCoverage(prisma, organizationId),
   ]);
-  const attentionBlocks = buildAttentionBlocks(attentionChecks);
-  const attention = countAttentionBlocks(attentionBlocks);
-  // Подтверждение строк (платежи, закупки, ТЗ, партии): отдельно от «что не заведено».
-  const vf = await loadVerifyFlags(prisma, organizationId, year);
-  const vTotal = Object.values(vf.counts).reduce((a, c) => ({ total: a.total + c.total, verified: a.verified + c.verified }), { total: 0, verified: 0 });
   // Оплаты заказчиков года: привязанные к ТЗ года; без ТЗ — по дате оплаты.
   const yearOrderIds = new Set(clientOrders.map((o) => o.id));
   const clientPayments = clientPaymentsAll.filter((p) =>
@@ -281,6 +289,26 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     return s.add(o.clientWorkPricePerUnit.mul(q));
   }, new Decimal(0));
   const producedGoodsTotalCost = rawInGoodsValue.add(liningInGoodsValue).add(productionWorkValue);
+  const producedGoodsAverageCost = producedGoodsQty.greaterThan(0) ? producedGoodsTotalCost.div(producedGoodsQty) : new Decimal(0);
+  const supplierCashPaid = supplierDebt.paid.add(supplierDebt.unlinkedAdvances);
+
+  type AnnualRow = { year: number; purchased: Decimal; supplierPaid: Decimal; produced: Decimal; materialInProduction: Decimal; clientPaid: Decimal };
+  const annualMap = new Map<number, AnnualRow>();
+  const annual = (y: number) => {
+    const cur = annualMap.get(y) ?? { year: y, purchased: new Decimal(0), supplierPaid: new Decimal(0), produced: new Decimal(0), materialInProduction: new Decimal(0), clientPaid: new Decimal(0) };
+    annualMap.set(y, cur);
+    return cur;
+  };
+  for (const p of annualPurchases) annual(p.orderDate.getUTCFullYear()).purchased = annual(p.orderDate.getUTCFullYear()).purchased.add(purchaseTotalInclVat(p));
+  for (const p of annualSupplierPayments) annual(p.paidAt.getUTCFullYear()).supplierPaid = annual(p.paidAt.getUTCFullYear()).supplierPaid.add(p.amount);
+  for (const o of annualProductionOrders) {
+    const d = o.workOrderDate ?? o.startDate ?? o.createdAt;
+    const row = annual(d.getUTCFullYear());
+    row.produced = row.produced.add(o.producedQuantity);
+    row.materialInProduction = row.materialInProduction.add(o.materialUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)));
+  }
+  for (const p of clientPaymentsAll) if (p.status === "COMPLETED") annual(p.paidAt.getUTCFullYear()).clientPaid = annual(p.paidAt.getUTCFullYear()).clientPaid.add(p.amount);
+  const annualRows = Array.from(annualMap.values()).sort((a, b) => b.year - a.year);
   const furCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
   const liningCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
   for (const u of materialUsedAgg) {
@@ -301,44 +329,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const clientPaidTotal = clientDebts.reduce((s, c) => s.add(c.paid), new Decimal(0));
   const clientBillableTotal = clientDebts.reduce((s, c) => s.add(c.billable), new Decimal(0));
   const yl = yearLabel(year);
-  const reconGroups = reconciliationData.groups.filter((g) => year === "all" || g.year === Number(year));
-  const reconConflicts = reconGroups.filter((g) => g.status === "conflict").length;
-  const reconReviews = reconGroups.filter((g) => g.status === "review").length;
-  const reconOpen = reconConflicts + reconReviews;
-
-  const docStats = new Map(docCoverage.sections.map((s) => [s.key, s]));
-  const purchaseDocGaps = docStats.get("purchases")?.rowsWithGaps ?? 0;
-  const supplierPaymentDocGaps = docStats.get("payments")?.rowsWithGaps ?? 0;
-  const tzDocGaps = docStats.get("tz")?.rowsWithGaps ?? 0;
-  const batchDocGaps = docStats.get("batches")?.rowsWithGaps ?? 0;
-  const productionPaymentDocGaps = docStats.get("prodPayments")?.rowsWithGaps ?? 0;
-  const productionDocGaps = tzDocGaps + batchDocGaps;
-
-  const productionPaymentTotal = clientPaymentsAll
-    .filter((p) => p.status !== "CANCELLED")
-    .reduce((s, p) => s.add(p.amount), new Decimal(0));
-  const productionPaymentConfirmed = clientPaymentsAll
-    .filter((p) => p.status === "COMPLETED" && p.confirmed)
-    .reduce((s, p) => s.add(p.amount), new Decimal(0));
-  const productionPaymentNoProof = clientPaymentsAll
-    .filter((p) => p.status === "COMPLETED" && !p.confirmed)
-    .reduce((s, p) => s.add(p.amount), new Decimal(0));
-  const productionPaymentNoProofCount = clientPaymentsAll.filter((p) => p.status === "COMPLETED" && !p.confirmed).length;
-
-  const supplierNoProof = supplierDebt.paymentsVerification?.noProof ?? new Decimal(0);
-  const supplierWaitingProof = supplierDebt.paymentsVerification?.waiting ?? new Decimal(0);
-  const productionStatusReview = productionCostOrders.filter(
-    (o) => (o.status === "PLANNED" && o.producedQuantity.greaterThan(0)) || (o.status === "COMPLETED" && o.producedQuantity.isZero() && o.plannedQuantity.greaterThan(0)),
-  ).length;
-  const manualReviewTotal = reconOpen + purchaseDocGaps + supplierPaymentDocGaps + productionDocGaps + productionPaymentDocGaps + productionStatusReview;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Сводка{year !== "all" ? <span className="ml-2 text-sm font-normal text-neutral-500">· {yl}</span> : null}</h1>
-        <Link href="/payments" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center">
-          Оплаты →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/purchases" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Закупки</Link>
+          <Link href="/lots" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Сырьё</Link>
+          <Link href="/production" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Производство</Link>
+        </div>
       </div>
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
@@ -347,101 +347,90 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       )}
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Контроль синхронизации</div>
-            <h2 className="mt-1 text-base font-semibold">Документы «Мех» ↔ цифры ERP ↔ ручная проверка</h2>
-            <p className="mt-1 text-sm text-neutral-500">Сначала закрываем evidence-разрывы, затем используем тоталы для управленческих решений.</p>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">Executive overview</div>
+          <h2 className="mt-1 text-base font-semibold">Капитал, обязательства, склад и выпуск</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiCard
+            label="Закуплено сырья"
+            value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
+            extra={`${allPurchases.length} закупок · ${yl}`}
+            href="/purchases"
+          />
+          <KpiCard
+            label="Выплачено поставщику"
+            value={<CompactMoney incl={supplierCashPaid.toString()} />}
+            extra={supplierDebt.unlinkedAdvances.greaterThan(0) ? `в т.ч. авансы без привязки ${formatMoney(supplierDebt.unlinkedAdvances.toString())}` : "все выплаты привязаны"}
+            href="/payments"
+          />
+          <KpiCard
+            label={<InclVatOnlyLabel base="Долг поставщику" />}
+            value={<CompactMoney incl={supplierDebt.debt.toString()} />}
+            extra={`получено к оплате ${formatMoney(supplierDebt.receivedNet.toString())}`}
+            warn={supplierDebt.debt.greaterThan(0)}
+            href="/payments"
+          />
+          <KpiCard
+            label="Сырьё на складе"
+            value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
+            extra={`${formatQty(rawRemainingQty.toString())} ед. меха + подкладка`}
+            href="/lots"
+          />
+          <KpiCard
+            label="Сырьё в производстве / изделиях"
+            value={<CompactMoney incl={rawInGoodsValue.add(liningInGoodsValue).toString()} />}
+            extra={`${formatQty(rawInGoodsQty.toString())} шт. меха списано в ТЗ`}
+            href="/production"
+          />
+          <KpiCard
+            label="Произведено изделий"
+            value={`${formatQty(producedGoodsQty.toString())} шт.`}
+            extra={`стоимость по текущей модели ${formatMoney(producedGoodsTotalCost.toString())}`}
+            href="/production"
+          />
+          <KpiCard
+            label="Средняя стоимость изделия"
+            value={<CompactMoney incl={producedGoodsAverageCost.toString()} />}
+            extra="сырьё + стоимость работ по ТЗ"
+          />
+          <KpiCard
+            label={<InclVatOnlyLabel base="Долг заказчиков" />}
+            value={<CompactMoney incl={clientDebtTotal.toString()} />}
+            extra={`работы ${formatMoney(clientBillableTotal.toString())} · оплачено ${formatMoney(clientPaidTotal.toString())}`}
+            warn={clientDebtTotal.greaterThan(0)}
+          />
+        </div>
+
+        <details className="rounded-xl border border-neutral-200 bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium hover:bg-neutral-50">
+            <span>Динамика по годам</span>
+            <span className="text-xs font-normal text-neutral-500">по умолчанию свернуто · {annualRows.length} года</span>
+          </summary>
+          <div className="overflow-x-auto border-t border-neutral-100">
+            <Table>
+              <Thead><Tr><Th>Год</Th><Th>Закуплено сырья</Th><Th>Выплачено поставщику</Th><Th>Произведено изделий</Th><Th>Сырьё в производстве</Th><Th>Получено от заказчиков</Th></Tr></Thead>
+              <Tbody>
+                {annualRows.map((r) => (
+                  <Tr key={r.year}>
+                    <Td className="font-semibold">{r.year}</Td>
+                    <Td>{formatMoney(r.purchased.toString())}</Td>
+                    <Td>{formatMoney(r.supplierPaid.toString())}</Td>
+                    <Td>{formatQty(r.produced.toString())} шт.</Td>
+                    <Td>{formatMoney(r.materialInProduction.toString())}</Td>
+                    <Td>{formatMoney(r.clientPaid.toString())}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/attention" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100">
-              Ручная проверка: {manualReviewTotal}
-            </Link>
-            <Link href="/documents?gaps=1" className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100">Пробелы документов →</Link>
-            <Link href="/reconciliation" className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100">Расхождения цифр →</Link>
-          </div>
-        </div>
-
-        <div className="grid gap-3 xl:grid-cols-5">
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Google Drive · «Мех»</div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-semibold">{driveSyncSnapshot.meaningfulCoveragePct}%</span>
-              <span className="text-xs text-emerald-700">значимых файлов учтено</span>
-            </div>
-            <div className="mt-2 text-xs leading-relaxed text-neutral-500">
-              {driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} копий распознано · {driveSyncSnapshot.ignoredTemporaryFiles} временный файл игнорируется.
-            </div>
-            <div className="mt-2 text-xs font-medium text-emerald-700">Непривязанных значимых файлов: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">1 · Закупки сырья</div>
-            <div className="mt-2 text-xl font-semibold">{allPurchases.length} закупок</div>
-            <div className="mt-1 text-sm font-medium"><Money incl={totalPurchasedValue} excl={totalPurchasedValueExclVat} /></div>
-            <div className={"mt-2 text-xs font-medium " + (purchaseDocGaps ? "text-amber-700" : "text-emerald-700")}>
-              {purchaseDocGaps ? `Пробелы первички: ${purchaseDocGaps}` : "Первичка по правилам закрыта"}
-            </div>
-            <Link href="/documents?section=purchases&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Открыть проверку →</Link>
-          </Card>
-
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">2 · Оплаты сырья</div>
-            <div className="mt-2 text-xl font-semibold">{formatMoney(supplierDebt.paid.toString())}</div>
-            <div className="mt-1 text-xs text-neutral-500">проведённые оплаты, учтённые в расчёте долга</div>
-            <div className={"mt-2 text-xs font-medium " + (supplierNoProof.greaterThan(0) || supplierPaymentDocGaps ? "text-red-700" : "text-emerald-700")}>
-              {supplierNoProof.greaterThan(0) ? `Без платёжки: ${formatMoney(supplierNoProof.toString())}` : "Все проведённые оплаты подтверждены"}
-            </div>
-            {supplierWaitingProof.greaterThan(0) ? <div className="mt-1 text-xs text-amber-700">Ждёт проверки: {formatMoney(supplierWaitingProof.toString())}</div> : null}
-            <Link href="/documents?section=payments&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Проверить оплаты →</Link>
-          </Card>
-
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">3 · Производство</div>
-            <div className="mt-2 text-xl font-semibold">{formatQty(producedGoodsQty.toString())} изделий</div>
-            <div className="mt-1 text-sm font-medium">сырья в изделиях: {formatMoney(rawInGoodsValue.add(liningInGoodsValue).toString())}</div>
-            <div className={"mt-2 text-xs font-medium " + (productionDocGaps || productionStatusReview ? "text-amber-700" : "text-emerald-700")}>
-              {productionDocGaps ? `Пробелы ТЗ/партий: ${productionDocGaps}` : "Документы ТЗ/партий закрыты"}
-            </div>
-            {productionStatusReview ? <div className="mt-1 text-xs text-amber-700">Статус/количество вручную: {productionStatusReview}</div> : null}
-            <Link href="/attention?all=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Открыть контроль →</Link>
-          </Card>
-
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">4 · Оплаты производства</div>
-            <div className="mt-2 text-xl font-semibold">{formatMoney(productionPaymentTotal.toString())}</div>
-            <div className="mt-1 text-xs text-neutral-500">подтверждено: {formatMoney(productionPaymentConfirmed.toString())}</div>
-            <div className={"mt-2 text-xs font-medium " + (productionPaymentNoProofCount || productionPaymentDocGaps ? "text-red-700" : "text-emerald-700")}>
-              {productionPaymentNoProofCount ? `Без подтверждения: ${productionPaymentNoProofCount} · ${formatMoney(productionPaymentNoProof.toString())}` : "Все оплаты производства подтверждены"}
-            </div>
-            {productionPaymentDocGaps ? <div className="mt-1 text-xs text-amber-700">Документных пробелов: {productionPaymentDocGaps}</div> : null}
-            <Link href="/documents?section=prodPayments&gaps=1" className="mt-2 inline-block text-xs text-neutral-600 underline">Проверить оплаты →</Link>
-          </Card>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <Card className={"p-3 " + (reconConflicts ? "border-red-200 bg-red-50/60" : "")}>
-            <div className="text-xs text-neutral-500">Конфликты цифр</div>
-            <div className="mt-1 text-xl font-semibold">{reconConflicts}</div>
-            <div className="text-xs text-neutral-500">математически не сходятся и требуют документа/корректировки</div>
-          </Card>
-          <Card className={"p-3 " + (reconReviews ? "border-amber-200 bg-amber-50/60" : "")}>
-            <div className="text-xs text-neutral-500">Ручные решения</div>
-            <div className="mt-1 text-xl font-semibold">{reconReviews}</div>
-            <div className="text-xs text-neutral-500">источник есть, но нужен выбор трактовки или подтверждение</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-neutral-500">Итого открытых evidence-задач</div>
-            <div className="mt-1 text-xl font-semibold">{manualReviewTotal}</div>
-            <div className="text-xs text-neutral-500">сумма открытых групп контроля; после исправления пересчитывается автоматически</div>
-          </Card>
-        </div>
+        </details>
       </section>
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1 · Закупки и обязательства</div>
-          <h2 className="mt-1 text-base font-semibold">Сначала смотрим, сколько должны и что ещё предстоит оплатить</h2>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Капитал · Обязательства</div>
+          <h2 className="mt-1 text-base font-semibold">Структура долга поставщику и будущих денежных обязательств</h2>
         </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard
@@ -495,74 +484,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </section>
 
       <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 2 · Денежный контур</div>
-          <h2 className="mt-1 text-base font-semibold">Закуплено, оплачено, остатки и контрольные сигналы</h2>
-        </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          label="Куплено сырья"
-          hint={
-            <InfoHint wide label="Куплено сырья">
-              <p>Все закупки периода ({yl}), кроме отменённых, с НДС: мех принят <b>{formatMoney(receivedPurchasedValue.toString())}</b> + черновики (не получены) <b>{formatMoney(draftPurchasedValue.toString())}</b>.</p>
-              <p className="mt-2">«Списано в ТЗ» — стоимость сырья и подкладки в ТЗ периода{c4Mode === "on" ? ", с надбавкой 4% (включён переключатель «С 4%»)" : " без 4% (надбавку покажет переключатель «С 4%»)"}.</p>
-              <p className="mt-2 text-neutral-500">Покупки у поставщика всегда без 4%: она считается только в себестоимости.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
-          extra={
-            <>
-              списано в ТЗ{c4Suffix(c4Mode)}:{" "}
-              <CompactMoney incl={totalMaterialUsedValue.toString()} excl={totalMaterialUsedValueExclVat.toString()} />
-            </>
-          }
-        />
-        <KpiCard
-          label="Сырьё на складе"
-          hint={
-            <InfoHint wide label="Сырьё на складе">
-              <p>Во сколько оценивается мех и подкладка на складе (лоты закупок периода: {yl}), по цене закупки.</p>
-              <p className="mt-2">{c4Mode === "on" ? <>Включён «С 4%»: при списании в ТЗ к этой стоимости добавится 4% — <b>{formatMoney(stock4Extra.toString())}</b> (с НДС). На складе лежит по цене закупки.</> : "Переключатель «С 4%» покажет, сколько добавит 4% при списании в ТЗ."}</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
-          extra={c4Mode === "on" ? <>со списанием в ТЗ (+4%): <CompactMoney incl={rawStockValue.add(stock4Extra).toString()} excl={rawStockValueExclVat.add(stock4ExtraExcl).toString()} /></> : undefined}
-        />
-        <KpiCard
-          label="Оплачено поставщику"
-          hint={
-            <InfoHint wide label="Оплачено поставщику">
-              <p>Оплаты, засчитанные в закупки периода ({yl}): <b>{formatMoney(supplierDebt.paid.toString())}</b>; авансы без привязки (<b>{formatMoney(supplierDebt.unlinkedAdvances.toString())}</b>) считаются отдельно и вычтены из долга.</p>
-              <p className="mt-2 text-neutral-500">Оплаты по письму или расчёту без платёжки внесены с пометкой «не подтверждён»: их список — на странице «Что не заведено». Переключатель «С 4%» оплаты не меняет.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={supplierDebt.paid.toString()} />}
-          href="/payments"
-        />
-        <KpiCard
-          label={<InclVatOnlyLabel base="Долг заказчиков" />}
-          hint={
-            <InfoHint wide label="Долг заказчиков">
-              <p>Сколько заказчики ещё должны за работу по ТЗ периода ({yl}): работа <b>{formatMoney(clientBillableTotal.toString())}</b> − оплачено <b>{formatMoney(clientPaidTotal.toString())}</b> = <b>{formatMoney(clientDebtTotal.toString())}</b>.</p>
-              <p className="mt-2">Оплаты: привязанные к ТЗ периода; без ТЗ — по дате оплаты. Авансы без ТЗ:{" "}
-                {advancesDeducted.greaterThan(0) ? `${formatMoney(advancesDeducted.toString())} уже вычтены` : "нет"}
-                {advancesNotCounted.greaterThan(0) ? `; ${formatMoney(advancesNotCounted.toString())} не вычтены (нет заказчика или его ТЗ)` : ""}.
-              </p>
-              <p className="mt-2 text-neutral-500">В оплаты партий входят шкуры подрядчика (в счетах на доплату), поэтому по отдельному году сумма может быть отрицательной — по всем годам она сходится.</p>
-              <p className="mt-2 text-neutral-500">Переключатель «С 4%» долг заказчиков не меняет (4% — только на сырьё в себестоимости).</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={clientDebtTotal.toString()} />}
-          warn={clientDebtTotal.greaterThan(0)}
-        />
-      </div>
-      </section>
-
-      <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 3 · Сырьё и склад</div>
-            <h2 className="mt-1 text-base font-semibold">Что куплено, использовано и осталось</h2>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Операции · Сырьё и склад</div>
+            <h2 className="mt-1 text-base font-semibold">Физический поток сырья: куплено → использовано → остаток</h2>
           </div>
           <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
         </div>
@@ -706,16 +631,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 4 · Расчёты и производство</div>
-          <h2 className="mt-1 text-base font-semibold">После склада смотрим расчёты по аукционам и заказчикам</h2>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Контрагенты · Платёжная экспозиция</div>
+          <h2 className="mt-1 text-base font-semibold">Где сосредоточен остаток к оплате поставщику и задолженность заказчиков</h2>
         </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <InclVatOnlyLabel base="Долг по аукционам" />
-              <InfoHint wide label="Долг по аукционам">
-                <p>Топ-5 аукционов по остатку к оплате ({yl}). Нажмите на аукцион — откроются его оплаты. Остаток аукциона = стоимость − оплачено; цвет подписи показывает, получен ли мех или выставлен счёт. Сумма всех остатков минус авансы без привязки — это «Долг поставщику».</p>
+              <InclVatOnlyLabel base="Остаток по партиям закупки (аукционам)" />
+              <InfoHint wide label="Остаток по партиям закупки (аукционам)">
+                <p>Топ-5 партий закупки по остатку к оплате ({yl}). Названия нормализованы по документам: например, «Закупка меха 04-26» показывается как «РП 04-26». Служебная метка «Нет информации» больше не считается аукционом и попадает в блок «Без подтверждённой партии закупки».</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
@@ -745,10 +670,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   ))}
                 </div>
                 {supplierDebt.byAuction.length > 5 && (
-                  <p className="mt-1 text-xs text-neutral-500">Ещё аукционов с остатком: {supplierDebt.byAuction.length - 5}</p>
+                  <p className="mt-1 text-xs text-neutral-500">Ещё партий закупки с остатком: {supplierDebt.byAuction.length - 5}</p>
                 )}
               </>
             )}
+            {supplierDebt.nonAuctionDebt.greaterThan(0.5) ? (
+              <Link
+                href="/purchases?auction=%D0%9D%D0%B5%D1%82%20%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%B8"
+                className="mt-3 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm hover:bg-amber-100"
+              >
+                <span>
+                  <span className="font-medium text-amber-900">Без подтверждённой партии закупки</span>
+                  <span className="block text-xs text-amber-800/80">
+                    {supplierDebt.nonAuctionPurchases} закупок · сюда входят записи, где раньше стояла служебная метка «Нет информации»
+                  </span>
+                </span>
+                <span className="whitespace-nowrap font-semibold text-amber-900">{formatMoney(supplierDebt.nonAuctionDebt.toString())}</span>
+              </Link>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -798,67 +737,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 5 · Контроль и доказательства</div>
-          <h2 className="mt-1 text-base font-semibold">В конце проверяем расхождения, недостающие документы и неподтверждённые строки</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <KpiCard
-            label="Расхождения сверки"
-            value={String(reconOpen)}
-            extra={`${reconConflicts} конфликтов · ${reconReviews} ручных проверок`}
-            warn={reconOpen > 0}
-            danger={reconConflicts > 0}
-            href="/reconciliation"
-          />
-        <KpiCard
-          label="Требует внимания"
-          hint={
-            <InfoHint wide label="Требует внимания">
-              <p>
-                Записей, по которым нужно ваше решение или документ: <b>{attention.main}</b>
-                {attention.red > 0 ? <>, из них срочных блоков: <b>{attention.red}</b></> : null}. Справочно (в число не входит): {attention.info}. Период: {yl}.
-              </p>
-              <ul className="mt-2 list-disc pl-4">
-                {attentionBlocks.filter((b) => b.meta.kind !== "info").map((b) => (
-                  <li key={b.id}>{b.meta.title}: {b.entities.length}{b.meta.kind === "bulk" ? " (одна запись на группу)" : ""}</li>
-                ))}
-              </ul>
-              <p className="mt-2">
-                Подтверждение строк: подтверждено <b>{vTotal.verified}</b> из {vTotal.total}, ждёт проверки <b className={vTotal.total - vTotal.verified > 0 ? "text-amber-700" : undefined}>{vTotal.total - vTotal.verified}</b> — страница{" "}
-                <a href="/verify" className="text-blue-700 underline">«Ждёт проверки»</a>.
-              </p>
-              <p className="mt-2 text-neutral-500">Весь список, по группам и по сущностям, — на странице «Что не заведено».</p>
-            </InfoHint>
-          }
-          value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
-          warn={attention.main > 0}
-          danger={attention.red > 0}
-          href="/attention"
-        />
-        <KpiCard
-          label="Покрытие документами"
-          hint={
-            <InfoHint wide align="right" label="Покрытие документами">
-              <p>Сколько обязательных документов (счета, УПД, расчёты, спецификации, ТЗ-приложения, платёжки, договоры) уже приложено: {docCoverage.total.have} из {docCoverage.total.required}; записей с пробелами: {docCoverage.total.rowsWithGaps}.</p>
-              <p className="mt-2 text-neutral-500">Считается по всем годам сразу.</p>
-            </InfoHint>
-          }
-          value={docCoverage.total.percent === null ? "—" : `${docCoverage.total.percent}%`}
-          warn={(docCoverage.total.percent ?? 100) < 90}
-          danger={(docCoverage.total.percent ?? 100) < 60}
-          href="/documents"
-        />
-          <KpiCard
-            label="Ждёт подтверждения"
-            value={String(vTotal.total - vTotal.verified)}
-            extra={`подтверждено ${vTotal.verified} из ${vTotal.total}`}
-            warn={vTotal.total - vTotal.verified > 0}
-            href="/verify"
-          />
-        </div>
-      </section>
     </div>
   );
 }

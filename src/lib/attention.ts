@@ -86,7 +86,7 @@ const PRIORITY_ORDER: Record<AttentionPriority, number> = { red: 0, yellow: 1, g
 export type AttentionGroupId =
   | "no-receipt" | "advance-unlinked" | "auction-unpaid" | "overpaid" | "late-delivery" | "tz-requisites" | "suspect-date"
   | "model-dup" | "no-auction"
-  | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots"
+  | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots" | "production-status"
   | "awaiting" | "no-usage" | "dict";
 
 export type AttentionGroupKind = "decision" | "bulk" | "info";
@@ -169,6 +169,11 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
     title: "Даты закупок и лотов — дата импорта", kind: "bulk",
     hint: "Дата заказа или прихода подставлена при импорте (01.10.2026) или не указана; настоящей даты в УПД нет. Одна запись на группу.",
     link: { href: "/lots", label: "Сырьё" },
+  },
+  "production-status": {
+    title: "Статус производства не совпадает с фактом", kind: "decision",
+    hint: "ТЗ помечено как запланированное при уже указанном выпуске либо как завершённое при нулевом факте. Нужна ручная проверка статуса/количества.",
+    link: { href: "/production", label: "ТЗ" },
   },
   awaiting: {
     title: "Ожидаемые поставки", kind: "info",
