@@ -70,7 +70,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, ...lotYear(year) },
-      select: { rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, rawMaterial: { select: { name: true, unit: true } } },
+      select: {
+        id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, color: true,
+        rawMaterial: { select: { name: true, unit: true } },
+        purchase: { select: { auctionSession: true, orderDate: true, currency: true } },
+        purchaseItems: { select: { quantity: true, subtotal: true } },
+      },
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId },
@@ -84,7 +89,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         totalCost: true,
         commission4: true,
         rawMaterial: { select: { name: true, unit: true } },
-        lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+        lot: { select: { id: true, materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
       },
     }),
     prisma.purchaseItem.findMany({
@@ -292,6 +297,45 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const producedGoodsAverageCost = producedGoodsQty.greaterThan(0) ? producedGoodsTotalCost.div(producedGoodsQty) : new Decimal(0);
   const supplierCashPaid = supplierDebt.paid.add(supplierDebt.unlinkedAdvances);
 
+  const usageByLot = new Map<string, { qty: Decimal; value: Decimal; c4Value: Decimal }>();
+  for (const u of materialUsedAgg) {
+    const id = u.lot.id;
+    const cur = usageByLot.get(id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
+    cur.qty = cur.qty.add(u.quantity);
+    cur.value = cur.value.add(u.totalCost);
+    cur.c4Value = cur.c4Value.add(u.commission4 ? new Decimal(u.totalCost).mul(1 + COMMISSION_RATE) : u.totalCost);
+    usageByLot.set(id, cur);
+  }
+  const canonicalFurName = (name: string) => /^Лиса(?:\s|$)/i.test(name) ? "Лиса" : name;
+  const normalizedAuction = (raw: string | null | undefined) => {
+    const value = raw?.split(/\r?\n/)[0].trim();
+    if (!value || /^нет информации$/i.test(value)) return "Без партии закупки";
+    if (/^закупка меха 04-26$/i.test(value)) return "РП 04-26";
+    return value.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
+  };
+  const furInteractiveRows = allLots.filter((l) => l.rawMaterial.unit !== "M").map((l) => {
+    const used = usageByLot.get(l.id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
+    const inferredColor = /^Лиса красная$/i.test(l.rawMaterial.name) ? "Красный" : null;
+    const usdQty = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.quantity), new Decimal(0)) : new Decimal(0);
+    const usdSubtotal = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.subtotal), new Decimal(0)) : new Decimal(0);
+    return {
+      id: l.id,
+      species: canonicalFurName(l.rawMaterial.name),
+      color: l.color || inferredColor || "Не указан",
+      auction: normalizedAuction(l.purchase?.auctionSession),
+      year: (l.purchase?.orderDate ?? new Date()).getUTCFullYear(),
+      purchasedQty: l.quantityReceived.toNumber(),
+      purchasedValue: l.quantityReceived.mul(l.unitCost).toNumber(),
+      usedQty: used.qty.toNumber(),
+      usedValueBase: used.value.toNumber(),
+      usedValueWith4: used.c4Value.toNumber(),
+      remainingQty: l.quantityRemaining.toNumber(),
+      remainingValue: l.quantityRemaining.mul(l.unitCost).toNumber(),
+      usdQty: usdQty.toNumber(),
+      usdSubtotal: usdSubtotal.toNumber(),
+    };
+  });
+
   type AnnualRow = { year: number; purchased: Decimal; supplierPaid: Decimal; produced: Decimal; materialInProduction: Decimal; clientPaid: Decimal };
   const annualMap = new Map<number, AnnualRow>();
   const annual = (y: number) => {
@@ -402,6 +446,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           />
         </div>
 
+        <ProductionCostTotal
+          total={producedGoodsTotalCost.toNumber()}
+          fur={rawInGoodsValue.toNumber()}
+          lining={liningInGoodsValue.toNumber()}
+          work={productionWorkValue.toNumber()}
+          furDetails={furCostDetails}
+          liningDetails={liningCostDetails}
+          products={producedGoodsQty.toNumber()}
+        />
+
         <details className="rounded-xl border border-neutral-200 bg-white">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium hover:bg-neutral-50">
             <span>Динамика по годам</span>
@@ -492,108 +546,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
         </div>
 
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Тотал сырья
-              <InfoHint wide label="Как считаем тотал сырья">
-                <p>Только меховое сырьё; подкладка вынесена отдельно ниже. Количество и стоимость считаются по фактически принятым лотам.</p>
-                <p className="mt-1">Средняя цена закупки в долларах — средневзвешенная цена по позициям закупок, где валюта документа USD. Финальная цена в рублях — средневзвешенная landed cost лотов.</p>
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th className="min-w-36">Количество сырья ед.</Th>
-                  <Th className="min-w-36">Ср цена закупки долл</Th>
-                  <Th className="min-w-44">Ср цена за ед. сырья руб (финальная)</Th>
-                  <Th className="min-w-48">Себестоимость общая всего сырья руб</Th>
-                  <Th className="min-w-44">Остаток неиспользованного сырья ед.</Th>
-                  <Th className="min-w-48">Остаток неиспользованного сырья руб</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                <Tr>
-                  <Td className="text-lg font-semibold tabular-nums">{formatQty(rawQtyTotal.toString())}</Td>
-                  <Td className="text-lg font-semibold tabular-nums">${rawAvgPurchaseUsd.toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 2 })}</Td>
-                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawAvgFinalRub.toString())}</Td>
-                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawCostTotal.toString())}</Td>
-                  <Td className="text-lg font-semibold tabular-nums">{formatQty(rawRemainingQty.toString())}</Td>
-                  <Td className="text-lg font-semibold tabular-nums">{formatMoney(rawRemainingValue.toString())}</Td>
-                </Tr>
-              </Tbody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Сырьё уже в изделиях</div>
-            <div className="mt-2 text-xl font-semibold tabular-nums">{formatQty(rawInGoodsQty.toString())} шт.</div>
-            <div className="mt-1 text-sm text-neutral-600">{formatMoney(rawInGoodsValue.toString())}</div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Произведено изделий</div>
-            <div className="mt-2 text-xl font-semibold tabular-nums">{formatQty(producedGoodsQty.toString())} шт.</div>
-            <div className="mt-1 text-sm text-neutral-500">по фактическому producedQuantity ТЗ</div>
-          </Card>
-          <ProductionCostTotal
-            total={producedGoodsTotalCost.toNumber()}
-            fur={rawInGoodsValue.toNumber()}
-            lining={liningInGoodsValue.toNumber()}
-            work={productionWorkValue.toNumber()}
-            furDetails={furCostDetails}
-            liningDetails={liningCostDetails}
-            products={producedGoodsQty.toNumber()}
-          />
-        </div>
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Мех
               <InfoHint wide label="Мех">
-                <p>Все виды меха отдельно от подкладки. Галочками можно исключить любой вид и мгновенно пересчитать общий остаток и его стоимость.</p>
+                <p>Единый интерактивный контейнер мехового сырья. «Лиса» и «Лиса красная» объединены в один вид «Лиса»; цвет выбирается внутри фильтра.</p>
+                <p className="mt-1">Выключение вида меха пересчитывает тоталы, цвета и доступные партии закупки.</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <FurSelectionTotal
-              rows={allFurRows.map((r) => ({
-                id: r.id,
-                name: r.name,
-                unit: r.unit,
-                purchased: r.purchased.toString(),
-                remaining: r.remaining.toString(),
-                remainingValue: r.remainingValue.toString(),
-                remainingValueExclVat: r.remainingValueExclVat.toString(),
-              }))}
-            />
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Материал</Th>
-                  <Th>Куплено</Th>
-                  <Th>Использовано</Th>
-                  <Th>Остаток</Th>
-                  <Th>Стоимость остатка</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {allFurRows.map((r) => (
-                  <Tr key={r.id}>
-                    <Td className="font-medium"><Link href="/lots" className="hover:underline">{r.name}</Link></Td>
-                    <Td>{formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td>{formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>{formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td><Money incl={r.remainingValue} excl={r.remainingValueExclVat} /></Td>
-                  </Tr>
-                ))}
-                {allFurRows.length === 0 && <Tr><Td colSpan={5} className="py-6 text-center text-neutral-400">Мех ещё не закупался</Td></Tr>}
-              </Tbody>
-            </Table>
+          <CardContent>
+            <FurSelectionTotal rows={furInteractiveRows} c4Mode={c4Mode} />
           </CardContent>
         </Card>
 

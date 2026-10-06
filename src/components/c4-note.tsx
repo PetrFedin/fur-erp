@@ -100,17 +100,19 @@ export function Ref4({
   excl?: Decimal.Value | null;
   className?: string;
 }) {
-  if (mode !== "on") return null;
   const k = new Decimal(1).add(COMMISSION_RATE);
   const i = new Decimal(incl);
+  const e = excl != null ? new Decimal(excl) : null;
+  const altIncl = mode === "on" ? i : i.mul(k);
+  const altExcl = e == null ? null : mode === "on" ? e : e.mul(k);
   return (
     <div className={`whitespace-nowrap text-xs font-normal text-neutral-500 ${className}`}>
-      с 4%: <Money incl={i.mul(k).toFixed(2)} excl={excl != null ? new Decimal(excl).mul(k).toFixed(2) : null} />
-      <InfoHint label="Откуда 4%">
+      {mode === "on" ? "без 4%" : "с 4%"}: <Money incl={altIncl.toFixed(2)} excl={altExcl?.toFixed(2) ?? null} />
+      <InfoHint label="Сравнение 4%">
         <p>
-          {formatMoney(i.toFixed(2))} × {pct} = <b>{formatMoney(i.mul(COMMISSION_RATE).toFixed(2))}</b> (с НДС) — доп. комиссия посредника (Веллмех): мы заплатим на 4% больше, когда это сырьё или подкладка спишутся в ТЗ.
+          Основная цифра показана в выбранном режиме. Здесь всегда показан противоположный вариант для быстрого сравнения: {mode === "on" ? "без комиссии 4%" : "с комиссией 4%"}.
         </p>
-        <p className="mt-1">Сам лот, закупка, оплаты и долг поставщику от 4% не меняются.</p>
+        <p className="mt-1">4% применяется только к сырью и подкладке в ТЗ, где это разрешено; работа, закупка, оплаты и долг поставщику не меняются.</p>
       </InfoHint>
     </div>
   );
