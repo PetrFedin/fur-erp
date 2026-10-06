@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { RecordHistory } from "@/components/record-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { ModelForm } from "../model-form";
+import { rowVersion, MODEL_V } from "@/lib/concurrency";
 import { updateModel, removeBomLine } from "../actions";
 import { BomAddForm } from "./bom-add-form";
+import { ConfirmSubmitButton } from "../../purchases/[id]/documents-form";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { FITTING_STATUS, orderLabel, truncate } from "@/lib/fittings";
@@ -69,6 +72,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           </div>
           <ModelForm
             action={updateModel.bind(null, id)}
+            version={rowVersion(model, MODEL_V)}
             model={{
               id: model.id,
               organizationId: model.organizationId,
@@ -120,9 +124,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                           await boundRemove(line.id);
                         }}
                       >
-                        <Button type="submit" variant="ghost" size="sm">
-                          Удалить
-                        </Button>
+                        <ConfirmSubmitButton message={`Убрать «${line.rawMaterial.name}» из нормы расхода модели? Уже созданные ТЗ не изменятся.`} label="Удалить" />
                       </form>
                     </Td>
                   </Tr>
@@ -160,6 +162,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           )}
         </CardContent>
       </Card>
+      <RecordHistory model="ProductModel" recordId={model.id} />
     </div>
   );
 }

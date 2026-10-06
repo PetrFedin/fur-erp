@@ -3,6 +3,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { RecordHistory } from "@/components/record-history";
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cleanSearch } from "@/lib/input";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
+import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
 import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
 import { DriveDocList, UploadDocument } from "@/components/drive-documents";
@@ -790,6 +792,7 @@ export default async function PaymentsPage({
                                     notes: p.notes ?? "",
                                     docName: p.document ? p.document.originalName : null,
                                     closing,
+                                    version: rowVersion(p, PAYMENT_V),
                                   }}
                                 />
                               </div>
@@ -887,6 +890,7 @@ export default async function PaymentsPage({
                       method: p.method,
                       paidAt: p.paidAt.toISOString().slice(0, 10),
                       notes: p.notes ?? "",
+                      version: rowVersion(p, PAYMENT_V),
                     }}
                   />
                 </div>
@@ -899,6 +903,7 @@ export default async function PaymentsPage({
           </div>
         </>
       )}
+      <RecordHistory model="Payment" panelModels={["Payment", "ProductionPayment"]} />
     </div>
   );
 }

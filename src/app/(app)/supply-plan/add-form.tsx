@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { addSupplyPlanEntry, type FormState } from "./actions";
 import { STATUS_LABELS } from "./status";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: FormState = {};
 
 export function AddSupplyPlanForm({ models }: { models: { id: string; name: string }[] }) {
   const [state, formAction, pending] = useActionState(addSupplyPlanEntry, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending, true);
   const thisMonth = new Date().toISOString().slice(0, 7);
 
   return (
-    <form action={formAction} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 items-end gap-2">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 items-end gap-2">
       <div>
         <Label htmlFor="productModelId">Артикул</Label>
         <Select id="productModelId" name="productModelId" required defaultValue="">

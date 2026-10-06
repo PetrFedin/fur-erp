@@ -138,15 +138,20 @@ export async function patchPaymentRow(kind: string, id: string, formData: FormDa
   }
   const ref = clean(formData.get("ref"));
   const data = { ...(paidAt ? { paidAt } : {}), ...(amount ? { amount } : {}), docRef: ref || null };
-  if (kind === "payment") {
-    const r = await prisma.payment.updateMany({ where: { id, organizationId: c.orgId }, data });
-    if (!r.count) return { error: "Оплата не найдена" };
-    await resetVerification(prisma, c.orgId, { paymentIds: [id] });
-  } else {
-    const r = await prisma.productionPayment.updateMany({ where: { id, organizationId: c.orgId }, data });
-    if (!r.count) return { error: "Оплата не найдена" };
-    await resetVerification(prisma, c.orgId, { prodPaymentIds: [id] });
-  }
+  // Правка и сброс подтверждения — одной транзакцией: иначе при сбое правка останется «подтверждённой».
+  const missing = await prisma.$transaction(async (tx) => {
+    if (kind === "payment") {
+      const r = await tx.payment.updateMany({ where: { id, organizationId: c.orgId }, data });
+      if (!r.count) return true;
+      await resetVerification(tx, c.orgId, { paymentIds: [id] });
+    } else {
+      const r = await tx.productionPayment.updateMany({ where: { id, organizationId: c.orgId }, data });
+      if (!r.count) return true;
+      await resetVerification(tx, c.orgId, { prodPaymentIds: [id] });
+    }
+    return false;
+  });
+  if (missing) return { error: "Оплата не найдена" };
   revalidateAll();
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }
@@ -158,12 +163,16 @@ export async function patchPurchaseRow(id: string, formData: FormData): Promise<
   const dateRaw = clean(formData.get("date"), 20);
   const orderDate = dateRaw ? parseDateInput(dateRaw) : null;
   if (dateRaw && !orderDate) return { error: "Некорректная дата" };
-  const r = await prisma.purchase.updateMany({
-    where: { id, organizationId: c.orgId },
-    data: { ...(orderDate ? { orderDate } : {}), invoiceNumber: clean(formData.get("number"), 100) || null, transferDocument: clean(formData.get("ref")) || null },
+  const found = await prisma.$transaction(async (tx) => {
+    const r = await tx.purchase.updateMany({
+      where: { id, organizationId: c.orgId },
+      data: { ...(orderDate ? { orderDate } : {}), invoiceNumber: clean(formData.get("number"), 100) || null, transferDocument: clean(formData.get("ref")) || null },
+    });
+    if (!r.count) return false;
+    await resetVerification(tx, c.orgId, { purchaseIds: [id] });
+    return true;
   });
-  if (!r.count) return { error: "Закупка не найдена" };
-  await resetVerification(prisma, c.orgId, { purchaseIds: [id] });
+  if (!found) return { error: "Закупка не найдена" };
   revalidateAll();
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }
@@ -175,12 +184,16 @@ export async function patchOrderRow(id: string, formData: FormData): Promise<Ver
   const dateRaw = clean(formData.get("date"), 20);
   const workOrderDate = dateRaw ? parseDateInput(dateRaw) : null;
   if (dateRaw && !workOrderDate) return { error: "Некорректная дата" };
-  const r = await prisma.productionOrder.updateMany({
-    where: { id, organizationId: c.orgId },
-    data: { workOrderDate: dateRaw ? workOrderDate : null, workOrderNumber: clean(formData.get("number"), 50) || null },
+  const found = await prisma.$transaction(async (tx) => {
+    const r = await tx.productionOrder.updateMany({
+      where: { id, organizationId: c.orgId },
+      data: { workOrderDate: dateRaw ? workOrderDate : null, workOrderNumber: clean(formData.get("number"), 50) || null },
+    });
+    if (!r.count) return false;
+    await resetVerification(tx, c.orgId, { orderIds: [id] });
+    return true;
   });
-  if (!r.count) return { error: "ТЗ не найдено" };
-  await resetVerification(prisma, c.orgId, { orderIds: [id] });
+  if (!found) return { error: "ТЗ не найдено" };
   revalidateAll();
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }

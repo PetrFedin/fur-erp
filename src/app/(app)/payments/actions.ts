@@ -14,6 +14,7 @@ import { isPickedFile, readDocumentFiles, writeDocumentFiles, type ReadDoc } fro
 import { loadAuctionSummaries, lockAuction, PAY_EPS, CLOSING_NOTE } from "@/lib/auction-payments";
 import { formatMoney } from "@/lib/utils";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { staleError, PAYMENT_V } from "@/lib/concurrency";
 
 const EDIT_ROLES = ACCESS.supplierPayments;
 
@@ -71,6 +72,11 @@ export async function updateAdvancePayment(paymentId: string, formData: FormData
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
   const badRef = await checkOrgRefs(orgId, { supplier: parsed.data.supplierId });
   if (badRef) return { error: badRef };
+  const cur = await prisma.payment.findFirst({ where: { id: paymentId, organizationId: orgId, purchaseId: null, auctionSession: null } });
+  if (cur) {
+    const stale = staleError(formData, cur, PAYMENT_V);
+    if (stale) return { error: stale };
+  }
   const res = await prisma.payment.updateMany({
     where: { id: paymentId, organizationId: orgId, purchaseId: null, auctionSession: null },
     data: {
@@ -399,6 +405,8 @@ export async function updateAuctionPayment(paymentId: string, formData: FormData
     include: { document: { select: { id: true, storagePath: true } } },
   });
   if (!existing || !existing.auctionSession) return { error: "Оплата не найдена" };
+  const stale = staleError(formData, existing, PAYMENT_V);
+  if (stale) return { error: stale };
   const auction = existing.auctionSession;
   const parsed = auctionPaySchema.safeParse({
     kind: formData.get("kind"),

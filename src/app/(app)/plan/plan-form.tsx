@@ -8,6 +8,7 @@ import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import { PlanArticlePicker, type ArticleOption, type ArticleValue } from "@/components/plan-article-picker";
 import { LETTER_SIZES, NUMERIC_SIZES, cleanSize, compareSizeLabels, parsePastedPlan, parseCellQty, type ParsedPaste } from "@/lib/plan-sizes";
 import { FUR_TEXT_RULES } from "@/lib/product-category";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 import { savePlan, type PlanFormState } from "./actions";
 
 type Row = {
@@ -55,6 +56,7 @@ export function PlanForm({
   initial?: PlanInitial;
 }) {
   const [state, formAction, pending] = useActionState(savePlan, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
   const [seasonId, setSeasonId] = useState(initial ? (initial.seasonId ?? "") : defaultSeasonId);
   const [newSeason, setNewSeason] = useState("");
   const [sizes, setSizes] = useState<string[]>(() =>
@@ -125,6 +127,80 @@ export function PlanForm({
     return JSON.stringify({ seasonId: seasonId === "__new" ? undefined : seasonId || undefined, newSeasonCode: seasonId === "__new" ? newSeason.trim() || undefined : undefined, editId: initial?.editId, rows: out });
   }, [rows, sizes, seasonId, newSeason, initial]);
 
+  // Черновик: сетка размеров большая, а случайное обновление страницы стирало её целиком.
+  // Хранится в localStorage этого браузера (с обёрткой try/catch: в приватном окне его может не быть).
+  const draftKey = `furerp:plan-draft:${initial?.editId ?? "new"}`;
+  const [basePayload] = useState(payload);
+  const dirty = payload !== basePayload;
+  const [draftRestored, setDraftRestored] = useState(false);
+  const submittedRef = useRef(false);
+  const failedRef = useRef(false);
+  useEffect(() => {
+    failedRef.current = !!state.error;
+  }, [state.error]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- восстановление черновика из localStorage возможно только после монтирования (иначе рассинхрон гидрации) */
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as { rows?: Row[]; sizes?: string[]; seasonId?: string; newSeason?: string };
+      if (!Array.isArray(d.rows) || d.rows.length === 0 || !Array.isArray(d.sizes)) return;
+      setRows(d.rows.map((r) => ({ ...r, key: newKey() })));
+      setSizes(d.sizes);
+      setSeasonId(d.seasonId ?? "");
+      setNewSeason(d.newSeason ?? "");
+      setDraftRestored(true);
+    } catch {
+      /* нет доступа к хранилищу или битый черновик — работаем без него */
+    }
+    // только при открытии страницы
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!dirty) return;
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify({ rows, sizes, seasonId, newSeason }));
+    } catch {
+      /* ignore */
+    }
+  }, [dirty, rows, sizes, seasonId, newSeason, draftKey]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  // Успешное сохранение уводит со страницы (redirect) — тогда черновик больше не нужен.
+  useEffect(
+    () => () => {
+      if (submittedRef.current && !failedRef.current) {
+        try {
+          window.localStorage.removeItem(draftKey);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [draftKey],
+  );
+
+  const dropDraft = () => {
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+    window.location.reload();
+  };
+
   const loadParsed = () => {
     if (!parsed || parsed.rows.length === 0) return;
     addSizes(parsed.sizes);
@@ -146,8 +222,21 @@ export function PlanForm({
   };
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form
+      ref={keepRef}
+      onSubmit={(e) => {
+        submittedRef.current = true;
+        keepSubmit(e);
+      }}
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="payload" value={payload} />
+      {draftRestored && (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Восстановлен несохранённый черновик плана. Проверьте данные и нажмите «Сохранить».{" "}
+          <button type="button" className="underline" onClick={dropDraft}>Отбросить черновик</button>
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div>

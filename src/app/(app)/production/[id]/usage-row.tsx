@@ -10,6 +10,7 @@ import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: FormState = {};
 
@@ -80,6 +81,7 @@ export function UsageRow({
   const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
     return (await updateAction(fd)) ?? {};
   }, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   // Close the edit form once a submitted save comes back without an error —
   // same pattern as PurchaseItemRow.
@@ -112,8 +114,8 @@ export function UsageRow({
   );
   const editForm = (
             <form
-              action={formAction}
-              onSubmit={() => setSubmitted(true)}
+              ref={keepRef}
+              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
               className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 py-2"
             >
               <div className="col-span-2">

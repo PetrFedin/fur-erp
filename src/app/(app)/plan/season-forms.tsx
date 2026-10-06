@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 import { createSeason, updateSeasonDates, type PlanFormState } from "./actions";
 
 const init: PlanFormState = {};
@@ -10,8 +11,9 @@ const iso = (d: Date | string | null) => (d ? new Date(d).toISOString().slice(0,
 
 export function SeasonCreateForm({ hints }: { hints: { code: string; source: string }[] }) {
   const [state, action, pending] = useActionState(createSeason, init);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(action, state, pending, true);
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
       <div>
         <Label htmlFor="s-code">Код сезона</Label>
         <Input id="s-code" name="code" required maxLength={30} placeholder="FW26/27" list="season-hints" className="h-10" />
@@ -43,8 +45,9 @@ export function SeasonCreateForm({ hints }: { hints: { code: string; source: str
 
 export function SeasonEditForm({ season }: { season: { id: string; code: string; name: string | null; startDate: Date | string | null; endDate: Date | string | null } }) {
   const [state, action, pending] = useActionState(updateSeasonDates, init);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(action, state, pending);
   return (
-    <form action={action} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[8rem_1fr_9rem_9rem_auto]">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[8rem_1fr_9rem_9rem_auto]">
       <input type="hidden" name="id" value={season.id} />
       <div className="col-span-2 flex items-center sm:col-span-1"><span className="font-semibold">{season.code}</span></div>
       <Input name="name" defaultValue={season.name ?? ""} placeholder="Название" maxLength={100} aria-label="Название сезона" className="col-span-2 h-9 sm:col-span-1" />

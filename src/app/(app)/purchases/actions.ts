@@ -18,6 +18,7 @@ import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/a
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatMoney } from "@/lib/utils";
 import { resetByPurchase } from "@/lib/verification";
+import { staleError, PURCHASE_V, PURCHASE_ITEM_V } from "@/lib/concurrency";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -380,6 +381,8 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
 
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
   if (!purchase) return { error: "Закупку нельзя редактировать — она уже принята на склад или отменена" };
+  const stale = staleError(formData, purchase, PURCHASE_V, purchase.updatedAt);
+  if (stale) return { error: stale };
 
   const parsed = purchaseHeaderSchema.safeParse({
     supplierId: formData.get("supplierId"),
@@ -569,6 +572,8 @@ export async function updatePurchaseItem(
     include: { rawMaterial: { select: { unit: true } }, lot: { include: { purchaseItems: { select: { id: true } } } } },
   });
   if (!item) return { error: "Позиция не найдена" };
+  const stale = staleError(formData, item, PURCHASE_ITEM_V);
+  if (stale) return { error: stale };
 
   const parsed = itemSchema.safeParse({
     rawMaterialId: formData.get("rawMaterialId"),

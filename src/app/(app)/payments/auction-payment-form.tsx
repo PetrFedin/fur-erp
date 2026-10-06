@@ -18,6 +18,8 @@ export type PaymentInitial = {
   docName: string | null;
   /** Оплата «закрытие остатка» (откат — удаление). */
   closing?: boolean;
+  /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
+  version?: string;
 };
 
 const KINDS: [string, string][] = [

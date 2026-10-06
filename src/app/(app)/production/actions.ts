@@ -16,6 +16,7 @@ import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_QTY, parsePrice, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { resolveColorInput } from "@/lib/colors";
+import { staleError, ORDER_V } from "@/lib/concurrency";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -355,6 +356,8 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     include: { _count: { select: { materialUsages: true } } },
   });
   if (!order) return { error: "ТЗ не найдено" };
+  const stale = staleError(formData, order, ORDER_V, order.updatedAt);
+  if (stale) return { error: stale };
 
   const parsed = editOrderSchema.safeParse({
     productModelId: formData.get("productModelId"),

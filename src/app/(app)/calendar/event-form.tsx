@@ -6,6 +6,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { PlanArticlePicker, type ArticleOption, type ArticleValue } from "@/components/plan-article-picker";
 import { CALENDAR_ACTIONS } from "@/lib/calendar-actions";
 import { createEvent, updateEvent, type EventFormState } from "./actions";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 export type EventInitial = {
   id?: string;
@@ -42,6 +43,7 @@ export function EventForm({
   canCreateArticle: boolean;
 }) {
   const [state, action, pending] = useActionState(initial.id ? updateEvent : createEvent, init);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(action, state, pending);
   const [article, setArticle] = useState<ArticleValue>({ code: initial.articleCode, modelId: initial.modelId });
   const [articleName, setArticleName] = useState(initial.articleName);
   const [actionSel, setActionSel] = useState(KNOWN.includes(initial.action) || !initial.action ? initial.action || KNOWN[0] : "__custom");
@@ -64,7 +66,7 @@ export function EventForm({
   const actionValue = actionSel === "__custom" ? custom : actionSel;
 
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {initial.id && <input type="hidden" name="id" value={initial.id} />}
       <input type="hidden" name="articleCode" value={article.code} />
       <input type="hidden" name="action" value={actionValue} />

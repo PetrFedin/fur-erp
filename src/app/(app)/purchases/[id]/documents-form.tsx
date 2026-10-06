@@ -118,12 +118,23 @@ export function DocumentsForm({
 }
 
 /** Кнопка «Удалить» в серверной форме: спрашивает подтверждение и отменяет отправку при отказе. */
-export function ConfirmSubmitButton({ message, label = "Удалить" }: { message: string; label?: string }) {
+export function ConfirmSubmitButton({
+  message,
+  label = "Удалить",
+  variant = "ghost",
+  className,
+}: {
+  message: string;
+  label?: string;
+  variant?: "ghost" | "outline" | "destructive";
+  className?: string;
+}) {
   return (
     <Button
       type="submit"
-      variant="ghost"
+      variant={variant}
       size="sm"
+      className={className}
       onClick={(e) => {
         if (!window.confirm(message)) e.preventDefault();
       }}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import type { FormState } from "../actions";
 import type { Supplier, Warehouse } from "@prisma/client";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: FormState = {};
 
@@ -14,8 +15,11 @@ export function PurchaseEditForm({
   warehouses,
   defaults,
   currencyLocked = false,
+  version,
 }: {
   currencyLocked?: boolean;
+  /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
+  version?: string;
   action: (formData: FormData) => Promise<FormState>;
   suppliers: Supplier[];
   warehouses: Warehouse[];
@@ -34,6 +38,7 @@ export function PurchaseEditForm({
   const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
     return (await action(fd)) ?? {};
   }, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   const [prevPending, setPrevPending] = useState(pending);
   if (pending !== prevPending) {
@@ -54,10 +59,11 @@ export function PurchaseEditForm({
 
   return (
     <form
-      action={formAction}
-      onSubmit={() => setSubmitted(true)}
+      ref={keepRef}
+      onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
       className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
     >
+      {version && <input type="hidden" name="_v" value={version} />}
       {suppliers.length > 1 ? (
         <div className="sm:col-span-2">
           <Label htmlFor="supplierId">Поставщик</Label>

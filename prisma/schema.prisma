@@ -1167,3 +1167,29 @@ model DriveDocument {
   @@index([clientId])
   @@index([supplierId])
 }
+
+/// Журнал изменений (аудит): кто, когда и что изменил. Пишется автоматически расширением клиента (src/lib/prisma.ts)
+/// в одной транзакции с самой правкой. Без внешних ключей — запись переживает удаление исходной строки.
+/// changes: update — {поле: [было, стало]}; create — снимок созданного; delete — полный снимок удалённого.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  at             DateTime @default(now())
+  actorId        String?
+  actorName      String?
+  actorRole      String?
+  /// "ui" | "script:<имя>" | "system"
+  source         String
+  model          String
+  recordId       String
+  /// "create" | "update" | "delete"
+  action         String
+  changes        Json
+  label          String?
+  /// Общий id одной операции (многострочные действия группируются).
+  batchId        String?
+
+  @@index([organizationId, at])
+  @@index([model, recordId])
+  @@index([actorId])
+}

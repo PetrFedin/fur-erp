@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { RecordHistory } from "@/components/record-history";
 import { canEditProduction } from "@/lib/production-access";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -273,6 +274,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           />
         </CardContent>
       </Card>
+      <RecordHistory model="ProductionBatch" recordId={batch.id} />
     </div>
   );
 }

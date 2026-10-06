@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState } from "react";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { writeOffFinishedGoods, type WriteOffState } from "./actions";
@@ -17,15 +18,20 @@ export function WriteOffForm({
   models: ModelOption[];
   warehouses: Warehouse[];
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction, pending] = useActionState(async (prev: WriteOffState, formData: FormData) => {
-    const result = await writeOffFinishedGoods(prev, formData);
-    if (!result.error) formRef.current?.reset();
-    return result;
-  }, initialState);
+  const [state, formAction, pending] = useActionState(writeOffFinishedGoods, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending, true);
 
   return (
-    <form ref={formRef} action={formAction} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">
+    <form
+      ref={keepRef}
+      onSubmit={(e) => {
+        if (!window.confirm("Списать готовую продукцию со склада? Остаток уменьшится.")) {
+          e.preventDefault();
+          return;
+        }
+        keepSubmit(e);
+      }}
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Склад</label>
         <Select name="warehouseId" required defaultValue="">

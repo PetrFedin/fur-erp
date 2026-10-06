@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import type { WarehouseFormState } from "./actions";
 import type { Warehouse } from "@prisma/client";
+import { useKeepingForm } from "@/lib/use-keeping-form";
 
 const initialState: WarehouseFormState = {};
 
@@ -16,9 +17,10 @@ export function WarehouseForm({
   warehouse?: Warehouse;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="flex flex-col gap-4">
       <div>
         <Label htmlFor="name">Название</Label>
         <Input id="name" name="name" required defaultValue={warehouse?.name} />

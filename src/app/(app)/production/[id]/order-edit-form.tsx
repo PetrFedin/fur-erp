@@ -51,6 +51,8 @@ export function OrderEditForm({
     workOrderNumber: string;
     workOrderDate: string;
     clientWorkPricePerUnit: string;
+    /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
+    version?: string;
   };
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -84,6 +86,7 @@ export function OrderEditForm({
           }}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
+          {defaults.version && <input type="hidden" name="_v" value={defaults.version} />}
           <div className="sm:col-span-2">
             <Label htmlFor="productModelId">Модель изделия</Label>
             {modelLocked ? (

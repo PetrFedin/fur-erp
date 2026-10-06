@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
+import { staleError, MODEL_V } from "@/lib/concurrency";
 import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation } from "@/lib/input";
 
 const EDIT_ROLES = ACCESS.models;
@@ -61,6 +62,12 @@ export async function updateModel(
   const session = await requireRole(...EDIT_ROLES);
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const current = await prisma.productModel.findFirst({ where: { id, organizationId: session.user.organizationId } });
+  if (current) {
+    const stale = staleError(formData, current, MODEL_V, current.updatedAt);
+    if (stale) return { error: stale };
+  }
 
   let result;
   try {
