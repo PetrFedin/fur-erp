@@ -199,7 +199,7 @@ function buildDoc(d: TzDoc) {
   kids.push(table(sw, [new TableRow({ cantSplit: true, children: [sigCell("Заказчик", d.customer, sw[0]), gap, sigCell("Исполнитель", "", sw[2])] })]));
 
   return new Document({
-    creator: "МехУчёт",
+    creator: "MVST FUR PRODUCTION",
     title: d.title,
     styles: { default: { document: { run: { font: FONT, size: 20 } } } },
     sections: [
