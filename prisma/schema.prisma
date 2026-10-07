@@ -164,6 +164,7 @@ model Organization {
   customFields           CustomField[]
   productionBatches      ProductionBatch[]
   driveDocuments         DriveDocument[]
+  systemStates           SystemState[]
 }
 
 enum UserRole {
@@ -191,6 +192,22 @@ model User {
   createdPurchases        Purchase[]        @relation("PurchaseCreatedBy")
   createdProductionOrders ProductionOrder[] @relation("ProductionOrderCreatedBy")
 
+  @@index([organizationId])
+}
+
+
+/// Machine-readable admission markers for deterministic rebuilds and production readiness.
+/// Values are operational metadata only; business facts remain in their domain tables.
+model SystemState {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  key            String
+  value          Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, key])
   @@index([organizationId])
 }
 
