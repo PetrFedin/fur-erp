@@ -12,6 +12,7 @@ import { loadDashboard } from "@/lib/dashboard-data";
 import { DASH_FILTERS, ORDER_STATUS_LABELS, lotFiltersOn, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
 import { RawBlock } from "./raw-block";
 import { ProductionBlock } from "./production-block";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
 
@@ -107,11 +108,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <h2 id="dash-pay" className="text-base font-semibold">Оплаты, долги, задачи</h2>
           <span className="text-xs text-neutral-500">всегда с НДС · {yl}</span>
         </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 print:grid-cols-3">
-          <div className="relative rounded-lg border border-neutral-200 bg-white p-4">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг поставщику" /></div>
+        <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
+          <div className={TILE_BOX}>
+            <TileHead><InclVatOnlyLabel base="Долг поставщику" /></TileHead>
             <div className="absolute right-3 top-3"><SupplierDebtHint debt={debt} year={year} align="right" /></div>
-            <div className={"mt-1 text-2xl font-semibold tabular-nums " + (debt.debt.greaterThan(0) ? "text-amber-700" : "")}>{formatMoney(debt.debt.toFixed(2))}</div>
+            <TileValue className={debt.debt.greaterThan(0) ? "text-amber-700" : ""}>{formatMoney(debt.debt.toFixed(2))}</TileValue>
+            <TileCaption>всего к оплате по закупкам: части ниже в сумме дают этот долг</TileCaption>
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-neutral-600">К оплате по УПД и счетам</dt><dd className="font-medium tabular-nums">{formatMoney(debt.receivedNet.toFixed(2))}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-neutral-600">Счёт выставлен, не оплачен</dt><dd className="font-medium tabular-nums">{formatMoney(debt.invoiced.toFixed(2))}</dd></div>
@@ -126,14 +128,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <Link href="/payments" className="mt-2 inline-block text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>
           </div>
 
-          <div className="rounded-lg border border-neutral-200 bg-white p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Оплачено поставщику</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(d.supplierCashPaid.toFixed(2))}</div>
-            <div className="mt-1 text-xs text-neutral-600">
+          <div className={TILE_BOX}>
+            <TileHead>Оплачено поставщику</TileHead>
+            <TileValue>{formatMoney(d.supplierCashPaid.toFixed(2))}</TileValue>
+            <TileCaption>
               {pv ? (
                 <>подтверждено <b className="tabular-nums">{formatMoney(pv.verified.toFixed(0))}</b> · <span className={pv.waiting.greaterThan(0) ? "text-amber-700" : undefined}>не подтверждено <b className="tabular-nums">{formatMoney(pv.waiting.toFixed(0))}</b></span></>
               ) : null}
-            </div>
+            </TileCaption>
             <div className="mt-1 text-xs text-neutral-500">закупки {formatMoney(debt.total.toFixed(0))} · авансы без привязки {formatMoney(debt.unlinkedAdvances.toFixed(0))}</div>
             <div className="mt-4 border-t border-neutral-100 pt-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг заказчиков" /></div>
@@ -142,14 +144,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </div>
           </div>
 
-          <div className="rounded-lg border border-neutral-200 bg-white p-4">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <div className={TILE_BOX}>
+            <TileHead>
               Задачи
               <InfoHint label="Задачи и фильтры" align="right">Число задач — как в «Контроле»; от фильтров Сводки не зависит.</InfoHint>
-            </div>
+            </TileHead>
             {ctl ? (
               <>
-                <div className={"mt-1 text-2xl font-semibold tabular-nums " + (ctl.urgent > 0 ? "text-red-600" : ctl.tasks > 0 ? "text-amber-700" : "")}>{ctl.tasks}</div>
+                <TileValue className={ctl.urgent > 0 ? "text-red-600" : ctl.tasks > 0 ? "text-amber-700" : ""}>{ctl.tasks}</TileValue>
+                <TileCaption>ждёт подтверждения <b className="tabular-nums text-neutral-700">{ctl.waiting}</b> · не хватает документов <b className="tabular-nums text-neutral-700">{ctl.docGaps}</b></TileCaption>
                 <ul className="mt-2 space-y-1 text-sm">
                   {(ctl.top ?? []).map((b) => (
                     <li key={b.id} className="flex justify-between gap-3">
@@ -159,9 +162,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   ))}
                   {(ctl.top ?? []).length === 0 ? <li className="text-neutral-500">Задач нет</li> : null}
                 </ul>
-                <div className="mt-2 text-xs text-neutral-600">
-                  ждёт подтверждения <b className="tabular-nums">{ctl.waiting}</b> · не хватает документов <b className="tabular-nums">{ctl.docGaps}</b>
-                </div>
                 <div className="mt-2 flex gap-3 text-xs print:hidden">
                   <Link href="/attention" className="text-blue-700 hover:underline">→ Контроль: Задачи</Link>
                   <Link href="/verify" className="text-blue-700 hover:underline">→ Подтвердить</Link>

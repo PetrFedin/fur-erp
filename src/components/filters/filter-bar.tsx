@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NONE, type FilterOption } from "@/lib/filters";
@@ -328,7 +328,7 @@ function BarView({
             </label>
           );
         })}
-        {children}
+        {children ? <Fragment key="extra">{children}</Fragment> : null}
         <noscript>
           <button type="submit" className="h-11 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-medium">Применить</button>
         </noscript>
@@ -358,7 +358,8 @@ function BarView({
           </button>
         </div>
       )}
-      {footer}
+      {/* Блок передаётся серверной страницей (элемент с владельцем DashboardPage): без собственного key в списке детей <section> React 19 ругается «Each child in a list should have a unique key». */}
+      {footer ? <div key="footer">{footer}</div> : null}
     </section>
   );
 }

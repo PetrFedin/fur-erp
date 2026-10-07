@@ -5,6 +5,8 @@
 //   • «Цена за ед. по курсу, ₽» (и «Цена за ед., $») — формат расчётного листа costPlan.
 // Нет ни одной из этих строк — молотка нет (лот не считается в среднее молотка).
 
+import lotUsdSources from "@/data/lot-usd-sources.json";
+
 export type Hammer = {
   /** ₽ за шкуру без НДС. */
   excl: number;
@@ -66,19 +68,62 @@ export function lotHammer(costBreakdown: unknown, vatRate: number, planBreakdown
   return null;
 }
 
+/** Откуда взята цена шкуры в USD (молоток, до сборов). */
+export type UsdSource = "direct" | "eur×rate" | "rub÷rate" | "calc" | "none";
+
+export const USD_SOURCE_LABEL: Record<UsdSource, string> = {
+  direct: "строка в долларах в расчёте лота",
+  "eur×rate": "цена в евро × курс EUR→USD из расчёта лота",
+  "rub÷rate": "молоток в ₽ ÷ записанный в расчёте курс USD/RUB",
+  calc: "цена в $ из расчёта Drive (в лоте нет разбивки)",
+  none: "нет цены в USD",
+};
+
+export type LotUsd = { usd: number | null; source: UsdSource };
+
+type RefEntry = { currency: "USD" | "EUR"; price: number; rubPerUsd?: number; source: string };
+const REFS = (lotUsdSources as { lots: Record<string, RefEntry> }).lots;
+
+/** Запись расчёта Drive по лоту (для отчёта и подсказок). */
+export function lotUsdRef(purchaseNumber: string | null | undefined, lotNumber: string | null | undefined): RefEntry | null {
+  if (!purchaseNumber || !lotNumber) return null;
+  return REFS[`${purchaseNumber}|${lotNumber.trim()}`] ?? null;
+}
+
+const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
+
 /**
- * Закупочная цена шкуры в долларах за единицу (молоток, до сборов) — только если она названа в документах лота:
- * «Цена за ед. (ам. долл.)» в расчёте лота (RawMaterialLot.costBreakdown) или «Цена за ед., $» в расчётном листе позиции закупки.
- * Ничего не пересчитывается по курсу: нет строки — null (у лота нет цены в USD).
+ * Закупочная цена шкуры в долларах за единицу (молоток, до сборов) и откуда она получена. Только записанное в документах лота:
+ *  1. direct — «Цена за ед. (ам. долл.)» / «Цена за ед., $» в расчёте лота или расчётном листе позиции закупки;
+ *  2. eur×rate — цена в евро (расчёт Drive, lot-usd-sources.json) × «Валютный курс инвойса» (EUR→USD) из расчёта лота;
+ *  3. rub÷rate — молоток в ₽ («НДС на шкуры» ÷ ставка НДС лота) ÷ «Курс ЦБ (фиксация)» из расчёта лота — когда расчёт сделан от долларовой цены;
+ *  4. calc — цена в $ из расчёта Drive, если в самом лоте разбивки нет (lot-usd-sources.json).
+ * Курс ЦБ на сегодня и любые «придуманные» курсы не используются: нет данных — source «none».
  */
-export function lotUsdPrice(costBreakdown: unknown, planBreakdowns: unknown[] = []): number | null {
+export function lotUsdPrice(
+  costBreakdown: unknown,
+  planBreakdowns: unknown[] = [],
+  opts: { vatRate?: number; purchaseNumber?: string | null; lotNumber?: string | null } = {},
+): LotUsd {
   const own = itemsOf(costBreakdown);
   const fromOwn = pick(own, "Цена за ед. (ам. долл.)") ?? pick(own, "Цена за ед., $");
-  if (fromOwn != null && fromOwn > 0) return fromOwn;
+  if (fromOwn != null && fromOwn > 0) return { usd: fromOwn, source: "direct" };
   for (const p of planBreakdowns) {
     const items = itemsOf((p as { costBreakdown?: unknown } | null | undefined)?.costBreakdown);
     const v = pick(items, "Цена за ед. (ам. долл.)") ?? pick(items, "Цена за ед., $");
-    if (v != null && v > 0) return v;
+    if (v != null && v > 0) return { usd: v, source: "direct" };
   }
-  return null;
+  const ref = lotUsdRef(opts.purchaseNumber, opts.lotNumber);
+  if (ref?.currency === "EUR") {
+    const inv = pick(own, "Валютный курс инвойса");
+    if (inv != null && inv > 0) return { usd: r4(ref.price * inv), source: "eur×rate" };
+  }
+  const vat = pick(own, "НДС на шкуры");
+  const fix = pick(own, "Курс ЦБ (фиксация)");
+  const vr = opts.vatRate;
+  if (vat != null && vat > 0 && fix != null && fix > 0 && vr != null && vr > 0 && !ref) {
+    return { usd: r4(vat / (vr / 100) / fix), source: "rub÷rate" };
+  }
+  if (ref?.currency === "USD" && ref.price > 0) return { usd: ref.price, source: "calc" };
+  return { usd: null, source: "none" };
 }

@@ -6,6 +6,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
+import { TILE_BOX, TileHead } from "./tile";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 type View = "fur" | "lining" | "all";
@@ -15,20 +16,21 @@ const rub = (v: number) => formatMoney(v.toFixed(2));
 
 function Card({ title, children, hint }: { title: string; children: React.ReactNode; hint?: React.ReactNode }) {
   return (
-    <div className="relative rounded-lg border border-neutral-200 bg-white p-4 print:break-inside-avoid">
-      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</div>
+    <div className={TILE_BOX}>
+      <TileHead>{title}</TileHead>
       {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
       {children}
     </div>
   );
 }
 
+/** Строка плитки: подпись, цифра, пояснение — высоты зарезервированы, чтобы строки трёх плиток стояли на одном уровне. */
 function Row({ k, v, sub, strong }: { k: string; v: React.ReactNode; sub?: React.ReactNode; strong?: boolean }) {
   return (
-    <div className="mt-2 first:mt-3">
-      <div className="text-[11px] text-neutral-500">{k}</div>
-      <div className={(strong ? "text-xl font-semibold " : "text-base font-medium ") + "break-words tabular-nums text-neutral-900"}>{v}</div>
-      {sub ? <div className="text-[11px] leading-4 text-neutral-500">{sub}</div> : null}
+    <div className="mt-2 first:mt-1">
+      <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{k}</div>
+      <div className={(strong ? "text-xl font-semibold " : "text-base font-medium ") + "min-h-7 break-words leading-7 tabular-nums text-neutral-900"}>{v}</div>
+      <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{sub}</div>
     </div>
   );
 }
@@ -51,7 +53,18 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
     if (view === "all") return null;
     if (F.usdQty <= 0 || F.usdAvg == null) return { main: "нет данных в USD", note: "в выбранном срезе нет лотов с закупочной ценой в USD" };
     const share = F.recvQty > 0 ? (F.usdQty / F.recvQty) * 100 : 0;
-    return { main: `${usd(F.usdAvg)} / шт.`, note: `по ${formatQty(F.usdQty)} из ${formatQty(F.recvQty)} шт. с ценой в USD (${share.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}%)` };
+    const b = F.usdBySource;
+    const parts = [
+      b.direct > 0 ? `в долларах в расчёте лота — ${formatQty(b.direct)}` : null,
+      b.eur > 0 ? `евро × курс EUR→USD из расчёта — ${formatQty(b.eur)}` : null,
+      b.rub > 0 ? `молоток ₽ ÷ курс USD/RUB из расчёта — ${formatQty(b.rub)}` : null,
+      b.calc > 0 ? `цена $ из расчёта Drive — ${formatQty(b.calc)}` : null,
+    ].filter(Boolean).join("; ");
+    return {
+      main: `${usd(F.usdAvg)} / шт.`,
+      note: `по ${formatQty(F.usdQty)} из ${formatQty(F.recvQty)} шт. с ценой в USD (${share.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}%)`,
+      hint: `Источники цены, шт.: ${parts || "—"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
+    };
   })();
 
   const seg = (id: View, label: string) => (
@@ -67,7 +80,8 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
           <InfoHint label="Как считаются плитки сырья" wide>
             <p><b>Средневзвешенная цена</b> = Σ ₽ ÷ Σ шт. (для подкладки — ÷ Σ м): отношение сумм, а не среднее цен лотов. Считается так же, как в таблице «Сырьё».</p>
             <p className="mt-1"><b>Режимы.</b> {vatW}; использовано — {c4W}. 4% начисляется только при списании в ТЗ, поэтому к «Куплено» и «Остаток» не применяется.</p>
-            <p className="mt-1"><b>Цена в долларах.</b> Только лоты, у которых в документах названа закупочная цена в USD за шкуру (молоток, до сборов). Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
+            <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; цена в евро × записанный в расчёте курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчёта Drive. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
+            {usdBought && "hint" in usdBought && usdBought.hint ? <p className="mt-1">{usdBought.hint}</p> : null}
             <p className="mt-1">Куплено − использовано = остаток (шт. и ₽ без 4%). «Всё» показывает только ₽: шкуры и метры не складываются.</p>
           </InfoHint>
           <span className="text-xs text-neutral-500">{lots} лотов · {vatW}</span>
@@ -80,7 +94,7 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 print:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <Card title="Куплено">
           {all ? (
             <Row k="Сумма, ₽ (мех + подкладка)" v={rub(F.recvValue + L.recvValue)} strong sub="шкуры и метры не складываются — только деньги" />

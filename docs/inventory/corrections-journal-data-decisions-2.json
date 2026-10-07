@@ -1,0 +1,1261 @@
+{
+  "script": "apply-data-decisions-2.ts",
+  "appliedAt": "2026-10-07T21:58:28.007Z",
+  "changes": [
+    {
+      "kind": "ref",
+      "id": "cmut3euzr000vlse35pamnd8a",
+      "before": {
+        "note": "Предложено, ждёт подтверждения. NATURAL: в приложениях ТЗ у этих ТЗ написано «Коричневый» (все 11 ТЗ), русского названия оттенка в документах нет."
+      },
+      "after": {
+        "note": "Решено 08.10.2026 ([data-decisions-2 2026-10-08]): цвет изделия «Коричневый», отдельный цвет «Натуральный» не вводится. Основание: в приложениях ТЗ слова «натуральный» нет ни у одного из 11 ТЗ; в едином реестре NATURAL — код цвета (колонка К.Ц., лист «Реестр произведённых артикулов»/«Лист8»), а колонка «Цвет» у тех же артикулов (M004/M005/M006 SABLE FARM NO SILVER, SABLE WILD SILVER 2) = «Коричневый». Запись оставлена как псевдоним-справочник (ТЗ/лотов с ней нет)."
+      }
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3eub30003lse3o1xetvhx",
+      "before": {
+        "note": "Пара BROWN ↔ коричневый (в приложениях ТЗ у этих ТЗ — «Коричневый»). Код «239341» из «BROWN 239341» — код цвета в реестре: записан в примечании ТЗ."
+      },
+      "after": {
+        "note": "Пара BROWN ↔ коричневый (в приложениях ТЗ у этих ТЗ — «Коричневый»). Код «239341» из «BROWN 239341» — код цвета в реестре: записан в примечании ТЗ. NATURAL (код цвета соболя в реестре) — это «Коричневый»: решено 08.10.2026, см. «Натуральный»."
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487k00i7ls7yjc5l5nis",
+      "lot": "1498-2",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487k00i5ls7ywf91lmzq",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487s00irls7y51tcxgev",
+      "lot": "1498-1",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487r00ipls7yw9f1m2hu",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc489m00ptls7y4man5r50",
+      "lot": "3237",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc489l00prls7yjlh9r955",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc489n00pzls7ygc3egvf8",
+      "lot": "3238",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc489n00pxls7y68kvyqeq",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc489o00q5ls7y9uls67yr",
+      "lot": "3239",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc489o00q3ls7yo6bbibap",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc489q00qbls7yrhf21cl5",
+      "lot": "3240",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc489p00q9ls7y1laqp2lr",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc489r00qhls7yjylth132",
+      "lot": "3376",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc489r00qfls7y78aa57ja",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ac00snls7yz0ox6quz",
+      "lot": "3746",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ac00slls7yen2p2h57",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ad00stls7yzuvox6mm",
+      "lot": "3749",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ad00srls7y8p82w8vi",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48af00szls7yv1s5xvdf",
+      "lot": "3751-2",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ae00sxls7yt9czzftu",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bs00x3ls7y806i6vg6",
+      "lot": "3751-1",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bs00x1ls7yn76630to",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ag00t5ls7y3w4mgi2j",
+      "lot": "3754",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ag00t3ls7ywngh1tbm",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ah00tbls7yyj629gd4",
+      "lot": "3924",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ah00t9ls7ygj3xhs5h",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ai00thls7y8drpimm7",
+      "lot": "3926",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ai00tfls7yo62cgvtb",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48a600s3ls7y634cfnpv",
+      "lot": "4016",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48a600s1ls7ymdio26hs",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48a700s9ls7yls1b22i9",
+      "lot": "4017",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48a700s7ls7y5u3xkrh6",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48a900sfls7y9q0fcwpw",
+      "lot": "4018",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48a800sdls7yco3u7igb",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48aj00tnls7yfd0crbz5",
+      "lot": "4145",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48aj00tlls7ywxcbq05a",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ak00ttls7ynhvuqpd4",
+      "lot": "4147",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ak00trls7y0efh1x6x",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48al00tzls7yqutthkzc",
+      "lot": "4148",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48al00txls7yzmvhw6e3",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48am00u5ls7yjafcgn7n",
+      "lot": "4256",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48am00u3ls7yh0hoja9f",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48ao00ubls7ym3ongp00",
+      "lot": "4364",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48an00u9ls7y27bl8icj",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48aq00uhls7yshs5s0yj",
+      "lot": "4407",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48ap00ufls7yze93m3sv",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487p00ifls7yfeig2ir3",
+      "lot": "1486",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487o00idls7yh6nuabmj",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487q00ills7y3wj7sqsn",
+      "lot": "1490",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487q00ijls7ylwwhhk2y",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487t00ixls7yh09m8v3s",
+      "lot": "1504",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487s00ivls7y7ilhhq8n",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487u00j3ls7yoj1bjc04",
+      "lot": "1517",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487u00j1ls7yjwffpl70",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487v00j9ls7ybxagsdea",
+      "lot": "1520",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487v00j7ls7yuuss02n9",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487w00jfls7yczomapgg",
+      "lot": "1525",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487w00jdls7ykftf6r29",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487y00jlls7ynk7zmk4d",
+      "lot": "1541",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487x00jjls7ys1b7vuuw",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc487z00jrls7y80qs936v",
+      "lot": "1544",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc487z00jpls7yqrvd0a2j",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48c300y5ls7yak7m8xiy",
+      "lot": "3222",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48c300y3ls7yebspg8m7",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48c400ybls7ymank66mn",
+      "lot": "3223",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48c400y9ls7yfy6mu3ja",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48c600yhls7y6a9oof5i",
+      "lot": "3365",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48c500yfls7yrk1noe0z",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48c700ynls7yeyapph84",
+      "lot": "3369",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48c700ylls7yaitzjj59",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bg00vpls7y2amqiuld",
+      "lot": "3485",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bg00vnls7y5grywhai",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bl00w3ls7ynx092s2h",
+      "lot": "3487",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bk00w1ls7yu2gsfgof",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bn00wfls7y429uoohl",
+      "lot": "3628",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bn00wdls7yxcrrzkb7",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bp00wlls7yaicz6lfj",
+      "lot": "3634",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bp00wjls7yfmhs9zyb",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bq00wrls7ybgtdr5q1",
+      "lot": "3635",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bq00wpls7ya4b59euj",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48br00wxls7y0wotgte8",
+      "lot": "3748",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48br00wvls7ybmt18agt",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bu00x9ls7ytt6cdyx5",
+      "lot": "3958",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bt00x7ls7yyv6ebo2c",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bv00xfls7y8n5z205l",
+      "lot": "3961",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bv00xdls7yd9r6nn2g",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bx00xlls7y9hav1ts8",
+      "lot": "3967",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bw00xjls7ysnyhhg43",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48by00xrls7yd2tnkzfs",
+      "lot": "4051",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48by00xpls7y0br3pye6",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48bz00xxls7yq32xt29j",
+      "lot": "4053",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48bz00xvls7yy40erqau",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Лаванда",
+        "colorRefId": "cmut3eusw000plse3ldbic36p"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc48cr010fls7y2b9kd2zq",
+      "lot": "300687",
+      "before": {
+        "color": null,
+        "colorRefId": null,
+        "sizeGrade": null
+      },
+      "after": {
+        "color": "Коричневый",
+        "colorRefId": "cmut3eub30003lse3o1xetvhx"
+      }
+    },
+    {
+      "kind": "item",
+      "id": "cmupc48cr010dls7yxagzoxhc",
+      "before": {
+        "color": null,
+        "colorRefId": null
+      },
+      "after": {
+        "color": "Коричневый",
+        "colorRefId": "cmut3eub30003lse3o1xetvhx"
+      }
+    },
+    {
+      "kind": "lot",
+      "id": "cmupc481h002nls7yytbty08x",
+      "lot": "513010",
+      "before": {
+        "color": "Жемчуг",
+        "colorRefId": "cmut3euum000rlse3bowbxwt1",
+        "sizeGrade": null
+      },
+      "after": {
+        "sizeGrade": "40"
+      }
+    }
+  ]
+}

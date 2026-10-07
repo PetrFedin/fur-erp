@@ -11,6 +11,7 @@
 //   • средневзвешенная цена = Σ ₽ ÷ Σ шт (или м) — только отношение сумм, см. weighted.ts.
 // 4% к «куплено» и «остаток» не применяется (оно начисляется только при списании в ТЗ).
 import { safeRatio } from "./weighted";
+import type { UsdSource } from "./lot-hammer";
 import { COMMISSION_RATE } from "./commission4-const";
 
 export type FurKind = "fur" | "lining";
@@ -65,6 +66,8 @@ export type FurLot = {
   vatRate: number;
   /** Закупочная цена шкуры в USD за единицу, если она названа в документах лота (lotUsdPrice); иначе null. */
   usdPrice: number | null;
+  /** Откуда цена в USD: direct | eur×rate | rub÷rate | calc | none (lotUsdPrice). */
+  usdSource: UsdSource;
   /** Закупка в валюте: Σ количество и Σ сумма «куплено» по лотам с ценой в USD. */
   usdQty: number;
   usdSubtotal: number;
@@ -73,6 +76,11 @@ export type FurLot = {
   usdUsedSubtotal: number;
   usdRemQty: number;
   usdRemSubtotal: number;
+  /** «Куплено» шт. по источнику цены в USD (одно из четырёх равно recv, остальные 0). */
+  usdQtyDirect: number;
+  usdQtyEur: number;
+  usdQtyRub: number;
+  usdQtyCalc: number;
   usages: FurLotUsage[];
 };
 
@@ -97,16 +105,22 @@ export type Flow = {
   usdUsedSubtotal: number;
   usdRemQty: number;
   usdRemSubtotal: number;
+  /** Сколько шт. «куплено» с ценой в USD — по источникам цены (в сумме = usdQty). */
+  usdQtyDirect: number;
+  usdQtyEur: number;
+  usdQtyRub: number;
+  usdQtyCalc: number;
 };
 
 export const emptyFlow = (): Flow => ({
   lots: 0, recv: 0, used: 0, rem: 0, recvIncl: 0, recvExcl: 0, usedIncl: 0, usedExcl: 0,
   usedExtraIncl: 0, usedExtraExcl: 0, remIncl: 0, remExcl: 0, usdQty: 0, usdSubtotal: 0,
   usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
+  usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0,
 });
 
 /** Числовая часть лота — всё, что нужно для сумм (общая для строки таблицы и лота аналитики сырья). */
-export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal" | "usdUsedQty" | "usdUsedSubtotal" | "usdRemQty" | "usdRemSubtotal">;
+export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal" | "usdUsedQty" | "usdUsedSubtotal" | "usdRemQty" | "usdRemSubtotal" | "usdQtyDirect" | "usdQtyEur" | "usdQtyRub" | "usdQtyCalc">;
 
 export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.lots += 1;
@@ -118,6 +132,7 @@ export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.usdQty += l.usdQty; f.usdSubtotal += l.usdSubtotal;
   f.usdUsedQty += l.usdUsedQty; f.usdUsedSubtotal += l.usdUsedSubtotal;
   f.usdRemQty += l.usdRemQty; f.usdRemSubtotal += l.usdRemSubtotal;
+  f.usdQtyDirect += l.usdQtyDirect; f.usdQtyEur += l.usdQtyEur; f.usdQtyRub += l.usdQtyRub; f.usdQtyCalc += l.usdQtyCalc;
   return f;
 }
 
@@ -163,6 +178,8 @@ export type FlowFigures = {
   usdUsedAvg: number | null;
   usdRemQty: number;
   usdRemAvg: number | null;
+  /** Из usdQty: по источникам цены в USD (шт.). */
+  usdBySource: { direct: number; eur: number; rub: number; calc: number };
 };
 
 export function figures(f: Flow, mode: FlowMode): FlowFigures {
@@ -185,6 +202,7 @@ export function figures(f: Flow, mode: FlowMode): FlowFigures {
     usdQty: round3(f.usdQty),
     usdUsedQty: round3(f.usdUsedQty), usdUsedAvg: safeRatio(f.usdUsedSubtotal, f.usdUsedQty),
     usdRemQty: round3(f.usdRemQty), usdRemAvg: safeRatio(f.usdRemSubtotal, f.usdRemQty),
+    usdBySource: { direct: round3(f.usdQtyDirect), eur: round3(f.usdQtyEur), rub: round3(f.usdQtyRub), calc: round3(f.usdQtyCalc) },
   };
 }
 

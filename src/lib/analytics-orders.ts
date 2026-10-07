@@ -1,3 +1,4 @@
+import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -225,7 +226,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
   );
 
   return orders.map((o) => {
-    const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+    const qty = orderUnits(o); // production-totals.ts: выпуск завершённого ТЗ, план ТЗ в работе
     const furUs = o.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
     const linUs = o.materialUsages.filter((u) => u.rawMaterial.unit === "M");
     const fs = sumUsagesWith4(furUs, mode);
@@ -249,7 +250,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
     const fromText = furOf(o.productModel.category) ?? furOf(o.materialDescription) ?? furFromText(o.productModel.category) ?? furFromText(o.materialDescription);
     const fur = furNames.length > 0 ? furNames.join(" + ") : (fromText ?? UNDEFINED_FUR);
 
-    const q = Number(qty);
+    const q = qty;
     const work = o.clientWorkPricePerUnit ? Number(o.clientWorkPricePerUnit.mul(qty)) : 0;
     const when = orderYearOf({ workOrderDate: o.workOrderDate, endDate: o.endDate, startDate: o.startDate, batch: o.batch });
 

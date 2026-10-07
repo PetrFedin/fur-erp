@@ -480,7 +480,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       {rows.length > 0 && (
         <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm" data-testid="articles-totals">
           <span className="font-medium">Итого по списку</span>
-          <Mode4Badge mode={c4Mode} />: моделей {rows.length} · ТЗ {sumTz} · выпущено {formatQty(sumProduced.toString())} шт. · остаток {formatQty(sumStockQty.toString())} шт. · ср. взвеш. себестоимость за ед.{" "}
+          <Mode4Badge mode={c4Mode} />: моделей {rows.length} · ТЗ {sumTz} · произведено {formatQty(sumProduced.toString())} шт. (завершённые ТЗ) · остаток {formatQty(sumStockQty.toString())} шт. · ср. взвеш. себестоимость за ед.{" "}
           {wAvgIncl ? <Money incl={wAvgIncl} excl={wAvgExcl} /> : "—"}
           {(tzActive || modelFilterOn) && <span className="ml-2 text-xs text-neutral-500">(по ТЗ, подходящим под фильтры; остаток на складе — текущий, от фильтров по ТЗ не зависит)</span>}
         </div>

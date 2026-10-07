@@ -79,7 +79,10 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
   const name = auctionName(l.purchase?.auctionSession);
   const d = l.purchase?.orderDate ?? l.receivedDate;
   const usdByPurchase = l.purchase?.currency === "USD";
-  const usdPrice = lotUsdPrice(l.costBreakdown, l.purchaseItems.map((i) => i.costPlan));
+  const usdInfo = lotUsdPrice(l.costBreakdown, l.purchaseItems.map((i) => i.costPlan), {
+    vatRate: Number(l.vatRate), purchaseNumber: l.purchase?.number, lotNumber: l.lotNumber,
+  });
+  const usdPrice = usdInfo.usd;
   const recvN = num(l.quantityReceived);
   const remN = num(l.quantityRemaining);
   const usedN = num(used);
@@ -114,6 +117,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     remExcl: num(l.quantityRemaining.mul(unitExcl)),
     vatRate: Number(l.vatRate),
     usdPrice,
+    usdSource: usdInfo.source,
     // Цена в USD — из документов лота (молоток, $/шт.); лоты без неё в среднюю $ не входят. Закупка с валютой USD (Purchase.currency) — запасной путь.
     usdQty: usdPrice != null ? recvN : usdByPurchase ? num(l.purchaseItems.reduce((a, i) => a.add(i.quantity), zero())) : 0,
     usdSubtotal: usdPrice != null ? recvN * usdPrice : usdByPurchase ? num(l.purchaseItems.reduce((a, i) => a.add(i.subtotal), zero())) : 0,
@@ -121,6 +125,10 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     usdUsedSubtotal: usdPrice != null ? usedN * usdPrice : 0,
     usdRemQty: usdPrice != null ? remN : 0,
     usdRemSubtotal: usdPrice != null ? remN * usdPrice : 0,
+    usdQtyDirect: usdInfo.source === "direct" ? recvN : 0,
+    usdQtyEur: usdInfo.source === "eur×rate" ? recvN : 0,
+    usdQtyRub: usdInfo.source === "rub÷rate" ? recvN : 0,
+    usdQtyCalc: usdInfo.source === "calc" ? recvN : 0,
     usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
   };
 }
@@ -171,6 +179,10 @@ export function flowOfRawLots(lots: RawLot[]): Flow {
       usdUsedSubtotal: 0,
       usdRemQty: 0,
       usdRemSubtotal: 0,
+      usdQtyDirect: 0,
+      usdQtyEur: 0,
+      usdQtyRub: 0,
+      usdQtyCalc: 0,
     })),
   );
 }

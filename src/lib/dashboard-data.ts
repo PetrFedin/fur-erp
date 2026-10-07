@@ -5,6 +5,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { figures, flowOf, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
+import { orderUnits } from "@/lib/production-totals";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
@@ -138,6 +139,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   for (const o of ordersFiltered) if (o.year != null) yearSet.add(o.year);
   const yearList = Array.from(yearSet).sort((a, b) => a - b);
   const debtFor = (y: YearFilter) => supplierDebtFromInputs(debtInputs, y);
+  // Строка года: сырьё по году закупки лота, «произведено» — завершённые ТЗ года ТЗ, долг/оплаты — как loadSupplierDebt(год).
   const mkYear = (key: string, label: string, lots: FurLot[], orders: OrderRow[], d: SupplierDebt): YearRow => {
     const t = prodTotals(orders.filter(isDone));
     return {
@@ -149,10 +151,35 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       debt: d.debt.toNumber(),
     };
   };
-  const years: YearRow[] = [
-    ...yearList.map((y) => mkYear(String(y), String(y), lotsAllYears.filter((l) => l.year === y), ordersFiltered.filter((o) => o.year === y), debtFor(String(y) as YearFilter))),
-    mkYear("all", "Итого", lotsAllYears, ordersFiltered, debtFor("all")),
-  ];
+  const yearRows: YearRow[] = yearList.map((y) => mkYear(String(y), String(y), lotsAllYears.filter((l) => l.year === y), ordersFiltered.filter((o) => o.year === y), debtFor(String(y) as YearFilter)));
+  const noYear = ordersFiltered.filter((o) => o.year == null);
+  if (noYear.some((o) => isDone(o) && (o.qty !== 0 || o.costIncl !== 0))) {
+    const t = prodTotals(noYear.filter(isDone));
+    const empty = cellsPair([], c4k);
+    yearRows.push({ key: "none", label: "Без даты", fur: empty, lining: empty, prod: { qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum }, paid: 0, debt: 0 });
+  }
+  // «Итого» = сумма строк по каждой аддитивной колонке (куплено, использовано, остаток, произведено, оплачено, долг).
+  // Средневзвешенные цены в итоговой строке считаются от сумм, а не складываются.
+  const sumCells = (list: Cells[]): Cells => {
+    const t = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0 });
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    const avg = (v: number, q: number) => (q > 0 ? r2(v / q) : null);
+    return { rq: r3(t.rq), rv: r2(t.rv), ra: avg(t.rv, t.rq), uq: r3(t.uq), uv: r2(t.uv), ua: avg(t.uv, t.uq), mq: r3(t.mq), mv: r2(t.mv), ma: avg(t.mv, t.mq) };
+  };
+  const sumPair = (list: CellsPair[]): CellsPair => ({ incl: sumCells(list.map((c) => c.incl)), excl: sumCells(list.map((c) => c.excl)) });
+  // Строки, где нет ни одной ненулевой цифры, не показываем (в сумму они ничего не вносят).
+  const hasData = (r: YearRow) => [r.fur.incl, r.lining.incl].some((c) => c.rq !== 0 || c.uq !== 0 || c.mq !== 0 || c.rv !== 0) || r.prod.qty !== 0 || r.prod.costIncl !== 0 || r.paid !== 0 || r.debt !== 0;
+  const shownRows = yearRows.filter(hasData);
+  const totalRow: YearRow = {
+    key: "all", label: "Итого",
+    fur: sumPair(yearRows.map((r) => r.fur)),
+    lining: sumPair(yearRows.map((r) => r.lining)),
+    prod: yearRows.reduce((a, r) => ({ qty: a.qty + r.prod.qty, costIncl: a.costIncl + r.prod.costIncl, costExcl: a.costExcl + r.prod.costExcl, work: a.work + r.prod.work }), { qty: 0, costIncl: 0, costExcl: 0, work: 0 }),
+    paid: yearRows.reduce((a, r) => a + r.paid, 0),
+    debt: yearRows.reduce((a, r) => a + r.debt, 0),
+  };
+  const years: YearRow[] = [...shownRows, totalRow];
 
   const debt = supplierDebtFromInputs(debtInputs, year);
   const invoiceDeadlines = debt.byAuction
@@ -183,7 +210,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     if (!o.clientId || !o.client) continue;
     const e = map.get(o.clientId) ?? { clientId: o.clientId, clientName: o.client.name, billable: new Decimal(0), paid: new Decimal(0), unpricedOrders: 0, orders: 0 };
     e.orders += 1;
-    if (o.clientWorkPricePerUnit) e.billable = e.billable.add(o.clientWorkPricePerUnit.mul(o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity));
+    if (o.clientWorkPricePerUnit) e.billable = e.billable.add(o.clientWorkPricePerUnit.mul(orderUnits(o).toFixed(3)));
     else e.unpricedOrders += 1;
     map.set(o.clientId, e);
   }

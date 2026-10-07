@@ -6,22 +6,24 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { ProductionModal } from "./production-modal";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 
 export type ProdNums = { orders: number; qty: number; costIncl: number; costExcl: number; work: number };
 
-const Tile = ({ label, hint, children, onClick, aria }: { label: string; hint?: React.ReactNode; children: React.ReactNode; onClick?: () => void; aria?: string }) => {
+const Tile = ({ label, hint, onClick, aria, value, caption, valueClass }: { label: string; hint?: React.ReactNode; onClick?: () => void; aria?: string; value: React.ReactNode; caption?: React.ReactNode; valueClass?: string }) => {
   const body = (
     <>
-      <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500">{label}</div>
-      {children}
+      <TileHead>{label}</TileHead>
+      <TileValue className={valueClass}>{value}</TileValue>
+      <TileCaption>{caption}</TileCaption>
     </>
   );
   return (
     <div className="relative">
       {onClick ? (
-        <button type="button" onClick={onClick} aria-label={aria} aria-haspopup="dialog" className="h-full w-full rounded-lg border border-neutral-200 bg-white p-4 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none">{body}</button>
+        <button type="button" onClick={onClick} aria-label={aria} aria-haspopup="dialog" className={TILE_BOX + " w-full shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>{body}</button>
       ) : (
-        <div className="h-full rounded-lg border border-neutral-200 bg-white p-4 print:shadow-none">{body}</div>
+        <div className={TILE_BOX}>{body}</div>
       )}
       {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
     </div>
@@ -43,15 +45,25 @@ export function ProductionBlock({ done, work, c4, search }: { done: ProdNums; wo
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="dash-prod" className="text-base font-semibold">Производство</h2>
         <div className="flex items-center gap-3 text-xs text-neutral-500">
-          <span>{vatW} · {c4W} · завершённые ТЗ</span>
+          <span>{vatW} · {c4W}</span>
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
-        <Tile label="Произведено изделий" onClick={() => setOpen("done")} aria="Произведено изделий — открыть состав стоимости производства">
-          <div className="mt-1 text-2xl font-semibold tabular-nums">{formatQty(done.qty)} шт.</div>
-          <div className="mt-1 text-xs text-neutral-500">{done.orders} ТЗ в статусе «Завершён» · нажмите — состав</div>
-        </Tile>
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
+        <Tile
+          label="Произведено изделий"
+          onClick={() => setOpen("done")}
+          aria="Произведено изделий — открыть состав стоимости производства"
+          hint={
+            <InfoHint label="Что такое «произведено» и «в работе»" wide align="right">
+              <p><b>Произведено</b> — выпуск ТЗ в статусе «Завершён».</p>
+              <p className="mt-1"><b>В работе</b> — план ТЗ «В работе» и «Запланировано»; сырьё — по списаниям на сегодня. В «Произведено» они не входят и с ним не складываются.</p>
+              <p className="mt-1">Те же правила — в «ТЗ», «Партиях», «Изделиях», аналитике, печати и окне состава.</p>
+            </InfoHint>
+          }
+          value={<>{formatQty(done.qty)} шт.</>}
+          caption={<>{done.orders} ТЗ «Завершён»<br />нажмите — состав</>}
+        />
         <Tile
           label="На сумму (себестоимость)"
           onClick={() => setOpen("done")}
@@ -59,14 +71,12 @@ export function ProductionBlock({ done, work, c4, search }: { done: ProdNums; wo
           hint={
             <InfoHint label="Что такое себестоимость" wide align="right">
               <p><b>Себестоимость</b> = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ — как в «ТЗ», «Партиях» и аналитике. <b>Работа</b> сюда не входит.</p>
-              <p className="mt-1"><b>Стоимость сырьё + работа</b> = себестоимость + цена работы × количество.</p>
+              <p className="mt-1"><b>Сырьё + работа</b> = себестоимость + цена работы × количество.</p>
             </InfoHint>
           }
-        >
-          <div className="mt-1 text-2xl font-semibold tabular-nums">{money(cost(done))}</div>
-          <div className="mt-1 text-xs text-neutral-600">+ работа <b className="tabular-nums">{money(done.work)}</b></div>
-          <div className="text-xs text-neutral-600">сырьё + работа <b className="tabular-nums">{money(cost(done) + done.work)}</b></div>
-        </Tile>
+          value={money(cost(done))}
+          caption={<>+ работа <b className="tabular-nums text-neutral-700">{money(done.work)}</b><br />сырьё + работа <b className="tabular-nums text-neutral-700">{money(cost(done) + done.work)}</b></>}
+        />
         <Tile
           label="Средняя себестоимость изделия"
           hint={
@@ -74,15 +84,16 @@ export function ProductionBlock({ done, work, c4, search }: { done: ProdNums; wo
               <p><b>Средневзвешенная</b> = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ). Режимы: {vatW}, {c4W}.</p>
             </InfoHint>
           }
-        >
-          <div className="mt-1 text-2xl font-semibold tabular-nums">{avg != null ? money(avg) : "—"}</div>
-          <div className="mt-1 text-xs text-neutral-500">за 1 изделие, без работы{avg != null && done.work > 0 ? ` · с работой ${money(avg + done.work / done.qty)}` : ""}</div>
-        </Tile>
-        <Tile label="В работе" onClick={() => setOpen("work")} aria="В работе — открыть состав стоимости">
-          <div className="mt-1 text-2xl font-semibold tabular-nums">{formatQty(work.qty)} шт.</div>
-          <div className="mt-1 text-xs text-neutral-600">{work.orders} ТЗ · списано сырья на <b className="tabular-nums">{money(cost(work))}</b></div>
-          <div className="text-xs text-neutral-500">запланированы и в работе</div>
-        </Tile>
+          value={avg != null ? money(avg) : "—"}
+          caption={<>за 1 изделие, без работы{avg != null && done.work > 0 ? <><br />с работой {money(avg + done.work / done.qty)}</> : null}</>}
+        />
+        <Tile
+          label="В работе"
+          onClick={() => setOpen("work")}
+          aria="В работе — открыть состав стоимости"
+          value={<>{formatQty(work.qty)} шт.</>}
+          caption={<>{work.orders} ТЗ · по плану<br />списано сырья на <b className="tabular-nums text-neutral-700">{money(cost(work))}</b></>}
+        />
       </div>
       {open ? (
         <ProductionModal

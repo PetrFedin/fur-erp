@@ -127,7 +127,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
 
       <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="ТЗ" value={String(t.orders)} />
-        <Stat label="Изделий" value={formatQty(t.units.toString())} />
+        <Stat label="Произведено" value={formatQty(t.producedUnits.toString())} />
+        {t.inWorkOrders > 0 && <Stat label="В работе" value={formatQty(t.inWorkUnits.toString())} />}
         <Stat label={`Себестоимость${t.c4Applies ? c4Suffix(c4Mode) : ""}`} value={formatMoney(t.cost.toString())} />
         <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
         <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />

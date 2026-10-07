@@ -266,7 +266,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const panel: Panel = {
     id: `batch-${batch.id}`,
     title: `Партия ${batch.number}${name ? ` «${name}»` : ""}`,
-    subtitle: `${live.length} ТЗ · ${t.units.toDecimalPlaces(0).toString()} шт.`,
+    subtitle: `${live.length} ТЗ · произведено ${t.producedUnits.toDecimalPlaces(0).toString()} шт.${t.inWorkOrders > 0 ? ` · в работе ${t.inWorkUnits.toDecimalPlaces(0).toString()} шт.` : ""}`,
     href: `/production/batches/${batch.number}`,
     pay,
     payments: pr.rows,

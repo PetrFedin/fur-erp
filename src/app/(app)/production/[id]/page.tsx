@@ -40,7 +40,7 @@ import { FittingsBlock } from "./fittings-block";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Section, SectionNav } from "./section";
 import { compareModelNames } from "@/lib/model-code";
-import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
+import { batchOrderInclude, batchTotals, orderUnitsDec } from "@/lib/batch-stats";
 import Link from "next/link";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
@@ -178,6 +178,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           id: true,
           number: true,
           workOrderNumber: true,
+          status: true,
           plannedQuantity: true,
           producedQuantity: true,
           clientWorkPricePerUnit: true,
@@ -194,7 +195,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   ).map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
   const paymentOrders = clientOrders
     .map((o) => {
-      const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+      const qty = orderUnitsDec(o);
       const due = o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.mul(qty) : null;
       const paid = o.paymentAllocations.reduce((sum, a) => sum.add(a.productionPayment.amount), new Decimal(0));
       return {
@@ -349,7 +350,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // Ставки НДС лотов в списаниях (20% / 22% / смешанные): суммы построчно, по ставке каждого лота.
   const vatB = vatBreakdown(order.materialUsages, c4Mode);
 
-  const producedOrPlanned = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
+  const producedOrPlanned = orderUnitsDec(order);
   const clientRevenue = order.clientWorkPricePerUnit
     ? order.clientWorkPricePerUnit.mul(producedOrPlanned)
     : null;
@@ -485,7 +486,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const cancelBlockedReason =
     order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
   const qtyLabel =
-    order.status === "COMPLETED" || order.producedQuantity.greaterThan(0)
+    order.status === "COMPLETED"
       ? `план ${formatQty(order.plannedQuantity.toString())} / факт ${formatQty(order.producedQuantity.toString())} шт.`
       : `план ${formatQty(order.plannedQuantity.toString())} шт.`;
 

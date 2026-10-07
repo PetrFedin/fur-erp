@@ -1,3 +1,4 @@
+import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -126,7 +127,7 @@ export async function loadTzDoc(
   }
 
   const expenseSum = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
-  const qty = order.producedQuantity.greaterThan(0) ? order.producedQuantity : order.plannedQuantity;
+  const qty = new Decimal(orderUnits(order).toFixed(3));
   const workPerUnit = order.clientWorkPricePerUnit;
   const work = workPerUnit ? workPerUnit.mul(qty) : new Decimal(0);
   const total = furSum.add(liningSum).add(expenseSum).add(work);

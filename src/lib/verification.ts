@@ -1,3 +1,4 @@
+import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -439,8 +440,8 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       }
       if (!batch) blockers.push({ text: "партия не указана", href });
       if (!o.clientId) blockers.push({ text: "заказчик не указан", href });
-      const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
-      if (!qty.greaterThan(0)) blockers.push({ text: "количество не задано", href });
+      const qty = orderUnits(o);
+      if (!(qty > 0)) blockers.push({ text: "количество не задано", href });
       if (!o.clientWorkPricePerUnit || !o.clientWorkPricePerUnit.greaterThan(0)) blockers.push({ text: "цена работы не задана", href });
       const nonStock = NON_STOCK_RE.test(`${o.notes ?? ""} ${o.materialDescription ?? ""}`) || (o.materialUsages.length > 0 && o.materialUsages.every((u) => !u.commission4));
       if (o.materialUsages.length === 0 && !nonStock) blockers.push({ text: "состав материалов не задан (нет списаний сырья)", href });

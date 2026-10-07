@@ -1,3 +1,4 @@
+import { producedUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -416,10 +417,13 @@ export const pctText = (p: number | null) => (p == null ? "—" : `${p.toFixed(1
 // ───────────── списания по изделиям и ТЗ ─────────────
 
 const K4 = new Decimal(COMMISSION_RATE);
+/** Произведено по ТЗ — только завершённые (production-totals.ts); у ТЗ в работе 0, их план показывается отдельно. */
+const producedDec = (o: { status: string; producedQuantity: Decimal; plannedQuantity: Decimal }) => new Decimal(producedUnits(o).toFixed(3));
 
 type OrderBrief = {
   id: string;
   number: string;
+  status: string;
   producedQuantity: Decimal;
   plannedQuantity: Decimal;
   workOrderDate: Date | null;
@@ -430,7 +434,7 @@ type OrderBrief = {
   productModel: { id: string; name: string; sku: string | null; category: string | null; categoryRef: { name: string } | null };
 };
 const ORDER_BRIEF = {
-  id: true, number: true, producedQuantity: true, plannedQuantity: true, workOrderDate: true, endDate: true, startDate: true, materialDescription: true,
+  id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, workOrderDate: true, endDate: true, startDate: true, materialDescription: true,
   batch: { select: { id: true, number: true, year: true } },
   productModel: { select: { id: true, name: true, sku: true, category: true, categoryRef: { select: { name: true } } } },
 } satisfies Prisma.ProductionOrderSelect;
@@ -474,7 +478,7 @@ const usageRowOf = (u: {
   sku: u.productionOrder.productModel.sku,
   category: categoryOfOrder(u.productionOrder),
   batchNumber: u.productionOrder.batch?.number ?? null,
-  produced: u.productionOrder.producedQuantity,
+  produced: producedDec(u.productionOrder),
   unit: u.lot.rawMaterial.unit,
   qty: u.quantity,
   incl: u.totalCost,
@@ -683,7 +687,7 @@ export async function loadLotUsage(lotId: string, organizationId?: string): Prom
       const sib = siblings.filter((s) => s.productionOrderId === o.id);
       r = {
         orderId: o.id, number: o.number, orderDate: orderDateOf(o), modelId: o.productModel.id, modelName: o.productModel.name, sku: o.productModel.sku,
-        category: categoryOfOrder(o), batchId: o.batch?.id ?? null, batchNumber: o.batch?.number ?? null, produced: o.producedQuantity, planned: o.plannedQuantity,
+        category: categoryOfOrder(o), batchId: o.batch?.id ?? null, batchNumber: o.batch?.number ?? null, produced: producedDec(o), planned: o.plannedQuantity,
         qty: zero(), orderQty: sib.reduce((s, x) => s.add(x._sum.quantity ?? zero()), zero()), orderLots: sib.length, unitsFromLot: null,
         incl: zero(), excl: zero(), extraIncl: zero(), extraExcl: zero(),
       };

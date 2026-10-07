@@ -316,7 +316,7 @@ export function FurSelectionTotal({
             <button type="button" onClick={() => { setSelected([]); setOnlySelected(false); }} className="ml-2 underline">снять выбор</button>
           )}
         </span>
-        {usdNote && <span>Ср. цена закупки в валюте: <b className="text-neutral-900">{usdNote}</b>/{unit}</span>}
+        {usdNote && <span title="Только лоты с ценой в USD: в долларах в расчёте, евро × курс из расчёта, молоток ₽ ÷ курс USD/RUB из расчёта">Ср. цена закупки в валюте: <b className="text-neutral-900">{usdNote}</b>/{unit} (по {t.usdQty.toLocaleString("ru-RU")} из {t.recvQty.toLocaleString("ru-RU")} шт.)</span>}
         <span className="ml-auto flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {([["all", "Все"], ["sel", "Только выбранные"]] as const).map(([key, label]) => {

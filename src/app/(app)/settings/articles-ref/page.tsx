@@ -18,12 +18,16 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   const canEdit = hasRole(session.user.role, ACCESS.models);
 
   const categories = await getCategoryOptions(orgId);
-  const [models, grouped, seasonRows] = await Promise.all([
+  const [models, grouped, producedGrouped, seasonRows] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
     prisma.productionOrder.groupBy({
       by: ["productModelId"],
       where: { organizationId: orgId, status: { not: "CANCELLED" } },
       _count: { _all: true },
+    }),
+    prisma.productionOrder.groupBy({
+      by: ["productModelId"],
+      where: { organizationId: orgId, status: "COMPLETED" },
       _sum: { producedQuantity: true },
     }),
     prisma.productionOrder.findMany({
@@ -33,6 +37,8 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
     }),
   ]);
   const stat = new Map(grouped.map((g) => [g.productModelId, g]));
+  // «Произведено» — только завершённые ТЗ (production-totals.ts).
+  const producedBy = new Map(producedGrouped.map((g) => [g.productModelId, Number(g._sum.producedQuantity ?? 0)]));
   const seasons = new Map<string, string[]>();
   for (const s of seasonRows) {
     const code = s.season?.code;
@@ -51,7 +57,7 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
     sellingPrice: m.sellingPrice ? Number(m.sellingPrice) : null,
     seasons: Array.from(new Set(seasons.get(m.id) ?? [])).sort(),
     tzCount: stat.get(m.id)?._count._all ?? 0,
-    produced: Number(stat.get(m.id)?._sum.producedQuantity ?? 0),
+    produced: producedBy.get(m.id) ?? 0,
   }));
 
   const withSales = rows.filter((r) => r.salesCode?.trim()).length;

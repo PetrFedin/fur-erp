@@ -239,7 +239,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
 /** Русские названия полей для страницы /history; нет в списке — показываем имя поля как есть. */
 export const FIELD_LABELS: Record<string, string> = {
   number: "номер", name: "название", status: "статус", amount: "сумма", paidAt: "дата оплаты", notes: "заметка",
-  quantity: "количество", plannedQuantity: "план, шт", producedQuantity: "выпущено, шт", size: "размер", color: "цвет",
+  quantity: "количество", plannedQuantity: "план, шт", producedQuantity: "произведено (факт), шт", size: "размер", color: "цвет",
   supplierId: "поставщик", clientId: "заказчик", purchaseId: "закупка", currency: "валюта", exchangeRate: "курс",
   auctionSession: "аукцион", invoiceNumber: "номер счёта", transferDocument: "УПД", orderDate: "дата заказа",
   expectedDate: "ожидаемая дата", receivedDate: "дата получения", verifiedAt: "подтверждено (когда)",

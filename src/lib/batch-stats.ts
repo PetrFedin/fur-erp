@@ -4,6 +4,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { extraInclOnly } from "@/lib/commission4";
 import { DEFAULT_COMMISSION4_MODE, type Commission4Mode } from "@/lib/commission4-mode";
+import { inWorkUnits, isInWorkStatus, isProducedStatus, orderUnits, producedUnits } from "@/lib/production-totals";
+
+/** Количество изделий ТЗ (production-totals.ts): выпуск у завершённого, план у ТЗ в работе. */
+export const orderUnitsDec = (o: { status: string; plannedQuantity: Decimal; producedQuantity: Decimal }) => new Decimal(orderUnits(o).toFixed(3));
 
 /**
  * Название партии для подписи рядом с «Партия N»: служебное «Поставка N» (то же самое,
@@ -54,7 +58,7 @@ export type OrderStat = { qty: Decimal; cost: Decimal; work: Decimal };
  * Работа и расходы не облагаются. Цифры партии — с НДС (как и раньше).
  */
 export function orderStat(o: BatchOrder, mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): OrderStat {
-  const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+  const qty = orderUnitsDec(o);
   const projected = o.materialUsages
     .reduce((s, u) => s.add(u.totalCost), new Decimal(0))
     .add(o.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0)));
@@ -65,7 +69,13 @@ export function orderStat(o: BatchOrder, mode: Commission4Mode = DEFAULT_COMMISS
 
 export type BatchTotals = {
   orders: number;
-  units: Decimal;
+  /** Произведено: выпуск завершённых ТЗ партии. */
+  producedUnits: Decimal;
+  producedOrders: number;
+  /** В работе: план ТЗ «В работе» и «Запланировано». Отдельно от произведённого. */
+  inWorkUnits: Decimal;
+  inWorkOrders: number;
+  /** Себестоимость и работа — по всем действующим ТЗ партии (произведённым и в работе: сырьё списано, работа к оплате). */
   cost: Decimal;
   work: Decimal;
   /** Оплаты по ТЗ партии: каждая оплата учитывается один раз, даже если покрывает несколько ТЗ. */
@@ -77,14 +87,15 @@ export type BatchTotals = {
 
 export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): BatchTotals {
   const live = orders.filter((o) => o.status !== "CANCELLED");
-  let units = new Decimal(0);
+  let pUnits = 0, wUnits = 0, pOrders = 0, wOrders = 0;
   let cost = new Decimal(0);
   let work = new Decimal(0);
   const pay = new Map<string, Decimal>();
   const c4Applies = live.some((o) => o.materialUsages.some((u) => u.commission4));
   for (const o of live) {
     const s = orderStat(o, mode);
-    units = units.add(s.qty);
+    if (isProducedStatus(o.status)) { pOrders += 1; pUnits += producedUnits(o); }
+    else if (isInWorkStatus(o.status)) { wOrders += 1; wUnits += inWorkUnits(o); }
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {
@@ -92,7 +103,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
     }
   }
   const paid = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
-  return { orders: live.length, units, cost, work, paid, remaining: work.sub(paid), c4Applies };
+  return { orders: live.length, producedUnits: new Decimal(pUnits.toFixed(3)), producedOrders: pOrders, inWorkUnits: new Decimal(wUnits.toFixed(3)), inWorkOrders: wOrders, cost, work, paid, remaining: work.sub(paid), c4Applies };
 }
 
 /** Партии организации с их ТЗ (для списка партий и сгруппированного вида). */

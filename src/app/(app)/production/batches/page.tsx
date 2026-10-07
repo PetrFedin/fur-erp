@@ -180,7 +180,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th>Партия</Th>
             <Th className="hidden sm:table-cell">Год</Th>
             <Th>ТЗ</Th>
-            <Th>Изделий</Th>
+            <Th title="Произведено — выпуск завершённых ТЗ партии. ТЗ в работе и запланированные показаны отдельно («в работе»).">Произведено, шт.</Th>
             <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
               Себестоимость
               <Mode4Badge mode={c4Mode} />
@@ -211,7 +211,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 </Link>
               </Td>
               <Td>
-                {formatQty(t.units.toString())}
+                {formatQty(t.producedUnits.toString())}
+                {t.inWorkOrders > 0 && <span className="block text-xs text-neutral-500">в работе {formatQty(t.inWorkUnits.toString())}</span>}
                 {b.plannedUnits != null && <span className="block text-xs text-neutral-400">план {b.plannedUnits}</span>}
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
@@ -276,7 +277,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
                 { label: "ТЗ", value: <Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link> },
-                { label: "Изделий", value: `${formatQty(t.units.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
+                { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${t.inWorkOrders > 0 ? ` · в работе ${formatQty(t.inWorkUnits.toString())}` : ""}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
               ]}
               details={[
                 { label: `Себестоимость${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },

@@ -80,7 +80,7 @@ export function GroupedByBatch({
                 <span className="font-medium">Без партии</span>
               )}
               <span className="text-xs text-neutral-500">
-                ТЗ: {t.orders} · изделий: {formatQty(t.units.toString())}
+                ТЗ: {t.orders} · произведено: {formatQty(t.producedUnits.toString())}{t.inWorkOrders > 0 ? ` · в работе: ${formatQty(t.inWorkUnits.toString())}` : ""}
               </span>
               <span className="ml-auto text-xs text-neutral-600">
                 себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}

@@ -165,7 +165,7 @@ export type ColDef = {
 
 export const COLUMNS: Record<ColKey, ColDef> = {
   orders: { label: "ТЗ", basic: true, hint: "Сколько ТЗ в строке (отменённые не считаются).", sort: (m) => m.orders },
-  units: { label: "Единиц", basic: true, hint: "Σ изделий: выпущено, а если не указано — план по ТЗ.", sort: (m) => m.units },
+  units: { label: "Единиц", basic: true, hint: "Σ изделий: у завершённых ТЗ — произведено, у ТЗ в работе и запланированных — план (отдельно «Произведено» и «В работе» — по статусу ТЗ).", sort: (m) => m.units },
   share: { label: "Доля", basic: true, hint: "Единицы строки ÷ единицы всех строк таблицы.", sort: (m, t) => ratio(m.units, t.units) },
   skinsUnit: {
     label: "Шкур на ед.",
