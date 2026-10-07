@@ -204,7 +204,7 @@ export async function PurchaseSummary({
   const [{ leaves: all, purchaseTotals }, advances, debt] = await Promise.all([
     loadSummary(organizationId),
     loadUnlinkedAdvances(organizationId),
-    loadSupplierDebt(prisma, organizationId),
+    loadSupplierDebt(prisma, organizationId, year),
   ]);
 
   const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
@@ -410,7 +410,7 @@ export async function PurchaseSummary({
       {leaves.length > 0 && (
         <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm" data-supplier-debt>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">Долг поставщику (с НДС, по всей организации)</span>
+            <span className="font-medium">Долг поставщику (с НДС, {year === "all" ? "все годы" : `${year} год`})</span>
             <span className="font-semibold">{money(debt.debt)}</span>
           </div>
           <div className="mt-0.5 flex items-center gap-1 text-xs text-neutral-500">
@@ -421,7 +421,7 @@ export async function PurchaseSummary({
                 {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}.
               </p>
               <p className="mt-1">Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».</p>
-              <p className="mt-1">Год и другие фильтры на это число не влияют; 4% на долг не влияет (4% — только наценка на сырьё и подкладку в ТЗ).</p>
+              <p className="mt-1">Считается за общий год из шапки ({year === "all" ? "все годы" : `${year} год`}): закупки года и их оплаты; фильтры аукциона и материала на это число не влияют; 4% на долг не влияет (4% — только наценка на сырьё и подкладку в ТЗ).</p>
             </InfoHint>
           </div>
           {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) && (

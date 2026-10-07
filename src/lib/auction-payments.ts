@@ -20,15 +20,8 @@ export const PAY_EPS = new Decimal("0.005");
 /** Заметка оплаты «закрытие остатка»: по ней в списке ставится бейдж и оплату можно откатить удалением. */
 export const CLOSING_NOTE = "Оплачено до начала учёта в системе (закрытие остатка)";
 
-export function auctionName(session: string | null | undefined): string | null {
-  const raw = session?.split(/\r?\n/)[0].trim();
-  if (!raw) return null;
-  // Служебная метка импорта — не аукцион. Такие закупки показываем как «Без аукциона».
-  if (/^нет информации$/i.test(raw) || /^не в реестре остатков/i.test(raw)) return null;
-  // Канонические бизнес-названия для интерфейса: документы Drive используют РП/СП и дефис года.
-  if (/^закупка меха 04-26$/i.test(raw)) return "РП 04-26";
-  return raw.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
-}
+export { auctionName } from "@/lib/auction-names";
+import { auctionName } from "@/lib/auction-names";
 
 export type AuctionPayStatus = "UNPAID" | "PARTIAL" | "PAID" | "OVERPAID";
 

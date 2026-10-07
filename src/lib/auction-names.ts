@@ -33,3 +33,17 @@ export function shortAuctionName(name: string | null | undefined, max = AUCTION_
   const sp = cut.lastIndexOf(" ");
   return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.-]+$/, "")}…`;
 }
+
+/**
+ * Название аукциона (партии закупки) из Purchase.auctionSession: первая строка, служебные метки импорта — null
+ * («Без аукциона»), канонические РП/СП. Без server-only — годится и для скриптов.
+ */
+export function auctionName(session: string | null | undefined): string | null {
+  const raw = session?.split(/\r?\n/)[0].trim();
+  if (!raw) return null;
+  // Служебная метка импорта — не аукцион. Такие закупки показываем как «Без аукциона».
+  if (/^нет информации$/i.test(raw) || /^не в реестре остатков/i.test(raw)) return null;
+  // Канонические бизнес-названия для интерфейса: документы Drive используют РП/СП и дефис года.
+  if (/^закупка меха 04-26$/i.test(raw)) return "РП 04-26";
+  return raw.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
+}

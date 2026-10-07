@@ -1,6 +1,8 @@
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { canonicalFur } from "@/lib/fur-ref";
+import { getFurIndex } from "@/lib/fur-ref-server";
 
 import { lotUnitCostExclVat, purchaseTotalExclVat, purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
@@ -127,6 +129,7 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
     }),
     loadAuctionSummaries(prisma, organizationId),
   ]);
+  const furIdx = await getFurIndex(organizationId);
   const byName = new Map(summaries.map((s) => [s.name, s]));
   const leaves: Leaf[] = [];
   const purchaseTotals = new Map<string, { incl: Decimal; excl: Decimal }>();
@@ -194,7 +197,8 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
         lotNumber: l.i.lotNumber ?? l.i.lot?.lotNumber ?? null,
         year,
         auction,
-        material: l.i.rawMaterial.name,
+        // «Лиса красная» — вид «Лиса» (цвет — отдельное поле); подкладка и неизвестное — как в справочнике материалов.
+        material: l.i.rawMaterial.unit === "M" ? l.i.rawMaterial.name : canonicalFur(l.i.rawMaterial.name, furIdx)?.name ?? l.i.rawMaterial.name,
         unit: l.i.rawMaterial.unit,
         qty: l.i.quantity,
         price: { incl: l.priceIncl, excl: l.base },

@@ -1,0 +1,153 @@
+// Загрузка лотов для таблицы «Мех / Подкладка» (расчёт — в fur-table.ts). Без "server-only":
+// функцию вызывают и страницы (клиент БД — общий prisma), и scripts/test-fur-table.ts (свой PrismaClient).
+import { Decimal } from "@prisma/client/runtime/library";
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { canonicalFur, type FurIndex } from "./fur-ref";
+import { lotUnitCostExclVat } from "./purchase-totals";
+import { lotYear } from "./year-scope";
+import { COMMISSION_RATE } from "./commission4-const";
+import { NO_AUCTION_LABEL, auctionName, shortAuctionName } from "./auction-names";
+import { sizeOf } from "./lot-size";
+import type { YearFilter } from "./year-filter";
+import { NO_AUCTION, NOT_SET, flowOf, type Flow, type FurKind, type FurLot } from "./fur-table";
+import type { RawLot } from "./raw-analytics";
+
+/** «Красная» из названия материала («Лиса красная») — это цвет: пока colorRefId не проставлен скриптом color-red-fox.ts, показываем его так. */
+export function colorFromMaterialName(name: string): string | null {
+  return /^лиса\s+красная$/i.test(name.trim()) ? "Красный" : null;
+}
+
+const LOT_SELECT = {
+  id: true,
+  lotNumber: true,
+  grade: true,
+  color: true,
+  sizeGrade: true,
+  receivedDate: true,
+  quantityReceived: true,
+  quantityRemaining: true,
+  unitCost: true,
+  vatRate: true,
+  materialCostExclVat: true,
+  expenseCostExclVat: true,
+  rawMaterial: { select: { name: true, unit: true } },
+  colorRef: { select: { name: true } },
+  purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, currency: true, supplier: { select: { name: true } } } },
+  purchaseItems: { select: { quantity: true, subtotal: true } },
+  usages: {
+    where: { productionOrder: { status: { not: "CANCELLED" as const } } },
+    select: { quantity: true, totalCost: true, commission4: true, productionOrder: { select: { id: true, number: true } } },
+    orderBy: { date: "asc" as const },
+  },
+} satisfies Prisma.RawMaterialLotSelect;
+
+type LotRecord = Prisma.RawMaterialLotGetPayload<{ select: typeof LOT_SELECT }>;
+
+const zero = () => new Decimal(0);
+const num = (d: Decimal) => d.toNumber();
+
+/** Одна запись лота склада → строка таблицы. */
+export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
+  const kind: FurKind = l.rawMaterial.unit === "M" ? "lining" : "fur";
+  const k = new Decimal(COMMISSION_RATE);
+  const unitExcl = lotUnitCostExclVat(l);
+  let used = zero();
+  let usedIncl = zero();
+  let usedExcl = zero();
+  let extraIncl = zero();
+  let extraExcl = zero();
+  const byOrder = new Map<string, { orderId: string; number: string; qty: Decimal }>();
+  for (const u of l.usages) {
+    used = used.add(u.quantity);
+    usedIncl = usedIncl.add(u.totalCost);
+    const ex = u.quantity.mul(unitExcl);
+    usedExcl = usedExcl.add(ex);
+    if (u.commission4) {
+      extraIncl = extraIncl.add(u.totalCost.mul(k));
+      extraExcl = extraExcl.add(ex.mul(k));
+    }
+    const cur = byOrder.get(u.productionOrder.id);
+    if (cur) cur.qty = cur.qty.add(u.quantity);
+    else byOrder.set(u.productionOrder.id, { orderId: u.productionOrder.id, number: u.productionOrder.number, qty: u.quantity });
+  }
+  const name = auctionName(l.purchase?.auctionSession);
+  const d = l.purchase?.orderDate ?? l.receivedDate;
+  const usd = l.purchase?.currency === "USD";
+  const material = l.rawMaterial.name;
+  return {
+    id: l.id,
+    kind,
+    item: kind === "lining" ? material : canonicalFur(material, furIdx)?.name ?? material,
+    materialName: material,
+    color: l.colorRef?.name?.trim() || l.color?.trim() || colorFromMaterialName(material) || NOT_SET,
+    size: l.sizeGrade ? l.sizeGrade.split(",")[0] : sizeOf(l.grade),
+    auction: name ?? NO_AUCTION,
+    auctionLabel: name ? shortAuctionName(name) || NO_AUCTION_LABEL : NO_AUCTION_LABEL,
+    year: d.getUTCFullYear(),
+    lotNumber: l.lotNumber?.trim() || "без номера",
+    grade: l.grade?.trim() ?? "",
+    purchaseId: l.purchase?.id ?? null,
+    purchaseNumber: l.purchase?.number ?? null,
+    supplier: l.purchase?.supplier?.name ?? null,
+    recv: num(l.quantityReceived),
+    used: num(used),
+    rem: num(l.quantityRemaining),
+    recvIncl: num(l.quantityReceived.mul(l.unitCost)),
+    recvExcl: num(l.quantityReceived.mul(unitExcl)),
+    usedIncl: num(usedIncl),
+    usedExcl: num(usedExcl),
+    usedExtraIncl: num(extraIncl),
+    usedExtraExcl: num(extraExcl),
+    remIncl: num(l.quantityRemaining.mul(l.unitCost)),
+    remExcl: num(l.quantityRemaining.mul(unitExcl)),
+    usdQty: usd ? num(l.purchaseItems.reduce((a, i) => a.add(i.quantity), zero())) : 0,
+    usdSubtotal: usd ? num(l.purchaseItems.reduce((a, i) => a.add(i.subtotal), zero())) : 0,
+    usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty) })),
+  };
+}
+
+/**
+ * Все лоты меха или подкладки организации за год (по дате закупки, общий фильтр года).
+ * extraWhere — дополнительное условие (например, поиск по № лота на странице «Сырьё»).
+ */
+export async function loadFurLots(
+  db: PrismaClient,
+  organizationId: string,
+  opts: { kind: FurKind; year: YearFilter; furIdx?: FurIndex; extraWhere?: Prisma.RawMaterialLotWhereInput },
+): Promise<FurLot[]> {
+  const rows = await db.rawMaterialLot.findMany({
+    where: {
+      organizationId,
+      ...lotYear(opts.year),
+      rawMaterial: { unit: opts.kind === "lining" ? "M" : { not: "M" } },
+      ...(opts.extraWhere ?? {}),
+    },
+    select: LOT_SELECT,
+    orderBy: [{ receivedDate: "asc" }, { lotNumber: "asc" }],
+  });
+  return rows.map((r) => furLotFromRecord(r, opts.furIdx));
+}
+
+/**
+ * Суммы по лотам аналитики сырья (/analytics/raw) тем же расчётом, что у таблицы «Мех / Подкладка»:
+ * плитки «Куплено / Использовано / Остаток» и средневзвешенные цены берутся отсюда.
+ */
+export function flowOfRawLots(lots: RawLot[]): Flow {
+  return flowOf(
+    lots.map((l) => ({
+      recv: num(l.recv),
+      used: num(l.used),
+      rem: num(l.rem),
+      recvIncl: num(l.recv.mul(l.unitIncl)),
+      recvExcl: num(l.recv.mul(l.unitExcl)),
+      usedIncl: num(l.usedIncl),
+      usedExcl: num(l.usedExcl),
+      usedExtraIncl: num(l.usedExtraIncl),
+      usedExtraExcl: num(l.usedExtraExcl),
+      remIncl: num(l.rem.mul(l.unitIncl)),
+      remExcl: num(l.rem.mul(l.unitExcl)),
+      usdQty: 0,
+      usdSubtotal: 0,
+    })),
+  );
+}

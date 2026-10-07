@@ -6,7 +6,6 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
-import { Money } from "@/components/money";
 import { InclVatOnlyLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
@@ -16,9 +15,12 @@ import { CompactMoney } from "./compact-money";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
-import { lotYear, orderYearWhere } from "@/lib/year-scope";
+import { lotYear, orderYearOf, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
+import { loadFurLots } from "@/lib/fur-table-server";
+import { getFurIndex } from "@/lib/fur-ref-server";
+import { canonicalFur } from "@/lib/fur-ref";
 import { ProductionCostTotal } from "@/components/production-cost-total";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -41,21 +43,22 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // Общий год: закупка — по дате заказа, оплата — по дате оплаты, ТЗ — по дате ТЗ (или года партии), лот — по закупке.
   const year = await getYearFilter();
   const range = yearRange(year);
+  const furIdx = await getFurIndex(organizationId);
 
   const [
     allPurchases,
     supplierDebt,
     lowStockMaterials,
     allLots,
-    materials,
     materialUsedAgg,
-    furPurchaseItems,
     productionCostOrders,
     annualPurchases,
     annualSupplierPayments,
     annualProductionOrders,
     clientOrders,
     clientPaymentsAll,
+    furLotsTable,
+    liningLotsTable,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
@@ -70,17 +73,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, ...lotYear(year) },
-      select: {
-        id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, color: true, receivedDate: true,
-        rawMaterial: { select: { name: true, unit: true } },
-        purchase: { select: { auctionSession: true, orderDate: true, currency: true } },
-        purchaseItems: { select: { quantity: true, subtotal: true } },
-      },
-    }),
-    prisma.rawMaterial.findMany({
-      where: { organizationId },
-      select: { id: true, name: true, unit: true },
-      orderBy: { name: "asc" },
+      select: { id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, rawMaterial: { select: { unit: true } } },
     }),
     prisma.productionMaterialUsage.findMany({
       where: { productionOrder: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) } },
@@ -91,13 +84,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         rawMaterial: { select: { name: true, unit: true } },
         lot: { select: { id: true, materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
       },
-    }),
-    prisma.purchaseItem.findMany({
-      where: {
-        purchase: { organizationId, status: { not: "CANCELLED" }, currency: "USD", ...(range ? { orderDate: range } : {}) },
-        rawMaterial: { unit: { not: "M" } },
-      },
-      select: { quantity: true, subtotal: true },
     }),
     prisma.productionOrder.findMany({
       where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
@@ -121,7 +107,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     prisma.productionOrder.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
       select: {
-        producedQuantity: true, workOrderDate: true, startDate: true, createdAt: true,
+        producedQuantity: true, workOrderDate: true, endDate: true, startDate: true, createdAt: true,
+        batch: { select: { year: true } },
         materialUsages: { select: { totalCost: true } },
       },
     }),
@@ -135,6 +122,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId },
       include: { orders: { select: { productionOrderId: true } } },
     }),
+    // Таблицы «Мех» и «Подкладка»: лоты за общий год; расчёт — src/lib/fur-table.ts (тот же, что на /lots и в аналитике).
+    loadFurLots(prisma, organizationId, { kind: "fur", year, furIdx }),
+    loadFurLots(prisma, organizationId, { kind: "lining", year, furIdx }),
   ]);
   // Оплаты заказчиков года: привязанные к ТЗ года; без ТЗ — по дате оплаты.
   const yearOrderIds = new Set(clientOrders.map((o) => o.id));
@@ -206,63 +196,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     .sort((a, b) => (b.balance.greaterThan(a.balance) ? 1 : -1));
   const clientDebtTotal = clientDebts.reduce((s, c) => s.add(c.balance), new Decimal(0));
 
-  // Lifetime raw material purchased/used/remaining, by material (used = purchased - remaining).
-  type MaterialFlow = {
-    id: string;
-    name: string;
-    unit: string;
-    purchased: Decimal;
-    remaining: Decimal;
-    remainingValue: Decimal;
-    remainingValueExclVat: Decimal;
-  };
-  const materialFlowMap = new Map<string, MaterialFlow>();
-  for (const m of materials) {
-    materialFlowMap.set(m.id, {
-      id: m.id,
-      name: m.name,
-      unit: m.unit,
-      purchased: new Decimal(0),
-      remaining: new Decimal(0),
-      remainingValue: new Decimal(0),
-      remainingValueExclVat: new Decimal(0),
-    });
-  }
-  for (const l of allLots) {
-    const agg = materialFlowMap.get(l.rawMaterialId);
-    if (agg) agg.purchased = agg.purchased.add(l.quantityReceived);
-  }
-  for (const l of lowStockMaterials) {
-    const agg = materialFlowMap.get(l.rawMaterialId);
-    if (agg) {
-      agg.remaining = agg.remaining.add(l.quantityRemaining);
-      agg.remainingValue = agg.remainingValue.add(l.quantityRemaining.mul(l.unitCost));
-      agg.remainingValueExclVat = agg.remainingValueExclVat.add(l.quantityRemaining.mul(lotUnitCostExclVat(l)));
-    }
-  }
-  const materialFlowRows = Array.from(materialFlowMap.values()).filter(
-    (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
-  );
-  // Сводка: 5 строк меха (по стоимости остатка), вся подкладка (единица «м») — одной строкой.
-  // Полностью израсходованные материалы скрыты; полный список — в разделе «Сырьё».
-  const liveRows = materialFlowRows.filter((r) => !(r.remaining.isZero() && r.remainingValue.isZero()));
-  const allFurRows = liveRows.filter((r) => r.unit !== "M").sort((a, b) => b.remainingValue.comparedTo(a.remainingValue));
-  const furRows = allFurRows.slice(0, 5);
-  const moreFurRows = allFurRows.length - furRows.length;
-  const liningRows = liveRows.filter((r) => r.unit === "M");
-  const liningRow = liningRows.length
-    ? {
-        key: "lining",
-        name: liningRows.length > 1 ? `Подкладка (${liningRows.length} вида)` : liningRows[0].name,
-        unit: "M",
-        href: "/lots?tab=lining",
-        purchased: liningRows.reduce((s, r) => s.add(r.purchased), new Decimal(0)),
-        remaining: liningRows.reduce((s, r) => s.add(r.remaining), new Decimal(0)),
-        remainingValue: liningRows.reduce((s, r) => s.add(r.remainingValue), new Decimal(0)),
-        remainingValueExclVat: liningRows.reduce((s, r) => s.add(r.remainingValueExclVat), new Decimal(0)),
-      }
-    : null;
-
   const totalPurchasedValue = allPurchases.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const totalPurchasedValueExclVat = allPurchases.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
   // «Использовано в ТЗ» в режиме «С 4%»: +4% к строкам списаний с commission4 = true.
@@ -272,15 +205,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const totalMaterialUsedValueExclVat = usedSum.excl;
 
   // Тотал по меховому сырью: только физически принятые лоты, подкладка отдельно.
-  const furLots = allLots.filter((l) => l.rawMaterial.unit !== "M");
-  const rawQtyTotal = furLots.reduce((s, l) => s.add(l.quantityReceived), new Decimal(0));
-  const rawCostTotal = furLots.reduce((s, l) => s.add(l.quantityReceived.mul(l.unitCost)), new Decimal(0));
-  const rawRemainingQty = furLots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
-  const rawRemainingValue = furLots.reduce((s, l) => s.add(l.quantityRemaining.mul(l.unitCost)), new Decimal(0));
-  const rawAvgFinalRub = rawQtyTotal.greaterThan(0) ? rawCostTotal.div(rawQtyTotal) : new Decimal(0);
-  const usdQty = furPurchaseItems.reduce((s, i) => s.add(i.quantity), new Decimal(0));
-  const usdSubtotal = furPurchaseItems.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
-  const rawAvgPurchaseUsd = usdQty.greaterThan(0) ? usdSubtotal.div(usdQty) : new Decimal(0);
+  const rawRemainingQty = allLots.filter((l) => l.rawMaterial.unit !== "M").reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
 
   const furUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit === "M");
@@ -297,45 +222,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const producedGoodsAverageCost = producedGoodsQty.greaterThan(0) ? producedGoodsTotalCost.div(producedGoodsQty) : new Decimal(0);
   const supplierCashPaid = supplierDebt.paid.add(supplierDebt.unlinkedAdvances);
 
-  const usageByLot = new Map<string, { qty: Decimal; value: Decimal; c4Value: Decimal }>();
-  for (const u of materialUsedAgg) {
-    const id = u.lot.id;
-    const cur = usageByLot.get(id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
-    cur.qty = cur.qty.add(u.quantity);
-    cur.value = cur.value.add(u.totalCost);
-    cur.c4Value = cur.c4Value.add(u.commission4 ? new Decimal(u.totalCost).mul(1 + COMMISSION_RATE) : u.totalCost);
-    usageByLot.set(id, cur);
-  }
-  const canonicalFurName = (name: string) => /^Лиса(?:\s|$)/i.test(name) ? "Лиса" : name;
-  const normalizedAuction = (raw: string | null | undefined) => {
-    const value = raw?.split(/\r?\n/)[0].trim();
-    if (!value || /^нет информации$/i.test(value)) return "Без партии закупки";
-    if (/^закупка меха 04-26$/i.test(value)) return "РП 04-26";
-    return value.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
-  };
-  const furInteractiveRows = allLots.filter((l) => l.rawMaterial.unit !== "M").map((l) => {
-    const used = usageByLot.get(l.id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
-    const inferredColor = /^Лиса красная$/i.test(l.rawMaterial.name) ? "Красный" : null;
-    const usdQty = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.quantity), new Decimal(0)) : new Decimal(0);
-    const usdSubtotal = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.subtotal), new Decimal(0)) : new Decimal(0);
-    return {
-      id: l.id,
-      species: canonicalFurName(l.rawMaterial.name),
-      color: l.color || inferredColor || "Не указан",
-      auction: normalizedAuction(l.purchase?.auctionSession),
-      year: (l.purchase?.orderDate ?? l.receivedDate).getUTCFullYear(),
-      purchasedQty: l.quantityReceived.toNumber(),
-      purchasedValue: l.quantityReceived.mul(l.unitCost).toNumber(),
-      usedQty: used.qty.toNumber(),
-      usedValueBase: used.value.toNumber(),
-      usedValueWith4: used.c4Value.toNumber(),
-      remainingQty: l.quantityRemaining.toNumber(),
-      remainingValue: l.quantityRemaining.mul(l.unitCost).toNumber(),
-      usdQty: usdQty.toNumber(),
-      usdSubtotal: usdSubtotal.toNumber(),
-    };
-  });
-
   type AnnualRow = { year: number; purchased: Decimal; supplierPaid: Decimal; produced: Decimal; materialInProduction: Decimal; clientPaid: Decimal };
   const annualMap = new Map<number, AnnualRow>();
   const annual = (y: number) => {
@@ -346,8 +232,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   for (const p of annualPurchases) annual(p.orderDate.getUTCFullYear()).purchased = annual(p.orderDate.getUTCFullYear()).purchased.add(purchaseTotalInclVat(p));
   for (const p of annualSupplierPayments) annual(p.paidAt.getUTCFullYear()).supplierPaid = annual(p.paidAt.getUTCFullYear()).supplierPaid.add(p.amount);
   for (const o of annualProductionOrders) {
-    const d = o.workOrderDate ?? o.startDate ?? o.createdAt;
-    const row = annual(d.getUTCFullYear());
+    // Год ТЗ — по тому же правилу, что общий фильтр года: workOrderDate → endDate → startDate → год партии (src/lib/year-scope.ts).
+    const row = annual(orderYearOf(o) ?? o.createdAt.getUTCFullYear());
     row.produced = row.produced.add(o.producedQuantity);
     row.materialInProduction = row.materialInProduction.add(o.materialUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)));
   }
@@ -357,10 +243,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const liningCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
   for (const u of materialUsedAgg) {
     const map = u.rawMaterial.unit === "M" ? liningCostMap : furCostMap;
-    const cur = map.get(u.rawMaterial.name) ?? { value: new Decimal(0), qty: new Decimal(0) };
+    // «Лиса красная» — вид «Лиса» (красная — цвет): в разбивке стоимости это одна строка.
+    const label = u.rawMaterial.unit === "M" ? u.rawMaterial.name : canonicalFur(u.rawMaterial.name, furIdx)?.name ?? u.rawMaterial.name;
+    const cur = map.get(label) ?? { value: new Decimal(0), qty: new Decimal(0) };
     cur.value = cur.value.add(u.totalCost);
     cur.qty = cur.qty.add(u.quantity);
-    map.set(u.rawMaterial.name, cur);
+    map.set(label, cur);
   }
   const furCostDetails = Array.from(furCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
   const liningCostDetails = Array.from(liningCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
@@ -551,13 +439,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <CardTitle className="flex items-center gap-2">
               Мех
               <InfoHint wide label="Мех">
-                <p>Единый интерактивный контейнер мехового сырья. «Лиса» и «Лиса красная» объединены в один вид «Лиса»; цвет выбирается внутри фильтра.</p>
-                <p className="mt-1">Выключение вида меха пересчитывает тоталы, цвета и доступные партии закупки.</p>
+                <p>Куплено → использовано в ТЗ → остаток по видам меха. «Лиса красная» — это вид «Лиса», а «красная» — цвет (фильтр «Цвет»).</p>
+                <p className="mt-1">Клик по названию раскрывает строку до партий (аукционов) и лотов; галочка слева выбирает вид для тотала. Фильтры применяются сразу и хранятся в адресе страницы.</p>
+                <p className="mt-1">Средневзвешенная цена = Σ ₽ ÷ Σ шт. (отношение сумм). Переключатели «С НДС / Без НДС» и «С 4% / Без 4%» в шапке пересчитывают таблицу.</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <FurSelectionTotal rows={furInteractiveRows} c4Mode={c4Mode} />
+            <FurSelectionTotal lots={furLotsTable} kind="fur" globalYear={year} initialQuery={sp} />
           </CardContent>
         </Card>
 
@@ -566,29 +455,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <CardTitle className="flex items-center gap-2">
               Подкладка
               <InfoHint wide label="Подкладка">
-                <p>Подкладочные материалы вынесены отдельно и больше не смешиваются с мехом в одной таблице.</p>
+                <p>Подкладочные ткани — отдельно от меха, в метрах: куплено → использовано → остаток и средневзвешенные цены (Σ ₽ ÷ Σ м). Фильтры и раскрытие строк — как у меха.</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {liningRow ? (
-              <Table>
-                <Thead><Tr><Th>Материал</Th><Th>Куплено</Th><Th>Использовано</Th><Th>Остаток</Th><Th>Стоимость остатка</Th></Tr></Thead>
-                <Tbody>
-                  <Tr>
-                    <Td className="font-medium"><Link href={liningRow.href} className="hover:underline">{liningRow.name}</Link></Td>
-                    <Td>{formatQty(liningRow.purchased.toString())} м</Td>
-                    <Td>{formatQty(liningRow.purchased.sub(liningRow.remaining).toString())} м</Td>
-                    <Td className={liningRow.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>{formatQty(liningRow.remaining.toString())} м</Td>
-                    <Td><Money incl={liningRow.remainingValue} excl={liningRow.remainingValueExclVat} /></Td>
-                  </Tr>
-                </Tbody>
-              </Table>
-            ) : <p className="py-6 text-center text-sm text-neutral-400">Подкладка ещё не закупалась</p>}
-            <div className="mt-3 flex justify-end text-sm">
-              <span className="text-neutral-500">Тотал подкладки:</span>
-              <span className="ml-1 font-semibold"><Money incl={liningRow?.remainingValue ?? 0} excl={liningRow?.remainingValueExclVat ?? 0} /></span>
-            </div>
+            <FurSelectionTotal lots={liningLotsTable} kind="lining" globalYear={year} initialQuery={sp} />
           </CardContent>
         </Card>
       </section>

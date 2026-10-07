@@ -69,15 +69,15 @@ export function ProductionCostTotal({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Структура себестоимости произведённого товара"
+            aria-label="Структура стоимости произведённого товара: сырьё, подкладка и работа"
             className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Структура себестоимости</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Структура стоимости: сырьё + работа</div>
                 <h2 className="mt-1 text-xl font-semibold">Произведённый товар · {money(total)}</h2>
-                <p className="mt-1 text-sm text-neutral-500">{products.toLocaleString("ru-RU")} изделий. Нажмите на строку расхода для детализации.</p>
+                <p className="mt-1 text-sm text-neutral-500">{products.toLocaleString("ru-RU")} изделий. Нажмите на строку расхода для детализации. Здесь «стоимость» = мех + подкладка + работа; «себестоимость» в ТЗ, партиях и аналитике — это сырьё и подкладка + расходы, без работы.</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50">Закрыть</button>
             </div>

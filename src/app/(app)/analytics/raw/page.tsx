@@ -25,6 +25,8 @@ import { USAGE_COLS, perUnit } from "./usage-rows";
 import { CostCell } from "./cost-cell";
 import { MonthlyChart, type MonthPoint } from "./monthly-chart";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
+import { figures } from "@/lib/fur-table";
+import { flowOfRawLots } from "@/lib/fur-table-server";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -47,6 +49,10 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const scoped = data.lots.filter((l) => (f.scope === "lining") === (l.unit === "M"));
   const lots = applyFilters(data.lots, f);
   const total = aggOf(lots);
+  // Средневзвешенные цены (как основные цифры плиток — без 4%) — общий расчёт с таблицей «Мех / Подкладка» (src/lib/fur-table.ts): Σ ₽ ÷ Σ шт. (м).
+  const flow = flowOfRawLots(lots);
+  const fIncl = figures(flow, { vat: "incl", c4: "off" });
+  const fExcl = figures(flow, { vat: "excl", c4: "off" });
   const groups = isUsageBy(by) ? [] : groupLots(lots, by as LotGroupBy);
   const usageGroups: UsageGroup[] = isUsageBy(by)
     ? (() => {
@@ -181,6 +187,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"
+          avg={{ incl: fIncl.recvAvg, excl: fExcl.recvAvg, what: "закупки" }}
           q={total.recv}
           incl={total.recvIncl}
           excl={total.recvExcl}
@@ -193,6 +200,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         />
         <Tile unit={unit} c4={c4}
           title="Использовано в ТЗ"
+          avg={{ incl: fIncl.usedAvg, excl: fExcl.usedAvg, what: "использованного" }}
           q={total.used}
           incl={total.usedIncl}
           excl={total.usedExcl}
@@ -220,6 +228,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         />
         <Tile unit={unit} c4={c4}
           title="Остаток"
+          avg={{ incl: fIncl.remAvg, excl: fExcl.remAvg, what: "остатка" }}
           q={total.rem}
           incl={total.remIncl}
           excl={total.remExcl}
@@ -452,7 +461,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   );
 }
 
-function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4 }: { unit: string; c4: "on" | "off"; title: string; hint: React.ReactNode; q: Decimal; incl: Decimal; excl: Decimal; extra?: { incl: Decimal; excl: Decimal } | null; sub?: React.ReactNode }) {
+function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit: string; c4: "on" | "off"; title: string; hint: React.ReactNode; q: Decimal; incl: Decimal; excl: Decimal; extra?: { incl: Decimal; excl: Decimal } | null; sub?: React.ReactNode; avg?: { incl: number | null; excl: number | null; what: string } }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="flex items-center gap-1 text-xs text-neutral-500">
@@ -466,6 +475,11 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4 }: { unit: stri
       {extra && c4 === "on" && (
         <div className="text-xs text-neutral-500">
           с 4%: <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} />
+        </div>
+      )}
+      {avg && avg.incl != null && (
+        <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
+          ср. взвеш.: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
         </div>
       )}
       {sub}

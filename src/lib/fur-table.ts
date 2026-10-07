@@ -1,0 +1,330 @@
+// Единый расчёт таблицы «Мех / Подкладка: куплено → использовано → остаток».
+// Чистые функции без базы и без React: их используют /lots (вкладки Мех и Подкладка), Сводка (/dashboard)
+// и /analytics/raw (плитки), а scripts/test-fur-table.ts сверяет их с SQL.
+//
+// Основа — строка-лот (FurLot): одна принятая позиция закупки. Все суммы лота посчитаны на сервере
+// (fur-table-server.ts) и лежат парами «с НДС / без НДС»; 4% — отдельной надбавкой к использованному
+// (только строки списания с commission4 = true). Здесь они лишь складываются и делятся:
+//   • куплено ₽        = Σ(кол-во лота × цена лота за единицу);
+//   • использовано ₽   = Σ(списания лота)  [+ 4% в режиме «С 4%»];
+//   • остаток ₽        = Σ(остаток лота × цена лота за единицу);
+//   • средневзвешенная цена = Σ ₽ ÷ Σ шт (или м) — только отношение сумм, см. weighted.ts.
+// 4% к «куплено» и «остаток» не применяется (оно начисляется только при списании в ТЗ).
+import { safeRatio } from "./weighted";
+import { COMMISSION_RATE } from "./commission4-const";
+
+export type FurKind = "fur" | "lining";
+export type VatKind = "incl" | "excl";
+export type C4Kind = "on" | "off";
+export type FlowMode = { vat: VatKind; c4: C4Kind };
+
+export const NO_AUCTION = "__none";
+export const NOT_SET = "Не указан";
+
+export type FurLotUsage = { orderId: string; number: string; qty: number };
+
+export type FurLot = {
+  id: string;
+  kind: FurKind;
+  /** Вид меха (канонический: «Лиса красная» → «Лиса») или номер/название ткани подкладки. */
+  item: string;
+  /** Название материала в справочнике как есть («Лиса красная»). */
+  materialName: string;
+  color: string;
+  size: string;
+  /** Полное название партии закупки (ключ фильтра) или NO_AUCTION. */
+  auction: string;
+  auctionLabel: string;
+  year: number;
+  lotNumber: string;
+  grade: string;
+  purchaseId: string | null;
+  purchaseNumber: string | null;
+  supplier: string | null;
+  recv: number;
+  used: number;
+  rem: number;
+  recvIncl: number;
+  recvExcl: number;
+  usedIncl: number;
+  usedExcl: number;
+  /** Надбавка 4% к использованному (с НДС / без НДС) — только по строкам с commission4. */
+  usedExtraIncl: number;
+  usedExtraExcl: number;
+  remIncl: number;
+  remExcl: number;
+  /** Закупка в валюте: Σ количество и Σ сумма по позициям (только для лотов с закупкой в USD). */
+  usdQty: number;
+  usdSubtotal: number;
+  usages: FurLotUsage[];
+};
+
+// ───────────────────────────── суммы ─────────────────────────────
+
+export type Flow = {
+  lots: number;
+  recv: number;
+  used: number;
+  rem: number;
+  recvIncl: number;
+  recvExcl: number;
+  usedIncl: number;
+  usedExcl: number;
+  usedExtraIncl: number;
+  usedExtraExcl: number;
+  remIncl: number;
+  remExcl: number;
+  usdQty: number;
+  usdSubtotal: number;
+};
+
+export const emptyFlow = (): Flow => ({
+  lots: 0, recv: 0, used: 0, rem: 0, recvIncl: 0, recvExcl: 0, usedIncl: 0, usedExcl: 0,
+  usedExtraIncl: 0, usedExtraExcl: 0, remIncl: 0, remExcl: 0, usdQty: 0, usdSubtotal: 0,
+});
+
+/** Числовая часть лота — всё, что нужно для сумм (общая для строки таблицы и лота аналитики сырья). */
+export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal">;
+
+export function addLotToFlow(f: Flow, l: FlowLot): Flow {
+  f.lots += 1;
+  f.recv += l.recv; f.used += l.used; f.rem += l.rem;
+  f.recvIncl += l.recvIncl; f.recvExcl += l.recvExcl;
+  f.usedIncl += l.usedIncl; f.usedExcl += l.usedExcl;
+  f.usedExtraIncl += l.usedExtraIncl; f.usedExtraExcl += l.usedExtraExcl;
+  f.remIncl += l.remIncl; f.remExcl += l.remExcl;
+  f.usdQty += l.usdQty; f.usdSubtotal += l.usdSubtotal;
+  return f;
+}
+
+export function flowOf(lots: Iterable<FlowLot>): Flow {
+  const f = emptyFlow();
+  for (const l of lots) addLotToFlow(f, l);
+  return f;
+}
+
+export function mergeFlows(flows: Iterable<Flow>): Flow {
+  const t = emptyFlow();
+  for (const f of flows) {
+    (Object.keys(t) as (keyof Flow)[]).forEach((k) => { t[k] += f[k]; });
+  }
+  return t;
+}
+
+/** До копеек (сумма уже собрана — погрешность плавающей точки не копится). */
+export const round2 = (v: number) => Math.round(v * 100 + (v < 0 ? -1e-7 : 1e-7)) / 100;
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
+export type FlowFigures = {
+  lots: number;
+  recvQty: number;
+  recvValue: number;
+  /** Средневзвешенная цена закупки купленного: Σ ₽ ÷ Σ шт. */
+  recvAvg: number | null;
+  usedQty: number;
+  /** Использовано ₽ в выбранном режиме 4% (с 4% — к строкам, где оно применяется). */
+  usedValue: number;
+  /** То же в противоположном режиме 4% (для подписи «без 4%: …»). */
+  usedValueOther: number;
+  usedAvg: number | null;
+  remQty: number;
+  remValue: number;
+  remAvg: number | null;
+  /** Средняя цена закупки в валюте (USD за шт.): Σ сумма ÷ Σ кол-во по лотам с закупкой в USD. */
+  usdAvg: number | null;
+};
+
+export function figures(f: Flow, mode: FlowMode): FlowFigures {
+  const excl = mode.vat === "excl";
+  const recvValue = round2(excl ? f.recvExcl : f.recvIncl);
+  const usedBase = excl ? f.usedExcl : f.usedIncl;
+  const usedExtra = excl ? f.usedExtraExcl : f.usedExtraIncl;
+  const usedValue = round2(mode.c4 === "on" ? usedBase + usedExtra : usedBase);
+  const usedValueOther = round2(mode.c4 === "on" ? usedBase : usedBase + usedExtra);
+  const remValue = round2(excl ? f.remExcl : f.remIncl);
+  const recvQty = round3(f.recv);
+  const usedQty = round3(f.used);
+  const remQty = round3(f.rem);
+  return {
+    lots: f.lots,
+    recvQty, recvValue, recvAvg: safeRatio(recvValue, recvQty),
+    usedQty, usedValue, usedValueOther, usedAvg: safeRatio(usedValue, usedQty),
+    remQty, remValue, remAvg: safeRatio(remValue, remQty),
+    usdAvg: safeRatio(f.usdSubtotal, f.usdQty),
+  };
+}
+
+/** Внутренняя сверка потока: куплено − использовано = остаток (шт и ₽ без 4%). Пустой список — всё сходится. */
+export function flowIssues(f: Flow, tolQty = 0.0005, tolMoney = 0.5): string[] {
+  const out: string[] = [];
+  if (Math.abs(f.recv - f.used - f.rem) > tolQty) out.push(`шт: куплено ${round3(f.recv)} − использовано ${round3(f.used)} ≠ остаток ${round3(f.rem)}`);
+  if (Math.abs(f.recvIncl - f.usedIncl - f.remIncl) > tolMoney) out.push(`₽ с НДС: ${round2(f.recvIncl)} − ${round2(f.usedIncl)} ≠ ${round2(f.remIncl)}`);
+  if (Math.abs(f.recvExcl - f.usedExcl - f.remExcl) > tolMoney) out.push(`₽ без НДС: ${round2(f.recvExcl)} − ${round2(f.usedExcl)} ≠ ${round2(f.remExcl)}`);
+  return out;
+}
+
+// ───────────────────────────── фильтры ─────────────────────────────
+
+export type FilterKey = "item" | "year" | "color" | "size" | "auction" | "rest";
+export type FurFilters = Record<FilterKey, string[]>;
+export const FILTER_KEYS: FilterKey[] = ["item", "year", "color", "size", "auction", "rest"];
+export const emptyFilters = (): FurFilters => ({ item: [], year: [], color: [], size: [], auction: [], rest: [] });
+export const hasFilters = (f: FurFilters) => FILTER_KEYS.some((k) => f[k].length > 0);
+
+export const REST_LABELS: Record<string, string> = { with: "С остатком", zero: "Исчерпан" };
+
+export function lotValue(l: FurLot, key: FilterKey): string {
+  switch (key) {
+    case "item": return l.item;
+    case "year": return String(l.year);
+    case "color": return l.color;
+    case "size": return l.size;
+    case "auction": return l.auction;
+    case "rest": return l.rem > 0 ? "with" : "zero";
+  }
+}
+
+/** Лоты, подходящие под фильтры (пустой список значений фильтра = «все»). skip — не применять один из фильтров. */
+export function filterLots(lots: FurLot[], filters: FurFilters, skip?: FilterKey): FurLot[] {
+  const active = FILTER_KEYS.filter((k) => k !== skip && filters[k].length > 0);
+  if (active.length === 0) return lots;
+  const sets = active.map((k) => [k, new Set(filters[k])] as const);
+  return lots.filter((l) => sets.every(([k, s]) => s.has(lotValue(l, k))));
+}
+
+export type FilterOption = { value: string; label: string; count: number };
+
+const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
+
+/**
+ * Варианты фильтра: значения среди лотов, подходящих под ОСТАЛЬНЫЕ фильтры (каскад), со счётчиком лотов.
+ * Уже выбранные значения, которых сейчас нет среди лотов, остаются в списке со счётчиком 0 — чтобы их можно было снять.
+ */
+export function filterOptions(lots: FurLot[], filters: FurFilters, key: FilterKey): FilterOption[] {
+  const base = filterLots(lots, filters, key);
+  const counts = new Map<string, number>();
+  const labels = new Map<string, string>();
+  for (const l of base) {
+    const v = lotValue(l, key);
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+    if (!labels.has(v)) labels.set(v, labelOf(l, key, v));
+  }
+  for (const v of filters[key]) {
+    if (!counts.has(v)) {
+      counts.set(v, 0);
+      const sample = lots.find((l) => lotValue(l, key) === v);
+      labels.set(v, sample ? labelOf(sample, key, v) : v === NO_AUCTION ? "Без аукциона" : REST_LABELS[v] ?? v);
+    }
+  }
+  const out = Array.from(counts, ([value, count]) => ({ value, label: labels.get(value) ?? value, count }));
+  if (key === "year") out.sort((a, b) => Number(b.value) - Number(a.value));
+  else if (key === "rest") out.sort((a, b) => (a.value === "with" ? -1 : 1) - (b.value === "with" ? -1 : 1));
+  else out.sort((a, b) => collator.compare(a.label, b.label));
+  return out;
+}
+
+function labelOf(l: FurLot, key: FilterKey, v: string): string {
+  if (key === "auction") return l.auctionLabel;
+  if (key === "rest") return REST_LABELS[v] ?? v;
+  return v;
+}
+
+// ───────────────────────────── таблица ─────────────────────────────
+
+export type TableRow = { key: string; label: string; lots: FurLot[]; flow: Flow; figures: FlowFigures };
+
+export function groupLots(lots: FurLot[], keyOf: (l: FurLot) => string, labelFor?: (l: FurLot) => string): Map<string, { label: string; lots: FurLot[] }> {
+  const m = new Map<string, { label: string; lots: FurLot[] }>();
+  for (const l of lots) {
+    const k = keyOf(l);
+    const cur = m.get(k);
+    if (cur) cur.lots.push(l);
+    else m.set(k, { label: labelFor ? labelFor(l) : k, lots: [l] });
+  }
+  return m;
+}
+
+export function rowsBy(lots: FurLot[], mode: FlowMode, keyOf: (l: FurLot) => string, labelFor?: (l: FurLot) => string): TableRow[] {
+  return Array.from(groupLots(lots, keyOf, labelFor), ([key, g]) => {
+    const flow = flowOf(g.lots);
+    return { key, label: g.label, lots: g.lots, flow, figures: figures(flow, mode) };
+  }).sort((a, b) => collator.compare(a.label, b.label));
+}
+
+export type FurTable = {
+  /** Все строки (виды/ткани) после фильтров. */
+  allRows: TableRow[];
+  /** Показанные строки: все или только выбранные. */
+  rows: TableRow[];
+  /** Выбранные (и видимые после фильтров) ключи. */
+  selectedKeys: string[];
+  /** Тотал: по выбранным строкам, а если ничего не выбрано — по всем показанным. */
+  total: Flow;
+  totalFigures: FlowFigures;
+  totalOf: "selected" | "all";
+  /** Лоты по фильтрам (без учёта выбора) — для проверок и подвала. */
+  filteredLots: FurLot[];
+};
+
+export function buildFurTable(opts: {
+  lots: FurLot[];
+  filters: FurFilters;
+  selected: Iterable<string>;
+  onlySelected?: boolean;
+  mode: FlowMode;
+}): FurTable {
+  const filteredLots = filterLots(opts.lots, opts.filters);
+  const allRows = rowsBy(filteredLots, opts.mode, (l) => l.item);
+  const visible = new Set(allRows.map((r) => r.key));
+  const selectedKeys = Array.from(new Set(opts.selected)).filter((k) => visible.has(k));
+  const sel = new Set(selectedKeys);
+  const rows = opts.onlySelected && sel.size > 0 ? allRows.filter((r) => sel.has(r.key)) : allRows;
+  const totalRows = sel.size > 0 ? allRows.filter((r) => sel.has(r.key)) : rows;
+  const total = mergeFlows(totalRows.map((r) => r.flow));
+  return {
+    allRows, rows, selectedKeys, total, totalFigures: figures(total, opts.mode),
+    totalOf: sel.size > 0 ? "selected" : "all", filteredLots,
+  };
+}
+
+// ───────────────────────────── URL ─────────────────────────────
+
+type Q = Record<string, string | string[] | undefined>;
+
+/** Имена параметров URL: у меха `fur`, `year`, `color`, `size`, `batch`, `rest`; у подкладки — то же с префиксом `l` (`lmat`, `lyear`…). */
+export function paramNames(kind: FurKind): Record<FilterKey, string[]> {
+  return kind === "fur"
+    ? { item: ["fur", "species"], year: ["year", "years"], color: ["color"], size: ["size"], auction: ["batch", "auc"], rest: ["rest"] }
+    : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], auction: ["lbatch"], rest: ["lrest"] };
+}
+
+const asList = (v: string | string[] | undefined): string[] =>
+  (Array.isArray(v) ? v : v == null ? [] : [v]).flatMap((s) => String(s).split("\u0001")).map((s) => s.trim()).filter(Boolean).slice(0, 60);
+
+export function parseFilters(q: Q, kind: FurKind): FurFilters {
+  const names = paramNames(kind);
+  const f = emptyFilters();
+  for (const k of FILTER_KEYS) {
+    const vals: string[] = [];
+    for (const n of names[k]) vals.push(...asList(q[n]).map((s) => s.slice(0, 200)));
+    f[k] = Array.from(new Set(vals));
+  }
+  f.rest = f.rest.filter((v) => v === "with" || v === "zero");
+  f.year = f.year.filter((v) => /^\d{4}$/.test(v));
+  return f;
+}
+
+/** Параметры URL по фильтрам (повтор ключа: fur=a&fur=b). Пустой фильтр — параметра нет. */
+export function filtersToEntries(f: FurFilters, kind: FurKind): Array<[string, string]> {
+  const names = paramNames(kind);
+  const out: Array<[string, string]> = [];
+  for (const k of FILTER_KEYS) for (const v of f[k]) out.push([names[k][0], v]);
+  return out;
+}
+
+/** Все имена параметров этого фильтра (с псевдонимами) — чтобы стереть их из URL перед записью. */
+export function allParamNames(kind: FurKind): string[] {
+  return Object.values(paramNames(kind)).flat();
+}
+
+export const FOUR_PERCENT = COMMISSION_RATE;
