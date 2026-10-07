@@ -86,7 +86,7 @@ nano .env
 ## Шаг 8. Перенести данные с вашего ноутбука
 Это делается на **ноутбуке**, не на сервере. Docker с базой должен быть запущен (`docker ps` показывает `fur-erp-db-1`).
 ```bash
-cd /Users/petr/Documents/claude/fur-erp
+cd /Users/petr/Projects/fur-erp
 docker exec fur-erp-db-1 pg_dump -U fur_erp --no-owner fur_erp | gzip > /tmp/fur_erp.sql.gz
 tar czf /tmp/uploads.tgz -C uploads .
 scp /tmp/fur_erp.sql.gz /tmp/uploads.tgz root@185.12.34.56:/root/

@@ -11,7 +11,7 @@ export function sql(q: string): string {
   return execSync(`docker exec -i fur-erp-db-1 psql -U fur_erp -d ${DB} -At -F '|' -v ON_ERROR_STOP=1`, { encoding: "utf8", input: q }).trim();
 }
 const norm = (s: string) => s.replace(/[  ]/g, " ").replace(/\s+/g, " ").trim();
-const SP = "СП 09-26";
+const SP = "СП 09.26";
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3271";
 const UPLOADS = "/tmp/fur-e2e/pay-uploads";
 const ORG = "cmuo7vwvk0000lsu5pghd5jka";
@@ -81,7 +81,7 @@ test.beforeAll(() => {
   sql(`insert into "Warehouse"(id,"organizationId",name) values ('w_b','org_b','WH B') on conflict do nothing`);
   sql(`insert into "RawMaterial"(id,"organizationId",name,"updatedAt") values ('m_b','org_b','Соболь B',now()) on conflict do nothing`);
   // Аукцион org B с тем же названием, что и у нас (проверка изоляции) и свой.
-  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09-26','B1',now()),('p_b2','org_b','Б-2','s_b','w_b','USD',80,'B-AUC','B2',now()) on conflict do nothing`);
+  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09.26','B1',now()),('p_b2','org_b','Б-2','s_b','w_b','USD',80,'B-AUC','B2',now()) on conflict do nothing`);
   sql(`insert into "PurchaseItem"(id,"purchaseId","rawMaterialId",quantity,"unitPrice",subtotal,"vatRate","lotNumber") values ('pi_b','p_b','m_b',10,100,1000,20,'B-LOT'),('pi_b2','p_b2','m_b',10,100,1000,20,'B-LOT2') on conflict do nothing`);
   // фикстуры файлов
   writeFileSync(`${FIX}/ok.pdf`, "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
@@ -492,7 +492,7 @@ test("3. Сводка: долг по аукционам = SQL (оплаты ау
   // 5) переплата аукциона
   pay("t_over", { auction: SP, amount: 100_000_000 });
   d = await dashDebt(page); e = expectedDebt();
-  console.log("5) переплата СП 09-26 100M: app", d.kpi, "sql", e.total, "СП в разбивке:", d.rows.some((r) => r.startsWith(SP)));
+  console.log("5) переплата СП 09.26 100M: app", d.kpi, "sql", e.total, "СП в разбивке:", d.rows.some((r) => r.startsWith(SP)));
   await page.screenshot({ path: "/tmp/fur-e2e/shots/3-dash.png", fullPage: true });
   // сверка карточки аукциона на /payments с SQL
   await page.goto(aucUrl(SP));
@@ -709,17 +709,17 @@ test("6b. чужая организация не видит и не меняет
   await loginAs(pb, "bob@other-org.ru");
   await pb.goto("/payments");
   const txtB = norm(await pb.locator("main").innerText());
-  console.log("Bob видит аукционы:", txtB.match(/(СП 09-26|B-AUC|Закупка меха|FH 06-26)/g));
+  console.log("Bob видит аукционы:", txtB.match(/(СП 09.26|B-AUC|Закупка меха|FH 06.26)/g));
   console.log("Bob: стоимость аукционов:", txtB.match(/Стоимость аукционов, с НДС ([\d  ,]+ ₽)/)?.[1]);
-  await pb.goto(aucUrl("Закупка меха 04-26"));
+  await pb.goto(aucUrl("РП 04.26"));
   console.log("Bob открыл аукцион org A:", /не найден/.test(norm(await pb.locator("main").innerText())));
   await pb.goto(aucUrl(SP));
-  console.log("Bob на СП 09-26 (его org):", norm(await pb.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).slice(0, 140));
+  console.log("Bob на СП 09.26 (его org):", norm(await pb.locator(`a[href="${cardHref(SP)}"]`).first().innerText()).slice(0, 140));
   console.log("Bob видит 'A-secret'/4242:", /A-secret|4 242/.test(norm(await pb.locator("main").innerText())));
   // прямые вызовы
   const r1 = await callAction(pb, IDS.update, [payA, "$K1"], payFields({ amount: "1", notes: "HACK" }));
   const r2 = await callAction(pb, IDS.del, [payA]);
-  const r3 = await callAction(pb, IDS.create, ["Закупка меха 04-26", "$K1"], payFields({ notes: "HACK-create-A-auction" }));
+  const r3 = await callAction(pb, IDS.create, ["РП 04.26", "$K1"], payFields({ notes: "HACK-create-A-auction" }));
   const r4 = await callAction(pb, IDS.create, [SP, "$K1"], payFields({ notes: "HACK-supplierA", supplierId: supA }));
   const r5 = await callAction(pb, IDS.advance, ["$K1"], { supplierId: supA, amount: "7", method: "CASH", paidAt: "2026-10-01" });
   const r6 = await callAction(pb, IDS.addPurchasePay, [purA, "$K1"], { amount: "9", method: "CASH", paidAt: "2026-10-01", notes: "HACK-purchase" });
@@ -1082,7 +1082,7 @@ test("7d. мобильная форма: добавление оплаты 94% �
   await ctx.close();
 });
 
-test("1b. сверка итогов /lots?auction=СП 09-26 с /payments", async ({ page }) => {
+test("1b. сверка итогов /lots?auction=СП 09.26 с /payments", async ({ page }) => {
   cleanTest();
   const errors = watchErrors(page);
   await loginAs(page, "anna@qa-test.ru");

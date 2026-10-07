@@ -200,9 +200,13 @@ export function LocalFilterBar({
   );
 }
 
+/** Фильтр без выбора: список из одного значения (или пустой) — ничего не сужает, поэтому не показывается. Переключатели (single) и режимы вида (state) не трогаем. */
+const isPointless = (c: BarControl, vals: Record<string, string[]>) =>
+  c.type === "multi" && !c.single && !c.state && c.options.length + (c.noneLabel ? 1 : 0) <= 1 && (vals[c.name] ?? []).length === 0;
+
 function BarView({
   title,
-  controls,
+  controls: allControls,
   vals,
   setCtl,
   flush,
@@ -228,6 +232,7 @@ function BarView({
   children?: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const controls = useMemo(() => allControls.filter((c) => !isPointless(c, vals)), [allControls, vals]);
   const labelOf = (c: BarControl, v: string) => {
     if (c.type === "date") return ruDate(v);
     if (c.type === "text") return v;

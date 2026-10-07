@@ -4,6 +4,7 @@ import { normalizeModelCode } from "@/lib/model-code";
 import { normalizeSize, SIZE_ONE, SIZE_CM, SIZE_SET, UNDEFINED_SIZE } from "@/lib/product-category";
 import { colorKey } from "@/lib/color-ref";
 import { cleanSize } from "@/lib/plan-sizes";
+import { articleLabel } from "@/lib/article-label";
 
 // Факт по плану: сколько единиц по ТЗ этого артикула (в сезоне плана) уже произведено, в работе, не начато.
 // ТЗ → артикул по ProductModel (productModelId); позиция плана → ProductModel по modelId либо по написанию кода
@@ -128,12 +129,12 @@ export async function loadPlanFacts(organizationId: string, plans: PlanKey[], mo
 export async function loadOffPlan(organizationId: string, seasonId: string, planModelIds: string[]) {
   const orders = await prisma.productionOrder.findMany({
     where: { organizationId, seasonId, status: { not: "CANCELLED" }, productModelId: { notIn: planModelIds } },
-    select: { id: true, workOrderNumber: true, number: true, producedQuantity: true, plannedQuantity: true, productModel: { select: { name: true } } },
+    select: { id: true, workOrderNumber: true, number: true, producedQuantity: true, plannedQuantity: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
   });
   return orders.map((o) => ({
     id: o.id,
     label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
-    model: o.productModel.name,
+    model: articleLabel(o.productModel),
     produced: Number(o.producedQuantity),
     planned: Number(o.plannedQuantity),
   }));

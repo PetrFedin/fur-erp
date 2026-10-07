@@ -18,6 +18,8 @@ import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/a
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatMoney } from "@/lib/utils";
 import { resetByPurchase } from "@/lib/verification";
+import { resolveAuction } from "@/lib/auction-ref";
+import { replaceFirstLine } from "@/lib/auction-key";
 import { staleError, PURCHASE_V, PURCHASE_ITEM_V } from "@/lib/concurrency";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
@@ -47,6 +49,28 @@ const COSTPLAN_PURCHASE_LOCK =
 async function hasCostPlanItems(purchaseId: string) {
   const n = await prisma.purchaseItem.count({ where: { purchaseId, costPlan: { not: Prisma.DbNull } } });
   return n > 0;
+}
+
+/**
+ * Аукцион закупки из формы: выбор из справочника (`auctionId`) -> запись auctionId и кэш-текст auctionSession = короткое имя.
+ * Без выбора, но с текстом (пачка/импорт/старая форма): сопоставление с справочником по имени или прежнему написанию;
+ * не найден — текст сохраняется как есть, без привязки. `current` — прежний текст закупки (строки после первой сохраняются).
+ */
+async function purchaseAuctionFromForm(orgId: string, formData: FormData, current?: string | null): Promise<{ error: string } | { auctionId: string | null | undefined; auctionSession: string | null | undefined }> {
+  const id = ((formData.get("auctionId") as string | null) ?? "").trim();
+  const text = ((formData.get("auctionSession") as string | null) ?? "").trim();
+  const keepTail = (name: string) => (current && /\r?\n/.test(current) ? replaceFirstLine(current, name) : name);
+  if (id) {
+    const a = await prisma.auction.findFirst({ where: { id, organizationId: orgId }, select: { id: true, name: true } });
+    if (!a) return { error: "Аукцион не найден в справочнике — обновите страницу" };
+    return { auctionId: a.id, auctionSession: keepTail(a.name) };
+  }
+  // Правка закупки: текст не менялся и аукцион не выбирали (например, заглушка «Нет информации» с привязкой) — оставляем как есть.
+  if (current !== undefined && text === (current ?? "").split(/\r?\n/)[0].trim()) return { auctionId: undefined, auctionSession: undefined };
+  if (!text) return { auctionId: null, auctionSession: null };
+  const a = await resolveAuction(text, orgId);
+  if (a && !a.isService) return { auctionId: a.id, auctionSession: keepTail(a.name) };
+  return { auctionId: null, auctionSession: text };
 }
 
 const purchaseSchema = z.object({
@@ -82,6 +106,8 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const auc = await purchaseAuctionFromForm(orgId, formData);
+  if ("error" in auc) return { error: auc.error };
 
   let supplierId = parsed.data.supplierId;
   if (!supplierId) {
@@ -127,7 +153,8 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         warehouseId,
         currency: parsed.data.currency,
         exchangeRate: parsed.data.currency === "RUB" ? 1 : parsed.data.exchangeRate,
-        auctionSession: parsed.data.auctionSession,
+        auctionSession: auc.auctionSession,
+        auctionId: auc.auctionId,
         invoiceNumber: parsed.data.invoiceNumber,
         transferDocument: parsed.data.transferDocument,
         orderDate: new Date(parsed.data.orderDate),
@@ -405,7 +432,8 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
 
   // Blank optional fields must clear rather than be left untouched — same
   // "read straight off formData" reasoning as updatePurchaseItem's `cosmetic`.
-  const auctionSession = (formData.get("auctionSession") as string)?.trim() || null;
+  const auc = await purchaseAuctionFromForm(session.user.organizationId, formData, purchase.auctionSession);
+  if ("error" in auc) return { error: auc.error };
   const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim() || null;
   const transferDocument = (formData.get("transferDocument") as string)?.trim() || null;
 
@@ -419,7 +447,8 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
       // currency change resets the rate to 1 so a stale rate from the old
       // currency can't leak through — the exchange-rate form forces re-entry.
       ...(currencyChanged ? { exchangeRate: 1 } : {}),
-      auctionSession,
+      auctionSession: auc.auctionSession,
+      auctionId: auc.auctionId,
       invoiceNumber,
       transferDocument,
       orderDate: new Date(parsed.data.orderDate),

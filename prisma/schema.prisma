@@ -28,6 +28,7 @@ model ColorRef {
   purchaseItems PurchaseItem[]
   lots          RawMaterialLot[]
   orders        ProductionOrder[]
+  orderColors   ProductionOrderColor[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -895,6 +896,9 @@ model ProductionOrder {
   // work itself (revenue) — separate from our internal production cost.
   clientWorkPricePerUnit Decimal?  @db.Decimal(14, 2)
 
+  /// Составной цвет ТЗ («Тёмно-синий ×2 (42, 46); Чёрный ×1 (42)»): по строке на цвет. У обычных ТЗ пусто — цвет в colorRefId.
+  colors ProductionOrderColor[]
+
   // Партия поставки (в Drive — «поставка N»), к которой относится ТЗ.
   batchId String?
   batch   ProductionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
@@ -1157,6 +1161,21 @@ model CustomField {
 // ---------- Партии производства и документы Google Drive ----------
 
 // Партия поставки производства (в Google Drive — «поставка N»): группирует ТЗ.
+/// Цвет составного ТЗ: несколько цветов в одном приложении (NAVY ×2 (42, 46); BLACK ×1 (42)).
+model ProductionOrderColor {
+  id         String            @id @default(cuid())
+  orderId    String
+  order      ProductionOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  colorRefId String
+  colorRef   ColorRef          @relation(fields: [colorRefId], references: [id])
+  quantity   Int?
+  sizes      String?
+  createdAt  DateTime          @default(now())
+
+  @@index([orderId])
+  @@index([colorRefId])
+}
+
 model ProductionBatch {
   id             String       @id @default(cuid())
   organizationId String

@@ -278,7 +278,7 @@ test.describe.serial("ТЗ на 375 px", () => {
   });
 });
 
-const AUC = encodeURIComponent("СП 09-26");
+const AUC = encodeURIComponent("СП 09.26");
 test.describe.serial("лоты / аукцион на 375 px", () => {
   test("выбор чекбоксами, фильтры, Править расчёт, свой столбец", async ({ page }) => {
     const errors = watchErrors(page);

@@ -5,6 +5,7 @@ import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { lineWith4, usageInput, type Commission4Mode } from "@/lib/commission4";
 import type { VatMode } from "@/lib/vat-mode";
 import { vatBreakdown } from "@/lib/tz-vat";
+import { articleLabel } from "@/lib/article-label";
 
 // Данные печатной формы ТЗ («ПРИЛОЖЕНИЕ № N к Договору подряда …»).
 // Один загрузчик на HTML-страницу печати и на .docx — числа не расходятся.
@@ -82,7 +83,7 @@ export async function loadTzDoc(
   const order = await prisma.productionOrder.findFirst({
     where: { id, organizationId },
     include: {
-      productModel: { select: { name: true } },
+      productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
       client: { select: { name: true } },
       batch: { select: { number: true } },
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
@@ -148,7 +149,7 @@ export async function loadTzDoc(
     orderNumber: order.number,
     batch: order.batch ? String(order.batch.number) : "",
     date: order.workOrderDate ? formatDate(order.workOrderDate) : "",
-    model: order.productModel.name,
+    model: articleLabel(order.productModel),
     color: (order.color ?? "").trim(),
     size: collapseSizes((order.size ?? "").trim()),
     qty: formatQty(qty.toString()),

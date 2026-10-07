@@ -7,6 +7,7 @@ import type { FormState, Issue } from "../actions";
 import { parsePasteRows, issueLines } from "../parse-rows";
 import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 import { CbrRateButton } from "../cbr-rate-button";
+import { AuctionSelect, type AuctionSelectOption } from "@/components/auction-select";
 
 type Option = { id: string; name: string; isDefault?: boolean };
 
@@ -19,7 +20,11 @@ export function PurchaseCreateForm({
   warehouses,
   materialNames,
   existingLotNumbers,
+  auctions,
+  canCreateAuction = false,
 }: {
+  auctions: AuctionSelectOption[];
+  canCreateAuction?: boolean;
   existingLotNumbers: string[];
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   suppliers: Option[];
@@ -67,7 +72,7 @@ export function PurchaseCreateForm({
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="auctionSession">Аукцион / сессия</Label>
-          <Input id="auctionSession" name="auctionSession" placeholder="СП 05.25" />
+          <AuctionSelect id="auctionSession" refs={auctions} canCreate={canCreateAuction} />
         </div>
         <div>
           <Label htmlFor="invoiceNumber">Счёт №</Label>

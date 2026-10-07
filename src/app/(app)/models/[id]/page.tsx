@@ -16,6 +16,7 @@ import { ConfirmSubmitButton } from "../../purchases/[id]/documents-form";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { FITTING_STATUS, orderLabel, truncate } from "@/lib/fittings";
+import { ArticleName } from "@/components/article-name";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -61,7 +62,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
     <div className="flex max-w-3xl flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Модель: {model.name}</CardTitle>
+          <CardTitle>Модель: <ArticleName model={model} /></CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="text-sm text-neutral-600">

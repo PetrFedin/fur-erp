@@ -1,3 +1,4 @@
+import { auctionLabeler } from "@/lib/filter-options";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
@@ -85,6 +86,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   // ---------- матрица
   const yearRows = yNum === null ? cov.rows : cov.rows.filter((r) => r.section === "contracts" || r.year === yNum);
   const sum = yNum === null ? { sections: cov.sections, total: cov.total } : summarize(yearRows);
+  const aucOf = await auctionLabeler(orgId);
   const auctions = [...new Set(cov.rows.map((r) => r.auction).filter((a): a is string => !!a))].sort();
   const visible = filterCovRows(cov.rows, f);
   const exportQs = new URLSearchParams();
@@ -152,7 +154,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
           { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
-          { type: "multi", name: "auction", label: "Партия закупки", options: auctions.map((a) => ({ value: a, label: a.length > 48 ? `${a.slice(0, 47)}…` : a, title: a })), allLabel: "Все партии" },
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
           { type: "multi", name: "gaps", label: "Пробелы", single: true, options: [{ value: "1", label: "Только с пробелами" }], allLabel: "Все записи" },
           { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
         ]}

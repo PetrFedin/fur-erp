@@ -20,6 +20,7 @@ import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
 import { toggleDone, deleteEvent } from "./actions";
 import { ConfirmButton } from "../plan/confirm-button";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Производственный календарь" };
 
@@ -223,10 +224,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                     <form action={deleteEvent}><input type="hidden" name="id" value={selected.id} /><ConfirmButton message="Удалить событие?" className={buttonVariants({ variant: "outline", size: "sm", className: "text-red-600" })}>Удалить</ConfirmButton></form>
                     <Link href={href({ event: "" })} className="text-neutral-500 hover:underline">Закрыть</Link>
                   </div>
-                  <EventForm key={selected.id} initial={editInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${o.productModel.name}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
+                  <EventForm key={selected.id} initial={editInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
                 </div>
               ) : (
-                <EventForm key={`new-${newInitial.date}`} initial={newInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${o.productModel.name}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
+                <EventForm key={`new-${newInitial.date}`} initial={newInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
               )}
             </CardContent>
           </details>

@@ -51,6 +51,8 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
   const showMin = materials.some((m) => m.minStockLevel);
   const colCount = 3 + (showSku ? 1 : 0) + (showCategory ? 1 : 0) + (showMin ? 1 : 0);
 
+  const inactiveN = await prisma.rawMaterial.count({ where: { organizationId: orgId, isActive: false } });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -68,7 +70,8 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
           { type: "text", name: "q", label: "Поиск", placeholder: "Название или артикул" },
           { type: "multi", name: "type", label: "Вид", options: [{ value: "fur", label: "Мех" }, { value: "lining", label: "Подкладка" }], allLabel: "Все" },
           { type: "multi", name: "category", label: "Категория", options: categories.map((c) => ({ value: c.name, label: c.name })), noneLabel: "Без категории", allLabel: "Все категории" },
-          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+          // «Статус» нужен, только если в справочнике есть и неактивные записи (иначе фильтр ничего не сужает).
+          ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { orderLabel, orderSortKey } from "@/lib/shipments";
+import { articleLabel } from "@/lib/article-label";
 import { formatDate } from "@/lib/utils";
 import type { FormOrder } from "./shipment-form";
 
@@ -18,7 +19,7 @@ export async function loadShipmentFormData(organizationId: string, excludeShipme
         plannedQuantity: true,
         clientId: true,
         createdAt: true,
-        productModel: { select: { name: true } },
+        productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
       },
     }),
     prisma.shipmentLine.groupBy({
@@ -40,7 +41,7 @@ export async function loadShipmentFormData(organizationId: string, excludeShipme
       id: o.id,
       label: orderLabel(o),
       ref: `${o.number} от ${formatDate(o.createdAt)}`,
-      modelName: o.productModel.name,
+      modelName: articleLabel(o.productModel),
       clientKey: o.clientId ?? "none",
       sizeText: (o.size ?? "").trim(),
       plannedQty: Number(o.plannedQuantity),

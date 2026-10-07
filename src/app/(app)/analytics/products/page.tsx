@@ -30,7 +30,8 @@ import {
 } from "@/lib/analytics-products";
 import { filterOptions } from "@/lib/analytics-filters";
 import { COLUMNS, computeMetrics, derived, parseCols, parseSort, type ColKey } from "@/lib/analytics-metrics";
-import { SOURCE_LABEL, UNDEFINED_CATEGORY } from "@/lib/product-category";
+import { SIZE_CM, SIZE_SET, SOURCE_LABEL, UNDEFINED_CATEGORY } from "@/lib/product-category";
+import { auctionLabeler } from "@/lib/filter-options";
 import { AnalyticsFilterBar } from "../_shared/analytics-filter-bar";
 import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
 
@@ -50,6 +51,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   const all = await loadOrderRows(session.user.organizationId, year, c4Mode);
   const rows = applyFilters(all, f);
   const { nodes, total } = buildGroups(rows, f.g, f.g2, sortState.sort, sortState.dir);
+  const aucOf = await auctionLabeler(session.user.organizationId);
   const opts = filterOptions(all);
 
   // Сводка по статусам — по всем ТЗ года, без фильтров таблицы.
@@ -96,7 +98,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <Link href={`/production/${r.id}`} className="font-medium text-neutral-800 underline underline-offset-2">
               ТЗ {orderLabel(r)}
             </Link>
-            <span>{r.modelName}</span>
+            <span title={r.modelHint}>{r.modelLabel}</span>
             <span>разм. {r.sizeRaw || "—"}</span>
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.group === "done" ? "сделано" : "в работе"}</span>
@@ -114,6 +116,8 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
     if (!k) return null;
     const val = g === "batch" ? n.label.replace(/\D/g, "") : n.label;
     if (!val) return null;
+    // Группы «Набор размеров», «Размер в см» и составной цвет — не одно значение фильтра: ссылки «только эти» у них нет.
+    if ((g === "size" && (val === SIZE_SET || val === SIZE_CM)) || (g === "color" && val.includes(";"))) return null;
     return (
       <Link href={href({ [k]: [val] } as Partial<ProductFilters>)} className="ml-2 text-xs font-normal text-neutral-500 underline underline-offset-2">
         только эти
@@ -193,7 +197,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         <details>
           <summary className="cursor-pointer hover:underline">
             {level === 1 && <span className="mr-1 text-neutral-400">↳</span>}
-            {n.label}
+            {g === "model" && n.rows[0] ? <span title={n.rows[0].modelHint}>{n.rows[0].modelLabel}</span> : n.label}
             {g === "category" && n.label === UNDEFINED_CATEGORY && <span className="ml-1 text-xs font-normal text-amber-700">(модели без названия категории — список ниже)</span>}
           </summary>
           {orderList(n.rows)}
@@ -354,6 +358,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются) */}
       <AnalyticsFilterBar
         opts={opts}
+        aucOf={aucOf}
         lead={[
           { type: "multi", name: "g", label: "Группировать по", single: true, state: true, allLabel: GROUPS.category, options: GROUP_KEYS.filter((k) => k !== "category").map((k) => ({ value: k, label: GROUPS[k] })) },
           { type: "multi", name: "g2", label: "Внутри", single: true, state: true, allLabel: "Без второго уровня", options: GROUP_KEYS.filter((k) => k !== f.g).map((k) => ({ value: k, label: GROUPS[k] })) },
@@ -489,7 +494,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                     return (
                       <div key={id} className="flex flex-wrap gap-x-2">
                         <Link href={`/models/${id}`} className="font-medium underline underline-offset-2">
-                          {rs[0].modelName}
+                          {rs[0].modelLabel}
                         </Link>
                         <span className="text-neutral-500">у модели не заполнена категория, по названию не определить · ТЗ:</span>
                         {linkList(rs)}

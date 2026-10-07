@@ -17,6 +17,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { resolveAuctionValues } from "@/lib/auction-ref";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
@@ -56,7 +57,7 @@ const FRESH_MS = 365 * 24 * 3600 * 1000;
 // Фильтры вкладок: поставщикам — партия закупки (мультивыбор), поиск по названию, поставщик, остаток, подтверждение, период оплат;
 // от заказчиков — заказчик, подтверждение, период. `f=rest` — старое имя «С остатком».
 const PAY_FILTERS = defineFilters({
-  ...pick(["auction", "q", "supplier", "client", "status", "verified", "from", "to", "tab"], {
+  ...pick(["auction", "q", "supplier", "status", "verified", "from", "to", "tab"], {
     q: { aliases: ["dq"], label: "Название партии" },
     status: { aliases: ["f"], allowed: ["rest", "paid"], label: "Оплата" },
     verified: { allowed: ["yes", "no"], label: "Подтверждение" },
@@ -122,10 +123,10 @@ export default async function PaymentsPage({
   const fStatus = clientsTab ? [] : pf.status;
   const fVerified = pf.verified;
   const period = dateRange(pf.from, pf.to);
-  const listFiltered = !clientsTab && activeCount(PAY_FILTERS, { ...pf, client: [], tab: "" }) > 0;
-  const payOpts = await getFilterOptions(orgId, year, ["auction", "supplier", "client"]);
+  const listFiltered = !clientsTab && activeCount(PAY_FILTERS, { ...pf, tab: "" }) > 0;
+  const payOpts = await getFilterOptions(orgId, year, ["auction", "supplier"]);
   // Если выбрана ровно одна партия — под списком открывается её карточка с оплатами.
-  const auctionQ = fAuction.length === 1 && fAuction[0] !== NONE ? fAuction[0] : "";
+  const auctionQ = fAuction.length === 1 && fAuction[0] !== NONE ? (await resolveAuctionValues(orgId, fAuction))[0] : "";
   const [payments, suppliers, clientPayments, summariesAll, auctionPurchases, plainPurchases, debt] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
@@ -146,7 +147,6 @@ export default async function PaymentsPage({
           where: {
             organizationId: session.user.organizationId,
             ...(yearRange(year) ? { paidAt: yearRange(year) } : {}),
-            ...(pf.client.length ? { clientId: { in: pf.client } } : {}),
             ...(period ? { AND: [{ paidAt: period }] } : {}),
             ...(fVerified.length === 1 ? { confirmed: fVerified[0] === "yes" } : {}),
           },
@@ -511,7 +511,6 @@ export default async function PaymentsPage({
         <FilterBar
           title="Фильтры оплат"
           controls={[
-            { type: "multi", name: "client", label: "Заказчик", options: payOpts.client },
             { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
@@ -651,12 +650,12 @@ export default async function PaymentsPage({
                 <Stat
                   label="Счёт выставлен, не оплачен"
                   value={formatMoney(debt.invoiced.toString())}
-                  hint={<InfoHint wide label="Счёт выставлен, не оплачен"><p>Закупка ещё не получена (черновик), но Веллмех уже выставил на неё счёт: FH 06-26 (счёт №173), СП 09-26 (счёт №271), подкладка спец. 13 (№157), доп. материалы спец. 16 (№181). Суммы счетов взяты из документов Drive; после оплаты или получения меха сумма уйдёт из этой строки.</p></InfoHint>}
+                  hint={<InfoHint wide label="Счёт выставлен, не оплачен"><p>Закупка ещё не получена (черновик), но Веллмех уже выставил на неё счёт: FH 06.26 (счёт №173), СП 09.26 (счёт №271), Подкладка 05.26 (№157), Доп. материалы 06.26 (№181). Суммы счетов взяты из документов Drive; после оплаты или получения меха сумма уйдёт из этой строки.</p></InfoHint>}
                 />
                 <Stat
                   label="Ожидаемые закупки"
                   value={formatMoney(debt.expected.toString())}
-                  hint={<InfoHint wide label="Ожидаемые закупки"><p>Закупки не получены и счёта на эту часть ещё нет (например, аванс 3 по рыси «по факту затрат» и часть СП 09-26 «оплата по готовности»). Это не долг сегодня, а то, что придётся заплатить.</p></InfoHint>}
+                  hint={<InfoHint wide label="Ожидаемые закупки"><p>Закупки не получены и счёта на эту часть ещё нет (например, аванс 3 по рыси «по факту затрат» и часть СП 09.26 «оплата по готовности»). Это не долг сегодня, а то, что придётся заплатить.</p></InfoHint>}
                 />
               </div>
             </>
@@ -667,7 +666,7 @@ export default async function PaymentsPage({
             <FilterBar
               title="Фильтры оплат"
               controls={[
-                { type: "multi", name: "auction", label: "Партия закупки", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
+                { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
                 { type: "text", name: "q", label: "Название партии", aliases: ["dq"], placeholder: "часть названия" },
                 { type: "multi", name: "supplier", label: "Поставщик", options: payOpts.supplier },
                 { type: "multi", name: "status", label: "Оплата", aliases: ["f"], options: PAY_STATUS_OPTIONS, allLabel: "Любая" },

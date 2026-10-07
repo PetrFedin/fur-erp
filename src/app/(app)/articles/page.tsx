@@ -26,6 +26,8 @@ import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
 import { articleModelWhere, hasLiningText, isTzFilterActive, matchedOrderIds, tzOptions } from "@/lib/article-filters";
 import { getFilterOptions } from "@/lib/filter-options";
 import { loadOrderRows } from "@/lib/analytics-orders";
+import { ArticleName } from "@/components/article-name";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Изделия" };
 
@@ -167,6 +169,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     return {
       id: m.id,
       name: m.name,
+      model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
       isActive: m.isActive,
       orderCount: m._count.productionOrders,
       modelStocks,
@@ -330,7 +333,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Tr key={r.id} className={r.isActive ? "" : "opacity-60"}>
               <Td className="font-medium">
                 <details>
-                  <summary className="cursor-pointer hover:underline">{r.name}</summary>
+                  <summary className="cursor-pointer hover:underline"><ArticleName model={r.model} /></summary>
                   <div className="mt-2 flex flex-col gap-2 text-xs font-normal text-neutral-600">
                     {r.modelStocks.length === 0 ? (
                       <div>Остаток на складе: 0</div>
@@ -421,7 +424,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <RowCard
             key={r.id}
             className={r.isActive ? "" : "opacity-60"}
-            title={r.name}
+            title={articleLabel(r.model)}
             href={`/models/${r.id}`}
             fields={[
               { label: "Остаток, шт.", value: formatQty(r.stockQty.toString()), strong: true },

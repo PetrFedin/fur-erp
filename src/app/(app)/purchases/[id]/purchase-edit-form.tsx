@@ -6,6 +6,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import type { FormState } from "../actions";
 import type { Supplier, Warehouse } from "@prisma/client";
 import { useKeepingForm } from "@/lib/use-keeping-form";
+import { AuctionSelect, type AuctionSelectOption } from "@/components/auction-select";
 
 const initialState: FormState = {};
 
@@ -16,7 +17,11 @@ export function PurchaseEditForm({
   defaults,
   currencyLocked = false,
   version,
+  auctions,
+  canCreateAuction = false,
 }: {
+  auctions: AuctionSelectOption[];
+  canCreateAuction?: boolean;
   currencyLocked?: boolean;
   /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
   version?: string;
@@ -29,6 +34,7 @@ export function PurchaseEditForm({
     currency: string;
     orderDate: string;
     auctionSession: string;
+    auctionId: string | null;
     invoiceNumber: string;
     transferDocument: string;
   };
@@ -107,7 +113,7 @@ export function PurchaseEditForm({
       </div>
       <div>
         <Label htmlFor="auctionSession">Аукцион / сессия</Label>
-        <Input id="auctionSession" name="auctionSession" defaultValue={defaults.auctionSession} placeholder="СП 05.25" />
+        <AuctionSelect id="auctionSession" refs={auctions} defaultId={defaults.auctionId} legacyText={defaults.auctionId ? "" : defaults.auctionSession.split(/\r?\n/)[0]} canCreate={canCreateAuction} />
       </div>
       <div>
         <Label htmlFor="invoiceNumber">№ счёта</Label>

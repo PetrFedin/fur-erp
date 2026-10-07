@@ -5,6 +5,7 @@ import type { AuctionKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
+import { invalidateFilterOptions } from "@/lib/filter-options";
 import { AUCTION_V, rowVersion } from "@/lib/concurrency";
 import {
   AuctionError, confirmAuctions, createAuction, deleteAuction, mergeAuctions, renameAuction, updateAuctionFields,
@@ -17,6 +18,7 @@ const KINDS: AuctionKind[] = ["FUR", "LINING", "MATERIALS", "OTHER"];
 function touch() {
   // Имя аукциона показывается в закупках, лотах, оплатах, документах и сверке — сбрасываем кэш всех страниц.
   revalidatePath("/", "layout");
+  invalidateFilterOptions(); // варианты фильтра «Партия закупки» кэшируются на 30 с
 }
 
 function fail(e: unknown): AuctionResult {
@@ -131,6 +133,18 @@ export async function createAuctionAction(_prev: AuctionResult | null, fd: FormD
     return { ok: `Аукцион «${a.name}» добавлен` };
   } catch (e) {
     return fail(e);
+  }
+}
+
+/** «+ Добавить аукцион» прямо из формы закупки: создаёт запись справочника (подтверждённую) и возвращает её. */
+export async function createAuctionInline(name: string): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
+  const session = await requireRole(...ACCESS.auctions);
+  try {
+    const a = await createAuction(session.user.organizationId, { name });
+    touch();
+    return { ok: true, id: a.id, name: a.name };
+  } catch (e) {
+    return { ok: false, error: fail(e).error ?? "Не удалось добавить аукцион" };
   }
 }
 

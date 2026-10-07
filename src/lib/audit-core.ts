@@ -19,6 +19,7 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   ProductionMaterialUsage: ALL,
   ProductionExpense: ALL,
   ProductionBatch: ALL,
+  ProductionOrderColor: ALL,
   ProductModel: ALL,
   ColorRef: ALL,
   Auction: ALL,
@@ -46,7 +47,7 @@ export const IGNORED_FIELDS = new Set(["updatedAt", "passwordHash"]);
 /** Дочерние строки, которые уходят каскадом при удалении, — кладём в снимок удалённого, чтобы можно было восстановить вручную. */
 export const DELETE_CHILDREN: Record<string, Record<string, true>> = {
   Purchase: { items: true, expenses: true },
-  ProductionOrder: { materialUsages: true, expenses: true, paymentAllocations: true },
+  ProductionOrder: { materialUsages: true, expenses: true, paymentAllocations: true, colors: true },
   ProductionPlan: { sizes: true },
   Shipment: { lines: true },
   Fitting: { photos: true },
@@ -178,6 +179,7 @@ export const MODEL_TITLES: Record<string, string> = {
   ProductionMaterialUsage: "Списание материала",
   ProductionExpense: "Расход ТЗ",
   ProductionBatch: "Партия",
+  ProductionOrderColor: "Цвет ТЗ",
   ProductModel: "Модель / артикул",
   ColorRef: "Цвет",
   Auction: "Аукцион",

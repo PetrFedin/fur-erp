@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/session";
 import { batchExtraName, batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
 import { parseCommission4Cookie } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
+import { articleLabel } from "@/lib/article-label";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "../../../../print-toolbar";
 
@@ -100,7 +101,7 @@ export default async function BatchPrintPage({
               return (
                 <tr key={o.id}>
                   <td className={td}>{o.workOrderNumber ?? o.number}</td>
-                  <td className={td}>{o.productModel.name}</td>
+                  <td className={td}>{articleLabel(o.productModel)}</td>
                   <td className={td}>{cs || "—"}</td>
                   <td className={tdr}>{formatQty(s.qty.toString())}</td>
                   <td className={td}>{STATUS[o.status]}</td>

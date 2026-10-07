@@ -38,6 +38,7 @@ import { loadLive, type Live } from "@/app/(app)/reconciliation/live";
 type Db = PrismaClient | Prisma.TransactionClient;
 
 import { VERIFY_KINDS, type VerifyKind } from "@/lib/verification-kinds";
+import { articleLabel } from "@/lib/article-label";
 /** Допуск на округление лотов в расчёте себестоимости против УПД (максимум ≈0,65 ₽ на лот × десятки лотов). */
 export const ROUND_TOL_RUB = 50;
 
@@ -453,7 +454,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
       const dateForYear = o.workOrderDate ?? o.endDate ?? o.startDate;
       const row: VerifyRow = {
         key: `order:${o.id}`, kind: "order", id: o.id,
-        title: `ТЗ ${o.workOrderNumber ?? o.number}`, sub: `${o.productModel.name}${o.client ? ` · ${o.client.name}` : ""} · ${qty.toString()} шт.`,
+        title: `ТЗ ${o.workOrderNumber ?? o.number}`, sub: `${articleLabel(o.productModel)}${o.client ? ` · ${o.client.name}` : ""} · ${qty.toString()} шт.`,
         href, group: batch ? `Партия ${batch.number}` : null, year: dateForYear ? dateForYear.getUTCFullYear() : (batch?.year ?? null),
         amountText: o.clientWorkPricePerUnit ? fmtRub(o.clientWorkPricePerUnit.mul(qty)) : null,
         verified: !!o.verifiedAt, auto: !!o.verifiedAt && st.auto, stampText: o.verifiedAt ? st.text : null, note: o.verifyNote,

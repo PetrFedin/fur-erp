@@ -63,13 +63,13 @@ test.describe("Сводка по годам", () => {
   // Была ошибка (исправлена): у двух закупок подкладки (З-2026-0032 и З-2026-0060) одни и те же лоты; «Полная стоимость»
   // берёт lot.totalCost целиком для каждой позиции — сумма задваивается (+1 351 269,05 ₽).
   test("«Полная стоимость» аукциона совпадает со «Стоимостью» на /payments", async ({ page }) => {
-    await page.goto("/lots?tab=summary&auction=" + encodeURIComponent("Подкладка Спец. 7 (УПД 109)"));
+    await page.goto("/lots?tab=summary&auction=" + encodeURIComponent("Подкладка 07.25"));
     const s = await summaryTotals(page);
-    await page.goto("/payments?auction=" + encodeURIComponent("Подкладка Спец. 7 (УПД 109)"));
-    const card = page.locator("main").getByText("Подкладка Спец. 7 (УПД 109)").first();
+    await page.goto("/payments?auction=" + encodeURIComponent("Подкладка 07.25"));
+    const card = page.locator("main").getByText("Подкладка 07.25").first();
     await expect(card).toBeVisible();
     const txt = await page.locator("main").innerText();
-    const i = txt.indexOf("Подкладка Спец. 7 (УПД 109)\nзакупок");
+    const i = txt.indexOf("Подкладка 07.25\nзакупок");
     const m = /Стоимость\n([\d\s,]+)\s*₽/.exec(txt.slice(i));
     expect(Math.abs(s.full - num(m![1]))).toBeLessThan(1);
   });

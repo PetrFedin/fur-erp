@@ -16,6 +16,8 @@ import { STATUS_LABELS, STATUS_BADGE_VARIANT, type SupplyPlanStatusValue } from 
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, yearOptionsFrom } from "@/lib/filters";
 import { normalizeModelCode as normCode } from "@/lib/model-code";
+import { ArticleName } from "@/components/article-name";
+import { articleLabel } from "@/lib/article-label";
 
 const MONTH_NAMES = [
   "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
@@ -103,12 +105,12 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  type Row = { modelId: string; modelName: string; cells: Map<string, typeof entries> };
+  type Row = { modelId: string; modelName: string; model: (typeof allEntries)[number]["productModel"]; cells: Map<string, typeof entries> };
   const rows = new Map<string, Row>();
   for (const e of shownEntries) {
     // Группировка по нормализованному названию: «M012» и «М012» — одна строка плана.
     const key = normalizeModelCode(e.productModel.name).trim().toLowerCase();
-    if (!rows.has(key)) rows.set(key, { modelId: key, modelName: e.productModel.name, cells: new Map() });
+    if (!rows.has(key)) rows.set(key, { modelId: key, modelName: e.productModel.name, model: e.productModel, cells: new Map() });
     const row = rows.get(key)!;
     const mk = monthKey(new Date(e.month));
     if (!row.cells.has(mk)) row.cells.set(mk, []);
@@ -175,7 +177,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
             {hiddenEntries.slice(0, 100).map((e) => (
               <div key={e.id} className="flex flex-col gap-1">
                 <span className="text-xs text-neutral-600">
-                  {e.productModel.name} — {MONTH_NAMES[new Date(e.month).getMonth()]} {new Date(e.month).getFullYear()},{" "}
+                  {articleLabel(e.productModel)} — {MONTH_NAMES[new Date(e.month).getMonth()]} {new Date(e.month).getFullYear()},{" "}
                   {formatQty(e.quantity.toString())} шт.
                 </span>
                 {canEdit ? (
@@ -221,7 +223,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
           <tbody>
             {rowList.map((row) => (
               <tr key={row.modelId} className="border-b border-neutral-100 align-top">
-                <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium">{row.modelName}</td>
+                <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium"><ArticleName model={row.model} /></td>
                 {months.map((m) => {
                   const cellEntries = row.cells.get(m.key) ?? [];
                   return (

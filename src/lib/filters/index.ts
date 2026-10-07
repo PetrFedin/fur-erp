@@ -5,8 +5,8 @@
 //
 //   const F = defineFilters({ auction: FILTER_CATALOG.auction, q: FILTER_CATALOG.q, tab: stateParam("tab") });
 //   const f = parseFilters(F, await searchParams);        // f.auction: string[], f.q: string
-//   filterHref(F, "/lots", f, { auction: ["СП 09-26"] }); // ссылка с заменой значения, page/limit сброшены
-//   activeChips(F, f, { path: "/lots", labels })          // чипы «Партия: СП 09-26 ×»
+//   filterHref(F, "/lots", f, { auction: ["СП 09.26"] }); // ссылка с заменой значения, page/limit сброшены
+//   activeChips(F, f, { path: "/lots", labels })          // чипы «Партия: СП 09.26 ×»
 //   toWhere(f, { status: (v) => ({ status: { in: v } }) }) // фрагменты where для Prisma
 import { cleanSearch, parseDateInput } from "@/lib/input";
 

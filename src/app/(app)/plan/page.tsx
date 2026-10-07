@@ -23,6 +23,8 @@ import { PlanForm, type PlanInitial } from "./plan-form";
 import { SeasonCreateForm, SeasonEditForm } from "./season-forms";
 import { ConfirmButton } from "./confirm-button";
 import { copyPlan, deletePlan } from "./actions";
+import { ArticleName } from "@/components/article-name";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "План заказа" };
 
@@ -245,7 +247,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   return (
                     <Tr key={p.id}>
                       <Td className="font-medium">
-                        {p.articleCode}
+                        {facts.get(p.id)?.modelId && modelById.get(facts.get(p.id)!.modelId!) ? <ArticleName model={modelById.get(facts.get(p.id)!.modelId!)!} /> : p.articleCode}
                         {p.articleName && <span className="block text-xs font-normal text-neutral-500">{p.articleName}</span>}
                         <span className="block text-xs font-normal text-neutral-500">{[p.color, p.furType].filter(Boolean).join(" · ")}</span>
                         {!f.modelId && <Badge variant="warning" className="mt-1">нет в справочнике</Badge>}
@@ -273,7 +275,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             return (
               <RowCard
                 key={p.id}
-                title={p.articleCode}
+                title={facts.get(p.id)?.modelId && modelById.get(facts.get(p.id)!.modelId!) ? articleLabel(modelById.get(facts.get(p.id)!.modelId!)!) : p.articleCode}
                 subtitle={[p.articleName, p.color, p.furType, seasonId === "" ? p.season?.code : null].filter(Boolean).join(" · ")}
                 badge={<Badge variant={pct(f.produced, plan) >= 100 ? "success" : "info"}>{pct(f.produced, plan)}%</Badge>}
                 fields={[

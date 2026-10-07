@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Полный указатель: [docs/PROJECT-LAYOUT.md](docs/PROJECT-LAYOUT.md). Коротко:
 
-- Единственная рабочая папка — `/Users/petr/Documents/claude/fur-erp`; единственная основная ветка — `main`. Копии проекта и параллельные клоны не создавать; worktree только на время, потом `git worktree remove`.
+- Единственная рабочая папка — `/Users/petr/Projects/fur-erp`; единственная основная ветка — `main`. Копии проекта и параллельные клоны не создавать; worktree только на время, потом `git worktree remove`.
 - Работа — в короткоживущих ветках `feat/…`, `fix/…`, `data/…` от свежего `main`; в `main` — после зелёной сборки (`npx tsc --noEmit`, `npx next build`).
 - Код — `src/`, схема и миграции — `prisma/`, разовые скрипты данных — `scripts/`, постоянная документация — `docs/`, отобранные отчёты и журналы — `docs/inventory/`; рабочие выгрузки `docs-inventory/` и `uploads/` в git не попадают.
 - Перед `next build` остановить dev-сервер; один dev-сервер на порту 3200; БД-контейнер `fur-erp-db-1` не трогать; после работы с данными — `scripts/backup.sh`.

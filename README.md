@@ -1,6 +1,6 @@
 # MVST FUR PRODUCTION (fur-erp)
 
-> **Куда что класть:** единственная рабочая папка `/Users/petr/Documents/claude/fur-erp`, единственная основная ветка `main`. Подробности и запуск с нуля — [docs/PROJECT-LAYOUT.md](docs/PROJECT-LAYOUT.md).
+> **Куда что класть:** единственная рабочая папка `/Users/petr/Projects/fur-erp`, единственная основная ветка `main`. Подробности и запуск с нуля — [docs/PROJECT-LAYOUT.md](docs/PROJECT-LAYOUT.md).
 
 Мультитенантное веб-приложение для учёта закупок сырья, остатков, производства
 и себестоимости. Каждая компания-клиент (Organization) видит только свои

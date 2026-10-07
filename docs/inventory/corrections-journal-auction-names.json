@@ -1,0 +1,948 @@
+{
+  "script": "apply-auction-names.ts",
+  "entries": [
+    {
+      "auction": {
+        "id": "cmuyhqrze0001lsymlwdu43na",
+        "name": "СП 03.25",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "СП 03.25",
+      "mode": "rename",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqrzw0003lsym8ck5xlih",
+        "name": "РП 03.25",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "РП 03.25",
+      "mode": "rename",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs020005lsymx1zymd6r",
+        "name": "СП 05.25",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "СП 05.25",
+      "mode": "rename",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs070007lsymc4sf9ir7",
+        "name": "РП 05.25",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "РП 05.25",
+      "mode": "rename",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs0m0009lsymwwu7822j",
+        "name": "СП 12.25",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "СП 12.25",
+      "mode": "rename",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs0r000blsymky5rgpy6",
+        "name": "SAGA 03.25",
+        "aliases": [
+          "SAGA 03-25"
+        ],
+        "confirmed": false
+      },
+      "afterName": "SAGA 03.25",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc480j000fls7y1gqe2l9y",
+          "old": "SAGA 03-25",
+          "new": "SAGA 03.25"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs0v000dlsym8fxpabaq",
+        "name": "SAGA 06.25",
+        "aliases": [
+          "SAGA 06-25"
+        ],
+        "confirmed": false
+      },
+      "afterName": "SAGA 06.25",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc482m005nls7yzojwsw4p",
+          "old": "SAGA 06-25",
+          "new": "SAGA 06.25"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs10000flsymcp0vuao1",
+        "name": "SAGA 03.26",
+        "aliases": [
+          "SAGA 03-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "SAGA 03.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc49fz003lls83f3qnq9ye",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49ew000zls83skdg9xr5",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49e70003ls838t4e5ia3",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49ez0013ls83px5bcltv",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49f5001fls83v49ca9rk",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49f9001pls83ei6wya35",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49fo002xls834pdrocwu",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49fv003fls837hx8wgyu",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwlb000xlsvq13bjdwzd",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwlp000zlsvq01hr6yth",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmusu6vja0001lsdfuvbhiudx",
+          "old": "SAGA 03-26",
+          "new": "SAGA 03.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs15000hlsym03sfejvn",
+        "name": "РП 04.26",
+        "aliases": [
+          "Закупка меха 04-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "РП 04.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc49g6003xls835nxzpwt7",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49ht0089ls83wfw1o9rb",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49gm004xls83yw9972s6",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49hd006vls83y8u6gpm1",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49im00alls83py2xyxl5",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49jt00dzls83jheyn0y1",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwm40011lsvqw3cq6dos",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwmx0015lsvq8f1quuqa",
+          "old": "Закупка меха 04-26",
+          "new": "РП 04.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1c000jlsymefxu9cot",
+        "name": "СП 05.26",
+        "aliases": [
+          "СОЮЗПУШНИНА 05-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "СП 05.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc49kq00gpls833h7lz2jd",
+          "old": "СОЮЗПУШНИНА 05-26",
+          "new": "СП 05.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc49l600ibls83ydfajqbj",
+          "old": "СОЮЗПУШНИНА 05-26",
+          "new": "СП 05.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwmi0013lsvq7toylvt3",
+          "old": "СОЮЗПУШНИНА 05-26",
+          "new": "СП 05.26"
+        },
+        {
+          "table": "payment",
+          "id": "cmusu6vjw0009lsdfww33zhpz",
+          "old": "СОЮЗПУШНИНА 05-26",
+          "new": "СП 05.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1g000llsymz6khqehg",
+        "name": "AME 05.26",
+        "aliases": [
+          "AME 05-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "AME 05.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupnzwis0001lsvqdsqen220",
+          "old": "AME 05-26",
+          "new": "AME 05.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1k000nlsymuldjfzkh",
+        "name": "FH 06.26",
+        "aliases": [
+          "FH 06-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "FH 06.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc49lf00ixls83d9d3hwoz",
+          "old": "FH 06-26",
+          "new": "FH 06.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1n000plsyms8go0hsg",
+        "name": "СП 09.26",
+        "aliases": [
+          "СП 09-26"
+        ],
+        "confirmed": false
+      },
+      "afterName": "СП 09.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc53a2002blseqy8omnan4",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc537h0001lseqfz5murp5",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc537z000blseq1m36p4ve",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc538f000plseqsegbsx0k",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc538p000xlseqsa8rqh3k",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc53910019lseqcstr5uu4",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc539d001plseq0rxbawb4",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc539o001zlseqzkcqtdu8",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "document",
+          "id": "cmupc53ac002llseqh40hdacc",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "document",
+          "id": "cmupc53af002nlseqzbcp1qmc",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        },
+        {
+          "table": "document",
+          "id": "cmupc53ak002plseqcr4w4hde",
+          "old": "СП 09-26",
+          "new": "СП 09.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1r000rlsym7ltjkvnk",
+        "name": "КФХ Дуденко 07.25",
+        "aliases": [
+          "КФХ Дуденко Л. Н."
+        ],
+        "confirmed": false
+      },
+      "afterName": "КФХ Дуденко 07.25",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc483a0075ls7ye7tltm15",
+          "old": "КФХ Дуденко Л. Н.",
+          "new": "КФХ Дуденко 07.25"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc483k007lls7yg8xhfici",
+          "old": "КФХ Дуденко Л. Н.",
+          "new": "КФХ Дуденко 07.25"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupc483f007dls7y55vr816h",
+          "old": "КФХ Дуденко Л. Н.",
+          "new": "КФХ Дуденко 07.25"
+        },
+        {
+          "table": "payment",
+          "id": "cmupqwimk001dlsa4rstqnlfu",
+          "old": "КФХ Дуденко Л. Н.",
+          "new": "КФХ Дуденко 07.25"
+        },
+        {
+          "table": "payment",
+          "id": "cmupqwin0001llsa4u2cu6m6w",
+          "old": "КФХ Дуденко Л. Н.",
+          "new": "КФХ Дуденко 07.25"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1u000tlsymkpe1cuam",
+        "name": "Бобр 08.26",
+        "aliases": [
+          "Invoice 1-2026 (бобр)"
+        ],
+        "confirmed": false
+      },
+      "afterName": "Бобр 08.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmut479xu0005lsgnks9kqssu",
+          "old": "Invoice 1-2026 (бобр)",
+          "new": "Бобр 08.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs1y000vlsymfl7hydom",
+        "name": "Подкладка 07.25",
+        "aliases": [
+          "Подкладка Спец. 7 (УПД 109)"
+        ],
+        "confirmed": false
+      },
+      "afterName": "Подкладка 07.25",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmupc48da011fls7y5xnyiavl",
+          "old": "Подкладка Спец. 7 (УПД 109)",
+          "new": "Подкладка 07.25"
+        },
+        {
+          "table": "purchase",
+          "id": "cmupqpyj60001ls1vut8kmcg3",
+          "old": "Подкладка Спец. 7 (УПД 109)",
+          "new": "Подкладка 07.25"
+        },
+        {
+          "table": "payment",
+          "id": "cmupnzwkt000vlsvqzuefrobz",
+          "old": "Подкладка Спец. 7 (УПД 109)",
+          "new": "Подкладка 07.25"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs21000xlsym8a838qts",
+        "name": "Подкладка 05.26",
+        "aliases": [
+          "Подкладка Спец. 13"
+        ],
+        "confirmed": false
+      },
+      "afterName": "Подкладка 05.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmuq7h6dyad0d52baa55c2a32db",
+          "old": "Подкладка Спец. 13",
+          "new": "Подкладка 05.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs25000zlsymasd7xb3a",
+        "name": "Доп. материалы 06.26",
+        "aliases": [
+          "Доп. материалы Спец. 16"
+        ],
+        "confirmed": false
+      },
+      "afterName": "Доп. материалы 06.26",
+      "mode": "rename",
+      "texts": [
+        {
+          "table": "purchase",
+          "id": "cmuq7h6et7e351b2ad4b7d6894a",
+          "old": "Доп. материалы Спец. 16",
+          "new": "Доп. материалы 06.26"
+        }
+      ]
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs280011lsymts8y1uyc",
+        "name": "Белая норка №80",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "Белая норка №80",
+      "mode": "confirm",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs2b0013lsymqxwh3467",
+        "name": "Белая норка №96",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "Белая норка №96",
+      "mode": "confirm",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs2e0015lsymtrq0a1ba",
+        "name": "Сырьё подрядчика (партии 5–9)",
+        "aliases": [],
+        "confirmed": false
+      },
+      "afterName": "Сырьё подрядчика (партии 5–9)",
+      "mode": "confirm",
+      "texts": []
+    },
+    {
+      "auction": {
+        "id": "cmuyhqs2h0017lsymur3rw3gc",
+        "name": "Без аукциона",
+        "aliases": [
+          "Нет информации",
+          "Не в реестре остатков",
+          "Подкладочные материалы",
+          "Доп закупка"
+        ],
+        "confirmed": false
+      },
+      "afterName": "Без аукциона",
+      "mode": "confirm",
+      "texts": []
+    }
+  ],
+  "appliedAt": "2026-10-07T19:50:14.712Z",
+  "numbers": {
+    "before": {
+      "MVST": {
+        "purchasesTotal": "594377808.03",
+        "purchasesCount": 61,
+        "paymentsPaid": "407769898.88",
+        "paymentsCount": 28,
+        "debt": "186691785.22",
+        "debtReceivedNet": "23657120.84",
+        "debtInvoiced": "151314048.00",
+        "debtExpected": "11720616.38",
+        "debtByAuctionCount": 16,
+        "nonAuctionDebt": "8694790.01",
+        "furStock": "226704828.65",
+        "purchaseDocuments": 11,
+        "driveDocuments": 1225,
+        "lots": 287,
+        "byAuction": [
+          {
+            "name": "FH 06.26",
+            "purchases": 1,
+            "total": "119326553.98",
+            "paid": "30660000.00",
+            "due": "88666553.98",
+            "received": "0.00",
+            "invoiced": "85063078.00",
+            "expected": "3603475.98"
+          },
+          {
+            "name": "СП 09.26",
+            "purchases": 8,
+            "total": "64458150.40",
+            "paid": "0.00",
+            "due": "64458150.40",
+            "received": "0.00",
+            "invoiced": "60831100.00",
+            "expected": "3627050.40"
+          },
+          {
+            "name": "СП 05.25",
+            "purchases": 3,
+            "total": "29605790.45",
+            "paid": "0.00",
+            "due": "29605790.45",
+            "received": "29605790.45",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Закупка меха 04.26",
+            "purchases": 6,
+            "total": "87318155.83",
+            "paid": "81879631.34",
+            "due": "5438524.49",
+            "received": "5438524.49",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Подкладка Спец. 13",
+            "purchases": 1,
+            "total": "5400000.00",
+            "paid": "0.00",
+            "due": "5400000.00",
+            "received": "0.00",
+            "invoiced": "5400000.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СП 12.25",
+            "purchases": 1,
+            "total": "4836327.52",
+            "paid": "0.00",
+            "due": "4836327.52",
+            "received": "4836327.52",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Invoice 1-2026 (бобр)",
+            "purchases": 1,
+            "total": "4490090.00",
+            "paid": "0.00",
+            "due": "4490090.00",
+            "received": "0.00",
+            "invoiced": "0.00",
+            "expected": "4490090.00"
+          },
+          {
+            "name": "РП 05.25",
+            "purchases": 1,
+            "total": "3594292.73",
+            "paid": "0.00",
+            "due": "3594292.73",
+            "received": "3594292.73",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СОЮЗПУШНИНА 05.26",
+            "purchases": 2,
+            "total": "27730810.07",
+            "paid": "25932522.54",
+            "due": "1798287.53",
+            "received": "1798287.53",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "AME 05.26",
+            "purchases": 1,
+            "total": "3581815.79",
+            "paid": "3227823.00",
+            "due": "353992.79",
+            "received": "353992.79",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Доп. материалы Спец. 16",
+            "purchases": 1,
+            "total": "19870.00",
+            "paid": "0.00",
+            "due": "19870.00",
+            "received": "0.00",
+            "invoiced": "19870.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Подкладка Спец. 7 (УПД 109)",
+            "purchases": 2,
+            "total": "1457199.06",
+            "paid": "1455842.00",
+            "due": "1357.06",
+            "received": "1357.06",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "РП 03.25",
+            "purchases": 5,
+            "total": "38760792.38",
+            "paid": "38760761.96",
+            "due": "30.42",
+            "received": "30.42",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "SAGA 03.25",
+            "purchases": 1,
+            "total": "49126294.81",
+            "paid": "49126278.00",
+            "due": "16.81",
+            "received": "16.81",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СП 03.25",
+            "purchases": 7,
+            "total": "87110100.66",
+            "paid": "87110090.04",
+            "due": "10.62",
+            "received": "10.62",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "КФХ Дуденко Л. Н.",
+            "purchases": 3,
+            "total": "3488644.40",
+            "paid": "3488644.00",
+            "due": "0.40",
+            "received": "0.40",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          }
+        ]
+      }
+    },
+    "after": {
+      "MVST": {
+        "purchasesTotal": "594377808.03",
+        "purchasesCount": 61,
+        "paymentsPaid": "407769898.88",
+        "paymentsCount": 28,
+        "debt": "186691785.22",
+        "debtReceivedNet": "23657120.84",
+        "debtInvoiced": "151314048.00",
+        "debtExpected": "11720616.38",
+        "debtByAuctionCount": 16,
+        "nonAuctionDebt": "8694790.01",
+        "furStock": "226704828.65",
+        "purchaseDocuments": 11,
+        "driveDocuments": 1225,
+        "lots": 287,
+        "byAuction": [
+          {
+            "name": "FH 06.26",
+            "purchases": 1,
+            "total": "119326553.98",
+            "paid": "30660000.00",
+            "due": "88666553.98",
+            "received": "0.00",
+            "invoiced": "85063078.00",
+            "expected": "3603475.98"
+          },
+          {
+            "name": "СП 09.26",
+            "purchases": 8,
+            "total": "64458150.40",
+            "paid": "0.00",
+            "due": "64458150.40",
+            "received": "0.00",
+            "invoiced": "60831100.00",
+            "expected": "3627050.40"
+          },
+          {
+            "name": "СП 05.25",
+            "purchases": 3,
+            "total": "29605790.45",
+            "paid": "0.00",
+            "due": "29605790.45",
+            "received": "29605790.45",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "РП 04.26",
+            "purchases": 6,
+            "total": "87318155.83",
+            "paid": "81879631.34",
+            "due": "5438524.49",
+            "received": "5438524.49",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Подкладка 05.26",
+            "purchases": 1,
+            "total": "5400000.00",
+            "paid": "0.00",
+            "due": "5400000.00",
+            "received": "0.00",
+            "invoiced": "5400000.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СП 12.25",
+            "purchases": 1,
+            "total": "4836327.52",
+            "paid": "0.00",
+            "due": "4836327.52",
+            "received": "4836327.52",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Бобр 08.26",
+            "purchases": 1,
+            "total": "4490090.00",
+            "paid": "0.00",
+            "due": "4490090.00",
+            "received": "0.00",
+            "invoiced": "0.00",
+            "expected": "4490090.00"
+          },
+          {
+            "name": "РП 05.25",
+            "purchases": 1,
+            "total": "3594292.73",
+            "paid": "0.00",
+            "due": "3594292.73",
+            "received": "3594292.73",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СП 05.26",
+            "purchases": 2,
+            "total": "27730810.07",
+            "paid": "25932522.54",
+            "due": "1798287.53",
+            "received": "1798287.53",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "AME 05.26",
+            "purchases": 1,
+            "total": "3581815.79",
+            "paid": "3227823.00",
+            "due": "353992.79",
+            "received": "353992.79",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Доп. материалы 06.26",
+            "purchases": 1,
+            "total": "19870.00",
+            "paid": "0.00",
+            "due": "19870.00",
+            "received": "0.00",
+            "invoiced": "19870.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "Подкладка 07.25",
+            "purchases": 2,
+            "total": "1457199.06",
+            "paid": "1455842.00",
+            "due": "1357.06",
+            "received": "1357.06",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "РП 03.25",
+            "purchases": 5,
+            "total": "38760792.38",
+            "paid": "38760761.96",
+            "due": "30.42",
+            "received": "30.42",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "SAGA 03.25",
+            "purchases": 1,
+            "total": "49126294.81",
+            "paid": "49126278.00",
+            "due": "16.81",
+            "received": "16.81",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "СП 03.25",
+            "purchases": 7,
+            "total": "87110100.66",
+            "paid": "87110090.04",
+            "due": "10.62",
+            "received": "10.62",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          },
+          {
+            "name": "КФХ Дуденко 07.25",
+            "purchases": 3,
+            "total": "3488644.40",
+            "paid": "3488644.00",
+            "due": "0.40",
+            "received": "0.40",
+            "invoiced": "0.00",
+            "expected": "0.00"
+          }
+        ]
+      }
+    }
+  }
+}

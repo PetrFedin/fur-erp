@@ -2,7 +2,10 @@
 // Чистые функции без обращения к БД.
 import type { OrderRow } from "@/lib/analytics-orders";
 import { normalizeModelCode } from "@/lib/model-code";
-import { compareSizes, UNDEFINED_CATEGORY } from "@/lib/product-category";
+import { UNDEFINED_CATEGORY, UNDEFINED_COLOR, UNDEFINED_SIZE } from "@/lib/product-category";
+import { collectOrderSizes } from "@/lib/order-sizes";
+
+const NO_SIZE = UNDEFINED_SIZE;
 import { compareModelNames } from "@/lib/model-code";
 
 export type SP = Record<string, string | string[] | undefined>;
@@ -117,9 +120,10 @@ export function applyShared(rows: OrderRow[], f: SharedFilters): OrderRow[] {
   return rows.filter((r) => {
     if (f.cat.length && !f.cat.includes(r.category)) return false;
     if (f.fur.length && !f.fur.includes(r.fur)) return false;
-    if (f.size.length && !f.size.includes(r.size)) return false;
+    // Размер и цвет — по ВСЕМ размерам/цветам ТЗ (parseOrderSizes, orderColors); ТЗ без значения — под «не указан».
+    if (f.size.length && !(r.sizes.length ? r.sizes.some((x) => f.size.includes(x)) : f.size.includes(NO_SIZE))) return false;
     if (f.batch.length && !f.batch.includes(String(r.batchNumber))) return false;
-    if (f.color.length && !f.color.includes(r.color)) return false;
+    if (f.color.length && !(r.colors.length ? r.colors.some((x) => f.color.includes(x)) : f.color.includes(UNDEFINED_COLOR))) return false;
     if (f.season.length && !f.season.includes(r.seasonCode ?? "")) return false;
     if (f.vat && r.vatKind !== f.vat) return false;
     if (f.onlyH && r.hammerSkins <= 0) return false;
@@ -141,6 +145,8 @@ export type Options = {
   fur: string[];
   size: string[];
   batch: string[];
+  /** Подпись партии с годом: «Партия 5 · 2025». */
+  batchLabels: Record<string, string>;
   color: string[];
   season: string[];
   auc: string[];
@@ -157,9 +163,10 @@ export function filterOptions(all: OrderRow[]): Options {
   return {
     cat: uniq(all.map((r) => r.category)).sort((a, b) => (a === UNDEFINED_CATEGORY ? 1 : b === UNDEFINED_CATEGORY ? -1 : ru(a, b))),
     fur: uniq(all.map((r) => r.fur)).sort(ru),
-    size: uniq(all.map((r) => r.size)).sort(compareSizes),
+    size: [...collectOrderSizes(all.map((r) => r.sizeRaw)), ...(all.some((r) => r.sizes.length === 0) ? [NO_SIZE] : [])],
     batch: uniq(all.map((r) => (r.batchNumber == null ? null : String(r.batchNumber)))).sort((a, b) => Number(a) - Number(b)),
-    color: uniq(all.map((r) => r.color)).sort(ru),
+    batchLabels: Object.fromEntries(all.filter((r) => r.batchNumber != null && r.batchText).map((r) => [String(r.batchNumber), r.batchText as string])),
+    color: [...uniq(all.flatMap((r) => r.colors)).sort(ru), ...(all.some((r) => r.colors.length === 0) ? [UNDEFINED_COLOR] : [])],
     season: uniq(all.map((r) => r.seasonCode)).sort(ru),
     auc: uniq(all.flatMap((r) => r.auctions)).sort(ru),
     py: uniq(all.flatMap((r) => r.purchaseYears.map(String))).sort(),

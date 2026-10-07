@@ -65,3 +65,20 @@ export function lotHammer(costBreakdown: unknown, vatRate: number, planBreakdown
   }
   return null;
 }
+
+/**
+ * Закупочная цена шкуры в долларах за единицу (молоток, до сборов) — только если она названа в документах лота:
+ * «Цена за ед. (ам. долл.)» в расчёте лота (RawMaterialLot.costBreakdown) или «Цена за ед., $» в расчётном листе позиции закупки.
+ * Ничего не пересчитывается по курсу: нет строки — null (у лота нет цены в USD).
+ */
+export function lotUsdPrice(costBreakdown: unknown, planBreakdowns: unknown[] = []): number | null {
+  const own = itemsOf(costBreakdown);
+  const fromOwn = pick(own, "Цена за ед. (ам. долл.)") ?? pick(own, "Цена за ед., $");
+  if (fromOwn != null && fromOwn > 0) return fromOwn;
+  for (const p of planBreakdowns) {
+    const items = itemsOf((p as { costBreakdown?: unknown } | null | undefined)?.costBreakdown);
+    const v = pick(items, "Цена за ед. (ам. долл.)") ?? pick(items, "Цена за ед., $");
+    if (v != null && v > 0) return v;
+  }
+  return null;
+}

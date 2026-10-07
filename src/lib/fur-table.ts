@@ -21,7 +21,11 @@ export type FlowMode = { vat: VatKind; c4: C4Kind };
 export const NO_AUCTION = "__none";
 export const NOT_SET = "Не указан";
 
-export type FurLotUsage = { orderId: string; number: string; qty: number };
+/** Списание лота в одно ТЗ: количество и суммы (с НДС / без НДС, 4% — надбавка только по строкам с commission4). */
+export type FurLotUsage = {
+  orderId: string; number: string; qty: number;
+  incl: number; excl: number; extraIncl: number; extraExcl: number;
+};
 
 export type FurLot = {
   id: string;
@@ -31,7 +35,10 @@ export type FurLot = {
   /** Название материала в справочнике как есть («Лиса красная»). */
   materialName: string;
   color: string;
+  /** Размер лота по документам (RawMaterialLot.sizeGrade, «XXL, XL»); не указан — NOT_SET. */
   size: string;
+  /** Размеры лота списком (lotSizes(sizeGrade)); пусто — размер в документах не указан. Лот с несколькими размерами попадает под каждый. */
+  sizes: string[];
   /** Полное название партии закупки (ключ фильтра) или NO_AUCTION. */
   auction: string;
   auctionLabel: string;
@@ -54,8 +61,18 @@ export type FurLot = {
   remIncl: number;
   remExcl: number;
   /** Закупка в валюте: Σ количество и Σ сумма по позициям (только для лотов с закупкой в USD). */
+  /** Ставка НДС лота, % (фильтр «Ставка НДС» на Сводке). */
+  vatRate: number;
+  /** Закупочная цена шкуры в USD за единицу, если она названа в документах лота (lotUsdPrice); иначе null. */
+  usdPrice: number | null;
+  /** Закупка в валюте: Σ количество и Σ сумма «куплено» по лотам с ценой в USD. */
   usdQty: number;
   usdSubtotal: number;
+  /** То же для использованного и остатка (только лоты с ценой в USD). */
+  usdUsedQty: number;
+  usdUsedSubtotal: number;
+  usdRemQty: number;
+  usdRemSubtotal: number;
   usages: FurLotUsage[];
 };
 
@@ -76,15 +93,20 @@ export type Flow = {
   remExcl: number;
   usdQty: number;
   usdSubtotal: number;
+  usdUsedQty: number;
+  usdUsedSubtotal: number;
+  usdRemQty: number;
+  usdRemSubtotal: number;
 };
 
 export const emptyFlow = (): Flow => ({
   lots: 0, recv: 0, used: 0, rem: 0, recvIncl: 0, recvExcl: 0, usedIncl: 0, usedExcl: 0,
   usedExtraIncl: 0, usedExtraExcl: 0, remIncl: 0, remExcl: 0, usdQty: 0, usdSubtotal: 0,
+  usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
 });
 
 /** Числовая часть лота — всё, что нужно для сумм (общая для строки таблицы и лота аналитики сырья). */
-export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal">;
+export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal" | "usdUsedQty" | "usdUsedSubtotal" | "usdRemQty" | "usdRemSubtotal">;
 
 export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.lots += 1;
@@ -94,6 +116,8 @@ export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.usedExtraIncl += l.usedExtraIncl; f.usedExtraExcl += l.usedExtraExcl;
   f.remIncl += l.remIncl; f.remExcl += l.remExcl;
   f.usdQty += l.usdQty; f.usdSubtotal += l.usdSubtotal;
+  f.usdUsedQty += l.usdUsedQty; f.usdUsedSubtotal += l.usdUsedSubtotal;
+  f.usdRemQty += l.usdRemQty; f.usdRemSubtotal += l.usdRemSubtotal;
   return f;
 }
 
@@ -130,8 +154,15 @@ export type FlowFigures = {
   remQty: number;
   remValue: number;
   remAvg: number | null;
-  /** Средняя цена закупки в валюте (USD за шт.): Σ сумма ÷ Σ кол-во по лотам с закупкой в USD. */
+  /** Средняя цена закупки в валюте (USD за шт.): Σ сумма ÷ Σ кол-во по лотам с ценой в USD (только они). */
   usdAvg: number | null;
+  /** Сколько из купленного шт. приходится на лоты с ценой в USD (покрытие usdAvg). */
+  usdQty: number;
+  /** То же «по USD-лотам» для использованного и остатка: количество и средняя цена $/шт. */
+  usdUsedQty: number;
+  usdUsedAvg: number | null;
+  usdRemQty: number;
+  usdRemAvg: number | null;
 };
 
 export function figures(f: Flow, mode: FlowMode): FlowFigures {
@@ -151,6 +182,9 @@ export function figures(f: Flow, mode: FlowMode): FlowFigures {
     usedQty, usedValue, usedValueOther, usedAvg: safeRatio(usedValue, usedQty),
     remQty, remValue, remAvg: safeRatio(remValue, remQty),
     usdAvg: safeRatio(f.usdSubtotal, f.usdQty),
+    usdQty: round3(f.usdQty),
+    usdUsedQty: round3(f.usdUsedQty), usdUsedAvg: safeRatio(f.usdUsedSubtotal, f.usdUsedQty),
+    usdRemQty: round3(f.usdRemQty), usdRemAvg: safeRatio(f.usdRemSubtotal, f.usdRemQty),
   };
 }
 
@@ -184,12 +218,18 @@ export function lotValue(l: FurLot, key: FilterKey): string {
   }
 }
 
+/** Значения лота для фильтра: у размера их может быть несколько (sizeGrade «XXL,XL» — под XXL и под XL); нет размера — NOT_SET. */
+export function lotValues(l: FurLot, key: FilterKey): string[] {
+  if (key === "size") return l.sizes.length > 0 ? l.sizes : [NOT_SET];
+  return [lotValue(l, key)];
+}
+
 /** Лоты, подходящие под фильтры (пустой список значений фильтра = «все»). skip — не применять один из фильтров. */
 export function filterLots(lots: FurLot[], filters: FurFilters, skip?: FilterKey): FurLot[] {
   const active = FILTER_KEYS.filter((k) => k !== skip && filters[k].length > 0);
   if (active.length === 0) return lots;
   const sets = active.map((k) => [k, new Set(filters[k])] as const);
-  return lots.filter((l) => sets.every(([k, s]) => s.has(lotValue(l, k))));
+  return lots.filter((l) => sets.every(([k, s]) => lotValues(l, k).some((v) => s.has(v))));
 }
 
 export type FilterOption = { value: string; label: string; count: number };
@@ -205,27 +245,31 @@ export function filterOptions(lots: FurLot[], filters: FurFilters, key: FilterKe
   const counts = new Map<string, number>();
   const labels = new Map<string, string>();
   for (const l of base) {
-    const v = lotValue(l, key);
-    counts.set(v, (counts.get(v) ?? 0) + 1);
-    if (!labels.has(v)) labels.set(v, labelOf(l, key, v));
+    for (const v of lotValues(l, key)) {
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+      if (!labels.has(v)) labels.set(v, labelOf(l, key, v));
+    }
   }
   for (const v of filters[key]) {
     if (!counts.has(v)) {
       counts.set(v, 0);
-      const sample = lots.find((l) => lotValue(l, key) === v);
+      const sample = lots.find((l) => lotValues(l, key).includes(v));
       labels.set(v, sample ? labelOf(sample, key, v) : v === NO_AUCTION ? "Без аукциона" : REST_LABELS[v] ?? v);
     }
   }
   const out = Array.from(counts, ([value, count]) => ({ value, label: labels.get(value) ?? value, count }));
   if (key === "year") out.sort((a, b) => Number(b.value) - Number(a.value));
   else if (key === "rest") out.sort((a, b) => (a.value === "with" ? -1 : 1) - (b.value === "with" ? -1 : 1));
-  else out.sort((a, b) => collator.compare(a.label, b.label));
+  // «не указан в документах» — отдельной строкой в конце списка (с числом лотов).
+  else out.sort((a, b) => Number(a.value === NOT_SET) - Number(b.value === NOT_SET) || collator.compare(a.label, b.label));
   return out;
 }
 
 function labelOf(l: FurLot, key: FilterKey, v: string): string {
   if (key === "auction") return l.auctionLabel;
   if (key === "rest") return REST_LABELS[v] ?? v;
+  if (v === NOT_SET && key === "size") return "Размер не указан в документах";
+  if (v === NOT_SET && key === "color") return "Цвет не указан в документах";
   return v;
 }
 

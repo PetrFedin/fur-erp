@@ -6,9 +6,11 @@ import "server-only";
 // из server actions кэш можно сбросить сразу: invalidateFilterOptions(orgId).
 import { prisma } from "@/lib/prisma";
 import { auctionName, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { findAuctionIn } from "@/lib/auction-ref-core";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { purchaseYear } from "@/lib/year-scope";
+import { batchLabel } from "@/lib/batch-label";
 import type { YearFilter } from "@/lib/year-filter";
 
 import type { FilterOption } from "@/lib/filters";
@@ -49,15 +51,31 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
     }
     case "color":
     case "lotcolor": {
-      const rows = await prisma.colorRef.findMany({ where: { organizationId: orgId }, select: { name: true } });
-      return rows.map((r) => ({ value: r.name, label: r.name })).sort(byLabel);
+      // Цвета лотов: только те, что реально есть у лотов (каноническое название справочника), со счётчиком лотов.
+      const rows = await prisma.rawMaterialLot.findMany({ where: { organizationId: orgId }, select: { color: true, colorRef: { select: { name: true } } } });
+      const counts = new Map<string, number>();
+      for (const r of rows) {
+        const n = r.colorRef?.name ?? r.color?.trim();
+        if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
+      }
+      return Array.from(counts, ([value, count]) => ({ value, label: value, count })).sort(byLabel);
     }
     case "batch": {
-      const rows = await prisma.productionBatch.findMany({ where: { organizationId: orgId }, select: { number: true, name: true, year: true }, orderBy: { number: "asc" } });
-      return rows.map((b) => ({ value: String(b.number), label: `Партия ${b.number}${b.year ? ` (${b.year})` : ""}`, title: b.name ?? undefined }));
+      const rows = await prisma.productionBatch.findMany({
+        where: { organizationId: orgId },
+        select: { number: true, name: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
+        orderBy: { number: "asc" },
+      });
+      // Год обязателен в подписи: «Партия 5 · 2025»; нет года — «≈год по ТЗ» или «пусто» (batch-label.ts).
+      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: b.orders.length, title: b.name ?? undefined }));
     }
     case "supplier": {
-      const rows = await prisma.supplier.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+      // Только поставщики, у которых есть закупки или оплаты: остальные фильтр ничем не сужают.
+      const rows = await prisma.supplier.findMany({
+        where: { organizationId: orgId, OR: [{ purchases: { some: {} } }, { payments: { some: {} } }] },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      });
       return rows.map((r) => ({ value: r.id, label: r.name }));
     }
     case "client": {
@@ -91,24 +109,45 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
 }
 
 /**
- * ТОЧКА ПОДКЛЮЧЕНИЯ справочника аукционов. Сейчас варианты фильтра «Партия закупки» берутся из Purchase.auctionSession
- * (название = auctionName(), счётчик = число закупок, служебные записи — в конец). Когда появится справочник
- * (Auction, src/lib/auction-ref.ts), заменить тело этой функции: вернуть FilterOption[] с value = канонический ключ
- * партии, который понимают purchaseIdsByAuction() и страницы (/lots, /purchases, /payments, /production),
- * label = короткое название, count = число закупок за год `year`. Больше нигде менять не нужно.
+ * Варианты фильтра «Партия закупки (аукцион)» из СПРАВОЧНИКА аукционов (Auction, src/lib/auction-ref.ts).
+ * value = ключ группы, который понимают purchaseIdsByAuction() и страницы (/lots, /purchases, /payments, /production):
+ * название аукциона из Purchase.auctionSession (auctionName()); у переименованного аукцион это его короткое имя.
+ * label = короткое имя из справочника, title = полное название · дом · год; count = число закупок за год `year`.
+ * Закупки, чей аукцион в справочнике не найден, остаются в списке под своим текстом.
  */
 export async function loadAuctionFilterOptions(orgId: string, year: YearFilter): Promise<FilterOption[]> {
-  const rows = await prisma.purchase.findMany({
-    where: { organizationId: orgId, auctionSession: { not: null }, ...purchaseYear(year) },
-    select: { auctionSession: true },
-  });
+  const [rows, list] = await Promise.all([
+    prisma.purchase.findMany({
+      where: { organizationId: orgId, auctionSession: { not: null }, ...purchaseYear(year) },
+      select: { auctionSession: true },
+    }),
+    prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true, fullName: true, house: true, year: true } }),
+  ]);
   const counts = new Map<string, number>();
   for (const r of rows) {
     const n = auctionName(r.auctionSession);
     if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
   }
-  return Array.from(counts, ([value, count]) => ({ value, label: shortAuctionName(value, 56), count, title: value }))
-    .sort((a, b) => Number(isServiceAuction(a.value)) - Number(isServiceAuction(b.value)) || byLabel(a, b));
+  return Array.from(counts, ([value, count]) => {
+    const a = findAuctionIn(value, list);
+    const label = shortAuctionName(a && !a.isService ? a.name : value, 56);
+    const title = a && !a.isService ? [a.fullName ?? a.name, a.house, a.year].filter(Boolean).join(" · ") : value;
+    return { value, label, count, title };
+  }).sort((a, b) => Number(isServiceAuction(a.value)) - Number(isServiceAuction(b.value)) || byLabel(a, b));
+}
+
+/**
+ * Подписи партий закупки из справочника аукционов для любого списка названий (Purchase.auctionSession):
+ * label — короткое имя справочника («СП 03.25»), title — полное название · дом · год. Название, которого нет в справочнике,
+ * остаётся как есть. Так все фильтры «Партия закупки (аукцион)» (lots, документы, аналитика, проверка…) подписаны одинаково.
+ */
+export async function auctionLabeler(orgId: string): Promise<(name: string) => { label: string; title: string }> {
+  const all = (await getFilterOptions(orgId, "all", ["auction"])).auction;
+  const m = new Map(all.map((o) => [o.value, o] as const));
+  return (name) => {
+    const o = m.get(auctionName(name) ?? name) ?? m.get(name);
+    return o ? { label: o.label, title: o.title ?? name } : { label: shortAuctionName(name, 56), title: name };
+  };
 }
 
 export async function getFilterOptions<K extends OptionKey>(orgId: string, year: YearFilter, keys: readonly K[]): Promise<Record<K, FilterOption[]>> {
@@ -137,19 +176,31 @@ export function invalidateFilterOptions(orgId?: string) {
  * в название (старые ссылки с частью названия); none — закупки без аукциона. Общая для /purchases и /production.
  */
 export async function purchaseIdsByAuction(orgId: string, values: string[]): Promise<string[]> {
-  const rows = await prisma.purchase.findMany({ where: { organizationId: orgId }, select: { id: true, auctionSession: true } });
+  const [rows, list] = await Promise.all([
+    prisma.purchase.findMany({ where: { organizationId: orgId }, select: { id: true, auctionSession: true, auctionId: true } }),
+    prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true } }),
+  ]);
   const names = new Set<string>();
   for (const r of rows) {
     const n = auctionName(r.auctionSession);
     if (n) names.add(n);
   }
+  // Значение из старой ссылки (прежнее написание аукциона) -> запись справочника: ищем закупки по её id и по всем её написаниям.
+  const byRef = new Set<string>();
+  for (const v of values) {
+    if (v === "none" || names.has(v)) continue;
+    const a = findAuctionIn(v, list);
+    if (a && !a.isService) byRef.add(a.id);
+  }
   const exact = new Set(values.filter((v) => names.has(v)));
-  const loose = values.filter((v) => v !== "none" && !names.has(v)).map((v) => v.toLowerCase());
+  const loose = values.filter((v) => v !== "none" && !names.has(v) && !(findAuctionIn(v, list) && !findAuctionIn(v, list)!.isService)).map((v) => v.toLowerCase());
   const wantNone = values.includes("none");
   return rows
     .filter((r) => {
       const n = auctionName(r.auctionSession);
       const raw = (r.auctionSession ?? "").toLowerCase();
+      if (r.auctionId && byRef.has(r.auctionId)) return true;
+      if (byRef.size && findAuctionIn(r.auctionSession, list) && byRef.has(findAuctionIn(r.auctionSession, list)!.id)) return true;
       if (!n) return wantNone || loose.some((v) => raw.includes(v));
       return exact.has(n) || loose.some((v) => raw.includes(v));
     })

@@ -13,7 +13,7 @@ export function sql(q: string): string {
 }
 const norm = (s: string) => s.replace(/[  ]/g, " ").replace(/\s+/g, " ").trim();
 const num = (s: string) => Number(norm(s).replace(/[^\d,\-]/g, "").replace(",", "."));
-const SP = "СП 09-26";
+const SP = "СП 09.26";
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3241";
 const UPLOADS = "/tmp/fur-e2e/aud-uploads";
 const ORG = "cmuo7vwvk0000lsu5pghd5jka"; // организация anna@qa-test.ru (копия боевой)
@@ -30,7 +30,7 @@ test.beforeAll(() => {
   sql(`insert into "Supplier"(id,"organizationId",name,"updatedAt") values ('s_b','org_b','Supplier B',now()) on conflict do nothing`);
   sql(`insert into "Warehouse"(id,"organizationId",name) values ('w_b','org_b','WH B') on conflict do nothing`);
   sql(`insert into "RawMaterial"(id,"organizationId",name,"updatedAt") values ('m_b','org_b','Соболь B',now()) on conflict do nothing`);
-  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09-26','B1',now()) on conflict do nothing`);
+  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09.26','B1',now()) on conflict do nothing`);
   sql(`insert into "PurchaseItem"(id,"purchaseId","rawMaterialId",quantity,"unitPrice",subtotal,"vatRate","lotNumber","costPlan") select 'pi_b','p_b','m_b',10,100,1000,22,'B-LOT',i."costPlan" from "PurchaseItem" i join "Purchase" p on p.id=i."purchaseId" where p."organizationId"='${ORG}' and i."lotNumber"='3631' on conflict do nothing`);
   const src = sql(`select "storagePath" from "PurchaseDocument" where "organizationId"='${ORG}' and "originalName"='3017 ООО ВеллМех.pdf'`);
   mkdirSync(`${UPLOADS}/purchase-docs/org_b/p_b`, { recursive: true });
@@ -38,7 +38,7 @@ test.beforeAll(() => {
   sql(`insert into "PurchaseDocument"(id,"organizationId","purchaseId",kind,title,"storagePath","originalName","mimeType","sizeBytes") values ('doc_b','org_b','p_b','AUCTION_INVOICE','Счёт B','purchase-docs/org_b/p_b/b1.pdf','b1.pdf','application/pdf',275603) on conflict do nothing`);
 });
 
-/** Копия черновика (позиции с расчётом) в отдельном «аукционе» — чтобы не портить СП 09-26. Возвращает id закупки. */
+/** Копия черновика (позиции с расчётом) в отдельном «аукционе» — чтобы не портить СП 09.26. Возвращает id закупки. */
 function cloneDraft(srcInv: string, tag: string, aucName: string): string {
   const newId = "c" + createHash("md5").update(tag).digest("hex").slice(0, 24);
   sql(`delete from "RawMaterialLot" where "purchaseId"='${newId}'`);
@@ -83,7 +83,7 @@ test.describe.configure({ mode: "default" });
 test.use({ actionTimeout: 10_000, navigationTimeout: 20_000 });
 
 test.describe("1. /lots: режим «Аукцион»", () => {
-  test("СП 09-26: итоги и построчная сверка с SQL, оба режима НДС", async ({ page, context }) => {
+  test("СП 09.26: итоги и построчная сверка с SQL, оба режима НДС", async ({ page, context }) => {
     const errors = watchErrors(page);
     await login(page);
     const exp = expectedRows();
@@ -144,7 +144,7 @@ async function readBlocksFull(page: Page) {
 }
 
 test.describe("1b. принятые аукционы: остаток, использование в ТЗ", () => {
-  for (const name of ["SAGA 03-26", "Не в реестре остатков (реконструировано из ТЗ)", "Закупка меха 04-26", "РП 03.25"]) {
+  for (const name of ["SAGA 03.26", "Не в реестре остатков (реконструировано из ТЗ)", "РП 04.26", "РП 03.25"]) {
     test(`${name}: лоты, остаток, ТЗ`, async ({ page, context }) => {
       const errors = watchErrors(page);
       await login(page);
@@ -258,29 +258,24 @@ test.describe("1c. сочетание фильтров, пустой резул�
       // бейдж в чипе/подсказке
       const opt = await page.locator("#auction-options option").evaluateAll((os) => os.map((o) => o.getAttribute("value") + "|" + o.textContent));
       console.log(opt.filter((o) => o.startsWith(SP)));
-      // /lots чипы
-      const chip = await page.locator('a[title*="закупк"]').first().getAttribute("title");
-      console.log("chip title:", chip);
     } finally {
       sql(`update "Purchase" set status='DRAFT' where id='${id}'`);
     }
     await expectNoErrors(errors);
   });
 
-  test("чипы и подсказки: число закупок и статус", async ({ page }) => {
+  test("партии закупки: быстрых чипов на /lots нет, ссылки на аукцион — из таблицы закупок", async ({ page }) => {
     await login(page);
     await page.goto("/lots");
-    const chips = await page.locator('a[href^="/lots?auction="]').evaluateAll((as) => as.map((a) => [a.textContent, a.getAttribute("title"), a.getAttribute("href")]));
-    console.log(JSON.stringify(chips));
-    const opts = await page.locator("#auction-options option").evaluateAll((os) => os.map((o) => [o.getAttribute("value"), o.textContent]));
-    console.log(JSON.stringify(opts));
-    const db = sql(`select split_part("auctionSession", E'\n', 1) a, count(*), count(*) filter (where status='RECEIVED'), count(*) filter (where status='DRAFT'), count(*) filter (where status='CANCELLED') from "Purchase" where "organizationId"='${ORG}' and "auctionSession" is not null and btrim(split_part("auctionSession", E'\n', 1))<>'' group by 1`);
-    console.log(db);
-    expect(opts.length).toBe(db.split("\n").length);
-    for (const [v, t] of opts) {
-      const row = db.split("\n").map((l) => l.split("|")).find((r) => r[0].trim() === v);
-      expect(row, String(v)).toBeTruthy();
-      expect(t).toContain(`${row![1]}`);
+    // Быстрые чипы партий убраны: партия выбирается только фильтром «Партия закупки (аукцион)».
+    expect(await page.locator('a[href^="/lots?auction="]').count()).toBe(0);
+    await page.goto("/purchases");
+    const links = await page.locator('a[href^="/payments?auction="]').evaluateAll((as) => as.map((a) => [a.textContent, a.getAttribute("title"), a.getAttribute("href")]));
+    console.log(JSON.stringify(links));
+    const db = sql(`select distinct split_part("auctionSession", E'\n', 1) a from "Purchase" where "organizationId"='${ORG}' and "auctionSession" is not null and btrim(split_part("auctionSession", E'\n', 1))<>''`).split("\n").map((x) => x.trim());
+    for (const [, , href] of links) {
+      const name = decodeURIComponent(String(href).replace(/^\/payments\?auction=/, "").replace(/#.*$/, ""));
+      expect(db, name).toContain(name);
     }
   });
 });
@@ -300,7 +295,7 @@ const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 const docRow = (page: Page, text: string) => page.locator("tbody tr", { hasText: text }).filter({ has: page.getByRole("link", { name: "Скачать" }) });
 
 test.describe("2a. документы: список, скачивание, открытие", () => {
-  test("11 документов СП 09-26; Скачать/Открыть, имена, PDF-байты", async ({ page, context }) => {
+  test("11 документов СП 09.26; Скачать/Открыть, имена, PDF-байты", async ({ page, context }) => {
     const errors = watchErrors(page);
     await login(page);
     await page.goto(url(SP));
@@ -513,7 +508,7 @@ test.describe("2c. документы партии и пакетная загр�
     // заменить на карточке другой закупки (если есть такая кнопка) — иначе в режиме аукциона
     await page.goto(url(SP));
     const row = page.locator("tbody tr").filter({ hasText: "ТЕСТ-партия" });
-    await expect(row.getByText("вся партия СП 09-26")).toBeVisible();
+    await expect(row.getByText("вся партия СП 09.26")).toBeVisible();
     await row.locator('input[type="file"]').setInputFiles({ name: "партия2.pdf", mimeType: "application/pdf", buffer: pdf("batch2") });
     await expect(page.getByText("Файл заменён")).toBeVisible();
     const r2 = sql(`select "storagePath" from "PurchaseDocument" where title='ТЕСТ-партия'`);
@@ -666,7 +661,7 @@ test.describe("2d. роли и чужая организация: докумен
       // UI режима «Аукцион»
       await p.goto(url(SP));
       if (label !== "ЧУЖАЯ ОРГ") {
-        await expect(p.getByText("Аукцион: СП 09-26")).toBeVisible();
+        await expect(p.getByText("Аукцион: СП 09.26")).toBeVisible();
         const t = await p.locator("body").innerText();
         for (const s of NO_EDIT_TEXT) if (t.includes(s)) report.push(`${label}: в режиме «Аукцион» видно «${s}»`);
         if (await p.getByRole("button", { name: "Удалить" }).count()) report.push(`${label}: в режиме «Аукцион» видна кнопка «Удалить»`);
@@ -1442,7 +1437,7 @@ test.describe("5. оба режима НДС, консоль", () => {
     const plans = planItems(inv);
     for (const mode of ["incl", "excl"] as const) {
       await setVat(context, mode);
-      for (const u of ["/dashboard", "/purchases", `/purchases/${pid}`, "/lots", "/lots?tab=lining", url(SP), url("SAGA 03-26"), url("СП"), "/raw-materials"]) {
+      for (const u of ["/dashboard", "/purchases", `/purchases/${pid}`, "/lots", "/lots?tab=lining", url(SP), url("SAGA 03.26"), url("СП"), "/raw-materials"]) {
         const r = await page.goto(u);
         expect(r?.status(), u).toBeLessThan(400);
         const t = await page.locator("body").innerText();
@@ -1477,7 +1472,7 @@ test.describe("5. оба режима НДС, консоль", () => {
       expect(await blk.getByRole("link", { name: /Счёт аукциона №/ }).getAttribute("href")).toMatch(new RegExp(`^/api/purchase-docs/${did}\\?v=[^&]+$`));
     }
     // принятый аукцион без счёта в документах
-    await page.goto(url("SAGA 03-26"));
+    await page.goto(url("SAGA 03.26"));
     expect(await page.getByText("счёта аукциона в документах нет").count()).toBe(7);
   });
 });

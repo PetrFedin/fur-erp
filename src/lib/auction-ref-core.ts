@@ -88,7 +88,7 @@ async function assertNameFree(db: Db, orgId: string, name: string, aliases: stri
 }
 
 function mergeAliases(base: string[], add: string[], name: string): string[] {
-  // Дубли определяем по точному написанию: «СП 09-26» хранится как прежнее написание, хотя ключ сравнения у него тот же, что у «СП 09.26».
+  // Дубли определяем по точному написанию: «СП 09-26» хранится как прежнее написание, хотя ключ сравнения у него тот же, что у «СП 09.26» (пример).
   const seen = new Set([name.trim()]);
   const out: string[] = [];
   for (const v of [...base, ...add]) {

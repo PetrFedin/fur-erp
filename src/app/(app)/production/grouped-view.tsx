@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { batchLabel } from "@/lib/batch-label";
+import { ArticleName } from "@/components/article-name";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { batchExtraName, batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
@@ -71,13 +73,12 @@ export function GroupedByBatch({
               <span className="inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
               {g.batch ? (
                 <Link href={`/production/batches/${g.batch.number}`} className="font-medium hover:underline">
-                  Партия {g.batch.number}
+                  {batchLabel(g.batch.number, g.batch.year, g.orders)}
                   {batchExtraName(g.batch.name) ? ` · ${batchExtraName(g.batch.name)}` : ""}
                 </Link>
               ) : (
                 <span className="font-medium">Без партии</span>
               )}
-              {g.batch?.year && <span className="text-xs text-neutral-500">{g.batch.year}</span>}
               <span className="text-xs text-neutral-500">
                 ТЗ: {t.orders} · изделий: {formatQty(t.units.toString())}
               </span>
@@ -97,7 +98,7 @@ export function GroupedByBatch({
                     <Link href={`/production/${o.id}`} className="font-medium hover:underline">
                       {o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`}
                     </Link>
-                    <span className="text-neutral-700">{o.productModel.name}</span>
+                    <span className="text-neutral-700"><ArticleName model={o.productModel} /></span>
                     <span className="text-xs text-neutral-500">{formatQty(s.qty.toString())} шт.</span>
                     <Badge variant={st.variant}>{st.label}</Badge>
                     {indicators?.get(o.id) && (

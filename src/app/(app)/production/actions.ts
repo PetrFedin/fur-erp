@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { resetByOrder } from "@/lib/verification";
+import { resetByBatch, resetByOrder } from "@/lib/verification";
+import { invalidateFilterOptions } from "@/lib/filter-options";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -421,18 +422,11 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     clientWorkPricePerUnit = new Decimal(n.value);
   }
 
-  // Партия — необязательное поле формы правки: меняем только если оно пришло (пусто = «без партии»).
-  let batchPatch: { batchId: string | null } | Record<string, never> = {};
-  if (formData.has("batchId")) {
-    const batchIdRaw = ((formData.get("batchId") as string | null) ?? "").trim();
-    if (batchIdRaw) {
-      const b = await prisma.productionBatch.findFirst({ where: { id: batchIdRaw, organizationId: session.user.organizationId }, select: { id: true } });
-      if (!b) return { error: "Партия не найдена" };
-      batchPatch = { batchId: b.id };
-    } else {
-      batchPatch = { batchId: null };
-    }
-  }
+  // Партия — необязательное поле формы правки: меняем только если оно пришло (пусто = «без партии»);
+  // можно выбрать из списка (batchId) или ввести новый номер (batchNumber) — тогда партия создаётся.
+  const batchRes = await resolveBatchChange(session.user.organizationId, order, formData, workOrderDate ?? startDate);
+  if ("error" in batchRes) return { error: batchRes.error };
+  const batchPatch = batchRes.patch;
 
   await prisma.productionOrder.update({
     where: { id: orderId },
@@ -458,7 +452,72 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   });
 
   await resetByOrder(orderId);
+  await afterBatchChange(session.user.organizationId, orderId, batchRes);
   revalidatePath(`/production/${orderId}`);
+  revalidatePath("/production");
+  return {};
+}
+
+type BatchChange = { patch: { batchId: string | null } | Record<string, never>; oldBatchId: string | null; oldNumber: number | null; newBatchId: string | null; newNumber: number | null; changed: boolean };
+
+/**
+ * Партия ТЗ: из списка (поле batchId) или новый номер (поле batchNumber — партия создаётся, если такого номера ещё нет).
+ * Поля нет в форме — партия не меняется. Год новой партии берётся только из даты ТЗ (если она есть), иначе остаётся пустым.
+ */
+async function resolveBatchChange(
+  orgId: string,
+  order: { batchId: string | null },
+  formData: FormData,
+  dateHint: Date | null,
+): Promise<BatchChange | { error: string }> {
+  const old = order.batchId ? await prisma.productionBatch.findUnique({ where: { id: order.batchId }, select: { id: true, number: true } }) : null;
+  const base = { oldBatchId: old?.id ?? null, oldNumber: old?.number ?? null };
+  const idRaw = ((formData.get("batchId") as string | null) ?? "").trim();
+  const numRaw = ((formData.get("batchNumber") as string | null) ?? "").trim();
+  if (!formData.has("batchId") && !numRaw) return { patch: {}, ...base, newBatchId: base.oldBatchId, newNumber: base.oldNumber, changed: false };
+  let target: { id: string; number: number } | null = null;
+  if (numRaw) {
+    if (!/^\d{1,4}$/.test(numRaw) || Number(numRaw) < 1) return { error: "Номер партии — целое число от 1 до 9999" };
+    const number = Number(numRaw);
+    target =
+      (await prisma.productionBatch.findFirst({ where: { organizationId: orgId, number }, select: { id: true, number: true } })) ??
+      (await prisma.productionBatch.create({
+        data: { organizationId: orgId, number, name: `Поставка ${number}`, year: dateHint ? dateHint.getUTCFullYear() : null },
+        select: { id: true, number: true },
+      }));
+  } else if (idRaw) {
+    target = await prisma.productionBatch.findFirst({ where: { id: idRaw, organizationId: orgId }, select: { id: true, number: true } });
+    if (!target) return { error: "Партия не найдена" };
+  }
+  return { patch: { batchId: target?.id ?? null }, ...base, newBatchId: target?.id ?? null, newNumber: target?.number ?? null, changed: (target?.id ?? null) !== base.oldBatchId };
+}
+
+/** После смены партии: сбросить проверку старой партии, обновить кэши страниц, где участвует партия (итоги партии, оплаты, сводки, аналитика). */
+async function afterBatchChange(orgId: string, orderId: string, r: BatchChange) {
+  if (!r.changed) return;
+  if (r.oldBatchId) await resetByBatch(orgId, r.oldBatchId);
+  invalidateFilterOptions(orgId);
+  for (const n of [r.oldNumber, r.newNumber]) if (n != null) revalidatePath(`/production/batches/${n}`);
+  for (const path of ["/production/batches", "/payments", "/dashboard", "/articles", "/plan", "/calendar", "/verify", "/attention", "/documents", "/analytics/products", "/analytics/pricing", "/analytics/raw"]) revalidatePath(path);
+  revalidatePath(`/production/${orderId}`);
+}
+
+/** Быстрое назначение партии прямо из карточки ТЗ (блок «Партия»): выбрать из списка или ввести новый номер; пусто — «без партии». */
+export async function assignOrderBatch(orderId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: session.user.organizationId },
+    select: { id: true, batchId: true, workOrderDate: true, endDate: true, startDate: true },
+  });
+  if (!order) return { error: "ТЗ не найдено" };
+  if (!formData.has("batchId")) formData.set("batchId", "");
+  const r = await resolveBatchChange(session.user.organizationId, order, formData, order.workOrderDate ?? order.endDate ?? order.startDate);
+  if ("error" in r) return { error: r.error };
+  if (r.changed) {
+    await prisma.productionOrder.update({ where: { id: orderId }, data: r.patch });
+    await resetByOrder(orderId);
+  }
+  await afterBatchChange(session.user.organizationId, orderId, r);
   revalidatePath("/production");
   return {};
 }

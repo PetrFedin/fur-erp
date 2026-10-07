@@ -1,4 +1,4 @@
-import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { resolveAuctionValues } from "@/lib/auction-ref";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -6,18 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { LiningPurchaseForm } from "./lining-purchase-form";
 import { PurchaseSummary } from "./summary-view";
-import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
+import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
-import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
-import { TONE_DOT, overallTone, payShort } from "@/lib/doc-panel";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
-import { getFilterOptions } from "@/lib/filter-options";
+import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
 
 export const metadata = { title: "Сырьё" };
@@ -52,10 +50,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     }),
     tab === "fur" ? loadAuctions(orgId, year) : Promise.resolve([]),
   ]);
+  const aucOf = await auctionLabeler(orgId);
   const pyearOptions = (await getFilterOptions(orgId, year, ["pyear"])).pyear;
 
   // Режим «Аукцион»: каждое выбранное значение — точное название, иначе вхождение в название (без учёта регистра).
-  const auctionValues = tab === "fur" ? f.auction : [];
+  const auctionValues = tab === "fur" ? await resolveAuctionValues(orgId, f.auction) : [];
   const auctionNames: string[] = [];
   const auctionMissing: string[] = [];
   for (const v of auctionValues) {
@@ -76,16 +75,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const materialNames = f.material.map((v) => materials.find((m) => m.id === v)?.name ?? v);
 
   const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
-  // Индикатор у чипа аукциона: цветная точка (нет документов / не оплачено — красная, частично или нет платёжки — жёлтая, всё есть — зелёная).
-  const docInfo = new Map<string, { dot: string; text: string }>();
-  if (tab === "fur") {
-    for (const d of await loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false })) {
-      const tone = overallTone(d.panel.missingCount, d.panel.pay, d.panel.proofMissing);
-      const parts = [d.panel.missingCount > 0 ? `нет документов: ${d.panel.missingCount}` : "документы есть", payShort(d.panel.pay)];
-      if (d.panel.proofMissing > 0) parts.push(`платёжек нет: ${d.panel.proofMissing}`);
-      docInfo.set(d.key, { dot: TONE_DOT[tone], text: parts.join(", ") });
-    }
-  }
 
   // Фильтры не теряются при смене вкладки: общие значения переносятся (у каждой вкладки свой набор).
   const tabLink = (t: "fur" | "lining" | "summary", label: string) => {
@@ -137,71 +126,14 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     );
   }
 
-  const CHIPS_SHOWN = 6;
-  // Служебные записи («Нет информации», «Не в реестре остатков…») — отдельной группой «Прочее» в конце.
-  const realAuctions = auctions.filter((a) => !isServiceAuction(a.name));
-  const serviceAuctions = auctions.filter((a) => isServiceAuction(a.name));
-  const auctionChips = realAuctions.slice(0, CHIPS_SHOWN);
-  const moreAuctions = realAuctions.slice(CHIPS_SHOWN);
-  const isActiveName = (name: string) => auctionNames.includes(name);
-  // Быстрый выбор одной партии кликом (ссылка остаётся `/lots?auction=…`); поиск, материал, год и вид сохраняются.
-  const carryHere = { auction: [] as string[], q: f.q, material: f.material, pyear: f.pyear, view: f.view, tab: "", vatmode: "" };
-  const auctionChip = (a: (typeof auctions)[number]) => {
-    const only = auctionNames.length === 1 && auctionNames[0] === a.name;
-    const active = isActiveName(a.name);
-    return (
-      <Link
-        key={a.name}
-        href={filterHref(LOT_FILTERS, "/lots", carryHere, { auction: only ? [] : [a.name] })}
-        aria-pressed={active}
-        className={
-          "rounded-full border px-3 py-1 text-xs max-md:inline-flex max-md:min-h-8 max-md:items-center " +
-          (active
-            ? "border-neutral-900 bg-neutral-900 text-white"
-            : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-        }
-        title={`${a.name} — ${pluralPurchases(a.count)} · ${auctionStatusText(a)}${docInfo.get(a.name) ? ` · ${docInfo.get(a.name)!.text}` : ""}${only ? " · клик — снять выбор" : ""}`}
-      >
-        {docInfo.get(a.name) && <span aria-hidden className={`mr-1.5 inline-block size-2 rounded-full ${docInfo.get(a.name)!.dot}`} />}
-        {shortAuctionName(a.name)} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
-      </Link>
-    );
-  };
   const furOptions = materials.filter((m) => m.unit !== "M").map((m) => ({ value: m.id, label: m.name }));
-  const quickChips =
-    auctions.length > 0 ? (
-      <div className="mt-3 border-t border-neutral-200 pt-3">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Партии закупки (аукционы) — быстро открыть счета и лоты одной партии</div>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {auctionChips.map(auctionChip)}
-          {moreAuctions.length > 0 && (
-            <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
-                <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
-                <span className="hidden group-open/more:inline">скрыть</span>
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
-            </details>
-          )}
-          {serviceAuctions.length > 0 && (
-            <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
-                Без подтверждённой партии ({serviceAuctions.length})
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
-            </details>
-          )}
-        </div>
-      </div>
-    ) : null;
-  // Основа — выпадающий список «Партии закупки» с мультивыбором; быстрые чипы — под ним. Годы закупки в режиме таблицы
+  // Основа — выпадающий список «Партия закупки» с мультивыбором (быстрых чипов партий нет). Годы закупки в режиме таблицы
   // выбираются в самой таблице (там же вид меха, цвет, размер, остаток): параметр один — pyear.
   const filtersBlock = (
     <FilterBar
       title="Фильтры меха"
-      footer={quickChips}
       controls={[
-        { type: "multi", name: "auction", label: "Партии закупки (аукционы)", options: auctions.map((a) => ({ value: a.name, label: shortAuctionName(a.name, 56), count: a.count, title: a.name })), allLabel: "Все партии", hint: "Выберите одну или несколько партий — откроются их счета и лоты" },
+        { type: "multi", name: "auction", label: "Партии закупки (аукционы)", options: auctions.map((a) => ({ value: a.name, label: aucOf(a.name).label, count: a.count, title: aucOf(a.name).title })), allLabel: "Все партии", hint: "Выберите одну или несколько партий — откроются их счета и лоты" },
         { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ лота, материал, цвет, сорт" },
         ...(auctionMode ? [{ type: "multi" as const, name: "material", label: "Материал", options: furOptions, allLabel: "Все материалы" }, { type: "multi" as const, name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" }] : []),
       ]}
@@ -307,7 +239,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <CardTitle>Мех</CardTitle>
             </CardHeader>
             <CardContent>
-              <FurSelectionTotal lots={tableLots} kind="fur" globalYear={year} initialQuery={sp} barFooter={quickChips} />
+              <FurSelectionTotal lots={tableLots} kind="fur" globalYear={year} initialQuery={sp} />
             </CardContent>
           </Card>
         </>

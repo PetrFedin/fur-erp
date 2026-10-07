@@ -7,7 +7,8 @@ import type { Prisma } from "@prisma/client";
 import { escapeLike } from "@/lib/input";
 import { matchesMulti, splitNone, type FilterOption } from "@/lib/filters";
 import { modelCodeVariants } from "@/lib/model-code";
-import { compareSizes } from "@/lib/product-category";
+import { UNDEFINED_COLOR, UNDEFINED_SIZE } from "@/lib/product-category";
+import { collectOrderSizes } from "@/lib/order-sizes";
 
 export type ArticleFilterValues = {
   q: string;
@@ -36,10 +37,14 @@ export type TzRow = {
   workOrderNumber?: string | null;
   modelName?: string;
   fur: string;
-  color: string;
-  size: string;
+  /** ВСЕ цвета ТЗ (составной ТЗ — несколько); пусто — цвет в документах не указан. */
+  colors: string[];
+  /** Размеры из текста ТЗ (parseOrderSizes); пусто — размер не указан. */
+  sizes: string[];
   seasonCode: string | null;
   batchNumber: number | null;
+  /** «Партия 5 · 2025». */
+  batchText?: string | null;
   year: number | null;
   liningQty: number;
 };
@@ -55,8 +60,8 @@ export function matchedOrderIds(rows: TzRow[], liningText: Map<string, boolean>,
     .filter(
       (r) =>
         (f.fur.length === 0 || furParts(r.fur).some((x) => f.fur.includes(x))) &&
-        (f.color.length === 0 || f.color.includes(r.color)) &&
-        (f.size.length === 0 || f.size.includes(r.size)) &&
+        (f.color.length === 0 || (r.colors.length ? r.colors.some((c) => f.color.includes(c)) : f.color.includes(UNDEFINED_COLOR))) &&
+        (f.size.length === 0 || (r.sizes.length ? r.sizes.some((x) => f.size.includes(x)) : f.size.includes(UNDEFINED_SIZE))) &&
         matchesMulti(f.season, r.seasonCode) &&
         matchesMulti(f.batch, r.batchNumber == null ? null : String(r.batchNumber)) &&
         (f.lining.length === 0 || f.lining.includes(liningText.get(r.id) === true || r.liningQty > 0 ? "yes" : "no")) &&
@@ -105,17 +110,29 @@ const count = (vals: Array<string | null>): FilterOption[] => {
   for (const v of vals) if (v) m.set(v, (m.get(v) ?? 0) + 1);
   return Array.from(m, ([value, count]) => ({ value, label: value, count }));
 };
+/** Пункт «не указан в документах» — только если такие ТЗ есть. */
+const noneOption = (n: number, value: string): FilterOption[] => (n > 0 ? [{ value, label: `${value} в документах`, count: n }] : []);
+const sizeOrder = (opts: FilterOption[]) => {
+  const order = collectOrderSizes(opts.map((o) => o.value));
+  return order.map((v) => opts.find((o) => o.value === v)!);
+};
 const byLabel = (a: FilterOption, b: FilterOption) => a.label.localeCompare(b.label, "ru");
 
 /** Варианты фильтров уровня ТЗ из ТЗ общего года (счётчик — число ТЗ). */
 export function tzOptions(rows: TzRow[]): Record<"fur" | "color" | "size" | "season" | "batch" | "tzyear" | "tz", FilterOption[]> {
   return {
     fur: count(rows.flatMap((r) => furParts(r.fur))).sort(byLabel),
-    color: count(rows.map((r) => r.color)).sort(byLabel),
-    size: count(rows.map((r) => r.size)).sort((a, b) => compareSizes(a.value, b.value)),
+    color: [
+      ...count(rows.flatMap((r) => r.colors)).sort(byLabel),
+      ...noneOption(rows.filter((r) => r.colors.length === 0).length, UNDEFINED_COLOR),
+    ],
+    size: [
+      ...sizeOrder(count(rows.flatMap((r) => r.sizes))),
+      ...noneOption(rows.filter((r) => r.sizes.length === 0).length, UNDEFINED_SIZE),
+    ],
     season: count(rows.map((r) => r.seasonCode)).sort(byLabel),
     batch: count(rows.map((r) => (r.batchNumber == null ? null : String(r.batchNumber))))
-      .map((o) => ({ ...o, label: `Партия ${o.value}` }))
+      .map((o) => ({ ...o, label: rows.find((r) => String(r.batchNumber) === o.value)?.batchText ?? `Партия ${o.value}` }))
       .sort((a, b) => Number(b.value) - Number(a.value)),
     tzyear: count(rows.map((r) => (r.year == null ? null : String(r.year)))).sort((a, b) => Number(b.value) - Number(a.value)),
     tz: rows

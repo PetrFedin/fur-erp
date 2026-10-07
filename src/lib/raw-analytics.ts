@@ -12,7 +12,7 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { lotYear, purchaseYear } from "@/lib/year-scope";
 import type { YearFilter } from "@/lib/year-filter";
-import { sizeOf, categoryOf } from "@/lib/lot-size";
+import { sizeOf, categoryOf, lotSizes } from "@/lib/lot-size";
 export { sizeOf, categoryOf };
 
 /**
@@ -55,7 +55,10 @@ export type RawLot = {
   materialName: string;
   unit: string;
   cat: string;
+  /** Основной размер лота по документам (первый из sizeGrade) для группировки; нет — «Не указан». */
   size: string;
+  /** Все размеры лота по документам (RawMaterialLot.sizeGrade); пусто — размер в документах не указан. */
+  sizes: string[];
   purchaseId: string | null;
   purchaseNumber: string | null;
   recv: Decimal;
@@ -157,7 +160,9 @@ function buildLot(l: LotRow): RawLot {
     materialName: l.rawMaterial.name,
     unit: l.rawMaterial.unit,
     cat: categoryOf(l.grade, l.colorRef?.name ?? l.color),
-    size: sizeOf(l.grade),
+    // Размер — только по документам (sizeGrade), текст сорта не разбираем: так же, как в таблицах /lots (lot-size.ts: lotSizes).
+    size: lotSizes(l.sizeGrade)[0] ?? "Не указан",
+    sizes: lotSizes(l.sizeGrade),
     purchaseId: l.purchase?.id ?? null,
     purchaseNumber: l.purchase?.number ?? null,
     recv: l.quantityReceived,
@@ -261,7 +266,7 @@ export function ageText(days: number): string {
 // ───────────── фильтры и агрегация (чистые функции) ─────────────
 
 /** auction / kind (вид меха) / pyear — мультивыбор (пусто = все); model — id изделия (только лоты, из которых его делали). */
-export type RawFilters = { scope: Scope; auction: string[]; kind: string[]; pyear: string[]; onlyRem: boolean; q: string; model: string };
+export type RawFilters = { scope: Scope; auction: string[]; kind: string[]; pyear: string[]; size: string[]; onlyRem: boolean; q: string; model: string };
 
 const CYR_LAT: Record<string, string> = {
   а: "a", в: "b", е: "e", к: "k", м: "m", н: "h", о: "o", р: "p", с: "c", т: "t", у: "y", х: "x", ё: "e",
@@ -288,6 +293,7 @@ export function applyFilters(lots: RawLot[], f: RawFilters): RawLot[] {
     if (f.auction.length && !f.auction.includes(l.auction)) return false;
     if (f.kind.length && !f.kind.includes(l.kind)) return false;
     if (f.pyear.length && !f.pyear.includes(String(l.year))) return false;
+    if (f.size.length && !(l.sizes.length ? l.sizes.some((x) => f.size.includes(x)) : f.size.includes("Не указан"))) return false;
     if (f.onlyRem && !l.rem.greaterThan(0)) return false;
     if (f.model && !l.usages.some((u) => u.modelId === f.model)) return false;
     if (!lotMatches(l, f.q)) return false;
@@ -397,6 +403,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
       auction: many("auction", "auc"),
       kind: many("fur", "kind"),
       pyear: many("pyear", "py").filter((y) => /^\d{4}$/.test(y)),
+      size: many("size"),
       onlyRem: one(sp.rest) === "1",
       q: one(sp.q, 100),
       model: one(sp.model ?? sp.m, 60),

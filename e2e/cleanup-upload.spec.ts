@@ -38,7 +38,7 @@ async function ctxAs(browser: Browser, email: string) {
 const PURCHASE = "/purchases/cmupc480j000fls7y1gqe2l9y";
 const TZ = "/production/cmupc48gq01e9ls7y9leydosw";
 const BATCH = "/production/batches/1";
-const AUC = "/lots?auction=" + encodeURIComponent("SAGA 03-26");
+const AUC = "/lots?auction=" + encodeURIComponent("SAGA 03.26");
 const PAYMENTS = "/payments";
 
 /** li документов, у которых есть «Загрузить файл» (нет файла) и уникальное название на странице. */
@@ -795,7 +795,7 @@ test("10a. дубли блоков, редиректы, «Без аукцион�
 test("10b. режим «Аукцион»: 4 плитки, один переключатель, оба вида", async ({ page }) => {
   const errors = watchErrors(page);
   await loginAs(page, "anna@qa-test.ru");
-  for (const a of ["SAGA 03-26", "СП 09-26", "FH 06-26", "Подкладка Спец. 7 (УПД 109)"]) {
+  for (const a of ["SAGA 03.26", "СП 09.26", "FH 06.26", "Подкладка 07.25"]) {
     for (const view of ["", "&view=lots"]) {
       await page.goto(`/lots?auction=${encodeURIComponent(a)}${view}`);
       await page.waitForLoadState("networkidle");

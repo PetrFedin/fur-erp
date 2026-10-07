@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "../actions";
 import type { Warehouse } from "@prisma/client";
+import { BatchField } from "./batch-field";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 
 const initialState: FormState = {};
@@ -207,17 +208,8 @@ export function OrderEditForm({
             />
           </div>
 
-          <div>
-            <Label htmlFor="batchId">Партия (поставка)</Label>
-            <Select id="batchId" name="batchId" defaultValue={defaults.batchId}>
-              <option value="">Без партии</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.label}
-                </option>
-              ))}
-            </Select>
-            <p className="mt-1 text-xs text-neutral-500">Оплата работы у ТЗ в партии отмечается по партии, а не на самом ТЗ.</p>
+          <div className="sm:col-span-2">
+            <BatchField batches={batches} defaultBatchId={defaults.batchId} />
           </div>
 
           <div className="sm:col-span-2">

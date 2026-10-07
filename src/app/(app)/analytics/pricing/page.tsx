@@ -36,6 +36,7 @@ import { COLUMNS, derived } from "@/lib/analytics-metrics";
 import { weightedPercent } from "@/lib/weighted";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { AcceptPriceButton } from "./accept-price-button";
+import { auctionLabeler } from "@/lib/filter-options";
 import { AnalyticsFilterBar } from "../_shared/analytics-filter-bar";
 import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
 
@@ -93,6 +94,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const sortState = parsePricingSort(p.sort, p.dir);
 
   const [allYear, prices] = await Promise.all([loadOrderRows(orgId, year, c4Mode), loadModelPrices(orgId)]);
+  const aucOf = await auctionLabeler(orgId);
   const opts = filterOptions(allYear);
   const all = applyShared(allYear, p);
   const models = aggregatePricing(all, "model", prices);
@@ -280,7 +282,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         .map((r) => (
           <div key={r.id} className="flex flex-wrap gap-x-2">
             <Link href={`/production/${r.id}`} className="font-medium text-neutral-800 underline underline-offset-2">ТЗ {orderLabel(r)}</Link>
-            {!a.modelId && <span>{r.modelName}</span>}
+            {!a.modelId && <span title={r.modelHint}>{r.modelLabel}</span>}
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <><Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> за ед.</> : "себестоимость 0"}</span>
             {r.furQty > 0 && <span>шкур {formatQty(r.furQty)}</span>}
@@ -541,6 +543,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       {/* Параметры и фильтры */}
       <AnalyticsFilterBar
         opts={opts}
+        aucOf={aucOf}
         lead={[
           { type: "text", name: "m", label: "Целевой маркап, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
           { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
@@ -607,7 +610,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               {shown.map((a, idx) => (
                 <Tr key={a.key} id={`row-${idx}`} className={a.modelId && !a.price ? "bg-amber-50/60" : ""}>
                   <Td className="font-medium">
-                    <div>{a.label}</div>
+                    <div title={a.modelId ? a.rows[0]?.modelHint : undefined}>{a.modelId ? (a.rows[0]?.modelLabel ?? a.label) : a.label}</div>
                     <div className="mt-0.5 font-normal">{lazyDetails(a, idx)}</div>
                     <div className="text-[11px] font-normal text-neutral-500">
                       {a.modelId ? a.category : p.view === "fur" || p.view === "furcat" ? `${a.modelCount} моделей` : `${a.modelCount} моделей`}
@@ -655,7 +658,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             <RowCard
               key={a.key}
               className={a.modelId && !a.price ? "bg-amber-50/60" : ""}
-              title={a.label}
+              title={a.modelId ? (a.rows[0]?.modelLabel ?? a.label) : a.label}
               href={a.modelId ? `/models/${a.modelId}` : undefined}
               subtitle={a.modelId ? a.category : `${a.modelCount} моделей`}
               fields={[

@@ -7,8 +7,8 @@ const F = defineFilters({
 });
 
 // повтор параметра и псевдонимы
-const f = parseFilters(F, { auction: ["СП 09-26", "РП 04-26, с запятой"], auc: "SAGA 03-26", py: ["2026", "abc"], status: ["A", "X"], nds: "20", dq: " поиск ", from: "2026-02-30", to: "2026-03-01", tab: "lots" });
-assert.deepEqual(f.auction, ["СП 09-26", "РП 04-26, с запятой", "SAGA 03-26"]);
+const f = parseFilters(F, { auction: ["СП 09.26", "РП 04.26, с запятой"], auc: "SAGA 03.26", py: ["2026", "abc"], status: ["A", "X"], nds: "20", dq: " поиск ", from: "2026-02-30", to: "2026-03-01", tab: "lots" });
+assert.deepEqual(f.auction, ["СП 09.26", "РП 04.26, с запятой", "SAGA 03.26"]);
 assert.deepEqual(f.pyear, ["2026"]); // «abc» отброшен шаблоном
 assert.deepEqual(f.status, ["A"]); // «X» не из списка
 assert.deepEqual(f.vat, ["20"]); // старое имя nds

@@ -12,7 +12,8 @@ import { YearNote } from "@/components/year-note";
 import { Ref4 } from "@/components/c4-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { formatMoney, formatQty } from "@/lib/utils";
-import { isServiceAuction, shortAuctionName, NO_AUCTION_LABEL } from "@/lib/auction-names";
+import { isServiceAuction, NO_AUCTION_LABEL } from "@/lib/auction-names";
+import { auctionLabeler } from "@/lib/filter-options";
 import {
   GROUPS, NO_AUCTION_KEY, aggOf, applyFilters, avgPrice, groupLots, groupUsage, isUsageBy, loadRawData, loadUsageRows, lotIssues, parseFilters, pctText, usedPct,
   type Agg, type Group, type GroupBy, type LotGroupBy, type RawFilters, type RawLot, type UsageGroup,
@@ -66,11 +67,23 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const otherExcl = lots.reduce((s, l) => s.add(l.otherOut.mul(l.unitExcl)), new Decimal(0));
   const k4 = new Decimal(1).add(COMMISSION_RATE);
 
+  const aucOf = await auctionLabeler(session.user.organizationId);
   const auctionOpts = Array.from(new Map(scoped.map((l) => [l.auction, l.auctionLabel])).entries()).sort((a, b) =>
     a[1].localeCompare(b[1], "ru", { numeric: true }),
   );
   const kindOpts = Array.from(new Set(scoped.map((l) => l.kind))).sort((a, b) => a.localeCompare(b, "ru"));
 
+  // Размер — по документам (sizeGrade): значения из данных, «не указан в документах» — последней строкой с числом лотов.
+  const sizeCount = new Map<string, number>();
+  let noSizeLots = 0;
+  for (const l of scoped) {
+    if (l.sizes.length === 0) noSizeLots++;
+    for (const s of l.sizes) sizeCount.set(s, (sizeCount.get(s) ?? 0) + 1);
+  }
+  const sizeOpts = [
+    ...Array.from(sizeCount, ([value, count]) => ({ value, label: value, count })).sort((a, b) => a.label.localeCompare(b.label, "ru", { numeric: true })),
+    ...(noSizeLots > 0 ? [{ value: "Не указан", label: "Размер не указан в документах", count: noSizeLots }] : []),
+  ];
   const pyearOpts = Array.from(new Set(scoped.map((l) => String(l.year)))).sort((a, b) => Number(b) - Number(a));
 
   // Ссылки страницы (вкладки, группировка, выгрузка CSV) — те же канонические параметры, что читает parseFilters:
@@ -80,6 +93,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   for (const v of f.auction) entries.push(["auction", v]);
   for (const v of f.kind) entries.push(["fur", v]);
   for (const v of f.pyear) entries.push(["pyear", v]);
+  for (const v of f.size) entries.push(["size", v]);
   if (f.onlyRem) entries.push(["rest", "1"]);
   if (f.q) entries.push(["q", f.q]);
   if (f.model) entries.push(["model", f.model]);
@@ -262,9 +276,10 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       {/* Фильтры */}
       <FilterBar
         controls={[
-          { type: "multi", name: "auction", label: "Аукцион", aliases: ["auc"], allLabel: "Все аукционы", options: auctionOpts.map(([key, lab]) => ({ value: key, label: lab === NO_AUCTION_LABEL ? lab : key === NO_AUCTION_KEY ? lab : shortAuctionName(key, 60), title: key })) },
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], allLabel: "Все партии", options: auctionOpts.map(([key, lab]) => ({ value: key, label: lab === NO_AUCTION_LABEL ? lab : key === NO_AUCTION_KEY ? lab : aucOf(key).label, title: key === NO_AUCTION_KEY ? undefined : aucOf(key).title })) },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: kindOpts.map((k) => ({ value: k, label: k })) },
           { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOpts.map((y) => ({ value: y, label: y })) },
+          ...(sizeOpts.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", options: sizeOpts, hint: "По документам (размер лота); без размера — отдельной строкой в конце" }] : []),
           { type: "text", name: "q", label: "Поиск по лоту / сорту", placeholder: "напр. 15016" },
           { type: "multi", name: "rest", label: "Остаток", single: true, allLabel: "Любой", options: [{ value: "1", label: "Только с остатком" }] },
         ]}
@@ -279,7 +294,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <InfoHint label="О таблице" wide>
               <p>Группируйте по аукциону, году закупки, виду меха, лоту, сорту/цвету или размеру. Строку можно развернуть: внутри — лоты с остатком, ценой и ТЗ, где использован лот.</p>
               <p className="mt-1"><b>Изделие (артикул)</b> и <b>ТЗ</b> — другой разрез: что ушло на каждое изделие или ТЗ (шкур или метров, ₽, на 1 изделие); строка раскрывается в лоты. У каждого лота есть карточка «Где использован» — в какие изделия он ушёл, учёт и остаток.</p>
-              <p className="mt-1">Сорт/цвет и размер берутся из поля «сорт» лота: размер — это XXL, XL, L, M, S (если есть в тексте), сорт — остальной текст до размера. Не распознано — «Не указан».</p>
+              <p className="mt-1">Сорт/цвет и размер берутся из поля «сорт» лота: размер берётся из документов (поле «размер» лота: XXL, XL, 30, 40/30…), сорт — остальной текст до размера. Размер не указан в документах — «Не указан».</p>
               <p className="mt-1"><b>Средняя цена</b> = Σ(кол-во × цена лота) ÷ Σ кол-во по лотам группы. <b>Стоимость остатка</b> = Σ(остаток × цена лота). Строка «с 4%» — справочно (режим в шапке).</p>
               {groups[0] && avgPrice(groups[0].agg) && (
                 <p className="mt-1">Пример — «{groups[0].label}»: куплено {qty(groups[0].agg.recv, unit)} на {rub(groups[0].agg.recvIncl)} → {rub(groups[0].agg.recvIncl)} ÷ {ex(groups[0].agg.recv)} = {rub(avgPrice(groups[0].agg)!.incl)} за единицу.</p>

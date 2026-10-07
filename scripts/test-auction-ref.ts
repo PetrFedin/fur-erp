@@ -3,6 +3,8 @@
  *   createdb fur_scratch_auc; pg_dump fur_erp | psql fur_scratch_auc
  *   SCRATCH_URL=postgresql://…/fur_scratch_auc node --env-file=.env node_modules/.bin/tsx scripts/test-auction-ref.ts
  * Отказывается работать с основной базой.
+ * Рассчитан на копию базы ДО scripts/apply-auction-names.ts (имена предложены, не подтверждены, тексты — прежние написания);
+ * на уже переименованной базе проверки про «Закупка меха 04-26» неприменимы (откат: apply-auction-names.ts --rollback на копии).
  */
 import { PrismaClient } from "@prisma/client";
 import {

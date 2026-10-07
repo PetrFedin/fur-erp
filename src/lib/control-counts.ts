@@ -5,7 +5,8 @@ import { computeDocCoverage } from "@/lib/doc-coverage";
 import type { YearFilter } from "@/lib/year-filter";
 
 /** Три числа раздела «Контроль»: задачи, ждёт проверки, записей с пробелами документов. */
-export type ControlCounts = { tasks: number; urgent: number; waiting: number; docGaps: number };
+export type ControlTopBlock = { id: string; title: string; count: number; priority: "red" | "yellow" | "gray"; href: string };
+export type ControlCounts = { tasks: number; urgent: number; waiting: number; docGaps: number; /** Крупнейшие блоки задач (для Сводки). */ top?: ControlTopBlock[] };
 
 const TTL_MS = 20_000;
 const cache = new Map<string, { at: number; value: Promise<ControlCounts> }>();
@@ -26,7 +27,12 @@ export function loadControlCounts(organizationId: string, year: YearFilter): Pro
     ]);
     const a = countAttentionBlocks(buildAttentionBlocks(attentionRows));
     const v = Object.values(vf.counts).reduce((s, c) => ({ total: s.total + c.total, verified: s.verified + c.verified }), { total: 0, verified: 0 });
-    return { tasks: a.main, urgent: a.red, waiting: v.total - v.verified, docGaps: coverage.total.rowsWithGaps };
+    const top = buildAttentionBlocks(attentionRows)
+      .filter((b) => b.meta.kind !== "info" && b.count > 0)
+      .sort((x, y) => y.count - x.count)
+      .slice(0, 3)
+      .map((b) => ({ id: b.id, title: b.meta.title, count: b.count, priority: b.priority, href: b.meta.link?.href ?? "/attention" }));
+    return { tasks: a.main, urgent: a.red, waiting: v.total - v.verified, docGaps: coverage.total.rowsWithGaps, top };
   })();
   cache.set(key, { at: Date.now(), value });
   value.catch(() => cache.delete(key));

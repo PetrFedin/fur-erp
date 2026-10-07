@@ -74,7 +74,7 @@ async function open(page: Page, url: string) {
 const PURCHASE = "/purchases/cmupc480j000fls7y1gqe2l9y"; // З-2026-0002
 const TZ = "/production/cmupc48gq01e9ls7y9leydosw"; // ТЗ 1
 const BATCH = "/production/batches/1";
-const AUC = "/lots?auction=" + encodeURIComponent("СП 09-26");
+const AUC = "/lots?auction=" + encodeURIComponent("СП 09.26");
 const PAYMENTS = "/payments";
 
 const rowOf = (page: Page, t: string) => page.locator("li").filter({ has: page.locator("span.font-medium", { hasText: t }) }).first();
@@ -273,7 +273,7 @@ async function cycle(page: Page, name: string, url: string) {
   log(name, "готово; записей DriveDocument +", Number(sql(`select count(*) from "DriveDocument"`)) - dbBefore);
 }
 
-for (const [name, url] of [["карточка закупки З-2026-0002", PURCHASE], ["карточка ТЗ 1", TZ], ["карточка партии 1", BATCH], ["оплаты", PAYMENTS], ["аукцион СП 09-26", AUC]] as const) {
+for (const [name, url] of [["карточка закупки З-2026-0002", PURCHASE], ["карточка ТЗ 1", TZ], ["карточка партии 1", BATCH], ["оплаты", PAYMENTS], ["аукцион СП 09.26", AUC]] as const) {
   test(`загрузка файлов к документам Drive: ${name}`, async ({ page }) => {
     page.setDefaultTimeout(T);
     const errors: string[] = [];
@@ -337,9 +337,9 @@ test("файлы закупки (PurchaseDocument): загрузка, выдач
   expect.soft(existsSync(path.join(UP, last[1])), `удалённый файл (${title}) убран с диска`).toBeFalsy();
 });
 
-test("СП 09-26: 11 загруженных документов отдаются с верным Content-Type", async ({ page }) => {
+test("СП 09.26: 11 загруженных документов отдаются с верным Content-Type", async ({ page }) => {
   await login(page);
-  const rows = sql(`select id,"mimeType" from "PurchaseDocument" where batch='СП 09-26' or "purchaseId" in (select id from "Purchase" where "auctionSession"='СП 09-26') order by title`).split("\n");
+  const rows = sql(`select id,"mimeType" from "PurchaseDocument" where batch='СП 09.26' or "purchaseId" in (select id from "Purchase" where "auctionSession"='СП 09.26') order by title`).split("\n");
   expect(rows.length).toBe(11);
   for (const r of rows) {
     const [id, mime] = r.split("|");

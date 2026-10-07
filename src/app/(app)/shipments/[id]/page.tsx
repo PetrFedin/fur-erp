@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArticleName } from "@/components/article-name";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -21,7 +22,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       client: { select: { name: true } },
       lines: {
         orderBy: { id: "asc" },
-        include: { productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true } } } } },
+        include: { productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } } } },
       },
     },
   });
@@ -74,7 +75,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
                   {orderLabel(l.productionOrder)}
                 </Link>
               </Td>
-              <Td>{l.productionOrder.productModel.name}</Td>
+              <Td><ArticleName model={l.productionOrder.productModel} /></Td>
               <Td>{l.size ?? "—"}</Td>
               <Td>{formatQty(l.quantity)}</Td>
             </Tr>

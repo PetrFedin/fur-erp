@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { auctionLabeler } from "@/lib/filter-options";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
@@ -218,6 +219,7 @@ export async function PurchaseSummary({
   const vatOverride: Mode | null = filters.vatmode === "excl" ? "excl" : filters.vatmode === "incl" ? "incl" : null;
   const cookieMode: Mode = parseVatModeCookie((await cookies()).get("vatDisplay")?.value);
   const mode: Mode = vatOverride ?? cookieMode;
+  const aucOf = await auctionLabeler(organizationId);
   const [{ leaves: all, purchaseTotals }, advances, debt] = await Promise.all([
     loadSummary(organizationId),
     loadUnlinkedAdvances(organizationId),
@@ -312,7 +314,7 @@ export async function PurchaseSummary({
       <FilterBar
         title="Фильтры сводки"
         controls={[
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: shortAuctionName(a, 60), title: a })), allLabel: "Все партии" },
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
           { type: "multi", name: "material", label: "Сырьё", options: materials.map((m) => ({ value: m, label: m })), allLabel: "Всё сырьё" },
           { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: yearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
         ]}

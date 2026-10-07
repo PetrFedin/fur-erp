@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/utils";
 import { FITTING_STATUS, FITTING_STATUS_KEYS, orderLabel, truncate } from "@/lib/fittings";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Примерки" };
 
@@ -60,7 +61,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
           select: {
             number: true,
             workOrderNumber: true,
-            productModel: { select: { name: true } },
+            productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
             client: { select: { name: true } },
           },
         },
@@ -142,7 +143,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
                 <Td className="p-0">
                   <Link href={href} className={link}>
                     {orderLabel(f.productionOrder)}
-                    <span className="block text-xs text-neutral-500">{f.productionOrder.productModel.name}</span>
+                    <span className="block text-xs text-neutral-500">{articleLabel(f.productionOrder.productModel)}</span>
                   </Link>
                 </Td>
                 <Td className="p-0">

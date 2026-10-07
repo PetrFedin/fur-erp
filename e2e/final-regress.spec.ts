@@ -28,11 +28,11 @@ const PAGES: { name: string; url: string }[] = [
   { name: "lots-fur", url: "/lots" },
   { name: "lots-lining", url: "/lots?tab=lining" },
   { name: "lots-summary", url: "/lots?tab=summary" },
-  { name: "lots-auc-inv", url: "/lots?auction=" + encodeURIComponent("СП 09-26") },
-  { name: "lots-auc-lots", url: "/lots?auction=" + encodeURIComponent("СП 09-26") + "&view=lots" },
+  { name: "lots-auc-inv", url: "/lots?auction=" + encodeURIComponent("СП 09.26") },
+  { name: "lots-auc-lots", url: "/lots?auction=" + encodeURIComponent("СП 09.26") + "&view=lots" },
   { name: "payments", url: "/payments" },
   { name: "payments-clients", url: "/payments?tab=clients" },
-  { name: "payments-auc", url: "/payments?auction=" + encodeURIComponent("СП 09-26") + "#auction-block" },
+  { name: "payments-auc", url: "/payments?auction=" + encodeURIComponent("СП 09.26") + "#auction-block" },
   { name: "articles", url: "/articles" },
   { name: "supply-plan", url: "/supply-plan" },
   { name: "settings-supply-plan", url: "/settings/supply-plan" },
@@ -184,7 +184,7 @@ test("цена изделия: Enter и blur, desktop и mobile", async ({ brows
 const HASH = "$2b$10$4GjnSssJqUQKMd1CV4W48.ElNt4xt63QzGqtRFKhIb6GnMVT89.0G"; // тестовый пароль из фикстур e2e/payments.spec.ts
 const ORG = "cmuo7vwvk0000lsu5pghd5jka";
 const ROLES: [string, string][] = [["viewer", "VIEWER"], ["wh", "WAREHOUSE"], ["acc", "ACCOUNTANT"], ["purch", "PURCHASER"], ["tech", "TECHNOLOGIST"], ["admin", "ADMIN"]];
-const ROLE_PAGES = ["/dashboard", "/purchases", "/purchases/new", "/purchases/cmupc480j000fls7y1gqe2l9y", "/production", "/production/new", "/production/cmupc48xo02m3ls7ygetrmfgx", "/production/batches", "/production/batches/1", "/lots", "/lots?tab=summary", "/lots?auction=" + encodeURIComponent("СП 09-26"), "/payments", "/payments?auction=" + encodeURIComponent("СП 09-26"), "/payments?tab=clients", "/articles", "/supply-plan", "/attention", "/users", "/users/new", "/suppliers/new", "/clients/new", "/warehouses/new", "/materials/new", "/models/new", "/fittings/new", "/shipments/new", "/settings", "/finished-stock", "/models"];
+const ROLE_PAGES = ["/dashboard", "/purchases", "/purchases/new", "/purchases/cmupc480j000fls7y1gqe2l9y", "/production", "/production/new", "/production/cmupc48xo02m3ls7ygetrmfgx", "/production/batches", "/production/batches/1", "/lots", "/lots?tab=summary", "/lots?auction=" + encodeURIComponent("СП 09.26"), "/payments", "/payments?auction=" + encodeURIComponent("СП 09.26"), "/payments?tab=clients", "/articles", "/supply-plan", "/attention", "/users", "/users/new", "/suppliers/new", "/clients/new", "/warehouses/new", "/materials/new", "/models/new", "/fittings/new", "/shipments/new", "/settings", "/finished-stock", "/models"];
 function seedRoles() {
   sql(ROLES.map(([e, r]) => `insert into "User"(id,"organizationId",email,"passwordHash",name,role,"isActive","updatedAt") values ('u_${e}','${ORG}','${e}@qa-test.ru','${HASH}','QA ${e}','${r}',true,now()) on conflict (email) do update set "passwordHash"=excluded."passwordHash","isActive"=true,role=excluded.role`).join(";") + ";");
   sql(`insert into "Organization"(id,name,slug,"updatedAt") values ('org_b','Other Org','other-org',now()) on conflict do nothing`);
@@ -237,7 +237,7 @@ test("роли: запрещённые изменения и чужая орга
   sql(`insert into "Supplier"(id,"organizationId",name,"updatedAt") values ('s_b','org_b','Supplier B',now()) on conflict do nothing`);
   sql(`insert into "Warehouse"(id,"organizationId",name) values ('w_b','org_b','WH B') on conflict do nothing`);
   sql(`insert into "RawMaterial"(id,"organizationId",name,"updatedAt") values ('m_b','org_b','Соболь B',now()) on conflict do nothing`);
-  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09-26','B1',now()) on conflict do nothing`);
+  sql(`insert into "Purchase"(id,"organizationId",number,"supplierId","warehouseId",currency,"exchangeRate","auctionSession","invoiceNumber","updatedAt") values ('p_b','org_b','Б-1','s_b','w_b','USD',80,'СП 09.26','B1',now()) on conflict do nothing`);
   sql(`insert into "PurchaseItem"(id,"purchaseId","rawMaterialId",quantity,"unitPrice",subtotal,"vatRate","lotNumber") values ('pi_b','p_b','m_b',10,100,1000,20,'B-LOT') on conflict do nothing`);
   const before = sql(`select "sellingPrice" from "ProductModel" where id='${MODEL_B}'`);
   const planBefore = sql(`select count(*) from "SupplyPlanEntry"`);
@@ -261,7 +261,7 @@ test("роли: запрещённые изменения и чужая орга
   const ctx = await browser.newContext({ baseURL: BASE, viewport: { width: 1280, height: 900 }, locale: "ru-RU" });
   const page = await ctx.newPage();
   await loginAs(page, "bob@other-org.ru");
-  for (const u of ["/purchases", "/production", "/production/batches", "/lots", "/lots?tab=summary", "/payments", "/payments?auction=" + encodeURIComponent("СП 09-26"), "/articles", "/supply-plan", "/attention", "/dashboard", "/lots?auction=" + encodeURIComponent("СП 09-26")]) {
+  for (const u of ["/purchases", "/production", "/production/batches", "/lots", "/lots?tab=summary", "/payments", "/payments?auction=" + encodeURIComponent("СП 09.26"), "/articles", "/supply-plan", "/attention", "/dashboard", "/lots?auction=" + encodeURIComponent("СП 09.26")]) {
     await page.goto(u); await page.waitForLoadState("networkidle");
     const t = (await page.locator("main").innerText()).replace(/\s+/g, " ");
     const leaks = ["Веллмех", "З-2026-00", "П-2026-00", "584", "M001A", "Меркури", "Соболь\t", "219 217"].filter((x) => t.includes(x));
@@ -272,7 +272,7 @@ test("роли: запрещённые изменения и чужая орга
     console.log("ISOL direct", u, r?.status(), (await page.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 100));
   }
   // его собственные данные видны и считаются только по его организации
-  await page.goto("/payments?auction=" + encodeURIComponent("СП 09-26")); await page.waitForLoadState("networkidle");
+  await page.goto("/payments?auction=" + encodeURIComponent("СП 09.26")); await page.waitForLoadState("networkidle");
   console.log("ISOL own auction text:", (await page.locator("main").innerText()).replace(/\s+/g, " ").slice(0, 400));
   await ctx.close();
 });

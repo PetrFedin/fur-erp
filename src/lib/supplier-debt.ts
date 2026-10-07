@@ -3,6 +3,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { auctionName, buildAuctionSummaries, type PurchaseForPay } from "@/lib/auction-payments";
+import { auctionKey } from "@/lib/auction-key";
+import { findAuctionIn, type AuctionLite } from "@/lib/auction-ref-core";
 import { inYear, type YearFilter } from "@/lib/year-filter";
 
 /**
@@ -30,13 +32,28 @@ type Db = PrismaClient | Prisma.TransactionClient;
  * Счета Веллмех на закупки, по которым мех ещё не получен (черновики). Только то, что назвали документы Drive «мех»:
  * `total` — сумма выставленных счетов по аукциону (с НДС). Остаток «счёта выставлен» = счета − уже оплачено.
  * Нет записи — счёт не выставлен, вся неоплаченная часть идёт в «Ожидаемое».
+ *
+ * Аукцион здесь опознаётся не по одному написанию, а по справочнику аукционов (Auction: имя + прежние написания):
+ * `names` — известные написания (прежнее и короткое имя), `findInvoice` сопоставляет и по ключу сравнения (регистр, «-»/«.»),
+ * и по записи справочника, если она передана. Переименование аукциона на разбивку долга не влияет.
  */
-export const INVOICES_FOR_DRAFTS: Record<string, { total: number; docs: string }> = {
-  "FH 06-26": { total: 115_723_078, docs: "счета Веллмех №155 от 22.05.2026 (30 660 000) и №173 от 05.06.2026 (85 063 078)" },
-  "СП 09-26": { total: 60_831_100, docs: "счёт Веллмех №271 от 30.09.2026 (срок 05.10.2026)" },
-  "Подкладка Спец. 13": { total: 5_400_000, docs: "счёт Веллмех №157 от 26.05.2026" },
-  "Доп. материалы Спец. 16": { total: 19_870, docs: "счёт Веллмех №181 от 16.06.2026" },
-};
+export type DraftInvoice = { names: string[]; total: number; docs: string };
+export const INVOICES_FOR_DRAFTS: DraftInvoice[] = [
+  { names: ["FH 06.26", "FH 06-26"], total: 115_723_078, docs: "счета Веллмех №155 от 22.05.2026 (30 660 000) и №173 от 05.06.2026 (85 063 078)" },
+  { names: ["СП 09.26", "СП 09-26"], total: 60_831_100, docs: "счёт Веллмех №271 от 30.09.2026 (срок 05.10.2026)" },
+  { names: ["Подкладка 05.26", "Подкладка Спец. 13"], total: 5_400_000, docs: "счёт Веллмех №157 от 26.05.2026" },
+  { names: ["Доп. материалы 06.26", "Доп. материалы Спец. 16"], total: 19_870, docs: "счёт Веллмех №181 от 16.06.2026" },
+];
+
+/** Счёт на неполученную часть аукциона `name` (написание из данных) — по ключу или по справочнику `refs`. */
+export function findInvoice(name: string, refs: AuctionLite[] = []): DraftInvoice | null {
+  const k = auctionKey(name);
+  const direct = INVOICES_FOR_DRAFTS.find((i) => i.names.some((n) => auctionKey(n) === k));
+  if (direct) return direct;
+  const me = refs.length ? findAuctionIn(name, refs) : null;
+  if (!me) return null;
+  return INVOICES_FOR_DRAFTS.find((i) => i.names.some((n) => findAuctionIn(n, refs)?.id === me.id)) ?? null;
+}
 
 export type SupplierDebtAuction = {
   name: string;
@@ -99,6 +116,8 @@ export function computeSupplierDebt(
   purchases: SupplierDebtPurchase[],
   auctionPayments: SupplierDebtAuctionPayment[],
   unlinkedAdvances: SupplierDebtAdvance[],
+  /** Справочник аукционов (необязательно): помогает опознать счёт, если аукцион записан иначе. */
+  refs: AuctionLite[] = [],
 ): SupplierDebt {
   let total = zero();
   let dueSum = zero();
@@ -139,7 +158,7 @@ export function computeSupplierDebt(
     }
     const receivedPart = due.sub(draftPart);
     // Счёт выставлен = выставленные счета − всё оплаченное по аукциону, но не больше неполученной части.
-    const inv = INVOICES_FOR_DRAFTS[a.name];
+    const inv = findInvoice(a.name, refs);
     const openInvoice = inv ? Decimal.max(new Decimal(inv.total).sub(a.paid), zero()) : zero();
     const invoicedPart = Decimal.min(draftPart, openInvoice);
     const expectedPart = draftPart.sub(invoicedPart);
@@ -189,9 +208,9 @@ export function computeSupplierDebt(
   };
 }
 
-/** Загружает данные организации и считает долг поставщику (при year ≠ "all" — за закупки этого года). */
-export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all"): Promise<SupplierDebt> {
-  const [allPurchases, auctionPayments, advances] = await Promise.all([
+/** Исходные данные для расчёта долга (отдельно, чтобы проверять расчёт на переименованных копиях — scripts/test-supplier-debt-rename.ts). */
+export async function loadDebtInputs(db: Db, organizationId: string) {
+  const [allPurchases, auctionPayments, advances, refs] = await Promise.all([
     // Отменённые тоже: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
     db.purchase.findMany({
       where: { organizationId },
@@ -210,10 +229,19 @@ export async function loadSupplierDebt(db: Db, organizationId: string, year: Yea
       where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
       select: { amount: true, paidAt: true, confirmed: true, confirmedAt: true },
     }),
+    db.auction.findMany({ where: { organizationId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true } }),
   ]);
+  return { allPurchases, auctionPayments, advances, refs };
+}
+
+type DebtInputs = Awaited<ReturnType<typeof loadDebtInputs>>;
+
+/** Долг по уже загруженным данным (при year ≠ "all" — за закупки этого года). Чистая функция: годы таблицы Сводки считаются без повторной загрузки. */
+export function supplierDebtFromInputs(inputs: DebtInputs, year: YearFilter = "all"): SupplierDebt {
+  const { allPurchases, auctionPayments, advances, refs } = inputs;
   const purchases = year === "all" ? allPurchases : allPurchases.filter((p) => inYear(p.orderDate, year));
   const adv = year === "all" ? advances : advances.filter((a) => inYear(a.paidAt, year));
-  const debt = computeSupplierDebt(purchases, auctionPayments, adv);
+  const debt = computeSupplierDebt(purchases, auctionPayments, adv, refs);
   // Подтверждённость оплат (только для подсказки долга): оплаты в расчёте остаются все, как раньше.
   const v = { verified: zero(), waiting: zero(), noProof: zero() };
   const count = (x: { amount: Prisma.Decimal; status?: string; confirmed: boolean; confirmedAt: Date | null }) => {
@@ -228,4 +256,9 @@ export async function loadSupplierDebt(db: Db, organizationId: string, year: Yea
   for (const x of auctionPayments as unknown as Parameters<typeof count>[0][]) count(x);
   for (const x of adv as unknown as Parameters<typeof count>[0][]) count(x);
   return { ...debt, paymentsVerification: v };
+}
+
+/** Загружает данные организации и считает долг поставщику (при year ≠ "all" — за закупки этого года). */
+export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all"): Promise<SupplierDebt> {
+  return supplierDebtFromInputs(await loadDebtInputs(db, organizationId), year);
 }

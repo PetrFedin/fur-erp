@@ -5,6 +5,7 @@ import { isServiceAuction } from "@/lib/auction-names";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { DriveDocTypeKey } from "@/lib/drive-docs";
 import { REG_NONE, registryCell, type RegCell } from "@/lib/registry-coverage";
+import { articleLabel } from "@/lib/article-label";
 
 /**
  * «Покрытие документами»: какие документы нужны каждой записи и каких не хватает.
@@ -291,7 +292,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
       where: { organizationId, status: { not: "CANCELLED" } },
       select: {
         id: true, number: true, status: true, batchId: true, workOrderDate: true, createdAt: true,
-        productModel: { select: { name: true } },
+        productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
       },
       orderBy: { number: "asc" },
     }),
@@ -464,7 +465,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     finish(
       {
         id: o.id, section: "tz", number: o.number, title: `ТЗ ${o.number}`,
-        sub: o.productModel.name, href: `/production/${o.id}`, year, auction: null,
+        sub: articleLabel(o.productModel), href: `/production/${o.id}`, year, auction: null,
         groupKey: b ? `b${b.number}` : "nob",
         groupTitle: b ? `Партия ${b.number}${b.name ? ` «${b.name}»` : ""}` : "Без партии",
         groupSort: b ? b.number : 9999,

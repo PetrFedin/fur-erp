@@ -1,0 +1,180 @@
+{
+  "MVST": {
+    "purchasesTotal": "594377808.03",
+    "purchasesCount": 61,
+    "paymentsPaid": "407769898.88",
+    "paymentsCount": 28,
+    "debt": "186691785.22",
+    "debtReceivedNet": "23657120.84",
+    "debtInvoiced": "151314048.00",
+    "debtExpected": "11720616.38",
+    "debtByAuctionCount": 16,
+    "nonAuctionDebt": "8694790.01",
+    "furStock": "226704828.65",
+    "purchaseDocuments": 11,
+    "driveDocuments": 1225,
+    "lots": 287,
+    "byAuction": [
+      {
+        "name": "FH 06.26",
+        "purchases": 1,
+        "total": "119326553.98",
+        "paid": "30660000.00",
+        "due": "88666553.98",
+        "received": "0.00",
+        "invoiced": "85063078.00",
+        "expected": "3603475.98"
+      },
+      {
+        "name": "СП 09.26",
+        "purchases": 8,
+        "total": "64458150.40",
+        "paid": "0.00",
+        "due": "64458150.40",
+        "received": "0.00",
+        "invoiced": "60831100.00",
+        "expected": "3627050.40"
+      },
+      {
+        "name": "СП 05.25",
+        "purchases": 3,
+        "total": "29605790.45",
+        "paid": "0.00",
+        "due": "29605790.45",
+        "received": "29605790.45",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "Закупка меха 04.26",
+        "purchases": 6,
+        "total": "87318155.83",
+        "paid": "81879631.34",
+        "due": "5438524.49",
+        "received": "5438524.49",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "Подкладка Спец. 13",
+        "purchases": 1,
+        "total": "5400000.00",
+        "paid": "0.00",
+        "due": "5400000.00",
+        "received": "0.00",
+        "invoiced": "5400000.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "СП 12.25",
+        "purchases": 1,
+        "total": "4836327.52",
+        "paid": "0.00",
+        "due": "4836327.52",
+        "received": "4836327.52",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "Invoice 1-2026 (бобр)",
+        "purchases": 1,
+        "total": "4490090.00",
+        "paid": "0.00",
+        "due": "4490090.00",
+        "received": "0.00",
+        "invoiced": "0.00",
+        "expected": "4490090.00"
+      },
+      {
+        "name": "РП 05.25",
+        "purchases": 1,
+        "total": "3594292.73",
+        "paid": "0.00",
+        "due": "3594292.73",
+        "received": "3594292.73",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "СОЮЗПУШНИНА 05.26",
+        "purchases": 2,
+        "total": "27730810.07",
+        "paid": "25932522.54",
+        "due": "1798287.53",
+        "received": "1798287.53",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "AME 05.26",
+        "purchases": 1,
+        "total": "3581815.79",
+        "paid": "3227823.00",
+        "due": "353992.79",
+        "received": "353992.79",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "Доп. материалы Спец. 16",
+        "purchases": 1,
+        "total": "19870.00",
+        "paid": "0.00",
+        "due": "19870.00",
+        "received": "0.00",
+        "invoiced": "19870.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "Подкладка Спец. 7 (УПД 109)",
+        "purchases": 2,
+        "total": "1457199.06",
+        "paid": "1455842.00",
+        "due": "1357.06",
+        "received": "1357.06",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "РП 03.25",
+        "purchases": 5,
+        "total": "38760792.38",
+        "paid": "38760761.96",
+        "due": "30.42",
+        "received": "30.42",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "SAGA 03.25",
+        "purchases": 1,
+        "total": "49126294.81",
+        "paid": "49126278.00",
+        "due": "16.81",
+        "received": "16.81",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "СП 03.25",
+        "purchases": 7,
+        "total": "87110100.66",
+        "paid": "87110090.04",
+        "due": "10.62",
+        "received": "10.62",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      },
+      {
+        "name": "КФХ Дуденко Л. Н.",
+        "purchases": 3,
+        "total": "3488644.40",
+        "paid": "3488644.00",
+        "due": "0.40",
+        "received": "0.40",
+        "invoiced": "0.00",
+        "expected": "0.00"
+      }
+    ]
+  }
+}

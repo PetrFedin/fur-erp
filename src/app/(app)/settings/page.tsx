@@ -11,7 +11,6 @@ const SETTINGS_LINKS = [
   { href: "/settings/furs", title: "Справочник меха", description: "Вид меха по-русски и по-английски, синонимы из инвойсов и ТЗ" },
   { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена аукционов, как они видны на платформе; новые аукционы, объединение, подтверждение" },
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Наш код и код/название в системе продаж, другие написания, объединение дублей" },
-  { href: "/warehouses", title: "Склады", description: "Места хранения" },
   { href: "/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
 ];

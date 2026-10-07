@@ -6,6 +6,7 @@ import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { inYear, type YearFilter } from "@/lib/year-filter";
 import { orderDateOf } from "@/lib/year-scope";
+import { articleLabel } from "@/lib/article-label";
 
 /**
  * «Что не заведено»: живые проверки полноты данных, ничего не хранится.
@@ -416,7 +417,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
         id: true, number: true, status: true, notes: true, materialDescription: true, workOrderDate: true,
         endDate: true, startDate: true, batchId: true, clientId: true, contractNumber: true, productModelId: true,
         plannedQuantity: true, producedQuantity: true,
-        productModel: { select: { name: true } },
+        productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
         client: { select: { name: true } },
         batch: { select: { year: true } },
         materialUsages: { select: { rawMaterialId: true, commission4: true } },
@@ -446,7 +447,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
 
   const tHref = (id: string) => `/production/${id}`;
   const flagTz = (o: (typeof orders)[number], problem: AttentionProblem) =>
-    flag("tz", o.id, { title: `ТЗ ${o.number}`, sub: `${o.productModel.name}${o.client ? `, ${o.client.name}` : ""}`, href: tHref(o.id), year: orderDateOf(o)?.getUTCFullYear() ?? o.batch?.year ?? null }, problem);
+    flag("tz", o.id, { title: `ТЗ ${o.number}`, sub: `${articleLabel(o.productModel)}${o.client ? `, ${o.client.name}` : ""}`, href: tHref(o.id), year: orderDateOf(o)?.getUTCFullYear() ?? o.batch?.year ?? null }, problem);
   /** Сырьё не со склада: пометка в заметках либо все списания без надбавки 4%. */
   const nonStock = (o: (typeof orders)[number]) =>
     NON_STOCK_RE.test(`${o.notes ?? ""} ${o.materialDescription ?? ""}`) ||

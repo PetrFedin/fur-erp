@@ -27,7 +27,7 @@ export function contractorHidesFromNotes(notes: string | null | undefined): Deci
 
 /** ТЗ с данными для сводки по партии (себестоимость, работа, оплаты). */
 export const batchOrderInclude = {
-  productModel: { select: { name: true } },
+  productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
   client: { select: { name: true } },
   // quantity и lot — для разбивки по ставкам НДС лотов (lib/tz-vat.ts): в одном ТЗ ставки бывают 20% и 22%.
   materialUsages: {

@@ -15,7 +15,7 @@ export function auctionKey(text: string | null | undefined): string {
 }
 
 /** Приставки служебных заглушек импорта (как в auction-names.ts). */
-const SERVICE_KEY_PREFIXES = ["нет информации", "не в реестре остатков", "подкладочные материалы", "доп закупк"];
+const SERVICE_KEY_PREFIXES = ["нет информации", "не в реестре остатков", "подкладочные материалы", "доп закупк", "без аукциона"];
 export function isServiceKey(key: string): boolean {
   return SERVICE_KEY_PREFIXES.some((p) => key.startsWith(p));
 }

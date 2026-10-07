@@ -9,7 +9,7 @@ async function openPurchase(page: Page, number: string) {
   await page.waitForLoadState("networkidle");
 }
 
-test.describe.serial("приёмка закупок СП 09-26", () => {
+test.describe.serial("приёмка закупок СП 09.26", () => {
   for (const n of [50, 51, 52, 53, 54, 55, 56, 57]) {
     const number = `З-2026-00${n}`;
     test(`приёмка ${number}`, async ({ page }) => {
@@ -147,7 +147,7 @@ test.describe("Сырьё (Мех)", () => {
     }
   });
 
-  test("ссылки 📄 у лотов СП 09-26 открываются, поиск по лоту", async ({ page }) => {
+  test("ссылки 📄 у лотов СП 09.26 открываются, поиск по лоту", async ({ page }) => {
     await login(page);
     await page.goto("/lots?q=" + encodeURIComponent("СП0926-4"));
     await page.waitForLoadState("networkidle");
@@ -389,8 +389,8 @@ test.describe.serial("карточка закупки: расходы, опла�
   });
 });
 
-// ---------- СП 09-26: правка позиций с расчётом себестоимости (costPlan) ----------
-test.describe.serial("СП 09-26: правка и расходы в черновике с costPlan", () => {
+// ---------- СП 09.26: правка позиций с расчётом себестоимости (costPlan) ----------
+test.describe.serial("СП 09.26: правка и расходы в черновике с costPlan", () => {
   let url = "";
   const planCard = async (page: Page) => (await page.getByText("Расчёт себестоимости по лотам").locator("xpath=../..").innerText()).replace(/\n/g, " | ");
   const summary = async (page: Page) => (await page.locator("div.grid").first().innerText()).replace(/\n/g, " ");
@@ -428,7 +428,7 @@ test.describe.serial("СП 09-26: правка и расходы в чернов
   });
 });
 
-test.describe.serial("СП 09-26: правка принятой позиции", () => {
+test.describe.serial("СП 09.26: правка принятой позиции", () => {
   test("правка количества у принятой позиции с расчётом", async ({ page }) => {
     await login(page);
     await openPurchase(page, "З-2026-0056");
@@ -536,7 +536,7 @@ test.describe("список закупок: фильтры и согласова
 // ---------- Шапка, курс, пустая закупка, дубли лотов ----------
 test.describe.serial("шапка, курс и крайние случаи приёмки", () => {
   const sum = async (page: Page) => (await page.locator("div.grid").first().innerText()).replace(/\n/g, " ");
-  test("СП 09-26 (черновик): смена курса не должна ломать суммы", async ({ page }) => {
+  test("СП 09.26 (черновик): смена курса не должна ломать суммы", async ({ page }) => {
     await login(page);
     await openPurchase(page, "З-2026-0055");
     console.log("КУРС 84,4075 →", await sum(page));

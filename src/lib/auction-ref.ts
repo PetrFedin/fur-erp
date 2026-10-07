@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { auctionName } from "@/lib/auction-names";
 import {
-  confirmAuctionsIn, createAuctionIn, deleteAuctionIn, displayAuctionNameIn, loadAuctionOptionsIn, mergeAuctionsIn, renameAuctionIn,
+  confirmAuctionsIn, createAuctionIn, deleteAuctionIn, displayAuctionNameIn, findAuctionIn, loadAuctionOptionsIn, mergeAuctionsIn, renameAuctionIn,
   resolveAuctionIn, updateAuctionFieldsIn, type AuctionInput,
 } from "@/lib/auction-ref-core";
 
@@ -26,3 +27,16 @@ export const mergeAuctions = (orgId: string, fromId: string, intoId: string) => 
 export const confirmAuctions = (orgId: string, ids: string[]) => confirmAuctionsIn(prisma, orgId, ids);
 export const updateAuctionFields = (orgId: string, id: string, data: Parameters<typeof updateAuctionFieldsIn>[3]) => updateAuctionFieldsIn(prisma, orgId, id, data);
 export const deleteAuction = (orgId: string, id: string) => deleteAuctionIn(prisma, orgId, id);
+
+/**
+ * Значения фильтра «Партия закупки» из ссылок -> текущие названия групп. Прежнее написание («Закупка меха 04-26») или алиас
+ * приводятся к короткому имени из справочника; остальное (в т. ч. «none» и часть названия) остаётся как есть.
+ */
+export async function resolveAuctionValues(orgId: string, values: string[]): Promise<string[]> {
+  if (!values.length) return values;
+  const list = await prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true } });
+  return values.map((v) => {
+    const a = findAuctionIn(v, list);
+    return a && !a.isService ? auctionName(a.name) ?? v : v;
+  });
+}

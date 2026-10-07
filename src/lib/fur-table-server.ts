@@ -4,10 +4,11 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { canonicalFur, type FurIndex } from "./fur-ref";
 import { lotUnitCostExclVat } from "./purchase-totals";
+import { lotUsdPrice } from "./lot-hammer";
 import { lotYear } from "./year-scope";
 import { COMMISSION_RATE } from "./commission4-const";
 import { NO_AUCTION_LABEL, auctionName, shortAuctionName } from "./auction-names";
-import { sizeOf } from "./lot-size";
+import { lotSizes } from "./lot-size";
 import type { YearFilter } from "./year-filter";
 import { NO_AUCTION, NOT_SET, flowOf, type Flow, type FurKind, type FurLot } from "./fur-table";
 import type { RawLot } from "./raw-analytics";
@@ -30,10 +31,11 @@ const LOT_SELECT = {
   vatRate: true,
   materialCostExclVat: true,
   expenseCostExclVat: true,
+  costBreakdown: true,
   rawMaterial: { select: { name: true, unit: true } },
   colorRef: { select: { name: true } },
   purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, currency: true, supplier: { select: { name: true } } } },
-  purchaseItems: { select: { quantity: true, subtotal: true } },
+  purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
   usages: {
     where: { productionOrder: { status: { not: "CANCELLED" as const } } },
     select: { quantity: true, totalCost: true, commission4: true, productionOrder: { select: { id: true, number: true } } },
@@ -56,7 +58,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
   let usedExcl = zero();
   let extraIncl = zero();
   let extraExcl = zero();
-  const byOrder = new Map<string, { orderId: string; number: string; qty: Decimal }>();
+  const byOrder = new Map<string, { orderId: string; number: string; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal }>();
   for (const u of l.usages) {
     used = used.add(u.quantity);
     usedIncl = usedIncl.add(u.totalCost);
@@ -67,12 +69,20 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
       extraExcl = extraExcl.add(ex.mul(k));
     }
     const cur = byOrder.get(u.productionOrder.id);
-    if (cur) cur.qty = cur.qty.add(u.quantity);
-    else byOrder.set(u.productionOrder.id, { orderId: u.productionOrder.id, number: u.productionOrder.number, qty: u.quantity });
+    const uExtraIncl = u.commission4 ? u.totalCost.mul(k) : zero();
+    const uExtraExcl = u.commission4 ? ex.mul(k) : zero();
+    if (cur) {
+      cur.qty = cur.qty.add(u.quantity); cur.incl = cur.incl.add(u.totalCost); cur.excl = cur.excl.add(ex);
+      cur.extraIncl = cur.extraIncl.add(uExtraIncl); cur.extraExcl = cur.extraExcl.add(uExtraExcl);
+    } else byOrder.set(u.productionOrder.id, { orderId: u.productionOrder.id, number: u.productionOrder.number, qty: u.quantity, incl: u.totalCost, excl: ex, extraIncl: uExtraIncl, extraExcl: uExtraExcl });
   }
   const name = auctionName(l.purchase?.auctionSession);
   const d = l.purchase?.orderDate ?? l.receivedDate;
-  const usd = l.purchase?.currency === "USD";
+  const usdByPurchase = l.purchase?.currency === "USD";
+  const usdPrice = lotUsdPrice(l.costBreakdown, l.purchaseItems.map((i) => i.costPlan));
+  const recvN = num(l.quantityReceived);
+  const remN = num(l.quantityRemaining);
+  const usedN = num(used);
   const material = l.rawMaterial.name;
   return {
     id: l.id,
@@ -80,7 +90,9 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     item: kind === "lining" ? material : canonicalFur(material, furIdx)?.name ?? material,
     materialName: material,
     color: l.colorRef?.name?.trim() || l.color?.trim() || colorFromMaterialName(material) || NOT_SET,
-    size: l.sizeGrade ? l.sizeGrade.split(",")[0] : sizeOf(l.grade),
+    // Размер — только по документам (RawMaterialLot.sizeGrade); из текста сорта не угадываем (lot-size.ts: lotSizes).
+    size: lotSizes(l.sizeGrade).join(", ") || NOT_SET,
+    sizes: lotSizes(l.sizeGrade),
     auction: name ?? NO_AUCTION,
     auctionLabel: name ? shortAuctionName(name) || NO_AUCTION_LABEL : NO_AUCTION_LABEL,
     year: d.getUTCFullYear(),
@@ -100,9 +112,16 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     usedExtraExcl: num(extraExcl),
     remIncl: num(l.quantityRemaining.mul(l.unitCost)),
     remExcl: num(l.quantityRemaining.mul(unitExcl)),
-    usdQty: usd ? num(l.purchaseItems.reduce((a, i) => a.add(i.quantity), zero())) : 0,
-    usdSubtotal: usd ? num(l.purchaseItems.reduce((a, i) => a.add(i.subtotal), zero())) : 0,
-    usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty) })),
+    vatRate: Number(l.vatRate),
+    usdPrice,
+    // Цена в USD — из документов лота (молоток, $/шт.); лоты без неё в среднюю $ не входят. Закупка с валютой USD (Purchase.currency) — запасной путь.
+    usdQty: usdPrice != null ? recvN : usdByPurchase ? num(l.purchaseItems.reduce((a, i) => a.add(i.quantity), zero())) : 0,
+    usdSubtotal: usdPrice != null ? recvN * usdPrice : usdByPurchase ? num(l.purchaseItems.reduce((a, i) => a.add(i.subtotal), zero())) : 0,
+    usdUsedQty: usdPrice != null ? usedN : 0,
+    usdUsedSubtotal: usdPrice != null ? usedN * usdPrice : 0,
+    usdRemQty: usdPrice != null ? remN : 0,
+    usdRemSubtotal: usdPrice != null ? remN * usdPrice : 0,
+    usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
   };
 }
 
@@ -148,6 +167,10 @@ export function flowOfRawLots(lots: RawLot[]): Flow {
       remExcl: num(l.rem.mul(l.unitExcl)),
       usdQty: 0,
       usdSubtotal: 0,
+      usdUsedQty: 0,
+      usdUsedSubtotal: 0,
+      usdRemQty: 0,
+      usdRemSubtotal: 0,
     })),
   );
 }

@@ -32,6 +32,8 @@ import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
 import { ACCESS, hasRole } from "@/lib/access";
+import { findAuctionIn, auctionKeys } from "@/lib/auction-ref-core";
+import { auctionKey } from "@/lib/auction-key";
 import { getColorOptions } from "@/lib/colors";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
@@ -165,6 +167,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const warehouseOptions = warehouses.some((w) => w.id === purchase.warehouseId)
     ? warehouses
     : [purchase.warehouse, ...warehouses];
+
+  const auctionRefs = editable
+    ? await prisma.auction.findMany({
+        where: { organizationId: session.user.organizationId, isService: false },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, fullName: true, house: true, year: true, aliases: true, isService: true, confirmed: true },
+      })
+    : [];
+  // Закупка без привязки, но с текстом из справочника, открывается уже с выбранным аукционом.
+  // Привязка показывается, только если кэш-текст закупки совпадает с именем/написанием этого аукциона (заглушки «Нет информации» остаются старым текстом).
+  const linked = purchase.auctionId ? auctionRefs.find((a) => a.id === purchase.auctionId) : undefined;
+  const textKey = auctionKey(purchase.auctionSession);
+  const auctionIdDefault = linked
+    ? (!textKey || auctionKeys(linked).has(textKey) ? linked.id : null)
+    : findAuctionIn(purchase.auctionSession, auctionRefs)?.id ?? null;
 
   const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
@@ -463,6 +480,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <PurchaseEditForm
                 action={boundUpdatePurchase}
                 currencyLocked={planItems.length > 0}
+                auctions={auctionRefs}
+                canCreateAuction={hasRole(session.user.role, ACCESS.auctions)}
                 version={rowVersion(purchase, PURCHASE_V)}
                 suppliers={supplierOptions}
                 warehouses={warehouseOptions}
@@ -472,6 +491,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   currency: purchase.currency,
                   orderDate: purchase.orderDate.toISOString().slice(0, 10),
                   auctionSession: purchase.auctionSession ?? "",
+                  auctionId: auctionIdDefault,
                   invoiceNumber: purchase.invoiceNumber ?? "",
                   transferDocument: purchase.transferDocument ?? "",
                 }}

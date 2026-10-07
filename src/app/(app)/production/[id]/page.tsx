@@ -24,6 +24,9 @@ import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
+import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
+import { OrderBatchBlock } from "./batch-field";
+import { batchLabel } from "@/lib/batch-label";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
 import { ProductionPaymentForm } from "./payment-form";
@@ -44,6 +47,8 @@ import { toDriveView } from "@/lib/drive-docs-server";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getColorOptions } from "@/lib/colors";
 import { rowVersion, ORDER_V } from "@/lib/concurrency";
+import { ArticleName } from "@/components/article-name";
+import { articleLabel } from "@/lib/article-label";
 import {
   removeMaterialUsage,
   removeProductionExpense,
@@ -51,6 +56,7 @@ import {
   updateMaterialUsage,
   updateProductionExpense,
   updateProductionOrder,
+  assignOrderBatch,
 } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -126,6 +132,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       client: true,
       batch: { select: { id: true, number: true } },
       season: { select: { id: true, code: true } },
+      ...ORDER_COLORS_INCLUDE,
       materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
@@ -144,7 +151,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     ? await prisma.productionOrder.count({ where: { organizationId: session.user.organizationId, workOrderNumber: order.workOrderNumber } })
     : 0;
   const tzTitle = order.workOrderNumber
-    ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${order.productModel.name}` : ""}`
+    ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}`
     : `Заказ ${order.number}`;
 
   // Документы Google Drive: самого ТЗ и его оплат.
@@ -182,9 +189,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     await prisma.productionBatch.findMany({
       where: { organizationId: session.user.organizationId },
       orderBy: { number: "asc" },
-      select: { id: true, number: true, year: true },
+      select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
     })
-  ).map((b) => ({ id: b.id, label: `Партия ${b.number}${b.year ? ` (${b.year})` : ""}` }));
+  ).map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
   const paymentOrders = clientOrders
     .map((o) => {
       const qty = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
@@ -253,7 +260,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     }),
     prisma.productModel.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, category: true, salesCode: true, salesName: true },
       orderBy: { name: "asc" },
     }),
     prisma.warehouse.findMany({
@@ -274,7 +281,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // current values.
   const modelOptions = (models.some((m) => m.id === order.productModelId)
     ? models
-    : [{ id: order.productModelId, name: order.productModel.name }, ...models]
+    : [{ id: order.productModelId, name: order.productModel.name, category: order.productModel.category, salesCode: order.productModel.salesCode, salesName: order.productModel.salesName }, ...models]
   ).sort((a, b) => compareModelNames(a.name, b.name));
   const clientOptions =
     order.clientId && !clients.some((c) => c.id === order.clientId)
@@ -485,14 +492,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const clean = (v: string | null | undefined) => (v ?? "").trim();
   const headerParts = [
     <Link key="model" href={`/models/${order.productModelId}`} className="font-medium text-neutral-800 underline underline-offset-2" title="Карточка изделия: состав, цена">
-      {order.productModel.name}
+      <ArticleName model={order.productModel} />
     </Link>,
     order.season && (
       <Link key="season" href={`/plan?season=${order.season.id}`} className="underline underline-offset-2" title="План и факт сезона">
         сезон {order.season.code}
       </Link>
     ),
-    clean(order.color) && clean(order.color),
+    orderColors(order).length > 0 && `цвет: ${formatOrderColors(orderColors(order))}`,
     clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
     qtyLabel,
     order.startDate && `с ${formatDate(order.startDate)}`,
@@ -522,16 +529,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
           <TzVatBadge b={vatB} />
-          {order.batch && (
-            <Link href={`/production/batches/${order.batch.number}`} className="inline-block text-sm text-blue-600 hover:underline max-md:py-2">
-              Партия {order.batch.number}
-            </Link>
-          )}
-          {!order.batch && (
-            <span className="text-sm text-neutral-500" title="Партию можно выбрать в «Изменить». Пока партии нет, оплата работы отмечается прямо на ТЗ, в блоке «Документы и оплата»">
-              без партии
-            </span>
-          )}
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
@@ -541,7 +538,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </a>
           {canEdit && <OrderEditForm
             action={boundUpdateOrder}
-            models={modelOptions}
+            models={modelOptions.map((m) => ({ id: m.id, name: articleLabel(m) }))}
             warehouses={warehouses}
             clients={clientOptions}
             batches={batchOptions}
@@ -550,7 +547,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             canAddColor={hasRole(session.user.role, ACCESS.colors)}
             defaults={{
               productModelId: order.productModelId,
-              productModelName: order.productModel.name,
+              productModelName: articleLabel(order.productModel),
               rawWarehouseId: order.rawWarehouseId,
               finishedWarehouseId: order.finishedWarehouseId,
               plannedQuantity: order.plannedQuantity.toString(),
@@ -598,6 +595,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           ))}
         </p>
       </div>
+
+      {canEdit ? (
+        <OrderBatchBlock
+          action={assignOrderBatch.bind(null, id)}
+          batches={batchOptions}
+          current={order.batch ? { id: order.batch.id, number: order.batch.number, label: batchOptions.find((b) => b.id === order.batch!.id)?.label ?? `Партия ${order.batch.number}` } : null}
+        />
+      ) : order.batch ? (
+        <p className="text-sm">
+          Партия:{" "}
+          <Link href={`/production/batches/${order.batch.number}`} className="text-blue-700 hover:underline">
+            {batchOptions.find((b) => b.id === order.batch!.id)?.label ?? `Партия ${order.batch.number}`}
+          </Link>
+        </p>
+      ) : (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 ring-1 ring-amber-300">Партия не указана</p>
+      )}
 
       <SectionNav items={navItems} />
 

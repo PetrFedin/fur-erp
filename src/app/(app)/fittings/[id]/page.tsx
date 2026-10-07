@@ -12,6 +12,7 @@ import { EditFittingForm } from "./edit-fitting-form";
 import { PhotoGallery } from "./photo-gallery";
 import { AddPhotosForm } from "./add-photos-form";
 import { DeleteFittingButton } from "./delete-fitting-button";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Примерка" };
 
@@ -27,7 +28,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
           id: true,
           number: true,
           workOrderNumber: true,
-          productModel: { select: { id: true, name: true } },
+          productModel: { select: { id: true, name: true, category: true, salesCode: true, salesName: true } },
           client: { select: { name: true } },
         },
       },
@@ -66,7 +67,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
               <dt className="text-xs text-neutral-500">Модель</dt>
               <dd>
                 <Link href={`/models/${o.productModel.id}`} className="underline">
-                  {o.productModel.name}
+                  {articleLabel(o.productModel)}
                 </Link>
               </dd>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatMoney, formatQty, cn } from "@/lib/utils";
 import { useCommission4Display } from "@/lib/commission4-display";
@@ -8,7 +9,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
 import {
-  FILTER_KEYS, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, parseFilters, rowsBy,
+  FILTER_KEYS, NO_AUCTION, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, parseFilters, rowsBy,
   type FilterKey, type FlowFigures, type FurFilters, type FurKind, type FurLot, type TableRow,
 } from "@/lib/fur-table";
 
@@ -36,16 +37,14 @@ export function FurSelectionTotal({
   kind = "fur",
   globalYear = "all",
   initialQuery = {},
-  barFooter,
 }: {
   lots: FurLot[];
   kind?: FurKind;
   /** Общий год из шапки (cookie yearFilter): лоты уже отфильтрованы им; локальный «Год закупки» сужает внутри. */
   globalYear?: string;
   initialQuery?: Record<string, string | string[] | undefined>;
-  /** Блок под чипами панели фильтров (быстрые ссылки на партии закупки). */
-  barFooter?: ReactNode;
 }) {
+  const router = useRouter();
   const unit = kind === "lining" ? "м" : "шт.";
   const unitWord = kind === "lining" ? "метр" : "шкуру";
   const { mode: c4 } = useCommission4Display();
@@ -275,6 +274,7 @@ export function FurSelectionTotal({
       label: FILTER_LABELS[k].kind[kind],
       allLabel: FILTER_LABELS[k].all,
       options: options[k],
+      ...(k === "auction" && kind === "fur" ? { hint: "Одна партия — откроются её счета и лоты (режим «Аукцион»); несколько — таблица сузится по ним" } : {}),
     })),
     { type: "text", name: "q", label: "Поиск", placeholder: kind === "lining" ? "№ лота, ткань, цвет, сорт" : "№ лота, материал, цвет, сорт" },
   ];
@@ -285,13 +285,25 @@ export function FurSelectionTotal({
         title={kind === "lining" ? "Фильтры подкладки" : "Фильтры меха"}
         controls={controls}
         values={{ ...filters, q: q ? [q] : [] }}
-        onChange={(name, v) => (name === "q" ? setQ(v[0] ?? "") : setFilter(name as FilterKey, v))}
+        onChange={(name, v) => {
+          // Выбрана ровно одна партия закупки — открывается режим «Аукцион» (счета и лоты этой партии): /lots?auction=…
+          if (name === "auction" && kind === "fur" && v.length === 1 && v[0] !== NO_AUCTION) {
+            const p = new URLSearchParams();
+            p.set("auction", v[0]);
+            if (q.trim()) p.set("q", q.trim());
+            router.push(`/lots?${p.toString()}`);
+            return;
+          }
+          if (name === "q") setQ(v[0] ?? "");
+          else setFilter(name as FilterKey, v);
+        }}
         onReset={() => { setFilters(emptyFilters()); setQ(""); }}
         footer={
           <>
-            {barFooter}
             <p className="mt-2 text-[11px] leading-4 text-neutral-500">
-              «Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: {globalYear === "all" ? "все годы" : `${globalYear} год`}); число у пункта — лотов.
+              {options.year.length > 1 || filters.year.length > 0
+                ? `«Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: ${globalYear === "all" ? "все годы" : `${globalYear} год`}); число у пункта — лотов.`
+                : "Число у пункта — лотов. Фильтры, у которых в данных одно значение, не показываются."}
             </p>
           </>
         }

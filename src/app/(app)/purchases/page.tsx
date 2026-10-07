@@ -174,7 +174,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         title="Фильтры закупок"
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
-          { type: "multi", name: "auction", label: "Партия закупки", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
           { type: "multi", name: "status", label: "Статус", options: STATUS_OPTIONS, allLabel: "Все статусы" },
           { type: "multi", name: "supplier", label: "Поставщик", options: opts.supplier },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },

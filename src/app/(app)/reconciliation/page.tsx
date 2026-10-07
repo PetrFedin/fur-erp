@@ -114,7 +114,10 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
       <summary className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 text-sm [&::-webkit-details-marker]:hidden">
         <span className={cn("inline-block size-2.5 shrink-0 rounded-full", tone ? INV_TONE[tone].dot : "bg-neutral-400")} />
         <span className="min-w-0 flex-1 basis-56 font-medium">
-          {g.title}
+          {db?.title ?? g.title}
+          {db?.auctions?.length && !db.auctions.some((a) => (db.title ?? g.title).startsWith(a)) ? (
+            <span className="ml-2 rounded bg-sky-50 px-1.5 text-xs font-normal text-sky-700" title="Короткое имя аукциона в справочнике (Настройки → Аукционы)">{db.auctions.join(", ")}</span>
+          ) : null}
           <span className="ml-2 text-xs font-normal text-neutral-500">{g.house}</span>
           {g.year ? <span className="ml-2 rounded bg-neutral-100 px-1.5 text-xs font-normal text-neutral-600">{g.year}</span> : null}
         </span>

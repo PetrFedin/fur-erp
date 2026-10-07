@@ -16,6 +16,10 @@ import {
   UNDEFINED_FUR,
   type CategorySource,
 } from "@/lib/product-category";
+import { articleHint, articleLabel } from "@/lib/article-label";
+import { orderColors } from "@/lib/order-colors";
+import { parseOrderSizes } from "@/lib/order-sizes";
+import { batchLabel } from "@/lib/batch-label";
 
 // Строка аналитики = одно ТЗ (не отменённое). Все суммы — обычные числа в рублях (с НДС и без НДС),
 // чтобы строки можно было свободно группировать и передавать в разметку.
@@ -58,14 +62,24 @@ export type OrderRow = {
   workOrderNumber: string | null;
   modelId: string;
   modelName: string;
+  /** Подпись артикула по справочнику: «M012 · Пальто» (modelName остаётся кодом — по нему группировка и фильтры). */
+  modelLabel: string;
+  modelHint: string;
   category: string;
   categorySource: CategorySource;
   fur: string;
   furFromUsage: boolean;
   size: string;
   sizeRaw: string;
+  /** Для группировок: цвета ТЗ через «; » (составной ТЗ — списком) либо «Цвет не указан». */
   color: string;
+  /** ВСЕ цвета ТЗ (канонические названия справочника): по ним работает фильтр «Цвет»; пусто — цвет в документах не указан. */
+  colors: string[];
+  /** Размеры из текста ТЗ (parseOrderSizes): по ним работает фильтр «Размер»; пусто — размер не указан. */
+  sizes: string[];
   batchNumber: number | null;
+  /** «Партия 5 · 2025» (год партии; нет — «≈год» по ТЗ). */
+  batchText: string | null;
   year: number | null;
   status: "PLANNED" | "IN_PROGRESS" | "COMPLETED";
   /** done — завершён; work — запланирован или в работе. */
@@ -139,11 +153,12 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         workOrderNumber: true,
         status: true,
         productModelId: true,
-        productModel: { select: { name: true, category: true, categoryRef: { select: { name: true } }, salesCode: true, sku: true, aliases: true } },
+        productModel: { select: { name: true, category: true, categoryRef: { select: { name: true } }, salesCode: true, salesName: true, sku: true, aliases: true } },
         batch: { select: { number: true, year: true } },
         season: { select: { code: true } },
         client: { select: { name: true } },
-        colorRef: { select: { name: true } },
+        colorRef: { select: { id: true, name: true } },
+        colors: { select: { quantity: true, sizes: true, colorRef: { select: { id: true, name: true } } } },
         plannedQuantity: true,
         producedQuantity: true,
         color: true,
@@ -239,7 +254,11 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
     const when = orderYearOf({ workOrderDate: o.workOrderDate, endDate: o.endDate, startDate: o.startDate, batch: o.batch });
 
     // Цвет ТЗ: справочник цветов (по ссылке, затем по названию/синониму), иначе текст как записан.
-    const color = o.colorRef?.name ?? colorOf(o.color) ?? normalizeColor(o.color);
+    // Все цвета ТЗ: составной — строки ProductionOrderColor, обычный — один (справочник либо текст).
+    const colorList = Array.from(
+      new Set(orderColors({ color: o.color, colorRef: o.colorRef, colors: o.colors }).map((c) => (c.color ? c.name : (colorOf(c.name) ?? normalizeColor(c.name))))),
+    );
+    const color = colorList.join("; ");
 
     const lines = o.materialUsages.map((u) => {
       const isLining = u.rawMaterial.unit === "M";
@@ -288,6 +307,8 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       workOrderNumber: o.workOrderNumber,
       modelId: o.productModelId,
       modelName: o.productModel.name,
+      modelLabel: articleLabel(o.productModel),
+      modelHint: articleHint(o.productModel),
       category: cls.category,
       categorySource: cls.source,
       fur,
@@ -295,7 +316,10 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       size: normalizeSize(o.size),
       sizeRaw: (o.size ?? "").trim(),
       color: color || UNDEFINED_COLOR,
+      colors: colorList,
+      sizes: parseOrderSizes(o.size),
       batchNumber: o.batch?.number ?? null,
+      batchText: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : null,
       year: when,
       status: o.status as OrderRow["status"],
       group: o.status === "COMPLETED" ? "done" : "work",

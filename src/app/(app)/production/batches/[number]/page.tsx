@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArticleName } from "@/components/article-name";
 import { notFound, redirect } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -182,7 +183,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                       </Link>
                     </Td>
                     <Td>
-                      {o.productModel.name}
+                      <ArticleName model={o.productModel} />
                       {o.client && <span className="block text-xs text-neutral-500">{o.client.name}</span>}
                     </Td>
                     <Td>{formatQty(s.qty.toString())}</Td>

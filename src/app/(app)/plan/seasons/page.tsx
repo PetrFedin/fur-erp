@@ -17,6 +17,7 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { InfoHint } from "@/components/info-hint";
 import { AssignTable } from "./assign-table";
 import { applySeasonRule } from "../actions";
+import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Сезоны ТЗ" };
 
@@ -61,13 +62,13 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
   const [orders, unseasoned] = await Promise.all([
     prisma.productionOrder.findMany({
       where,
-      select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, seasonId: true, workOrderDate: true, endDate: true, startDate: true, productModel: { select: { name: true } } },
+      select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, seasonId: true, workOrderDate: true, endDate: true, startDate: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
       orderBy: { createdAt: "desc" },
       take: LIMIT,
     }),
     prisma.productionOrder.findMany({
       where: { organizationId: orgId, seasonId: null, status: { not: "CANCELLED" } },
-      select: { id: true, number: true, workOrderNumber: true, seasonId: true, workOrderDate: true, endDate: true, startDate: true, productModel: { select: { name: true } } },
+      select: { id: true, number: true, workOrderNumber: true, seasonId: true, workOrderDate: true, endDate: true, startDate: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
     }),
   ]);
 
@@ -127,7 +128,7 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
                             <tr key={v.orderId} className="border-t border-neutral-100">
                               <td className="px-2 py-1"><input type="checkbox" name="orderId" value={v.orderId} defaultChecked disabled={!canEdit} className="size-4" aria-label={`Применить к ${label(o)}`} /></td>
                               <td className="px-2 py-1 font-medium"><Link href={`/production/${o.id}`} className="hover:underline">{label(o)}</Link></td>
-                              <td className="px-2 py-1">{o.productModel.name}</td>
+                              <td className="px-2 py-1">{articleLabel(o.productModel)}</td>
                               <td className="px-2 py-1 tabular-nums">{formatDate(orderDateOf(o)!)}</td>
                               <td className="px-2 py-1 font-semibold">{v.kind === "match" ? seasonById.get(v.seasonId)?.code : ""}</td>
                             </tr>
@@ -159,7 +160,7 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
         seasons={seasons.map((x) => ({ id: x.id, code: x.code }))}
         orders={orders.map((o) => {
           const d = orderDateOf(o);
-          return { id: o.id, label: label(o), model: o.productModel.name, date: d ? formatDate(d) : null, status: o.status, season: o.seasonId ? (seasonById.get(o.seasonId)?.code ?? null) : null, qty: formatQty(o.plannedQuantity.toString()) };
+          return { id: o.id, label: label(o), model: articleLabel(o.productModel), date: d ? formatDate(d) : null, status: o.status, season: o.seasonId ? (seasonById.get(o.seasonId)?.code ?? null) : null, qty: formatQty(o.plannedQuantity.toString()) };
         })}
       />
       {orders.length === LIMIT && <p className="text-xs text-neutral-500">Показаны первые {LIMIT} ТЗ — сузьте поиск.</p>}

@@ -44,6 +44,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
     orderBy: { createdAt: "asc" },
   });
 
+  const presentRoles = new Set((await prisma.user.findMany({ where: { organizationId: session.user.organizationId }, select: { role: true } })).map((u) => u.role as string));
+  const inactiveN = await prisma.user.count({ where: { organizationId: session.user.organizationId, isActive: false } });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -64,8 +67,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
         dropOnChange={["error"]}
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Имя или email" },
-          { type: "multi", name: "role", label: "Роль", options: Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label })), allLabel: "Все роли" },
-          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+          { type: "multi", name: "role", label: "Роль", options: Object.entries(ROLE_LABELS).filter(([value]) => presentRoles.has(value)).map(([value, label]) => ({ value, label })), allLabel: "Все роли" },
+          // «Статус» нужен, только если в справочнике есть и неактивные записи (иначе фильтр ничего не сужает).
+          ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
 

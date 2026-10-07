@@ -7,7 +7,7 @@
 
 | Что | Единственное значение |
 |---|---|
-| Рабочая папка на компьютере | `/Users/petr/Documents/claude/fur-erp` |
+| Рабочая папка на компьютере | `/Users/petr/Projects/fur-erp` |
 | Репозиторий | GitHub `PetrFedin/fur-erp` (приватный) |
 | Основная ветка | `main` (на GitHub и локально в основной папке) |
 | Dev-сервер | один, порт `3200` (`npm run dev -- -p 3200`), запускается из основной папки |
@@ -24,7 +24,7 @@
 
 ## 3. Порядок работы (каждый раз)
 
-1. `cd /Users/petr/Documents/claude/fur-erp && git switch main && git pull`
+1. `cd /Users/petr/Projects/fur-erp && git switch main && git pull`
 2. `git switch -c fix/что-делаем` — работа.
 3. Проверка: `npx prisma validate`, `npx tsc --noEmit`; перед `npx next build` остановить dev-сервер (`:3200`) и не запускать build там, где работает чужой dev-сервер.
 4. Коммит, `git push -u origin fix/что-делаем`, слияние в `main`, `git push origin main`.
@@ -66,8 +66,8 @@
 ## 7. Поднять проект с нуля
 
 ```bash
-git clone https://github.com/PetrFedin/fur-erp.git /Users/petr/Documents/claude/fur-erp
-cd /Users/petr/Documents/claude/fur-erp
+git clone https://github.com/PetrFedin/fur-erp.git /Users/petr/Projects/fur-erp
+cd /Users/petr/Projects/fur-erp
 npm ci
 cp .env.example .env                 # при необходимости поправить DATABASE_URL / секреты
 docker compose up db -d              # PostgreSQL на порту 5436
@@ -76,7 +76,7 @@ npx prisma generate
 npm run dev -- -p 3200
 ```
 
-Внимание: папка лежит в `~/Documents` (синхронизация iCloud). При нехватке места macOS выгружает файлы `node_modules` в облако, и `tsc`/`next build` «зависают» на их чтении. Лекарство: `rm -rf node_modules && npm ci` (или `cp -cR` из рабочей копии с тем же `package-lock.json`). Символическая ссылка `node_modules -> node_modules.nosync` НЕ годится: Turbopack падает с `there must be a path to a root`. Перед `next build` нужен свежий `npx next typegen` (иначе `tsc` не знает `PageProps`).
+Внимание: 08.10.2026 проект ПЕРЕНЕСЁН из `~/Documents/claude/fur-erp` (синхронизация iCloud выгружала и портила тысячи файлов `node_modules`, `tsc`/`next build` и dev-сервер зависали) в `/Users/petr/Projects/fur-erp` — вне iCloud. Единственная рабочая папка теперь `/Users/petr/Projects/fur-erp`; в `~/Documents/claude/fur-erp` остаётся только символическая ссылка на неё (для старых путей) — не работать через неё и не создавать там файлов. Если `node_modules` когда-нибудь повредится: `rm -rf node_modules && npm ci` (или `cp -cR` из копии с тем же `package-lock.json`). Символическая ссылка `node_modules -> node_modules.nosync` НЕ годится: Turbopack падает с `there must be a path to a root`. Перед `next build` нужен свежий `npx next typegen` (иначе `tsc` не знает `PageProps`). Запуск dev-сервера из панели: `.claude/launch.json` (`cd /Users/petr/Projects/fur-erp && PORT=3200 npm run dev`).
 
 Данные: восстановить БД из дампа (см. раздел 5), положить `uploads/` из архива. Если дампа нет — данные пересобираются скриптами из `scripts/` (порядок и журналы — `docs/inventory/`, `docs/DATA-SAFETY.md`).
 Боевой деплой — `docs/DEPLOY.md`; допуск production — `docs/PRODUCTION_ADMISSION.md`; тесты — `docs/TESTING.md`.

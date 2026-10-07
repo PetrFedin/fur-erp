@@ -13,12 +13,12 @@ import { getYearFilter, yearRange } from "@/lib/year-filter";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { FilterBar } from "@/components/filters/filter-bar";
-import { dateRange, defineFilters, parseFilters, pick, splitNone, yearOptionsFrom, yearRanges } from "@/lib/filters";
+import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
 
 export const metadata = { title: "Отгрузки" };
 
 const SHIPMENT_FILTERS = defineFilters({
-  ...pick(["q", "status", "client", "year", "from", "to"], {
+  ...pick(["q", "status", "year", "from", "to"], {
     status: { allowed: Object.keys(SHIPMENT_STATUS) },
     from: { label: "Плановая дата с" },
     to: { label: "Плановая дата по" },
@@ -33,7 +33,6 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const sp = await searchParams;
   const f = parseFilters(SHIPMENT_FILTERS, sp);
   const year = await getYearFilter();
-  const cl = splitNone(f.client);
   const period = dateRange(f.from, f.to);
 
   const where: Prisma.ShipmentWhereInput = {
@@ -52,7 +51,6 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         : []),
     ],
     ...(f.status.length ? { status: { in: f.status as Array<"PLANNED"> } } : {}),
-    ...(f.client.length ? { OR: [...(cl.rest.length ? [{ clientId: { in: cl.rest } }] : []), ...(cl.none ? [{ clientId: null }] : [])] } : {}),
   };
   const include = {
     client: { select: { name: true } },
@@ -67,9 +65,8 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
   const weekEndIso = isoDay(weekEnd);
 
-  const [shipments, clients, upcoming, allDates] = await Promise.all([
+  const [shipments, upcoming, allDates] = await Promise.all([
     prisma.shipment.findMany({ where, include }),
-    prisma.client.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.shipment.findMany({
       where: {
         organizationId: orgId,
@@ -90,7 +87,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     const d = a.plannedDate.getTime() - b.plannedDate.getTime();
     return rank(a.status) === 0 ? d : -d;
   });
-  const hasFilters = Boolean(f.status.length || f.client.length || f.year.length || f.q || f.from || f.to);
+  const hasFilters = Boolean(f.status.length || f.year.length || f.q || f.from || f.to);
   const isEmpty = rows.length === 0 && !hasFilters && year === "all";
 
   return (
@@ -136,7 +133,6 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
           { type: "multi", name: "status", label: "Статус", options: Object.entries(SHIPMENT_STATUS).map(([k, v]) => ({ value: k, label: v.label })), allLabel: "Все статусы" },
-          { type: "multi", name: "client", label: "Заказчик", options: clients.map((c) => ({ value: c.id, label: c.name })), noneLabel: "Без заказчика", allLabel: "Все заказчики" },
           { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
           { type: "date", name: "from", label: "Плановая дата с" },
           { type: "date", name: "to", label: "Плановая дата по" },

@@ -69,11 +69,11 @@ test('multi-select filter applies at once, shows chips, resets all and keeps oth
   await page.getByRole('button',{name:'Сбросить всё'}).click();
   await expect(page).not.toHaveURL(/status=/);
 
-  // /lots: вкладка и фильтры не теряются, быстрые чипы партий остаются ссылками /lots?auction=
+  // /lots: вкладка и фильтры не теряются; быстрых чипов партий нет — только фильтр «Партия закупки»
   await page.goto('http://localhost:3000/lots?q=15016');
   await page.getByRole('link',{name:'Сводка по годам'}).click();
   await expect(page).toHaveURL(/tab=summary/);
-  expect(await page.locator('a[href^="/lots?auction="]').count()).toBeGreaterThanOrEqual(0);
+  expect(await page.locator('a[href^="/lots?auction="]').count()).toBe(0);
 });
 
 test('fur table filters share the common bar: apply at once, chips, reset, URL', async ({page})=>{

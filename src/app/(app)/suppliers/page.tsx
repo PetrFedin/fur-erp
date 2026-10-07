@@ -41,6 +41,8 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
   const showEmail = suppliers.some((x) => x.email);
   const colCount = 3 + (showContact ? 1 : 0) + (showPhone ? 1 : 0) + (showEmail ? 1 : 0);
 
+  const inactiveN = await prisma.supplier.count({ where: { organizationId: session.user.organizationId, isActive: false } });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -56,7 +58,8 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
         title="Фильтры поставщиков"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, контакт, телефон, email" },
-          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+          // «Статус» нужен, только если в справочнике есть и неактивные записи (иначе фильтр ничего не сужает).
+          ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
 
