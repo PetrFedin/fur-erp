@@ -1,0 +1,2157 @@
+{
+  "script": "fill-detail-lots.ts",
+  "appliedAt": "2026-10-03T22:07:28.040Z",
+  "summary": {
+    "PurchaseItem.grade": 97,
+    "RawMaterialLot.grade": 23,
+    "PurchaseItem.color": 54,
+    "RawMaterialLot.color": 51,
+    "PurchaseItem.costPlan": 8
+  },
+  "changes": [
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482h005bls7yfmxu8kkp",
+      "ref": "З-2026-0002/519506",
+      "field": "grade",
+      "old": null,
+      "new": "норки лаванда самец 20",
+      "source": "описание лота 519506 × 94 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482i005dls7ylpk2v9oj",
+      "ref": "З-2026-0002/519506",
+      "field": "grade",
+      "old": null,
+      "new": "норки лаванда самец 20",
+      "source": "описание лота 519506 × 94 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482h005bls7yfmxu8kkp",
+      "ref": "З-2026-0002/519506",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «норки лаванда самец 20»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482i005dls7ylpk2v9oj",
+      "ref": "З-2026-0002/519506",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «норки лаванда самец 20»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482i005hls7yamub4kpy",
+      "ref": "З-2026-0002/518005",
+      "field": "grade",
+      "old": null,
+      "new": "норки ирис самец 20",
+      "source": "описание лота 518005 × 86 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482j005jls7yd7tgojtu",
+      "ref": "З-2026-0002/518005",
+      "field": "grade",
+      "old": null,
+      "new": "норки ирис самец 20",
+      "source": "описание лота 518005 × 86 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482i005hls7yamub4kpy",
+      "ref": "З-2026-0002/518005",
+      "field": "color",
+      "old": null,
+      "new": "голубой ирис",
+      "source": "цвет из описания «норки ирис самец 20»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482j005jls7yd7tgojtu",
+      "ref": "З-2026-0002/518005",
+      "field": "color",
+      "old": null,
+      "new": "голубой ирис",
+      "source": "цвет из описания «норки ирис самец 20»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48280049ls7y4jgfho3m",
+      "ref": "З-2026-0002/505055",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «шкура норки американская пастель»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4828004bls7y02ub3ah3",
+      "ref": "З-2026-0002/505055",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «шкура норки американская пастель»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482e004zls7y04j4sfs1",
+      "ref": "З-2026-0002/519502",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Шкура норки лаванда»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482f0051ls7ymdwj7dam",
+      "ref": "З-2026-0002/519502",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Шкура норки лаванда»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480x001jls7y735pwo4f",
+      "ref": "З-2026-0002/720508",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720508 × 99 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480x001lls7y06qx7zme",
+      "ref": "З-2026-0002/720508",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720508 × 99 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480v001dls7yr9wzwoov",
+      "ref": "З-2026-0002/720507",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720507 × 179 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480w001fls7ylxanvqo1",
+      "ref": "З-2026-0002/720507",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720507 × 179 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc481h002lls7ycg28ql86",
+      "ref": "З-2026-0002/513010",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки американский жемчуг самец 40»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc481h002nls7yytbty08x",
+      "ref": "З-2026-0002/513010",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки американский жемчуг самец 40»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc481m002tls7y20xcm3m2",
+      "ref": "З-2026-0002/613003",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки жемчуг»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc481m002vls7yqshso67u",
+      "ref": "З-2026-0002/613003",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки жемчуг»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480m000jls7yflrpqrhf",
+      "ref": "З-2026-0002/720502",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720502 × 195 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480n000lls7ybpq6pwa0",
+      "ref": "З-2026-0002/720502",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720502 × 195 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc481p0031ls7y807eoza0",
+      "ref": "З-2026-0002/613017",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки жемчуг самка»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc481q0033ls7yvjehjpuo",
+      "ref": "З-2026-0002/613017",
+      "field": "color",
+      "old": null,
+      "new": "жемчуг",
+      "source": "цвет из описания «Шкура норки жемчуг самка»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480q000vls7y2kz0prj5",
+      "ref": "З-2026-0002/720504",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720504 × 200 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480r000xls7y9fovyin1",
+      "ref": "З-2026-0002/720504",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720504 × 200 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480o000pls7yq99tup4l",
+      "ref": "З-2026-0002/720503",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720503 × 126 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480p000rls7yrnts6r7m",
+      "ref": "З-2026-0002/720503",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720503 × 126 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4820003nls7yi8vc055b",
+      "ref": "З-2026-0002/518509",
+      "field": "color",
+      "old": null,
+      "new": "виолет",
+      "source": "цвет из описания «Шкура норки виолет»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4820003pls7y3z9ghkpl",
+      "ref": "З-2026-0002/518509",
+      "field": "color",
+      "old": null,
+      "new": "виолет",
+      "source": "цвет из описания «Шкура норки виолет»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480u0017ls7yxojmpl1f",
+      "ref": "З-2026-0002/720506",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720506 × 200 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480u0019ls7yxplci7nf",
+      "ref": "З-2026-0002/720506",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720506 × 200 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc481y003hls7y0uioxvxi",
+      "ref": "З-2026-0002/518505",
+      "field": "color",
+      "old": null,
+      "new": "виолет",
+      "source": "цвет из описания «Шкура норки виолет»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc481y003jls7yevbmee5i",
+      "ref": "З-2026-0002/518505",
+      "field": "color",
+      "old": null,
+      "new": "виолет",
+      "source": "цвет из описания «Шкура норки виолет»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480s0011ls7yxbgy41nf",
+      "ref": "З-2026-0002/720505",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720505 × 218 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480s0013ls7yiw4eulh7",
+      "ref": "З-2026-0002/720505",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720505 × 218 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482c004rls7yqq97du2l",
+      "ref": "З-2026-0002/514038",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский браун самец 30",
+      "source": "описание лота 514038 × 164 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482c004tls7ylsev2xug",
+      "ref": "З-2026-0002/514038",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский браун самец 30",
+      "source": "описание лота 514038 × 164 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482c004rls7yqq97du2l",
+      "ref": "З-2026-0002/514038",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «норки американский браун самец 30»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482c004tls7ylsev2xug",
+      "ref": "З-2026-0002/514038",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «норки американский браун самец 30»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482g0055ls7yc31pzs7v",
+      "ref": "З-2026-0002/519503",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Шкура норки лаванда»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482g0057ls7y1wrzsic3",
+      "ref": "З-2026-0002/519503",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Шкура норки лаванда»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc481a002dls7yo3edvuc9",
+      "ref": "З-2026-0002/605013",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «Норка пастель, самка»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc481b002fls7yulj0k5ee",
+      "ref": "З-2026-0002/605013",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «Норка пастель, самка»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc480y001pls7yxkmzpg8i",
+      "ref": "З-2026-0002/720509",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720509 × 136 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc480y001rls7yvw2mt7r3",
+      "ref": "З-2026-0002/720509",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура каракуля SWAKARA выделанная крашенная",
+      "source": "описание лота 720509 × 136 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4811001xls7yd79hcxl4",
+      "ref": "З-2026-0002/600083",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самка 0",
+      "source": "описание лота 600083 × 400 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4811001zls7ydiythm0x",
+      "ref": "З-2026-0002/600083",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самка 0",
+      "source": "описание лота 600083 × 400 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4811001xls7yd79hcxl4",
+      "ref": "З-2026-0002/600083",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самка 0»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4811001zls7ydiythm0x",
+      "ref": "З-2026-0002/600083",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самка 0»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48140025ls7ylxpnerk3",
+      "ref": "З-2026-0002/618003",
+      "field": "color",
+      "old": null,
+      "new": "голубой ирис",
+      "source": "цвет из описания «Норка голубой ирис, самка»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48150027ls7y9qc5jq7r",
+      "ref": "З-2026-0002/618003",
+      "field": "color",
+      "old": null,
+      "new": "голубой ирис",
+      "source": "цвет из описания «Норка голубой ирис, самка»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48250041ls7y39srbhpw",
+      "ref": "З-2026-0002/505053",
+      "field": "grade",
+      "old": null,
+      "new": "норки американская пастель самец 30",
+      "source": "описание лота 505053 × 86 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48250043ls7yn2unbf7z",
+      "ref": "З-2026-0002/505053",
+      "field": "grade",
+      "old": null,
+      "new": "норки американская пастель самец 30",
+      "source": "описание лота 505053 × 86 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48250041ls7y39srbhpw",
+      "ref": "З-2026-0002/505053",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «норки американская пастель самец 30»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48250043ls7yn2unbf7z",
+      "ref": "З-2026-0002/505053",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «норки американская пастель самец 30»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4829004fls7ydj0q69qg",
+      "ref": "З-2026-0002/500747",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самец 30",
+      "source": "описание лота 500747 × 180 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482a004hls7y7870yaxm",
+      "ref": "З-2026-0002/500747",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самец 30",
+      "source": "описание лота 500747 × 180 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4829004fls7ydj0q69qg",
+      "ref": "З-2026-0002/500747",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самец 30»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482a004hls7y7870yaxm",
+      "ref": "З-2026-0002/500747",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самец 30»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482b004lls7ydzptjk35",
+      "ref": "З-2026-0002/500748",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самец 30",
+      "source": "описание лота 500748 × 180 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482b004nls7yg0dmpin9",
+      "ref": "З-2026-0002/500748",
+      "field": "grade",
+      "old": null,
+      "new": "норки американский блек самец 30",
+      "source": "описание лота 500748 × 180 в документе «УПД (статус 1) № 103          от 03 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc482b004lls7ydzptjk35",
+      "ref": "З-2026-0002/500748",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самец 30»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc482b004nls7yg0dmpin9",
+      "ref": "З-2026-0002/500748",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «норки американский блек самец 30»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483b0077ls7ya7zzu0fa",
+      "ref": "З-2026-0005/10022",
+      "field": "grade",
+      "old": null,
+      "new": "Шкурка норки коричневой",
+      "source": "описание лота 10022 × 200 в документе «Копия УПД (статус 1) № 124          от 29 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483b0079ls7ykf043w78",
+      "ref": "З-2026-0005/10022",
+      "field": "grade",
+      "old": null,
+      "new": "Шкурка норки коричневой",
+      "source": "описание лота 10022 × 200 в документе «Копия УПД (статус 1) № 124          от 29 июля 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483b0077ls7ya7zzu0fa",
+      "ref": "З-2026-0005/10022",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Шкурка норки коричневой»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483b0079ls7ykf043w78",
+      "ref": "З-2026-0005/10022",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Шкурка норки коричневой»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483g007fls7yorvprh89",
+      "ref": "З-2026-0006/10025",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура норки браун 0 F",
+      "source": "описание лота 10025 × 150 в документе «Копия УПД (статус 1) № 122          от 26 августа 2025 г.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483g007hls7yl4pudzog",
+      "ref": "З-2026-0006/10025",
+      "field": "grade",
+      "old": null,
+      "new": "Шкура норки браун 0 F",
+      "source": "описание лота 10025 × 150 в документе «Копия УПД (статус 1) № 122          от 26 августа 2025 г.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483g007fls7yorvprh89",
+      "ref": "З-2026-0006/10025",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Шкура норки браун 0 F»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483g007hls7yl4pudzog",
+      "ref": "З-2026-0006/10025",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Шкура норки браун 0 F»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483n007pls7yweppa90g",
+      "ref": "З-2026-0007/10026",
+      "field": "color",
+      "old": null,
+      "new": "серебристо-голубой",
+      "source": "цвет из описания «Шкура норки серебристо-голубая 50 М»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483n007rls7y5f5p1us1",
+      "ref": "З-2026-0007/10026",
+      "field": "color",
+      "old": null,
+      "new": "серебристо-голубой",
+      "source": "цвет из описания «Шкура норки серебристо-голубая 50 М»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc483v007zls7yi3bxrtgg",
+      "ref": "З-2026-0008/5017/5020/5016",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «Норка пастель, кашемир №LC 1635 (№8)»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc483w0081ls7y5tsbc33g",
+      "ref": "З-2026-0008/5017/5020/5016",
+      "field": "color",
+      "old": null,
+      "new": "пастель",
+      "source": "цвет из описания «Норка пастель, кашемир №LC 1635 (№8)»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48450089ls7yqusp307p",
+      "ref": "З-2026-0009/5023, 5022, 5037, 5028",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Норка отбеленная»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4846008bls7yfny274w7",
+      "ref": "З-2026-0009/5023, 5022, 5037, 5028",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Норка отбеленная»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc484o008xls7y7q1m5kk9",
+      "ref": "З-2026-0010/фондю-1",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc484o008zls7yxru3ikoi",
+      "ref": "З-2026-0010/фондю-1",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc484t0095ls7y30rjx10q",
+      "ref": "З-2026-0010/нуга",
+      "field": "color",
+      "old": null,
+      "new": "нуга",
+      "source": "цвет из описания «Шкура каракуля SWAKARA нуга»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc484u0097ls7yulph17yp",
+      "ref": "З-2026-0010/нуга",
+      "field": "color",
+      "old": null,
+      "new": "нуга",
+      "source": "цвет из описания «Шкура каракуля SWAKARA нуга»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc484x009dls7ydvclv524",
+      "ref": "З-2026-0010/облако",
+      "field": "color",
+      "old": null,
+      "new": "облако",
+      "source": "цвет из описания «Шкура каракуля SWAKARA облако»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc484y009fls7y0afao0ui",
+      "ref": "З-2026-0010/облако",
+      "field": "color",
+      "old": null,
+      "new": "облако",
+      "source": "цвет из описания «Шкура каракуля SWAKARA облако»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4851009lls7yf6k8oij5",
+      "ref": "З-2026-0010/орех",
+      "field": "color",
+      "old": null,
+      "new": "орех",
+      "source": "цвет из описания «Шкура каракуля SWAKARA орех»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4851009nls7y2sfeuxil",
+      "ref": "З-2026-0010/орех",
+      "field": "color",
+      "old": null,
+      "new": "орех",
+      "source": "цвет из описания «Шкура каракуля SWAKARA орех»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc4856009tls7y2v52druj",
+      "ref": "З-2026-0011/фондю-2",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc4856009vls7yqqyv6x26",
+      "ref": "З-2026-0011/фондю-2",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc485a00a1ls7ynpzy1c3v",
+      "ref": "З-2026-0012/фондю-3",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc485a00a3ls7y9dq2r6pa",
+      "ref": "З-2026-0012/фондю-3",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc485e00a9ls7y8sbc119a",
+      "ref": "З-2026-0013/фондю-4",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc485e00abls7yk6dnlwk3",
+      "ref": "З-2026-0013/фондю-4",
+      "field": "color",
+      "old": null,
+      "new": "фондю",
+      "source": "цвет из описания «Шкура каракуля SWAKARA фондю»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc486100c7ls7ybdbfdghk",
+      "ref": "З-2026-0014/1333",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный",
+      "source": "описание лота 1333 × 28 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc486100c9ls7yx921nugv",
+      "ref": "З-2026-0014/1333",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный",
+      "source": "описание лота 1333 × 28 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc486700cxls7yteuygp9o",
+      "ref": "З-2026-0014/1358",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный",
+      "source": "описание лота 1358 × 15 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc486700czls7ytajw6oei",
+      "ref": "З-2026-0014/1358",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный",
+      "source": "описание лота 1358 × 15 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc485u00bhls7yvq2lh7ml",
+      "ref": "З-2026-0014/1328",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный (топ)",
+      "source": "описание лота 1328 × 16 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc485v00bjls7ywiswlctj",
+      "ref": "З-2026-0014/1328",
+      "field": "grade",
+      "old": null,
+      "new": "тонированный (топ)",
+      "source": "описание лота 1328 × 16 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc486j00ebls7yom57nd0m",
+      "ref": "З-2026-0015/1390",
+      "field": "grade",
+      "old": null,
+      "new": "муссон",
+      "source": "описание лота 1390 × 22 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc486j00edls7yt6pz30og",
+      "ref": "З-2026-0015/1390",
+      "field": "grade",
+      "old": null,
+      "new": "муссон",
+      "source": "описание лота 1390 × 22 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc486z00g7ls7yoy6pexvt",
+      "ref": "З-2026-0016/1437",
+      "field": "grade",
+      "old": null,
+      "new": "тонировка 2512",
+      "source": "описание лота 1437 × 29 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc487000g9ls7yvk136y10",
+      "ref": "З-2026-0016/1437",
+      "field": "grade",
+      "old": null,
+      "new": "тонировка 2512",
+      "source": "описание лота 1437 × 29 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc487300gfls7yepduii6q",
+      "ref": "З-2026-0017/634",
+      "field": "grade",
+      "old": null,
+      "new": "лавандер 2039",
+      "source": "описание лота 634 × 68 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc487300ghls7yz1pm39xc",
+      "ref": "З-2026-0017/634",
+      "field": "grade",
+      "old": null,
+      "new": "лавандер 2039",
+      "source": "описание лота 634 × 68 в документе «Русьпушнина для УПД.xlsx»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc487300gfls7yepduii6q",
+      "ref": "З-2026-0017/634",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «лавандер 2039»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc487300ghls7yz1pm39xc",
+      "ref": "З-2026-0017/634",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «лавандер 2039»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48bj00vvls7ystev6klx",
+      "ref": "З-2026-0028/3486",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Соболь дикий выделанный (лавандер)»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bj00vxls7ykjlconaw",
+      "ref": "З-2026-0028/3486",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Соболь дикий выделанный (лавандер)»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48bm00w7ls7yy90ir8zv",
+      "ref": "З-2026-0028/3488",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Соболь дикий выделанный (лавандер)»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bm00w9ls7y1thk8qck",
+      "ref": "З-2026-0028/3488",
+      "field": "color",
+      "old": null,
+      "new": "лаванда",
+      "source": "цвет из описания «Соболь дикий выделанный (лавандер)»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49eo000fls83q0hz8708",
+      "ref": "З-2026-0033/740504",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT GOLD»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49eo000hls83dj265atn",
+      "ref": "З-2026-0033/740504",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT GOLD»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ej0007ls83v9mljo4s",
+      "ref": "З-2026-0033/740503",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT SILV»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49ek0009ls83w180d3bc",
+      "ref": "З-2026-0033/740503",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT SILV»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49er000nls830m2mzpgr",
+      "ref": "З-2026-0033/740505",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT PLAT»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49er000pls83c6ocqcsq",
+      "ref": "З-2026-0033/740505",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT PLAT»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49es000tls835h5ree6m",
+      "ref": "З-2026-0033/740506",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT PLAT»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49et000vls83dcq87zhf",
+      "ref": "З-2026-0033/740506",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Свакара (каракуль) белая, REG FLAT PLAT»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48cc00yvls7yk5dcyuym",
+      "ref": "З-2026-0034/355159",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Шкурка норки белой»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cc00yxls7yii8f7ms1",
+      "ref": "З-2026-0034/355159",
+      "field": "color",
+      "old": null,
+      "new": "белый",
+      "source": "цвет из описания «Шкурка норки белой»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48ci00zbls7y4flq4pmh",
+      "ref": "З-2026-0035/500083",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «Шкурка норки черной»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48ci00zdls7yw0ioltpx",
+      "ref": "З-2026-0035/500083",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «Шкурка норки черной»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49f20019ls8341lelrq5",
+      "ref": "З-2026-0035/500084",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «Норка американская чёрная, самец, REG BLACK ROYB C1 VELV2»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f2001bls83ux7vptes",
+      "ref": "З-2026-0035/500084",
+      "field": "color",
+      "old": null,
+      "new": "чёрный",
+      "source": "цвет из описания «Норка американская чёрная, самец, REG BLACK ROYB C1 VELV2»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49f6001jls83bcc0lvkj",
+      "ref": "З-2026-0036/503134",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка американская коричневая, самец, REG XD GOLD C1/2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f7001lls83dfhzyw7c",
+      "ref": "З-2026-0036/503134",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка американская коричневая, самец, REG XD GOLD C1/2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fh002dls83v1myehzs",
+      "ref": "З-2026-0037/400104",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fh002fls83e1f8htc4",
+      "ref": "З-2026-0037/400104",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fg0027ls83ucgsc22s",
+      "ref": "З-2026-0037/400103",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fg0029ls83w5wku12v",
+      "ref": "З-2026-0037/400103",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fb001tls83osjlc6v0",
+      "ref": "З-2026-0037/400101",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C1 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fc001vls83mqn4ufmj",
+      "ref": "З-2026-0037/400101",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C1 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fe0021ls83ups76u6g",
+      "ref": "З-2026-0037/400102",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fe0023ls83ncp0xrhp",
+      "ref": "З-2026-0037/400102",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fj002jls83gxrcco8v",
+      "ref": "З-2026-0037/400105",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fj002lls834imkk57w",
+      "ref": "З-2026-0037/400105",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG DK SR C2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fm002rls83ihass9gv",
+      "ref": "З-2026-0037/400440",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG MED SR C2 VELV1»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fm002tls836k73jsx7",
+      "ref": "З-2026-0037/400440",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самка, REG MED SR C2 VELV1»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fs0037ls83ep64qb3a",
+      "ref": "З-2026-0038/300235",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG DK SR C2 VELV2»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fs0039ls83agrf5xks",
+      "ref": "З-2026-0038/300235",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG DK SR C2 VELV2»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49fq0031ls8307pj7l79",
+      "ref": "З-2026-0038/300234",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG DK SR C2 VELV2»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fq0033ls83z2l893ll",
+      "ref": "З-2026-0038/300234",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG DK SR C2 VELV2»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc48cf00z3ls7ynxbl6sh7",
+      "ref": "З-2026-0039/165270",
+      "field": "color",
+      "old": null,
+      "new": "серебристо-чёрный",
+      "source": "цвет из описания «Выделанная шкурка лисицы серебристо-черной»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cf00z5ls7yxt9nj3em",
+      "ref": "З-2026-0039/165270",
+      "field": "color",
+      "old": null,
+      "new": "серебристо-чёрный",
+      "source": "цвет из описания «Выделанная шкурка лисицы серебристо-черной»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49g1003pls83taxeb7xe",
+      "ref": "З-2026-0040/302127",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG XD SAGA C2 LNAP (+ под роспуск)»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupc49g2003rls83bzx6kcdw",
+      "ref": "З-2026-0040/302127",
+      "field": "color",
+      "old": null,
+      "new": "коричневый",
+      "source": "цвет из описания «Норка коричневая, самец, REG XD SAGA C2 LNAP (+ под роспуск)»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mc00mdls83eyekzrrk",
+      "ref": "З-2026-0049/70160",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nb00qdls83putjf6ui",
+      "ref": "З-2026-0049/70337",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49od00ujls83qxl1rnis",
+      "ref": "З-2026-0049/70591",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m200ldls83aqg1wuo0",
+      "ref": "З-2026-0049/70142",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ml00ndls834jcxz3pq",
+      "ref": "З-2026-0049/70212",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mu00odls83r5zjrv1p",
+      "ref": "З-2026-0049/70288",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o300tdls835r32ckpr",
+      "ref": "З-2026-0049/70541",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lt00kdls83t9oow2bx",
+      "ref": "З-2026-0049/70116",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49oe00upls830pylmtyb",
+      "ref": "З-2026-0049/70592",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nk00rdls836m0xnkvl",
+      "ref": "З-2026-0049/70384",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49li00j7ls83bfk5222o",
+      "ref": "З-2026-0049/70102",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lk00jdls83g86rdaus",
+      "ref": "З-2026-0049/70103",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lh00j1ls83oa7db1o5",
+      "ref": "З-2026-0049/70101",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n300pdls83bqeq8vga",
+      "ref": "З-2026-0049/70311",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nu00sdls836qxi0lgk",
+      "ref": "З-2026-0049/70420",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lp00k1ls830tvejr2m",
+      "ref": "З-2026-0049/70113",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ls00k7ls83oozp57vz",
+      "ref": "З-2026-0049/70115",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ll00jjls83yymdrrlr",
+      "ref": "З-2026-0049/70106",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lo00jvls83x1prxqvq",
+      "ref": "З-2026-0049/70111",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ln00jpls8303vvlg1o",
+      "ref": "З-2026-0049/70108",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lz00l1ls83u6kcje7a",
+      "ref": "З-2026-0049/70140",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m000l7ls8335ngjoe3",
+      "ref": "З-2026-0049/70141",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lv00kjls83s62ksgkk",
+      "ref": "З-2026-0049/70117",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ly00kvls83aavlnyg4",
+      "ref": "З-2026-0049/70125",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49lw00kpls830gvrinvz",
+      "ref": "З-2026-0049/70119",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m900m1ls83d3iz9tid",
+      "ref": "З-2026-0049/70154",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ma00m7ls837h0zcff0",
+      "ref": "З-2026-0049/70157",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m400ljls834rvol3b9",
+      "ref": "З-2026-0049/70146",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m700lvls83asqaxwv2",
+      "ref": "З-2026-0049/70153",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49m500lpls83jc2jmb8n",
+      "ref": "З-2026-0049/70151",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mi00n1ls83fn67ewkz",
+      "ref": "З-2026-0049/70204",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mj00n7ls83xe24t9g6",
+      "ref": "З-2026-0049/70205",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49md00mjls8363i2ho03",
+      "ref": "З-2026-0049/70197",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mg00mvls83h1n5ek2g",
+      "ref": "З-2026-0049/70203",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mf00mpls83esg4u5ww",
+      "ref": "З-2026-0049/70201",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mr00o1ls83gtlydk86",
+      "ref": "З-2026-0049/70278",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ms00o7ls83d79tkud0",
+      "ref": "З-2026-0049/70284",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mm00njls83681ko65z",
+      "ref": "З-2026-0049/70213",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mp00nvls83g9i7cw5b",
+      "ref": "З-2026-0049/70272",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mo00npls83sq87shae",
+      "ref": "З-2026-0049/70270",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mz00p1ls839azvubjd",
+      "ref": "З-2026-0049/70303",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n100p7ls83i9u51btp",
+      "ref": "З-2026-0049/70304",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mv00ojls8356c6ogct",
+      "ref": "З-2026-0049/70298",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49my00ovls83yyu3thr3",
+      "ref": "З-2026-0049/70300",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49mw00opls83nknu7xyn",
+      "ref": "З-2026-0049/70299",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n800q1ls83bn239x3x",
+      "ref": "З-2026-0049/70322",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49na00q7ls834uxf4ini",
+      "ref": "З-2026-0049/70325",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n400pjls83okleo84x",
+      "ref": "З-2026-0049/70312",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n700pvls83kofigm0s",
+      "ref": "З-2026-0049/70318",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49n600ppls83chn5io74",
+      "ref": "З-2026-0049/70313",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nh00r1ls8371rik0xa",
+      "ref": "З-2026-0049/70378",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nj00r7ls83jth0c5jc",
+      "ref": "З-2026-0049/70382",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nd00qjls8321knbqrp",
+      "ref": "З-2026-0049/70368",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ng00qvls83dpvp2p89",
+      "ref": "З-2026-0049/70376",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ne00qpls83vhesmevf",
+      "ref": "З-2026-0049/70369",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nr00s1ls83ycxkccsj",
+      "ref": "З-2026-0049/70391",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ns00s7ls83hcggdb48",
+      "ref": "З-2026-0049/70418",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nm00rjls83dx26tj5o",
+      "ref": "З-2026-0049/70385",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49np00rvls8318mk36dx",
+      "ref": "З-2026-0049/70389",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nn00rpls83rs71yq5e",
+      "ref": "З-2026-0049/70387",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o000t1ls83o534bzvk",
+      "ref": "З-2026-0049/70531",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o100t7ls83a2bh9d75",
+      "ref": "З-2026-0049/70539",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nv00sjls83g4tku9o5",
+      "ref": "З-2026-0049/70518",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ny00svls83vvz8zaym",
+      "ref": "З-2026-0049/70530",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49nx00spls83qx2jffqe",
+      "ref": "З-2026-0049/70528",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o800u1ls83hcad8rjo",
+      "ref": "З-2026-0049/70586",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49oa00u7ls835aibml40",
+      "ref": "З-2026-0049/70588",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o400tjls83fp9pvhfq",
+      "ref": "З-2026-0049/70542",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o700tvls8352ph52z2",
+      "ref": "З-2026-0049/70547",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49o500tpls83jmzw80uz",
+      "ref": "З-2026-0049/70546",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc49ob00udls836xd895cg",
+      "ref": "З-2026-0049/70590",
+      "field": "grade",
+      "old": null,
+      "new": "lynx cat",
+      "source": "furDescription из расчётного листа закупки (costBreakdown)"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a2002dlseqmdsgrejn",
+      "ref": "З-2026-0057/27006",
+      "field": "grade",
+      "old": null,
+      "new": "Лисица красная кл. сырая",
+      "source": "описание лота 27006 × 30 в документе «3050 ООО ВеллМех.pdf»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a2002dlseqmdsgrejn",
+      "ref": "З-2026-0057/27006",
+      "field": "color",
+      "old": null,
+      "new": "красный",
+      "source": "цвет из описания «Лисица красная кл. сырая»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a3002flseqb1u8r4bf",
+      "ref": "З-2026-0057/27007",
+      "field": "grade",
+      "old": null,
+      "new": "Лисица красная",
+      "source": "описание лота 27007 × 20 в документе «3050 ООО ВеллМех.pdf»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a3002flseqb1u8r4bf",
+      "ref": "З-2026-0057/27007",
+      "field": "color",
+      "old": null,
+      "new": "красный",
+      "source": "цвет из описания «Лисица красная»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a4002hlseqttbjjxf9",
+      "ref": "З-2026-0057/27010",
+      "field": "grade",
+      "old": null,
+      "new": "Лисица красная",
+      "source": "описание лота 27010 × 5 в документе «3050 ООО ВеллМех.pdf»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupc53a4002hlseqttbjjxf9",
+      "ref": "З-2026-0057/27010",
+      "field": "color",
+      "old": null,
+      "new": "красный",
+      "source": "цвет из описания «Лисица красная»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmupnzwj7000blsvqpyfhfy6t",
+      "ref": "З-2026-0059/cmupnzwj7000blsvqpyfhfy6t",
+      "field": "color",
+      "old": null,
+      "new": "красный",
+      "source": "цвет из описания «Лисица красная»"
+    },
+    {
+      "entity": "RawMaterialLot",
+      "id": "cmupnzwj8000dlsvqfzlx4sfy",
+      "ref": "З-2026-0059/cmupnzwj8000dlsvqfzlx4sfy",
+      "field": "color",
+      "old": null,
+      "new": "красный",
+      "source": "цвет из описания «Лисица красная»"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6ea46d73e476eaf967fb5",
+      "ref": "З-2026-0061/cmuq7h6ea46d73e476eaf967fb5",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6e76cf483b783abf1741d",
+      "ref": "З-2026-0061/cmuq7h6e76cf483b783abf1741d",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6eea0780751b317bf3b57",
+      "ref": "З-2026-0061/cmuq7h6eea0780751b317bf3b57",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6eff04beba93b1a132362",
+      "ref": "З-2026-0061/cmuq7h6eff04beba93b1a132362",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6ei624c557a40be57cc99",
+      "ref": "З-2026-0061/cmuq7h6ei624c557a40be57cc99",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6e36930354bc3d0d7830d",
+      "ref": "З-2026-0061/cmuq7h6e36930354bc3d0d7830d",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6e99daa84c9b6c525eb35",
+      "ref": "З-2026-0061/cmuq7h6e99daa84c9b6c525eb35",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    },
+    {
+      "entity": "PurchaseItem",
+      "id": "cmuq7h6eh378ecd8d1e0da1525f",
+      "ref": "З-2026-0061/cmuq7h6eh378ecd8d1e0da1525f",
+      "field": "costPlan",
+      "old": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "new": "{\"expenseVat\":\"0\",\"materialVat\":\"811.47541\",\"costBreakdown\":{\"items\":[{\"label\":\"Цена за 1 м.п. (базовая, валюта в файле не указана)\",\"value\":39.75},{\"label\":\"Оплата через карго 1,5%\",\"value\":0.59625},{\"label\":\"Доставка через карго\",\"value\":1.61},{\"label\":\"Наличные 10%\",\"value\":4.195625},{\"label\":\"Курс покупки наличной валюты\",\"value\":76.9},{\"label\":\"Доставка до склада\",\"value\":0.065019506},{\"label\":\"Цена за м.п. в ₽ без НДС (расчёт)\",\"value\":3554.079188},{\"label\":\"НДС 22% (цена с НДС по расчёту), ₽\",\"value\":4335.976609},{\"label\":\"Комиссия 4,5%, ₽\",\"value\":159.9335634},{\"label\":\"Итого по расчёту за 1 м.п., ₽ (в спецификации округлено до 4500)\",\"value\":4495.910172},{\"label\":\"Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)\",\"value\":4500},{\"label\":\"в т.ч. НДС 22%, ₽\",\"value\":811.48}],\"source\":\"Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены\",\"calcSource\":\"предварительный_расчет_за_подкладку.xlsx (Drive 1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi), «ЦУМ Ткань Турция», расчёт за 1 м.п.\"},\"expenseExclVat\":\"0\",\"materialExclVat\":\"3688.52459\",\"unitCostInclVat\":\"4500\"}",
+      "source": "предварительный_расчет_за_подкладку.xlsx"
+    }
+  ],
+  "notFoundInDocuments": [
+    "З-2026-0001/лиса: описания в документах нет",
+    "З-2026-0018/1498-2: описания в документах нет",
+    "З-2026-0020/15894: описания в документах нет",
+    "З-2026-0020/15899: описания в документах нет",
+    "З-2026-0021/30: описания в документах нет",
+    "З-2026-0021/114: описания в документах нет",
+    "З-2026-0021/106: описания в документах нет",
+    "З-2026-0021/107: описания в документах нет",
+    "З-2026-0021/109: описания в документах нет",
+    "З-2026-0023/3376: описания в документах нет",
+    "З-2026-0024/866: описания в документах нет",
+    "З-2026-0024/867: описания в документах нет",
+    "З-2026-0024/869: описания в документах нет",
+    "З-2026-0024/874: описания в документах нет",
+    "З-2026-0024/875: описания в документах нет",
+    "З-2026-0025/4017: описания в документах нет",
+    "З-2026-0025/4018: описания в документах нет",
+    "З-2026-0026/4145: описания в документах нет",
+    "З-2026-0028/3485: описания в документах нет",
+    "З-2026-0028/3487: описания в документах нет",
+    "З-2026-0032/LIN-20-0: описания в документах нет",
+    "З-2026-0032/LIN-50-0: описания в документах нет",
+    "З-2026-0032/LIN-73-0: описания в документах нет",
+    "З-2026-0032/LIN-191-0: описания в документах нет",
+    "З-2026-0032/LIN-79-0: описания в документах нет",
+    "З-2026-0032/LIN-10-0: описания в документах нет",
+    "З-2026-0032/LIN-268-0: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0060/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0061/?: описания в документах нет",
+    "З-2026-0062/?: описания в документах нет",
+    "З-2026-0062/?: описания в документах нет"
+  ]
+}

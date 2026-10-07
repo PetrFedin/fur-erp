@@ -1,0 +1,465 @@
+{
+  "script": "fix-lining-prices.ts",
+  "appliedAt": "2026-10-04T14:32:34.791Z",
+  "usage": [
+    {
+      "id": "cmupc48xl02lzls7y5khov8eu",
+      "wo": "79",
+      "old": [
+        "2175.67",
+        "13489.15"
+      ],
+      "new": [
+        "2140",
+        "13268"
+      ]
+    },
+    {
+      "id": "cmupc48xg02lnls7yp44ujo2x",
+      "wo": "78",
+      "old": [
+        "2175.67",
+        "11748.62"
+      ],
+      "new": [
+        "2140",
+        "11556"
+      ]
+    },
+    {
+      "id": "cmupc48z602pzls7y1xbskrzj",
+      "wo": "87",
+      "old": [
+        "2175.66",
+        "3698.62"
+      ],
+      "new": [
+        "2140",
+        "3638"
+      ]
+    },
+    {
+      "id": "cmupc48zm02r7ls7y17n5brib",
+      "wo": "90",
+      "old": [
+        "2175.66",
+        "6744.55"
+      ],
+      "new": [
+        "2140",
+        "6634"
+      ]
+    },
+    {
+      "id": "cmupc490w02ubls7y4fetisk3",
+      "wo": "101",
+      "old": [
+        "2175.67",
+        "3698.64"
+      ],
+      "new": [
+        "2140",
+        "3638"
+      ]
+    },
+    {
+      "id": "cmupc491002unls7y7v3ke4sh",
+      "wo": "102",
+      "old": [
+        "2175.67",
+        "543.92"
+      ],
+      "new": [
+        "2140",
+        "535"
+      ]
+    },
+    {
+      "id": "cmupc491b02vfls7ycrvyeopu",
+      "wo": "106",
+      "old": [
+        "2175.67",
+        "4895.26"
+      ],
+      "new": [
+        "2140",
+        "4815"
+      ]
+    },
+    {
+      "id": "cmupc48z102pnls7ysio79y53",
+      "wo": "86",
+      "old": [
+        "2175.66",
+        "7832.38"
+      ],
+      "new": [
+        "2140",
+        "7704"
+      ]
+    },
+    {
+      "id": "cmupc491g02vrls7yxzd09gku",
+      "wo": "107",
+      "old": [
+        "2175.67",
+        "6527.01"
+      ],
+      "new": [
+        "2140",
+        "6420"
+      ]
+    },
+    {
+      "id": "cmupc491v02wzls7ynl5yldlx",
+      "wo": "110",
+      "old": [
+        "2175.67",
+        "4024.99"
+      ],
+      "new": [
+        "2140",
+        "3959"
+      ]
+    },
+    {
+      "id": "cmupc491k02w3ls7y2jjpfe6u",
+      "wo": "108",
+      "old": [
+        "2175.67",
+        "8702.68"
+      ],
+      "new": [
+        "2140",
+        "8560"
+      ]
+    },
+    {
+      "id": "cmupc491p02wfls7yamnukcvw",
+      "wo": "109",
+      "old": [
+        "2175.67",
+        "5439.18"
+      ],
+      "new": [
+        "2140",
+        "5350"
+      ]
+    },
+    {
+      "id": "cmupc492p02zdls7yn0uipubo",
+      "wo": "117",
+      "old": [
+        "2175.67",
+        "5439.18"
+      ],
+      "new": [
+        "2140",
+        "5350"
+      ]
+    }
+  ],
+  "moves": [
+    {
+      "id": "cmupc48xl02lxls7y7b2wqkxt",
+      "old": [
+        "2175.67",
+        "13489.15"
+      ],
+      "new": [
+        "2140",
+        "13268"
+      ]
+    },
+    {
+      "id": "cmupc48xf02llls7ywwo610tr",
+      "old": [
+        "2175.67",
+        "11748.62"
+      ],
+      "new": [
+        "2140",
+        "11556"
+      ]
+    },
+    {
+      "id": "cmupc48z602pxls7y59p1pkx9",
+      "old": [
+        "2175.66",
+        "3698.62"
+      ],
+      "new": [
+        "2140",
+        "3638"
+      ]
+    },
+    {
+      "id": "cmupc48zm02r5ls7yysrlwnoa",
+      "old": [
+        "2175.66",
+        "6744.55"
+      ],
+      "new": [
+        "2140",
+        "6634"
+      ]
+    },
+    {
+      "id": "cmupc490v02u9ls7ylv2wrbh0",
+      "old": [
+        "2175.67",
+        "3698.64"
+      ],
+      "new": [
+        "2140",
+        "3638"
+      ]
+    },
+    {
+      "id": "cmupc491002ulls7y77uh6cru",
+      "old": [
+        "2175.67",
+        "543.92"
+      ],
+      "new": [
+        "2140",
+        "535"
+      ]
+    },
+    {
+      "id": "cmupc491b02vdls7yflluupqi",
+      "old": [
+        "2175.67",
+        "4895.26"
+      ],
+      "new": [
+        "2140",
+        "4815"
+      ]
+    },
+    {
+      "id": "cmupc48z102plls7y71eyjad8",
+      "old": [
+        "2175.66",
+        "7832.38"
+      ],
+      "new": [
+        "2140",
+        "7704"
+      ]
+    },
+    {
+      "id": "cmupc491f02vpls7yr940h8v9",
+      "old": [
+        "2175.67",
+        "6527.01"
+      ],
+      "new": [
+        "2140",
+        "6420"
+      ]
+    },
+    {
+      "id": "cmupc491v02wxls7yib70bv3h",
+      "old": [
+        "2175.67",
+        "4024.99"
+      ],
+      "new": [
+        "2140",
+        "3959"
+      ]
+    },
+    {
+      "id": "cmupc491j02w1ls7y9678gazp",
+      "old": [
+        "2175.67",
+        "8702.68"
+      ],
+      "new": [
+        "2140",
+        "8560"
+      ]
+    },
+    {
+      "id": "cmupc491o02wdls7yoxwuw6ui",
+      "old": [
+        "2175.67",
+        "5439.18"
+      ],
+      "new": [
+        "2140",
+        "5350"
+      ]
+    },
+    {
+      "id": "cmupc492p02zbls7yaqr78vzc",
+      "old": [
+        "2175.67",
+        "5439.18"
+      ],
+      "new": [
+        "2140",
+        "5350"
+      ]
+    }
+  ],
+  "orders": [
+    {
+      "id": "cmupc48xj02lrls7yehcpe7ow",
+      "old": [
+        "940989.15",
+        "940989.15",
+        "470494.58",
+        null
+      ],
+      "stockId": "cmupc48kx01p5ls7ylzmph2zc",
+      "stockOld": "524618.83",
+      "adjMovementId": "cmutx711v0001lswywsw2lk69"
+    },
+    {
+      "id": "cmupc48xb02l7ls7y5109xids",
+      "old": [
+        "336090.94",
+        "336090.94",
+        "112030.31",
+        null
+      ],
+      "stockId": "cmupc48sh0291ls7yqea3mg34",
+      "stockOld": "110551.81",
+      "adjMovementId": "cmutx712u0003lswy0x64owxn"
+    },
+    {
+      "id": "cmupc48z402prls7y0zvi0idm",
+      "old": [
+        "2062046.62",
+        "2062046.62",
+        "412409.32",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95190.71",
+      "adjMovementId": "cmutx713j0005lswyzp52794w"
+    },
+    {
+      "id": "cmupc48zk02qzls7yzeoit2mp",
+      "old": [
+        "437784.55",
+        "437784.55",
+        "437784.55",
+        null
+      ],
+      "stockId": "cmupc48kx01p5ls7ylzmph2zc",
+      "stockOld": "524610.93",
+      "adjMovementId": "cmutx713x0007lswyiq2jowbr"
+    },
+    {
+      "id": "cmupc490u02u3ls7ytax038rq",
+      "old": [
+        "1997891.04",
+        "1997891.04",
+        "399578.21",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95189.78",
+      "adjMovementId": "cmutx714c0009lswy2in9ch6p"
+    },
+    {
+      "id": "cmupc490y02ufls7y0okpe89t",
+      "old": [
+        "22532",
+        "22532",
+        "22532",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95188.85",
+      "adjMovementId": "cmutx714o000blswyjfdjupov"
+    },
+    {
+      "id": "cmupc491902v7ls7ycws9pgbi",
+      "old": [
+        "202787.98",
+        "202787.98",
+        "22532",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95188.71",
+      "adjMovementId": "cmutx7152000dlswyow60216f"
+    },
+    {
+      "id": "cmupc48yz02pfls7y7cj9cvwt",
+      "old": [
+        "217412.06",
+        "217412.06",
+        "108706.03",
+        null
+      ],
+      "stockId": "cmupc48sh0291ls7yqea3mg34",
+      "stockOld": "110527.73",
+      "adjMovementId": "cmutx715i000flswytk9mezel"
+    },
+    {
+      "id": "cmupc491e02vjls7yqcgb29hi",
+      "old": [
+        "250687.41",
+        "250687.41",
+        "20890.62",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95187.48",
+      "adjMovementId": "cmutx715x000hlswyezqknwgf"
+    },
+    {
+      "id": "cmupc491r02wjls7y98u0qhg6",
+      "old": [
+        "2228222.22",
+        "2228222.22",
+        "2228222.22",
+        null
+      ],
+      "stockId": "cmupc48ni01w5ls7y56a1uc4i",
+      "stockOld": "1443359.87",
+      "adjMovementId": "cmutx716d000jlswy0rsffweo"
+    },
+    {
+      "id": "cmupc491i02vvls7yv93lyqs8",
+      "old": [
+        "285407.32",
+        "285407.32",
+        "17837.96",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95185.83",
+      "adjMovementId": "cmutx716r000llswy9egxd332"
+    },
+    {
+      "id": "cmupc491m02w7ls7ylnndncrq",
+      "old": [
+        "182110.78",
+        "182110.78",
+        "18211.08",
+        null
+      ],
+      "stockId": "cmupc48so029lls7y30qylp8o",
+      "stockOld": "95183.63",
+      "adjMovementId": "cmutx7179000nlswynfrap2z6"
+    },
+    {
+      "id": "cmupc492k02ypls7yb84z3l7o",
+      "old": [
+        "3574066.66",
+        "3574066.66",
+        "3574066.66",
+        null
+      ],
+      "stockId": "cmupc492q02zhls7ysmyfwnfu",
+      "stockOld": "3574066.66",
+      "adjMovementId": "cmutx717o000plswyxxv4rvbp"
+    }
+  ]
+}

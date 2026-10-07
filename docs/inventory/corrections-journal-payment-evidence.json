@@ -1,0 +1,16 @@
+{
+  "script": "link-payment-evidence-docs.ts",
+  "appliedAt": "2026-10-04T16:37:39.409Z",
+  "docs": [
+    "cmuu1nvq3c865d47310151bd283",
+    "cmuu1nvr2082f3e3a7b64b916ca",
+    "cmuu1nvrfe5a5de3277f9b26485",
+    "cmuu1nvs0d2f6d58863ed40a52d",
+    "cmuu1nvs9742bb4b7c947590e22",
+    "cmuu1nvsif40958c8e5dfe82f4c"
+  ],
+  "purchase": {
+    "id": "cmupnzwis0001lsvqdsqen220",
+    "oldNotes": "fix-drive:ame-0526 — создана по документам Drive: УПД №253 от 09.09.2026 (371 шт × 7 913,52 без НДС 22%), Спец. №11 от 21.05.2026 (p2026a §3.4, §4.1.7)"
+  }
+}

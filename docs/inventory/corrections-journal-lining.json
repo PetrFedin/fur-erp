@@ -1,0 +1,1484 @@
+[
+  {
+    "time": "2026-10-01T22:27:44.248Z",
+    "entity": "StockMovement",
+    "id": "cmuq3uj920001lsnwq0ydbq81",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj920001lsnwq0ydbq81",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48db011hls7yx42cxl4i",
+      "lotId": "cmupc48dd011lls7ybsg20gs5",
+      "type": "PRODUCTION_OUT",
+      "quantity": "1.6",
+      "unitCost": "2140",
+      "totalCost": "3424",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48nb01vdls7yhjv7cvo9",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ23] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 23 (соболь 1 изд).docx, Drive 2025/ТЗ/поставка 2)",
+      "createdAt": "2026-10-01T22:27:44.246Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 23 (соболь 1 изд).docx, Drive 2025/ТЗ/поставка 2; подкладка 1.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.250Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dd011lls7ybsg20gs5",
+    "field": "quantityRemaining",
+    "before": "23.3",
+    "after": "21.7",
+    "source": "ПРИЛОЖЕНИЕ 23 (соболь 1 изд).docx, Drive 2025/ТЗ/поставка 2; подкладка 1.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.253Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3uj970003lsnwkqdakbuw",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj970003lsnwkqdakbuw",
+      "productionOrderId": "cmupc48nb01vdls7yhjv7cvo9",
+      "rawMaterialId": "cmupc48db011hls7yx42cxl4i",
+      "lotId": "cmupc48dd011lls7ybsg20gs5",
+      "quantity": "1.6",
+      "unitCost": "2140",
+      "totalCost": "3424",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 23 (соболь 1 изд).docx, Drive 2025/ТЗ/поставка 2; подкладка 1.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.260Z",
+    "entity": "StockMovement",
+    "id": "cmuq3uj9f0005lsnwhqpbqhmk",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj9f0005lsnwhqpbqhmk",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "8.8",
+      "unitCost": "2140",
+      "totalCost": "18832",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48q50227ls7yd3yr16gt",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ35] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 35 (М009 - 4 изд).docx, Drive 2025/ТЗ/поставка 3)",
+      "createdAt": "2026-10-01T22:27:44.259Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 35 (М009 - 4 изд).docx, Drive 2025/ТЗ/поставка 3; подкладка 8.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.262Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "80.15",
+    "after": "71.35",
+    "source": "ПРИЛОЖЕНИЕ 35 (М009 - 4 изд).docx, Drive 2025/ТЗ/поставка 3; подкладка 8.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.263Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3uj9i0007lsnwnum0nob0",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj9i0007lsnwnum0nob0",
+      "productionOrderId": "cmupc48q50227ls7yd3yr16gt",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "8.8",
+      "unitCost": "2140",
+      "totalCost": "18832",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 35 (М009 - 4 изд).docx, Drive 2025/ТЗ/поставка 3; подкладка 8.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.274Z",
+    "entity": "StockMovement",
+    "id": "cmuq3uj9t0009lsnwc95ylymc",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj9t0009lsnwc95ylymc",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "type": "PRODUCTION_OUT",
+      "quantity": "8.4",
+      "unitCost": "2140",
+      "totalCost": "17976",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48xo02m3ls7ygetrmfgx",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ80] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 80 (М016 ... 6 шт).docx, Drive 2025/поставка 7: «Итого 617 976»)",
+      "createdAt": "2026-10-01T22:27:44.274Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 80 (М016 ... 6 шт).docx, Drive 2025/поставка 7: «Итого 617 976»; подкладка 8.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.276Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48eq016vls7ye3irnvka",
+    "field": "quantityRemaining",
+    "before": "44",
+    "after": "35.6",
+    "source": "ПРИЛОЖЕНИЕ 80 (М016 ... 6 шт).docx, Drive 2025/поставка 7: «Итого 617 976»; подкладка 8.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.277Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3uj9w000blsnwk4gd5wsy",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uj9w000blsnwk4gd5wsy",
+      "productionOrderId": "cmupc48xo02m3ls7ygetrmfgx",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "quantity": "8.4",
+      "unitCost": "2140",
+      "totalCost": "17976",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 80 (М016 ... 6 шт).docx, Drive 2025/поставка 7: «Итого 617 976»; подкладка 8.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.283Z",
+    "entity": "StockMovement",
+    "id": "cmuq3uja2000dlsnwbr96l6gv",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uja2000dlsnwbr96l6gv",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "type": "PRODUCTION_OUT",
+      "quantity": "5",
+      "unitCost": "2140",
+      "totalCost": "10700",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48xu02mfls7y9362fxgm",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ81] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 81 (М015 ... 2 шт).docx, Drive 2025/поставка 7: «Итого 510700»)",
+      "createdAt": "2026-10-01T22:27:44.283Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 81 (М015 ... 2 шт).docx, Drive 2025/поставка 7: «Итого 510700»; подкладка 5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.289Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48eq016vls7ye3irnvka",
+    "field": "quantityRemaining",
+    "before": "35.6",
+    "after": "30.6",
+    "source": "ПРИЛОЖЕНИЕ 81 (М015 ... 2 шт).docx, Drive 2025/поставка 7: «Итого 510700»; подкладка 5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.290Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3uja9000flsnwliyz6pll",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uja9000flsnwliyz6pll",
+      "productionOrderId": "cmupc48xu02mfls7y9362fxgm",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "quantity": "5",
+      "unitCost": "2140",
+      "totalCost": "10700",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 81 (М015 ... 2 шт).docx, Drive 2025/поставка 7: «Итого 510700»; подкладка 5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.296Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujaf000hlsnwoujfmwix",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujaf000hlsnwoujfmwix",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "3.6",
+      "unitCost": "2140",
+      "totalCost": "7704",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48xy02mnls7yys4zz6v4",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ82] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 82 (М001А ... 2 шт).docx, Drive 2025/поставка 7: «Итого 3 908 235.91»)",
+      "createdAt": "2026-10-01T22:27:44.296Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 82 (М001А ... 2 шт).docx, Drive 2025/поставка 7: «Итого 3 908 235.91»; подкладка 3.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.298Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "71.35",
+    "after": "67.75",
+    "source": "ПРИЛОЖЕНИЕ 82 (М001А ... 2 шт).docx, Drive 2025/поставка 7: «Итого 3 908 235.91»; подкладка 3.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.299Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujai000jlsnwt7hpr5o6",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujai000jlsnwt7hpr5o6",
+      "productionOrderId": "cmupc48xy02mnls7yys4zz6v4",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "3.6",
+      "unitCost": "2140",
+      "totalCost": "7704",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 82 (М001А ... 2 шт).docx, Drive 2025/поставка 7: «Итого 3 908 235.91»; подкладка 3.6 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.309Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujas000llsnw7wzsu8mk",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujas000llsnw7wzsu8mk",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "1.8",
+      "unitCost": "2140",
+      "totalCost": "3852",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48yl02obls7yfoasspdg",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ84] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 84 (М001А ... 1 шт).docx, Drive 2025/поставка 7: «Итого 1 899 138,80»)",
+      "createdAt": "2026-10-01T22:27:44.309Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 84 (М001А ... 1 шт).docx, Drive 2025/поставка 7: «Итого 1 899 138,80»; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.311Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "67.75",
+    "after": "65.95",
+    "source": "ПРИЛОЖЕНИЕ 84 (М001А ... 1 шт).docx, Drive 2025/поставка 7: «Итого 1 899 138,80»; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.313Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujav000nlsnw2avxbmpa",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujav000nlsnw2avxbmpa",
+      "productionOrderId": "cmupc48yl02obls7yfoasspdg",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "1.8",
+      "unitCost": "2140",
+      "totalCost": "3852",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 84 (М001А ... 1 шт).docx, Drive 2025/поставка 7: «Итого 1 899 138,80»; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.322Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujb5000plsnwb0arta90",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujb5000plsnwb0arta90",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "type": "PRODUCTION_OUT",
+      "quantity": "2.5",
+      "unitCost": "2140",
+      "totalCost": "5350",
+      "purchaseId": null,
+      "productionOrderId": "cmupc48yv02p7ls7yvvitqmb9",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ85] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 85 (М015 ... 1 шт).docx, Drive 2025/поставка 8: «Итого 255 350»)",
+      "createdAt": "2026-10-01T22:27:44.322Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 85 (М015 ... 1 шт).docx, Drive 2025/поставка 8: «Итого 255 350»; подкладка 2.5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.325Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48eq016vls7ye3irnvka",
+    "field": "quantityRemaining",
+    "before": "30.6",
+    "after": "28.1",
+    "source": "ПРИЛОЖЕНИЕ 85 (М015 ... 1 шт).docx, Drive 2025/поставка 8: «Итого 255 350»; подкладка 2.5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.326Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujb9000rlsnw873gnisb",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujb9000rlsnw873gnisb",
+      "productionOrderId": "cmupc48yv02p7ls7yvvitqmb9",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "lotId": "cmupc48eq016vls7ye3irnvka",
+      "quantity": "2.5",
+      "unitCost": "2140",
+      "totalCost": "5350",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 85 (М015 ... 1 шт).docx, Drive 2025/поставка 8: «Итого 255 350»; подкладка 2.5 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.332Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujbg000tlsnwdhdraalo",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujbg000tlsnwdhdraalo",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "purchaseId": null,
+      "productionOrderId": "cmupc493g031dls7yflukx9f0",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ120] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 120 (М056 перл)+.docx, Drive 2026/поставки/поставка 18)",
+      "createdAt": "2026-10-01T22:27:44.332Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 120 (М056 перл)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.335Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "65.95",
+    "after": "58.75",
+    "source": "ПРИЛОЖЕНИЕ 120 (М056 перл)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.337Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujbk000vlsnwjo3n52b2",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujbk000vlsnwjo3n52b2",
+      "productionOrderId": "cmupc493g031dls7yflukx9f0",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 120 (М056 перл)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.343Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujbq000xlsnww83bwpn9",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujbq000xlsnww83bwpn9",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "type": "PRODUCTION_OUT",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "purchaseId": null,
+      "productionOrderId": "cmupc493v0329ls7y1n70a64w",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ123] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 123 (М041 черная норка)+.docx, Drive 2026/поставки/поставка 18)",
+      "createdAt": "2026-10-01T22:27:44.343Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 123 (М041 черная норка)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.345Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dn012dls7y47xg29yz",
+    "field": "quantityRemaining",
+    "before": "56.55",
+    "after": "49.35",
+    "source": "ПРИЛОЖЕНИЕ 123 (М041 черная норка)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.346Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujbt000zlsnw7htv3xsv",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujbt000zlsnw7htv3xsv",
+      "productionOrderId": "cmupc493v0329ls7y1n70a64w",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 123 (М041 черная норка)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.353Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujc00011lsnw1mbu0gmd",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujc00011lsnw1mbu0gmd",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "purchaseId": null,
+      "productionOrderId": "cmupc4944032vls7yy3vekp70",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ125] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 125 (М002 - 2 соболя)+.docx, Drive 2026/поставки/поставка 18)",
+      "createdAt": "2026-10-01T22:27:44.352Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 125 (М002 - 2 соболя)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.355Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "58.75",
+    "after": "51.55",
+    "source": "ПРИЛОЖЕНИЕ 125 (М002 - 2 соболя)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.356Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujc30013lsnwakunpzpj",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujc30013lsnwakunpzpj",
+      "productionOrderId": "cmupc4944032vls7yy3vekp70",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "7.2",
+      "unitCost": "2140",
+      "totalCost": "15408",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 125 (М002 - 2 соболя)+.docx, Drive 2026/поставки/поставка 18; подкладка 7.2 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.363Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujca0015lsnwpabk914e",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujca0015lsnwpabk914e",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "type": "PRODUCTION_OUT",
+      "quantity": "1.8",
+      "unitCost": "2140",
+      "totalCost": "3852",
+      "purchaseId": null,
+      "productionOrderId": "cmupc494u035bls7yzgfh2po8",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ127] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 127 (М012 - 2 манишки)+.docx, Drive 2026/поставки/поставка 18)",
+      "createdAt": "2026-10-01T22:27:44.363Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 127 (М012 - 2 манишки)+.docx, Drive 2026/поставки/поставка 18; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.367Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dn012dls7y47xg29yz",
+    "field": "quantityRemaining",
+    "before": "49.35",
+    "after": "47.55",
+    "source": "ПРИЛОЖЕНИЕ 127 (М012 - 2 манишки)+.docx, Drive 2026/поставки/поставка 18; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.368Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujcg0017lsnw0el8slnj",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujcg0017lsnw0el8slnj",
+      "productionOrderId": "cmupc494u035bls7yzgfh2po8",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "quantity": "1.8",
+      "unitCost": "2140",
+      "totalCost": "3852",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 127 (М012 - 2 манишки)+.docx, Drive 2026/поставки/поставка 18; подкладка 1.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.374Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujcm0019lsnwyu49cmcv",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujcm0019lsnwyu49cmcv",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "type": "PRODUCTION_OUT",
+      "quantity": "11.4",
+      "unitCost": "2140",
+      "totalCost": "24396",
+      "purchaseId": null,
+      "productionOrderId": "cmupc494z035lls7yi1mecpia",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ128] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 128 (М052 - 6 шуб из лис)+.docx, Drive 2026/поставки/поставка 18)",
+      "createdAt": "2026-10-01T22:27:44.374Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 128 (М052 - 6 шуб из лис)+.docx, Drive 2026/поставки/поставка 18; подкладка 11.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.377Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dn012dls7y47xg29yz",
+    "field": "quantityRemaining",
+    "before": "47.55",
+    "after": "36.15",
+    "source": "ПРИЛОЖЕНИЕ 128 (М052 - 6 шуб из лис)+.docx, Drive 2026/поставки/поставка 18; подкладка 11.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.377Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujcp001blsnwafgahdpr",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujcp001blsnwafgahdpr",
+      "productionOrderId": "cmupc494z035lls7yi1mecpia",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "lotId": "cmupc48dn012dls7y47xg29yz",
+      "quantity": "11.4",
+      "unitCost": "2140",
+      "totalCost": "24396",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 128 (М052 - 6 шуб из лис)+.docx, Drive 2026/поставки/поставка 18; подкладка 11.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.388Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujcz001dlsnw4ll7a5i2",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujcz001dlsnw4ll7a5i2",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "4.8",
+      "unitCost": "2140",
+      "totalCost": "10272",
+      "purchaseId": null,
+      "productionOrderId": "cmupc499i03kbls7yb364hljl",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ149] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 149 (М056 - 2 шт) норка жемчуг+.docx, Drive 2026/поставки/поставка 19)",
+      "createdAt": "2026-10-01T22:27:44.388Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 149 (М056 - 2 шт) норка жемчуг+.docx, Drive 2026/поставки/поставка 19; подкладка 4.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.390Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "51.55",
+    "after": "46.75",
+    "source": "ПРИЛОЖЕНИЕ 149 (М056 - 2 шт) норка жемчуг+.docx, Drive 2026/поставки/поставка 19; подкладка 4.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.391Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujd2001flsnwwlcpaiku",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujd2001flsnwwlcpaiku",
+      "productionOrderId": "cmupc499i03kbls7yb364hljl",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "4.8",
+      "unitCost": "2140",
+      "totalCost": "10272",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 149 (М056 - 2 шт) норка жемчуг+.docx, Drive 2026/поставки/поставка 19; подкладка 4.8 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.398Z",
+    "entity": "StockMovement",
+    "id": "cmuq3ujd9001hlsnwf35sa24l",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujd9001hlsnwf35sa24l",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "type": "PRODUCTION_OUT",
+      "quantity": "2.4",
+      "unitCost": "2140",
+      "totalCost": "5136",
+      "purchaseId": null,
+      "productionOrderId": "cmupo4c14ada5261eea755fc739",
+      "date": "2026-10-01T22:27:44.160Z",
+      "notes": "[drive-lining TZ166] подкладка по ТЗ-документу Drive (ПРИЛОЖЕНИЕ 1166 (М056 - 1 шт) норка жемчуг.docx, Drive 2026/поставки/поставка 21)",
+      "createdAt": "2026-10-01T22:27:44.398Z"
+    },
+    "source": "ПРИЛОЖЕНИЕ 1166 (М056 - 1 шт) норка жемчуг.docx, Drive 2026/поставки/поставка 21; подкладка 2.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.399Z",
+    "entity": "RawMaterialLot",
+    "id": "cmupc48dh011tls7ywc9vlfqw",
+    "field": "quantityRemaining",
+    "before": "46.75",
+    "after": "44.35",
+    "source": "ПРИЛОЖЕНИЕ 1166 (М056 - 1 шт) норка жемчуг.docx, Drive 2026/поставки/поставка 21; подкладка 2.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.400Z",
+    "entity": "ProductionMaterialUsage",
+    "id": "cmuq3ujdc001jlsnw28mg2xw2",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujdc001jlsnw28mg2xw2",
+      "productionOrderId": "cmupo4c14ada5261eea755fc739",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "lotId": "cmupc48dh011tls7ywc9vlfqw",
+      "quantity": "2.4",
+      "unitCost": "2140",
+      "totalCost": "5136",
+      "date": "2026-10-01T22:27:44.160Z",
+      "commission4": true
+    },
+    "source": "ПРИЛОЖЕНИЕ 1166 (М056 - 1 шт) норка жемчуг.docx, Drive 2026/поставки/поставка 21; подкладка 2.4 м; итог ТЗ в документе = сырьё + подкладка + работа"
+  },
+  {
+    "time": "2026-10-01T22:27:44.409Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48nb01vdls7yhjv7cvo9",
+    "field": "materialCost",
+    "before": "1057488.52",
+    "after": "1060912.52",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.409Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48nb01vdls7yhjv7cvo9",
+    "field": "totalCost",
+    "before": "1057488.52",
+    "after": "1060912.52",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.409Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48nb01vdls7yhjv7cvo9",
+    "field": "unitCost",
+    "before": "1057488.52",
+    "after": "1060912.52",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.413Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48ni01w5ls7y56a1uc4i",
+    "field": "avgUnitCost",
+    "before": "1442675.07",
+    "after": "1443359.87",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.415Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujdp001llsnw098ivek6",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujdp001llsnw098ivek6",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48na01vbls7yz0yamgcm",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "3424",
+      "totalCost": "3424",
+      "productionOrderId": "cmupc48nb01vdls7yhjv7cvo9",
+      "date": "2026-10-01T22:27:44.414Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.414Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.421Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48q50227ls7yd3yr16gt",
+    "field": "materialCost",
+    "before": "1185650.52",
+    "after": "1204482.52",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.421Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48q50227ls7yd3yr16gt",
+    "field": "totalCost",
+    "before": "1185650.52",
+    "after": "1204482.52",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.421Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48q50227ls7yd3yr16gt",
+    "field": "unitCost",
+    "before": "296412.63",
+    "after": "301120.63",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.423Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48ii01j1ls7yp4u9kex3",
+    "field": "avgUnitCost",
+    "before": "174313.76",
+    "after": "175038.07",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.424Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3uje0001nlsnwsz616qsw",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uje0001nlsnwsz616qsw",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48id01inls7yfqgtd1rs",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "4708",
+      "totalCost": "18832",
+      "productionOrderId": "cmupc48q50227ls7yd3yr16gt",
+      "date": "2026-10-01T22:27:44.424Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.424Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.428Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xo02m3ls7ygetrmfgx",
+    "field": "materialCost",
+    "before": "600000",
+    "after": "617976",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.428Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xo02m3ls7ygetrmfgx",
+    "field": "totalCost",
+    "before": "600000",
+    "after": "617976",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.428Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xo02m3ls7ygetrmfgx",
+    "field": "unitCost",
+    "before": "100000",
+    "after": "102996",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.432Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48pz021tls7yd7vk417p",
+    "field": "avgUnitCost",
+    "before": "80086.92",
+    "after": "81469.69",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.432Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3uje8001plsnww3yvy6p6",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3uje8001plsnww3yvy6p6",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48pv021fls7y812w80qd",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "2996",
+      "totalCost": "17976",
+      "productionOrderId": "cmupc48xo02m3ls7ygetrmfgx",
+      "date": "2026-10-01T22:27:44.432Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.432Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.437Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xu02mfls7y9362fxgm",
+    "field": "materialCost",
+    "before": "500000",
+    "after": "510700",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.437Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xu02mfls7y9362fxgm",
+    "field": "totalCost",
+    "before": "500000",
+    "after": "510700",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.437Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xu02mfls7y9362fxgm",
+    "field": "unitCost",
+    "before": "250000",
+    "after": "255350",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.439Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48j201kdls7yctacwvzs",
+    "field": "avgUnitCost",
+    "before": "224979.36",
+    "after": "227119.36",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.440Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujef001rlsnwwr96snjr",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujef001rlsnwwr96snjr",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48ix01jzls7ykfwn3xy3",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "5350",
+      "totalCost": "10700",
+      "productionOrderId": "cmupc48xu02mfls7y9362fxgm",
+      "date": "2026-10-01T22:27:44.440Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.440Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.443Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xy02mnls7yys4zz6v4",
+    "field": "materialCost",
+    "before": "3900532.01",
+    "after": "3908236.01",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.443Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xy02mnls7yys4zz6v4",
+    "field": "totalCost",
+    "before": "3900532.01",
+    "after": "3908236.01",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.443Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48xy02mnls7yys4zz6v4",
+    "field": "unitCost",
+    "before": "1950266.01",
+    "after": "1954118.01",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.445Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48ic01ills7y63dpj7wr",
+    "field": "avgUnitCost",
+    "before": "1856511.11",
+    "after": "1857795.11",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.446Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujel001tlsnws9r04e8v",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujel001tlsnws9r04e8v",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48i001hfls7ykkoj75g8",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "3852",
+      "totalCost": "7704",
+      "productionOrderId": "cmupc48xy02mnls7yys4zz6v4",
+      "date": "2026-10-01T22:27:44.446Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.446Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.449Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yl02obls7yfoasspdg",
+    "field": "materialCost",
+    "before": "1895285.51",
+    "after": "1899137.51",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.449Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yl02obls7yfoasspdg",
+    "field": "totalCost",
+    "before": "1895285.51",
+    "after": "1899137.51",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.449Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yl02obls7yfoasspdg",
+    "field": "unitCost",
+    "before": "1895285.51",
+    "after": "1899137.51",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.451Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48ic01ills7y63dpj7wr",
+    "field": "avgUnitCost",
+    "before": "1857795.11",
+    "after": "1858437.11",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.452Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujer001vlsnwtb9yezsv",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujer001vlsnwtb9yezsv",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48i001hfls7ykkoj75g8",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "3852",
+      "totalCost": "3852",
+      "productionOrderId": "cmupc48yl02obls7yfoasspdg",
+      "date": "2026-10-01T22:27:44.451Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.451Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.456Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yv02p7ls7yvvitqmb9",
+    "field": "materialCost",
+    "before": "250000",
+    "after": "255350",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.456Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yv02p7ls7yvvitqmb9",
+    "field": "totalCost",
+    "before": "250000",
+    "after": "255350",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.456Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc48yv02p7ls7yvvitqmb9",
+    "field": "unitCost",
+    "before": "250000",
+    "after": "255350",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.458Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48j201kdls7yctacwvzs",
+    "field": "avgUnitCost",
+    "before": "227119.36",
+    "after": "228189.36",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.459Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujey001xlsnwxf8xtil1",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujey001xlsnwxf8xtil1",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48ix01jzls7ykfwn3xy3",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "5350",
+      "totalCost": "5350",
+      "productionOrderId": "cmupc48yv02p7ls7yvvitqmb9",
+      "date": "2026-10-01T22:27:44.459Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.459Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.462Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493g031dls7yflukx9f0",
+    "field": "materialCost",
+    "before": "457800.75",
+    "after": "473208.75",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.462Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493g031dls7yflukx9f0",
+    "field": "totalCost",
+    "before": "457800.75",
+    "after": "473208.75",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.462Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493g031dls7yflukx9f0",
+    "field": "unitCost",
+    "before": "152600.25",
+    "after": "157736.25",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.463Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc493i031lls7y450qqru9",
+    "field": "avgUnitCost",
+    "before": "152600.25",
+    "after": "155681.85",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.464Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujf3001zlsnwtz5q0r1g",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujf3001zlsnwtz5q0r1g",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc493f031bls7ywxd1b5rh",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "5136",
+      "totalCost": "15408",
+      "productionOrderId": "cmupc493g031dls7yflukx9f0",
+      "date": "2026-10-01T22:27:44.464Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.464Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.467Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493v0329ls7y1n70a64w",
+    "field": "materialCost",
+    "before": "411165.9",
+    "after": "426573.9",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.467Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493v0329ls7y1n70a64w",
+    "field": "totalCost",
+    "before": "411165.9",
+    "after": "426573.9",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.467Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc493v0329ls7y1n70a64w",
+    "field": "unitCost",
+    "before": "137055.3",
+    "after": "142191.3",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.470Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc493y032hls7ynsu92bdu",
+    "field": "avgUnitCost",
+    "before": "137055.3",
+    "after": "142191.3",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.471Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujfa0021lsnwg2i1m9ug",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujfa0021lsnwg2i1m9ug",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc493u0327ls7ys355q4g7",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "5136",
+      "totalCost": "15408",
+      "productionOrderId": "cmupc493v0329ls7y1n70a64w",
+      "date": "2026-10-01T22:27:44.471Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.471Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.475Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc4944032vls7yy3vekp70",
+    "field": "materialCost",
+    "before": "5055104.16",
+    "after": "5070512.16",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.475Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc4944032vls7yy3vekp70",
+    "field": "totalCost",
+    "before": "5055104.16",
+    "after": "5070512.16",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.475Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc4944032vls7yy3vekp70",
+    "field": "unitCost",
+    "before": "2527552.08",
+    "after": "2535256.08",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.476Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48t402b5ls7yq0gjpknu",
+    "field": "avgUnitCost",
+    "before": "2799425.3",
+    "after": "2802506.9",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.477Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujfg0023lsnwf375s2lm",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujfg0023lsnwf375s2lm",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48st029zls7yr0wf1s0a",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "7704",
+      "totalCost": "15408",
+      "productionOrderId": "cmupc4944032vls7yy3vekp70",
+      "date": "2026-10-01T22:27:44.477Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.477Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.480Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494u035bls7yzgfh2po8",
+    "field": "materialCost",
+    "before": "138352.32",
+    "after": "142204.32",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.480Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494u035bls7yzgfh2po8",
+    "field": "totalCost",
+    "before": "138352.32",
+    "after": "142204.32",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.480Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494u035bls7yzgfh2po8",
+    "field": "unitCost",
+    "before": "69176.16",
+    "after": "71102.16",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.481Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc48js01m5ls7ymhe73txl",
+    "field": "avgUnitCost",
+    "before": "118445.86",
+    "after": "118606.36",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.482Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujfl0025lsnwg202lkp0",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujfl0025lsnwg202lkp0",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc48jn01lrls7y7xw5bg58",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "1926",
+      "totalCost": "3852",
+      "productionOrderId": "cmupc494u035bls7yzgfh2po8",
+      "date": "2026-10-01T22:27:44.482Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.482Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.487Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494z035lls7yi1mecpia",
+    "field": "materialCost",
+    "before": "758697.66",
+    "after": "783093.66",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.487Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494z035lls7yi1mecpia",
+    "field": "totalCost",
+    "before": "758697.66",
+    "after": "783093.66",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.487Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc494z035lls7yi1mecpia",
+    "field": "unitCost",
+    "before": "126449.61",
+    "after": "130515.61",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.489Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc4951035tls7yhjzpq2wr",
+    "field": "avgUnitCost",
+    "before": "126449.61",
+    "after": "130515.61",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.489Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujft0027lsnwzo058w28",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujft0027lsnwzo058w28",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc494x035jls7y1poj8eu0",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "4066",
+      "totalCost": "24396",
+      "productionOrderId": "cmupc494z035lls7yi1mecpia",
+      "date": "2026-10-01T22:27:44.489Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.489Z"
+    },
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.492Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc499i03kbls7yb364hljl",
+    "field": "materialCost",
+    "before": "305200.5",
+    "after": "315472.5",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.492Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc499i03kbls7yb364hljl",
+    "field": "totalCost",
+    "before": "305200.5",
+    "after": "315472.5",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.492Z",
+    "entity": "ProductionOrder",
+    "id": "cmupc499i03kbls7yb364hljl",
+    "field": "unitCost",
+    "before": "152600.25",
+    "after": "157736.25",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.493Z",
+    "entity": "FinishedGoodsStock",
+    "id": "cmupc493i031lls7y450qqru9",
+    "field": "avgUnitCost",
+    "before": "155681.85",
+    "after": "157736.25",
+    "source": "подкладка (drive-lining)"
+  },
+  {
+    "time": "2026-10-01T22:27:44.494Z",
+    "entity": "FinishedGoodsMovement",
+    "id": "cmuq3ujfy0029lsnw3ahbk7bv",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq3ujfy0029lsnw3ahbk7bv",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "productModelId": "cmupc493f031bls7ywxd1b5rh",
+      "type": "ADJUSTMENT_IN",
+      "quantity": "0",
+      "unitCost": "5136",
+      "totalCost": "10272",
+      "productionOrderId": "cmupc499i03kbls7yb364hljl",
+      "date": "2026-10-01T22:27:44.494Z",
+      "notes": "Корректировка себестоимости после правки завершённого ТЗ",
+      "createdAt": "2026-10-01T22:27:44.494Z"
+    },
+    "source": "подкладка (drive-lining)"
+  }
+]

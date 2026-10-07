@@ -1,0 +1,3699 @@
+{
+  "script": "seed-color-refs.ts",
+  "appliedAt": "2026-10-04T00:39:29.169Z",
+  "changes": [
+    {
+      "kind": "create-ref",
+      "id": "cmut3eu090001lse3plpprghi",
+      "name": "Чёрный"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eub30003lse3o1xetvhx",
+      "name": "Коричневый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eubx0005lse36rxwfati",
+      "name": "Белый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euen0007lse3ntf88wmx",
+      "name": "Бежевый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eufb0009lse3ktlix5nr",
+      "name": "Серый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euhc000blse3r5qi9tjc",
+      "name": "Светло-бежевый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eulb000dlse3e5cs3ggf",
+      "name": "Оранжевый"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eum8000flse3pkng04wf",
+      "name": "Красный"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eun1000hlse3d3zhj7y0",
+      "name": "Серебристо-голубой"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euov000jlse341gecio7",
+      "name": "Серебристо-чёрный"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eupt000llse3ipzoo875",
+      "name": "Виолет"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eurd000nlse3mixss7mj",
+      "name": "Тёмно-синий"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3eusw000plse3ldbic36p",
+      "name": "Лаванда"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euum000rlse3bowbxwt1",
+      "name": "Жемчуг"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euvq000tlse3c3i45ejf",
+      "name": "Блэкглама"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3euzr000vlse35pamnd8a",
+      "name": "Натуральный"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev29000xlse32bt1c2ca",
+      "name": "Тортора"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev30000zlse3hvr3arc6",
+      "name": "Орех"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev3v0011lse38dr15pf6",
+      "name": "Фондю"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev4m0013lse3cchmz756",
+      "name": "Нуга"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev760015lse3fjmtjwua",
+      "name": "Пастель"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3ev850017lse3x3w3lewg",
+      "name": "Ирис"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3evao0019lse30b05ghio",
+      "name": "Облако"
+    },
+    {
+      "kind": "create-ref",
+      "id": "cmut3evby001blse352agr5oq",
+      "name": "С-Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490i02tbls7ycstn0oql",
+      "ref": "П-2026-0105",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490i02tbls7ycstn0oql",
+      "ref": "П-2026-0105",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490m02tjls7ym3y7i3w2",
+      "ref": "П-2026-0106",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490m02tjls7ym3y7i3w2",
+      "ref": "П-2026-0106",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490q02ttls7ye33khnin",
+      "ref": "П-2026-0107",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490q02ttls7ye33khnin",
+      "ref": "П-2026-0107",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490u02u3ls7ytax038rq",
+      "ref": "П-2026-0108",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490u02u3ls7ytax038rq",
+      "ref": "П-2026-0108",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490y02ufls7y0okpe89t",
+      "ref": "П-2026-0109",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490y02ufls7y0okpe89t",
+      "ref": "П-2026-0109",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491302urls7yiw94l363",
+      "ref": "П-2026-0110",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491302urls7yiw94l363",
+      "ref": "П-2026-0110",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491602uzls7y0nniw4ba",
+      "ref": "П-2026-0111",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491602uzls7y0nniw4ba",
+      "ref": "П-2026-0111",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491902v7ls7ycws9pgbi",
+      "ref": "П-2026-0112",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491902v7ls7ycws9pgbi",
+      "ref": "П-2026-0112",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491e02vjls7yqcgb29hi",
+      "ref": "П-2026-0113",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euhc000blse3r5qi9tjc"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491e02vjls7yqcgb29hi",
+      "ref": "П-2026-0113",
+      "field": "color",
+      "old": "светло-бежевый",
+      "new": "Светло-бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491i02vvls7yv93lyqs8",
+      "ref": "П-2026-0114",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491i02vvls7yv93lyqs8",
+      "ref": "П-2026-0114",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491m02w7ls7ylnndncrq",
+      "ref": "П-2026-0115",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eufb0009lse3ktlix5nr"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491m02w7ls7ylnndncrq",
+      "ref": "П-2026-0115",
+      "field": "color",
+      "old": "серый",
+      "new": "Серый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491z02x5ls7y5i4p4xkv",
+      "ref": "П-2026-0117",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc491z02x5ls7y5i4p4xkv",
+      "ref": "П-2026-0117",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492302xhls7y1uyc0081",
+      "ref": "П-2026-0118",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492302xhls7y1uyc0081",
+      "ref": "П-2026-0118",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48u502dzls7yww33j2dr",
+      "ref": "П-2026-0068",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48u502dzls7yww33j2dr",
+      "ref": "П-2026-0068",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48uk02fbls7ym0zlie87",
+      "ref": "П-2026-0070",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48uk02fbls7ym0zlie87",
+      "ref": "П-2026-0070",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48v302h1ls7yqda9jbfk",
+      "ref": "П-2026-0072",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48v302h1ls7yqda9jbfk",
+      "ref": "П-2026-0072",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48v802hdls7y2uh0o9hg",
+      "ref": "П-2026-0073",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eufb0009lse3ktlix5nr"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48v802hdls7y2uh0o9hg",
+      "ref": "П-2026-0073",
+      "field": "color",
+      "old": "серый",
+      "new": "Серый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vc02hnls7ymdem5zi7",
+      "ref": "П-2026-0074",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vc02hnls7ymdem5zi7",
+      "ref": "П-2026-0074",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vg02hvls7y1hxsd5qa",
+      "ref": "П-2026-0075",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vg02hvls7y1hxsd5qa",
+      "ref": "П-2026-0075",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vl02i5ls7y5n4076qg",
+      "ref": "П-2026-0076",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vl02i5ls7y5n4076qg",
+      "ref": "П-2026-0076",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vp02ifls7yt9m835w4",
+      "ref": "П-2026-0077",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euhc000blse3r5qi9tjc"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vp02ifls7yt9m835w4",
+      "ref": "П-2026-0077",
+      "field": "color",
+      "old": "светло-бежевый",
+      "new": "Светло-бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vu02ipls7yjfp2god0",
+      "ref": "П-2026-0078",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vu02ipls7yjfp2god0",
+      "ref": "П-2026-0078",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vz02j1ls7yg57pm2ak",
+      "ref": "П-2026-0079",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48vz02j1ls7yg57pm2ak",
+      "ref": "П-2026-0079",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48w602jfls7ylih8glnd",
+      "ref": "П-2026-0080",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48w602jfls7ylih8glnd",
+      "ref": "П-2026-0080",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wf02jrls7y1dtaskg8",
+      "ref": "П-2026-0081",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wf02jrls7y1dtaskg8",
+      "ref": "П-2026-0081",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wj02jzls7ywitsct4p",
+      "ref": "П-2026-0082",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wj02jzls7ywitsct4p",
+      "ref": "П-2026-0082",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wp02k9ls7y2d0cx42h",
+      "ref": "П-2026-0083",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wp02k9ls7y2d0cx42h",
+      "ref": "П-2026-0083",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wv02klls7yke5ehcut",
+      "ref": "П-2026-0084",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48wv02klls7yke5ehcut",
+      "ref": "П-2026-0084",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48x602kxls7ybi179746",
+      "ref": "П-2026-0085",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48x602kxls7ybi179746",
+      "ref": "П-2026-0085",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xj02lrls7yehcpe7ow",
+      "ref": "П-2026-0087",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xj02lrls7yehcpe7ow",
+      "ref": "П-2026-0087",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yg02nzls7ydmjpqvpa",
+      "ref": "П-2026-0091",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yg02nzls7ydmjpqvpa",
+      "ref": "П-2026-0091",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zk02qzls7yzeoit2mp",
+      "ref": "П-2026-0098",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zk02qzls7yzeoit2mp",
+      "ref": "П-2026-0098",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zq02rdls7ygal4q6w0",
+      "ref": "П-2026-0099",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zq02rdls7ygal4q6w0",
+      "ref": "П-2026-0099",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zu02rnls7ynto0mgg9",
+      "ref": "П-2026-0100",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zu02rnls7ynto0mgg9",
+      "ref": "П-2026-0100",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zz02rzls7yv7x01zwf",
+      "ref": "П-2026-0101",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zz02rzls7yv7x01zwf",
+      "ref": "П-2026-0101",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490502sdls7yztllfr79",
+      "ref": "П-2026-0102",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490502sdls7yztllfr79",
+      "ref": "П-2026-0102",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490a02spls7y7ilkp0xl",
+      "ref": "П-2026-0103",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490a02spls7y7ilkp0xl",
+      "ref": "П-2026-0103",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490f02t1ls7ytoo6viym",
+      "ref": "П-2026-0104",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc490f02t1ls7ytoo6viym",
+      "ref": "П-2026-0104",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492802xtls7y37bxhw5z",
+      "ref": "П-2026-0119",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492b02y3ls7ygjqhf4vx",
+      "ref": "П-2026-0120",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492f02ydls7ylf8q6gr5",
+      "ref": "П-2026-0121",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492f02ydls7ylf8q6gr5",
+      "ref": "П-2026-0121",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc496x03c7ls7yjgy442dv",
+      "ref": "П-2026-0144",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499n03klls7yqt9z6qf2",
+      "ref": "П-2026-0158",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c1229f2f31e7c2edbb68b",
+      "ref": "П-2026-0170",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499q03kvls7y6uakfmqh",
+      "ref": "П-2026-0159",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xu02mfls7y9362fxgm",
+      "ref": "П-2026-0089",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xu02mfls7y9362fxgm",
+      "ref": "П-2026-0089",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xy02mnls7yys4zz6v4",
+      "ref": "П-2026-0090",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xy02mnls7yys4zz6v4",
+      "ref": "П-2026-0090",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xo02m3ls7ygetrmfgx",
+      "ref": "П-2026-0088",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48xo02m3ls7ygetrmfgx",
+      "ref": "П-2026-0088",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c14fdae0ef5292b5499f0",
+      "ref": "П-2026-0181",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10b977b09b161b36e6ab",
+      "ref": "П-2026-0165",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10b977b09b161b36e6ab",
+      "ref": "П-2026-0165",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c13a154b9ae281f4e3dcc",
+      "ref": "П-2026-0172",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eulb000dlse3e5cs3ggf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc498w03izls7yl8d3eb10",
+      "ref": "П-2026-0153",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499a03jrls7yfp43rt23",
+      "ref": "П-2026-0155",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499a03jrls7yfp43rt23",
+      "ref": "П-2026-0155",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499e03k1ls7yt9xrtm80",
+      "ref": "П-2026-0156",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499e03k1ls7yt9xrtm80",
+      "ref": "П-2026-0156",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc498o03i9ls7yu2a4i234",
+      "ref": "П-2026-0152",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48if01ipls7y0lfx6su4",
+      "ref": "П-2026-0005",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48if01ipls7y0lfx6su4",
+      "ref": "П-2026-0005",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48il01j5ls7yafb8cnj7",
+      "ref": "П-2026-0006",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48il01j5ls7yafb8cnj7",
+      "ref": "П-2026-0006",
+      "field": "color",
+      "old": "BROWN",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ir01jlls7y9ncj399y",
+      "ref": "П-2026-0007",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ir01jlls7y9ncj399y",
+      "ref": "П-2026-0007",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48iy01k1ls7yadp2n931",
+      "ref": "П-2026-0008",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48iy01k1ls7yadp2n931",
+      "ref": "П-2026-0008",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jt01m7ls7yjp79sox3",
+      "ref": "П-2026-0012",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jt01m7ls7yjp79sox3",
+      "ref": "П-2026-0012",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jy01mjls7yrbcv6aog",
+      "ref": "П-2026-0013",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jy01mjls7yrbcv6aog",
+      "ref": "П-2026-0013",
+      "field": "color",
+      "old": "LAVANDER",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48k501mxls7y7gh8ssxh",
+      "ref": "П-2026-0014",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48k501mxls7y7gh8ssxh",
+      "ref": "П-2026-0014",
+      "field": "color",
+      "old": "BROWN 239341",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48k501mxls7y7gh8ssxh",
+      "ref": "П-2026-0014",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-82",
+      "new": "bulk-import-registry-2026-09:row-82\nКод цвета: 239341 (из реестра: «BROWN 239341»)"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kc01nhls7yniyrq9au",
+      "ref": "П-2026-0015",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kc01nhls7yniyrq9au",
+      "ref": "П-2026-0015",
+      "field": "color",
+      "old": "BROWN 239341",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kc01nhls7yniyrq9au",
+      "ref": "П-2026-0015",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-87",
+      "new": "bulk-import-registry-2026-09:row-87\nКод цвета: 239341 (из реестра: «BROWN 239341»)"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lb01q3ls7y04toawzx",
+      "ref": "П-2026-0020",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lb01q3ls7y04toawzx",
+      "ref": "П-2026-0020",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lh01qfls7yhj3axqac",
+      "ref": "П-2026-0021",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lh01qfls7yhj3axqac",
+      "ref": "П-2026-0021",
+      "field": "color",
+      "old": "LAVANDER",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48mq01tvls7yivfs7odt",
+      "ref": "П-2026-0027",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48mq01tvls7yivfs7odt",
+      "ref": "П-2026-0027",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48mw01u9ls7ytjmhft5m",
+      "ref": "П-2026-0028",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48mw01u9ls7ytjmhft5m",
+      "ref": "П-2026-0028",
+      "field": "color",
+      "old": "BROWN",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48n101unls7yrq9yc4i3",
+      "ref": "П-2026-0029",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48n101unls7yrq9yc4i3",
+      "ref": "П-2026-0029",
+      "field": "color",
+      "old": "BROWN",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48n601uzls7yxkev77ac",
+      "ref": "П-2026-0030",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48n601uzls7yxkev77ac",
+      "ref": "П-2026-0030",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48oa01y9ls7yothydbwi",
+      "ref": "П-2026-0035",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48oa01y9ls7yothydbwi",
+      "ref": "П-2026-0035",
+      "field": "color",
+      "old": "WHITE",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48on01ypls7yiqheag1w",
+      "ref": "П-2026-0036",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48on01ypls7yiqheag1w",
+      "ref": "П-2026-0036",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pf020bls7y76i9pxh5",
+      "ref": "П-2026-0038",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pf020bls7y76i9pxh5",
+      "ref": "П-2026-0038",
+      "field": "color",
+      "old": "BROWN",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48q1021vls7yqhf7qquq",
+      "ref": "П-2026-0042",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48q1021vls7yqhf7qquq",
+      "ref": "П-2026-0042",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48q50227ls7yd3yr16gt",
+      "ref": "П-2026-0043",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48q50227ls7yd3yr16gt",
+      "ref": "П-2026-0043",
+      "field": "color",
+      "old": "LAVENDER",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qa022jls7ykfvcbp70",
+      "ref": "П-2026-0044",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qa022jls7ykfvcbp70",
+      "ref": "П-2026-0044",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48r0024rls7ygaeylkmr",
+      "ref": "П-2026-0048",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48r0024rls7ygaeylkmr",
+      "ref": "П-2026-0048",
+      "field": "color",
+      "old": "LAVENDER",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48r60257ls7ysgm559o4",
+      "ref": "П-2026-0049",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48r60257ls7ysgm559o4",
+      "ref": "П-2026-0049",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rb025jls7ypv9edkpm",
+      "ref": "П-2026-0050",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rb025jls7ypv9edkpm",
+      "ref": "П-2026-0050",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rf025vls7yso65csw0",
+      "ref": "П-2026-0051",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euvq000tlse3c3i45ejf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rf025vls7yso65csw0",
+      "ref": "П-2026-0051",
+      "field": "color",
+      "old": "BLACK GLAMA",
+      "new": "Блэкглама"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rk0267ls7ywm5i0vi9",
+      "ref": "П-2026-0052",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48rk0267ls7ywm5i0vi9",
+      "ref": "П-2026-0052",
+      "field": "color",
+      "old": "PEARL",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48sp029nls7y4y7v3st2",
+      "ref": "П-2026-0059",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48sp029nls7y4y7v3st2",
+      "ref": "П-2026-0059",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ro026jls7ycg6sfwqi",
+      "ref": "П-2026-0053",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ro026jls7ycg6sfwqi",
+      "ref": "П-2026-0053",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ru026xls7ypw8zpphb",
+      "ref": "П-2026-0054",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ru026xls7ypw8zpphb",
+      "ref": "П-2026-0054",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48s8028bls7yor3n5b53",
+      "ref": "П-2026-0056",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48s8028bls7yor3n5b53",
+      "ref": "П-2026-0056",
+      "field": "color",
+      "old": "BROWN",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48se028pls7ywa86odlp",
+      "ref": "П-2026-0057",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eurd000nlse3mixss7mj"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48se028pls7ywa86odlp",
+      "ref": "П-2026-0057",
+      "field": "color",
+      "old": "NAVY",
+      "new": "Тёмно-синий"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tw02dbls7yq6ej8zmt",
+      "ref": "П-2026-0066",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tw02dbls7yq6ej8zmt",
+      "ref": "П-2026-0066",
+      "field": "color",
+      "old": "BROWN 239341",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tw02dbls7yq6ej8zmt",
+      "ref": "П-2026-0066",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-332",
+      "new": "bulk-import-registry-2026-09:row-332\nКод цвета: 239341 (из реестра: «BROWN 239341»)"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tj02cbls7y9pd0lg2i",
+      "ref": "П-2026-0063",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eurd000nlse3mixss7mj"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tj02cbls7y9pd0lg2i",
+      "ref": "П-2026-0063",
+      "field": "color",
+      "old": "NAVY",
+      "new": "Тёмно-синий"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pw021hls7yf30ae7ba",
+      "ref": "П-2026-0041",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pw021hls7yf30ae7ba",
+      "ref": "П-2026-0041",
+      "field": "color",
+      "old": "BLACK",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc499203jjls7y6pedbx9g",
+      "ref": "П-2026-0154",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc493v0329ls7y1n70a64w",
+      "ref": "П-2026-0131",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc493v0329ls7y1n70a64w",
+      "ref": "П-2026-0131",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc493n031pls7yzfxxcsav",
+      "ref": "П-2026-0129",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eulb000dlse3e5cs3ggf"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc493r031zls7ya76sr6pv",
+      "ref": "П-2026-0130",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc493r031zls7ya76sr6pv",
+      "ref": "П-2026-0130",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc4940032lls7ypk3vofhv",
+      "ref": "П-2026-0132",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc494q0353ls7y3lx1g5y8",
+      "ref": "П-2026-0134",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc4944032vls7yy3vekp70",
+      "ref": "П-2026-0133",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc4944032vls7yy3vekp70",
+      "ref": "П-2026-0133",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc49560363ls7y6leiw9af",
+      "ref": "П-2026-0138",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc49560363ls7y6leiw9af",
+      "ref": "П-2026-0138",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc495b036dls7ylwm7zz0s",
+      "ref": "П-2026-0139",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc495f036pls7yrsabq9y2",
+      "ref": "П-2026-0140",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc4960038zls7yfjjadb3n",
+      "ref": "П-2026-0141",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc4960038zls7yfjjadb3n",
+      "ref": "П-2026-0141",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc496q03brls7ycmqb8xyn",
+      "ref": "П-2026-0142",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tn02cnls7yc201vlun",
+      "ref": "П-2026-0064",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48tn02cnls7yc201vlun",
+      "ref": "П-2026-0064",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48sj0295ls7yfrcqwhao",
+      "ref": "П-2026-0058",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48sv02a1ls7ynrpkah0k",
+      "ref": "П-2026-0060",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48sv02a1ls7ynrpkah0k",
+      "ref": "П-2026-0060",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc494z035lls7yi1mecpia",
+      "ref": "П-2026-0136",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eufb0009lse3ktlix5nr"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc494u035bls7yzgfh2po8",
+      "ref": "П-2026-0135",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc494u035bls7yzgfh2po8",
+      "ref": "П-2026-0135",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yl02obls7yfoasspdg",
+      "ref": "П-2026-0092",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yl02obls7yfoasspdg",
+      "ref": "П-2026-0092",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yv02p7ls7yvvitqmb9",
+      "ref": "П-2026-0093",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yv02p7ls7yvvitqmb9",
+      "ref": "П-2026-0093",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zh02qrls7y42turt9k",
+      "ref": "П-2026-0097",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48zh02qrls7y42turt9k",
+      "ref": "П-2026-0097",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48z402prls7y0zvi0idm",
+      "ref": "П-2026-0095",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48z402prls7y0zvi0idm",
+      "ref": "П-2026-0095",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yz02pfls7y7cj9cvwt",
+      "ref": "П-2026-0094",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48yz02pfls7y7cj9cvwt",
+      "ref": "П-2026-0094",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc496t03bzls7yrfgpbsal",
+      "ref": "П-2026-0143",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc492k02ypls7yb84z3l7o",
+      "ref": "П-2026-0122",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc497503crls7y12x0wb48",
+      "ref": "П-2026-0146",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc497a03d1ls7y7fr0ond2",
+      "ref": "П-2026-0147",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc497h03drls7yo30gy9c9",
+      "ref": "П-2026-0148",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc497s03etls7yemhzqhdz",
+      "ref": "П-2026-0149",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc498803glls7ytkmf8dx1",
+      "ref": "П-2026-0150",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc498d03h1ls7y2pvofjx1",
+      "ref": "П-2026-0151",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z7d08515e670b6d2f16",
+      "ref": "П-2026-0162",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z7d08515e670b6d2f16",
+      "ref": "П-2026-0162",
+      "field": "color",
+      "old": "браун",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c117d674ec53ecf34dfcd",
+      "ref": "П-2026-0166",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c117d40d94c947024c452",
+      "ref": "П-2026-0167",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c12c4456aeb56e5e2a11e",
+      "ref": "П-2026-0168",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c12c4456aeb56e5e2a11e",
+      "ref": "П-2026-0168",
+      "field": "color",
+      "old": "Черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c125bc2a88ff147041dde",
+      "ref": "П-2026-0169",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z9b51116f5f6634dde2",
+      "ref": "П-2026-0161",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z9b51116f5f6634dde2",
+      "ref": "П-2026-0161",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10a835a80cc5f015324e",
+      "ref": "П-2026-0163",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10a835a80cc5f015324e",
+      "ref": "П-2026-0163",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10dc8ed1c2edca5a81ca",
+      "ref": "П-2026-0164",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c10dc8ed1c2edca5a81ca",
+      "ref": "П-2026-0164",
+      "field": "color",
+      "old": "черный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z369e59c6e78189ee57",
+      "ref": "П-2026-0160",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c0z369e59c6e78189ee57",
+      "ref": "П-2026-0160",
+      "field": "color",
+      "old": "бежевый",
+      "new": "Бежевый"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c136e70161d311b891ba7",
+      "ref": "П-2026-0173",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c132c78107c9b7ad63bc7",
+      "ref": "П-2026-0174",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euen0007lse3ntf88wmx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c13f6cf16522d85446e9c",
+      "ref": "П-2026-0176",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c14952c241dce42a57f88",
+      "ref": "П-2026-0177",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c14a14e868cb9fd1880ec",
+      "ref": "П-2026-0178",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c1423744db8a0233d9340",
+      "ref": "П-2026-0182",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c12c0221be1745fbb88cf",
+      "ref": "П-2026-0171",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupo4c14e4db732a8a49ca64dd",
+      "ref": "П-2026-0179",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fs0037ls83ep64qb3a",
+      "ref": "З-2026-0038",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fs0037ls83ep64qb3a",
+      "ref": "З-2026-0038",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49g1003pls83taxeb7xe",
+      "ref": "З-2026-0040",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49g1003pls83taxeb7xe",
+      "ref": "З-2026-0040",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482h005bls7yfmxu8kkp",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482h005bls7yfmxu8kkp",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483n007pls7yweppa90g",
+      "ref": "З-2026-0007",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eun1000hlse3d3zhj7y0"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483n007pls7yweppa90g",
+      "ref": "З-2026-0007",
+      "field": "color",
+      "old": "серебристо-голубой",
+      "new": "Серебристо-голубой"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48450089ls7yqusp307p",
+      "ref": "З-2026-0009",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48450089ls7yqusp307p",
+      "ref": "З-2026-0009",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483b0077ls7ya7zzu0fa",
+      "ref": "З-2026-0005",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483b0077ls7ya7zzu0fa",
+      "ref": "З-2026-0005",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483g007fls7yorvprh89",
+      "ref": "З-2026-0006",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483g007fls7yorvprh89",
+      "ref": "З-2026-0006",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc487300gfls7yepduii6q",
+      "ref": "З-2026-0017",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc487300gfls7yepduii6q",
+      "ref": "З-2026-0017",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48bj00vvls7ystev6klx",
+      "ref": "З-2026-0028",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48bj00vvls7ystev6klx",
+      "ref": "З-2026-0028",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48bm00w7ls7yy90ir8zv",
+      "ref": "З-2026-0028",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48bm00w7ls7yy90ir8zv",
+      "ref": "З-2026-0028",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48cc00yvls7yk5dcyuym",
+      "ref": "З-2026-0034",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48cc00yvls7yk5dcyuym",
+      "ref": "З-2026-0034",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48ci00zbls7y4flq4pmh",
+      "ref": "З-2026-0035",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48ci00zbls7y4flq4pmh",
+      "ref": "З-2026-0035",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482e004zls7y04j4sfs1",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482e004zls7y04j4sfs1",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fh002dls83v1myehzs",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fh002dls83v1myehzs",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48cf00z3ls7ynxbl6sh7",
+      "ref": "З-2026-0039",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euov000jlse341gecio7"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48cf00z3ls7ynxbl6sh7",
+      "ref": "З-2026-0039",
+      "field": "color",
+      "old": "серебристо-чёрный",
+      "new": "Серебристо-чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484d008hls7y1drm6daq",
+      "ref": "З-2026-0009",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484g008nls7y026i795k",
+      "ref": "З-2026-0009",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49er000nls830m2mzpgr",
+      "ref": "З-2026-0033",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49er000nls830m2mzpgr",
+      "ref": "З-2026-0033",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49es000tls835h5ree6m",
+      "ref": "З-2026-0033",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49es000tls835h5ree6m",
+      "ref": "З-2026-0033",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49f20019ls8341lelrq5",
+      "ref": "З-2026-0035",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49f20019ls8341lelrq5",
+      "ref": "З-2026-0035",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49f6001jls83bcc0lvkj",
+      "ref": "З-2026-0036",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49f6001jls83bcc0lvkj",
+      "ref": "З-2026-0036",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fg0027ls83ucgsc22s",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fg0027ls83ucgsc22s",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fb001tls83osjlc6v0",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fb001tls83osjlc6v0",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fe0021ls83ups76u6g",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fe0021ls83ups76u6g",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fq0031ls8307pj7l79",
+      "ref": "З-2026-0038",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fq0031ls8307pj7l79",
+      "ref": "З-2026-0038",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49eo000fls83q0hz8708",
+      "ref": "З-2026-0033",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49eo000fls83q0hz8708",
+      "ref": "З-2026-0033",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49ej0007ls83v9mljo4s",
+      "ref": "З-2026-0033",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49ej0007ls83v9mljo4s",
+      "ref": "З-2026-0033",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481h002lls7ycg28ql86",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481h002lls7ycg28ql86",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481m002tls7y20xcm3m2",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481m002tls7y20xcm3m2",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481p0031ls7y807eoza0",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481p0031ls7y807eoza0",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4820003nls7yi8vc055b",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eupt000llse3ipzoo875"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4820003nls7yi8vc055b",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "виолет",
+      "new": "Виолет"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481y003hls7y0uioxvxi",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eupt000llse3ipzoo875"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481y003hls7y0uioxvxi",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "виолет",
+      "new": "Виолет"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4811001xls7yd79hcxl4",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4811001xls7yd79hcxl4",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4829004fls7ydj0q69qg",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4829004fls7ydj0q69qg",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482b004lls7ydzptjk35",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482b004lls7ydzptjk35",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482c004rls7yqq97du2l",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482c004rls7yqq97du2l",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482g0055ls7yc31pzs7v",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482g0055ls7yc31pzs7v",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fj002jls83gxrcco8v",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fj002jls83gxrcco8v",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fm002rls83ihass9gv",
+      "ref": "З-2026-0037",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc49fm002rls83ihass9gv",
+      "ref": "З-2026-0037",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupnzwj7000blsvqpyfhfy6t",
+      "ref": "З-2026-0059",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eum8000flse3pkng04wf"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupnzwj7000blsvqpyfhfy6t",
+      "ref": "З-2026-0059",
+      "field": "color",
+      "old": "красный",
+      "new": "Красный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a2002dlseqmdsgrejn",
+      "ref": "З-2026-0057",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eum8000flse3pkng04wf"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a2002dlseqmdsgrejn",
+      "ref": "З-2026-0057",
+      "field": "color",
+      "old": "красный",
+      "new": "Красный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a3002flseqb1u8r4bf",
+      "ref": "З-2026-0057",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eum8000flse3pkng04wf"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a3002flseqb1u8r4bf",
+      "ref": "З-2026-0057",
+      "field": "color",
+      "old": "красный",
+      "new": "Красный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a4002hlseqttbjjxf9",
+      "ref": "З-2026-0057",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eum8000flse3pkng04wf"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc53a4002hlseqttbjjxf9",
+      "ref": "З-2026-0057",
+      "field": "color",
+      "old": "красный",
+      "new": "Красный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484g008pls7ytdjllkx2",
+      "ref": "лот 300302",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4820003pls7y3z9ghkpl",
+      "ref": "лот 518509",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eupt000llse3ipzoo875"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4820003pls7y3z9ghkpl",
+      "ref": "лот 518509",
+      "field": "color",
+      "old": "виолет",
+      "new": "Виолет"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bm00w9ls7y1thk8qck",
+      "ref": "лот 3488",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bm00w9ls7y1thk8qck",
+      "ref": "лот 3488",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49er000pls83c6ocqcsq",
+      "ref": "лот 740505",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49er000pls83c6ocqcsq",
+      "ref": "лот 740505",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc487300ghls7yz1pm39xc",
+      "ref": "лот 634",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc487300ghls7yz1pm39xc",
+      "ref": "лот 634",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fm002tls836k73jsx7",
+      "ref": "лот 400440",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fm002tls836k73jsx7",
+      "ref": "лот 400440",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fs0039ls83agrf5xks",
+      "ref": "лот 300235",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fs0039ls83agrf5xks",
+      "ref": "лот 300235",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482i005dls7ylpk2v9oj",
+      "ref": "лот 519506",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482i005dls7ylpk2v9oj",
+      "ref": "лот 519506",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481m002vls7yqshso67u",
+      "ref": "лот 613003",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481m002vls7yqshso67u",
+      "ref": "лот 613003",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482g0057ls7y1wrzsic3",
+      "ref": "лот 519503",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482g0057ls7y1wrzsic3",
+      "ref": "лот 519503",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483b0079ls7ykf043w78",
+      "ref": "лот 10022",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483b0079ls7ykf043w78",
+      "ref": "лот 10022",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483g007hls7yl4pudzog",
+      "ref": "лот 10025",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483g007hls7yl4pudzog",
+      "ref": "лот 10025",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49et000vls83dcq87zhf",
+      "ref": "лот 740506",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49et000vls83dcq87zhf",
+      "ref": "лот 740506",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fc001vls83mqn4ufmj",
+      "ref": "лот 400101",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fc001vls83mqn4ufmj",
+      "ref": "лот 400101",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fj002lls834imkk57w",
+      "ref": "лот 400105",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fj002lls834imkk57w",
+      "ref": "лот 400105",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482f0051ls7ymdwj7dam",
+      "ref": "лот 519502",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482f0051ls7ymdwj7dam",
+      "ref": "лот 519502",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481y003jls7yevbmee5i",
+      "ref": "лот 518505",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eupt000llse3ipzoo875"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481y003jls7yevbmee5i",
+      "ref": "лот 518505",
+      "field": "color",
+      "old": "виолет",
+      "new": "Виолет"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4846008bls7yfny274w7",
+      "ref": "лот 5023, 5022, 5037, 5028",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4846008bls7yfny274w7",
+      "ref": "лот 5023, 5022, 5037, 5028",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bj00vxls7ykjlconaw",
+      "ref": "лот 3486",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eusw000plse3ldbic36p"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48bj00vxls7ykjlconaw",
+      "ref": "лот 3486",
+      "field": "color",
+      "old": "лаванда",
+      "new": "Лаванда"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48ci00zdls7yw0ioltpx",
+      "ref": "лот 500083",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48ci00zdls7yw0ioltpx",
+      "ref": "лот 500083",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cf00z5ls7yxt9nj3em",
+      "ref": "лот 165270",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euov000jlse341gecio7"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cf00z5ls7yxt9nj3em",
+      "ref": "лот 165270",
+      "field": "color",
+      "old": "серебристо-чёрный",
+      "new": "Серебристо-чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481q0033ls7yvjehjpuo",
+      "ref": "лот 613017",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481q0033ls7yvjehjpuo",
+      "ref": "лот 613017",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482b004nls7yg0dmpin9",
+      "ref": "лот 500748",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482b004nls7yg0dmpin9",
+      "ref": "лот 500748",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4811001zls7ydiythm0x",
+      "ref": "лот 600083",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4811001zls7ydiythm0x",
+      "ref": "лот 600083",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482a004hls7y7870yaxm",
+      "ref": "лот 500747",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482a004hls7y7870yaxm",
+      "ref": "лот 500747",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f7001lls83dfhzyw7c",
+      "ref": "лот 503134",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f7001lls83dfhzyw7c",
+      "ref": "лот 503134",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49g2003rls83bzx6kcdw",
+      "ref": "лот 302127",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49g2003rls83bzx6kcdw",
+      "ref": "лот 302127",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fq0033ls83z2l893ll",
+      "ref": "лот 300234",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fq0033ls83z2l893ll",
+      "ref": "лот 300234",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fe0023ls83ncp0xrhp",
+      "ref": "лот 400102",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fe0023ls83ncp0xrhp",
+      "ref": "лот 400102",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49eo000hls83dj265atn",
+      "ref": "лот 740504",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49eo000hls83dj265atn",
+      "ref": "лот 740504",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49ek0009ls83w180d3bc",
+      "ref": "лот 740503",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49ek0009ls83w180d3bc",
+      "ref": "лот 740503",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483n007rls7y5f5p1us1",
+      "ref": "лот 10026",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eun1000hlse3d3zhj7y0"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483n007rls7y5f5p1us1",
+      "ref": "лот 10026",
+      "field": "color",
+      "old": "серебристо-голубой",
+      "new": "Серебристо-голубой"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481h002nls7yytbty08x",
+      "ref": "лот 513010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3euum000rlse3bowbxwt1"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481h002nls7yytbty08x",
+      "ref": "лот 513010",
+      "field": "color",
+      "old": "жемчуг",
+      "new": "Жемчуг"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482c004tls7ylsev2xug",
+      "ref": "лот 514038",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482c004tls7ylsev2xug",
+      "ref": "лот 514038",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f2001bls83ux7vptes",
+      "ref": "лот 500084",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49f2001bls83ux7vptes",
+      "ref": "лот 500084",
+      "field": "color",
+      "old": "чёрный",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fh002fls83e1f8htc4",
+      "ref": "лот 400104",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fh002fls83e1f8htc4",
+      "ref": "лот 400104",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fg0029ls83w5wku12v",
+      "ref": "лот 400103",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc49fg0029ls83w5wku12v",
+      "ref": "лот 400103",
+      "field": "color",
+      "old": "коричневый",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484e008jls7y27glvep2",
+      "ref": "лот 5020",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cc00yxls7yii8f7ms1",
+      "ref": "лот 355159",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eubx0005lse36rxwfati"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48cc00yxls7yii8f7ms1",
+      "ref": "лот 355159",
+      "field": "color",
+      "old": "белый",
+      "new": "Белый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupnzwj8000dlsvqfzlx4sfy",
+      "ref": "лот cmupnzwj8000dlsvqfzlx4sfy",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eum8000flse3pkng04wf"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupnzwj8000dlsvqfzlx4sfy",
+      "ref": "лот cmupnzwj8000dlsvqfzlx4sfy",
+      "field": "color",
+      "old": "красный",
+      "new": "Красный"
+    }
+  ]
+}

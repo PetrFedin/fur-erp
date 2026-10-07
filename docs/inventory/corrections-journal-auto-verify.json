@@ -1,0 +1,376 @@
+[
+ {
+  "time": "2026-10-04T08:03:17.271Z",
+  "entity": "payment",
+  "id": "cmupnzwkg000rlsvq6now81zc",
+  "label": "28.02.2025 · 34 825 000,00 ₽ ООО «Веллмех» · аукцион РП 03.25 · п/п №440 от 28.02.2025; счёт Веллмех №31 от 27.02.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №440 от 28.02.2025, сумма 34 825 000,00 ₽; chain-p2025/p2026: п/п №440"
+ },
+ {
+  "time": "2026-10-04T08:03:17.279Z",
+  "entity": "payment",
+  "id": "cmupnzwjq000jlsvqrq7ixrso",
+  "label": "26.03.2025 · 11 950 000,00 ₽ ООО «Веллмех» · закупка З-2026-0002 · п/п №36343 от 26.03.2025; счёт Веллмех №46 от 14.03.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №36343 от 26.03.2025, сумма 11 950 000,00 ₽; chain-p2025/p2026: п/п №36343"
+ },
+ {
+  "time": "2026-10-04T08:03:17.285Z",
+  "entity": "payment",
+  "id": "cmupqwikm000blsa4x5o2we83",
+  "label": "16.05.2025 · 3 935 761,96 ₽ ООО «Веллмех» · аукцион РП 03.25 · п/п №45637 от 16.05.2025; счёт Веллмех №75 от 13.05.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №45637 от 16.05.2025, сумма 11 146 950,00 ₽; chain-p2025/p2026: п/п №45637"
+ },
+ {
+  "time": "2026-10-04T08:03:17.309Z",
+  "entity": "payment",
+  "id": "cmuq10z0w000llsy4h84wlrt7",
+  "label": "16.05.2025 · 7 211 188,04 ₽ ООО «Веллмех» · аукцион СП 03.25 · п/п №45637 от 16.05.2025; счёт Веллмех №75 от 13.05.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №45637 от 16.05.2025, сумма 11 146 950,00 ₽; chain-p2025/p2026: п/п №45637"
+ },
+ {
+  "time": "2026-10-04T08:03:17.312Z",
+  "entity": "payment",
+  "id": "cmupqwil4000jlsa4pb5b388g",
+  "label": "16.05.2025 · 10 924 000,00 ₽ ООО «Веллмех» · закупка З-2026-0002 · п/п №45675 от 16.05.2025; счёт Веллмех №76 от 13.05.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №45675 от 16.05.2025, сумма 10 924 000,00 ₽; chain-p2025/p2026: п/п №45675"
+ },
+ {
+  "time": "2026-10-04T08:03:17.314Z",
+  "entity": "payment",
+  "id": "cmupnzwjx000llsvq0r2som7u",
+  "label": "30.05.2025 · 1 632 000,00 ₽ ООО «Веллмех» · закупка З-2026-0005 · п/п №48466 от 30.05.2025; счёт Веллмех №81 от 26.05.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №48466 от 30.05.2025, сумма 1 632 000,00 ₽; chain-p2025/p2026: п/п №48466"
+ },
+ {
+  "time": "2026-10-04T08:03:17.318Z",
+  "entity": "payment",
+  "id": "cmupqwinj001vlsa4j1y5suiy",
+  "label": "04.06.2025 · 1 718 400,00 ₽ ООО «Веллмех» · закупка З-2026-0008 · п/п №49288 от 04.06.2025; счёт Веллмех №80 от 26.05.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №49288 от 04.06.2025, сумма 1 718 400,00 ₽; chain-p2025/p2026: п/п №49288"
+ },
+ {
+  "time": "2026-10-04T08:03:17.321Z",
+  "entity": "payment",
+  "id": "cmupnzwk3000nlsvqmhorqt0n",
+  "label": "19.06.2025 · 1 210 000,00 ₽ ООО «Веллмех» · закупка З-2026-0003 · п/п №51723 от 19.06.2025; счёт Веллмех №92 от 16.06.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №51723 от 19.06.2025, сумма 1 210 000,00 ₽; chain-p2025/p2026: п/п №51723"
+ },
+ {
+  "time": "2026-10-04T08:03:17.325Z",
+  "entity": "payment",
+  "id": "cmupnzwkt000vlsvqzuefrobz",
+  "label": "03.07.2025 · 1 455 842,00 ₽ ООО «Веллмех» · аукцион Подкладка Спец. 7 (УПД 109) · п/п №54214 от 03.07.2025; счёт Веллмех №100 от 01.07.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №54214 от 03.07.2025, сумма 1 455 842,00 ₽; chain-p2025/p2026: п/п №54214"
+ },
+ {
+  "time": "2026-10-04T08:03:17.328Z",
+  "entity": "payment",
+  "id": "cmupqwimk001dlsa4rstqnlfu",
+  "label": "03.07.2025 · 1 537 404,00 ₽ ООО «Веллмех» · аукцион КФХ Дуденко Л. Н. · п/п №54215 от 03.07.2025; счёт Веллмех №95 от 24.06.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №54215 от 03.07.2025, сумма 1 537 404,00 ₽; chain-p2025/p2026: п/п №54215"
+ },
+ {
+  "time": "2026-10-04T08:03:17.331Z",
+  "entity": "payment",
+  "id": "cmupqwiln000vlsa4g7z5z8y8",
+  "label": "04.08.2025 · 1 695 778,00 ₽ ООО «Веллмех» · закупка З-2026-0002 · п/п №60611 от 04.08.2025; счёт Веллмех №103 от 03.07.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №60611 от 04.08.2025, сумма 1 695 778,00 ₽; chain-p2025/p2026: п/п №60611"
+ },
+ {
+  "time": "2026-10-04T08:03:17.335Z",
+  "entity": "payment",
+  "id": "cmuq10yyr0001lsy4tgunkec5",
+  "label": "22.08.2025 · 1 061 306,00 ₽ ООО «Веллмех» · закупка З-2026-0003 · п/п №64014 от 22.08.2025; счёт Веллмех №127 от 13.08.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №64014 от 22.08.2025, сумма 1 061 306,00 ₽; chain-p2025/p2026: п/п №64014"
+ },
+ {
+  "time": "2026-10-04T08:03:17.339Z",
+  "entity": "payment",
+  "id": "cmupqwim20013lsa4sz019qjl",
+  "label": "22.08.2025 · 195 404,00 ₽ ООО «Веллмех» · закупка З-2026-0005 · п/п №64015 от 22.08.2025; счёт Веллмех №117 от 29.07.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №64015 от 22.08.2025, сумма 195 404,00 ₽; chain-p2025/p2026: п/п №64015"
+ },
+ {
+  "time": "2026-10-04T08:03:17.344Z",
+  "entity": "payment",
+  "id": "cmupqwin0001llsa4u2cu6m6w",
+  "label": "26.08.2025 · 123 836,00 ₽ ООО «Веллмех» · аукцион КФХ Дуденко Л. Н. · п/п №64499 от 26.08.2025; счёт Веллмех №122 от 04.08.2025",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №64499 от 26.08.2025, сумма 123 836,00 ₽; chain-p2025/p2026: п/п №64499"
+ },
+ {
+  "time": "2026-10-04T08:03:17.349Z",
+  "entity": "payment",
+  "id": "cmupnzwmi0013lsvq7toylvt3",
+  "label": "22.04.2026 · 6 304 375,00 ₽ ООО «Веллмех» · аукцион СОЮЗПУШНИНА 05-26 · п/п №40593 от 22.04.2026; счёт Веллмех №117 от 13.04.2026",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №40593 от 22.04.2026, сумма 27 912 500,00 ₽; chain-p2025/p2026: п/п №40593"
+ },
+ {
+  "time": "2026-10-04T08:03:17.355Z",
+  "entity": "payment",
+  "id": "cmupnzwm40011lsvqw3cq6dos",
+  "label": "22.04.2026 · 21 608 125,00 ₽ ООО «Веллмех» · аукцион Закупка меха 04-26 · п/п №40593 от 22.04.2026; счёт Веллмех №117 от 13.04.2026",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №40593 от 22.04.2026, сумма 27 912 500,00 ₽; chain-p2025/p2026: п/п №40593"
+ },
+ {
+  "time": "2026-10-04T08:03:17.359Z",
+  "entity": "payment",
+  "id": "cmupnzwmx0015lsvq8f1quuqa",
+  "label": "12.05.2026 · 60 271 506,34 ₽ ООО «Веллмех» · аукцион Закупка меха 04-26 · п/п №43831 от 12.05.2026; счёт Веллмех №131 от 04.05.2026",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №43831 от 12.05.2026, сумма 60 271 506,34 ₽; chain-p2025/p2026: п/п №43831"
+ },
+ {
+  "time": "2026-10-04T08:03:17.361Z",
+  "entity": "payment",
+  "id": "cmupnzwne0019lsvq0j1tjh75",
+  "label": "28.05.2026 · 761 250,00 ₽ ООО «Веллмех» · закупка З-2026-0058 · п/п №46538 от 28.05.2026; счёт Веллмех №153",
+  "before": {
+   "confirmed": true,
+   "confirmedAt": null,
+   "confirmedBy": null
+  },
+  "after": {
+   "confirmed": true,
+   "confirmedAt": "2026-10-04T08:03:17.258Z",
+   "confirmedBy": "auto:docs-chain-2026-10-04"
+  },
+  "source": "документы: п/п №46538 от 28.05.2026, сумма 761 250,00 ₽; chain-p2025/p2026: п/п №46538"
+ },
+ {
+  "time": "2026-10-04T08:03:17.364Z",
+  "entity": "purchase",
+  "id": "cmupc483a0075ls7ye7tltm15",
+  "label": "Закупка З-2026-0005 ООО «Веллмех» · КФХ Дуденко Л. Н. · 29.07.2025",
+  "before": {
+   "verifiedAt": null,
+   "verifiedBy": null,
+   "verifyNote": null
+  },
+  "after": {
+   "verifiedAt": "2026-10-04T08:03:17.258Z",
+   "verifiedBy": "auto:docs-chain-2026-10-04",
+   "verifyNote": "chain: группа «сходится на 100%» (all100), закупка З-2026-0005"
+  },
+  "source": "chain: группа «сходится на 100%» (all100), закупка З-2026-0005"
+ },
+ {
+  "time": "2026-10-04T08:03:17.372Z",
+  "entity": "purchase",
+  "id": "cmupc482m005nls7yzojwsw4p",
+  "label": "Закупка З-2026-0003 ООО «Веллмех» · SAGA 06-25 · 13.08.2025",
+  "before": {
+   "verifiedAt": null,
+   "verifiedBy": null,
+   "verifyNote": null
+  },
+  "after": {
+   "verifiedAt": "2026-10-04T08:03:17.258Z",
+   "verifiedBy": "auto:docs-chain-2026-10-04",
+   "verifyNote": "chain: группа «сходится на 100%» (all100), закупка З-2026-0003"
+  },
+  "source": "chain: группа «сходится на 100%» (all100), закупка З-2026-0003"
+ },
+ {
+  "time": "2026-10-04T08:03:17.375Z",
+  "entity": "purchase",
+  "id": "cmupc483f007dls7y55vr816h",
+  "label": "Закупка З-2026-0006 ООО «Веллмех» · КФХ Дуденко Л. Н. · 26.08.2025",
+  "before": {
+   "verifiedAt": null,
+   "verifiedBy": null,
+   "verifyNote": null
+  },
+  "after": {
+   "verifiedAt": "2026-10-04T08:03:17.258Z",
+   "verifiedBy": "auto:docs-chain-2026-10-04",
+   "verifyNote": "chain: группа «сходится на 100%» (all100), закупка З-2026-0006"
+  },
+  "source": "chain: группа «сходится на 100%» (all100), закупка З-2026-0006"
+ },
+ {
+  "time": "2026-10-04T08:03:17.378Z",
+  "entity": "purchase",
+  "id": "cmupc483k007lls7yg8xhfici",
+  "label": "Закупка З-2026-0007 ООО «Веллмех» · КФХ Дуденко Л. Н. · 26.08.2025",
+  "before": {
+   "verifiedAt": null,
+   "verifiedBy": null,
+   "verifyNote": null
+  },
+  "after": {
+   "verifiedAt": "2026-10-04T08:03:17.258Z",
+   "verifiedBy": "auto:docs-chain-2026-10-04",
+   "verifyNote": "chain: группа «сходится на 100%» (all100), закупка З-2026-0007"
+  },
+  "source": "chain: группа «сходится на 100%» (all100), закупка З-2026-0007"
+ }
+]

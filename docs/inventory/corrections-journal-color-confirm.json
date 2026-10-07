@@ -1,0 +1,1144 @@
+{
+  "script": "confirm-colors.ts",
+  "appliedAt": "2026-10-04T14:28:53.305Z",
+  "changes": [
+    {
+      "kind": "ref",
+      "id": "cmut3ev29000xlse32bt1c2ca",
+      "name": "Тортора",
+      "oldNote": "Предложено, ждёт подтверждения. TORTORA: в приложениях ТЗ — «Бежевый» (4 из 5 ТЗ, одно — «коричневый»); принятое русское название — «тортора» (транслитерация), в документах не встречается.",
+      "newNote": "Подтверждено по документам: в комментариях единого реестра (лист «EB заказ», «Лист12») — «дикий соболь … тортора», «седой тортор (silvery 4/5)»; цвет TORTORA, аналог-цвет реестра «Бежевый»."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3ev30000zlse3hvr3arc6",
+      "name": "Орех",
+      "oldNote": "Предложено, ждёт подтверждения. NUT ↔ «орех» (лот в закупках); в приложениях ТЗ — «Бежевый». Оттенок «орех» в документах отдельно не расшифрован.",
+      "newNote": "Подтверждено по документам: единый реестр — номенклатура «шкура каракуля SWAKARA орех» (цвет NUT, аналог «Бежевый»); лот «орех» в закупках."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3ev3v0011lse38dr15pf6",
+      "name": "Фондю",
+      "oldNote": "Предложено, ждёт подтверждения. FONDU ↔ «фондю» (лоты); в приложениях ТЗ — «Коричневый (фондю)» (базовый цвет + оттенок в скобках).",
+      "newNote": "Подтверждено по документам: единый реестр — «шкура каракуля SWAKARA фондю», «ПРИЛОЖЕНИЕ 18 (1 пальто свакара фондю)»; приложения ТЗ — «Коричневый (фондю)»."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3ev4m0013lse3cchmz756",
+      "name": "Нуга",
+      "oldNote": "Предложено, ждёт подтверждения. NOUGAT ↔ «нуга» (лоты); в приложениях ТЗ — «Бежевый (нуга)». Расхождение: у одного из ТЗ с кодом «BROWN 239341» в приложении тоже «Бежевый (нуга)».",
+      "newNote": "Подтверждено по документам: единый реестр — «шкура каракуля SWAKARA нуга», «ПРИЛОЖЕНИЕ 16 (1 жакет свакара нуга)»; приложения ТЗ — «Бежевый (нуга)»."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3ev760015lse3fjmtjwua",
+      "name": "Пастель",
+      "oldNote": "Предложено, ждёт подтверждения. PASTEL ↔ «пастель» (лоты); в приложениях ТЗ — «Бежевый (пастель)».",
+      "newNote": "Подтверждено по документам: единый реестр — «шкура норки американская пастель», «норка пастель»; приложения ТЗ — «Бежевый (пастель)»."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3ev850017lse3x3w3lewg",
+      "name": "Ирис",
+      "oldNote": "Предложено, ждёт подтверждения. IRIS ↔ «ирис»; в приложениях ТЗ — «Серый (ирис)», а в лотах закупок — «голубой ирис»: оттенок в документах расходится.",
+      "newNote": "Подтверждено по названию: единый реестр — «шкура норки ирис», «ПРИЛОЖЕНИЕ 11 (4 манишки ирис)»; цвет IRIS, аналог «Серый». Базовый тон в лотах закупок записан «голубой ирис» — расхождение тона, текст лотов не менялся."
+    },
+    {
+      "kind": "ref",
+      "id": "cmut3evao0019lse30b05ghio",
+      "name": "Облако",
+      "oldNote": "Предложено, ждёт подтверждения. CLOUD ↔ «облако» (лот); в приложениях ТЗ — «с-серый (облако)». «239264» в «CLOUD 239264» — код цвета в реестре.",
+      "newNote": "Подтверждено по документам: единый реестр — «шкура каракуля SWAKARA облако», «ПРИЛОЖЕНИЕ 17 (3 жакет свакара облако)»; приложения ТЗ — «с-серый (облако)»; CLOUD 239264 — код цвета реестра."
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ki01nzls7yyn4y6oga",
+      "ref": "П-2026-0016",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev4m0013lse3cchmz756"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ki01nzls7yyn4y6oga",
+      "ref": "П-2026-0016",
+      "field": "color",
+      "old": "NOUGAT",
+      "new": "Нуга"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ki01nzls7yyn4y6oga",
+      "ref": "П-2026-0016",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-92",
+      "new": "bulk-import-registry-2026-09:row-92\nЦвет по реестру: «NOUGAT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48hc01fdls7y8htyliq8",
+      "ref": "П-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev29000xlse32bt1c2ca"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48hc01fdls7y8htyliq8",
+      "ref": "П-2026-0002",
+      "field": "color",
+      "old": "TORTORA",
+      "new": "Тортора"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48hc01fdls7y8htyliq8",
+      "ref": "П-2026-0002",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-20",
+      "new": "bulk-import-registry-2026-09:row-20\nЦвет по реестру: «TORTORA»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48i201hhls7ysxp835tz",
+      "ref": "П-2026-0004",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev29000xlse32bt1c2ca"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48i201hhls7ysxp835tz",
+      "ref": "П-2026-0004",
+      "field": "color",
+      "old": "TORTORA",
+      "new": "Тортора"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48i201hhls7ysxp835tz",
+      "ref": "П-2026-0004",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-39",
+      "new": "bulk-import-registry-2026-09:row-39\nЦвет по реестру: «TORTORA»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jh01ldls7yqy5ch8pp",
+      "ref": "П-2026-0010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jh01ldls7yqy5ch8pp",
+      "ref": "П-2026-0010",
+      "field": "color",
+      "old": "NUT",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jh01ldls7yqy5ch8pp",
+      "ref": "П-2026-0010",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-70",
+      "new": "bulk-import-registry-2026-09:row-70\nЦвет по реестру: «NUT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jo01ltls7y5p402u6n",
+      "ref": "П-2026-0011",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jo01ltls7y5p402u6n",
+      "ref": "П-2026-0011",
+      "field": "color",
+      "old": "IRIS",
+      "new": "Ирис"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48jo01ltls7y5p402u6n",
+      "ref": "П-2026-0011",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-73",
+      "new": "bulk-import-registry-2026-09:row-73\nЦвет по реестру: «IRIS»; базовый цвет (аналог в реестре): «Серый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48m101rnls7yv9q8ok0l",
+      "ref": "П-2026-0024",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev4m0013lse3cchmz756"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48m101rnls7yv9q8ok0l",
+      "ref": "П-2026-0024",
+      "field": "color",
+      "old": "NOUGAT",
+      "new": "Нуга"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48m101rnls7yv9q8ok0l",
+      "ref": "П-2026-0024",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-128\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).",
+      "new": "bulk-import-registry-2026-09:row-128\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).\nЦвет по реестру: «NOUGAT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ln01qrls7yzhlvge10",
+      "ref": "П-2026-0022",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ln01qrls7yzhlvge10",
+      "ref": "П-2026-0022",
+      "field": "color",
+      "old": "FONDU",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ln01qrls7yzhlvge10",
+      "ref": "П-2026-0022",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-119\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).",
+      "new": "bulk-import-registry-2026-09:row-119\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).\nЦвет по реестру: «FONDU»; базовый цвет (аналог в реестре): «Коричневый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48l601prls7ydofq78sm",
+      "ref": "П-2026-0019",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48l601prls7ydofq78sm",
+      "ref": "П-2026-0019",
+      "field": "color",
+      "old": "IRIS",
+      "new": "Ирис"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48l601prls7ydofq78sm",
+      "ref": "П-2026-0019",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-110\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).",
+      "new": "bulk-import-registry-2026-09:row-110\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).\nЦвет по реестру: «IRIS»; базовый цвет (аналог в реестре): «Серый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lw01rbls7yha5x50vo",
+      "ref": "П-2026-0023",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lw01rbls7yha5x50vo",
+      "ref": "П-2026-0023",
+      "field": "color",
+      "old": "NUT",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48lw01rbls7yha5x50vo",
+      "ref": "П-2026-0023",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-125\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).",
+      "new": "bulk-import-registry-2026-09:row-125\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).\nЦвет по реестру: «NUT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kq01ohls7yuewl47sd",
+      "ref": "П-2026-0017",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kq01ohls7yuewl47sd",
+      "ref": "П-2026-0017",
+      "field": "color",
+      "old": "CLOUD 239264",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kq01ohls7yuewl47sd",
+      "ref": "П-2026-0017",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-97",
+      "new": "bulk-import-registry-2026-09:row-97\nЦвет по реестру: «CLOUD 239264»; базовый цвет (аналог в реестре): «С-Серый»; код цвета: 239264"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kz01p7ls7y7hr0a0cm",
+      "ref": "П-2026-0018",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kz01p7ls7y7hr0a0cm",
+      "ref": "П-2026-0018",
+      "field": "color",
+      "old": "FONDU",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48kz01p7ls7y7hr0a0cm",
+      "ref": "П-2026-0018",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-104",
+      "new": "bulk-import-registry-2026-09:row-104\nЦвет по реестру: «FONDU»; базовый цвет (аналог в реестре): «Коричневый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nk01w7ls7ywpjx82r2",
+      "ref": "П-2026-0032",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nk01w7ls7ywpjx82r2",
+      "ref": "П-2026-0032",
+      "field": "color",
+      "old": "FONDU",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nk01w7ls7ywpjx82r2",
+      "ref": "П-2026-0032",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-170",
+      "new": "bulk-import-registry-2026-09:row-170\nЦвет по реестру: «FONDU»; базовый цвет (аналог в реестре): «Коричневый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ns01wvls7yqxho9w0r",
+      "ref": "П-2026-0033",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ns01wvls7yqxho9w0r",
+      "ref": "П-2026-0033",
+      "field": "color",
+      "old": "CLOUD 239264",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ns01wvls7yqxho9w0r",
+      "ref": "П-2026-0033",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-177",
+      "new": "bulk-import-registry-2026-09:row-177\nЦвет по реестру: «CLOUD 239264»; базовый цвет (аналог в реестре): «С-Серый»; код цвета: 239264"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nb01vdls7yhjv7cvo9",
+      "ref": "П-2026-0031",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev29000xlse32bt1c2ca"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nb01vdls7yhjv7cvo9",
+      "ref": "П-2026-0031",
+      "field": "color",
+      "old": "TORTORA",
+      "new": "Тортора"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48nb01vdls7yhjv7cvo9",
+      "ref": "П-2026-0031",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-161\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).",
+      "new": "bulk-import-registry-2026-09:row-161\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-09-29).\nЦвет по реестру: «TORTORA»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pl020nls7ydgx9zwnc",
+      "ref": "П-2026-0039",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pl020nls7ydgx9zwnc",
+      "ref": "П-2026-0039",
+      "field": "color",
+      "old": "PASTEL",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pl020nls7ydgx9zwnc",
+      "ref": "П-2026-0039",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-213",
+      "new": "bulk-import-registry-2026-09:row-213\nЦвет по реестру: «PASTEL»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pp020zls7ykdgss5by",
+      "ref": "П-2026-0040",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pp020zls7ykdgss5by",
+      "ref": "П-2026-0040",
+      "field": "color",
+      "old": "NUT",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48pp020zls7ykdgss5by",
+      "ref": "П-2026-0040",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-216",
+      "new": "bulk-import-registry-2026-09:row-216\nЦвет по реестру: «NUT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qo023rls7ykaqyu1jj",
+      "ref": "П-2026-0046",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qo023rls7ykaqyu1jj",
+      "ref": "П-2026-0046",
+      "field": "color",
+      "old": "CLOUD 239264",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qo023rls7ykaqyu1jj",
+      "ref": "П-2026-0046",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-245",
+      "new": "bulk-import-registry-2026-09:row-245\nЦвет по реестру: «CLOUD 239264»; базовый цвет (аналог в реестре): «С-Серый»; код цвета: 239264"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qv024bls7y08cxcdxw",
+      "ref": "П-2026-0047",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qv024bls7y08cxcdxw",
+      "ref": "П-2026-0047",
+      "field": "color",
+      "old": "NUT",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48qv024bls7y08cxcdxw",
+      "ref": "П-2026-0047",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-251",
+      "new": "bulk-import-registry-2026-09:row-251\nЦвет по реестру: «NUT»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48s1027nls7yle7hlcww",
+      "ref": "П-2026-0055",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev29000xlse32bt1c2ca"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48s1027nls7yle7hlcww",
+      "ref": "П-2026-0055",
+      "field": "color",
+      "old": "TORTORA",
+      "new": "Тортора"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48s1027nls7yle7hlcww",
+      "ref": "П-2026-0055",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-280",
+      "new": "bulk-import-registry-2026-09:row-280\nЦвет по реестру: «TORTORA»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48t602b7ls7yuwor977m",
+      "ref": "П-2026-0061",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev29000xlse32bt1c2ca"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48t602b7ls7yuwor977m",
+      "ref": "П-2026-0061",
+      "field": "color",
+      "old": "TORTORA",
+      "new": "Тортора"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48t602b7ls7yuwor977m",
+      "ref": "П-2026-0061",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-312\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).",
+      "new": "bulk-import-registry-2026-09:row-312\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).\nЦвет по реестру: «TORTORA»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ts02czls7ylw7sjffn",
+      "ref": "П-2026-0065",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ts02czls7ylw7sjffn",
+      "ref": "П-2026-0065",
+      "field": "color",
+      "old": "CLOUD 239264",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48ts02czls7ylw7sjffn",
+      "ref": "П-2026-0065",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-329\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).",
+      "new": "bulk-import-registry-2026-09:row-329\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).\nЦвет по реестру: «CLOUD 239264»; базовый цвет (аналог в реестре): «С-Серый»; код цвета: 239264"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48u102dnls7y1y1n01pa",
+      "ref": "П-2026-0067",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48u102dnls7y1y1n01pa",
+      "ref": "П-2026-0067",
+      "field": "color",
+      "old": "Коричневый(фондю)",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48u102dnls7y1y1n01pa",
+      "ref": "П-2026-0067",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-335\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).",
+      "new": "bulk-import-registry-2026-09:row-335\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-11-18).\nЦвет по реестру: «Коричневый(фондю)»; базовый цвет (аналог в реестре): «Коричневый»"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48za02q5ls7yxhldzx4x",
+      "ref": "П-2026-0096",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48za02q5ls7yxhldzx4x",
+      "ref": "П-2026-0096",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "ProductionOrder",
+      "id": "cmupc48za02q5ls7yxhldzx4x",
+      "ref": "П-2026-0096",
+      "field": "notes",
+      "old": "bulk-import-registry-2026-09:row-449\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-12-29).",
+      "new": "bulk-import-registry-2026-09:row-449\n[даты из документов 2026-10-04] endDate 01.10.2026 был датой импорта, а не фактом — убран (дата выпуска не подтверждена, ждёт ручной проверки; кандидат 2025-12-29).\nЦвет по реестру: «пастель»; базовый цвет (аналог в реестре): «Бежевый»"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4851009lls7yf6k8oij5",
+      "ref": "З-2026-0010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4851009lls7yf6k8oij5",
+      "ref": "З-2026-0010",
+      "field": "color",
+      "old": "орех",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4856009tls7y2v52druj",
+      "ref": "З-2026-0011",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc4856009tls7y2v52druj",
+      "ref": "З-2026-0011",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc482i005hls7yamub4kpy",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483v007zls7yi3bxrtgg",
+      "ref": "З-2026-0008",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc483v007zls7yi3bxrtgg",
+      "ref": "З-2026-0008",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc485a00a1ls7ynpzy1c3v",
+      "ref": "З-2026-0012",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc485a00a1ls7ynpzy1c3v",
+      "ref": "З-2026-0012",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc485e00a9ls7y8sbc119a",
+      "ref": "З-2026-0013",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc485e00a9ls7y8sbc119a",
+      "ref": "З-2026-0013",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484o008xls7y7q1m5kk9",
+      "ref": "З-2026-0010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484o008xls7y7q1m5kk9",
+      "ref": "З-2026-0010",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484t0095ls7y30rjx10q",
+      "ref": "З-2026-0010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev4m0013lse3cchmz756"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484t0095ls7y30rjx10q",
+      "ref": "З-2026-0010",
+      "field": "color",
+      "old": "нуга",
+      "new": "Нуга"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484x009dls7ydvclv524",
+      "ref": "З-2026-0010",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc484x009dls7ydvclv524",
+      "ref": "З-2026-0010",
+      "field": "color",
+      "old": "облако",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48280049ls7y4jgfho3m",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48280049ls7y4jgfho3m",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48140025ls7ylxpnerk3",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48250041ls7y39srbhpw",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc48250041ls7y39srbhpw",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481a002dls7yo3edvuc9",
+      "ref": "З-2026-0002",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmupc481a002dls7yo3edvuc9",
+      "ref": "З-2026-0002",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmut47a0y0007lsgnfmqu3ol2",
+      "ref": "З-2026-0063",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eu090001lse3plpprghi"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmut47a0y0007lsgnfmqu3ol2",
+      "ref": "З-2026-0063",
+      "field": "color",
+      "old": "black",
+      "new": "Чёрный"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmut47a7b0009lsgn0dy253zv",
+      "ref": "З-2026-0063",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3eub30003lse3o1xetvhx"
+    },
+    {
+      "kind": "set",
+      "entity": "PurchaseItem",
+      "id": "cmut47a7b0009lsgn0dy253zv",
+      "ref": "З-2026-0063",
+      "field": "color",
+      "old": "brown",
+      "new": "Коричневый"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc485a00a3ls7y9dq2r6pa",
+      "ref": "лот фондю-3",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc485a00a3ls7y9dq2r6pa",
+      "ref": "лот фондю-3",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484o008zls7yxru3ikoi",
+      "ref": "лот фондю-1",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484o008zls7yxru3ikoi",
+      "ref": "лот фондю-1",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484u0097ls7yulph17yp",
+      "ref": "лот нуга",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev4m0013lse3cchmz756"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484u0097ls7yulph17yp",
+      "ref": "лот нуга",
+      "field": "color",
+      "old": "нуга",
+      "new": "Нуга"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484y009fls7y0afao0ui",
+      "ref": "лот облако",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3evao0019lse30b05ghio"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc484y009fls7y0afao0ui",
+      "ref": "лот облако",
+      "field": "color",
+      "old": "облако",
+      "new": "Облако"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4851009nls7y2sfeuxil",
+      "ref": "лот орех",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev30000zlse3hvr3arc6"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4851009nls7y2sfeuxil",
+      "ref": "лот орех",
+      "field": "color",
+      "old": "орех",
+      "new": "Орех"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4856009vls7yqqyv6x26",
+      "ref": "лот фондю-2",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4856009vls7yqqyv6x26",
+      "ref": "лот фондю-2",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483w0081ls7y5tsbc33g",
+      "ref": "лот 5017/5020/5016",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc483w0081ls7y5tsbc33g",
+      "ref": "лот 5017/5020/5016",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4828004bls7y02ub3ah3",
+      "ref": "лот 505055",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc4828004bls7y02ub3ah3",
+      "ref": "лот 505055",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48250043ls7yn2unbf7z",
+      "ref": "лот 505053",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48250043ls7yn2unbf7z",
+      "ref": "лот 505053",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc482j005jls7yd7tgojtu",
+      "ref": "лот 518005",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc485e00abls7yk6dnlwk3",
+      "ref": "лот фондю-4",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev3v0011lse38dr15pf6"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc485e00abls7yk6dnlwk3",
+      "ref": "лот фондю-4",
+      "field": "color",
+      "old": "фондю",
+      "new": "Фондю"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481b002fls7yulj0k5ee",
+      "ref": "лот 605013",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev760015lse3fjmtjwua"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc481b002fls7yulj0k5ee",
+      "ref": "лот 605013",
+      "field": "color",
+      "old": "пастель",
+      "new": "Пастель"
+    },
+    {
+      "kind": "set",
+      "entity": "RawMaterialLot",
+      "id": "cmupc48150027ls7y9qc5jq7r",
+      "ref": "лот 618003",
+      "field": "colorRefId",
+      "old": null,
+      "new": "cmut3ev850017lse3x3w3lewg"
+    }
+  ]
+}

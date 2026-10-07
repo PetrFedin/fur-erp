@@ -1,0 +1,3159 @@
+{
+ "generatedAt": "2026-10-04",
+ "rows": [
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0001 (ТЗ 1, M001K)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0002 (ТЗ 2, M002)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0003 (ТЗ 3, M003)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0004 (ТЗ 4, M001A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0005 (ТЗ 5, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0006 (ТЗ 6, M010)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0007 (ТЗ 7, M011)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0008 (ТЗ 8, M015)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0009 (ТЗ 9, M005)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0010 (ТЗ 10, M020)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0011 (ТЗ 11, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0012 (ТЗ 12, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0013 (ТЗ 13, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0014 (ТЗ 14, M019)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0015 (ТЗ 15, M018)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0016 (ТЗ 16, M018)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0017 (ТЗ 17, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0018 (ТЗ 18, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0019 (ТЗ 19, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0020 (ТЗ 19, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0021 (ТЗ 19, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0022 (ТЗ 20, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0023 (ТЗ 20, M020)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0024 (ТЗ 20, M018)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0025 (ТЗ 21, M004)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0026 (ТЗ 21, M002A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0027 (ТЗ 22, M015)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0028 (ТЗ 22, M011A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0029 (ТЗ 22, M010)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0030 (ТЗ 22, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0031 (ТЗ 23, M003)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0032 (ТЗ 24, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0033 (ТЗ 25, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0034 (ТЗ 26, M005)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0035 (ТЗ 27, M017)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0036 (ТЗ 28, M013)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0037 (ТЗ 29, M002A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0038 (ТЗ 30, M010)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0039 (ТЗ 31, M010)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0040 (ТЗ 32, M020)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0041 (ТЗ 33, M016)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0042 (ТЗ 34, M011)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0043 (ТЗ 35, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0044 (ТЗ 36, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0045 (ТЗ 37, M004)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0046 (ТЗ 38, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0047 (ТЗ 39, M020)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0048 (ТЗ 40, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0049 (ТЗ 40, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0050 (ТЗ 41, M016)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0051 (ТЗ 42, M011)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0052 (ТЗ 43, M011)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0053 (ТЗ 44, M013)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0054 (ТЗ 45, M006)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0055 (ТЗ 46, M003)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0056 (ТЗ 47, M011A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0057 (ТЗ 48, M022)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0058 (ТЗ 49, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0059 (ТЗ 50, M016)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0060 (ТЗ 51, M002)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0061 (ТЗ 52, M003)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0062 (ТЗ 53, M006)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0063 (ТЗ 54, M022)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0064 (ТЗ 55, M020)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0065 (ТЗ 56, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0066 (ТЗ 57, M018)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0067 (ТЗ 58, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0068 (ТЗ 59, M002)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0069 (ТЗ 60, M004)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0070 (ТЗ 61, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0071 (ТЗ 62, MSC-02)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0072 (ТЗ 63, MH08)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0073 (ТЗ 64, MH06)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0074 (ТЗ 65, MH06)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0075 (ТЗ 66, MH06)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0076 (ТЗ 67, MH05)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0077 (ТЗ 68, MH05)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0078 (ТЗ 69, MH04)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0079 (ТЗ 70, MH03)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0080 (ТЗ 71, MH03)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0081 (ТЗ 72, MH05)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0082 (ТЗ 73, MH06)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0083 (ТЗ 74, MH15)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0084 (ТЗ 76, MH01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0085 (ТЗ 77, MH17)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0086 (ТЗ 78, M022)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0087 (ТЗ 79, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0088 (ТЗ 80, M016)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0089 (ТЗ 81, M015)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0090 (ТЗ 82, M001A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0091 (ТЗ 83, M005)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0092 (ТЗ 84, M001A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0093 (ТЗ 85, M015)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0094 (ТЗ 86, M022)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0095 (ТЗ 87, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0096 (ТЗ 88, MGL02)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0097 (ТЗ 89, MH15)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0098 (ТЗ 90, M021)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0099 (ТЗ 91, MH02)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0100 (ТЗ 92, MH02)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0101 (ТЗ 93, MH02)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0102 (ТЗ 94, MH09)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0103 (ТЗ 95, MH17)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0104 (ТЗ 96, MH06)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0105 (ТЗ 98, MH09)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "57,58,59,60,61,62",
+     "registry": null,
+     "doc": "62,61x2,60,59x3,58,57",
+     "source": "ПРИЛОЖЕНИЕ 98 (МН09 соболь 10 шт) 4%.docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0106 (ТЗ 99, MH17)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0107 (ТЗ 100, MGL01)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "6,7,8",
+     "registry": null,
+     "doc": "6,7,7,7,8",
+     "source": "ПРИЛОЖЕНИЕ 100 (варежки) 4%.docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0108 (ТЗ 101, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0109 (ТЗ 102, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0110 (ТЗ 103, MH17)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "57,59,60,61,62",
+     "registry": null,
+     "doc": "57,59,59,60,61,61,62",
+     "source": "ПРИЛОЖЕНИЕ 103 (МН17 норка 7 шт.)+4%.docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0111 (ТЗ 105, MGL01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0112 (ТЗ 106, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0113 (ТЗ 107, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0114 (ТЗ 108, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0115 (ТЗ 109, MSC-01)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0116 (ТЗ 110, M003)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "plannedQuantity",
+     "db": 1.0,
+     "registry": 3.0,
+     "doc": [
+      1,
+      1,
+      1
+     ],
+     "source": "Реестр (единый) стр.505"
+    }
+   ],
+   "note": "Реестр: 3 ед. (при той же сумме 217 350), БД и документы (расчёт партии 12, письмо «партия 12 остаток – 1 ед»): 1 ед. — БД верна"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0117 (ТЗ 111, MH12)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "57,58,59,60,61,62",
+     "registry": null,
+     "doc": "57,58,59x2,60x2,61,62",
+     "source": "ПРИЛОЖЕНИЕ 111 (MH12 - 8 шт.).docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0118 (ТЗ 112, MH13)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "57,58,59,60,61,62",
+     "registry": null,
+     "doc": "57,58x2,59x4,60,61x2,62x2",
+     "source": "ПРИЛОЖЕНИЕ 112 (MH13 - 12 шт.).docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0119 (ТЗ 113, МН16)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "58,60,61,62",
+     "registry": "58,60,62,64",
+     "doc": [
+      "58,60,61,62",
+      "58,60,61,62",
+      null
+     ],
+     "source": "Реестр (единый) стр.514"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0120 (ТЗ 114, МН16)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0121 (ТЗ 115, МН11)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "57,58,59,60,61,62",
+     "registry": null,
+     "doc": "57,58,58,59,59,60,61,62",
+     "source": "ПРИЛОЖЕНИЕ 115 (MH11 - 8 шт.).docx"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0122 (ТЗ 117, М057)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0123 (ТЗ 118, MSC03)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0124 (ТЗ 118, MSC04)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0125 (ТЗ 118, MSC04)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0126 (ТЗ 118, MSC05)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0127 (ТЗ 119, M025)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0128 (ТЗ 120, М056)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0129 (ТЗ 121, М029)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0130 (ТЗ 122, MSC03)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "workTotal",
+     "db": 90000.0,
+     "registry": 110400.0,
+     "doc": [
+      18000,
+      18000
+     ],
+     "source": "Реестр (единый) стр.548"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0131 (ТЗ 123, М041)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0132 (ТЗ 124, M001E)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "42 44 46",
+     "registry": "42 44 45",
+     "doc": [
+      "42,44,46",
+      null
+     ],
+     "source": "Реестр (единый) стр.554"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0133 (ТЗ 125, M002)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0134 (ТЗ 126, MSC04)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0135 (ТЗ 127, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0136 (ТЗ 128, М052)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0137 (ТЗ 129, MSC03)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0138 (ТЗ 130, MSC04)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0139 (ТЗ 131, MSC06)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "workTotal",
+     "db": 147500.0,
+     "registry": 154185.0,
+     "doc": [
+      29500,
+      29500
+     ],
+     "source": "Реестр (единый) стр.593"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0140 (ТЗ 132, М049)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0141 (ТЗ 133, M001A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0142 (ТЗ 134, MSC05)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0143 (ТЗ 135, МН16)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0144 (ТЗ 136, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0145 (ТЗ 137, М045)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "40 42 42 44 44 44 46 46 48 50",
+     "registry": "40 42 42 44 44 44 46 48 50",
+     "doc": [
+      "40,42,42,44,44,44,46,46,48,50",
+      null
+     ],
+     "source": "Реестр (единый) стр.651"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0146 (ТЗ 138, M009)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0147 (ТЗ 139, М046)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0148 (ТЗ 140, M002A)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0149 (ТЗ 141, M001K)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0150 (ТЗ 142, М038)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0151 (ТЗ 143, М050)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0152 (ТЗ 144, М028)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "workTotal",
+     "db": 263000.0,
+     "registry": 0,
+     "doc": [
+      263000
+     ],
+     "source": "Реестр (единый) стр.705"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0153 (ТЗ 145, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0154 (ТЗ 146, MSC06)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "workTotal",
+     "db": 147500.0,
+     "registry": 140815.0,
+     "doc": [
+      29500
+     ],
+     "source": "Реестр (единый) стр.718"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0155 (ТЗ 147, M012)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0156 (ТЗ 148, М031)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0157 (ТЗ 149, М056)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0158 (ТЗ 150, М026)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0159 (ТЗ 151, MSC03)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0160 (ТЗ 88, MGL01)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "6 6 6 7 7 7 8 8",
+     "registry": "6,7,8",
+     "doc": null,
+     "source": "Реестр (единый) стр.446"
+    },
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 8.0,
+     "doc": 8.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0161 (ТЗ 88, MGL03)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "6 6 6 7 7 7 8 8",
+     "registry": "6,7,8",
+     "doc": null,
+     "source": "Реестр (единый) стр.447"
+    },
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 8.0,
+     "doc": 8.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0162 (ТЗ 88, MGL02)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 8.0,
+     "doc": 8.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0163 (ТЗ 75, MH07)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "workTotal",
+     "db": 34564.0,
+     "registry": 34566.66666666667,
+     "doc": [
+      8641,
+      8641
+     ],
+     "source": "Реестр (единый) стр.390"
+    },
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 4.0,
+     "doc": 4.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 7 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №75 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0164 (ТЗ 97, MH17)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "size",
+     "db": "62 61 60 59 59 59 58 58 57",
+     "registry": "57,58,59,60,61,62",
+     "doc": [
+      "62,61,60,59x3,58x2,57",
+      "62,61,60,59x3,58x2,57"
+     ],
+     "source": "Реестр (единый) стр.473"
+    },
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 9.0,
+     "doc": 9.0,
+     "source": "письмо 18–19.02.2026 «расчёт доплаты по партии 10 (26 ед) + счёт №41», согласовано; ТЗ №97 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0165 (ТЗ 104, MH17)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": 1.0,
+     "doc": 1.0,
+     "source": "письмо 24.02–02.03.2026 «поставка 11 – 14 ед – 347 895», подтверждено 27.02.2026; ТЗ №104 есть в «Реестре произведённых артикулов» (≤151)"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0166 (ТЗ 152, M002A)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 1.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 152 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0167 (ТЗ 153, M012)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 4.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 153 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0168 (ТЗ 154, M009)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 8.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 154 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0169 (ТЗ 155, M009)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 7.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 155 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0170 (ТЗ 156, MSC-02)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 3.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 156 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0171 (ТЗ 157, М046)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 1.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 157 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0172 (ТЗ 158, М029)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 3.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 158 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0173 (ТЗ 159, MSC03)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 9.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 159 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0174 (ТЗ 160, MH03)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 8.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 160 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0175 (ТЗ 161, MH05)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 10.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 161 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0176 (ТЗ 162, MH05)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": 14.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "ТЗ 162 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0177 (ТЗ 163, MSC03)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 163 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0178 (ТЗ 164, MSC05)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 164 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0179 (ТЗ 165, М046)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 165 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0180 (ТЗ 166, М056)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 166 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0181 (ТЗ 167, М038)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 167 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0182 (ТЗ 168, M012)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: партия 21: приёмка поставки в документах не найдена (расчёт 23.09, счёт №275 от 01.10.2026)"
+    }
+   ],
+   "note": "ТЗ 168 создано по документам Drive после даты реестра (реестр заканчивается ТЗ 151)"
+  },
+  {
+   "entity": "ProductionOrder",
+   "id": "П-2026-0183 (ТЗ 116, Ремонт пальто)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0,
+     "registry": null,
+     "doc": null,
+     "source": "ждёт ручного ввода: ТЗ 116 «Ремонт пальто»: только строка реестра (7 ед.), ни даты, ни партии, ни документа приёмки"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 1",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 1"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 2",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 2"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 3",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 3"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 4",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 4"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 5",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 5"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 6",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 6"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 7",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 46.0,
+     "registry": null,
+     "doc": 50.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 7 (сумма отгрузки = работа всех ТЗ партии + шкуры)"
+    }
+   ],
+   "note": "Поставка 7"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 8",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "производство",
+     "db": "3 ТЗ MGL IN_PROGRESS, выпуск 0",
+     "registry": 24,
+     "doc": "баланс 040226",
+     "source": "ТЗ 88"
+    },
+    {
+     "field": "producedQuantity",
+     "db": 22.0,
+     "registry": null,
+     "doc": 46.0,
+     "source": "баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры)"
+    }
+   ],
+   "note": "Поставка 8"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 9",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 9"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 10",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 17.0,
+     "registry": null,
+     "doc": 26.0,
+     "source": "письмо 18–19.02.2026 «расчёт доплаты по партии 10 (26 ед) + счёт №41», согласовано"
+    }
+   ],
+   "note": "Поставка 10"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 11",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 13.0,
+     "registry": null,
+     "doc": 14.0,
+     "source": "письмо 24.02–02.03.2026 «поставка 11 – 14 ед – 347 895», подтверждено 27.02.2026"
+    }
+   ],
+   "note": "Поставка 11"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 12",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "изделий",
+     "db": 49.0,
+     "registry": 51.0,
+     "doc": null,
+     "source": "Реестр (единый)"
+    }
+   ],
+   "note": "Поставка 12"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 13",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 13"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 14",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 14"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 15",
+   "status": "only_db",
+   "fields": [],
+   "note": "Поставка 15"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 16",
+   "status": "only_db",
+   "fields": [],
+   "note": "Поставка 16"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 17",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 17"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 18",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 18"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 19",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 19"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 20",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "producedQuantity",
+     "db": 0.0,
+     "registry": null,
+     "doc": 68.0,
+     "source": "письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+    }
+   ],
+   "note": "Поставка 20"
+  },
+  {
+   "entity": "ProductionBatch",
+   "id": "Партия 21",
+   "status": "match",
+   "fields": [],
+   "note": "Поставка 21"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0001 (, сч. )",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "status",
+     "db": "RECEIVED",
+     "registry": null,
+     "doc": null,
+     "source": "нет УПД/документа поставки"
+    }
+   ],
+   "note": "нет УПД (скан в Drive не привязан); не указан номер УПД; нет счёта (счёт Веллмех / инвойс аукциона); нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0002 (SAGA 03-25, сч. 103)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 16.78"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0003 (SAGA 06-25, сч. 127)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0004 (СП 12.25, сч. 4014)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0005 (КФХ Дуденко Л. Н., сч. 5К7)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0006 (КФХ Дуденко Л. Н., сч. 7)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0007 (КФХ Дуденко Л. Н., сч. 8)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0008 (Нет информации, сч. 80)",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0009 (Нет информации, сч. 96)",
+   "status": "match",
+   "fields": [],
+   "note": "нет счёта (счёт Веллмех / инвойс аукциона)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0010 (Нет информации, сч. Доп закупк сырья партия 5)",
+   "status": "match",
+   "fields": [],
+   "note": "нет УПД (скан в Drive не привязан); нет счёта (счёт Веллмех / инвойс аукциона); нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0011 (Нет информации, сч. Доп закупк сырья партия 6)",
+   "status": "match",
+   "fields": [],
+   "note": "нет УПД (скан в Drive не привязан); нет счёта (счёт Веллмех / инвойс аукциона); нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0012 (Нет информации, сч. Доп закупк сырья партия 7)",
+   "status": "match",
+   "fields": [],
+   "note": "нет УПД (скан в Drive не привязан); нет счёта (счёт Веллмех / инвойс аукциона); нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0013 (Нет информации, сч. Доп закупк сырья партия 9)",
+   "status": "match",
+   "fields": [],
+   "note": "нет УПД (скан в Drive не привязан); нет счёта (счёт Веллмех / инвойс аукциона); нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0014 (РП 03.25, сч. 2153)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 30.40"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0015 (РП 03.25, сч. 2154)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 30.40"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0016 (РП 03.25, сч. 2155)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 30.40"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0017 (РП 03.25, сч. 2156)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 30.40"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0018 (РП 03.25, сч. 2157)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 30.40"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0019 (РП 05.25, сч. 2227)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0020 (СП 03.25, сч. 1046)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0021 (СП 03.25, сч. 1048)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0022 (СП 03.25, сч. 1049)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0023 (СП 03.25, сч. 1050)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0024 (СП 03.25, сч. 1051)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0025 (СП 03.25, сч. 1052)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0026 (СП 03.25, сч. 1053)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 10.54"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0027 (СП 05.25, сч. 2004)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0028 (СП 05.25, сч. 2094)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0029 (СП 05.25, сч. 2095)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0032 (Подкладка Спец. 7 (УПД 109), сч. 100)",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестрах (остатки/закупка F25/FW26/отчёт); нет в реестре; аукцион оплачен не полностью: остаток 1357.05"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0033 (SAGA 03-26, сч. 0534-002)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0034 (SAGA 03-26, сч. 1057-001)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0035 (SAGA 03-26, сч. 0170-003)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0036 (SAGA 03-26, сч. 0171-003)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0037 (SAGA 03-26, сч. 0002-003)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0038 (SAGA 03-26, сч. 0282-003)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0039 (SAGA 03-26, сч. 1885-001)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0040 (SAGA 03-26, сч. 0278-003)",
+   "status": "match",
+   "fields": [],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 22807924.69"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0041 (Закупка меха 04-26, сч. 4079)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0042 (Закупка меха 04-26, сч. 4080)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0043 (Закупка меха 04-26, сч. 4081)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0044 (Закупка меха 04-26, сч. 4083)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0045 (Закупка меха 04-26, сч. 4084)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0046 (Закупка меха 04-26, сч. 4085)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 5438524.49"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0047 (СОЮЗПУШНИНА 05-26, сч. 2020)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 21426435.08"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0048 (СОЮЗПУШНИНА 05-26, сч. 2019)",
+   "status": "match",
+   "fields": [],
+   "note": "аукцион оплачен не полностью: остаток 21426435.08"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0049 (FH 06-26, сч. 32324)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 88666553.98; DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0050 (СП 09-26, сч. 3017)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0051 (СП 09-26, сч. 3018)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0052 (СП 09-26, сч. 3019)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0053 (СП 09-26, сч. 3020)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0054 (СП 09-26, сч. 3022)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0055 (СП 09-26, сч. 3023)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0056 (СП 09-26, сч. 3024)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0057 (СП 09-26, сч. 3050)",
+   "status": "match",
+   "fields": [],
+   "note": "черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0058 (AME 05-26, сч. 253)",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "qty/amount",
+     "db": "371 шт / 3 581 815,79 (УПД №253)",
+     "registry": "376 шт / 3 320 504,56 (предв. расчёт)",
+     "doc": "УПД №253",
+     "source": "отчёт 08.06.2026, закупка FW26"
+    }
+   ],
+   "note": "есть оплаты без номера п/п (не подтверждены); аукцион оплачен не полностью: остаток 353992.79"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0059 (, сч. 209)",
+   "status": "match",
+   "fields": [],
+   "note": "нет платёжки (оплат нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0060 (Подкладка Спец. 7 (УПД 109), сч. 100)",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестрах (остатки/закупка F25/FW26/отчёт); нет в реестре; аукцион оплачен не полностью: остаток 1357.05"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0061 (Подкладка Спец. 13, сч. 157)",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестрах (остатки/закупка F25/FW26/отчёт); нет в реестре; черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0062 (Доп. материалы Спец. 16, сч. 181)",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестрах (остатки/закупка F25/FW26/отчёт); нет в реестре; черновик: мех не принят, УПД нет; нет платёжки (оплат нет); DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "З-2026-0063 (Invoice 1-2026 (бобр), сч. 1-2026)",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в coverage-matrix; DRAFT соответствует документам (УПД/поставки нет)"
+  },
+  {
+   "entity": "Purchase",
+   "id": "Бобр (Dressed beaver), Invoice Nr 1-2026 от 06.08.2026, YUSUFOĞULLARI TEKSTİL DE",
+   "status": "only_registry",
+   "fields": [
+    {
+     "field": "all",
+     "db": null,
+     "registry": 4490090.0,
+     "doc": null,
+     "source": "закупка FW26"
+    }
+   ],
+   "note": "нет в БД: закупка не заведена; нет УПД; нет платёжки"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 53423 2025-06-27 30666300.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №53423 от 27.06.2025; счёт Веллмех №83"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 00440 2025-02-28 34825000.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №440 от 28.02.2025; счёт Веллмех №31 от 27.02.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 33980 2025-03-14 79898902.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п от 14.03.2025 (№33979 по УПД №78, №33980 по реестру); сч"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 45637 2025-05-16 11146950.0",
+   "status": "match",
+   "fields": [],
+   "note": "реестр одна платёжка = 2 записи БД (разнесение РП/СП)"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 48466 2025-05-30 1632000.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №48466 от 30.05.2025; счёт Веллмех №81 от 26.05.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 64015 2025-08-22 195404.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №64015 от 22.08.2025; счёт Веллмех №117 от 29.07.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 54215 2025-07-03 1537404.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №54215 от 03.07.2025; счёт Веллмех №95 от 24.06.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 64499 2025-08-26 123836.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №64499 от 26.08.2025; счёт Веллмех №122 от 04.08.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 56327 2025-07-15 2000000.0",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "paidAt",
+     "db": "2025-06-27",
+     "registry": "2025-07-15",
+     "doc": "п/п от 27.06.2025 (в УПД №96 назван №53423); счёт Веллмех №96 от 24.06.2025",
+     "source": "TTL сырье"
+    }
+   ],
+   "note": "сумма совпала, дата другая"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 49288 2025-06-04 1718400.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №49288 от 04.06.2025; счёт Веллмех №80 от 26.05.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 51723 2025-06-19 1210000.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №51723 от 19.06.2025; счёт Веллмех №92 от 16.06.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 64014 2025-08-22 1061306.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №64014 от 22.08.2025; счёт Веллмех №127 от 13.08.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 33979 2025-03-14 24556500.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №33980 от 14.03.2025; счёт Веллмех №40 от 10.03.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 36343 2025-03-26 11950000.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №36343 от 26.03.2025; счёт Веллмех №46 от 14.03.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 45675 2025-05-16 10924000.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №45675 от 16.05.2025; счёт Веллмех №76 от 13.05.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 60611 2025-08-04 1695778.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №60611 от 04.08.2025; счёт Веллмех №103 от 03.07.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "п/п 54214 2025-07-03 1455842.0",
+   "status": "match",
+   "fields": [],
+   "note": "докRef: п/п №54214 от 03.07.2025; счёт Веллмех №100 от 01.07.2025"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-03-30 24200000.0 счёт Веллмех №93",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-04-14 22891800.0 счёт Веллмех №105 от 06.04.2026; дата по",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-04-22 6304375.0 п/п №40593 от 22.04.2026; счёт Веллмех №",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-04-22 21608125.0 п/п №40593 от 22.04.2026; счёт Веллмех №",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-05-12 60271506.34 п/п №43831 от 12.05.2026; счёт Веллмех №",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-05-28 30660000.0 счёт Веллмех №155 от 22.05.2026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-05-28 761250.0 п/п №46538 от 28.05.2026; счёт Веллмех №",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-06-04 2466573.0 счёт Веллмех №167",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-07-09 19628147.54 счёт Веллмех №149 от 22.05.2026; дата по",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "Payment",
+   "id": "2026-07-20 2380500.0 счёт Веллмех №195 от 03.07.2026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (платёж после даты реестра/вне 2025); confirmed=false (платёжки нет)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 4603900.0 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 698082.7 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 1770069.9 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 954890.35 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 2103457.05 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 3942400.0 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 4714500.0 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-08-04 2840600.0 Счёт №110 от 21.07.2025",
+   "status": "match",
+   "fields": [],
+   "note": "аванс 21 627 900 в реестре разнесён по партиям (сумма совпала)"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-10-02 1866490.0 Счёт №147 от 22.09.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-10-15 1208570.0 Счёт №170 от 30.09.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-10-22 2081360.0 Счёт №181 от 17.10.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-20 1759800.0 Счёт №203 от 14.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-27 116867.1 Счёт №209 от 19.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-27 835405.2 Счёт №209 от 19.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-27 352142.95 Счёт №209 от 19.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-27 159859.65 Счёт №209 от 19.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-11-27 302595.1 Счёт №209 от 19.11.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-12-22 5669120.0 Счёт №235 от 04.12.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2025-12-26 946870.0 Счёт №239 от 18.12.2025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2026-01-21 2075122.54 Счёт №1 от 15.01.2026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2026-07-06 11860870.0 Счёт №141 от 15.05.2026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "2026-07-06 3230780.0 Счёт №143 от 15.05.2026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в реестре (реестр без оплат заказчика после 08.2025); подтверждено счетами/балансом 040226/письмами"
+  },
+  {
+   "entity": "ProductionPayment",
+   "id": "п/п 60610 04.08.2025 21 627 900 (реестр)",
+   "status": "match",
+   "fields": [],
+   "note": "Σ частей в БД = 21 627 900"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH15",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH17",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH12",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH13",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "МН16",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "МН11",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М057",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC03",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC04",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC05",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M025",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М056",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М029",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M002A",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M011A",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M006",
+   "status": "diff",
+   "fields": [
+    {
+     "field": "sellingPrice",
+     "db": 2345000.0,
+     "registry": [
+      1985000.0
+     ],
+     "doc": null,
+     "source": "EB заказ/Лист12 П.Р.Ц."
+    }
+   ],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M013",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M011",
+   "status": "match",
+   "fields": [],
+   "note": "в реестре несколько цен по цветам [2175000.0, 2290000.0]; БД = одна из них"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M004",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M019",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M022",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MGL01",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M016",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MGL02",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH02",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH04",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH05",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH08",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC-01",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH09",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М041",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M001E",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М052",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC06",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М049",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М045",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М046",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М038",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М050",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М028",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М031",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М026",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М023",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М030",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М039",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М040",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М044",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М054",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "М055",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "Ремонт пальто",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M005",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M010",
+   "status": "match",
+   "fields": [],
+   "note": "в реестре несколько цен по цветам [1435000.0, 1850000.0]; БД = одна из них"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M012",
+   "status": "match",
+   "fields": [],
+   "note": "в реестре несколько цен по цветам [649000.0, 780000.0]; БД = одна из них"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M015",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M017",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M021",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MGL03",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH07",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M002",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M003",
+   "status": "match",
+   "fields": [],
+   "note": "в реестре несколько цен по цветам [5350000.0, 6850000.0]; БД = одна из них"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M009",
+   "status": "match",
+   "fields": [],
+   "note": "в реестре несколько цен по цветам [1525000.0, 1780000.0]; БД = одна из них"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M018",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M020",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH01",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH03",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MH06",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "MSC-02",
+   "status": "only_db",
+   "fields": [],
+   "note": "нет в листах заказа (EB заказ/Лист12)"
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M001A",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  },
+  {
+   "entity": "ProductModel",
+   "id": "M001K",
+   "status": "match",
+   "fields": [],
+   "note": ""
+  }
+ ]
+}

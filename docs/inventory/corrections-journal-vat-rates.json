@@ -1,0 +1,163 @@
+{
+  "script": "fix-vat-rates.ts",
+  "appliedAt": "2026-10-04T14:31:02.749Z",
+  "entries": [
+    {
+      "purchase": "З-2026-0010",
+      "itemId": "cmupc484o008xls7y7q1m5kk9",
+      "lotId": "cmupc484o008zls7yxru3ikoi",
+      "doc": "счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500)",
+      "item": {
+        "vatRate": "22",
+        "unitPrice": "10860.66",
+        "subtotal": "1140368.85",
+        "notes": null
+      },
+      "lot": {
+        "vatRate": "22",
+        "materialCostExclVat": "10860.66",
+        "materialVatAmount": "2389.34"
+      },
+      "newItem": {
+        "vatRate": "20",
+        "unitPrice": "11041.67",
+        "subtotal": "1159375",
+        "notes": "[fix-vat] НДС 22% → 20% по документу: счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500). Цена с НДС не изменилась."
+      },
+      "newLot": {
+        "vatRate": "20",
+        "materialCostExclVat": "11041.67",
+        "materialVatAmount": "2208.33"
+      }
+    },
+    {
+      "purchase": "З-2026-0010",
+      "itemId": "cmupc484t0095ls7y30rjx10q",
+      "lotId": "cmupc484u0097ls7yulph17yp",
+      "doc": "счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500)",
+      "item": {
+        "vatRate": "22",
+        "unitPrice": "10860.66",
+        "subtotal": "434426.23",
+        "notes": null
+      },
+      "lot": {
+        "vatRate": "22",
+        "materialCostExclVat": "10860.66",
+        "materialVatAmount": "2389.34"
+      },
+      "newItem": {
+        "vatRate": "20",
+        "unitPrice": "11041.67",
+        "subtotal": "441666.67",
+        "notes": "[fix-vat] НДС 22% → 20% по документу: счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500). Цена с НДС не изменилась."
+      },
+      "newLot": {
+        "vatRate": "20",
+        "materialCostExclVat": "11041.67",
+        "materialVatAmount": "2208.33"
+      }
+    },
+    {
+      "purchase": "З-2026-0010",
+      "itemId": "cmupc484x009dls7ydvclv524",
+      "lotId": "cmupc484y009fls7y0afao0ui",
+      "doc": "счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500)",
+      "item": {
+        "vatRate": "22",
+        "unitPrice": "10860.66",
+        "subtotal": "1140368.85",
+        "notes": null
+      },
+      "lot": {
+        "vatRate": "22",
+        "materialCostExclVat": "10860.66",
+        "materialVatAmount": "2389.34"
+      },
+      "newItem": {
+        "vatRate": "20",
+        "unitPrice": "11041.67",
+        "subtotal": "1159375",
+        "notes": "[fix-vat] НДС 22% → 20% по документу: счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500). Цена с НДС не изменилась."
+      },
+      "newLot": {
+        "vatRate": "20",
+        "materialCostExclVat": "11041.67",
+        "materialVatAmount": "2208.33"
+      }
+    },
+    {
+      "purchase": "З-2026-0010",
+      "itemId": "cmupc4851009lls7yf6k8oij5",
+      "lotId": "cmupc4851009nls7y2sfeuxil",
+      "doc": "счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500)",
+      "item": {
+        "vatRate": "22",
+        "unitPrice": "10860.66",
+        "subtotal": "1042622.95",
+        "notes": null
+      },
+      "lot": {
+        "vatRate": "22",
+        "materialCostExclVat": "10860.66",
+        "materialVatAmount": "2389.34"
+      },
+      "newItem": {
+        "vatRate": "20",
+        "unitPrice": "11041.67",
+        "subtotal": "1060000",
+        "notes": "[fix-vat] НДС 22% → 20% по документу: счёт №235 от 04.12.2025: НДС 20% (доплата партии 5 со шкурами подрядчика 4 584 500). Цена с НДС не изменилась."
+      },
+      "newLot": {
+        "vatRate": "20",
+        "materialCostExclVat": "11041.67",
+        "materialVatAmount": "2208.33"
+      }
+    },
+    {
+      "purchase": "З-2026-0011",
+      "itemId": "cmupc4856009tls7y2v52druj",
+      "lotId": "cmupc4856009vls7yqqyv6x26",
+      "doc": "счёт №239 от 18.12.2025: НДС 20% (доплата партии 6 со шкурами подрядчика 463 750)",
+      "item": {
+        "vatRate": "22",
+        "unitPrice": "10860.66",
+        "subtotal": "380122.95",
+        "notes": null
+      },
+      "lot": {
+        "vatRate": "22",
+        "materialCostExclVat": "10860.66",
+        "materialVatAmount": "2389.34"
+      },
+      "newItem": {
+        "vatRate": "20",
+        "unitPrice": "11041.67",
+        "subtotal": "386458.33",
+        "notes": "[fix-vat] НДС 22% → 20% по документу: счёт №239 от 18.12.2025: НДС 20% (доплата партии 6 со шкурами подрядчика 463 750). Цена с НДС не изменилась."
+      },
+      "newLot": {
+        "vatRate": "20",
+        "materialCostExclVat": "11041.67",
+        "materialVatAmount": "2208.33"
+      }
+    }
+  ],
+  "beaver": [
+    {
+      "itemId": "cmut47a0y0007lsgnfmqu3ol2",
+      "old": "[fix:beaver] «Dressed beaver skin color black» (отчёт, стр. 165): 49 шт × 7870 ₽ = 385630 ₽. Лот, сорт, размер, валюта инвойса — не указаны.",
+      "new": "[fix:beaver] «Dressed beaver skin color black» (отчёт, стр. 165): 49 шт × 7870 ₽ = 385630 ₽. Лот, сорт, размер, валюта инвойса — не указаны.\n[vat:note] Ставка НДС 0% — как в источнике (отчёт 08.06.2026); ставка ждёт инвойса."
+    },
+    {
+      "itemId": "cmut47a7b0009lsgn0dy253zv",
+      "old": "[fix:beaver] «Dressed beaver skin color brown» (отчёт, стр. 166): 376 шт × 7870 ₽ = 2959120 ₽. Лот, сорт, размер, валюта инвойса — не указаны.",
+      "new": "[fix:beaver] «Dressed beaver skin color brown» (отчёт, стр. 166): 376 шт × 7870 ₽ = 2959120 ₽. Лот, сорт, размер, валюта инвойса — не указаны.\n[vat:note] Ставка НДС 0% — как в источнике (отчёт 08.06.2026); ставка ждёт инвойса."
+    },
+    {
+      "itemId": "cmut47a9r000blsgnf4gpo7ek",
+      "old": "[fix:beaver] «Dressed beaver skin color deep blue» (отчёт, стр. 167): 162 шт × 7070 ₽ = 1145340 ₽. Лот, сорт, размер, валюта инвойса — не указаны.",
+      "new": "[fix:beaver] «Dressed beaver skin color deep blue» (отчёт, стр. 167): 162 шт × 7070 ₽ = 1145340 ₽. Лот, сорт, размер, валюта инвойса — не указаны.\n[vat:note] Ставка НДС 0% — как в источнике (отчёт 08.06.2026); ставка ждёт инвойса."
+    }
+  ]
+}

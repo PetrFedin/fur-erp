@@ -1,0 +1,379 @@
+{
+ "script": "complete-delivered-orders.ts",
+ "time": "2026-10-04T16:41:32.482Z",
+ "changes": [
+  {
+   "orderId": "cmupo4c0z369e59c6e78189ee57",
+   "number": "П-2026-0160",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "8",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": null,
+    "notes": "ТЗ №88, позиция MGL01 ×8 (работа 7 320): выделено из П-2026-0096 (apply-drive-production-corrections).\n[сверка 2026-10-04] выпуск: баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+   },
+   "after": {
+    "totalCost": "682691.36",
+    "unitCost": "85336.42",
+    "endDate": "2026-01-27T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svkv0001lsiv4hj6n7x5",
+   "stockBefore": {
+    "id": "cmupc490s02u1ls7yf7ao1ulq",
+    "quantity": "6",
+    "avgUnitCost": "9600"
+   },
+   "stockAfter": {
+    "quantity": "14",
+    "avgUnitCost": "52877.95"
+   }
+  },
+  {
+   "orderId": "cmupo4c0z9b51116f5f6634dde2",
+   "number": "П-2026-0161",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "8",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": null,
+    "notes": "ТЗ №88, позиция MGL03 ×8 (работа 6 610): выделено из П-2026-0096 (apply-drive-production-corrections).\n[сверка 2026-10-04] выпуск: баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+   },
+   "after": {
+    "totalCost": "76800",
+    "unitCost": "9600",
+    "endDate": "2026-01-27T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svld0003lsiv08xug1cq",
+   "stockBefore": null,
+   "stockAfter": {
+    "quantity": "8",
+    "avgUnitCost": "9600"
+   }
+  },
+  {
+   "orderId": "cmupo4c0z7d08515e670b6d2f16",
+   "number": "П-2026-0162",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "8",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": null,
+    "notes": "ТЗ №88, позиция MGL02 браун ×8 (работа 6 100): выделено из П-2026-0096 (apply-drive-production-corrections).\n[сверка 2026-10-04] выпуск: баланс 040226.xlsx: «отгрузка» партии 8 (сумма отгрузки = работа всех ТЗ партии + шкуры); ТЗ №88 есть в «Реестре произведённых артикулов» (≤151)"
+   },
+   "after": {
+    "totalCost": "52528.56",
+    "unitCost": "6566.07",
+    "endDate": "2026-01-27T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svlq0007lsivsqgcgmqu",
+   "stockBefore": {
+    "id": "cmupc48zf02qpls7y24ulegn3",
+    "quantity": "10",
+    "avgUnitCost": "10994.04"
+   },
+   "stockAfter": {
+    "quantity": "18",
+    "avgUnitCost": "9026.05"
+   }
+  },
+  {
+   "orderId": "cmupo4c117d674ec53ecf34dfcd",
+   "number": "П-2026-0166",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "1",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №152: создано по документу Drive «ПРИЛОЖЕНИЕ 152 (М002А соболь - 1 шт.) ТОП.docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "8667158.53",
+    "unitCost": "8667158.53",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svm40009lsivj54o5rei",
+   "stockBefore": {
+    "id": "cmupc48mp01ttls7yapx5p8ib",
+    "quantity": "3",
+    "avgUnitCost": "6148550.42"
+   },
+   "stockAfter": {
+    "quantity": "4",
+    "avgUnitCost": "6778202.45"
+   }
+  },
+  {
+   "orderId": "cmupo4c117d40d94c947024c452",
+   "number": "П-2026-0167",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "4",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №153: создано по документу Drive «ПРИЛОЖЕНИЕ 153 (М012 - 4 манишки браун).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "236484.88",
+    "unitCost": "59121.22",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svma000blsivgq80c4hq",
+   "stockBefore": {
+    "id": "cmupc48js01m5ls7ymhe73txl",
+    "quantity": "24",
+    "avgUnitCost": "118606.36"
+   },
+   "stockAfter": {
+    "quantity": "28",
+    "avgUnitCost": "110108.48"
+   }
+  },
+  {
+   "orderId": "cmupo4c12c4456aeb56e5e2a11e",
+   "number": "П-2026-0168",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "8",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №154: создано по документу Drive «ПРИЛОЖЕНИЕ 154 (М009 - 8 шт. блэкглама).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "1814680.64",
+    "unitCost": "226835.08",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svmf000dlsiv5szo6tc9",
+   "stockBefore": {
+    "id": "cmupc48ii01j1ls7yp4u9kex3",
+    "quantity": "26",
+    "avgUnitCost": "175038.07"
+   },
+   "stockAfter": {
+    "quantity": "34",
+    "avgUnitCost": "187225.6"
+   }
+  },
+  {
+   "orderId": "cmupo4c125bc2a88ff147041dde",
+   "number": "П-2026-0169",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "7",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №155: создано по документу Drive «ПРИЛОЖЕНИЕ 155 (М009 - 7 шт. браун).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "1005964.8",
+    "unitCost": "143709.25714285714286",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svml000flsivd730bnz5",
+   "stockBefore": {
+    "id": "cmupc48ii01j1ls7yp4u9kex3",
+    "quantity": "34",
+    "avgUnitCost": "187225.6"
+   },
+   "stockAfter": {
+    "quantity": "41",
+    "avgUnitCost": "179795.98"
+   }
+  },
+  {
+   "orderId": "cmupo4c1229f2f31e7c2edbb68b",
+   "number": "П-2026-0170",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "3",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №156: создано по документу Drive «ПРИЛОЖЕНИЕ 156 (MSC-02 шарф соболь - 3 шт).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "3927575.52",
+    "unitCost": "1309191.84",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svmq000hlsivl9cpt711",
+   "stockBefore": {
+    "id": "cmupc48v002gxls7yosj2osix",
+    "quantity": "5",
+    "avgUnitCost": "771760.76"
+   },
+   "stockAfter": {
+    "quantity": "8",
+    "avgUnitCost": "973297.42"
+   }
+  },
+  {
+   "orderId": "cmupo4c12c0221be1745fbb88cf",
+   "number": "П-2026-0171",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "1",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №157: создано по документу Drive «ПРИЛОЖЕНИЕ 157 (М046 - 1 шт).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "923130.45",
+    "unitCost": "923130.45",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svmv000jlsiv2s5gflcm",
+   "stockBefore": {
+    "id": "cmupc497g03dpls7yf192oduf",
+    "quantity": "1",
+    "avgUnitCost": "955299.7"
+   },
+   "stockAfter": {
+    "quantity": "2",
+    "avgUnitCost": "939215.08"
+   }
+  },
+  {
+   "orderId": "cmupo4c136e70161d311b891ba7",
+   "number": "П-2026-0173",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "9",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №159: создано по документу Drive «ПРИЛОЖЕНИЕ 159 (MSC03 коричневая косынка).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "266284.8",
+    "unitCost": "29587.2",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svn3000llsivsescmve3",
+   "stockBefore": {
+    "id": "cmupc492w02zxls7yeez963e2",
+    "quantity": "11",
+    "avgUnitCost": "61427.33"
+   },
+   "stockAfter": {
+    "quantity": "20",
+    "avgUnitCost": "47099.27"
+   }
+  },
+  {
+   "orderId": "cmupo4c132c78107c9b7ad63bc7",
+   "number": "П-2026-0174",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "8",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №160: создано по документу Drive «ПРИЛОЖЕНИЕ 160 (МН-03 норка+соболь - 8 шт).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "674907.2",
+    "unitCost": "84363.4",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svn7000nlsivjy1l6acg",
+   "stockBefore": {
+    "id": "cmupc48w302jdls7yqjofjh3k",
+    "quantity": "14",
+    "avgUnitCost": "99122.42"
+   },
+   "stockAfter": {
+    "quantity": "22",
+    "avgUnitCost": "93755.5"
+   }
+  },
+  {
+   "orderId": "cmupo4c13cc7f6d76f786fe0026",
+   "number": "П-2026-0175",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "10",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №161: создано по документу Drive «ПРИЛОЖЕНИЕ 161 (МН-05 норка жемчуг - 10 шт).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "72113",
+    "unitCost": "7211.3",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svnd000plsiv1voj8gkj",
+   "stockBefore": {
+    "id": "cmupc48vn02idls7ys8oc8l1w",
+    "quantity": "9",
+    "avgUnitCost": "6781.15"
+   },
+   "stockAfter": {
+    "quantity": "19",
+    "avgUnitCost": "7007.54"
+   }
+  },
+  {
+   "orderId": "cmupo4c13f6cf16522d85446e9c",
+   "number": "П-2026-0176",
+   "before": {
+    "status": "IN_PROGRESS",
+    "producedQuantity": "14",
+    "materialCost": null,
+    "expenseCost": null,
+    "totalCost": null,
+    "unitCost": null,
+    "endDate": "2026-09-25T00:00:00.000Z",
+    "notes": "ТЗ №162: создано по документу Drive «ПРИЛОЖЕНИЕ 162 (МН-05 норка браун- 14 шт).docx» (apply-drive-production-corrections).\n[даты из документов 2026-10-04] endDate 2026-09-25 (партия 20): письмо «Партия 20 (68 изделий)» 25.09.2026: «поставка принята 25.09.2026»; счёт №265 от 22.09.2026\n[сверка 2026-10-04] выпуск: письмо «Партия 20 (68 изделий)» 25.09.2026: поставка принята 25.09.2026"
+   },
+   "after": {
+    "totalCost": "171431.12",
+    "unitCost": "12245.08",
+    "endDate": "2026-09-25T00:00:00.000Z"
+   },
+   "movementId": "cmuu1svnj000rlsivhpkt2xfc",
+   "stockBefore": {
+    "id": "cmupc48vn02idls7ys8oc8l1w",
+    "quantity": "19",
+    "avgUnitCost": "7007.54"
+   },
+   "stockAfter": {
+    "quantity": "33",
+    "avgUnitCost": "9229.53"
+   }
+  }
+ ]
+}

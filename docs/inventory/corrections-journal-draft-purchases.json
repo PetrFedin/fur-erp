@@ -1,0 +1,468 @@
+[
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "Purchase",
+    "id": "cmuq7h6dyad0d52baa55c2a32db",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6dyad0d52baa55c2a32db",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "number": "З-2026-0061",
+      "supplierId": "cmupc49fy003jls83tdqxr606",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "status": "DRAFT",
+      "currency": "RUB",
+      "exchangeRate": "1",
+      "auctionSession": "Подкладка Спец. 13",
+      "invoiceNumber": "157",
+      "transferDocument": null,
+      "orderDate": "2026-05-26T00:00:00.000Z",
+      "expectedDate": "2026-08-31T00:00:00.000Z",
+      "receivedDate": null,
+      "notes": "[drive-draft:lining-spec13] Подкладочная ткань по Спецификации №13 от 26.05.2026 к Договору №2502 (ООО «Веллмех»); счёт на оплату №157 от 26.05.2026 на 5 400 000,00 (в т.ч. НДС 22% 973 770,49), 100% предоплата, оплатить до 29.05.2026. Срок поставки по спецификации: июль–август 2026 (expectedDate = конец срока); допуск по количеству ±3%. УПД (приход) в Drive отсутствует — закупка в статусе «Черновик», на склад не принята, лотов нет. Окончательная стоимость по спецификации = сумма всех УПД. Создано скриптом create-draft-lining-extra-purchases."
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6e36930354bc3d0d7830d",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6e36930354bc3d0d7830d",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48dl0129ls7yv8ap49ir",
+      "quantity": "300",
+      "unitPrice": "3688.52",
+      "subtotal": "1106557.38",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №37 /130», 300 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 1350000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6e76cf483b783abf1741d",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6e76cf483b783abf1741d",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48db011hls7yx42cxl4i",
+      "quantity": "300",
+      "unitPrice": "3688.52",
+      "subtotal": "1106557.38",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №24 /130», 300 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 1350000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6e99daa84c9b6c525eb35",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6e99daa84c9b6c525eb35",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48ep016rls7y287ni3sv",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №2 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6ea46d73e476eaf967fb5",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6ea46d73e476eaf967fb5",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48fi019bls7yy9nojv8p",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №4 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "RawMaterial",
+    "id": "cmuq7h6ecdd515e4e5e9014d1f1",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "name": "Подкладочная ткань №23",
+      "unit": "M"
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6eea0780751b317bf3b57",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6eea0780751b317bf3b57",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmuq7h6ecdd515e4e5e9014d1f1",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №23 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6eff04beba93b1a132362",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6eff04beba93b1a132362",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupqpyjl000fls1va1zn4ghn",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №38 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6eh378ecd8d1e0da1525f",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6eh378ecd8d1e0da1525f",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48df011pls7yunua0o3d",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №41 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.506Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6ei624c557a40be57cc99",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6ei624c557a40be57cc99",
+      "purchaseId": "cmuq7h6dyad0d52baa55c2a32db",
+      "rawMaterialId": "cmupc48dx013jls7yazc6nedp",
+      "quantity": "100",
+      "unitPrice": "3688.52",
+      "subtotal": "368852.46",
+      "vatRate": "22",
+      "notes": "Спец. №13: «Подкладочная ткань №27 /130», 100 м.п. × 4 500 руб. (в т.ч. НДС 22%) = 450000 руб.",
+      "costPlan": {
+        "unitCostInclVat": "4500",
+        "materialExclVat": "3688.52459",
+        "materialVat": "811.47541",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 4500
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 811.48
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "lining-spec13"
+  },
+  {
+    "time": "2026-10-02T00:09:19.541Z",
+    "entity": "Purchase",
+    "id": "cmuq7h6et7e351b2ad4b7d6894a",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6et7e351b2ad4b7d6894a",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "number": "З-2026-0062",
+      "supplierId": "cmupc49fy003jls83tdqxr606",
+      "warehouseId": "cmuo7vxen0004lsu53yam9pet",
+      "status": "DRAFT",
+      "currency": "RUB",
+      "exchangeRate": "1",
+      "auctionSession": "Доп. материалы Спец. 16",
+      "invoiceNumber": "181",
+      "transferDocument": null,
+      "orderDate": "2026-06-16T00:00:00.000Z",
+      "expectedDate": "2026-07-31T00:00:00.000Z",
+      "receivedDate": null,
+      "notes": "[drive-draft:extra-spec16] Вспомогательные материалы по Спецификации №16 от 16.06.2026 к Договору №2502 (ООО «Веллмех»); счёт на оплату №181 от 16.06.2026 на 19 870,00 (в т.ч. НДС 22% 3 583,11), 100% предоплата, оплатить до 19.06.2026. Срок поставки по спецификации: июнь–июль 2026 (expectedDate = конец срока); допуск по количеству ±3%. УПД (приход) в Drive отсутствует — закупка в статусе «Черновик», на склад не принята, лотов нет. Создано скриптом create-draft-lining-extra-purchases."
+    },
+    "source": "extra-spec16"
+  },
+  {
+    "time": "2026-10-02T00:09:19.541Z",
+    "entity": "RawMaterial",
+    "id": "cmuq7h6ev4ec28fc36e445f6845",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "name": "Премиальная шерсть с альпакой и шёлком",
+      "unit": "M"
+    },
+    "source": "extra-spec16"
+  },
+  {
+    "time": "2026-10-02T00:09:19.541Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6ev5eba50468e53c0b7aa",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6ev5eba50468e53c0b7aa",
+      "purchaseId": "cmuq7h6et7e351b2ad4b7d6894a",
+      "rawMaterialId": "cmuq7h6ev4ec28fc36e445f6845",
+      "quantity": "2",
+      "unitPrice": "5725.41",
+      "subtotal": "11450.82",
+      "vatRate": "22",
+      "notes": "Спец. №16: «Премиальная шерсть с альпакой и шёлком» (шерсть 70%, шерсть 20%, шёлк 10% — формулировка документа), 2 м.п. × 6 985 руб. (в т.ч. НДС 22%) = 13 970 руб.",
+      "costPlan": {
+        "unitCostInclVat": "6985",
+        "materialExclVat": "5725.409836",
+        "materialVat": "1259.590164",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 6985
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 1259.59
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "extra-spec16"
+  },
+  {
+    "time": "2026-10-02T00:09:19.541Z",
+    "entity": "RawMaterial",
+    "id": "cmuq7h6ew4378c73e1c48ef223d",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "name": "Кожа натуральная",
+      "unit": "M"
+    },
+    "source": "extra-spec16"
+  },
+  {
+    "time": "2026-10-02T00:09:19.541Z",
+    "entity": "PurchaseItem",
+    "id": "cmuq7h6exf4fe79ecfed07f6e4d",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmuq7h6exf4fe79ecfed07f6e4d",
+      "purchaseId": "cmuq7h6et7e351b2ad4b7d6894a",
+      "rawMaterialId": "cmuq7h6ew4378c73e1c48ef223d",
+      "quantity": "0.5",
+      "unitPrice": "9672.13",
+      "subtotal": "4836.07",
+      "vatRate": "22",
+      "notes": "Спец. №16: «Кожа натуральная», 0,5 м.п. × 11 800 руб. (в т.ч. НДС 22%) = 5 900 руб.",
+      "costPlan": {
+        "unitCostInclVat": "11800",
+        "materialExclVat": "9672.131148",
+        "materialVat": "2127.868852",
+        "expenseExclVat": "0",
+        "expenseVat": "0",
+        "costBreakdown": {
+          "items": [
+            {
+              "label": "Цена за м.п. по спецификации, ₽ (в т.ч. НДС 22%)",
+              "value": 11800
+            },
+            {
+              "label": "в т.ч. НДС 22%, ₽",
+              "value": 2127.87
+            }
+          ],
+          "source": "Спецификация (Google Drive); комиссия и прочие расходы документами не подтверждены — не включены"
+        }
+      }
+    },
+    "source": "extra-spec16"
+  }
+]

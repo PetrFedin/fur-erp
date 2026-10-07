@@ -1,0 +1,98 @@
+[
+  {
+    "time": "2026-10-03T19:19:20.427Z",
+    "entity": "DriveDocument",
+    "id": "cmusrzyi378e9281182f931b006",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmusrzyi378e9281182f931b006",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "driveFileId": "1YNG5EXQa6Q0qgueOtywUCnp1675_WUbF",
+      "title": "расчет доплаты за 5ю партию.xlsx",
+      "docType": "CALC_SHEET",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 12726,
+      "drivePath": "мех/Производство меховых изделий — копия/2025/поставка 5 - 25 ед/расчет доплаты за 5ю партию.xlsx",
+      "viewUrl": "https://drive.google.com/file/d/1YNG5EXQa6Q0qgueOtywUCnp1675_WUbF/view?usp=drivesdk",
+      "docDate": null,
+      "docNumber": null,
+      "year": 2025,
+      "notes": "Расчёт доплаты за 5-ю партию (04.12.2025): строка «Стоимость шкур» = 4 584 500 ₽ — это шкуры подрядчика «Доп закупк сырья партия 5» (счёт №235 партии 5 на 5 669 120 ₽ включает их). Привязка скриптом link-drive-docs-quality (проверка пробелов /documents; сумма закупки сверена с расчётом)",
+      "purchaseId": "cmupc484l008tls7ybrp62a4a"
+    },
+    "source": "link-drive-docs-quality; З-2026-0010"
+  },
+  {
+    "time": "2026-10-03T19:19:20.450Z",
+    "entity": "DriveDocument",
+    "id": "cmusrzyi3b68d58b5f117362b19",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmusrzyi3b68d58b5f117362b19",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "driveFileId": "1U5Y74CUGIbb39TQF4HlYTJH3LIUrrpai",
+      "title": "расчет доплаты за 6ю партию.xlsx",
+      "docType": "CALC_SHEET",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 12904,
+      "drivePath": "мех/Производство меховых изделий — копия/2025/поставка 6/расчет доплаты за 6ю партию.xlsx",
+      "viewUrl": "https://drive.google.com/file/d/1U5Y74CUGIbb39TQF4HlYTJH3LIUrrpai/view?usp=drivesdk",
+      "docDate": null,
+      "docNumber": null,
+      "year": 2025,
+      "notes": "Расчёт доплаты за 6-ю партию (18.12.2025): «Стоимость шкур» 463 750 ₽ = 35 шк. × 13 250 — шкуры подрядчика «Доп закупк сырья партия 6» (счёт №239 партии 6). Привязка скриптом link-drive-docs-quality (проверка пробелов /documents; сумма закупки сверена с расчётом)",
+      "purchaseId": "cmupc4855009rls7ytxmx3xf2"
+    },
+    "source": "link-drive-docs-quality; З-2026-0011"
+  },
+  {
+    "time": "2026-10-03T19:19:20.457Z",
+    "entity": "DriveDocument",
+    "id": "cmusrzyi319432ab397ffc1e936",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmusrzyi319432ab397ffc1e936",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "driveFileId": "1rZoiAs3LYJS5YckdDfyM5WR3gaLn87sm",
+      "title": "расчет доплаты за пошив партия 9.xlsx",
+      "docType": "CALC_SHEET",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 12008,
+      "drivePath": "мех/Производство меховых изделий — копия/2025/поставка 9 -26 ед/расчет доплаты за пошив партия 9.xlsx",
+      "viewUrl": "https://drive.google.com/file/d/1rZoiAs3LYJS5YckdDfyM5WR3gaLn87sm/view?usp=drivesdk",
+      "docDate": null,
+      "docNumber": null,
+      "year": 2025,
+      "notes": "Расчёт доплаты за пошив партия 9 (29.01.2026): «Стоимость шкур /НДС22%» 431 040 ₽ — шкуры подрядчика «Доп закупк сырья партия 9» (счёт №7 партии 9). Привязка скриптом link-drive-docs-quality (проверка пробелов /documents; сумма закупки сверена с расчётом)",
+      "purchaseId": "cmupc485e00a7ls7ymz0so8cx"
+    },
+    "source": "link-drive-docs-quality; З-2026-0013"
+  },
+  {
+    "time": "2026-10-03T19:19:20.463Z",
+    "entity": "DriveDocument",
+    "id": "cmusrzyi33a61c7a03ad6978152",
+    "field": "__create__",
+    "before": null,
+    "after": {
+      "id": "cmusrzyi33a61c7a03ad6978152",
+      "organizationId": "cmuo7vwvk0000lsu5pghd5jka",
+      "driveFileId": "1MGykypIZubGtKB50ezt6IbUpkl8_zhYh",
+      "title": "расчет доплаты за пошив.xlsx",
+      "docType": "CALC_SHEET",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "sizeBytes": 15992,
+      "drivePath": "мех/Производство меховых изделий — копия/2026/поставки/поставка 18/расчет доплаты за пошив.xlsx",
+      "viewUrl": "https://drive.google.com/file/d/1MGykypIZubGtKB50ezt6IbUpkl8_zhYh/view?usp=drivesdk",
+      "docDate": null,
+      "docNumber": null,
+      "year": 2026,
+      "notes": "Расчёт доплаты партии 18: у ТЗ 121 (М029) колонка «доп. закупка» 176 000 ₽ × 5 ед. = 880 000 ₽ — сырьё подрядчика, 55 шкур красной лисы × 16 000 (счёт №237 партии 18). Привязка скриптом link-drive-docs-quality (проверка пробелов /documents; сумма закупки сверена с расчётом)",
+      "purchaseId": "cmupc47zx0005ls7y21zjhric"
+    },
+    "source": "link-drive-docs-quality; З-2026-0001"
+  }
+]

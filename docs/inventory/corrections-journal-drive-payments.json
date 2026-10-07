@@ -1,0 +1,867 @@
+[
+ {
+  "time": "2026-10-03T20:20:42.409Z",
+  "entity": "Payment",
+  "id": "cmusu6vja0001lsdfuvbhiudx",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "22891800.00",
+   "paidAt": "2026-04-14",
+   "auctionSession": "SAGA 03-26",
+   "confirmed": false,
+   "docRef": "счёт Веллмех №105 от 06.04.2026; дата по fin-расчёту (в документе «3/14/2026», месяц невозможен — принят 14.04.2026), п/п уточнить"
+  },
+  "source": "Закупка ММ SAGA 03-26 (fin).xlsx: «Оплата 2 — 22891800 — оплачено — 3/14/2026»; письмо 08–09.04.2026; счёт №105"
+ },
+ {
+  "time": "2026-10-03T20:20:42.414Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vjg0003lsdfv06odnr5",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1IMa5KT1a_nprQpB9c7JhE4lHk_B18bQH",
+   "paymentId": "cmusu6vja0001lsdfuvbhiudx"
+  },
+  "source": "Закупка ММ SAGA 03-26 (fin).xlsx: «Оплата 2 — 22891800 — оплачено — 3/14/2026»; письмо 08–09.04.2026; счёт №105"
+ },
+ {
+  "time": "2026-10-03T20:20:42.415Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vji0005lsdfcu5ygp94",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1oRD5St0jhu8iGWJZ1Qtmv9TitS6loeCW",
+   "paymentId": "cmusu6vja0001lsdfuvbhiudx"
+  },
+  "source": "Закупка ММ SAGA 03-26 (fin).xlsx: «Оплата 2 — 22891800 — оплачено — 3/14/2026»; письмо 08–09.04.2026; счёт №105"
+ },
+ {
+  "time": "2026-10-03T20:20:42.417Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vjk0007lsdf9x81v7ci",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1PH70z18oOUYONem1CnlesucSCDZ1XqwG",
+   "paymentId": "cmusu6vja0001lsdfuvbhiudx"
+  },
+  "source": "Закупка ММ SAGA 03-26 (fin).xlsx: «Оплата 2 — 22891800 — оплачено — 3/14/2026»; письмо 08–09.04.2026; счёт №105"
+ },
+ {
+  "time": "2026-10-03T20:20:42.429Z",
+  "entity": "Payment",
+  "id": "cmusu6vjw0009lsdfww33zhpz",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "19628147.54",
+   "paidAt": "2026-07-09",
+   "auctionSession": "СОЮЗПУШНИНА 05-26",
+   "confirmed": false,
+   "docRef": "счёт Веллмех №149 от 22.05.2026; дата по письму от 09.07.2026 («Было оплачено: аванс 3 19 628 147,54»), п/п уточнить"
+  },
+  "source": "письмо Василия 09.07.2026 «Было оплачено» (RE финальная оплата за сырье соболя… 3 015 шкур.msg); счёт №149"
+ },
+ {
+  "time": "2026-10-03T20:20:42.431Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vjy000blsdf381q1ks0",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1qj9OGmiwkIkzwsvldi822yDFyiU3IfMw",
+   "paymentId": "cmusu6vjw0009lsdfww33zhpz"
+  },
+  "source": "письмо Василия 09.07.2026 «Было оплачено» (RE финальная оплата за сырье соболя… 3 015 шкур.msg); счёт №149"
+ },
+ {
+  "time": "2026-10-03T20:20:42.433Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vk0000dlsdfuyhivzj5",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "14uyYhkshlps9mL1OVJczoDetCeQkhDSi",
+   "paymentId": "cmusu6vjw0009lsdfww33zhpz"
+  },
+  "source": "письмо Василия 09.07.2026 «Было оплачено» (RE финальная оплата за сырье соболя… 3 015 шкур.msg); счёт №149"
+ },
+ {
+  "time": "2026-10-03T20:20:42.435Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vk2000flsdfzq1cf4uk",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1ZFN8rLA85JtOVufZGuOYs6jgTkhc6V0h",
+   "paymentId": "cmusu6vjw0009lsdfww33zhpz"
+  },
+  "source": "письмо Василия 09.07.2026 «Было оплачено» (RE финальная оплата за сырье соболя… 3 015 шкур.msg); счёт №149"
+ },
+ {
+  "time": "2026-10-03T20:20:42.447Z",
+  "entity": "ProductionPayment",
+  "id": "cmupo4c15aea8e5104027cab13b",
+  "field": "amount",
+  "before": "21627900.00",
+  "after": "4603900.00",
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.447Z",
+  "entity": "ProductionPayment",
+  "id": "cmupo4c15aea8e5104027cab13b",
+  "field": "notes",
+  "before": "Аванс 70% за пошив (все ТЗ предварительного расчёта 190725/130825). Оплачен 04.08.2025 по письму 26.08.2025; баланс 040226: «авг. 2025».",
+  "after": "Аванс 70% за пошив (все ТЗ предварительного расчёта 190725/130825). Оплачен 04.08.2025 по письму 26.08.2025; баланс 040226: «авг. 2025». [fix:AP-110-b1] Разнесён по партиям 1–8 по «Расчёту по оплатам»: здесь часть партии 1 — 4 603 900,00 (было 21 627 900,00 одной суммой без привязки).",
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.447Z",
+  "entity": "ProductionPayment",
+  "id": "cmupo4c15aea8e5104027cab13b",
+  "field": "orders",
+  "before": [],
+  "after": "партия 1",
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.451Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vkf0010lsdfk445ki5n",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "2840600.00",
+   "batch": 2,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.453Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkk001glsdfuyx5isdm",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vkf0010lsdfk445ki5n"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.454Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkm001ilsdfk9tpr0qj",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vkf0010lsdfk445ki5n"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.456Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkn001klsdft5k7v0bm",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vkf0010lsdfk445ki5n"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.457Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vko001mlsdfdlss385c",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vkf0010lsdfk445ki5n"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.458Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkp001olsdf1o6gl1ii",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vkf0010lsdfk445ki5n"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.460Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vkq001qlsdf8et67j3d",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "4714500.00",
+   "batch": 3,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.461Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vks0026lsdf0yq1m0uo",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vkq001qlsdf8et67j3d"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.462Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vku0028lsdfpi5vzu6l",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vkq001qlsdf8et67j3d"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.463Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkv002alsdfquxsbcdv",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vkq001qlsdf8et67j3d"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.464Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkw002clsdfh4pz7wsq",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vkq001qlsdf8et67j3d"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.465Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vkx002elsdfojn9swek",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vkq001qlsdf8et67j3d"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.467Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vkx002glsdfatqzjnlc",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "3942400.00",
+   "batch": 4,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.469Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl0002wlsdfz8tzdr07",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vkx002glsdfatqzjnlc"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.470Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl2002ylsdfng1pl1uy",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vkx002glsdfatqzjnlc"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.471Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl30030lsdfx615emmb",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vkx002glsdfatqzjnlc"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.473Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl40032lsdfn2ol5gy3",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vkx002glsdfatqzjnlc"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.474Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl60034lsdfsaqvjag2",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vkx002glsdfatqzjnlc"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.476Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vl60036lsdf1ra15cim",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "2103457.05",
+   "batch": 5,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.477Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vl9003jlsdf0u485v2s",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vl60036lsdf1ra15cim"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.478Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vla003llsdflob5jglf",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vl60036lsdf1ra15cim"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.480Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlb003nlsdft965x5q7",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vl60036lsdf1ra15cim"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.481Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlc003plsdfpoahues6",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vl60036lsdf1ra15cim"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.482Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vld003rlsdfjtd36kun",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vl60036lsdf1ra15cim"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.484Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vle003tlsdfwn6m68kk",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "954890.35",
+   "batch": 6,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.486Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vli0047lsdfw224cpk8",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vle003tlsdfwn6m68kk"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.488Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlj0049lsdf9mphklx7",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vle003tlsdfwn6m68kk"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.490Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vll004blsdf22fmletx",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vle003tlsdfwn6m68kk"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.491Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vln004dlsdfx62iudmb",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vle003tlsdfwn6m68kk"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.492Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlo004flsdfb2etvkik",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vle003tlsdfwn6m68kk"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.496Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vlp004hlsdfwrijxx7i",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "1770069.90",
+   "batch": 7,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.497Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vls004ylsdf9wg8uwvz",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vlp004hlsdfwrijxx7i"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.498Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlt0050lsdfhw7sois3",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vlp004hlsdfwrijxx7i"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.499Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlv0052lsdfey50o2wm",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vlp004hlsdfwrijxx7i"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.502Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlw0054lsdfo5ykplh0",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vlp004hlsdfwrijxx7i"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.504Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vlz0056lsdf89sjsiy6",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vlp004hlsdfwrijxx7i"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.507Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vm00058lsdfqaooz117",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "698082.70",
+   "batch": 8,
+   "from": "110",
+   "splitFrom": "cmupo4c15aea8e5104027cab13b"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.510Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vm5005klsdfs0adtijm",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18oAgzeQX_Xww2KZd6QAzokzgF-zVSN7B",
+   "productionPaymentId": "cmusu6vm00058lsdfqaooz117"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.512Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vm7005mlsdfcaa4khfb",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nqtUqLRq0S_Der5HIRMqW-JkubAgX0on",
+   "productionPaymentId": "cmusu6vm00058lsdfqaooz117"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.514Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vm9005olsdf0mtd5wgh",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "productionPaymentId": "cmusu6vm00058lsdfqaooz117"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.517Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmc005qlsdf2mhtb074",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vm00058lsdfqaooz117"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.519Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vme005slsdfytib20ll",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7",
+   "productionPaymentId": "cmusu6vm00058lsdfqaooz117"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.520Z",
+  "entity": "ProductionPayment",
+  "id": "cmupo4c16cf5a1a4a5023760880",
+  "field": "amount",
+  "before": "1766870.00",
+  "after": "835405.20",
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.520Z",
+  "entity": "ProductionPayment",
+  "id": "cmupo4c16cf5a1a4a5023760880",
+  "field": "notes",
+  "before": "Аванс 70% за пошив аксессуаров (70% × 2 524 100). Согласован 25.11.2025, оплата 27.11.2025 — баланс 040226.",
+  "after": "Аванс 70% за пошив аксессуаров (70% × 2 524 100). Согласован 25.11.2025, оплата 27.11.2025 — баланс 040226. [fix:AP-209] Часть аванса (931 464,80) отнесена к партиям 5–8 отдельными строками по «Расчёту по оплатам»; здесь остаток 835 405,20 без привязки: 831 825,20 — зачёт в счёте №7 (партии 8–9, не оплачен), 3 580 — ТЗ 97 по счёту №41.",
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.523Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vmh005ulsdfhhprnz67",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "352142.95",
+   "batch": 5,
+   "from": "209",
+   "splitFrom": "cmupo4c16cf5a1a4a5023760880"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.524Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmk0067lsdfti37g3dp",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1CahmzOxm3k_FOAiXVidhcCLfMKYsEoFc",
+   "productionPaymentId": "cmusu6vmh005ulsdfhhprnz67"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.526Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vml0069lsdf6rl3teuf",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "productionPaymentId": "cmusu6vmh005ulsdfhhprnz67"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.527Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmn006blsdf9ts3qi3h",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vmh005ulsdfhhprnz67"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.529Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vmo006dlsdfp610edop",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "159859.65",
+   "batch": 6,
+   "from": "209",
+   "splitFrom": "cmupo4c16cf5a1a4a5023760880"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.531Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmq006rlsdf5ldllqx5",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1CahmzOxm3k_FOAiXVidhcCLfMKYsEoFc",
+   "productionPaymentId": "cmusu6vmo006dlsdfp610edop"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.534Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmt006tlsdfwoyvczd1",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "productionPaymentId": "cmusu6vmo006dlsdfp610edop"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.537Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vmw006vlsdfai5ev30a",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vmo006dlsdfp610edop"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.541Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vmy006xlsdfz8lw4bml",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "302595.10",
+   "batch": 7,
+   "from": "209",
+   "splitFrom": "cmupo4c16cf5a1a4a5023760880"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.542Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vn2007elsdf93a3i6t1",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1CahmzOxm3k_FOAiXVidhcCLfMKYsEoFc",
+   "productionPaymentId": "cmusu6vmy006xlsdfz8lw4bml"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.544Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vn3007glsdf13bh2ohs",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "productionPaymentId": "cmusu6vmy006xlsdfz8lw4bml"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.547Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vn6007ilsdf4gc8zee7",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vmy006xlsdfz8lw4bml"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.549Z",
+  "entity": "ProductionPayment",
+  "id": "cmusu6vn7007klsdfe0k0f4a9",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "116867.10",
+   "batch": 8,
+   "from": "209",
+   "splitFrom": "cmupo4c16cf5a1a4a5023760880"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.551Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vna007wlsdfrb40xtgy",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1CahmzOxm3k_FOAiXVidhcCLfMKYsEoFc",
+   "productionPaymentId": "cmusu6vn7007klsdfe0k0f4a9"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.553Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vnc007ylsdfcr3cip7d",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "productionPaymentId": "cmusu6vn7007klsdfe0k0f4a9"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ },
+ {
+  "time": "2026-10-03T20:20:42.555Z",
+  "entity": "DriveDocument",
+  "id": "cmusu6vne0080lsdfznynwie7",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "16uxtGDeePNXqZ8HeHPx5ofgyZpKUpbSh",
+   "productionPaymentId": "cmusu6vn7007klsdfe0k0f4a9"
+  },
+  "source": "Расчет по оплатам.xlsx («Оплачено аванс 04.08.25» по партиям 1–8 = 22 553 099,80); chain-production.md (авансы №110 + №209 = 23 394 770 расходуются до копейки)"
+ }
+]

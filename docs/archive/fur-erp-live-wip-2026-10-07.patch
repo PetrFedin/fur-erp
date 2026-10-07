@@ -1,0 +1,2038 @@
+diff --git a/e2e/auction.spec.ts b/e2e/auction.spec.ts
+index b6eecd5..fba3637 100644
+--- a/e2e/auction.spec.ts
++++ b/e2e/auction.spec.ts
+@@ -73,7 +73,7 @@ async function readAuctionRows(page: Page) {
+       inv: (d.querySelector("summary span.font-medium")?.textContent ?? "").replace("Счёт ", "").trim(),
+       rows: Array.from(d.querySelectorAll(":scope > div > table > tbody > tr, :scope table > tbody > tr")).filter((tr) => tr.closest("details") === d && tr.querySelectorAll(":scope > td").length >= 10).map((tr) =>
+         // первая ячейка — чекбокс выбора лота: в сверке её пропускаем
+-        Array.from(tr.querySelectorAll(":scope > td")).slice(1).map((td) => (td as HTMLElement).innerText),
++        Array.from(tr.querySelectorAll(":scope > td")).slice(1).map((td) => (td.textContent ?? "")),
+       ),
+     })),
+   );
+@@ -95,12 +95,11 @@ test.describe("1. /lots: режим «Аукцион»", () => {
+       const body = norm(await page.locator("body").innerText());
+       expect(body).not.toMatch(/NaN|undefined|Infinity/);
+       const dl = norm(await page.locator("dl").first().innerText());
+-      expect(dl).toContain("Закупок / счетов 8");
+-      expect(dl).toMatch(/Шкур всего 1 326\s?\(29 лот\.\)/);
++      expect(dl).toMatch(/Закупок \/ шкур 8 \/ 1 326 29 лот\./);
+       const totalIncl = Number(sql(`select sum((i."costPlan"->>'unitCostInclVat')::numeric*i.quantity) from "PurchaseItem" i join "Purchase" p on p.id=i."purchaseId" where p."organizationId"='${ORG}' and p."auctionSession"='${SP}'`));
+       const totalExcl = Number(sql(`select sum(((i."costPlan"->>'materialExclVat')::numeric+(i."costPlan"->>'expenseExclVat')::numeric)*i.quantity) from "PurchaseItem" i join "Purchase" p on p.id=i."purchaseId" where p."organizationId"='${ORG}' and p."auctionSession"='${SP}'`));
+       const want = mode === "incl" ? totalIncl : totalExcl;
+-      const fullTxt = norm(await page.locator("dl > div").nth(3).innerText());
++      const fullTxt = norm(await page.locator("dl dt", { hasText: "С расходами" }).first().locator("..").locator("dd").first().innerText());
+       console.log(mode, "полная себестоимость:", fullTxt, "SQL:", want);
+       expect(Math.abs(num(fullTxt) - want)).toBeLessThan(0.006);
+       if (mode === "incl") expect(fullTxt).toContain("64 458 150,40");
+@@ -137,7 +136,7 @@ async function readBlocksFull(page: Page) {
+       rows: Array.from(d.querySelectorAll("tbody > tr")).filter((tr) => tr.closest("details") === d && tr.querySelectorAll(":scope > td").length >= 10).map((tr) => {
+         const tds = (Array.from(tr.querySelectorAll(":scope > td")) as HTMLElement[]).slice(1);
+         const links = Array.from(tds[10].querySelectorAll("a")).map((a) => ({ t: a.textContent, h: a.getAttribute("href") }));
+-        return { cells: tds.map((t) => t.innerText), links };
++        return { cells: tds.map((t) => t.textContent ?? ""), links };
+       }),
+     })),
+   );
+@@ -197,25 +196,23 @@ test.describe("1c. сочетание фильтров, пустой резул
+     // q по номеру лота
+     await page.goto(url(SP) + "&q=3631");
+     let s = await summary(page);
+-    expect(s).toContain("Закупок / счетов 1");
+-    expect(s).toMatch(/\(1 лот\.\)/);
++    expect(s).toMatch(/Закупок \/ шкур 1 \/ [\d ]+ 1 лот\./);
+     await expect(page.getByText("итоги считаются только по показанным лотам")).toBeVisible();
+     // q по операции (notes), регистр
+     const nTon = Number(sql(`select count(*) from "PurchaseItem" i join "Purchase" p on p.id=i."purchaseId" where p."organizationId"='${ORG}' and p."auctionSession"='${SP}' and i.notes ilike '%тонировка%'`));
+     await page.goto(url(SP) + "&q=" + encodeURIComponent("ТОНИРОВКА"));
+     s = await summary(page);
+-    expect(s).toContain(`(${nTon} лот.)`);
++    expect(s).toMatch(new RegExp(`\\b${nTon} лот\\.`));
+     // material
+     const sobol = sql(`select id from "RawMaterial" where name='Соболь'`);
+     await page.goto(url(SP) + "&material=" + sobol);
+     s = await summary(page);
+-    expect(s).toContain("(26 лот.)");
++    expect(s).toMatch(/\b26 лот\./);
+     const norka = sql(`select id from "RawMaterial" where name='Норка'`);
+     await page.goto(url(SP) + "&material=" + norka);
+     expect(await page.locator("body").innerText()).toContain("лоты с такими условиями не найдены");
+     s = await summary(page);
+-    expect(s).toContain("Закупок / счетов 0");
+-    expect(s).toMatch(/Шкур всего 0\s?\(0 лот\.\)/);
++    expect(s).toMatch(/Закупок \/ шкур 0 \/ 0 0 лот\./);
+     // q + material несовместимые
+     await page.goto(url(SP) + "&q=3631&material=" + norka);
+     expect(await page.locator("body").innerText()).toContain("лоты с такими условиями не найдены");
+@@ -224,7 +221,7 @@ test.describe("1c. сочетание фильтров, пустой резул
+       const r = await page.goto(url(SP) + "&q=" + encodeURIComponent(q));
+       expect(r?.status(), q.slice(0, 10)).toBe(200);
+       const t = await page.locator("body").innerText();
+-      const cnt = (await summary(page)).match(/\((\d+) лот\.\)/)?.[1];
++      const cnt = (await summary(page)).match(/Закупок \/ шкур \d+ \/ [\d ]+ (\d+) лот\./)?.[1];
+       console.log("q=", JSON.stringify(q.slice(0, 10)), "лотов:", cnt);
+       if (q === "%" || q === "_" || q === "%%") expect.soft(cnt, `БАГ: q=${q} срабатывает как SQL-маска (ожидалось 0 лотов)`).toBe("0");
+       expect(t).not.toMatch(/NaN|undefined/);
+@@ -245,7 +242,7 @@ test.describe("1c. сочетание фильтров, пустой резул
+       await page.goto(url(SP));
+       const s = await summary(page);
+       console.log("cancelled:", s);
+-      expect(s).toMatch(/Шкур всего 884\s?\(24 лот\.\)/);
++      expect(s).toMatch(/Закупок \/ шкур 7 \/ 884 24 лот\./);
+       const want = 64458150.402578 - 18715584.292938;
+       const full = norm(await page.locator("dl > div").nth(3).innerText());
+       expect(Math.abs(num(full) - want)).toBeLessThan(0.006);
+@@ -255,30 +252,28 @@ test.describe("1c. сочетание фильтров, пустой резул
+       await expect(blk.getByText("Отменено")).toBeVisible();
+       await expect(blk.getByRole("button", { name: "Править расчёт" })).toHaveCount(0);
+       await expect(blk.getByRole("link", { name: /Править закупку/ })).toHaveCount(0);
+-      // бейдж в чипе/подсказке
+-      const opt = await page.locator("#auction-options option").evaluateAll((os) => os.map((o) => o.getAttribute("value") + "|" + o.textContent));
+-      console.log(opt.filter((o) => o.startsWith(SP)));
+-      // /lots чипы
+-      const chip = await page.locator('a[title*="закупк"]').first().getAttribute("title");
+-      console.log("chip title:", chip);
++      // Выбор аукциона — единый dropdown; статус отмены проверен выше в сводке и карточке.
++      await page.goto("/lots");
++      const opt = page.locator('select[name="auction"] option', { hasText: SP });
++      await expect(opt).toHaveCount(1);
++      await expect(opt).toContainText("8");
+     } finally {
+       sql(`update "Purchase" set status='DRAFT' where id='${id}'`);
+     }
+     await expectNoErrors(errors);
+   });
+ 
+-  test("чипы и подсказки: число закупок и статус", async ({ page }) => {
++  test("dropdown аукционов: каждая партия однажды и с числом закупок", async ({ page }) => {
+     await login(page);
+     await page.goto("/lots");
+-    const chips = await page.locator('a[href^="/lots?auction="]').evaluateAll((as) => as.map((a) => [a.textContent, a.getAttribute("title"), a.getAttribute("href")]));
+-    console.log(JSON.stringify(chips));
+-    const opts = await page.locator("#auction-options option").evaluateAll((os) => os.map((o) => [o.getAttribute("value"), o.textContent]));
+-    console.log(JSON.stringify(opts));
+-    const db = sql(`select split_part("auctionSession", E'\n', 1) a, count(*), count(*) filter (where status='RECEIVED'), count(*) filter (where status='DRAFT'), count(*) filter (where status='CANCELLED') from "Purchase" where "organizationId"='${ORG}' and "auctionSession" is not null and btrim(split_part("auctionSession", E'\n', 1))<>'' group by 1`);
+-    console.log(db);
+-    expect(opts.length).toBe(db.split("\n").length);
+-    for (const [v, t] of opts) {
+-      const row = db.split("\n").map((l) => l.split("|")).find((r) => r[0].trim() === v);
++    const opts = await page.locator('select[name="auction"] option').evaluateAll((os) => os.map((o) => [o.getAttribute("value"), o.textContent]));
++    const real = opts.filter(([v]) => Boolean(v));
++    const db = sql(`select split_part("auctionSession", E'\n', 1) a, count(*) from "Purchase" where "organizationId"='${ORG}' and "auctionSession" is not null and btrim(split_part("auctionSession", E'\n', 1))<>'' group by 1`);
++    const rows = db.split("\n").filter(Boolean).map((l) => l.split("|"));
++    expect(real.length).toBe(rows.length);
++    expect(new Set(real.map(([v]) => v)).size).toBe(real.length);
++    for (const [v, t] of real) {
++      const row = rows.find((r) => r[0].trim() === v);
+       expect(row, String(v)).toBeTruthy();
+       expect(t).toContain(`${row![1]}`);
+     }
+diff --git a/e2e/regress-columns.spec.ts b/e2e/regress-columns.spec.ts
+index 37f75da..61f3214 100644
+--- a/e2e/regress-columns.spec.ts
++++ b/e2e/regress-columns.spec.ts
+@@ -316,7 +316,9 @@ test.describe("UI таблицы лотов", () => {
+       await setVat(page, mode);
+       await page.goto(lotsUrl("RG-UI"));
+       const tot = page.locator("section[data-auction-totals]");
++      const controls = page.locator("[data-auction-lot-controls]");
+       await expect(tot).toBeVisible();
++      await expect(controls).toHaveCount(1);
+       const row = tot.locator(SEL.totalsRow);
+       const cells = (await row.locator(":scope > td").allInnerTexts()).map(norm);
+       // «ср.» числового столбца
+@@ -331,36 +333,36 @@ test.describe("UI таблицы лотов", () => {
+       expect(boolCell).toContain("заполнено у 5 из 6");
+ 
+       // выбор 3 лотов, затем фильтр по № лота скрывает 2 из них
+-      await tot.getByRole("button", { name: "Выбрать все" }).click();
+-      await expect(tot.locator("[data-selection-label]")).toContainText("Выбрано 6 из 6");
+-      await tot.getByRole("button", { name: "Снять выбор" }).first().click();
++      await controls.getByRole("button", { name: "Выбрать все" }).click();
++      await expect(controls.locator("[data-selection-label]")).toContainText("Выбрано 6 из 6");
++      await controls.getByRole("button", { name: "Снять выбор" }).first().click();
+       const purchase = page.locator("details[data-auction-purchase]").first();
+       const lotChecks = purchase.locator("tbody input[type=checkbox]");
+       for (const i of [0, 1, 2]) await lotChecks.nth(i).check();
+-      await tot.getByRole("button", { name: /^Фильтр/ }).click();
+-      await tot.getByPlaceholder("Часть номера").fill("U1");
+-      const hid = tot.locator("[data-hidden-selection]");
++      await controls.getByRole("button", { name: /^Фильтр/ }).click();
++      await controls.getByPlaceholder("Часть номера").fill("U1");
++      const hid = controls.locator("[data-hidden-selection]");
+       await expect(hid).toContainText("Выбрано 3 (из них скрыто фильтром 2)");
+       await hid.getByRole("button", { name: "Снять выбор" }).click();
+       await expect(hid).toHaveCount(0);
+-      await tot.getByRole("button", { name: "Сбросить", exact: true }).click();
++      await controls.getByRole("button", { name: "Сбросить", exact: true }).click();
+ 
+       // красная подсветка некорректного «от/до»
+-      const qty = tot.locator("label, div").filter({ hasText: /^Кол-во/ }).first();
++      const qty = controls.locator("label, div").filter({ hasText: /^Кол-во/ }).first();
+       void qty;
+-      const from = tot.locator('input[placeholder="от"]').first();
++      const from = controls.locator('input[placeholder="от"]').first();
+       await from.fill("abc");
+       await expect(from).toHaveAttribute("aria-invalid", "true");
+       await expect(from, "красная подсветка").toHaveClass(/border-red-500/);
+-      expect(await from.evaluate((e) => getComputedStyle(e).borderColor), "цвет рамки отличается от обычного").not.toBe(await tot.locator('input[placeholder="до"]').first().evaluate((e) => getComputedStyle(e).borderColor));
+-      await expect(tot.getByText("Некорректное число — фильтр не действует").first()).toBeVisible();
+-      await expect(tot.getByRole("button", { name: /^Фильтр \(\d+\)/ }), "некорректная граница не считается активным фильтром").toHaveCount(0);
++      expect(await from.evaluate((e) => getComputedStyle(e).borderColor), "цвет рамки отличается от обычного").not.toBe(await controls.locator('input[placeholder="до"]').first().evaluate((e) => getComputedStyle(e).borderColor));
++      await expect(controls.getByText("Некорректное число — фильтр не действует").first()).toBeVisible();
++      await expect(controls.getByRole("button", { name: /^Фильтр \(\d+\)/ }), "некорректная граница не считается активным фильтром").toHaveCount(0);
+       await from.fill("1,5");
+       await expect(from).toHaveAttribute("aria-invalid", "false");
+ 
+       // 0 лотов: «Σ 0»
+       await from.fill("999999");
+-      await expect(tot.locator("[data-selection-label]")).toContainText("Отфильтровано 0 лотов из 6");
++      await expect(controls.locator("[data-selection-label]")).toContainText("Отфильтровано 0 лотов из 6");
+       const row0 = (await tot.locator(SEL.totalsRow).locator(":scope > td").allInnerTexts()).map(norm);
+       expect(row0.filter((c) => /^Σ\s*0$/.test(c)).length, `итог при 0 лотов: ${row0.join(" | ")}`).toBeGreaterThanOrEqual(2);
+       expect(norm((await tot.locator("[data-totals-summary]").textContent()) ?? "")).toMatch(/Итого: Σ 0/);
+@@ -391,8 +393,9 @@ test.describe("UI таблицы лотов", () => {
+     await page.setViewportSize({ width: 1280, height: 900 });
+     await page.reload();
+     const t2 = page.locator("section[data-auction-totals]");
+-    await t2.getByRole("button", { name: /^Фильтр/ }).click();
+-    await t2.getByPlaceholder("Часть номера").fill("C3");
++    const controls2 = page.locator("[data-auction-lot-controls]");
++    await controls2.getByRole("button", { name: /^Фильтр/ }).click();
++    await controls2.getByPlaceholder("Часть номера").fill("C3");
+     const r2 = (await t2.locator("tfoot tr[data-totals-row] > td").allInnerTexts()).map(norm);
+     expect(r2.join(" | ")).not.toMatch(/разные валюты/);
+     expect(r2.join(" | ")).toMatch(/ср\.\s*100/i);
+@@ -412,24 +415,24 @@ test.describe("UI таблицы лотов", () => {
+       await setVat(page, mode);
+       await page.goto(lotsUrl("RG-MOB"));
+       const tot = page.locator("section[data-auction-totals]");
++      const controls = page.locator("[data-auction-lot-controls]");
+       await expect(tot).toBeVisible();
++      await expect(controls).toHaveCount(1);
+       const noHScroll = () => page.evaluate(() => ({ sw: document.scrollingElement!.scrollWidth, cw: document.documentElement.clientWidth }));
+       let m = await noHScroll();
+       expect(m.sw, `без панели: ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.cw);
+-      await tot.getByRole("button", { name: /^Фильтр/ }).click();
+-      await expect(tot.getByPlaceholder("Часть номера")).toBeVisible();
++      await controls.getByRole("button", { name: /^Фильтр/ }).click();
++      await expect(controls.getByPlaceholder("Часть номера")).toBeVisible();
+       m = await noHScroll();
+       expect(m.sw, `с панелью «Фильтр»: ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.cw);
+-      // открыта и панель счёта
++      // Внутри счетов больше нет собственных фильтров: управление на аукционе ровно одно.
+       const d = page.locator("details[data-auction-purchase]").first();
+-      await d.getByRole("button", { name: /^Фильтр/ }).click();
+-      m = await noHScroll();
+-      expect(m.sw, `панели аукциона и счёта: ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.cw);
++      await expect(d.locator("[data-filter-toggle]")).toHaveCount(0);
+       // состояние с выбором и фильтром: появляются «Снять выбор (N)», «Сбросить», строка про скрытый выбор
+       const ch = d.locator("tbody input[type=checkbox]");
+       for (const i of [0, 1, 2]) await ch.nth(i).check();
+-      await tot.getByPlaceholder("Часть номера").fill("U1");
+-      await expect(tot.locator("[data-hidden-selection]")).toBeVisible();
++      await controls.getByPlaceholder("Часть номера").fill("U1");
++      await expect(controls.locator("[data-hidden-selection]")).toBeVisible();
+       m = await noHScroll();
+       expect(m.sw, `с выбором и фильтром: ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.cw);
+       // свёрнутый MobileSummary с «Итого»
+@@ -440,7 +443,7 @@ test.describe("UI таблицы лотов", () => {
+       // цели нажатия: все видимые кнопки/ссылки/чекбоксы/селекты панели управления
+       const small = await page.evaluate(() => {
+         const out: string[] = [];
+-        const roots = Array.from(document.querySelectorAll("section[data-auction-totals], details[data-auction-purchase][open]"));
++        const roots = Array.from(document.querySelectorAll("[data-auction-lot-controls], section[data-auction-totals], details[data-auction-purchase][open]"));
+         for (const root of roots) {
+           for (const e of Array.from(root.querySelectorAll("button, a[href], select, input:not([type=hidden]), summary"))) {
+             const el = e as HTMLElement;
+diff --git a/src/app/(app)/documents/page.tsx b/src/app/(app)/documents/page.tsx
+index cd02339..86eedf1 100644
+--- a/src/app/(app)/documents/page.tsx
++++ b/src/app/(app)/documents/page.tsx
+@@ -91,7 +91,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
+   const pages = Math.max(1, Math.ceil(docsFiltered.length / DOC_PAGE_SIZE));
+   const page = Math.min(df.page, pages);
+   const pageDocs = docsFiltered.slice((page - 1) * DOC_PAGE_SIZE, page * DOC_PAGE_SIZE);
+-  const unlinked = docList.filter((d) => d.links.length === 0).length;
++  const unlinked = docList.filter((d) => d.links.length === 0 && !d.general).length;
++  const generalDocs = docList.filter((d) => d.links.length === 0 && d.general).length;
+   const withOriginal = docList.filter((d) => d.hasOriginal).length;
+   const allGroups = groupDocList(docList).length;
+ 
+@@ -207,10 +208,10 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
+           <h2 className="flex items-center gap-2 text-lg font-semibold">
+             Все документы
+             <span className="text-sm font-normal text-neutral-500">
+-              {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong>
++              {docsFiltered.length} файлов · требуют привязки: <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong> · общие: {generalDocs}
+             </span>
+             <InfoHint wide label="Что в списке документов">
+-              Ссылки Google Drive и файлы закупок вместе: {allGroups} файлов ({docList.length} привязок). Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Не привязаны ни к чему: {unlinked}. Год — из шапки.
++              Ссылки Google Drive и файлы закупок вместе: {allGroups} файлов ({docList.length} записей). Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Требуют предметной привязки: {unlinked}. Общие/контрольные документы, для которых одна сущность намеренно не назначается: {generalDocs}. Год — из шапки.
+             </InfoHint>
+           </h2>
+         </div>
+@@ -339,7 +340,10 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
+ }
+ 
+ function GroupLinks({ d, mobile }: { d: DocGroup; mobile?: boolean }) {
+-  if (d.links.length === 0) return <span className={mobile ? "text-xs text-amber-600" : "text-amber-600"}>не привязан</span>;
++  if (d.links.length === 0) {
++    if (d.generalCount > 0) return <span className={mobile ? "text-xs text-neutral-600" : "text-neutral-600"}>общий / контрольный документ</span>;
++    return <span className={mobile ? "text-xs text-amber-600" : "text-amber-600"}>требует привязки</span>;
++  }
+   const cls = mobile ? "inline-block py-1 text-xs underline" : "text-neutral-700 underline hover:text-neutral-900";
+   const list = (
+     <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+diff --git a/src/app/(app)/lots/auction-view.tsx b/src/app/(app)/lots/auction-view.tsx
+index 2eec8ee..fb1fcaa 100644
+--- a/src/app/(app)/lots/auction-view.tsx
++++ b/src/app/(app)/lots/auction-view.tsx
+@@ -16,8 +16,8 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+ import { DOC_KIND_LABELS } from "@/lib/purchase-files";
+ import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
+ import { buildAuctionRows } from "./auction-rows";
+-import { LotsProvider } from "./lots-state";
+-import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
++import { ALL_SCOPE, LotsProvider } from "./lots-state";
++import { AuctionTotalsPanel, FlatLotsPanel, LotsControls, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
+ import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
+ import { DriveDocuments } from "@/components/drive-documents";
+ import { toDriveView } from "@/lib/drive-docs-server";
+@@ -457,6 +457,15 @@ export async function AuctionView({
+       )}
+ 
+       <LotsProvider rows={lotsData.rows} purchases={lotsData.purchases} fields={customFields} canEdit={canEdit}>
++      {blocks.length > 0 && (
++        <section className="rounded-lg border border-neutral-200 bg-white p-3" data-auction-lot-controls>
++          <div className="mb-2">
++            <h3 className="text-sm font-semibold text-neutral-900">Фильтр лотов</h3>
++            <p className="text-xs text-neutral-500">Один фильтр действует на весь выбранный аукцион и все его счета.</p>
++          </div>
++          <LotsControls scope={ALL_SCOPE} />
++        </section>
++      )}
+       {!flat && blocks.map(({ p, lines, qty, pFullIncl, pFullExcl, expIncl, expExcl, unallocated, invoice }) => {
+         const isReceived = p.status === "RECEIVED";
+         const statusBadge =
+diff --git a/src/app/(app)/lots/lots-table.tsx b/src/app/(app)/lots/lots-table.tsx
+index 80ec660..ed5fd81 100644
+--- a/src/app/(app)/lots/lots-table.tsx
++++ b/src/app/(app)/lots/lots-table.tsx
+@@ -280,7 +280,7 @@ function TotalsList({ view, fields }: { view: ScopeView; fields: CustomFieldDef[
+ }
+ 
+ /** Панель над таблицей: «Фильтр», выбор лотов, «Только выбранные», «Сбросить», «+ Столбец». */
+-function LotsControls({ scope }: { scope: string }) {
++export function LotsControls({ scope }: { scope: string }) {
+   const { setFilters, setSelected, canEdit } = useLots();
+   const view = useScope(scope);
+   const [open, setOpen] = useState(false);
+@@ -369,7 +369,6 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
+   const h = heads(symbol(currency));
+   return (
+     <div className="flex flex-col gap-2">
+-      <LotsControls scope={purchaseId} />
+       <div className="flex flex-col gap-2 md:hidden">
+         {rows.length > 0 && rows.every((r) => !r.onStock) && (
+           <p className="text-xs text-neutral-500">Мех по этому счёту ещё не принят на склад — остаток появится после приёмки.</p>
+@@ -696,7 +695,6 @@ export function AuctionTotalsPanel() {
+         <h3 className="text-base font-semibold">Итого по аукциону</h3>
+         <Legend />
+       </div>
+-      <LotsControls scope={ALL_SCOPE} />
+       <TotalsList view={view} fields={fields} />
+       <div className="hidden md:block">
+       <Table>
+@@ -775,7 +773,6 @@ export function FlatLotsPanel() {
+         <h3 className="text-base font-semibold">Все лоты аукциона списком</h3>
+         <Legend />
+       </div>
+-      <LotsControls scope={ALL_SCOPE} />
+       <div className="flex flex-col gap-2 md:hidden">
+         {rows.map((r) => {
+           const m = purchases.get(r.purchaseId);
+diff --git a/src/app/(app)/lots/material-lots.tsx b/src/app/(app)/lots/material-lots.tsx
+index 7b0053e..706ed4e 100644
+--- a/src/app/(app)/lots/material-lots.tsx
++++ b/src/app/(app)/lots/material-lots.tsx
+@@ -112,7 +112,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
+                 <div className="text-xs text-neutral-400">{l.vatRate.toString()}%</div>
+               </Td>
+               <Td className="whitespace-nowrap font-medium">
+-                {formatMoney(l.unitCost.toString())}
++                {formatMoney((c4Mode === "on" ? l.unitCost.mul(1.04) : l.unitCost).toString())}
+                 <Ref4 mode={c4Mode} incl={l.unitCost} excl={excl} />
+                 {l.costBreakdown && (
+                   <CostBreakdownToggle
+@@ -195,7 +195,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
+             fields={[
+               { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} ${unit}` },
+               { label: "Остаток", value: `${formatQty(l.quantityRemaining.toString())} ${unit}`, strong: true },
+-              { label: "Цена за ед. (всего)", value: <>{formatMoney(l.unitCost.toString())}<Ref4 mode={c4Mode} incl={l.unitCost} excl={excl} /></>, strong: true },
++              { label: "Цена за ед. (всего)", value: <>{formatMoney((c4Mode === "on" ? l.unitCost.mul(1.04) : l.unitCost).toString())}<Ref4 mode={c4Mode} incl={l.unitCost} excl={excl} /></>, strong: true },
+               { label: "Без НДС", value: formatMoney(excl.toString()) },
+             ]}
+             details={[
+diff --git a/src/app/(app)/lots/page.tsx b/src/app/(app)/lots/page.tsx
+index 6df60c7..919c488 100644
+--- a/src/app/(app)/lots/page.tsx
++++ b/src/app/(app)/lots/page.tsx
+@@ -1,3 +1,4 @@
++import type { ReactNode } from "react";
+ import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+ import Link from "next/link";
+ import { cleanSearch } from "@/lib/input";
+@@ -18,7 +19,7 @@ import { LazyDetails } from "./lazy-details";
+ import { MaterialLots, furLotsWhere } from "./material-lots";
+ import { loadMaterialLots } from "./material-lots-action";
+ import { PurchaseSummary } from "./summary-view";
+-import { AuctionView, auctionStatusText, loadAuctions, pluralPurchases } from "./auction-view";
++import { AuctionView, loadAuctions } from "./auction-view";
+ import { getYearFilter } from "@/lib/year-filter";
+ import { furEnglish } from "@/lib/fur-ref";
+ import { getFurIndex } from "@/lib/fur-ref-server";
+@@ -27,9 +28,7 @@ import { YearNote, emptyForYear } from "@/components/year-note";
+ import { InfoHint } from "@/components/info-hint";
+ import { getCommission4Mode } from "@/lib/commission4-mode";
+ import { Ref4 } from "@/components/c4-note";
+-import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
+-import { TONE_DOT, overallTone, payShort } from "@/lib/doc-panel";
+-import { FurSelectionTotal } from "@/components/fur-selection-total";
++import { COMMISSION_RATE } from "@/lib/commission4-const";
+ 
+ const UNIT_LABELS: Record<string, string> = {
+   PIECE: "шт.",
+@@ -41,6 +40,27 @@ const UNIT_LABELS: Record<string, string> = {
+ 
+ export const metadata = { title: "Сырьё" };
+ 
++function RawMetric({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
++  return (
++    <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-sm">
++      <div className="text-xs font-medium text-neutral-500">{label}</div>
++      <div className="mt-1 text-xl font-semibold tabular-nums text-neutral-950">{value}</div>
++      {sub ? <div className="mt-1 text-xs text-neutral-500">{sub}</div> : null}
++    </div>
++  );
++}
++
++function Opposite4({ mode, incl, excl }: { mode: "on" | "off"; incl: Decimal; excl: Decimal }) {
++  const k = new Decimal(1).add(COMMISSION_RATE);
++  const altIncl = mode === "on" ? incl : incl.mul(k);
++  const altExcl = mode === "on" ? excl : excl.mul(k);
++  return (
++    <div className="mt-0.5 text-[11px] text-neutral-500">
++      {mode === "on" ? "без 4%" : "с 4%"}: <Money incl={altIncl} excl={altExcl} />
++    </div>
++  );
++}
++
+ export default async function RawStockPage({ searchParams }: PageProps<"/lots">) {
+   const session = await requireSession();
+   const sp = await searchParams;
+@@ -71,17 +91,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+     : [];
+   const auctionMode = tab === "fur" && Boolean(auctionQ);
+   const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
+-  // Индикатор у чипа аукциона: цветная точка (нет документов / не оплачено — красная, частично или нет платёжки — жёлтая, всё есть — зелёная).
+-  const docInfo = new Map<string, { dot: string; text: string }>();
+-  if (tab === "fur") {
+-    for (const d of await loadAuctionPanels(prisma, session.user.organizationId, { canUpload: false, canMark: false })) {
+-      const tone = overallTone(d.panel.missingCount, d.panel.pay, d.panel.proofMissing);
+-      const parts = [d.panel.missingCount > 0 ? `нет документов: ${d.panel.missingCount}` : "документы есть", payShort(d.panel.pay)];
+-      if (d.panel.proofMissing > 0) parts.push(`платёжек нет: ${d.panel.proofMissing}`);
+-      docInfo.set(d.key, { dot: TONE_DOT[tone], text: parts.join(", ") });
+-    }
+-  }
+-
+   const tabLink = (t: string, label: string) => (
+     <Link
+       href={t === "fur" ? "/lots" : `/lots?tab=${t}`}
+@@ -123,63 +132,47 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+     );
+   }
+ 
+-  const CHIPS_SHOWN = 6;
+-  // Служебные записи («Нет информации», «Не в реестре остатков…») — отдельной группой «Прочее» в конце.
+   const realAuctions = auctions.filter((a) => !isServiceAuction(a.name));
+   const serviceAuctions = auctions.filter((a) => isServiceAuction(a.name));
+-  const auctionChips = realAuctions.slice(0, CHIPS_SHOWN);
+-  const moreAuctions = realAuctions.slice(CHIPS_SHOWN);
+-  const isActiveName = (name: string) => auctionNames.length === 1 && auctionNames[0] === name;
+-  const auctionChip = (a: (typeof auctions)[number]) => {
+-    const active = auctionNames.length === 1 && auctionNames[0] === a.name;
+-    return (
+-      <Link
+-        key={a.name}
+-        href={`/lots?auction=${encodeURIComponent(a.name)}${auctionView === "lots" ? "&view=lots" : ""}`}
+-        className={
+-          "rounded-full border px-3 py-1 text-xs max-md:inline-flex max-md:min-h-8 max-md:items-center " +
+-          (active
+-            ? "border-neutral-900 bg-neutral-900 text-white"
+-            : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
+-        }
+-        title={`${a.name} — ${pluralPurchases(a.count)} · ${auctionStatusText(a)}${docInfo.get(a.name) ? ` · ${docInfo.get(a.name)!.text}` : ""}`}
+-      >
+-        {docInfo.get(a.name) && <span aria-hidden className={`mr-1.5 inline-block size-2 rounded-full ${docInfo.get(a.name)!.dot}`} />}
+-        {shortAuctionName(a.name)} <span className={active ? "text-neutral-300" : "text-neutral-400"}>· {a.count}</span>
+-      </Link>
+-    );
+-  };
+   const filtersBlock = (
+-    <>
+-      {auctions.length > 0 && (
+-        <div className="flex flex-wrap items-center gap-2 text-sm">
+-          <span className="text-xs text-neutral-500">Партия закупки (аукцион):</span>
+-          {auctionChips.map(auctionChip)}
+-          {moreAuctions.length > 0 && (
+-            <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
+-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
+-                <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
+-                <span className="hidden group-open/more:inline">скрыть</span>
+-              </summary>
+-              <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
+-            </details>
+-          )}
+-          {serviceAuctions.length > 0 && (
+-            <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
+-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
+-                Прочее — без аукциона ({serviceAuctions.length})
+-              </summary>
+-              <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
+-            </details>
+-          )}
++    <div className="rounded-lg border border-neutral-200 bg-white p-3">
++      <form className="flex flex-wrap items-end gap-2" method="get">
++        {auctionView === "lots" && <input type="hidden" name="view" value="lots" />}
++        <div className="min-w-64 flex-1 sm:max-w-xl">
++          <label className="mb-1 block text-xs font-medium text-neutral-600">Партия закупки / аукцион</label>
++          <Select name="auction" defaultValue={auctionNames.length === 1 ? auctionNames[0] : auctionQ}>
++            <option value="">Все партии</option>
++            {realAuctions.length > 0 && (
++              <optgroup label="Аукционы">
++                {realAuctions.map((a) => (
++                  <option key={a.name} value={a.name}>
++                    {shortAuctionName(a.name, 90)} · {a.count}
++                  </option>
++                ))}
++              </optgroup>
++            )}
++            {serviceAuctions.length > 0 && (
++              <optgroup label="Прочее / без аукциона">
++                {serviceAuctions.map((a) => (
++                  <option key={a.name} value={a.name}>
++                    {shortAuctionName(a.name, 90)} · {a.count}
++                  </option>
++                ))}
++              </optgroup>
++            )}
++          </Select>
+         </div>
+-      )}
+-      <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
+-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
+-        <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+-          {auctionView === "lots" && <input type="hidden" name="view" value="lots" />}
+-          {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
+-          <div className="col-span-2">
++        <Button type="submit" variant="outline">Открыть</Button>
++        {auctionQ && (
++          <Link href="/lots" className="flex h-9 items-center px-2 text-sm text-neutral-500 hover:underline">
++            Сбросить
++          </Link>
++        )}
++      </form>
++
++      {!auctionMode && (
++        <form className="mt-3 grid grid-cols-1 items-end gap-2 border-t border-neutral-100 pt-3 sm:grid-cols-4" method="get">
++          <div className="sm:col-span-2">
+             <label className="mb-1 block text-xs text-neutral-500">Поиск по № лота, материалу, цвету, сорту</label>
+             <Input name="q" defaultValue={q} placeholder="напр. 15016 или соболь" />
+           </div>
+@@ -190,26 +183,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+               {materials
+                 .filter((m) => m.unit !== "M")
+                 .map((m) => (
+-                  <option key={m.id} value={m.id}>
+-                    {m.name}
+-                  </option>
++                  <option key={m.id} value={m.id}>{m.name}</option>
+                 ))}
+             </Select>
+           </div>
+           <div className="flex gap-2">
+-            <Button type="submit" variant="outline">
+-              Найти
+-            </Button>
+-            <Link
+-              href={auctionQ ? `/lots?auction=${encodeURIComponent(auctionQ)}${auctionView === "lots" ? "&view=lots" : ""}` : "/lots"}
+-              className="flex items-center text-sm text-neutral-500 hover:underline"
+-            >
+-              Сбросить
+-            </Link>
++            <Button type="submit" variant="outline">Найти</Button>
++            {(q || materialId) && (
++              <Link href="/lots" className="flex h-9 items-center text-sm text-neutral-500 hover:underline">Сбросить</Link>
++            )}
+           </div>
+         </form>
+-      </details>
+-    </>
++      )}
++    </div>
+   );
+ 
+   if (auctionMode) {
+@@ -261,23 +247,23 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+ 
+   // Остатки/суммы по материалам считаем агрегатами по всем лотам; сами лоты меха не грузим —
+   // они подгружаются при раскрытии материала (loadMaterialLots), при фильтре — только подходящие.
+-  const [currentLots, purchasedByMaterial, matchCounts, liningLots] = await Promise.all([
++  const [metricLots, matchCounts, liningLots] = await Promise.all([
+     prisma.rawMaterialLot.findMany({
+-      where: { organizationId: orgId, quantityRemaining: { gt: 0 }, ...lotYear(year) },
++      where: { organizationId: orgId, ...lotYear(year) },
+       select: {
++        id: true,
+         rawMaterialId: true,
++        quantityReceived: true,
+         quantityRemaining: true,
+         unitCost: true,
+         vatRate: true,
+         materialCostExclVat: true,
+         expenseCostExclVat: true,
++        costBreakdown: true,
++        purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
++        usages: { select: { quantity: true, totalCost: true, commission4: true } },
+       },
+     }),
+-    prisma.rawMaterialLot.groupBy({
+-      by: ["rawMaterialId"],
+-      where: { organizationId: orgId, ...lotYear(year) },
+-      _sum: { quantityReceived: true },
+-    }),
+     filtering
+       ? prisma.rawMaterialLot.groupBy({
+           by: ["rawMaterialId"],
+@@ -307,44 +293,78 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+     unit: string;
+     minStockLevel: Decimal | null;
+     purchased: Decimal;
++    used: Decimal;
+     remaining: Decimal;
+-    value: Decimal;
+-    valueExclVat: Decimal;
++    purchasedValue: Decimal;
++    purchasedValueExclVat: Decimal;
++    usedValueBase: Decimal;
++    usedValueWith4: Decimal;
++    remainingValue: Decimal;
++    remainingValueExclVat: Decimal;
++    usdQty: Decimal;
++    usdSubtotal: Decimal;
+   };
+   const materialAggMap = new Map<string, MaterialAgg>();
+   for (const m of materials) {
+     materialAggMap.set(m.id, {
+-      id: m.id,
+-      name: m.name,
+-      unit: m.unit,
+-      minStockLevel: m.minStockLevel,
+-      purchased: new Decimal(0),
+-      remaining: new Decimal(0),
+-      value: new Decimal(0),
+-      valueExclVat: new Decimal(0),
++      id: m.id, name: m.name, unit: m.unit, minStockLevel: m.minStockLevel,
++      purchased: new Decimal(0), used: new Decimal(0), remaining: new Decimal(0),
++      purchasedValue: new Decimal(0), purchasedValueExclVat: new Decimal(0),
++      usedValueBase: new Decimal(0), usedValueWith4: new Decimal(0),
++      remainingValue: new Decimal(0), remainingValueExclVat: new Decimal(0),
++      usdQty: new Decimal(0), usdSubtotal: new Decimal(0),
+     });
+   }
+-  for (const g of purchasedByMaterial) {
+-    const agg = materialAggMap.get(g.rawMaterialId);
+-    if (agg && g._sum.quantityReceived) agg.purchased = agg.purchased.add(g._sum.quantityReceived);
+-  }
+-  for (const l of currentLots) {
++  for (const l of metricLots) {
+     const agg = materialAggMap.get(l.rawMaterialId);
+-    if (agg) {
+-      agg.remaining = agg.remaining.add(l.quantityRemaining);
+-      agg.value = agg.value.add(l.quantityRemaining.mul(l.unitCost));
+-      agg.valueExclVat = agg.valueExclVat.add(l.quantityRemaining.mul(lotUnitCostExclVat(l)));
++    if (!agg) continue;
++    const unitExcl = lotUnitCostExclVat(l);
++    agg.purchased = agg.purchased.add(l.quantityReceived);
++    agg.remaining = agg.remaining.add(l.quantityRemaining);
++    agg.purchasedValue = agg.purchasedValue.add(l.quantityReceived.mul(l.unitCost));
++    agg.purchasedValueExclVat = agg.purchasedValueExclVat.add(l.quantityReceived.mul(unitExcl));
++    agg.remainingValue = agg.remainingValue.add(l.quantityRemaining.mul(l.unitCost));
++    agg.remainingValueExclVat = agg.remainingValueExclVat.add(l.quantityRemaining.mul(unitExcl));
++    for (const u of l.usages) {
++      agg.used = agg.used.add(u.quantity);
++      agg.usedValueBase = agg.usedValueBase.add(u.totalCost);
++      agg.usedValueWith4 = agg.usedValueWith4.add(u.commission4 ? u.totalCost.mul(new Decimal(1).add(COMMISSION_RATE)) : u.totalCost);
++    }
++    if (agg.unit !== "M") {
++      const sources = [l.costBreakdown, ...l.purchaseItems.map((i) => i.costPlan)];
++      let usdUnit: Decimal | null = null;
++      for (const src of sources) {
++        const root = src as { items?: unknown; breakdown?: unknown } | null;
++        const items = (Array.isArray(root?.items) ? root.items : Array.isArray(root?.breakdown) ? root.breakdown : []) as { label?: unknown; value?: unknown }[];
++        const hit = items.find((it) => typeof it?.label === "string" && /Цена за ед.*(?:ам\.?\s*долл|USD|\$)/i.test(it.label) && Number.isFinite(Number(it.value)) && Number(it.value) > 0);
++        if (hit) { usdUnit = new Decimal(String(hit.value)); break; }
++      }
++      if (usdUnit) {
++        agg.usdQty = agg.usdQty.add(l.quantityReceived);
++        agg.usdSubtotal = agg.usdSubtotal.add(l.quantityReceived.mul(usdUnit));
++      }
+     }
+   }
+-  const materialRows = Array.from(materialAggMap.values()).filter(
+-    (r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0)
+-  );
++  const materialRows = Array.from(materialAggMap.values()).filter((r) => r.purchased.greaterThan(0) || r.remaining.greaterThan(0));
+   const furMaterialRows = materialRows.filter((r) => r.unit !== "M");
+   const liningMaterialRows = materialRows.filter((r) => r.unit === "M");
+-  const furTotalValue = furMaterialRows.reduce((s, r) => s.add(r.value), new Decimal(0));
+-  const furTotalValueExclVat = furMaterialRows.reduce((s, r) => s.add(r.valueExclVat), new Decimal(0));
+-  const liningTotalValue = liningMaterialRows.reduce((s, r) => s.add(r.value), new Decimal(0));
+-  const liningTotalValueExclVat = liningMaterialRows.reduce((s, r) => s.add(r.valueExclVat), new Decimal(0));
++  const sum = (rows: MaterialAgg[], key: keyof MaterialAgg) => rows.reduce((a, r) => a.add(r[key] as Decimal), new Decimal(0));
++  const furTotals = {
++    purchased: sum(furMaterialRows, "purchased"), used: sum(furMaterialRows, "used"), remaining: sum(furMaterialRows, "remaining"),
++    purchasedValue: sum(furMaterialRows, "purchasedValue"), usedValueBase: sum(furMaterialRows, "usedValueBase"), usedValueWith4: sum(furMaterialRows, "usedValueWith4"),
++    remainingValue: sum(furMaterialRows, "remainingValue"), usdQty: sum(furMaterialRows, "usdQty"), usdSubtotal: sum(furMaterialRows, "usdSubtotal"),
++  };
++  const liningTotals = {
++    purchased: sum(liningMaterialRows, "purchased"), used: sum(liningMaterialRows, "used"), remaining: sum(liningMaterialRows, "remaining"),
++    purchasedValue: sum(liningMaterialRows, "purchasedValue"), usedValueBase: sum(liningMaterialRows, "usedValueBase"), usedValueWith4: sum(liningMaterialRows, "usedValueWith4"),
++    remainingValue: sum(liningMaterialRows, "remainingValue"),
++  };
++  const furAvgFinal = furTotals.purchased.greaterThan(0) ? furTotals.purchasedValue.div(furTotals.purchased) : null;
++  const furAvgUsd = furTotals.usdQty.greaterThan(0) ? furTotals.usdSubtotal.div(furTotals.usdQty) : null;
++  const liningAvgFinal = liningTotals.purchased.greaterThan(0) ? liningTotals.purchasedValue.div(liningTotals.purchased) : null;
++  const currentUsed = (r: MaterialAgg) => c4Mode === "on" ? r.usedValueWith4 : r.usedValueBase;
++  const currentTotalUsed = (rows: MaterialAgg[]) => rows.reduce((a, r) => a.add(currentUsed(r)), new Decimal(0));
++  const displayProductionCost = (base: Decimal) => c4Mode === "on" ? base.mul(new Decimal(1).add(COMMISSION_RATE)) : base;
+ 
+   const furLots = lots;
+ 
+@@ -399,67 +419,62 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+         <>
+           {filtersBlock}
+ 
++          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
++            <RawMetric label="Куплено / себестоимость всего" value={`${formatQty(furTotals.purchased.toString())} шт.`} sub={<Money incl={furTotals.purchasedValue} />} />
++            <RawMetric
++              label="Ср. цена молотка, USD"
++              value={furAvgUsd ? `$${furAvgUsd.toFixed(2)}` : "—"}
++              sub={furAvgUsd ? `взвешено по ${formatQty(furTotals.usdQty.toString())} шт. с USD-ценой` : "лоты без USD-цены не учитываются"}
++            />
++            <RawMetric label="Ср. финальная цена" value={furAvgFinal ? <Money incl={furAvgFinal} /> : "—"} sub="₽ за шкуру, полная закупочная себестоимость" />
++            <RawMetric label="Использовано" value={`${formatQty(furTotals.used.toString())} шт.`} sub={<><Money incl={currentTotalUsed(furMaterialRows)} /> {c4Mode === "on" ? "· с 4%" : "· без 4%"}</>} />
++            <RawMetric label="Остаток меха" value={`${formatQty(furTotals.remaining.toString())} шт.`} sub={<Money incl={furTotals.remainingValue} />} />
++          </div>
++
+           <Card>
+             <CardHeader>
+-              <CardTitle>Мех</CardTitle>
++              <CardTitle>Мех · движение и остаток</CardTitle>
+             </CardHeader>
+             <CardContent>
+-              <div className="mb-4">
+-                <FurSelectionTotal
+-                  rows={furMaterialRows.map((r) => ({
+-                    id: r.id,
+-                    name: r.name,
+-                    unit: r.unit,
+-                    purchased: r.purchased.toString(),
+-                    remaining: r.remaining.toString(),
+-                    remainingValue: r.value.toString(),
+-                    remainingValueExclVat: r.valueExclVat.toString(),
+-                  }))}
+-                />
+-              </div>
+               <Table>
+-                <Thead className="max-md:hidden">
++                <Thead className="max-lg:hidden">
+                   <Tr>
+-                    <Th>Материал</Th>
+-                    <Th>Куплено всего</Th>
+-                    <Th>Использовано</Th>
+-                    <Th>Остаток</Th>
+-                    <Th>Стоимость остатка</Th>
++                    <Th>Мех</Th>
++                    <Th>Куплено, шт.</Th>
++                    <Th>Куплено, ₽</Th>
++                    <Th>Использовано, шт.</Th>
++                    <Th>Использовано, ₽</Th>
++                    <Th>Остаток, шт.</Th>
++                    <Th>Остаток, ₽</Th>
+                   </Tr>
+                 </Thead>
+                 <Tbody>
+                   {furMaterialRows.map((r) => {
+                     if (filtering && !matchCountByMaterial.get(r.id)) return null;
+                     const low = r.minStockLevel != null && r.remaining.lessThan(r.minStockLevel);
++                    const usedMoney = currentUsed(r);
+                     return (
+                       <Tr key={r.id}>
+-                        <Td colSpan={5} className="p-0">
++                        <Td colSpan={7} className="p-0">
+                           <LazyDetails className="group" defaultOpen={filtering} load={filtering ? undefined : loadMaterialLots.bind(null, r.id, q)} summary={
+-                            <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 md:grid-cols-5 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+-                              <span className="col-span-2 font-medium md:col-span-1">
+-                                <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
+-                                  ›
+-                                </span>
++                            <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 lg:grid-cols-7 [&::-webkit-details-marker]:hidden">
++                              <span className="col-span-2 font-medium lg:col-span-1">
++                                <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+                                 <span title={furEnglish(r.name, furIdx) ?? undefined}>{r.name}</span>
+                               </span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Куплено</span>{formatQty(r.purchased.toString())} шт.</span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Куплено, ₽</span><Money incl={r.purchasedValue} /></span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Использовано</span>{formatQty(r.used.toString())} шт.</span>
+                               <span>
+-                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Куплено всего</span>
+-                                {formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}
+-                              </span>
+-                              <span>
+-                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Использовано</span>
+-                                {formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}
++                                <span className="block text-xs text-neutral-500 lg:hidden">Использовано, ₽</span>
++                                <Money incl={usedMoney} />
++                                <Opposite4 mode={c4Mode} incl={r.usedValueBase} excl={r.usedValueBase} />
+                               </span>
+                               <span className="font-medium">
+-                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Остаток</span>
+-                                {formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}{" "}
+-                                {low && <Badge variant="danger">Мало</Badge>}
+-                              </span>
+-                              <span>
+-                                <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость остатка</span>
+-                                <Money incl={r.value} excl={r.valueExclVat} />
+-                                <Ref4 mode={c4Mode} incl={r.value} excl={r.valueExclVat} />
++                                <span className="block text-xs text-neutral-500 lg:hidden">Остаток</span>
++                                {formatQty(r.remaining.toString())} шт. {low && <Badge variant="danger">Мало</Badge>}
+                               </span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Остаток, ₽</span><Money incl={r.remainingValue} /></span>
+                             </summary>
+                           }>
+                             {filtering && <MaterialLots organizationId={orgId} materialId={r.id} q={q} />}
+@@ -469,253 +484,110 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
+                     );
+                   })}
+                   {furMaterialRows.length === 0 && (
+-                    <Tr>
+-                      <Td colSpan={5} className="py-6 text-center text-neutral-400">
+-                        {emptyForYear(year, "закупок меха", "Мех ещё не закупался")}
+-                      </Td>
+-                    </Tr>
++                    <Tr><Td colSpan={7} className="py-6 text-center text-neutral-400">{emptyForYear(year, "закупок меха", "Мех ещё не закупался")}</Td></Tr>
+                   )}
+                 </Tbody>
+               </Table>
+-              <div className="mt-3 flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
+-                <span><span className="text-neutral-500">Всего куплено меха:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.purchased), new Decimal(0)).toString())} шт.</b></span>
+-                <span><span className="text-neutral-500">Использовано:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.purchased.sub(r.remaining)), new Decimal(0)).toString())} шт.</b></span>
+-                <span><span className="text-neutral-500">Остаток:</span> <b>{formatQty(furMaterialRows.reduce((a, r) => a.add(r.remaining), new Decimal(0)).toString())} шт.</b></span>
+-                <span><span className="text-neutral-500">Стоимость остатка:</span> <b><Money incl={furTotalValue} excl={furTotalValueExclVat} /></b><Ref4 mode={c4Mode} incl={furTotalValue} excl={furTotalValueExclVat} className="ml-2 inline-block" /></span>
+-              </div>
+             </CardContent>
+           </Card>
+         </>
+       ) : (
+-        <Card>
+-          <CardHeader>
+-            <CardTitle>Подкладка</CardTitle>
+-          </CardHeader>
+-          <CardContent>
+-            <LiningPurchaseForm
+-              materials={materials
+-                .filter((m) => m.unit === "M")
+-                .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
+-                .map((m) => ({ id: m.id, name: m.name }))}
+-            />
+-            <Table>
+-              <Thead className="max-md:hidden">
+-                <Tr>
+-                  <Th>№ ткани</Th>
+-                  <Th>Куплено</Th>
+-                  <Th>Использовано</Th>
+-                  <Th>Остаток</Th>
+-                  <Th>Стоимость</Th>
+-                </Tr>
+-              </Thead>
+-              <Tbody>
+-                {liningVisibleRows.map((r) => {
+-                  const rowLots = liningLotsByMaterial.get(r.id) ?? [];
+-                  const perOrder = new Map<string, { id: string; number: string; qty: Decimal }>();
+-                  for (const l of rowLots) {
+-                    for (const u of l.usages) {
++        <>
++          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
++            <RawMetric label="Куплено / себестоимость всего" value={`${formatQty(liningTotals.purchased.toString())} м`} sub={<Money incl={liningTotals.purchasedValue} />} />
++            <RawMetric label="Ср. финальная цена" value={liningAvgFinal ? <Money incl={liningAvgFinal} /> : "—"} sub="₽ за метр, полная закупочная себестоимость" />
++            <RawMetric label="Использовано" value={`${formatQty(liningTotals.used.toString())} м`} sub={<><Money incl={currentTotalUsed(liningMaterialRows)} /> {c4Mode === "on" ? "· с 4%" : "· без 4%"}</>} />
++            <RawMetric label="Остаток подкладки" value={`${formatQty(liningTotals.remaining.toString())} м`} sub={<Money incl={liningTotals.remainingValue} />} />
++          </div>
++
++          <Card>
++            <CardHeader><CardTitle>Подкладка · движение и остаток</CardTitle></CardHeader>
++            <CardContent>
++              <LiningPurchaseForm
++                materials={materials.filter((m) => m.unit === "M").sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true })).map((m) => ({ id: m.id, name: m.name }))}
++              />
++              <Table>
++                <Thead className="max-lg:hidden">
++                  <Tr>
++                    <Th>Подкладка</Th><Th>Куплено, м</Th><Th>Куплено, ₽</Th><Th>Использовано, м</Th><Th>Использовано, ₽</Th><Th>Остаток, м</Th><Th>Остаток, ₽</Th>
++                  </Tr>
++                </Thead>
++                <Tbody>
++                  {liningVisibleRows.map((r) => {
++                    const rowLots = liningLotsByMaterial.get(r.id) ?? [];
++                    const perOrder = new Map<string, { id: string; number: string; qty: Decimal }>();
++                    for (const l of rowLots) for (const u of l.usages) {
+                       const e = perOrder.get(u.productionOrderId);
+                       if (e) e.qty = e.qty.add(u.quantity);
+-                      else
+-                        perOrder.set(u.productionOrderId, {
+-                          id: u.productionOrderId,
+-                          number: u.productionOrder.number,
+-                          qty: u.quantity,
+-                        });
++                      else perOrder.set(u.productionOrderId, { id: u.productionOrderId, number: u.productionOrder.number, qty: u.quantity });
+                     }
+-                  }
+-                  const depleted = r.remaining.lessThanOrEqualTo(0);
+-                  // Real остаток incl. negative pools (currentLots only sees > 0).
+-                  const poolRemaining = rowLots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+-                  const shortage = poolRemaining.lessThan(0) ? poolRemaining.neg() : null;
+-                  return (
+-                    <Tr key={r.id}>
+-                      <Td colSpan={5} className="p-0">
+-                        <details className="group">
+-                          <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 md:grid-cols-5 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
+-                            <span className="col-span-2 font-medium md:col-span-1">
+-                              <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">
+-                                ›
+-                              </span>
+-                              {r.name}
+-                            </span>
+-                            <span>
+-                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Куплено</span>
+-                              {formatQty(r.purchased.toString())} м
+-                            </span>
+-                            <span>
+-                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Использовано</span>
+-                              {formatQty(r.purchased.sub(r.remaining).toString())} м
+-                            </span>
+-                            <span className="font-medium">
+-                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Остаток</span>
+-                              {shortage ? "0" : formatQty(r.remaining.toString())} м{" "}
+-                              {shortage ? (
+-                                <Badge variant="warning">Не хватает {formatQty(shortage.toString())} м</Badge>
+-                              ) : (
+-                                depleted && <span className="text-xs font-normal text-neutral-500">остаток 0</span>
+-                              )}
+-                            </span>
+-                            <span>
+-                              <span className="block text-xs font-normal text-neutral-500 md:hidden">Стоимость</span>
+-                              <Money incl={r.value} excl={r.valueExclVat} />
+-                              <Ref4 mode={c4Mode} incl={r.value} excl={r.valueExclVat} />
+-                            </span>
+-                          </summary>
+-                          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 border-t border-neutral-100 bg-neutral-50 px-3 py-2">
+-                            <div>
+-                              <div className="mb-1 text-xs font-semibold text-neutral-500">Закупки</div>
+-                              <ResponsiveRows
+-                                table={
+-                              <Table>
+-                                <Thead>
+-                                  <Tr>
+-                                    <Th>Закупка</Th>
+-                                    <Th>Дата</Th>
+-                                    <Th>Куплено</Th>
+-                                    <Th>Цена за м</Th>
+-                                  </Tr>
+-                                </Thead>
+-                                <Tbody>
+-                                  {rowLots.map((l) => (
+-                                    <Tr key={l.id}>
+-                                      <Td>
+-                                        {l.purchase ? (
+-                                          <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
+-                                            {l.purchase.supplier.name} ({l.purchase.number})
+-                                          </Link>
+-                                        ) : (
+-                                          "—"
+-                                        )}
+-                                      </Td>
+-                                      <Td>{formatDate(l.receivedDate)}</Td>
+-                                      <Td>{formatQty(l.quantityReceived.toString())} м</Td>
+-                                      <Td>
+-                                        <Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
+-                                        <Ref4 mode={c4Mode} incl={l.unitCost} excl={lotUnitCostExclVat(l)} />
+-                                      </Td>
+-                                    </Tr>
+-                                  ))}
+-                                  {rowLots.length === 0 && (
+-                                    <Tr>
+-                                      <Td colSpan={4} className="py-3 text-center text-neutral-400">
+-                                        Эта ткань пока не закупалась
+-                                      </Td>
+-                                    </Tr>
+-                                  )}
+-                                </Tbody>
+-                              </Table>
+-                                }
+-                              >
+-                                {rowLots.map((l) => (
+-                                  <RowCard
+-                                    key={l.id}
+-                                    title={
+-                                      l.purchase ? (
+-                                        <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
+-                                          {l.purchase.supplier.name} ({l.purchase.number})
+-                                        </Link>
+-                                      ) : (
+-                                        "—"
+-                                      )
+-                                    }
+-                                    subtitle={formatDate(l.receivedDate)}
+-                                    fields={[
++                    const poolRemaining = rowLots.reduce((sum, l) => sum.add(l.quantityRemaining), new Decimal(0));
++                    const shortage = poolRemaining.lessThan(0) ? poolRemaining.neg() : null;
++                    const usedMoney = currentUsed(r);
++                    return (
++                      <Tr key={r.id}>
++                        <Td colSpan={7} className="p-0">
++                          <details className="group">
++                            <summary className="grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 lg:grid-cols-7 [&::-webkit-details-marker]:hidden">
++                              <span className="col-span-2 font-medium lg:col-span-1"><span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>{r.name}</span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Куплено</span>{formatQty(r.purchased.toString())} м</span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Куплено, ₽</span><Money incl={r.purchasedValue} /></span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Использовано</span>{formatQty(r.used.toString())} м</span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Использовано, ₽</span><Money incl={usedMoney} /><Opposite4 mode={c4Mode} incl={r.usedValueBase} excl={r.usedValueBase} /></span>
++                              <span className="font-medium"><span className="block text-xs text-neutral-500 lg:hidden">Остаток</span>{shortage ? "0" : formatQty(r.remaining.toString())} м {shortage && <Badge variant="warning">Не хватает {formatQty(shortage.toString())} м</Badge>}</span>
++                              <span><span className="block text-xs text-neutral-500 lg:hidden">Остаток, ₽</span><Money incl={r.remainingValue} /></span>
++                            </summary>
++                            <div className="grid grid-cols-1 gap-4 border-t border-neutral-100 bg-neutral-50 px-3 py-3 lg:grid-cols-2">
++                              <div>
++                                <div className="mb-1 text-xs font-semibold text-neutral-500">Закупки</div>
++                                <ResponsiveRows table={
++                                  <Table><Thead><Tr><Th>Закупка</Th><Th>Дата</Th><Th>Куплено</Th><Th>Цена за м</Th></Tr></Thead><Tbody>
++                                    {rowLots.map((l) => {
++                                      const baseExcl = lotUnitCostExclVat(l);
++                                      const shownIncl = displayProductionCost(l.unitCost);
++                                      const shownExcl = displayProductionCost(baseExcl);
++                                      return <Tr key={l.id}>
++                                        <Td>{l.purchase ? <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">{l.purchase.supplier.name} ({l.purchase.number})</Link> : "—"}</Td>
++                                        <Td>{formatDate(l.receivedDate)}</Td>
++                                        <Td>{formatQty(l.quantityReceived.toString())} м</Td>
++                                        <Td><Money incl={shownIncl} excl={shownExcl} /><Opposite4 mode={c4Mode} incl={l.unitCost} excl={baseExcl} /></Td>
++                                      </Tr>;
++                                    })}
++                                  </Tbody></Table>
++                                }>
++                                  {rowLots.map((l) => {
++                                    const baseExcl = lotUnitCostExclVat(l);
++                                    return <RowCard key={l.id} title={l.purchase ? <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">{l.purchase.supplier.name} ({l.purchase.number})</Link> : "—"} subtitle={formatDate(l.receivedDate)} fields={[
+                                       { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} м` },
+-                                      { label: "Цена за м", value: <><Money incl={l.unitCost} excl={lotUnitCostExclVat(l)} /><Ref4 mode={c4Mode} incl={l.unitCost} excl={lotUnitCostExclVat(l)} /></> },
+-                                    ]}
+-                                  />
+-                                ))}
+-                                {rowLots.length === 0 && <p className="py-3 text-center text-sm text-neutral-400">Эта ткань пока не закупалась</p>}
+-                              </ResponsiveRows>
++                                      { label: "Цена за м", value: <><Money incl={displayProductionCost(l.unitCost)} excl={displayProductionCost(baseExcl)} /><Opposite4 mode={c4Mode} incl={l.unitCost} excl={baseExcl} /></>, strong: true },
++                                    ]} />;
++                                  })}
++                                </ResponsiveRows>
++                              </div>
++                              <div>
++                                <div className="mb-1 text-xs font-semibold text-neutral-500">Использована в ТЗ</div>
++                                <ResponsiveRows table={
++                                  <Table><Thead><Tr><Th>ТЗ</Th><Th>Метров</Th></Tr></Thead><Tbody>
++                                    {Array.from(perOrder.values()).map((o) => <Tr key={o.id}><Td><Link href={`/production/${o.id}`} className="hover:underline">ТЗ {o.number}</Link></Td><Td>{formatQty(o.qty.toString())} м</Td></Tr>)}
++                                    {perOrder.size === 0 && <Tr><Td colSpan={2} className="py-3 text-center text-neutral-400">Пока не использовалась</Td></Tr>}
++                                  </Tbody></Table>
++                                }>
++                                  {Array.from(perOrder.values()).map((o) => <RowCard key={o.id} title={<Link href={`/production/${o.id}`} className="hover:underline">ТЗ {o.number}</Link>} fields={[{ label: "Метров", value: `${formatQty(o.qty.toString())} м` }]} />)}
++                                </ResponsiveRows>
++                              </div>
+                             </div>
+-                            <div>
+-                              <div className="mb-1 text-xs font-semibold text-neutral-500">Использована в ТЗ</div>
+-                              <ResponsiveRows
+-                                table={
+-                              <Table>
+-                                <Thead>
+-                                  <Tr>
+-                                    <Th>ТЗ</Th>
+-                                    <Th>Метров</Th>
+-                                  </Tr>
+-                                </Thead>
+-                                <Tbody>
+-                                  {Array.from(perOrder.values()).map((o) => (
+-                                    <Tr key={o.id}>
+-                                      <Td>
+-                                        <Link href={`/production/${o.id}`} className="hover:underline">
+-                                          ТЗ {o.number}
+-                                        </Link>
+-                                      </Td>
+-                                      <Td>{formatQty(o.qty.toString())} м</Td>
+-                                    </Tr>
+-                                  ))}
+-                                  {perOrder.size === 0 && (
+-                                    <Tr>
+-                                      <Td colSpan={2} className="py-3 text-center text-neutral-400">
+-                                        Пока не использовалась
+-                                      </Td>
+-                                    </Tr>
+-                                  )}
+-                                </Tbody>
+-                              </Table>
+-                                }
+-                              >
+-                                {Array.from(perOrder.values()).map((o) => (
+-                                  <RowCard
+-                                    key={o.id}
+-                                    title={
+-                                      <Link href={`/production/${o.id}`} className="hover:underline">
+-                                        ТЗ {o.number}
+-                                      </Link>
+-                                    }
+-                                    fields={[{ label: "Метров", value: `${formatQty(o.qty.toString())} м` }]}
+-                                  />
+-                                ))}
+-                                {perOrder.size === 0 && <p className="py-3 text-center text-sm text-neutral-400">Пока не использовалась</p>}
+-                              </ResponsiveRows>
+-                            </div>
+-                          </div>
+-                        </details>
+-                      </Td>
+-                    </Tr>
+-                  );
+-                })}
+-                {liningVisibleRows.length === 0 && (
+-                  <Tr>
+-                    <Td colSpan={5} className="py-6 text-center text-neutral-400">
+-                      {liningMaterialRows.length === 0 ? emptyForYear(year, "закупок подкладки", "Подкладка ещё не закупалась") : "Ткани с остатком закончились"}
+-                    </Td>
+-                  </Tr>
+-                )}
+-              </Tbody>
+-            </Table>
+-            {(liningHiddenCount > 0 || showZeroLining) && (
+-              <p className="mt-2 text-xs text-neutral-500">
+-                {showZeroLining ? (
+-                  <Link href="/lots?tab=lining" className="text-blue-600 hover:underline">
+-                    Скрыть ткани без остатка
+-                  </Link>
+-                ) : (
+-                  <>
+-                    Скрыто тканей без остатка: {liningHiddenCount}.{" "}
+-                    <Link href="/lots?tab=lining&zero=1" className="text-blue-600 hover:underline">
+-                      Показать все
+-                    </Link>
+-                  </>
+-                )}
+-              </p>
+-            )}
+-            <div className="mt-3 flex justify-end text-sm">
+-              <span className="text-neutral-500">Итого стоимость остатков подкладки: </span>
+-              <span className="ml-1 font-semibold text-neutral-900">
+-                <Money incl={liningTotalValue} excl={liningTotalValueExclVat} />
+-              </span>
+-              <Ref4 mode={c4Mode} incl={liningTotalValue} excl={liningTotalValueExclVat} className="ml-2 inline-block" />
+-            </div>
+-          </CardContent>
+-        </Card>
++                          </details>
++                        </Td>
++                      </Tr>
++                    );
++                  })}
++                  {liningVisibleRows.length === 0 && <Tr><Td colSpan={7} className="py-6 text-center text-neutral-400">{liningMaterialRows.length === 0 ? emptyForYear(year, "закупок подкладки", "Подкладка ещё не закупалась") : "Ткани с остатком закончились"}</Td></Tr>}
++                </Tbody>
++              </Table>
++              {(liningHiddenCount > 0 || showZeroLining) && <p className="mt-2 text-xs text-neutral-500">{showZeroLining ? <Link href="/lots?tab=lining" className="text-blue-600 hover:underline">Скрыть ткани без остатка</Link> : <>Скрыто тканей без остатка: {liningHiddenCount}. <Link href="/lots?tab=lining&zero=1" className="text-blue-600 hover:underline">Показать все</Link></>}</p>}
++            </CardContent>
++          </Card>
++        </>
+       )}
+     </div>
+   );
+diff --git a/src/app/(app)/lots/summary-node-action.tsx b/src/app/(app)/lots/summary-node-action.tsx
+index c3daf91..5a7a8b9 100644
+--- a/src/app/(app)/lots/summary-node-action.tsx
++++ b/src/app/(app)/lots/summary-node-action.tsx
+@@ -11,6 +11,7 @@ import { AuctionBody, aKey, filterLeaves } from "./summary-view";
+ export async function loadSummaryAuction(
+   year: number,
+   auction: string,
++  rawType: "fur" | "lining",
+   filterYear: number,
+   filterAuction: string,
+   filterMaterial: string,
+@@ -23,7 +24,7 @@ export async function loadSummaryAuction(
+     auction: String(filterAuction).slice(0, 300),
+     material: String(filterMaterial).slice(0, 300),
+   });
+-  const al = leaves.filter((l) => l.year === Number(year) && aKey(l) === String(auction));
++  const al = leaves.filter((l) => l.year === Number(year) && aKey(l) === String(auction) && (rawType === "lining" ? l.unit === "M" : l.unit !== "M"));
+   return (
+     <div>
+       <AuctionBody al={al} mode={mode === "excl" ? "excl" : "incl"} />
+diff --git a/src/app/(app)/lots/summary-view.tsx b/src/app/(app)/lots/summary-view.tsx
+index df4dfb6..dc44611 100644
+--- a/src/app/(app)/lots/summary-view.tsx
++++ b/src/app/(app)/lots/summary-view.tsx
+@@ -65,10 +65,9 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
+   return (
+     <>
+       <span className={cell}>
+-        <span className={lab}>Шкур</span>
++        <span className={lab}>Кол-во</span>
+         <span>
+-          {formatQty(a.qty.toString())}
+-          {unit ? ` ${unit}` : ""}
++          {unit ? <>{formatQty(a.qty.toString())} {unit}</> : "—"}
+         </span>
+       </span>
+       <span className={cell}>
+@@ -90,12 +89,12 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
+         </span>
+       </span>
+       <span className={cell} title="Цена шкур по счетам ÷ число шкур">
+-        <span className={lab}>Ср. цена шкуры</span>
+-        <span>{f.avgPrice == null ? "—" : money(f.avgPrice)}</span>
++        <span className={lab}>Ср. цена ед.</span>
++        <span>{unit && f.avgPrice != null ? money(f.avgPrice) : "—"}</span>
+       </span>
+       <span className={cell} title="Стоимость с расходами ÷ число шкур">
+-        <span className={lab}>Ср. с расходами за шкуру</span>
+-        <span>{f.avgFull == null ? "—" : money(f.avgFull)}</span>
++        <span className={lab}>Ср. финальная ед. за шкуру</span>
++        <span>{unit && f.avgFull != null ? money(f.avgFull) : "—"}</span>
+       </span>
+     </>
+   );
+@@ -110,6 +109,7 @@ function Node({
+   open,
+   children,
+   load,
++  unit,
+ }: {
+   title: React.ReactNode;
+   sub?: React.ReactNode;
+@@ -120,6 +120,7 @@ function Node({
+   children?: React.ReactNode;
+   /** Серверное действие: содержимое строки подгружается при первом раскрытии (не рендерится вместе со страницей). */
+   load?: () => Promise<React.ReactNode>;
++  unit?: string;
+ }) {
+   const indent = ["", "md:pl-4", "md:pl-8"][level];
+   const tone = ["bg-neutral-50 font-semibold", "bg-white", "bg-white"][level];
+@@ -132,7 +133,7 @@ function Node({
+         {title}
+         {sub && <span className="ml-2 text-xs font-normal text-neutral-400">{sub}</span>}
+       </span>
+-      <Metrics a={a} mode={mode} />
++      <Metrics a={a} mode={mode} unit={unit} />
+     </summary>
+   );
+   const cls = "group border-t border-neutral-100 first:border-t-0";
+@@ -152,7 +153,7 @@ export function AuctionBody({ al, mode }: { al: Leaf[]; mode: Mode }) {
+       {[...group(al, (l) => l.material).entries()]
+         .sort((a, b) => cmpRu(a[0], b[0]))
+         .map(([material, ml]) => (
+-          <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={2}>
++          <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={2} unit={UNIT[ml[0]?.unit ?? ""]}>
+             {ml.map((l) => (
+               <LotRow key={l.id} l={l} mode={mode} />
+             ))}
+@@ -349,53 +350,61 @@ export async function PurchaseSummary({
+             className={`hidden gap-x-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-500 md:grid ${COLS}`}
+           >
+             <span>Год / аукцион / сырьё / лот</span>
+-            <span className="text-right">Шкур</span>
++            <span className="text-right">Кол-во</span>
+             <span className="text-right">Цена шкур по счетам</span>
+             <span className="text-right">С расходами</span>
+             <span className="text-right">Оплачено</span>
+             <span className="text-right">Остаток</span>
+             <span className="text-right">
+-              Ср. цена шкуры
+-              <InfoHint label="Как считается средняя цена шкуры" align="right">
+-                Цена шкур по счетам ÷ число шкур — средневзвешенная: общая сумма делится на общее число шкур, а не среднее из средних.
++              Ср. цена ед.
++              <InfoHint label="Как считается средняя цена единицы" align="right">
++                Цена сырья по счетам ÷ количество единиц — средневзвешенная внутри одного типа сырья. Для строки года, где смешаны шт. и метры, среднее не показывается.
+                 {grand.qty.greaterThan(0) && (
+                   <p className="mt-1">Сейчас: {money(gf.price)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.price).div(grand.qty))}.</p>
+                 )}
+               </InfoHint>
+             </span>
+             <span className="text-right">
+-              Ср. с расходами
+-              <InfoHint label="Как считается средняя с расходами" align="right">
+-                Стоимость с расходами ÷ число шкур (средневзвешенная).
++              Ср. финальная ед.
++              <InfoHint label="Как считается средняя финальная цена" align="right">
++                Полная стоимость ÷ количество единиц (средневзвешенная внутри одного типа сырья).
+                 {grand.qty.greaterThan(0) && (
+                   <p className="mt-1">Сейчас: {money(gf.full)} ÷ {formatQty(grand.qty.toString())} шк. = {money(new Decimal(gf.full).div(grand.qty))}.</p>
+                 )}
+               </InfoHint>
+             </span>
+           </div>
+-          {byYear.map(([year, yl], yi) => (
++          {byYear.map(([year, yl]) => (
+             <Node
+               key={year}
+               title={`${year} год`}
+-              sub={`${yl.length} лот.`}
++              sub={`${yl.length} поз.`}
+               a={aggOf(yl)}
+               mode={mode}
+               level={0}
+-              open={yi === 0 || byYear.length === 1}
++              open={false}
+             >
+-              {[...group(yl, aKey).entries()]
+-                .sort((a, b) => cmpAuction(a[0], b[0]))
+-                .map(([auction, al]) => (
+-                  <Node
+-                    key={auction}
+-                    title={shortAuctionName(auction, 70)}
+-                    sub={`${al.length} лот.`}
+-                    a={aggOf(al)}
+-                    mode={mode}
+-                    level={1}
+-                    load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, mode)}
+-                  />
+-                ))}
++              {([
++                ["fur", "Мех", yl.filter((l) => l.unit !== "M"), "шт."],
++                ["lining", "Подкладка", yl.filter((l) => l.unit === "M"), "м"],
++              ] as const).filter(([, , rows]) => rows.length > 0).map(([rawType, rawLabel, rows, unit]) => (
++                <Node key={rawType} title={rawLabel} sub={`${rows.length} поз.`} a={aggOf(rows)} mode={mode} level={1} unit={unit}>
++                  {[...group(rows, aKey).entries()]
++                    .sort((a, b) => cmpAuction(a[0], b[0]))
++                    .map(([auction, al]) => (
++                      <Node
++                        key={auction}
++                        title={shortAuctionName(auction, 70)}
++                        sub={`${al.length} поз.`}
++                        a={aggOf(al)}
++                        mode={mode}
++                        level={2}
++                        unit={unit}
++                        load={loadSummaryAuction.bind(null, Number(year), auction, rawType, yearF ?? 0, auctionF, materialF, mode)}
++                      />
++                    ))}
++                </Node>
++              ))}
+             </Node>
+           ))}
+           <div
+diff --git a/src/app/(app)/production/page.tsx b/src/app/(app)/production/page.tsx
+index 5621c82..3a11f27 100644
+--- a/src/app/(app)/production/page.tsx
++++ b/src/app/(app)/production/page.tsx
+@@ -16,7 +16,6 @@ import { VatLabel } from "@/components/vat-label";
+ import { getCommission4Mode } from "@/lib/commission4-mode";
+ import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
+ import { canEditProduction } from "@/lib/production-access";
+-import { ResponsiveDetails } from "./filters-details";
+ import { GroupedByBatch } from "./grouped-view";
+ import { modelCodeVariants } from "@/lib/model-code";
+ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+@@ -28,7 +27,7 @@ import { C4Hint, Mode4Badge } from "@/components/c4-note";
+ import { loadOrderIndicators } from "@/lib/production-doc-checklist";
+ import { DocsPayBadge } from "@/components/docs-pay-badge";
+ import { VerifyPill } from "@/components/verify-control";
+-import { loadVerifyFlags } from "@/lib/verification";
++import { loadOrderVerifyFlags } from "@/lib/verification";
+ import { TzVatBadge } from "@/components/tz-vat-badge";
+ import { VAT_FILTER, matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
+ 
+@@ -73,7 +72,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+   // Фильтр «Ставка НДС» по лотам в списаниях ТЗ: 20 / 22 / смешанные (?nds=).
+   const vatF = str(sp.nds) in VAT_FILTER ? str(sp.nds) : "";
+   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
+-  const PAGE_SIZE = 50;
++  const PAGE_SIZE = 25;
+   const limitRaw = /^\d{1,5}$/.test(str(sp.limit)) ? parseInt(str(sp.limit), 10) : PAGE_SIZE;
+   const limit = Math.min(Math.max(limitRaw, PAGE_SIZE), 100000);
+ 
+@@ -151,8 +150,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+     const n = parseInt(o.workOrderNumber ?? "", 10);
+     return Number.isNaN(n) ? null : n;
+   };
+-  const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
+-  const vflags = await loadVerifyFlags(prisma, orgId);
++  // На обычном списке нужны индикаторы только для видимой первой страницы. При фильтрах,
++  // которые зависят от индикатора/порядка, считаем весь набор — семантика остаётся прежней.
++  const indicatorIds = need || vatF || sort || q ? rawOrders.map((o) => o.id) : rawOrders.slice(0, limit).map((o) => o.id);
++  const [indicators, orderVerify] = await Promise.all([
++    loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false }, indicatorIds),
++    loadOrderVerifyFlags(prisma, orgId),
++  ]);
+   const orders = rawOrders.filter((o) => {
+     if (!matchesVatFilter(vatBreakdown(o.materialUsages, c4Mode).kind, vatF)) return false;
+     if (!need) return true;
+@@ -181,6 +185,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+ 
+   // Колонку заказчика показываем только если в списке больше одного заказчика.
+   const showClient = new Set(orders.map((o) => o.client?.name ?? "")).size > 1;
++  // Один документ ТЗ может содержать несколько моделей/позиций. Повтор номера в таком случае —
++  // не дубль записи: показываем пользователю позицию внутри общего ТЗ.
++  const workOrderCount = new Map<string, number>();
++  for (const o of orders) if (o.workOrderNumber) workOrderCount.set(o.workOrderNumber, (workOrderCount.get(o.workOrderNumber) ?? 0) + 1);
++  const workOrderSeen = new Map<string, number>();
+ 
+   let sumIncl = new Decimal(0);
+   let sumExcl = new Decimal(0);
+@@ -262,83 +271,85 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+         })}
+       </div>
+ 
+-      <ResponsiveDetails summary={`Фильтры и поиск${hasFilters || sort ? " (применены)" : ""}`} forceOpen={hasFilters || Boolean(sort)}>
+-      <form method="get" className="flex flex-wrap items-end gap-2">
+-        {modelId && <input type="hidden" name="model" value={modelId} />}
+-        {grouped && <input type="hidden" name="view" value="batches" />}
+-        <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-full sm:w-72" />
+-        <Select name="status" defaultValue={status} className="w-full sm:w-44">
+-          <option value="">Все статусы</option>
+-          {STATUS_KEYS.map((k) => (
+-            <option key={k} value={k}>
+-              {STATUS_LABELS[k].label}
+-            </option>
+-          ))}
+-        </Select>
+-        <Select name="client" defaultValue={clientId} className="w-full sm:w-56">
+-          <option value="">Все заказчики</option>
+-          {clients.map((c) => (
+-            <option key={c.id} value={c.id}>
+-              {c.name}
+-            </option>
+-          ))}
+-        </Select>
+-        {seasonList.length > 0 && (
+-          <Select name="season" defaultValue={seasonF} className="w-full sm:w-44" aria-label="Сезон">
+-            <option value="">Все сезоны</option>
+-            <option value="none">Без сезона</option>
+-            {seasonList.map((x) => (
+-              <option key={x.id} value={x.id}>
+-                {x.code}
+-              </option>
+-            ))}
+-          </Select>
+-        )}
+-        {batchList.length > 0 && (
+-          <Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-44" aria-label="Партия">
+-            <option value="">Все партии</option>
+-            {batchList.map((b) => (
+-              <option key={b.id} value={b.number}>
+-                Партия {b.number}
+-                {b.year ? ` (${b.year})` : ""}
+-              </option>
+-            ))}
+-          </Select>
+-        )}
+-        <Select name="need" defaultValue={need} className="w-full sm:w-56" aria-label="Документы и оплата">
+-          {Object.entries(NEEDS).map(([k, label]) => (
+-            <option key={k} value={k}>
+-              {label}
+-            </option>
+-          ))}
+-        </Select>
+-        <Select name="nds" defaultValue={vatF} className="w-full sm:w-56" aria-label="Ставка НДС">
+-          {Object.entries(VAT_FILTER).map(([k, label]) => (
+-            <option key={k} value={k}>
+-              {label}
+-            </option>
+-          ))}
+-        </Select>
+-        <Select name="sort" defaultValue={sort} className="w-full sm:w-48" aria-label="Сортировка">
+-          {Object.entries(SORTS).map(([k, label]) => (
+-            <option key={k} value={k}>
+-              {label}
+-            </option>
+-          ))}
+-        </Select>
+-        <button type="submit" className={buttonVariants({ variant: "outline" })}>
+-          Найти
+-        </button>
+-        {(hasFilters || sort) && (
+-          <Link href={grouped ? "/production?view=batches" : "/production"} className="text-sm text-neutral-500 hover:underline">
+-            Сбросить
+-          </Link>
+-        )}
+-      </form>
+-      </ResponsiveDetails>
++      <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="Фильтры производства">
++        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
++          <div>
++            <h2 className="text-sm font-semibold text-neutral-900">Фильтры ТЗ</h2>
++            <p className="text-xs text-neutral-500">Поиск и все параметры списка собраны в одной панели.</p>
++          </div>
++          {(hasFilters || sort) && (
++            <Link href={grouped ? "/production?view=batches" : "/production"} className="text-sm text-neutral-500 hover:underline">Сбросить всё</Link>
++          )}
++        </div>
++        <form method="get" className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
++          {modelId && <input type="hidden" name="model" value={modelId} />}
++          {grouped && <input type="hidden" name="view" value="batches" />}
++          <div className="sm:col-span-2">
++            <label className="mb-1 block text-xs text-neutral-500">Поиск</label>
++            <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" />
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Статус</label>
++            <Select name="status" defaultValue={status}>
++              <option value="">Все статусы</option>
++              {STATUS_KEYS.map((k) => <option key={k} value={k}>{STATUS_LABELS[k].label}</option>)}
++            </Select>
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Заказчик</label>
++            <Select name="client" defaultValue={clientId}>
++              <option value="">Все заказчики</option>
++              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
++            </Select>
++          </div>
++          {seasonList.length > 0 && (
++            <div>
++              <label className="mb-1 block text-xs text-neutral-500">Сезон</label>
++              <Select name="season" defaultValue={seasonF} aria-label="Сезон">
++                <option value="">Все сезоны</option>
++                <option value="none">Без сезона</option>
++                {seasonList.map((x) => <option key={x.id} value={x.id}>{x.code}</option>)}
++              </Select>
++            </div>
++          )}
++          {batchList.length > 0 && (
++            <div>
++              <label className="mb-1 block text-xs text-neutral-500">Партия</label>
++              <Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} aria-label="Партия">
++                <option value="">Все партии</option>
++                {batchList.map((b) => <option key={b.id} value={b.number}>Партия {b.number}{b.year ? ` (${b.year})` : ""}</option>)}
++              </Select>
++            </div>
++          )}
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Документы и оплата</label>
++            <Select name="need" defaultValue={need} aria-label="Документы и оплата">
++              {Object.entries(NEEDS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
++            </Select>
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Ставка НДС</label>
++            <Select name="nds" defaultValue={vatF} aria-label="Ставка НДС">
++              {Object.entries(VAT_FILTER).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
++            </Select>
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Сортировка</label>
++            <Select name="sort" defaultValue={sort} aria-label="Сортировка">
++              {Object.entries(SORTS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
++            </Select>
++          </div>
++          <div className="flex gap-2 sm:col-span-2 xl:col-span-4 2xl:col-span-6">
++            <button type="submit" className={buttonVariants({ variant: "outline" })}>Применить</button>
++            {(hasFilters || sort) && (
++              <Link href={grouped ? "/production?view=batches" : "/production"} className="flex h-9 items-center px-2 text-sm text-neutral-500 hover:underline">Сбросить</Link>
++            )}
++          </div>
++        </form>
++      </section>
+ 
+       {grouped ? (
+-        <GroupedByBatch orders={need || vatF ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />
++        <GroupedByBatch orders={need || vatF ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={orderVerify} />
+       ) : (
+       <>
+       <ResponsiveRows table={
+@@ -363,6 +374,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+         <Tbody>
+           {shown.map(({ o, total, totalExcl }) => {
+             const st = STATUS_LABELS[o.status];
++            const woCount = o.workOrderNumber ? (workOrderCount.get(o.workOrderNumber) ?? 1) : 1;
++            const woIndex = o.workOrderNumber ? (workOrderSeen.set(o.workOrderNumber, (workOrderSeen.get(o.workOrderNumber) ?? 0) + 1), workOrderSeen.get(o.workOrderNumber) ?? 1) : 1;
++            const woPart = woCount > 1 ? `позиция ${woIndex} из ${woCount} одного ТЗ` : null;
+             const href = `/production/${o.id}`;
+             const ind = indicators.get(o.id);
+             const vatB = vatBreakdown(o.materialUsages, c4Mode);
+@@ -371,7 +385,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+                 key={o.id}
+                 title={`ТЗ ${o.workOrderNumber ?? "—"}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
+                 href={href}
+-                subtitle={o.productModel.name}
++                subtitle={<>{o.productModel.name}{woPart ? <span className="ml-1 text-neutral-400">· {woPart}</span> : null}</>}
+                 badge={<Badge variant={st.variant}>{st.label}</Badge>}
+                 fields={[
+                   { label: "План / факт, шт.", value: `${formatQty(o.plannedQuantity.toString())} / ${formatQty(o.producedQuantity.toString())}` },
+@@ -386,7 +400,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+                   { label: "Заказчик", value: o.client?.name },
+                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
+                   { label: "Документы и оплата", value: ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : null },
+-                  { label: "Проверка", value: <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" /> },
++                  { label: "Проверка", value: <VerifyPill flag={orderVerify.get(o.id)} tab="orders" /> },
+                 ]}
+               />,
+             );
+@@ -397,6 +411,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+                 <Td className={`${cell} font-medium`}>
+                   <Link href={href} className={`${link} hover:underline`}>
+                     {o.workOrderNumber ?? "—"}
++                    {woPart && <span className="block text-[11px] font-normal text-neutral-400">{woPart}</span>}
+                     {matchOf(o)?.label && (
+                       <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>
+                     )}
+@@ -430,7 +445,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
+                   </Link>
+                 </Td>
+                 <Td className="hidden whitespace-nowrap px-3 py-2 lg:table-cell">
+-                  <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" />
++                  <VerifyPill flag={orderVerify.get(o.id)} tab="orders" />
+                 </Td>
+                 <Td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
+                   <TzVatBadge b={vatB} />
+diff --git a/src/app/(app)/purchases/page.tsx b/src/app/(app)/purchases/page.tsx
+index 16c3f23..aa4ddfd 100644
+--- a/src/app/(app)/purchases/page.tsx
++++ b/src/app/(app)/purchases/page.tsx
+@@ -2,7 +2,7 @@ import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+ import Link from "next/link";
+ import { prisma } from "@/lib/prisma";
+ import { requireSession } from "@/lib/session";
+-import { buttonVariants } from "@/components/ui/button";
++import { Button, buttonVariants } from "@/components/ui/button";
+ import { Badge } from "@/components/ui/badge";
+ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+ import { formatMoney, formatDate } from "@/lib/utils";
+@@ -10,7 +10,6 @@ import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-total
+ import { Decimal } from "@prisma/client/runtime/library";
+ import { Money } from "@/components/money";
+ import { VatLabel } from "@/components/vat-label";
+-import { ResponsiveDetails } from "../production/filters-details";
+ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+ import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
+ import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
+@@ -18,6 +17,7 @@ import { getYearFilter } from "@/lib/year-filter";
+ import { purchaseYear } from "@/lib/year-scope";
+ import { YearNote, emptyForYear } from "@/components/year-note";
+ import { InfoHint } from "@/components/info-hint";
++import { Input, Select } from "@/components/ui/input";
+ 
+ // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
+ function firstLine(v: string | null) {
+@@ -143,66 +143,53 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
+         </div>
+       </div>
+ 
+-      <ResponsiveDetails summary={`Фильтры и поиск${q || auction || status || from || to ? " (применены)" : ""}`} forceOpen={Boolean(q || auction || status || from || to)}>
+-      <form method="get" className="flex flex-wrap items-center gap-2">
+-        <input
+-          name="q"
+-          defaultValue={q}
+-          placeholder="№ закупки, счёт, поставщик, лот"
+-          aria-label="Поиск по закупкам"
+-          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+-        />
+-        <input
+-          name="auction"
+-          defaultValue={auction}
+-          placeholder="Аукцион / сессия"
+-          list="auction-sessions"
+-          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+-        />
+-        <datalist id="auction-sessions">
+-          {auctionOptions.map((a) => (
+-            <option key={a} value={a} />
+-          ))}
+-        </datalist>
+-        <select
+-          name="status"
+-          defaultValue={status}
+-          aria-label="Статус"
+-          className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+-        >
+-          <option value="">Все статусы</option>
+-          <option value="DRAFT">Черновик</option>
+-          <option value="RECEIVED">Принято на склад</option>
+-          <option value="CANCELLED">Отменено</option>
+-        </select>
+-        <label className="flex items-center gap-1 text-sm text-neutral-500">
+-          с
+-          <input
+-            type="date"
+-            name="from"
+-            defaultValue={from}
+-            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
+-          />
+-        </label>
+-        <label className="flex items-center gap-1 text-sm text-neutral-500">
+-          по
+-          <input
+-            type="date"
+-            name="to"
+-            defaultValue={to}
+-            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
+-          />
+-        </label>
+-        <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
+-          Найти
+-        </button>
+-        {(q || auction || status || from || to) && (
+-          <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">
+-            Сбросить
+-          </Link>
+-        )}
+-      </form>
+-      </ResponsiveDetails>
++      <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="Фильтры закупок">
++        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
++          <div>
++            <h2 className="text-sm font-semibold text-neutral-900">Фильтры закупок</h2>
++            <p className="text-xs text-neutral-500">Поиск, партия, статус и период — одна панель для всего списка.</p>
++          </div>
++          {(q || auction || status || from || to) && (
++            <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">Сбросить всё</Link>
++          )}
++        </div>
++        <form method="get" className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 xl:grid-cols-6">
++          <div className="sm:col-span-2 xl:col-span-2">
++            <label className="mb-1 block text-xs text-neutral-500">Поиск</label>
++            <Input name="q" defaultValue={q} placeholder="№ закупки, счёт, поставщик, лот" aria-label="Поиск по закупкам" />
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Партия / аукцион</label>
++            <Select name="auction" defaultValue={auction} aria-label="Партия / аукцион">
++              <option value="">Все партии</option>
++              {auctionOptions.map((a) => <option key={a} value={a}>{a}</option>)}
++            </Select>
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Статус</label>
++            <Select name="status" defaultValue={status} aria-label="Статус">
++              <option value="">Все статусы</option>
++              <option value="DRAFT">Черновик</option>
++              <option value="RECEIVED">Принято на склад</option>
++              <option value="CANCELLED">Отменено</option>
++            </Select>
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Дата с</label>
++            <Input type="date" name="from" defaultValue={from} />
++          </div>
++          <div>
++            <label className="mb-1 block text-xs text-neutral-500">Дата по</label>
++            <Input type="date" name="to" defaultValue={to} />
++          </div>
++          <div className="flex gap-2 sm:col-span-2 xl:col-span-6">
++            <Button type="submit" variant="outline">Применить</Button>
++            {(q || auction || status || from || to) && (
++              <Link href="/purchases" className="flex h-9 items-center px-2 text-sm text-neutral-500 hover:underline">Сбросить</Link>
++            )}
++          </div>
++        </form>
++      </section>
+ 
+       <ResponsiveRows
+         table={
+diff --git a/src/app/login/demo-login.tsx b/src/app/login/demo-login.tsx
+index 1d3002a..7919703 100644
+--- a/src/app/login/demo-login.tsx
++++ b/src/app/login/demo-login.tsx
+@@ -1,14 +1,14 @@
+ "use client";
+ 
+-function setValue(id: string, value: string) {
+-  const el = document.getElementById(id) as HTMLInputElement | null;
+-  if (!el) return;
+-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+-  setter?.call(el, value);
+-  el.dispatchEvent(new Event("input", { bubbles: true }));
+-}
+-
+-export function DemoLogin({ email, password }: { email: string; password: string }) {
++export function DemoLogin({
++  email,
++  password,
++  onFill,
++}: {
++  email: string;
++  password: string;
++  onFill: (email: string, password: string) => void;
++}) {
+   return (
+     <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-neutral-800">
+       <div className="mb-3 flex items-center justify-between gap-3">
+@@ -29,10 +29,7 @@ export function DemoLogin({ email, password }: { email: string; password: string
+       <button
+         type="button"
+         className="mt-3 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 transition hover:bg-amber-100"
+-        onClick={() => {
+-          setValue("email", email);
+-          setValue("password", password);
+-        }}
++        onClick={() => onFill(email, password)}
+       >
+         Подставить логин и пароль
+       </button>
+diff --git a/src/app/login/login-form.tsx b/src/app/login/login-form.tsx
+index a6b353b..b2944f6 100644
+--- a/src/app/login/login-form.tsx
++++ b/src/app/login/login-form.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useActionState } from "react";
++import { useActionState, useState } from "react";
+ import Link from "next/link";
+ import { loginAction, type LoginState } from "./actions";
+ import { DemoLogin } from "./demo-login";
+@@ -12,6 +12,8 @@ const initialState: LoginState = {};
+ 
+ export function LoginForm({ demoEmail, demoPassword }: { demoEmail?: string; demoPassword?: string }) {
+   const [state, formAction, pending] = useActionState(loginAction, initialState);
++  const [email, setEmail] = useState(demoEmail ?? "");
++  const [password, setPassword] = useState(demoPassword ?? "");
+ 
+   return (
+     <div className="flex min-h-screen items-center justify-center px-4 py-8">
+@@ -23,11 +25,11 @@ export function LoginForm({ demoEmail, demoPassword }: { demoEmail?: string; dem
+           <form action={formAction} className="flex flex-col gap-4">
+             <div>
+               <Label htmlFor="email">Email</Label>
+-              <Input id="email" name="email" type="email" required placeholder="you@company.ru" />
++              <Input id="email" name="email" type="email" required placeholder="you@company.ru" value={email} onChange={(e) => setEmail(e.target.value)} />
+             </div>
+             <div>
+               <Label htmlFor="password">Пароль</Label>
+-              <Input id="password" name="password" type="password" required />
++              <Input id="password" name="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+             </div>
+             {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}
+             <Button type="submit" disabled={pending} className="w-full">
+@@ -40,7 +42,9 @@ export function LoginForm({ demoEmail, demoPassword }: { demoEmail?: string; dem
+             <Link href="/register" className="font-medium text-neutral-900 underline">Зарегистрировать компанию</Link>
+           </p>
+ 
+-          {demoEmail && demoPassword ? <DemoLogin email={demoEmail} password={demoPassword} /> : null}
++          {demoEmail && demoPassword ? (
++            <DemoLogin email={demoEmail} password={demoPassword} onFill={(nextEmail, nextPassword) => { setEmail(nextEmail); setPassword(nextPassword); }} />
++          ) : null}
+         </CardContent>
+       </Card>
+     </div>
+diff --git a/src/lib/drive-doc-list.ts b/src/lib/drive-doc-list.ts
+index 8e974f3..50924b3 100644
+--- a/src/lib/drive-doc-list.ts
++++ b/src/lib/drive-doc-list.ts
+@@ -34,6 +34,8 @@ export type DocListItem = {
+   size: number | null;
+   /** Ссылка «открыть документ» (файл приложения или Drive) или null, если открыть нечем. */
+   openHref: string | null;
++  /** Общий/контрольный документ: намеренно не относится к одной сущности. */
++  general: boolean;
+   links: { kind: DocLinkKind; label: string; href: string }[];
+ };
+ 
+@@ -78,7 +80,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
+     db.driveDocument.findMany({
+       where: { organizationId },
+       select: {
+-        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true, sizeBytes: true, storedSize: true,
++        id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true, sizeBytes: true, storedSize: true, notes: true,
+         purchase: { select: { id: true, number: true } },
+         lot: { select: { purchaseId: true, lotNumber: true } },
+         productionOrder: { select: { id: true, number: true } },
+@@ -116,6 +118,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
+       hasOriginal: !!d.storagePath,
+       size: d.sizeBytes ?? d.storedSize,
+       openHref: d.storagePath || d.viewUrl ? `/api/drive-docs/${d.id}` : null,
++      general: d.notes?.includes("[scope:general]") ?? false,
+       links,
+     });
+   }
+@@ -127,7 +130,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
+         : [];
+     items.push({
+       id: `a-${d.id}`, source: "app", title: d.title, docType: PURCHASE_KIND_TO_TYPE[d.kind] ?? "OTHER", number: null, date: null,
+-      year: d.createdAt.getUTCFullYear(), hasOriginal: true, size: d.sizeBytes, openHref: `/api/purchase-docs/${d.id}`, links,
++      year: d.createdAt.getUTCFullYear(), hasOriginal: true, size: d.sizeBytes, openHref: `/api/purchase-docs/${d.id}`, general: false, links,
+     });
+   }
+   return items;
+@@ -139,7 +142,7 @@ export function filterDocList(items: DocListItem[], f: DocListFilters, ignore?:
+     if (q && !norm(`${i.title} ${i.number ?? ""}`).includes(q)) return false;
+     if (ignore !== "type" && f.type && i.docType !== f.type) return false;
+     if (f.year !== null && i.year !== f.year) return false;
+-    if (f.link === "none") return i.links.length === 0;
++    if (f.link === "none") return i.links.length === 0 && !i.general;
+     if (f.link && !i.links.some((l) => l.kind === f.link)) return false;
+     return true;
+   });
+@@ -154,8 +157,10 @@ export type DocGroup = Omit<DocListItem, "id" | "links" | "source"> & {
+   count: number;
+   /** Привязки всех строк группы (без повторов), в порядке следования. */
+   links: DocListItem["links"];
+-  /** Сколько строк группы вообще без привязки. */
++  /** Сколько строк группы реально требуют привязки. Общие документы сюда не входят. */
+   unlinked: number;
++  /** Сколько строк группы намеренно общие/контрольные. */
++  generalCount: number;
+ };
+ 
+ /** Ключ схлопывания: название без пробелов и регистра + тип + размер. */
+@@ -168,11 +173,15 @@ export function groupDocList(items: DocListItem[]): DocGroup[] {
+     const key = docGroupKey(i);
+     let g = map.get(key);
+     if (!g) {
+-      g = { key, title: i.title, docType: i.docType, number: i.number, date: i.date, year: i.year, hasOriginal: i.hasOriginal, size: i.size, openHref: i.openHref, count: 0, links: [], unlinked: 0 };
++      g = { key, title: i.title, docType: i.docType, number: i.number, date: i.date, year: i.year, hasOriginal: i.hasOriginal, size: i.size, openHref: i.openHref, general: i.general, count: 0, links: [], unlinked: 0, generalCount: 0 };
+       map.set(key, g);
+     }
+     g.count++;
+-    if (i.links.length === 0) g.unlinked++;
++    if (i.links.length === 0) {
++      if (i.general) g.generalCount++;
++      else g.unlinked++;
++    }
++    g.general ||= i.general;
+     g.hasOriginal ||= i.hasOriginal;
+     g.openHref ??= i.openHref;
+     g.number ??= i.number;
+diff --git a/src/lib/production-doc-checklist.ts b/src/lib/production-doc-checklist.ts
+index 1ef31c3..7aa1375 100644
+--- a/src/lib/production-doc-checklist.ts
++++ b/src/lib/production-doc-checklist.ts
+@@ -81,8 +81,7 @@ type Model = {
+   docsByPayment: Map<string, DocRow[]>;
+ };
+ 
+-export async function loadProductionModel(db: Db, organizationId: string): Promise<Model> {
+-  const raw = await loadRaw(db, organizationId);
++function modelFromRaw(raw: Awaited<ReturnType<typeof loadRaw>>): Model {
+   const ordersByBatch = new Map<string, OrderRow[]>();
+   for (const o of raw.orders) if (o.batchId) ordersByBatch.set(o.batchId, [...(ordersByBatch.get(o.batchId) ?? []), o]);
+   const docsByBatch = new Map<string, DocRow[]>();
+@@ -97,6 +96,60 @@ export async function loadProductionModel(db: Db, organizationId: string): Promi
+   return { raw, ordersByBatch, docsByBatch, docsByOrder, docsByPayment };
+ }
+ 
++export async function loadProductionModel(db: Db, organizationId: string): Promise<Model> {
++  return modelFromRaw(await loadRaw(db, organizationId));
++}
++
++/**
++ * Та же модель, но только для заданных ТЗ и необходимых соседей их партий.
++ * Это сохраняет семантику batchTotals/оплат: если видимое ТЗ входит в партию,
++ * загружаются все ТЗ этой партии и все документы/оплаты, влияющие на её итог.
++ */
++async function loadProductionModelForOrders(db: Db, organizationId: string, targetOrderIds: string[]): Promise<Model> {
++  const ids = [...new Set(targetOrderIds)].filter(Boolean);
++  if (ids.length === 0) return modelFromRaw({ batches: [], orders: [], docs: [] });
++
++  const heads = await db.productionOrder.findMany({
++    where: { organizationId, id: { in: ids } },
++    select: { id: true, batchId: true },
++  });
++  const batchIds = [...new Set(heads.map((o) => o.batchId).filter((x): x is string => !!x))];
++  const orders = await db.productionOrder.findMany({
++    where: {
++      organizationId,
++      OR: [
++        { id: { in: ids } },
++        ...(batchIds.length > 0 ? [{ batchId: { in: batchIds } }] : []),
++      ],
++    },
++    include: batchOrderInclude,
++    orderBy: { createdAt: "asc" },
++  });
++  const relatedOrderIds = orders.map((o) => o.id);
++  const paymentIds = [...new Set(orders.flatMap((o) => o.paymentAllocations.map((a) => a.productionPayment.id)))];
++  const [batches, docs] = await Promise.all([
++    batchIds.length > 0
++      ? db.productionBatch.findMany({ where: { organizationId, id: { in: batchIds } }, orderBy: { number: "asc" } })
++      : Promise.resolve([]),
++    db.driveDocument.findMany({
++      where: {
++        organizationId,
++        OR: [
++          ...(batchIds.length > 0 ? [{ productionBatchId: { in: batchIds } }] : []),
++          ...(relatedOrderIds.length > 0 ? [{ productionOrderId: { in: relatedOrderIds } }] : []),
++          ...(paymentIds.length > 0 ? [{ productionPaymentId: { in: paymentIds } }] : []),
++        ],
++      },
++      select: {
++        id: true, driveFileId: true, docType: true, title: true, viewUrl: true, storagePath: true, docNumber: true, docDate: true,
++        productionBatchId: true, productionOrderId: true, productionPaymentId: true,
++      },
++      orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
++    }),
++  ]);
++  return modelFromRaw({ batches, orders, docs });
++}
++
+ const rankNeed: Record<Need, number> = { na: 0, optional: 1, required: 2 };
+ 
+ type PayRowsResult = { rows: PanelPayment[]; noProof: number; paid: Decimal };
+@@ -359,17 +412,21 @@ export function indicatorOf(m: Model, o: OrderRow, ctx: Ctx): OrderIndicator {
+   };
+ }
+ 
+-export async function loadOrderIndicators(db: Db, organizationId: string, ctx: Ctx): Promise<Map<string, OrderIndicator>> {
+-  const m = await loadProductionModel(db, organizationId);
++export async function loadOrderIndicators(db: Db, organizationId: string, ctx: Ctx, orderIds?: string[]): Promise<Map<string, OrderIndicator>> {
++  const m = orderIds ? await loadProductionModelForOrders(db, organizationId, orderIds) : await loadProductionModel(db, organizationId);
++  const wanted = orderIds ? new Set(orderIds) : null;
+   const out = new Map<string, OrderIndicator>();
+-  for (const o of m.raw.orders) if (o.status !== "CANCELLED") out.set(o.id, indicatorOf(m, o, ctx));
++  for (const o of m.raw.orders) {
++    if (o.status === "CANCELLED" || (wanted && !wanted.has(o.id))) continue;
++    out.set(o.id, indicatorOf(m, o, ctx));
++  }
+   return out;
+ }
+ 
+ export type OrderPanelData = { panel: Panel; batchNumber: number | null; indicator: OrderIndicator };
+ 
+ export async function loadOrderPanel(db: Db, organizationId: string, orderId: string, ctx: Ctx): Promise<OrderPanelData | null> {
+-  const m = await loadProductionModel(db, organizationId);
++  const m = await loadProductionModelForOrders(db, organizationId, [orderId]);
+   const o = m.raw.orders.find((x) => x.id === orderId);
+   if (!o) return null;
+   const p = orderPieces(m, o, ctx);
+diff --git a/src/lib/verification.ts b/src/lib/verification.ts
+index 3d2400f..0b28600 100644
+--- a/src/lib/verification.ts
++++ b/src/lib/verification.ts
+@@ -572,6 +572,15 @@ export async function loadVerifyFlags(db: Db, orgId: string, year?: string): Pro
+   return { counts, purchaseByNumber, batchByNumber, orderById, paid };
+ }
+ 
++/** Лёгкие флаги только по ТЗ — для списка /production, без чтения закупок и оплат. */
++export async function loadOrderVerifyFlags(db: Db, orgId: string): Promise<Map<string, VerifyFlag>> {
++  const rows = await db.productionOrder.findMany({
++    where: { organizationId: orgId, status: { not: "CANCELLED" } },
++    select: { id: true, verifiedAt: true, verifiedBy: true },
++  });
++  return new Map(rows.map((o) => [o.id, { verified: !!o.verifiedAt, auto: !!o.verifiedBy?.startsWith("auto:") }]));
++}
++
+ /** computeReadiness: что именно не сходится у строки (для кнопки «Подтвердить»). Берётся из загруженной модели. */
+ export function computeReadiness(model: VerifyModel, kind: VerifyKind, id: string): Readiness | null {
+   const r = model.rows.find((x) => x.key === `${kind}:${id}`);

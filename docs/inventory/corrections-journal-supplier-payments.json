@@ -1,0 +1,520 @@
+[
+ {
+  "time": "2026-10-01T16:25:21.647Z",
+  "entity": "Payment",
+  "id": "cmupqwijx0001lsa4dob0ke75",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "79898902.00",
+   "paidAt": "2025-03-14",
+   "kind": "PARTIAL",
+   "purchaseId": null,
+   "auctionSession": null,
+   "docRef": "п/п от 14.03.2025 (№33979 по УПД №78, №33980 по реестру); счёт Веллмех №37 (по реестру)"
+  },
+  "source": "Единый реестр (таблица оплат); УПД №78 п.(5); письмо 13.03.2025 «Закупка соболя — финальный платеж»; расчёт себестоимости Соболь (итоговый)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.651Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwik20003lsa4dksztd3y",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwijx0001lsa4dob0ke75",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр (таблица оплат); УПД №78 п.(5); письмо 13.03.2025 «Закупка соболя — финальный платеж»; расчёт себестоимости Соболь (итоговый)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.653Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwik40005lsa4o45dd5gb",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1B012EyfhP8G_yRXddMvS6jHdGkir8DFH",
+   "paymentId": "cmupqwijx0001lsa4dob0ke75",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр (таблица оплат); УПД №78 п.(5); письмо 13.03.2025 «Закупка соболя — финальный платеж»; расчёт себестоимости Соболь (итоговый)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.654Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwik50007lsa4boojy0cq",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1QTIPs-FSia6PO5XdL5Ow190DEd5POy2I",
+   "paymentId": "cmupqwijx0001lsa4dob0ke75",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр (таблица оплат); УПД №78 п.(5); письмо 13.03.2025 «Закупка соболя — финальный платеж»; расчёт себестоимости Соболь (итоговый)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.655Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwik60009lsa46i0zju33",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1T5V2EQix0hQsg0JtA9h5dgruPrSHgnSR",
+   "paymentId": "cmupqwijx0001lsa4dob0ke75",
+   "docType": "CALC_SHEET"
+  },
+  "source": "Единый реестр (таблица оплат); УПД №78 п.(5); письмо 13.03.2025 «Закупка соболя — финальный платеж»; расчёт себестоимости Соболь (итоговый)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.671Z",
+  "entity": "Payment",
+  "id": "cmupqwikm000blsa4x5o2we83",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "11146950.00",
+   "paidAt": "2025-05-16",
+   "kind": "FINAL",
+   "purchaseId": null,
+   "auctionSession": null,
+   "docRef": "п/п №45637 от 16.05.2025; счёт Веллмех №75 от 13.05.2025"
+  },
+  "source": "Единый реестр; счёт №75; письмо 15.05.2025 («Подтверждаю оплату»)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.673Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwiko000dlsa4zr5apnt7",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwikm000blsa4x5o2we83",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №75; письмо 15.05.2025 («Подтверждаю оплату»)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.674Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwikp000flsa4ss3zxj1i",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1Cxd10vDTjGQJPYM8E8MacODoVooZEzAy",
+   "paymentId": "cmupqwikm000blsa4x5o2we83",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №75; письмо 15.05.2025 («Подтверждаю оплату»)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.675Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwikq000hlsa49bq0bd19",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1QTIPs-FSia6PO5XdL5Ow190DEd5POy2I",
+   "paymentId": "cmupqwikm000blsa4x5o2we83",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; счёт №75; письмо 15.05.2025 («Подтверждаю оплату»)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.689Z",
+  "entity": "Payment",
+  "id": "cmupqwil4000jlsa4pb5b388g",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "10924000.00",
+   "paidAt": "2025-05-16",
+   "kind": "PARTIAL",
+   "purchaseId": "cmupc480j000fls7y1gqe2l9y",
+   "auctionSession": null,
+   "docRef": "п/п №45675 от 16.05.2025; счёт Веллмех №76 от 13.05.2025"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.690Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwil5000llsa4evil13gq",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwil4000jlsa4pb5b388g",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.691Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwil6000nlsa41qidvwxk",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1qt1ts_j31vvX5TwLqE1mSxujwT_c9IeB",
+   "paymentId": "cmupqwil4000jlsa4pb5b388g",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.693Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwil8000plsa4oypuzht3",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1kGu6I1uVFlxYunj9kc4NzYBnDCUKVFnM",
+   "paymentId": "cmupqwil4000jlsa4pb5b388g",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.694Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwila000rlsa4vu8isbzv",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1OV1ntOXv0sxSLIniI2yu7ZWaTIcxrhiz",
+   "paymentId": "cmupqwil4000jlsa4pb5b388g",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.695Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwilb000tlsa4ui14nd94",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18odrQUKnISm1yniylVr5Sks3ZlPZEd93",
+   "paymentId": "cmupqwil4000jlsa4pb5b388g",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр; Счета.pdf (счёт №76); письмо 15.05.2025; УПД №103 п.(8)"
+ },
+ {
+  "time": "2026-10-01T16:25:21.708Z",
+  "entity": "Payment",
+  "id": "cmupqwiln000vlsa4g7z5z8y8",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "1695778.00",
+   "paidAt": "2025-08-04",
+   "kind": "FINAL",
+   "purchaseId": "cmupc480j000fls7y1gqe2l9y",
+   "auctionSession": null,
+   "docRef": "п/п №60611 от 04.08.2025; счёт Веллмех №103 от 03.07.2025"
+  },
+  "source": "Единый реестр; счёт №103 от 03.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.709Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwilo000xlsa4ok621lr2",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwiln000vlsa4g7z5z8y8",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №103 от 03.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.709Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwilp000zlsa4952f1pb9",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "15zHh7JFmtf9E13xztKb59nvpE6AEDepN",
+   "paymentId": "cmupqwiln000vlsa4g7z5z8y8",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №103 от 03.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.710Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwilq0011lsa4lktf03ka",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "18odrQUKnISm1yniylVr5Sks3ZlPZEd93",
+   "paymentId": "cmupqwiln000vlsa4g7z5z8y8",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр; счёт №103 от 03.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.723Z",
+  "entity": "Payment",
+  "id": "cmupqwim20013lsa4sz019qjl",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "195404.00",
+   "paidAt": "2025-08-22",
+   "kind": "FINAL",
+   "purchaseId": "cmupc483a0075ls7ye7tltm15",
+   "auctionSession": null,
+   "docRef": "п/п №64015 от 22.08.2025; счёт Веллмех №117 от 29.07.2025"
+  },
+  "source": "Единый реестр; счёт №117; письмо 19–20.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.723Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwim30015lsa4h7mbljmh",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwim20013lsa4sz019qjl",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №117; письмо 19–20.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.724Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwim40017lsa4bn6c0uxs",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1nSY2vAIXoHuEAx_HaLUtWYXylZf_O6LW",
+   "paymentId": "cmupqwim20013lsa4sz019qjl",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №117; письмо 19–20.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.725Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwim50019lsa4d5knqnqd",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1XDtOR-ph09YesdADsH6Z9ebcKxmA0YGl",
+   "paymentId": "cmupqwim20013lsa4sz019qjl",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; счёт №117; письмо 19–20.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.726Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwim5001blsa4frnj5ua8",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1cu0UNtpHqnzi-pvmxgJzObB6FIvlIjks",
+   "paymentId": "cmupqwim20013lsa4sz019qjl",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр; счёт №117; письмо 19–20.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.741Z",
+  "entity": "Payment",
+  "id": "cmupqwimk001dlsa4rstqnlfu",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "1537404.00",
+   "paidAt": "2025-07-03",
+   "kind": "ADVANCE",
+   "purchaseId": null,
+   "auctionSession": "КФХ Дуденко Л. Н.",
+   "docRef": "п/п №54215 от 03.07.2025; счёт Веллмех №95 от 24.06.2025"
+  },
+  "source": "Единый реестр; счёт №95; письмо 26.06–02.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.742Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwiml001flsa47gd12tta",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwimk001dlsa4rstqnlfu",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №95; письмо 26.06–02.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.743Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwimm001hlsa49zfz6w4w",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1-40DV93U_QKgXjkgQWavmnizzNazXoKs",
+   "paymentId": "cmupqwimk001dlsa4rstqnlfu",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №95; письмо 26.06–02.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.743Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwimn001jlsa46oxricof",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1I5AlrRh6FYPaPu433gv6dF-QQN-UDhYc",
+   "paymentId": "cmupqwimk001dlsa4rstqnlfu",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; счёт №95; письмо 26.06–02.07.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.757Z",
+  "entity": "Payment",
+  "id": "cmupqwin0001llsa4u2cu6m6w",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "123836.00",
+   "paidAt": "2025-08-26",
+   "kind": "FINAL",
+   "purchaseId": null,
+   "auctionSession": "КФХ Дуденко Л. Н.",
+   "docRef": "п/п №64499 от 26.08.2025; счёт Веллмех №122 от 04.08.2025"
+  },
+  "source": "Единый реестр; счёт №122; письмо 19–21.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.758Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwin2001nlsa4cfv8o7mg",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwin0001llsa4u2cu6m6w",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №122; письмо 19–21.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.759Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwin3001plsa4gb3gdo2q",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1HZbb_cdFXNWxjNDLl3ILWoX_kS6sGE4v",
+   "paymentId": "cmupqwin0001llsa4u2cu6m6w",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №122; письмо 19–21.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.760Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwin4001rlsa4p083or7u",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1I5AlrRh6FYPaPu433gv6dF-QQN-UDhYc",
+   "paymentId": "cmupqwin0001llsa4u2cu6m6w",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; счёт №122; письмо 19–21.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.762Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwin5001tlsa45y6t7iu1",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1qFTXc8jXTIPqT0C7gLKQNSO4WP6yPqi8",
+   "paymentId": "cmupqwin0001llsa4u2cu6m6w",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр; счёт №122; письмо 19–21.08.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.776Z",
+  "entity": "Payment",
+  "id": "cmupqwinj001vlsa4j1y5suiy",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "amount": "1718400.00",
+   "paidAt": "2025-06-04",
+   "kind": "ADVANCE",
+   "purchaseId": "cmupc483r007vls7yi7m4fluv",
+   "auctionSession": null,
+   "docRef": "п/п №49288 от 04.06.2025; счёт Веллмех №80 от 26.05.2025"
+  },
+  "source": "Единый реестр; счёт №80; письмо 26–29.05.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.778Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwinl001xlsa4wty930q5",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "11LrdlppXk6yjQgg3LQZA47r-HeJ48ahQ",
+   "paymentId": "cmupqwinj001vlsa4j1y5suiy",
+   "docType": "OTHER"
+  },
+  "source": "Единый реестр; счёт №80; письмо 26–29.05.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.780Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwinn001zlsa432yiocvw",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1SO7Vn1YWQJhOpszOJLuFnhGSxaonOvB-",
+   "paymentId": "cmupqwinj001vlsa4j1y5suiy",
+   "docType": "PAYMENT_INVOICE"
+  },
+  "source": "Единый реестр; счёт №80; письмо 26–29.05.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.783Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwinq0021lsa41gka61ui",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "1rOlrO9mwSxxN60WwQ3XZc_ZPB_3e16_O",
+   "paymentId": "cmupqwinj001vlsa4j1y5suiy",
+   "docType": "APPROVAL_EMAIL"
+  },
+  "source": "Единый реестр; счёт №80; письмо 26–29.05.2025"
+ },
+ {
+  "time": "2026-10-01T16:25:21.784Z",
+  "entity": "DriveDocument",
+  "id": "cmupqwins0023lsa438hhv1iw",
+  "field": "__create__",
+  "before": null,
+  "after": {
+   "driveFileId": "19yfmwEyPOKjWZgUIF5Te5OdgsBAJdrmM",
+   "paymentId": "cmupqwinj001vlsa4j1y5suiy",
+   "docType": "UPD"
+  },
+  "source": "Единый реестр; счёт №80; письмо 26–29.05.2025"
+ }
+]

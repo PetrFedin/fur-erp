@@ -1,0 +1,36 @@
+{
+  "script": "seed-fur-refs.ts",
+  "appliedAt": "2026-10-04T02:15:07.667Z",
+  "changes": [
+    {
+      "kind": "create",
+      "id": "cmut6uan70001lsn361vi93cv",
+      "name": "Соболь"
+    },
+    {
+      "kind": "create",
+      "id": "cmut6uct70003lsn3nhcydnjn",
+      "name": "Норка"
+    },
+    {
+      "kind": "create",
+      "id": "cmut6ue8v0005lsn3fh4vzehi",
+      "name": "Каракуль (свакара)"
+    },
+    {
+      "kind": "create",
+      "id": "cmut6uh060007lsn34z83lb3c",
+      "name": "Лиса"
+    },
+    {
+      "kind": "create",
+      "id": "cmut6uiem0009lsn35ssq45gy",
+      "name": "Рысь"
+    },
+    {
+      "kind": "create",
+      "id": "cmut6ulvc000blsn368vfxfjq",
+      "name": "Бобр"
+    }
+  ]
+}

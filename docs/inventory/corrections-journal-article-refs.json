@@ -1,0 +1,683 @@
+{
+  "script": "seed-article-refs.ts",
+  "appliedAt": "2026-10-04T02:15:49.651Z",
+  "changes": [
+    {
+      "id": "cmupc48i001hfls7ykkoj75g8",
+      "name": "M001A",
+      "field": "salesCode",
+      "old": null,
+      "new": "M001A"
+    },
+    {
+      "id": "cmupc48i001hfls7ykkoj75g8",
+      "name": "M001A",
+      "field": "salesName",
+      "old": null,
+      "new": "Жакет из соболя в три ряда седой ТОРТОР (Silvery 4/5)"
+    },
+    {
+      "id": "cmupc48i001hfls7ykkoj75g8",
+      "name": "M001A",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M001A/SABLE WILD SILVER 4-5"
+      ]
+    },
+    {
+      "id": "cmupc48gn01e7ls7yib0hnr6t",
+      "name": "M001K",
+      "field": "salesCode",
+      "old": null,
+      "new": "M001K"
+    },
+    {
+      "id": "cmupc48gn01e7ls7yib0hnr6t",
+      "name": "M001K",
+      "field": "salesName",
+      "old": null,
+      "new": "Полупальто из соболя в два ряда клеточный седой (Темный Silvery 6)"
+    },
+    {
+      "id": "cmupc48gn01e7ls7yib0hnr6t",
+      "name": "M001K",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M001K/SABLE FARM SILVER 6",
+        "МОО1К"
+      ]
+    },
+    {
+      "id": "cmupc48st029zls7yr0wf1s0a",
+      "name": "M002",
+      "field": "salesCode",
+      "old": null,
+      "new": "M002"
+    },
+    {
+      "id": "cmupc48st029zls7yr0wf1s0a",
+      "name": "M002",
+      "field": "salesName",
+      "old": null,
+      "new": "Соболь в 5-ть рядов ТОРТОР (Silvery 4/5)"
+    },
+    {
+      "id": "cmupc48st029zls7yr0wf1s0a",
+      "name": "M002",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M002/SABLE WILD SILVER 4-5",
+        "МОО2"
+      ]
+    },
+    {
+      "id": "cmupc48mg01szls7yy249g0nr",
+      "name": "M002A",
+      "field": "salesCode",
+      "old": null,
+      "new": "M002A"
+    },
+    {
+      "id": "cmupc48mg01szls7yy249g0nr",
+      "name": "M002A",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M002A/SABLE WILD SILVER 4-5"
+      ]
+    },
+    {
+      "id": "cmupc48na01vbls7yz0yamgcm",
+      "name": "M003",
+      "field": "salesCode",
+      "old": null,
+      "new": "M003"
+    },
+    {
+      "id": "cmupc48na01vbls7yz0yamgcm",
+      "name": "M003",
+      "field": "salesName",
+      "old": null,
+      "new": "Дикий соболь в 4-ре ряда (Темный Silvery 2)"
+    },
+    {
+      "id": "cmupc48na01vbls7yz0yamgcm",
+      "name": "M003",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M003/SABLE WILD SILVER 2",
+        "M003/SABLE WILD SILVER 4-5",
+        "МОО3"
+      ]
+    },
+    {
+      "id": "cmupc48m601s3ls7yffr3nmgf",
+      "name": "M004",
+      "field": "salesCode",
+      "old": null,
+      "new": "M004"
+    },
+    {
+      "id": "cmupc48m601s3ls7yffr3nmgf",
+      "name": "M004",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M004/SABLE FARM NO SILVER"
+      ]
+    },
+    {
+      "id": "cmupc48j401kfls7y56ckllz0",
+      "name": "M005",
+      "field": "salesCode",
+      "old": null,
+      "new": "M005"
+    },
+    {
+      "id": "cmupc48j401kfls7y56ckllz0",
+      "name": "M005",
+      "field": "salesName",
+      "old": null,
+      "new": "Бомбер из соболя вязаный (клеточный, темный без седины), молния двухзамковая, уплотненные края полочки и капюшона"
+    },
+    {
+      "id": "cmupc48j401kfls7y56ckllz0",
+      "name": "M005",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M005/SABLE FARM NO SILVER"
+      ]
+    },
+    {
+      "id": "cmupc48rs026vls7yksgqh2k3",
+      "name": "M006",
+      "field": "salesCode",
+      "old": null,
+      "new": "M006"
+    },
+    {
+      "id": "cmupc48rs026vls7yksgqh2k3",
+      "name": "M006",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M006/SABLE FARM NO SILVER"
+      ]
+    },
+    {
+      "id": "cmupc48id01inls7yfqgtd1rs",
+      "name": "M009",
+      "field": "salesCode",
+      "old": null,
+      "new": "M009"
+    },
+    {
+      "id": "cmupc48id01inls7yfqgtd1rs",
+      "name": "M009",
+      "field": "salesName",
+      "old": null,
+      "new": "Жакет из норки в 1 ряд (самцы) / свободный силуэт-кокон, с нисходящей узкой стойкой-шалькой, спущенным плечом, прорезные карманы из замши"
+    },
+    {
+      "id": "cmupc48id01inls7yfqgtd1rs",
+      "name": "M009",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M009/MINK BGL",
+        "M009/MINK LVD"
+      ]
+    },
+    {
+      "id": "cmupc48ij01j3ls7yqrgsjea3",
+      "name": "M010",
+      "field": "salesCode",
+      "old": null,
+      "new": "M010"
+    },
+    {
+      "id": "cmupc48ij01j3ls7yqrgsjea3",
+      "name": "M010",
+      "field": "salesName",
+      "old": null,
+      "new": "Двубортный жакет из норки в 1 ряд (самцы)"
+    },
+    {
+      "id": "cmupc48ij01j3ls7yqrgsjea3",
+      "name": "M010",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M010/MINK BROWN",
+        "M010/MINK PST"
+      ]
+    },
+    {
+      "id": "cmupc48iq01jjls7y8hdau2ss",
+      "name": "M011",
+      "field": "salesCode",
+      "old": null,
+      "new": "M011"
+    },
+    {
+      "id": "cmupc48iq01jjls7y8hdau2ss",
+      "name": "M011",
+      "field": "salesName",
+      "old": null,
+      "new": "Шуба из норки (самки) в 3-и ряда"
+    },
+    {
+      "id": "cmupc48iq01jjls7y8hdau2ss",
+      "name": "M011",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M011/MINK BGL",
+        "M011/MINK PEARL"
+      ]
+    },
+    {
+      "id": "cmupc48mv01u7ls7y97kndw7r",
+      "name": "M011A",
+      "field": "salesCode",
+      "old": null,
+      "new": "M011A"
+    },
+    {
+      "id": "cmupc48mv01u7ls7y97kndw7r",
+      "name": "M011A",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M011A/MINK BROWN"
+      ]
+    },
+    {
+      "id": "cmupc48jn01lrls7y7xw5bg58",
+      "name": "M012",
+      "field": "salesCode",
+      "old": null,
+      "new": "M012"
+    },
+    {
+      "id": "cmupc48jn01lrls7y7xw5bg58",
+      "name": "M012",
+      "field": "salesName",
+      "old": null,
+      "new": "Манишка из норки (самцы)"
+    },
+    {
+      "id": "cmupc48jn01lrls7y7xw5bg58",
+      "name": "M012",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M012/MINK BGL",
+        "M012/MINK IRIS",
+        "M012/MINK LVD"
+      ]
+    },
+    {
+      "id": "cmupc48ol01ynls7ya3vd1wj0",
+      "name": "M013",
+      "field": "salesCode",
+      "old": null,
+      "new": "M013"
+    },
+    {
+      "id": "cmupc48ol01ynls7ya3vd1wj0",
+      "name": "M013",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M013/MINK PERFORATED"
+      ]
+    },
+    {
+      "id": "cmupc48ix01jzls7ykfwn3xy3",
+      "name": "M015",
+      "field": "salesCode",
+      "old": null,
+      "new": "M015"
+    },
+    {
+      "id": "cmupc48ix01jzls7ykfwn3xy3",
+      "name": "M015",
+      "field": "salesName",
+      "old": null,
+      "new": "Бомбер из норки с фигурной стрижкой (самцы), спущенное плечо, отложной воротник. На двухзамковой молнии"
+    },
+    {
+      "id": "cmupc48ix01jzls7ykfwn3xy3",
+      "name": "M015",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M015/MINK SHARED B",
+        "M015/MINK SHARED W"
+      ]
+    },
+    {
+      "id": "cmupc48pv021fls7y812w80qd",
+      "name": "M016",
+      "field": "salesCode",
+      "old": null,
+      "new": "M016"
+    },
+    {
+      "id": "cmupc48pv021fls7y812w80qd",
+      "name": "M016",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M016/MINK SHARED B",
+        "M016/MINK SHARED W"
+      ]
+    },
+    {
+      "id": "cmupc48o801y7ls7y9w9xsvkj",
+      "name": "M017",
+      "field": "salesCode",
+      "old": null,
+      "new": "M017"
+    },
+    {
+      "id": "cmupc48o801y7ls7y9w9xsvkj",
+      "name": "M017",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M017/MINK"
+      ]
+    },
+    {
+      "id": "cmupc48ka01nfls7yog6uve84",
+      "name": "M018",
+      "field": "salesCode",
+      "old": null,
+      "new": "M018"
+    },
+    {
+      "id": "cmupc48ka01nfls7yog6uve84",
+      "name": "M018",
+      "field": "salesName",
+      "old": null,
+      "new": "Жакет из свакары"
+    },
+    {
+      "id": "cmupc48ka01nfls7yog6uve84",
+      "name": "M018",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M018/SWAKARA BROWN",
+        "M018/SWAKARA NOUGAT"
+      ]
+    },
+    {
+      "id": "cmupc48k301mvls7yz6jipmvl",
+      "name": "M019",
+      "field": "salesCode",
+      "old": null,
+      "new": "M019"
+    },
+    {
+      "id": "cmupc48k301mvls7yz6jipmvl",
+      "name": "M019",
+      "field": "salesName",
+      "old": null,
+      "new": "Юбка на запах из свакары с двойной подкладкой из шелка и отделкой из замши, разрез сзади"
+    },
+    {
+      "id": "cmupc48k301mvls7yz6jipmvl",
+      "name": "M019",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M019/SWAKARA BROWN"
+      ]
+    },
+    {
+      "id": "cmupc48jg01lbls7ygn1gcci3",
+      "name": "M020",
+      "field": "salesCode",
+      "old": null,
+      "new": "M020"
+    },
+    {
+      "id": "cmupc48jg01lbls7ygn1gcci3",
+      "name": "M020",
+      "field": "salesName",
+      "old": null,
+      "new": "Бомбер из свакары"
+    },
+    {
+      "id": "cmupc48jg01lbls7ygn1gcci3",
+      "name": "M020",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M020/SWAKARA NUT"
+      ]
+    },
+    {
+      "id": "cmupc48ko01ofls7yemj22q4m",
+      "name": "M021",
+      "field": "salesCode",
+      "old": null,
+      "new": "M021"
+    },
+    {
+      "id": "cmupc48ko01ofls7yemj22q4m",
+      "name": "M021",
+      "field": "salesName",
+      "old": null,
+      "new": "Пальто из свакары"
+    },
+    {
+      "id": "cmupc48ko01ofls7yemj22q4m",
+      "name": "M021",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M021/SWAKARA CLOUD",
+        "M021/SWAKARA FONDU"
+      ]
+    },
+    {
+      "id": "cmupc48sd028nls7yt1fiepvs",
+      "name": "M022",
+      "field": "salesCode",
+      "old": null,
+      "new": "M022"
+    },
+    {
+      "id": "cmupc48sd028nls7yt1fiepvs",
+      "name": "M022",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "M022/KARAKULCHA BLACK",
+        "M022/KARAKULCHA NAVY"
+      ]
+    },
+    {
+      "id": "cmupc490p02trls7ygv1hnpwj",
+      "name": "MGL01",
+      "field": "salesCode",
+      "old": null,
+      "new": "MGL-01"
+    },
+    {
+      "id": "cmupc490p02trls7ygv1hnpwj",
+      "name": "MGL01",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MGL-01 SABLE FARM+MINK",
+        "MGL-01 SABLE TORTOR+MINK"
+      ]
+    },
+    {
+      "id": "cmupc48z902q3ls7y5beysnkp",
+      "name": "MGL02",
+      "field": "salesCode",
+      "old": null,
+      "new": "MGL-02"
+    },
+    {
+      "id": "cmupc48z902q3ls7y5beysnkp",
+      "name": "MGL02",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MGL-02 MINK BROWN+CASHMERE",
+        "MGL-02 MINK PASTEL+CASHMERE"
+      ]
+    },
+    {
+      "id": "cmupo4c0t7b46cd4a63d8b0ea68",
+      "name": "MGL03",
+      "field": "salesCode",
+      "old": null,
+      "new": "MGL-03"
+    },
+    {
+      "id": "cmupo4c0t7b46cd4a63d8b0ea68",
+      "name": "MGL03",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MGL-03 SABLE FARM NO SILVER+CASHMERE+MINK"
+      ]
+    },
+    {
+      "id": "cmupc48wt02kjls7yaau9n99g",
+      "name": "MH01",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-01"
+    },
+    {
+      "id": "cmupc48wt02kjls7yaau9n99g",
+      "name": "MH01",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-01 SABLE FARM SIL 6/7"
+      ]
+    },
+    {
+      "id": "cmupc48zp02rbls7yik12ljp8",
+      "name": "MH02",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-02"
+    },
+    {
+      "id": "cmupc48zp02rbls7yik12ljp8",
+      "name": "MH02",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-02 MINK BGL",
+        "MH-02 MINK LVD",
+        "MH-02 MINK PASTEL"
+      ]
+    },
+    {
+      "id": "cmupc48vy02izls7y37grxt39",
+      "name": "MH03",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-03"
+    },
+    {
+      "id": "cmupc48vy02izls7y37grxt39",
+      "name": "MH03",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-03 SABLE FARM SIL 6/7 +MINK",
+        "MH-03 SABLE WILD NO SILVER +MINK"
+      ]
+    },
+    {
+      "id": "cmupc48vs02inls7yoesruos6",
+      "name": "MH04",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-04"
+    },
+    {
+      "id": "cmupc48vs02inls7yoesruos6",
+      "name": "MH04",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-04 SABLE WILD NO SILVER"
+      ]
+    },
+    {
+      "id": "cmupc48vk02i3ls7yecj3vv51",
+      "name": "MH05",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-05"
+    },
+    {
+      "id": "cmupc48vk02i3ls7yecj3vv51",
+      "name": "MH05",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-05 MINK BROWN",
+        "MH-05 MINK PEARL"
+      ]
+    },
+    {
+      "id": "cmupc48v702hbls7ykjjblwpr",
+      "name": "MH06",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-06"
+    },
+    {
+      "id": "cmupc48v702hbls7ykjjblwpr",
+      "name": "MH06",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-06 MINK BLACK",
+        "MH-06 MINK IRIS",
+        "MH-06 MINK LVD"
+      ]
+    },
+    {
+      "id": "cmupo4c0t0d0dd92c444f4fab1a",
+      "name": "MH07",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-07"
+    },
+    {
+      "id": "cmupo4c0t0d0dd92c444f4fab1a",
+      "name": "MH07",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MH-07 SABLE"
+      ]
+    },
+    {
+      "id": "cmupc48v202gzls7yokwhzqh6",
+      "name": "MH08",
+      "field": "salesCode",
+      "old": null,
+      "new": "MH-08"
+    },
+    {
+      "id": "cmupc48si0293ls7yiofu544c",
+      "name": "MSC-01",
+      "field": "salesCode",
+      "old": null,
+      "new": "MSC-01"
+    },
+    {
+      "id": "cmupc48si0293ls7yiofu544c",
+      "name": "MSC-01",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MSC-01 MINK BLACK",
+        "MSC-01 MINK IRIS",
+        "MSC-01 MINK PEARL",
+        "MSC-01 MINK PST",
+        "MSC-01 TORTORA"
+      ]
+    },
+    {
+      "id": "cmupc48uo02fnls7yj6vl4jfm",
+      "name": "MSC-02",
+      "field": "salesCode",
+      "old": null,
+      "new": "MSC-02"
+    },
+    {
+      "id": "cmupc48uo02fnls7yj6vl4jfm",
+      "name": "MSC-02",
+      "field": "aliases",
+      "old": [],
+      "new": [
+        "MSC-02 SABLE WILD SIL 3",
+        "MSC-02 SABLE WILD SIL 4",
+        "MSC-02 SABLE WILD SIL 5"
+      ]
+    }
+  ]
+}
