@@ -10,7 +10,7 @@ import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-total
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
-import { ResponsiveDetails } from "../production/filters-details";
+import { FilterField, FilterPanel } from "@/components/filter-panel";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
@@ -121,12 +121,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           Закупки
           <YearNote year={year} />
           <InfoHint label="О странице «Закупки»" wide>
-            <p>Список закупок сырья и подкладки: поставщик, аукцион, счёт, сумма и оплата. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
+            <p>Список закупок сырья и подкладки: поставщик, партия закупки, счёт, сумма и оплата. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
             <p className="mt-1">
               Год ({year === "all" ? "все годы" : year}): по дате заказа закупки. Поля «с / по» сужают выбор внутри года.
             </p>
             <p className="mt-1">
-              Оплаты закупок с аукционом ведутся по аукциону целиком — «оплачено из» показывает сумму всего аукциона. «Принято на склад» — по закупке уже созданы лоты сырья.
+              Оплаты закупок внутри одной партии закупки ведутся по партии целиком — «оплачено из» показывает сумму всего аукциона. «Принято на склад» — по закупке уже созданы лоты сырья.
             </p>
             <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется — это наценка на сырьё и подкладку в ТЗ.</p>
           </InfoHint>
@@ -143,56 +143,50 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </div>
       </div>
 
-      <ResponsiveDetails summary={`Фильтры и поиск${q || auction || status || from || to ? " (применены)" : ""}`} forceOpen={Boolean(q || auction || status || from || to)}>
-      <form method="get" className="flex flex-wrap items-center gap-2">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="№ закупки, счёт, поставщик, лот"
-          aria-label="Поиск по закупкам"
-          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-        />
-        <input
-          name="auction"
-          defaultValue={auction}
-          placeholder="Аукцион / сессия"
-          list="auction-sessions"
-          className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-        />
+      <FilterPanel title="Фильтры закупок" applied={Boolean(q || auction || status || from || to)}>
+      <form method="get" className="flex flex-wrap items-end gap-2">
+        <FilterField label="Поиск">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="№ закупки, счёт, поставщик, лот"
+            aria-label="Поиск по закупкам"
+            className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+          />
+        </FilterField>
+        <FilterField label="Партия закупки">
+          <input
+            name="auction"
+            defaultValue={auction}
+            placeholder="название партии / аукциона"
+            list="auction-sessions"
+            className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+          />
+        </FilterField>
         <datalist id="auction-sessions">
           {auctionOptions.map((a) => (
             <option key={a} value={a} />
           ))}
         </datalist>
-        <select
-          name="status"
-          defaultValue={status}
-          aria-label="Статус"
-          className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-        >
-          <option value="">Все статусы</option>
-          <option value="DRAFT">Черновик</option>
-          <option value="RECEIVED">Принято на склад</option>
-          <option value="CANCELLED">Отменено</option>
-        </select>
-        <label className="flex items-center gap-1 text-sm text-neutral-500">
-          с
-          <input
-            type="date"
-            name="from"
-            defaultValue={from}
-            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
-          />
-        </label>
-        <label className="flex items-center gap-1 text-sm text-neutral-500">
-          по
-          <input
-            type="date"
-            name="to"
-            defaultValue={to}
-            className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm"
-          />
-        </label>
+        <FilterField label="Статус">
+          <select
+            name="status"
+            defaultValue={status}
+            aria-label="Статус"
+            className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
+          >
+            <option value="">Все статусы</option>
+            <option value="DRAFT">Черновик</option>
+            <option value="RECEIVED">Принято на склад</option>
+            <option value="CANCELLED">Отменено</option>
+          </select>
+        </FilterField>
+        <FilterField label="Дата с">
+          <input type="date" name="from" defaultValue={from} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm" />
+        </FilterField>
+        <FilterField label="Дата по">
+          <input type="date" name="to" defaultValue={to} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm" />
+        </FilterField>
         <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
           Найти
         </button>
@@ -202,7 +196,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </Link>
         )}
       </form>
-      </ResponsiveDetails>
+      </FilterPanel>
 
       <ResponsiveRows
         table={
@@ -211,7 +205,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           <Tr>
             <Th>№</Th>
             <Th>Поставщик</Th>
-            <Th>Аукцион / сессия</Th>
+            <Th>Партия закупки</Th>
             <Th>Счёт</Th>
             <Th>Дата</Th>
             <Th>Статус</Th>
@@ -252,13 +246,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                     <Link
                       href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
                       className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
-                      title={`Оплаты ведутся по аукциону «${ap.name}» целиком`}
+                      title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}
                     >
                       {repeat ? (
-                        <span className="text-xs font-normal">по аукциону — см. выше</span>
+                        <span className="text-xs font-normal">по партии — см. выше</span>
                       ) : (
                         <>
-                          <span className="block text-xs font-normal text-neutral-400">по аукциону:</span>
+                          <span className="block text-xs font-normal text-neutral-400">по партии:</span>
                           оплачено {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
                         </>
                       )}
@@ -294,7 +288,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
               className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
             >
-              {repeat ? "по аукциону — см. выше" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
+              {repeat ? "по партии — см. выше" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
             </Link>
           ) : (
             <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
@@ -308,11 +302,11 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               badge={<Badge variant={st.variant}>{st.label}</Badge>}
               fields={[
                 { label: <VatLabel base="Сумма" />, value: <Money incl={total} excl={totalExclVat} />, strong: true },
-                { label: ap ? "По аукциону: оплачено" : "Оплачено", value: paidView },
+                { label: ap ? "По партии: оплачено" : "Оплачено", value: paidView },
                 { label: "Дата", value: formatDate(p.orderDate) },
               ]}
               details={[
-                { label: "Аукцион / сессия", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },
+                { label: "Партия закупки", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },
                 { label: "Счёт", value: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null },
               ]}
             />

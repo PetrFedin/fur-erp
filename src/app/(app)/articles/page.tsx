@@ -23,6 +23,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
+import { FilterField, FilterPanel } from "@/components/filter-panel";
 
 export const metadata = { title: "Изделия" };
 
@@ -245,38 +246,27 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      <form method="get" className="flex items-center gap-2">
-        <Input name="q" defaultValue={q} placeholder="Поиск по названию модели" className="h-9 w-72" />
-        <Button type="submit" variant="outline" size="sm">
-          Найти
-        </Button>
-        {showEmpty && <input type="hidden" name="empty" value="1" />}
-        {q && (
-          <Link href={showEmpty ? "/articles?empty=1" : "/articles"} className="text-sm text-neutral-500 hover:underline">
-            Сбросить
-          </Link>
-        )}
-      </form>
-
-      {!q && emptyCount > 0 && (
-        <p className="text-sm text-neutral-500">
-          {showEmpty ? (
-            <>
-              Показаны и модели с нулевым остатком.{" "}
-              <Link href="/articles" className="underline underline-offset-2 hover:text-neutral-800">
-                Скрыть пустые ({emptyCount})
-              </Link>
-            </>
-          ) : (
-            <>
-              Модели с нулевым остатком скрыты.{" "}
-              <Link href="/articles?empty=1" className="underline underline-offset-2 hover:text-neutral-800">
-                Показать пустые ({emptyCount})
-              </Link>
-            </>
+      <FilterPanel title="Фильтры изделий" applied={Boolean(q || showEmpty)}>
+        <div className="flex flex-wrap items-end gap-3">
+          <form method="get" className="flex flex-wrap items-end gap-2">
+            <FilterField label="Поиск">
+              <Input name="q" defaultValue={q} placeholder="название модели" className="h-9 w-72" />
+            </FilterField>
+            {showEmpty && <input type="hidden" name="empty" value="1" />}
+            <Button type="submit" variant="outline" size="sm">Найти</Button>
+            {q && <Link href={showEmpty ? "/articles?empty=1" : "/articles"} className="pb-2 text-sm text-neutral-500 hover:underline">Сбросить</Link>}
+          </form>
+          {emptyCount > 0 && (
+            <div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Состав списка</div>
+              <div className="flex gap-1">
+                <Link href={q ? `/articles?q=${encodeURIComponent(q)}` : "/articles"} className={"rounded-full border px-3 py-1.5 text-xs " + (!showEmpty ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>Основные</Link>
+                <Link href={q ? `/articles?q=${encodeURIComponent(q)}&empty=1` : "/articles?empty=1"} className={"rounded-full border px-3 py-1.5 text-xs " + (showEmpty ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>Все модели · +{emptyCount}</Link>
+              </div>
+            </div>
           )}
-        </p>
-      )}
+        </div>
+      </FilterPanel>
 
       <ResponsiveRows table={
       <Table>

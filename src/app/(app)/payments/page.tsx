@@ -31,6 +31,7 @@ import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { VerifyControl } from "@/components/verify-control";
 import { loadPaymentVerify } from "../verify/verify-block";
+import { FilterPanel } from "@/components/filter-panel";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -196,7 +197,7 @@ export default async function PaymentsPage({
 
   // Цели для «Привязать к аукциону»: аукционы (с поставщиками) и закупки без аукциона.
   const allocTargets: AllocTarget[] = [
-    ...auctions.map((a) => ({ value: `a:${a.name}`, label: `Аукцион: ${shortAuctionName(a.name, 60)}`, supplierIds: a.suppliers.map((x) => x.id) })),
+    ...auctions.map((a) => ({ value: `a:${a.name}`, label: `Партия закупки: ${shortAuctionName(a.name, 60)}`, supplierIds: a.suppliers.map((x) => x.id) })),
     ...plainPurchases.map((p) => ({
       value: `p:${p.id}`,
       label: `Закупка ${p.invoiceNumber ? `счёт ${p.invoiceNumber} · ` : ""}${p.number}`,
@@ -292,7 +293,7 @@ export default async function PaymentsPage({
   const serviceSumRow = (
     <Tr key="__service_sum">
       <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Служебные записи импорта и закупки без аукциона, все вместе">
-        Служебные записи и закупки без аукциона
+        Служебные записи и закупки без партии закупки
       </Td>
       <Td className="text-right">{svcPurchases}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
@@ -330,7 +331,7 @@ export default async function PaymentsPage({
   const serviceSumCard = (
     <RowCard
       key="__service_sum"
-      title="Служебные записи и закупки без аукциона"
+      title="Служебные записи и закупки без партии закупки"
       fields={[
         { label: "Остаток", value: <span className={remClass(sumRemaining)}>{fmtRemaining(sumRemaining)}</span>, strong: true },
         { label: "Стоимость", value: formatMoney(sumTotal.toString()) },
@@ -378,7 +379,7 @@ export default async function PaymentsPage({
     <Table>
       <Thead>
         <Tr>
-          <Th>Аукцион</Th>
+          <Th>Партия закупки</Th>
           <Th className="text-right">Закупок</Th>
           <Th className="text-right">Стоимость</Th>
           <Th className="text-right">Оплачено</Th>
@@ -403,8 +404,8 @@ export default async function PaymentsPage({
         Оплаты
         {year !== "all" && <span className="text-sm font-normal text-neutral-500">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}, оплаты разносим по аукционам (партиям закупок). Суммы — с НДС, это наш долг поставщику.</p>
-          <p className="mt-2">Год (переключатель в шапке): аукцион и закупка — по дате заказа, оплата вне аукционов и от заказчиков — по дате оплаты. Оплаты внутри аукциона показываются все.</p>
+          <p>Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}; оплаты связываем с партиями закупки. Суммы — с НДС, это наш долг поставщику.</p>
+          <p className="mt-2">Год (переключатель в шапке): партия закупки — по дате заказа, оплата без партии и от заказчиков — по дате оплаты. Оплаты внутри выбранной партии показываются все.</p>
           <p className="mt-2">Переключатель «С 4%» оплаты и долг поставщику не меняет.</p>
         </InfoHint>
       </h1>
@@ -592,36 +593,41 @@ export default async function PaymentsPage({
           )}
 
           {auctions.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <form method="get" action="/payments" className="flex flex-wrap items-center gap-2">
-                {onlyRest && <input type="hidden" name="f" value="rest" />}
-                {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
-                <label htmlFor="auction-q" className="text-sm text-neutral-600">
-                  Поиск
-                </label>
-                <Input id="auction-q" name="q" defaultValue={listQ} placeholder="название аукциона" className="w-56" autoComplete="off" />
-                <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
-                  Найти
-                </button>
-              </form>
-              <div className="flex gap-1" role="group" aria-label="Фильтр аукционов">
-                <Link
-                  href={listParams({ f: "", ...(auctionQ ? { auction: auctionQ } : {}) })}
-                  className={"rounded-md px-3 py-1 text-sm " + (!onlyRest ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
-                >
-                  Все
-                </Link>
-                <Link
-                  href={listParams({ f: "rest", ...(auctionQ ? { auction: auctionQ } : {}) })}
-                  className={"rounded-md px-3 py-1 text-sm " + (onlyRest ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
-                >
-                  С остатком
-                </Link>
+            <FilterPanel title="Фильтры оплат" applied={Boolean(listQ || onlyRest || auctionQ)}>
+              <div className="flex flex-wrap items-end gap-3">
+                <form method="get" action="/payments" className="flex flex-wrap items-end gap-2">
+                  {onlyRest && <input type="hidden" name="f" value="rest" />}
+                  {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
+                  <label htmlFor="auction-q" className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Партия закупки
+                    <Input id="auction-q" name="q" defaultValue={listQ} placeholder="название партии закупки" className="w-64 normal-case tracking-normal" autoComplete="off" />
+                  </label>
+                  <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                    Найти
+                  </button>
+                </form>
+                <div>
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Показывать</div>
+                  <div className="flex gap-1" role="group" aria-label="Фильтр оплат">
+                    <Link
+                      href={listParams({ f: "", ...(auctionQ ? { auction: auctionQ } : {}) })}
+                      className={"rounded-full border px-3 py-1.5 text-xs " + (!onlyRest ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100")}
+                    >
+                      Все
+                    </Link>
+                    <Link
+                      href={listParams({ f: "rest", ...(auctionQ ? { auction: auctionQ } : {}) })}
+                      className={"rounded-full border px-3 py-1.5 text-xs " + (onlyRest ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100")}
+                    >
+                      С остатком
+                    </Link>
+                  </div>
+                </div>
+                <span className="ml-auto text-xs text-neutral-500">
+                  Показано {visibleAuctions.length} из {auctions.length}
+                </span>
               </div>
-              <span className="text-xs text-neutral-500">
-                Показано {visibleAuctions.length} из {auctions.length}
-              </span>
-            </div>
+            </FilterPanel>
           )}
 
           {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
@@ -636,17 +642,17 @@ export default async function PaymentsPage({
           )}
           {auctions.length === 0 && (
             <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-              Аукционов пока нет: укажите «Аукцион / сессию» в карточке закупки, и партия появится здесь.
+              Партий закупки пока нет: укажите «Партия закупки» в карточке закупки.
             </p>
           )}
           {auctions.length > 0 && visibleAuctions.length === 0 && (
-            <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этому поиску и фильтру аукционов нет.</p>
+            <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этим фильтрам партий закупки нет.</p>
           )}
 
           <div id="auction-block" className="scroll-mt-4" />
           {auctionQ && !selected && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Аукцион «{auctionQ}» не найден. Выберите его из списка выше.
+              Партия закупки «{auctionQ}» не найдена. Выберите её из списка выше.
             </p>
           )}
           {selected && (() => {
@@ -656,14 +662,14 @@ export default async function PaymentsPage({
             return (
               <Card>
                 <CardHeader>
-                  <CardTitle>Аукцион: {selected.name}</CardTitle>
+                  <CardTitle>Партия закупки: {selected.name}</CardTitle>
                   <CardDescription className="flex flex-wrap gap-x-4 gap-y-1">
                     <span>
                       Закупок: {selected.purchases}
                       {selected.purchasesAll > selected.purchases ? ` (+${selected.purchasesAll - selected.purchases} отменено)` : ""}
                     </span>
                     <Link href={`/lots?auction=${encodeURIComponent(selected.name)}`} className="hover:underline">
-                      Лоты и себестоимость аукциона →
+                      Лоты и себестоимость партии →
                     </Link>
                     {selected.perPurchase.map((pp) => {
                       const pu = auctionPurchaseMap.get(pp.id);
@@ -695,7 +701,7 @@ export default async function PaymentsPage({
                   )}
                   {selected.purchases > 0 && selected.paidByPurchases.greaterThan(0) && (
                     <p className="text-xs text-neutral-500">
-                      В «Оплачено» входят и оплаты, внесённые прямо в закупки аукциона: {formatMoney(selected.paidByPurchases.toString())}.
+                      В «Оплачено» входят и оплаты, внесённые прямо в закупки этой партии: {formatMoney(selected.paidByPurchases.toString())}.
                     </p>
                   )}
 
@@ -801,7 +807,7 @@ export default async function PaymentsPage({
                         );
                       })}
                       {rows.length === 0 && (
-                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">По этому аукциону оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
+                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">По этой партии закупки оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
                       )}
                     </div>
                   </div>
@@ -810,7 +816,7 @@ export default async function PaymentsPage({
                     <div className="flex flex-col gap-1">
                       <CloseRemainderButton auction={selected.name} remaining={formatMoney(selected.remaining.toString())} />
                       <p className="text-xs text-neutral-500">
-                        Для старых аукционов, которые уже оплачены, но оплат в системе нет. Ничего не закрывается автоматически — только по вашему подтверждению.
+                        Для старых партий закупки, которые уже оплачены, но подтверждение ещё не занесено в систему. Ничего не закрывается автоматически — только по вашему подтверждению.
                       </p>
                     </div>
                   )}
@@ -834,13 +840,13 @@ export default async function PaymentsPage({
             );
           })()}
 
-          <h2 className="mt-2 text-base font-semibold">Авансы и оплаты вне аукционов</h2>
+          <h2 className="mt-2 text-base font-semibold">Авансы и оплаты без партии закупки</h2>
           {canPay && (
           <details className="max-w-2xl rounded-lg border border-neutral-200 bg-white" open={!selected}>
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Аванс поставщику без привязки к аукциону</summary>
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Аванс поставщику без привязки к партии закупки</summary>
             <div className="border-t border-neutral-100 p-3">
               <p className="mb-3 text-xs text-neutral-500">
-                Гасит общий долг поставщика. Оплату по конкретному аукциону вносите в блоке этого аукциона выше («Добавить оплату»).
+                Гасит общий долг поставщика. Оплату по конкретной партии вносите в блоке этой партии выше («Добавить оплату»).
               </p>
               <AdvanceForm suppliers={advSuppliers.filter((x) => suppliers.some((y) => y.id === x.id))} />
             </div>
@@ -898,7 +904,7 @@ export default async function PaymentsPage({
               </div>
             ))}
             {outside.length === 0 && (
-              <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">Оплат вне аукционов нет</p>
+              <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">Оплат без партии закупки нет</p>
             )}
           </div>
         </>

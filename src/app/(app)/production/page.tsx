@@ -16,7 +16,7 @@ import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
-import { ResponsiveDetails } from "./filters-details";
+import { FilterField, FilterPanel } from "@/components/filter-panel";
 import { GroupedByBatch } from "./grouped-view";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
@@ -262,70 +262,36 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         })}
       </div>
 
-      <ResponsiveDetails summary={`Фильтры и поиск${hasFilters || sort ? " (применены)" : ""}`} forceOpen={hasFilters || Boolean(sort)}>
+      <FilterPanel title="Фильтры производства" applied={hasFilters || Boolean(sort)}>
       <form method="get" className="flex flex-wrap items-end gap-2">
         {modelId && <input type="hidden" name="model" value={modelId} />}
         {grouped && <input type="hidden" name="view" value="batches" />}
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ, модель, заказчик" className="w-full sm:w-72" />
-        <Select name="status" defaultValue={status} className="w-full sm:w-44">
-          <option value="">Все статусы</option>
-          {STATUS_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {STATUS_LABELS[k].label}
-            </option>
-          ))}
-        </Select>
-        <Select name="client" defaultValue={clientId} className="w-full sm:w-56">
-          <option value="">Все заказчики</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-        {seasonList.length > 0 && (
-          <Select name="season" defaultValue={seasonF} className="w-full sm:w-44" aria-label="Сезон">
-            <option value="">Все сезоны</option>
-            <option value="none">Без сезона</option>
-            {seasonList.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.code}
-              </option>
-            ))}
-          </Select>
-        )}
-        {batchList.length > 0 && (
-          <Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-44" aria-label="Партия">
-            <option value="">Все партии</option>
-            {batchList.map((b) => (
-              <option key={b.id} value={b.number}>
-                Партия {b.number}
-                {b.year ? ` (${b.year})` : ""}
-              </option>
-            ))}
-          </Select>
-        )}
-        <Select name="need" defaultValue={need} className="w-full sm:w-56" aria-label="Документы и оплата">
-          {Object.entries(NEEDS).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <Select name="nds" defaultValue={vatF} className="w-full sm:w-56" aria-label="Ставка НДС">
-          {Object.entries(VAT_FILTER).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
-        </Select>
-        <Select name="sort" defaultValue={sort} className="w-full sm:w-48" aria-label="Сортировка">
-          {Object.entries(SORTS).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
-        </Select>
+        <FilterField label="Поиск"><Input name="q" defaultValue={q} placeholder="№ ТЗ, модель" className="w-full sm:w-64" /></FilterField>
+        <FilterField label="Статус"><Select name="status" defaultValue={status} className="w-full sm:w-44">
+          <option value="">Все</option>
+          {STATUS_KEYS.map((k) => <option key={k} value={k}>{STATUS_LABELS[k].label}</option>)}
+        </Select></FilterField>
+        {showClient && <FilterField label="Заказчик"><Select name="client" defaultValue={clientId} className="w-full sm:w-52">
+          <option value="">Все</option>
+          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select></FilterField>}
+        {seasonList.length > 0 && <FilterField label="Сезон"><Select name="season" defaultValue={seasonF} className="w-full sm:w-40" aria-label="Сезон">
+          <option value="">Все</option><option value="none">Без сезона</option>
+          {seasonList.map((x) => <option key={x.id} value={x.id}>{x.code}</option>)}
+        </Select></FilterField>}
+        {batchList.length > 0 && <FilterField label="Партия"><Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-40" aria-label="Партия">
+          <option value="">Все</option>
+          {batchList.map((b) => <option key={b.id} value={b.number}>Партия {b.number}{b.year ? ` (${b.year})` : ""}</option>)}
+        </Select></FilterField>}
+        <FilterField label="Контроль"><Select name="need" defaultValue={need} className="w-full sm:w-52" aria-label="Документы и оплата">
+          {Object.entries(NEEDS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </Select></FilterField>
+        <FilterField label="НДС"><Select name="nds" defaultValue={vatF} className="w-full sm:w-44" aria-label="Ставка НДС">
+          {Object.entries(VAT_FILTER).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </Select></FilterField>
+        <FilterField label="Сортировка"><Select name="sort" defaultValue={sort} className="w-full sm:w-44" aria-label="Сортировка">
+          {Object.entries(SORTS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </Select></FilterField>
         <button type="submit" className={buttonVariants({ variant: "outline" })}>
           Найти
         </button>
@@ -335,7 +301,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           </Link>
         )}
       </form>
-      </ResponsiveDetails>
+      </FilterPanel>
 
       {grouped ? (
         <GroupedByBatch orders={need || vatF ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />

@@ -31,6 +31,7 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
+import { FilterPanel } from "@/components/filter-panel";
 import { LazyDetails } from "../lots/lazy-details";
 import { loadDocGroup } from "./group-actions";
 import { GroupCards, GroupTableRows, MatrixRow, MobileCard, OrigCell, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
@@ -142,6 +143,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       <RegistryBlock />
 
       {/* ---------- фильтры матрицы */}
+      <FilterPanel title="Фильтры анализа документов" applied={Boolean(f.section || f.auction || f.gaps || f.q || f.sort)}>
       <form method="get" action="/documents" className="flex flex-wrap items-end gap-2" aria-label="Фильтры матрицы">
         {hidden(DRIVE_KEYS)}
         <label className="flex flex-col text-xs text-neutral-500">
@@ -156,7 +158,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           </select>
         </label>
         <label className="flex min-w-0 flex-col text-xs text-neutral-500">
-          Аукцион
+          Партия закупки
           <select name="auction" defaultValue={f.auction} className={cn(inputCls, "max-w-[14rem]")}>
             <option value="">Все</option>
             {auctions.map((a) => (
@@ -188,6 +190,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           Сбросить
         </Link>
       </form>
+      </FilterPanel>
 
       {/* ---------- матрица */}
       {visible.length === 0 ? (

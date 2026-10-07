@@ -30,6 +30,7 @@ import { Ref4 } from "@/components/c4-note";
 import { loadAuctionPanels } from "@/lib/auction-doc-checklist";
 import { TONE_DOT, overallTone, payShort } from "@/lib/doc-panel";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
+import { FilterPanel } from "@/components/filter-panel";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -150,33 +151,33 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     );
   };
   const filtersBlock = (
-    <>
+    <FilterPanel title="Фильтры сырья" applied={Boolean(q || materialId || auctionQ)}>
       {auctions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-xs text-neutral-500">Партия закупки (аукцион):</span>
-          {auctionChips.map(auctionChip)}
-          {moreAuctions.length > 0 && (
-            <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
-                <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
-                <span className="hidden group-open/more:inline">скрыть</span>
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
-            </details>
-          )}
-          {serviceAuctions.length > 0 && (
-            <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
-              <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
-                Прочее — без аукциона ({serviceAuctions.length})
-              </summary>
-              <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
-            </details>
-          )}
+        <div className="mb-3 border-b border-neutral-200 pb-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Партия закупки</div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {auctionChips.map(auctionChip)}
+            {moreAuctions.length > 0 && (
+              <details className="group/more" open={moreAuctions.some((a) => isActiveName(a.name))}>
+                <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
+                  <span className="group-open/more:hidden">ещё {moreAuctions.length}</span>
+                  <span className="hidden group-open/more:inline">скрыть</span>
+                </summary>
+                <div className="mt-2 flex flex-wrap gap-2">{moreAuctions.map(auctionChip)}</div>
+              </details>
+            )}
+            {serviceAuctions.length > 0 && (
+              <details className="group/other" open={serviceAuctions.some((a) => isActiveName(a.name))}>
+                <summary className="cursor-pointer list-none rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center [&::-webkit-details-marker]:hidden">
+                  Без подтверждённой партии ({serviceAuctions.length})
+                </summary>
+                <div className="mt-2 flex flex-wrap gap-2">{serviceAuctions.map(auctionChip)}</div>
+              </details>
+            )}
+          </div>
         </div>
       )}
-      <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(q || materialId)}>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
-        <form className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 border-t border-neutral-100 p-3" method="get">
+        <form className="grid grid-cols-2 items-end gap-2 sm:grid-cols-4" method="get">
           {auctionView === "lots" && <input type="hidden" name="view" value="lots" />}
           {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
           <div className="col-span-2">
@@ -208,8 +209,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </Link>
           </div>
         </form>
-      </details>
-    </>
+      </FilterPanel>
   );
 
   if (auctionMode) {
