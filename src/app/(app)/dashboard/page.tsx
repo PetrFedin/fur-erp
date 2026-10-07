@@ -71,7 +71,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     prisma.rawMaterialLot.findMany({
       where: { organizationId, ...lotYear(year) },
       select: {
-        id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, color: true,
+        id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, color: true, receivedDate: true,
         rawMaterial: { select: { name: true, unit: true } },
         purchase: { select: { auctionSession: true, orderDate: true, currency: true } },
         purchaseItems: { select: { quantity: true, subtotal: true } },
@@ -323,7 +323,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       species: canonicalFurName(l.rawMaterial.name),
       color: l.color || inferredColor || "Не указан",
       auction: normalizedAuction(l.purchase?.auctionSession),
-      year: (l.purchase?.orderDate ?? new Date()).getUTCFullYear(),
+      year: (l.purchase?.orderDate ?? l.receivedDate).getUTCFullYear(),
       purchasedQty: l.quantityReceived.toNumber(),
       purchasedValue: l.quantityReceived.mul(l.unitCost).toNumber(),
       usedQty: used.qty.toNumber(),

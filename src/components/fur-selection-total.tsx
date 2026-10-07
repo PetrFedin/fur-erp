@@ -117,119 +117,119 @@ export function FurSelectionTotal({ rows, c4Mode = "off" }: { rows: Row[]; c4Mod
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
-      <aside className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Виды меха</div>
-          <button type="button" onClick={() => { setSelectedSpecies(selectedSpecies.length === species.length ? [] : species); setSelectedColors([]); setSelectedYears([]); setSelectedAuctions([]); }} className="text-xs font-medium text-neutral-600 underline">
-            {selectedSpecies.length === species.length ? "Снять все" : "Выбрать все"}
-          </button>
+    <div className="space-y-4">
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[230px] flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Мех</div>
+              <button type="button" onClick={() => { setSelectedSpecies(selectedSpecies.length === species.length ? [] : species); setSelectedColors([]); setSelectedYears([]); setSelectedAuctions([]); }} className="text-xs font-medium text-neutral-600 underline">
+                {selectedSpecies.length === species.length ? "Снять все" : "Выбрать все"}
+              </button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {species.map((name) => {
+                const active = selectedSet.has(name);
+                return (
+                  <label key={name} className={"flex cursor-pointer items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition " + (active ? "border-neutral-900 bg-white text-neutral-900" : "border-neutral-300 bg-neutral-100 text-neutral-500")}>
+                    <input type="checkbox" checked={active} onChange={(e) => toggleSpecies(name, e.target.checked)} className="size-3.5 accent-neutral-900" />
+                    <span className="font-medium">{name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {years.length > 1 ? (
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Год</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {years.map((year) => {
+                  const active = yearSet.has(year);
+                  return <button key={year} type="button" onClick={() => { setSelectedYears((prev) => active ? prev.filter((x) => x !== year) : [...prev, year]); setSelectedColors([]); setSelectedAuctions([]); }} className={"rounded-full border px-2.5 py-1.5 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>{year}</button>;
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {colors.length > 1 ? (
+            <div className="min-w-[180px]">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Цвет</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {colors.map((color) => {
+                  const active = colorSet.has(color);
+                  return <button key={color} type="button" onClick={() => { setSelectedColors((prev) => active ? prev.filter((x) => x !== color) : [...prev, color]); setSelectedAuctions([]); }} className={"rounded-full border px-2.5 py-1.5 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>{color}</button>;
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
-        <div className="mt-2 flex flex-col gap-1.5">
-          {species.map((name) => (
-            <label key={name} className="flex cursor-pointer items-center justify-between rounded-md bg-white px-3 py-2 text-sm hover:bg-neutral-100">
-              <span className="font-medium">{name}</span>
-              <input type="checkbox" checked={selectedSet.has(name)} onChange={(e) => toggleSpecies(name, e.target.checked)} className="size-4 shrink-0 accent-neutral-900" />
-            </label>
+
+        {auctions.length > 0 ? (
+          <div className="mt-3 border-t border-neutral-200 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Партия закупки</div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {auctions.map((a) => {
+                const active = auctionSet.has(a);
+                return <button key={a} type="button" onClick={() => setSelectedAuctions((prev) => active ? prev.filter((x) => x !== a) : [...prev, a])} className={"rounded-full border px-2.5 py-1 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>{a}</button>;
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-neutral-500">Выбрано видов меха: <b className="text-neutral-900">{selectedSpecies.length}</b> из {species.length}</div>
+        <div className="inline-flex rounded-md border border-neutral-300 bg-white p-0.5 text-xs">
+          {([["qty","Шт."],["money","₽"],["all","Все"]] as const).map(([key,label]) => (
+            <button key={key} type="button" onClick={() => setView(key)} className={"rounded px-2.5 py-1 " + (view === key ? "bg-neutral-900 text-white" : "text-neutral-600")}>{label}</button>
           ))}
         </div>
+      </div>
 
-        {years.length > 1 ? (
-          <div className="mt-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Год</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {years.map((year) => {
-                const active = yearSet.has(year);
-                return (
-                  <button key={year} type="button" onClick={() => { setSelectedYears((prev) => active ? prev.filter((x) => x !== year) : [...prev, year]); setSelectedColors([]); setSelectedAuctions([]); }} className={"rounded-full border px-2 py-1 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>
-                    {year}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Количество сырья</div><div className="mt-1 text-xl font-semibold">{formatQty(total.purchasedQty)} ед.</div></div>
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Ср цена закупки, $</div><div className="mt-1 text-xl font-semibold">{"$"}{avgUsd.toLocaleString("ru-RU",{maximumFractionDigits:2})}</div></div>
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Ср финальная цена, ₽/ед.</div><div className="mt-1 text-xl font-semibold">{formatMoney(avgFinal)}</div></div>
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Себестоимость всего сырья</div><div className="mt-1 text-xl font-semibold">{formatMoney(total.purchasedValue)}</div></div>
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Неиспользованный остаток</div><div className="mt-1 text-xl font-semibold">{formatQty(total.remainingQty)} ед.</div></div>
+        <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Остаток в деньгах</div><div className="mt-1 text-xl font-semibold">{formatMoney(total.remainingValue)}</div></div>
+      </div>
 
-        {colors.length > 1 ? (
-          <div className="mt-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Цвет</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {colors.map((color) => {
-                const active = colorSet.has(color);
-                return (
-                  <button key={color} type="button" onClick={() => { setSelectedColors((prev) => active ? prev.filter((x) => x !== color) : [...prev, color]); setSelectedAuctions([]); }} className={"rounded-full border px-2 py-1 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>
-                    {color}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-      </aside>
-
-      <div className="min-w-0 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {auctions.map((a) => {
-              const active = auctionSet.has(a);
+      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead className="bg-neutral-50 text-left text-xs text-neutral-500"><tr>
+            <th className="px-3 py-2">Мех</th>
+            {view !== "money" && <><th className="px-3 py-2 text-right">Куплено, шт.</th><th className="px-3 py-2 text-right">Использовано, шт.</th><th className="px-3 py-2 text-right">Остаток, шт.</th></>}
+            {view !== "qty" && <><th className="px-3 py-2 text-right">Куплено, ₽</th><th className="px-3 py-2 text-right">Использовано, ₽</th><th className="px-3 py-2 text-right">Остаток, ₽</th></>}
+          </tr></thead>
+          <tbody>
+            {groups.map((g) => {
+              const used = c4Mode === "on" ? g.usedValueWith4 : g.usedValueBase;
+              const alt = c4Mode === "on" ? g.usedValueBase : g.usedValueWith4;
               return (
-                <button key={a} type="button" onClick={() => setSelectedAuctions((prev) => active ? prev.filter((x) => x !== a) : [...prev, a])} className={"rounded-full border px-2.5 py-1 text-xs " + (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>
-                  {a}
-                </button>
+                <tr key={g.name} className="border-t border-neutral-100">
+                  <td className="px-3 py-2 font-medium">{g.name}</td>
+                  {view !== "money" && <><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.purchasedQty)}</td><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.usedQty)}</td><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.remainingQty)}</td></>}
+                  {view !== "qty" && <>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatMoney(g.purchasedValue)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums"><div>{formatMoney(used)}</div><div className="text-[11px] text-neutral-400">{c4Mode === "on" ? "без 4%" : "с 4%"}: {formatMoney(alt)}</div></td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatMoney(g.remainingValue)}</td>
+                  </>}
+                </tr>
               );
             })}
-          </div>
-          <div className="inline-flex rounded-md border border-neutral-300 bg-white p-0.5 text-xs">
-            {([["qty","Шт."],["money","₽"],["all","Все"]] as const).map(([key,label]) => (
-              <button key={key} type="button" onClick={() => setView(key)} className={"rounded px-2.5 py-1 " + (view === key ? "bg-neutral-900 text-white" : "text-neutral-600")}>{label}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Количество сырья</div><div className="mt-1 text-xl font-semibold">{formatQty(total.purchasedQty)} ед.</div></div>
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Ср цена закупки, $</div><div className="mt-1 text-xl font-semibold">{"$"}{avgUsd.toLocaleString("ru-RU",{maximumFractionDigits:2})}</div></div>
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Ср финальная цена, ₽/ед.</div><div className="mt-1 text-xl font-semibold">{formatMoney(avgFinal)}</div></div>
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Себестоимость всего сырья</div><div className="mt-1 text-xl font-semibold">{formatMoney(total.purchasedValue)}</div></div>
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Неиспользованный остаток</div><div className="mt-1 text-xl font-semibold">{formatQty(total.remainingQty)} ед.</div></div>
-          <div className="rounded-lg border border-neutral-200 p-3"><div className="text-xs text-neutral-500">Остаток в деньгах</div><div className="mt-1 text-xl font-semibold">{formatMoney(total.remainingValue)}</div></div>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-neutral-200">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-neutral-50 text-left text-xs text-neutral-500"><tr>
-              <th className="px-3 py-2">Мех</th>
-              {view !== "money" && <><th className="px-3 py-2 text-right">Куплено, шт.</th><th className="px-3 py-2 text-right">Использовано, шт.</th><th className="px-3 py-2 text-right">Остаток, шт.</th></>}
-              {view !== "qty" && <><th className="px-3 py-2 text-right">Куплено, ₽</th><th className="px-3 py-2 text-right">Использовано, ₽</th><th className="px-3 py-2 text-right">Остаток, ₽</th></>}
-            </tr></thead>
-            <tbody>
-              {groups.map((g) => {
-                const used = c4Mode === "on" ? g.usedValueWith4 : g.usedValueBase;
-                const alt = c4Mode === "on" ? g.usedValueBase : g.usedValueWith4;
-                return (
-                  <tr key={g.name} className="border-t border-neutral-100">
-                    <td className="px-3 py-2 font-medium">{g.name}</td>
-                    {view !== "money" && <><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.purchasedQty)}</td><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.usedQty)}</td><td className="px-3 py-2 text-right tabular-nums">{formatQty(g.remainingQty)}</td></>}
-                    {view !== "qty" && <>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatMoney(g.purchasedValue)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums"><div>{formatMoney(used)}</div><div className="text-[11px] text-neutral-400">{c4Mode === "on" ? "без 4%" : "с 4%"}: {formatMoney(alt)}</div></td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatMoney(g.remainingValue)}</td>
-                    </>}
-                  </tr>
-                );
-              })}
-              <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
-                <td className="px-3 py-2">Итого выбранное</td>
-                {view !== "money" && <><td className="px-3 py-2 text-right">{formatQty(total.purchasedQty)}</td><td className="px-3 py-2 text-right">{formatQty(total.usedQty)}</td><td className="px-3 py-2 text-right">{formatQty(total.remainingQty)}</td></>}
-                {view !== "qty" && <>
-                  <td className="px-3 py-2 text-right">{formatMoney(total.purchasedValue)}</td>
-                  <td className="px-3 py-2 text-right"><div>{formatMoney(currentUsed)}</div><div className="text-[11px] font-normal text-neutral-400">{c4Mode === "on" ? "без 4%" : "с 4%"}: {formatMoney(altUsed)}</div></td>
-                  <td className="px-3 py-2 text-right">{formatMoney(total.remainingValue)}</td>
-                </>}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
+              <td className="px-3 py-2">Итого выбранное</td>
+              {view !== "money" && <><td className="px-3 py-2 text-right">{formatQty(total.purchasedQty)}</td><td className="px-3 py-2 text-right">{formatQty(total.usedQty)}</td><td className="px-3 py-2 text-right">{formatQty(total.remainingQty)}</td></>}
+              {view !== "qty" && <>
+                <td className="px-3 py-2 text-right">{formatMoney(total.purchasedValue)}</td>
+                <td className="px-3 py-2 text-right"><div>{formatMoney(currentUsed)}</div><div className="text-[11px] font-normal text-neutral-400">{c4Mode === "on" ? "без 4%" : "с 4%"}: {formatMoney(altUsed)}</div></td>
+                <td className="px-3 py-2 text-right">{formatMoney(total.remainingValue)}</td>
+              </>}
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
