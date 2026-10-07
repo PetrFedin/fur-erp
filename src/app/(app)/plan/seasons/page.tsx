@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { cleanSearch, escapeLike } from "@/lib/input";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { getYearFilter } from "@/lib/year-filter";
 import { orderYearWhere, orderDateOf } from "@/lib/year-scope";
 import { YearNote } from "@/components/year-note";
@@ -11,13 +13,15 @@ import { modelCodeVariants } from "@/lib/model-code";
 import { suggestSeasons } from "@/lib/plan-season-rule";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
 import { ProductionTabs } from "@/components/production-tabs";
 import { InfoHint } from "@/components/info-hint";
 import { AssignTable } from "./assign-table";
 import { applySeasonRule } from "../actions";
 
 export const metadata = { title: "Сезоны ТЗ" };
+
+// Сезон — мультивыбор (код; старые ссылки ?s=<id> читаются), поиск — по № ТЗ и модели.
+const SEASON_FILTERS = defineFilters({ ...pick(["q", "season"], { season: { aliases: ["s"] }, q: { label: "Поиск" } }) });
 
 const MSG: Record<string, string> = { none: "Ничего не выбрано.", noseason: "Сезон не найден." };
 
@@ -27,19 +31,22 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
   const canEdit = hasRole(session.user.role, ACCESS.planning);
   const year = await getYearFilter();
   const sp = await searchParams;
-  const q = cleanSearch(sp.q);
-  const s = cleanSearch(sp.s, 40);
+  const pf = parseFilters(SEASON_FILTERS, sp);
+  const q = pf.q;
   const msg = cleanSearch(sp.msg, 20);
   const n = cleanSearch(sp.n, 8);
 
   const seasons = await prisma.season.findMany({ where: { organizationId: orgId }, orderBy: [{ startDate: "desc" }, { code: "asc" }] });
   const seasonById = new Map(seasons.map((x) => [x.id, x]));
 
+  const pickedIds = seasons.filter((x) => pf.season.includes(x.id) || pf.season.includes(x.code)).map((x) => x.id);
+  const pickedNone = pf.season.includes("none");
+  const seasonWhere =
+    pickedIds.length || pickedNone ? [...(pickedIds.length ? [{ seasonId: { in: pickedIds } }] : []), ...(pickedNone ? [{ seasonId: null }] : [])] : null;
   const where = {
     organizationId: orgId,
     status: { not: "CANCELLED" as const },
-    AND: [orderYearWhere(year)],
-    ...(s === "none" ? { seasonId: null } : seasons.some((x) => x.id === s) ? { seasonId: s } : {}),
+    AND: [orderYearWhere(year), ...(seasonWhere ? [{ OR: seasonWhere }] : [])],
     ...(q
       ? {
           OR: [
@@ -137,19 +144,17 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
         </CardContent>
       </Card>
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ или модель" className="h-10 w-full sm:w-64" />
-        <Select name="s" defaultValue={s} className="h-10 w-full sm:w-56" aria-label="Сезон">
-          <option value="">Все сезоны</option>
-          <option value="none">Без сезона</option>
-          {seasons.map((x) => <option key={x.id} value={x.id}>{x.code}</option>)}
-        </Select>
-        <button type="submit" className={buttonVariants({ variant: "outline", className: "h-10" })}>Найти</button>
-        {(q || s) && <Link href="/plan/seasons" className="text-sm text-neutral-500 hover:underline">Сбросить</Link>}
-      </form>
+      <FilterBar
+        title="Фильтры ТЗ"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или модель" },
+          { type: "multi", name: "season", label: "Сезон", aliases: ["s"], options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
+        ]}
+        dropOnChange={["msg", "n"]}
+      />
 
       <AssignTable
-        key={`${q}|${s}|${year}`}
+        key={`${q}|${pf.season.join(",")}|${year}`}
         canEdit={canEdit}
         seasons={seasons.map((x) => ({ id: x.id, code: x.code }))}
         orders={orders.map((o) => {

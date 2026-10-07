@@ -139,7 +139,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         workOrderNumber: true,
         status: true,
         productModelId: true,
-        productModel: { select: { name: true, category: true, salesCode: true, sku: true, aliases: true } },
+        productModel: { select: { name: true, category: true, categoryRef: { select: { name: true } }, salesCode: true, sku: true, aliases: true } },
         batch: { select: { number: true, year: true } },
         season: { select: { code: true } },
         client: { select: { name: true } },
@@ -224,6 +224,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
     const c4Pot = sumUsagesWith4(furUs, "on").extraIncl.add(sumUsagesWith4(linUs, "on").extraIncl);
 
     const cls = classifyProduct({
+      refName: o.productModel.categoryRef?.name,
       modelCategory: o.productModel.category,
       orderDescription: o.materialDescription,
       modelName: o.productModel.name,

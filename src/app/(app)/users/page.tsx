@@ -7,6 +7,25 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { redirect } from "next/navigation";
 import { RoleSelect } from "./role-select";
 import { toggleUserActive } from "./actions";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
+import { escapeLike } from "@/lib/input";
+
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: "Владелец",
+  ADMIN: "Администратор",
+  PURCHASER: "Закупщик",
+  WAREHOUSE: "Кладовщик",
+  TECHNOLOGIST: "Технолог",
+  ACCOUNTANT: "Бухгалтер",
+  VIEWER: "Наблюдатель",
+};
+
+// Список: поиск по имени и email, роль (мультивыбор), статус. error — разовое сообщение после действия.
+const USER_FILTERS = defineFilters({
+  ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active", "inactive"] } }),
+  role: { kind: "multi", label: "Роль", allowed: Object.keys(ROLE_LABELS) },
+});
 
 export default async function UsersPage({ searchParams }: PageProps<"/users">) {
   const session = await requireRole("OWNER", "ADMIN");
@@ -14,8 +33,14 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
   const isOwner = session.user.role === "OWNER";
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
+  const f = parseFilters(USER_FILTERS, sp);
   const users = await prisma.user.findMany({
-    where: { organizationId: session.user.organizationId },
+    where: {
+      organizationId: session.user.organizationId,
+      ...(f.role.length ? { role: { in: f.role as Array<"OWNER"> } } : {}),
+      ...(f.status.length === 1 ? { isActive: f.status[0] === "active" } : {}),
+      ...(f.q ? { OR: [{ name: { contains: escapeLike(f.q), mode: "insensitive" as const } }, { email: { contains: escapeLike(f.q), mode: "insensitive" as const } }] } : {}),
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -33,6 +58,16 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
+
+      <FilterBar
+        title="Фильтры пользователей"
+        dropOnChange={["error"]}
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "Имя или email" },
+          { type: "multi", name: "role", label: "Роль", options: Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label })), allLabel: "Все роли" },
+          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+        ]}
+      />
 
       <Table>
         <Thead>
@@ -83,6 +118,13 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
               </Td>
             </Tr>
           ))}
+          {users.length === 0 && (
+            <Tr>
+              <Td colSpan={5} className="py-8 text-center text-neutral-400">
+                Ничего не найдено
+              </Td>
+            </Tr>
+          )}
         </Tbody>
       </Table>
     </div>

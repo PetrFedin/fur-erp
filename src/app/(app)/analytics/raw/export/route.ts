@@ -4,7 +4,7 @@ import { applyFilters, aggOf, avgPrice, groupLots, groupUsage, isUsageBy, loadRa
 
 /**
  * CSV «Аналитика сырья» (UTF-8 с BOM, разделитель «;» — открывается в Excel).
- * Те же фильтры, что и страница: g, scope, auction, kind, rest, q + общий год из cookie.
+ * Те же фильтры, что и страница: g, scope, auction, fur, pyear, rest, q, model + общий год из cookie.
  * part=groups — сводная таблица в выбранной группировке; part=lots — плоский список лотов.
  * Цены — с НДС и без НДС отдельными колонками (режим показа не важен для файла).
  */
@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(request.url);
-  const { f, by } = parseFilters(Object.fromEntries(url.searchParams));
+  const spObj: Record<string, string[]> = {};
+  for (const k of new Set(url.searchParams.keys())) spObj[k] = url.searchParams.getAll(k);
+  const { f, by } = parseFilters(spObj);
   const year = await getYearFilter();
   const data = await loadRawData(session.user.organizationId, year);
   const lots = applyFilters(data.lots, f);

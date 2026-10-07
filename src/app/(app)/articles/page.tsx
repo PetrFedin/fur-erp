@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { cleanSearch, escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -18,19 +16,35 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { formatMoney } from "@/lib/utils";
-import { compareModelNames, modelCodeVariants } from "@/lib/model-code";
+import { compareModelNames } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
 import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
 import { WriteOffForm } from "../finished-stock/write-off-form";
-import { FilterField, FilterPanel } from "@/components/filter-panel";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
+import { articleModelWhere, hasLiningText, isTzFilterActive, matchedOrderIds, tzOptions } from "@/lib/article-filters";
+import { getFilterOptions } from "@/lib/filter-options";
+import { loadOrderRows } from "@/lib/analytics-orders";
 
 export const metadata = { title: "Изделия" };
 
-export default async function ArticlesPage({ searchParams }: { searchParams: Promise<{ q?: string | string[]; empty?: string | string[] }> }) {
-  const { q: rawQ, empty: rawEmpty } = await searchParams;
-  const q = cleanSearch(rawQ);
-  const showEmpty = cleanSearch(rawEmpty) === "1";
+// Фильтры «Изделий». Уровень модели: поиск, категория, цена. Уровень ТЗ (остальные): модель остаётся в списке, если у неё есть ТЗ,
+// подходящее под ВСЕ выбранные условия; её ср. взвеш. себестоимость и число ТЗ считаются только по таким ТЗ.
+// «Год ТЗ» (tzyear) — дополнительный фильтр внутри общего года из шапки (cookie), общий год не заменяет.
+const ARTICLE_FILTERS = defineFilters({
+  ...pick(["q", "category", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" } }),
+  lining: { kind: "multi", label: "Подкладка", allowed: ["yes", "no"] },
+  tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
+  tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
+  price: { kind: "multi", label: "Цена", allowed: ["yes", "no"] },
+  empty: stateParam("Состав списка", { allowed: ["1"] }),
+});
+
+export default async function ArticlesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const f = parseFilters(ARTICLE_FILTERS, await searchParams);
+  const q = f.q;
+  const showEmpty = f.empty === "1";
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
   const year = await getYearFilter();
@@ -58,16 +72,26 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     }),
     prisma.warehouse.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
   ]);
+  const articleOpts = await getFilterOptions(orgId, year, ["category"]);
+
+  // ТЗ общего года (без отменённых) со значениями для фильтров: вид меха, цвет, размер, сезон, партия — как в аналитике.
+  const [orderRows, liningTexts] = await Promise.all([
+    loadOrderRows(orgId, year, c4Mode),
+    prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { id: true, lining: true } }),
+  ]);
+  const liningById = new Map(liningTexts.map((o) => [o.id, hasLiningText(o.lining)]));
+  const tzActive = isTzFilterActive(f);
+  const matchedIds = matchedOrderIds(orderRows, liningById, f);
+  const tzWhere = matchedIds ? { id: { in: matchedIds } } : {};
+  const tzOpts = tzOptions(orderRows);
+
   const models = await prisma.productModel.findMany({
-    where: {
-      organizationId: orgId,
-      ...(q ? { OR: modelCodeVariants(q).map((v) => ({ name: { contains: escapeLike(v), mode: "insensitive" as const } })) } : {}),
-    },
+    where: articleModelWhere(orgId, f),
     include: {
-      _count: { select: { productionOrders: { where: orderYearWhere(year) } } },
+      _count: { select: { productionOrders: { where: { ...orderYearWhere(year), ...tzWhere } } } },
       productionOrders: {
         // Общий год: себестоимость модели — по завершённым ТЗ выбранного года (дата ТЗ → конец → начало → год партии).
-        where: { status: "COMPLETED", ...orderYearWhere(year) },
+        where: { status: "COMPLETED", ...orderYearWhere(year), ...tzWhere },
         select: {
           unitCost: true,
           producedQuantity: true,
@@ -157,6 +181,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       unitOf,
       modelShipments,
       totalProduced,
+      totalCost,
+      totalCostExclVat,
+      extra4Incl,
+      extra4Excl,
       avgUnitCost,
       avgUnitCostExclVat,
       c4Ratio,
@@ -169,9 +197,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Строки с нулевым остатком готовой продукции скрыты по умолчанию (?empty=1 — показать).
   // При поиске по названию показываем всё найденное, чтобы нужную модель не пришлось искать по скрытым.
   // За выбранный год показываем модели, по которым в этом году были ТЗ (остаток на складе — текущий, без даты).
+  // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются модели, у которых есть подходящие ТЗ.
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty.greaterThan(0)) : rows0.filter((r) => r.orderCount > 0);
-  const emptyCount = rows0.length - baseRows.length;
-  const rows = (showEmpty || q ? rows0 : baseRows).sort((a, b) => {
+  const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
+  const modelFilterOn = !!q || f.category.length > 0 || f.price.length > 0;
+  const rows = (tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty.greaterThan(0) || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty.greaterThan(0) || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
@@ -180,6 +210,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const totalStockValueExclVat = rows.reduce((s, r) => s.add(r.stockValueExclVat), new Decimal(0));
   const stockBaseTotal = rows.reduce((s, r) => s.add(r.stockBase), new Decimal(0));
   const stockOnTotal = rows.reduce((s, r) => s.add(r.stockOn), new Decimal(0));
+  // Итоги выборки: ср. взвеш. себестоимость = Σ себестоимость ТЗ ÷ Σ выпуск по завершённым ТЗ показанных моделей (с 4% — по режиму).
+  const sumProduced = rows.reduce((s, r) => s.add(r.totalProduced), new Decimal(0));
+  const sumTz = rows.reduce((s, r) => s + r.orderCount, 0);
+  const sumStockQty = rows.reduce((s, r) => s.add(r.stockQty), new Decimal(0));
+  const sumCostIncl = rows.reduce((s, r) => s.add(r.totalCost).add(r.extra4Incl), new Decimal(0));
+  const sumCostExcl = rows.reduce((s, r) => s.add(r.totalCostExclVat), new Decimal(0));
+  const wAvgIncl = sumProduced.greaterThan(0) ? sumCostIncl.div(sumProduced).toDecimalPlaces(2) : null;
+  const wAvgExcl = sumProduced.greaterThan(0) ? sumCostExcl.div(sumProduced).toDecimalPlaces(2) : null;
   const noC4Models = rows.filter((r) => r.stockNoC4Data).map((r) => r.name);
   const writeOffModels = models.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name }));
 
@@ -246,27 +284,23 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      <FilterPanel title="Фильтры изделий" applied={Boolean(q || showEmpty)}>
-        <div className="flex flex-wrap items-end gap-3">
-          <form method="get" className="flex flex-wrap items-end gap-2">
-            <FilterField label="Поиск">
-              <Input name="q" defaultValue={q} placeholder="название модели" className="h-9 w-72" />
-            </FilterField>
-            {showEmpty && <input type="hidden" name="empty" value="1" />}
-            <Button type="submit" variant="outline" size="sm">Найти</Button>
-            {q && <Link href={showEmpty ? "/articles?empty=1" : "/articles"} className="pb-2 text-sm text-neutral-500 hover:underline">Сбросить</Link>}
-          </form>
-          {emptyCount > 0 && (
-            <div>
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Состав списка</div>
-              <div className="flex gap-1">
-                <Link href={q ? `/articles?q=${encodeURIComponent(q)}` : "/articles"} className={"rounded-full border px-3 py-1.5 text-xs " + (!showEmpty ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>Основные</Link>
-                <Link href={q ? `/articles?q=${encodeURIComponent(q)}&empty=1` : "/articles?empty=1"} className={"rounded-full border px-3 py-1.5 text-xs " + (showEmpty ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700")}>Все модели · +{emptyCount}</Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </FilterPanel>
+      <FilterBar
+        title="Фильтры изделий"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
+          { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: articleOpts.category, noneLabel: "Без категории" },
+          { type: "multi", name: "fur", label: "Вид (тип) меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },
+          { type: "multi", name: "lining", label: "Подкладка", options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
+          { type: "multi", name: "tzyear", label: year === "all" ? "Год ТЗ" : `Год ТЗ (внутри ${year})`, options: tzOpts.tzyear, hint: "дополнительно к общему году в шапке" },
+          { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz },
+          { type: "multi", name: "batch", label: "Партия", options: tzOpts.batch, noneLabel: "Без партии" },
+          { type: "multi", name: "color", label: "Цвет", options: tzOpts.color },
+          { type: "multi", name: "size", label: "Размер", options: tzOpts.size },
+          { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона" },
+          { type: "multi", name: "price", label: "Цена", options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
+          ...(emptyCount > 0 ? [{ type: "multi" as const, name: "empty", label: "Состав списка", single: true, options: [{ value: "1", label: `Все модели · +${emptyCount}` }], allLabel: "Основные" }] : []),
+        ]}
+      />
 
       <ResponsiveRows table={
       <Table>
@@ -376,7 +410,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={7} className="py-8 text-center text-neutral-400">
-                {q ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
+                {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
               </Td>
             </Tr>
           )}
@@ -435,10 +469,19 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         ))}
         {rows.length === 0 && (
           <p className="py-8 text-center text-neutral-400">
-            {q ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
+            {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
           </p>
         )}
       </ResponsiveRows>
+
+      {rows.length > 0 && (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm" data-testid="articles-totals">
+          <span className="font-medium">Итого по списку</span>
+          <Mode4Badge mode={c4Mode} />: моделей {rows.length} · ТЗ {sumTz} · выпущено {formatQty(sumProduced.toString())} шт. · остаток {formatQty(sumStockQty.toString())} шт. · ср. взвеш. себестоимость за ед.{" "}
+          {wAvgIncl ? <Money incl={wAvgIncl} excl={wAvgExcl} /> : "—"}
+          {(tzActive || modelFilterOn) && <span className="ml-2 text-xs text-neutral-500">(по ТЗ, подходящим под фильтры; остаток на складе — текущий, от фильтров по ТЗ не зависит)</span>}
+        </div>
+      )}
 
       <details className="rounded-lg border border-neutral-200 bg-white p-3">
         <summary className="cursor-pointer text-sm font-medium">Списать готовую продукцию со склада</summary>

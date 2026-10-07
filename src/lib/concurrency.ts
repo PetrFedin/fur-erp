@@ -40,6 +40,7 @@ export function staleError(formData: FormData, current: Record<string, unknown>,
 }
 
 /** Какие поля входят в «версию» каждой правимой записи (то, что реально меняет форма правки). */
+export const AUCTION_V = ["name", "fullName", "house", "kind", "year", "month", "currency", "auctionDate", "isService", "confirmed", "note"] as const;
 export const PURCHASE_V = ["supplierId", "warehouseId", "currency", "auctionSession", "invoiceNumber", "transferDocument", "orderDate"] as const;
 export const PURCHASE_ITEM_V = ["rawMaterialId", "quantity", "unitPrice", "vatRate", "lotNumber", "grade", "color"] as const;
 export const ORDER_V = [

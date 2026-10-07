@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ControlTabs } from "@/components/control-tabs";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
@@ -26,7 +27,7 @@ import {
 } from "./model";
 import { ConfirmLine, CountsLine, INV_TONE, Progress, money } from "./parts";
 
-export const metadata = { title: "Реестр сверки" };
+export const metadata = { title: "Сверка" };
 export const dynamic = "force-dynamic"; // цифры «в базе» читаются из БД при каждом заходе
 
 const STATUS: Record<RecStatus, { label: string; hint: string; cls: string }> = {
@@ -186,9 +187,10 @@ export default async function ReconciliationPage() {
 
   return (
     <div className="space-y-6">
+      <ControlTabs active="reconciliation" />
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">Реестр сверки</h1>
+          <h1 className="text-xl font-semibold">Сверка</h1>
           <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 text-xs font-medium text-white" data-testid="year-badge">
             Год: {year === "all" ? "все" : year}
           </span>
@@ -308,7 +310,7 @@ export default async function ReconciliationPage() {
 
       <p className="text-xs text-neutral-500">
         Строки документов собраны скриптом <code>npx tsx scripts/build-reconciliation.ts</code> (файл src/data/reconciliation.json + docs-inventory/reconciliation-extra.json). Недостающие документы — на странице{" "}
-        <Link href="/documents" className="underline">Покрытие документами</Link>, список дел — «Что не заведено». Счетов в реестре: {ALL_INVOICES.length}.
+        <Link href="/documents" className="underline">Документы</Link>, список дел — «Задачи». Счетов в реестре: {ALL_INVOICES.length}.
       </p>
     </div>
   );

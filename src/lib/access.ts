@@ -10,6 +10,10 @@ export const ACCESS = {
   materials: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],
   // Справочник цветов (/settings/colors, добавление цвета из форм) — как справочник материалов.
   colors: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],
+  // Справочник аукционов (/settings/auctions): короткие имена, объединение, подтверждение.
+  auctions: ["OWNER", "ADMIN", "PURCHASER"],
+  // Справочник категорий изделий (/settings/categories, добавление категории из форм модели/артикула).
+  categories: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   models: ["OWNER", "ADMIN", "TECHNOLOGIST"],
   // Справочник меха (/settings/furs): рус/англ названия и синонимы — как справочник материалов.
   furRefs: ["OWNER", "ADMIN", "PURCHASER", "TECHNOLOGIST"],

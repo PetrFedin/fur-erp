@@ -1,3 +1,4 @@
+import { auctionKey } from "@/lib/auction-key";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { auctionName } from "@/lib/auction-payments";
@@ -35,7 +36,7 @@ function pickInvoice(cands: Invoice[], ref: { no: string; date: string | null },
 }
 
 export async function loadLive(orgId: string): Promise<Live> {
-  const [payments, prodPayments, purchases, batches] = await Promise.all([
+  const [payments, prodPayments, purchases, batches, refAuctions] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
       select: { id: true, amount: true, paidAt: true, docRef: true, confirmed: true, auctionSession: true, purchase: { select: { number: true } } },
@@ -47,12 +48,13 @@ export async function loadLive(orgId: string): Promise<Live> {
     prisma.purchase.findMany({
       where: { organizationId: orgId },
       select: {
-        id: true, number: true, status: true, auctionSession: true, exchangeRate: true, orderDate: true,
+        id: true, number: true, status: true, auctionSession: true, auctionId: true, exchangeRate: true, orderDate: true,
         items: { select: { subtotal: true, vatRate: true, quantity: true, costPlan: true } },
         expenses: { select: { amount: true, vatRate: true } },
       },
     }),
     loadBatchesWithOrders(orgId),
+    prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true } }),
   ]);
 
   const inv = new Map<string, InvDb>();
@@ -92,8 +94,14 @@ export async function loadLive(orgId: string): Promise<Live> {
         continue;
       }
       const names = new Set(ps.map((p) => auctionName(p.auctionSession)).filter((x): x is string => !!x && !/^нет информации$/i.test(x)));
+      // Справочник аукционов: после переименования оплаты аукциона находятся и по прежним написаниям (алиасам).
+      const refKeys = new Set<string>();
+      for (const p of ps) {
+        const a = p.auctionId ? refAuctions.find((x) => x.id === p.auctionId) : undefined;
+        if (a && !a.name.match(/^без аукциона$/i)) for (const v of [a.name, ...a.aliases]) refKeys.add(auctionKey(v));
+      }
       const cost = ps.filter((p) => p.status !== "CANCELLED").reduce((a, p) => a + n(purchaseTotalInclVat(p)), 0);
-      const mine = payments.filter((p) => (p.purchase && ps.some((q) => q.number === p.purchase?.number)) || (p.auctionSession && names.has(auctionName(p.auctionSession) ?? "")));
+      const mine = payments.filter((p) => (p.purchase && ps.some((q) => q.number === p.purchase?.number)) || (p.auctionSession && (names.has(auctionName(p.auctionSession) ?? "") || refKeys.has(auctionKey(p.auctionSession)))));
       group.set(g.id, { cost: Math.round(cost * 100) / 100, paid: Math.round(mine.reduce((a, p) => a + n(p.amount), 0) * 100) / 100, pays: mine.length, note: null });
     } else if (g.dbLink.batch != null) {
       const b = batches.find((x) => x.number === g.dbLink.batch);

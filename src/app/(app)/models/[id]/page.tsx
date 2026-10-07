@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
+import { getCategoryOptions } from "@/lib/categories";
 import { RecordHistory } from "@/components/record-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -33,7 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
   const { id } = await params;
   const session = await requireSession();
-  const [model, materials, fittings] = await Promise.all([
+  const [model, materials, fittings, categoryOptions] = await Promise.all([
     prisma.productModel.findFirst({
       where: { id, organizationId: session.user.organizationId },
       include: { materials: { include: { rawMaterial: true }, orderBy: { id: "asc" } } },
@@ -49,6 +51,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       orderBy: [{ fittingDate: "desc" }, { createdAt: "desc" }],
       take: 10,
     }),
+    getCategoryOptions(session.user.organizationId),
   ]);
   if (!model) notFound();
 
@@ -71,6 +74,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             </Link>
           </div>
           <ModelForm
+            categories={categoryOptions}
+            canCreateCategory={hasRole(session.user.role, ACCESS.categories)}
             action={updateModel.bind(null, id)}
             version={rowVersion(model, MODEL_V)}
             model={{
@@ -79,6 +84,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
               name: model.name,
               sku: model.sku,
               category: model.category,
+              categoryRefId: model.categoryRefId,
               sellingPrice: model.sellingPrice?.toString() ?? null,
               description: model.description,
               salesCode: model.salesCode,

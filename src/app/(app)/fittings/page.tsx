@@ -1,33 +1,46 @@
 import Link from "next/link";
-import { cleanSearch, escapeLike } from "@/lib/input";
+import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input, Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { FittingThumbs } from "@/components/fitting-thumbs";
 import { formatDate } from "@/lib/utils";
-import { FITTING_STATUS, FITTING_STATUS_KEYS, isFittingStatus, orderLabel, truncate } from "@/lib/fittings";
+import { FITTING_STATUS, FITTING_STATUS_KEYS, orderLabel, truncate } from "@/lib/fittings";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
 
 export const metadata = { title: "Примерки" };
+
+const FITTING_FILTERS = defineFilters({
+  ...pick(["q", "status", "model", "year", "from", "to"], {
+    status: { allowed: FITTING_STATUS_KEYS as readonly string[], label: "Итог" },
+    q: { label: "Поиск" },
+    from: { label: "Дата примерки с" },
+    to: { label: "Дата примерки по" },
+  }),
+});
 
 export default async function FittingsPage({ searchParams }: PageProps<"/fittings">) {
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const sp = await searchParams;
-  const str = (v: unknown) => cleanSearch(v);
-  const status = isFittingStatus(str(sp.status)) ? (str(sp.status) as keyof typeof FITTING_STATUS) : "";
-  const modelId = str(sp.model);
-  const q = str(sp.q);
+  const f = parseFilters(FITTING_FILTERS, sp);
+  const q = f.q;
+  const period = dateRange(f.from, f.to);
   const canEdit = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session.user.role);
 
   const where: Prisma.FittingWhereInput = {
     organizationId: orgId,
-    ...(status ? { status } : {}),
-    ...(modelId ? { productionOrder: { productModelId: modelId } } : {}),
+    ...(f.status.length ? { status: { in: f.status as Array<keyof typeof FITTING_STATUS> } } : {}),
+    ...(f.model.length ? { productionOrder: { productModelId: { in: f.model } } } : {}),
+    AND: [
+      ...(f.year.length ? [{ OR: yearRanges(f.year).map((r) => ({ fittingDate: r })) }] : []),
+      ...(period ? [{ fittingDate: period }] : []),
+    ],
     ...(q
       ? {
           OR: [
@@ -39,7 +52,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       : {}),
   };
 
-  const [fittings, models] = await Promise.all([
+  const [fittings, models, allDates] = await Promise.all([
     prisma.fitting.findMany({
       where,
       include: {
@@ -61,9 +74,10 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.fitting.findMany({ where: { organizationId: orgId }, select: { fittingDate: true } }),
   ]);
 
-  const hasFilters = Boolean(status || modelId || q);
+  const hasFilters = Boolean(f.status.length || f.model.length || f.year.length || f.from || f.to || q);
   const isEmpty = fittings.length === 0 && !hasFilters;
 
   return (
@@ -89,33 +103,17 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         </div>
       ) : (
         <>
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <Input name="q" defaultValue={q} placeholder="№ ТЗ или комментарий" className="w-full sm:w-64" />
-        <Select name="status" defaultValue={status} className="w-full sm:w-56" aria-label="Итог">
-          <option value="">Любой итог</option>
-          {FITTING_STATUS_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {FITTING_STATUS[k].label}
-            </option>
-          ))}
-        </Select>
-        <Select name="model" defaultValue={modelId} className="w-full sm:w-56" aria-label="Модель">
-          <option value="">Все модели</option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </Select>
-        <button type="submit" className={buttonVariants({ variant: "outline" })}>
-          Найти
-        </button>
-        {hasFilters && (
-          <Link href="/fittings" className="text-sm text-neutral-500 hover:underline">
-            Сбросить
-          </Link>
-        )}
-      </form>
+      <FilterBar
+        title="Фильтры примерок"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или комментарий" },
+          { type: "multi", name: "status", label: "Итог", options: FITTING_STATUS_KEYS.map((k) => ({ value: k, label: FITTING_STATUS[k].label })), allLabel: "Любой итог" },
+          { type: "multi", name: "model", label: "Модель", options: models.map((m) => ({ value: m.id, label: m.name })), allLabel: "Все модели" },
+          { type: "multi", name: "year", label: "Год примерки", options: yearOptionsFrom(allDates.map((d) => d.fittingDate)) },
+          { type: "date", name: "from", label: "Дата с" },
+          { type: "date", name: "to", label: "Дата по" },
+        ]}
+      />
 
       <Table className="min-w-[720px]">
         <Thead>

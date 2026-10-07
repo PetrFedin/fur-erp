@@ -39,24 +39,26 @@ export type DocListItem = {
 
 export type DocListFilters = {
   q: string;
-  type: DriveDocTypeKey | "";
+  /** Мультивыбор типов документа; пусто — все. */
+  type: DriveDocTypeKey[];
   year: number | null;
-  link: DocLinkKind | "none" | "";
+  /** Мультивыбор привязки (none — не привязан); пусто — любая. */
+  link: Array<DocLinkKind | "none">;
   page: number;
 };
 
-const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
+const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : Array.isArray(v) ? (v[0] ?? "") : "");
+const many = (v: string | string[] | undefined): string[] => Array.from(new Set((Array.isArray(v) ? v : v == null ? [] : [v]).map((x) => String(x).trim()).filter(Boolean))).slice(0, 60);
 
 export function parseDocListFilters(sp: Record<string, string | string[] | undefined>): DocListFilters {
-  const type = one(sp.dtype);
-  const link = one(sp.dlink);
   const year = parseInt(one(sp.dyear), 10);
-  const page = parseInt(one(sp.dpage), 10);
+  const page = parseInt(one(sp.page) || one(sp.dpage), 10);
   return {
-    q: one(sp.dq).trim().slice(0, 100),
-    type: (DRIVE_DOC_TYPES as readonly string[]).includes(type) ? (type as DriveDocTypeKey) : "",
+    // Один поиск `q` (прежнее имя `dq` читается как псевдоним).
+    q: (one(sp.q) || one(sp.dq)).trim().slice(0, 100),
+    type: many(sp.dtype).filter((t): t is DriveDocTypeKey => (DRIVE_DOC_TYPES as readonly string[]).includes(t)),
     year: Number.isFinite(year) ? year : null,
-    link: link === "none" || link in DOC_LINK_LABELS ? (link as DocLinkKind | "none") : "",
+    link: many(sp.dlink).filter((l): l is DocLinkKind | "none" => l === "none" || l in DOC_LINK_LABELS),
     page: Number.isFinite(page) && page > 0 ? page : 1,
   };
 }
@@ -137,10 +139,12 @@ export function filterDocList(items: DocListItem[], f: DocListFilters, ignore?: 
   const q = norm(f.q);
   return items.filter((i) => {
     if (q && !norm(`${i.title} ${i.number ?? ""}`).includes(q)) return false;
-    if (ignore !== "type" && f.type && i.docType !== f.type) return false;
+    if (ignore !== "type" && f.type.length && !f.type.includes(i.docType)) return false;
     if (f.year !== null && i.year !== f.year) return false;
-    if (f.link === "none") return i.links.length === 0;
-    if (f.link && !i.links.some((l) => l.kind === f.link)) return false;
+    if (f.link.length) {
+      const ok = (f.link.includes("none") && i.links.length === 0) || i.links.some((l) => (f.link as string[]).includes(l.kind));
+      if (!ok) return false;
+    }
     return true;
   });
 }

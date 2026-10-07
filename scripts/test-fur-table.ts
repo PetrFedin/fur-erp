@@ -208,8 +208,8 @@ async function main() {
   // URL
   const f2: FurFilters = { ...emptyFilters(), item: ["Соболь", "Лиса"], year: ["2025"], rest: ["with"] };
   const sp = new URLSearchParams(filtersToEntries(f2, "fur"));
-  ok("URL: fur=a&fur=b", sp.toString() === "fur=%D0%A1%D0%BE%D0%B1%D0%BE%D0%BB%D1%8C&fur=%D0%9B%D0%B8%D1%81%D0%B0&year=2025&rest=with", sp.toString());
-  const back = parseFilters({ fur: sp.getAll("fur"), year: sp.getAll("year"), rest: sp.getAll("rest") }, "fur");
+  ok("URL: fur=a&fur=b", sp.toString() === "fur=%D0%A1%D0%BE%D0%B1%D0%BE%D0%BB%D1%8C&fur=%D0%9B%D0%B8%D1%81%D0%B0&pyear=2025&rest=with", sp.toString());
+  const back = parseFilters({ fur: sp.getAll("fur"), year: sp.getAll("pyear"), rest: sp.getAll("rest") }, "fur");
   assert.deepEqual(back, f2);
   checks++;
   const alias = parseFilters({ species: "Норка", years: ["2026"] }, "fur");

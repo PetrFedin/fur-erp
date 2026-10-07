@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { InfoHint } from "@/components/info-hint";
@@ -6,10 +7,12 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { getYearFilter } from "@/lib/year-filter";
 import { countRows, loadVerifyModel, type VerifyKind, type VerifyRow } from "@/lib/verification";
 import { cn } from "@/lib/utils";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { canVerify } from "@/lib/verify-access";
 import { BulkVerify, VerifyRowCard } from "./row";
 
-export const metadata = { title: "Ждёт проверки" };
+export const metadata = { title: "Подтвердить" };
 export const dynamic = "force-dynamic";
 
 const TABS: { id: string; label: string; kinds: VerifyKind[]; hint: string }[] = [
@@ -19,29 +22,31 @@ const TABS: { id: string; label: string; kinds: VerifyKind[]; hint: string }[] =
   { id: "batches", label: "Партии", kinds: ["batch"], hint: "Партии производства. Подтверждена — если подтверждены все её ТЗ, есть расчёт и счёт, оплата за работу сопоставлена (оплачено, у каждой оплаты есть платёжка или п/п)." },
 ];
 const FILTERS = [
-  { id: "all", label: "Все" },
-  { id: "ready", label: "Только готовые к подтверждению" },
-  { id: "blocked", label: "Только с блокерами" },
+  { id: "ready", label: "Готовые к подтверждению" },
+  { id: "blocked", label: "С блокерами" },
   { id: "done", label: "Подтверждённые" },
 ];
+const VERIFY_FILTERS = defineFilters({
+  ...pick(["verified", "q", "tab"], {
+    // `filter` — старое имя; значения: ready / blocked / done (all = без фильтра).
+    verified: { allowed: FILTERS.map((x) => x.id), label: "Состояние" },
+    tab: { allowed: TABS.map((t) => t.id) },
+  }),
+  all: stateParam("Показать все"),
+});
 
 const MAX_ROWS = 120;
-
-function href(p: Record<string, string | undefined>) {
-  const q = new URLSearchParams();
-  for (const [k, v] of Object.entries(p)) if (v) q.set(k, v);
-  const s = q.toString();
-  return s ? `/verify?${s}` : "/verify";
-}
 
 export default async function VerifyPage({ searchParams }: PageProps<"/verify">) {
   const session = await requireSession();
   const sp = await searchParams;
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const tabId = TABS.some((t) => t.id === one(sp.tab)) ? (one(sp.tab) as string) : "purchases";
-  const filter = FILTERS.some((f) => f.id === one(sp.filter)) ? (one(sp.filter) as string) : "all";
-  const q = (one(sp.q) ?? "").trim().toLowerCase();
-  const showAll = one(sp.all) === "1";
+  const f = parseFilters(VERIFY_FILTERS, sp);
+  const tabId = f.tab || "purchases";
+  const states = f.verified;
+  const q = f.q.toLowerCase();
+  const showAll = f.all === "1";
+  // Ссылка с сохранением состояния и поиска (смена вкладки не сбрасывает их).
+  const href = (patch: Partial<typeof f>) => filterHref(VERIFY_FILTERS, "/verify", f, patch);
   const year = await getYearFilter();
   const role = session.user.role;
 
@@ -54,9 +59,11 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
 
   let rows = tabRows(tab);
   const tabCounts = countRows(rows);
-  if (filter === "ready") rows = rows.filter((r) => !r.verified && r.ready);
-  else if (filter === "blocked") rows = rows.filter((r) => !r.verified && !r.ready);
-  else if (filter === "done") rows = rows.filter((r) => r.verified);
+  if (states.length > 0) {
+    rows = rows.filter(
+      (r) => (states.includes("ready") && !r.verified && r.ready) || (states.includes("blocked") && !r.verified && !r.ready) || (states.includes("done") && r.verified),
+    );
+  }
   if (q) rows = rows.filter((r) => `${r.title} ${r.sub ?? ""} ${r.group ?? ""} ${r.blockers.map((b) => b.text).join(" ")}`.toLowerCase().includes(q));
   // сначала ждущие: готовые к подтверждению, затем с блокерами, затем подтверждённые
   const rank = (r: VerifyRow) => (r.verified ? 2 : r.ready ? 0 : 1);
@@ -67,9 +74,10 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
 
   return (
     <div className="flex flex-col gap-4">
+      <ControlTabs active="verify" />
       <div>
         <h1 className="flex items-center gap-2 text-xl font-semibold">
-          Ждёт проверки
+          Подтвердить
           <YearNote year={year} />
           <InfoHint wide label="Как работает подтверждение">
             <div className="space-y-2">
@@ -113,7 +121,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           return (
             <Link
               key={t.id}
-              href={href({ tab: t.id, filter: filter === "all" ? undefined : filter, q: q || undefined })}
+              href={href({ tab: t.id, all: "" })}
               className={cn("flex items-center gap-2 rounded-t-md border border-b-0 px-3 py-2 text-sm", active ? "border-neutral-300 bg-white font-semibold" : "border-transparent text-neutral-600 hover:bg-neutral-100")}
             >
               {t.label}
@@ -131,30 +139,19 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
             {tab.hint}
           </InfoHint>
         </p>
-        <div className="flex flex-wrap gap-1">
-          {FILTERS.map((f) => (
-            <Link
-              key={f.id}
-              href={href({ tab: tabId, filter: f.id === "all" ? undefined : f.id, q: q || undefined })}
-              className={cn("rounded-full border px-2.5 py-1 text-xs", f.id === filter ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100")}
-            >
-              {f.label}
-            </Link>
-          ))}
-        </div>
-        <form action="/verify" className="ml-auto flex items-center gap-2">
-          <input type="hidden" name="tab" value={tabId} />
-          {filter !== "all" && <input type="hidden" name="filter" value={filter} />}
-          <input name="q" defaultValue={q} placeholder="Поиск: номер, аукцион, сумма…" className="h-9 w-56 rounded-md border border-neutral-300 bg-white px-2 text-sm" />
-          <button type="submit" className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
-            Найти
-          </button>
-        </form>
       </div>
+
+      <FilterBar
+        title="Фильтры проверки"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, аукцион, сумма…" },
+          { type: "multi", name: "verified", label: "Состояние", aliases: ["filter"], options: FILTERS.map((x) => ({ value: x.id, label: x.label })), allLabel: "Все" },
+        ]}
+      />
 
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500">
-          {emptyForYear(year, "строк", "Строк нет — измените фильтр или поиск.")}
+          {emptyForYear(year, "строк", activeCount(VERIFY_FILTERS, f) > 0 ? "Строк нет — измените фильтр или поиск." : "Строк нет.")}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -166,13 +163,13 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
       {rows.length > shown.length && (
         <p className="text-sm text-neutral-600">
           Показано {shown.length} из {rows.length}.{" "}
-          <Link className="text-blue-700 hover:underline" href={href({ tab: tabId, filter: filter === "all" ? undefined : filter, q: q || undefined, all: "1" })}>
+          <Link className="text-blue-700 hover:underline" href={href({ all: "1" })}>
             Показать все
           </Link>
         </p>
       )}
       <p className="text-xs text-neutral-500">
-        Связанные страницы: <Link className="text-blue-700 hover:underline" href="/reconciliation">Реестр сверки</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Покрытие документами</Link> · <Link className="text-blue-700 hover:underline" href="/attention">Что не заведено</Link>
+        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Задачи</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
       </p>
     </div>
   );

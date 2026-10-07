@@ -1,4 +1,5 @@
 import "server-only";
+import { auctionKey } from "@/lib/auction-key";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -109,7 +110,18 @@ function load() {
   return cache;
 }
 
-export const auctionMentions = (name: string): Mentions | null => load().auctions.get(name) ?? null;
+/**
+ * Упоминания в документах по названию аукциона. Снимки chain-*.json хранят прежнее написание (dbAuction), поэтому после
+ * переименования в справочнике аукцион ищется и по алиасам (`aliases` — прежние написания из Auction.aliases).
+ */
+export function auctionMentions(name: string, aliases: string[] = []): Mentions | null {
+  const map = load().auctions;
+  const direct = map.get(name);
+  if (direct) return direct;
+  const want = new Set([name, ...aliases].map(auctionKey));
+  for (const [k, v] of map) if (want.has(auctionKey(k))) return v;
+  return null;
+}
 export const batchMentions = (n: number): Mentions | null => load().batches.get(n) ?? null;
 
 /** «счёт №93 от 25.03.2026 (24 200 000 ₽)» */

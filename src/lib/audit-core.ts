@@ -21,6 +21,7 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   ProductionBatch: ALL,
   ProductModel: ALL,
   ColorRef: ALL,
+  Auction: ALL,
   FurRef: ALL,
   Season: ALL,
   ProductionPlan: ALL,
@@ -179,6 +180,7 @@ export const MODEL_TITLES: Record<string, string> = {
   ProductionBatch: "Партия",
   ProductModel: "Модель / артикул",
   ColorRef: "Цвет",
+  Auction: "Аукцион",
   FurRef: "Мех",
   Season: "Сезон",
   ProductionPlan: "План заказа",
@@ -192,7 +194,7 @@ export const MODEL_TITLES: Record<string, string> = {
   PurchaseDocument: "Документ закупки",
   Shipment: "Отгрузка",
   Fitting: "Примерка",
-  SupplyPlanEntry: "План поставки",
+  SupplyPlanEntry: "План поставок",
   FinishedGoodsStock: "Остаток готовой продукции",
   FinishedGoodsMovement: "Движение готовой продукции",
 };
@@ -210,6 +212,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "RawMaterialLot": return `Лот ${s("lotNumber") ?? s("id") ?? ""}${s("color") ? " " + s("color") : ""}`.trim();
     case "PurchaseItem": return `Позиция закупки${s("lotNumber") ? " лот " + s("lotNumber") : ""} ${money(r.subtotal)}`.trim();
     case "ProductModel": return `Модель ${s("name") ?? ""}${s("sku") ? " (" + s("sku") + ")" : ""}`.trim();
+    case "Auction": return `Аукцион ${s("name") ?? ""}`.trim();
     case "ColorRef": return `Цвет ${s("name") ?? ""}`.trim();
     case "FurRef": return `Мех ${s("name") ?? ""}`.trim();
     case "Season": return `Сезон ${s("code") ?? ""}`.trim();
@@ -224,7 +227,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "PurchaseDocument": return `Документ ${s("title") ?? ""}`.trim();
     case "Shipment": return `Отгрузка ${day(r.plannedDate)}`.trim();
     case "Fitting": return `Примерка ${day(r.fittingDate)}`.trim();
-    case "SupplyPlanEntry": return `План поставки ${day(r.month)}`.trim();
+    case "SupplyPlanEntry": return `План поставок ${day(r.month)}`.trim();
     case "ProductionMaterialUsage": return `Списание материала ${s("quantity") ?? ""}`.trim();
     case "ProductionExpense": return `Расход ТЗ ${money(r.amount)}`.trim();
     default: return `${t} ${s("id") ?? ""}`.trim();

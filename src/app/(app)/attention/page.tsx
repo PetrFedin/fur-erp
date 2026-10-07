@@ -14,10 +14,13 @@ import {
   type AttentionPriority,
 } from "@/lib/attention";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
-import { loadVerifyFlags } from "@/lib/verification";
+import { loadVerifyModel, type VerifyRow } from "@/lib/verification";
+import { loadControlCounts } from "@/lib/control-counts";
+import { buildTaskCategories, TASK_LABELS, type TaskCategory, type TaskCategoryId } from "@/lib/task-center";
+import { ControlTabs } from "@/components/control-tabs";
 import { formatMoney, cn } from "@/lib/utils";
 
-export const metadata = { title: "Что не заведено" };
+export const metadata = { title: "Задачи" };
 
 const DOT: Record<AttentionPriority, string> = { red: "bg-red-500", yellow: "bg-amber-400", gray: "bg-neutral-300" };
 const PRIORITY_LABEL: Record<AttentionPriority, string> = { red: "Срочно", yellow: "Проверить", gray: "Справочно" };
@@ -36,29 +39,38 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
   const year = await getYearFilter();
 
   const all = await computeAttention(prisma, session.user.organizationId, year);
-  const vf = await loadVerifyFlags(prisma, session.user.organizationId, year);
-  const vTotal = Object.values(vf.counts).reduce((a, c) => ({ total: a.total + c.total, verified: a.verified + c.verified }), { total: 0, verified: 0 });
+  // Единый центр задач: те же данные, что у «Подтвердить» (замечания строк), «Документов» и «Что не заведено», сложенные по категориям.
+  const [model, counts] = await Promise.all([
+    loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false }),
+    loadControlCounts(session.user.organizationId, year),
+  ]);
+  const inYear = (r: VerifyRow) => year === "all" || r.year === Number(year);
+  const center = buildTaskCategories(model.rows.filter(inYear));
   const blocks = buildAttentionBlocks(all);
   const totals = countAttentionBlocks(blocks);
-  const decisions = blocks.filter((b) => b.meta.kind !== "info");
+  // «Нет платёжек» — одна сводная строка в центре задач со ссылкой на «Подтвердить»; поимённый список остаётся в «Показать всё».
+  const receiptBlock = blocks.find((b) => b.id === "no-receipt") ?? null;
+  const decisions = blocks.filter((b) => b.meta.kind !== "info" && b.id !== "no-receipt");
   const infos = blocks.filter((b) => b.meta.kind === "info");
 
   return (
     <div className="flex flex-col gap-4">
+      <ControlTabs active="tasks" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold">
-            Что не заведено
+            Задачи
             <InfoHint wide label="Как считается число">
               <p>
-                Живые проверки полноты данных по базе: оплаты, закупки, ТЗ, партии, справочники. Исправили запись — она исчезает.
+                Единый список «что требует действия»: нет документа, нет платёжки, расхождение суммы, ждёт подтверждения, нет даты, цены или состава.
+                Живые проверки по базе: исправили запись — она исчезает.
               </p>
               <p className="mt-2">
                 <b>Как считаем число.</b> Запись для решения — оплата, закупка, ТЗ или аукцион, по которым нужен ваш документ или решение.
                 Однотипные пробелы, которых в документах Drive по природе нет (даты ТЗ 1–96, даты выпуска, партии без оплат заказчика), —
                 это <b>одна запись на группу</b>: их не исправить без новых документов. Справочное (ожидаемые поставки, справочники) в число не входит.
               </p>
-              <p className="mt-2">Ничего не удалено из проверок: полный список по сущностям — по ссылке «Показать всё». Пробелы документов — на странице «Документы».</p>
+              <p className="mt-2">Один факт — одно место: «нет документа» и «нет платёжки» здесь одной строкой со ссылкой, подробности — во вкладках «Документы» и «Подтвердить». Полный список по сущностям — «Показать всё».</p>
             </InfoHint>
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
@@ -68,24 +80,32 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             {year !== "all" && <> · {yearLabel(year)}</>}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/verify" className="inline-flex h-9 items-center rounded-md border border-amber-300 bg-amber-50 px-3 text-sm text-amber-900 hover:bg-amber-100" title="Подтверждение платежей, закупок, ТЗ и партий">
-            Ждёт проверки: {vTotal.total - vTotal.verified}
-          </Link>
-          <Link href="/reconciliation" className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
-            Реестр сверки
-          </Link>
-          <Link href="/documents" className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
-            Документы
-          </Link>
-          <Link href={showAll ? "/attention" : "/attention?all=1"} className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
-            {showAll ? "По блокам" : "Показать всё"}
-          </Link>
-        </div>
+        <Link href={showAll ? "/attention" : "/attention?all=1"} className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
+          {showAll ? "По категориям" : "Показать всё"}
+        </Link>
       </div>
 
+      {!showAll && (
+        <section aria-label="Что требует действия" className="flex flex-col gap-2">
+          {center.lists.find((c) => c.id === "sum") && <TaskCard cat={center.lists.find((c) => c.id === "sum")!} />}
+          {receiptBlock && (
+            <SummaryRow id="receipt" count={receiptBlock.entities.length} text={blockSummary(receiptBlock)} href="/verify?tab=payments&verified=blocked" tone="red" />
+          )}
+          {counts.docGaps > 0 && <SummaryRow id="doc" count={counts.docGaps} text={`${counts.docGaps} записей без обязательных документов`} href="/documents?gaps=1" tone="yellow" />}
+          {center.ready > 0 && <SummaryRow id="confirm" count={center.ready} text={`${center.ready} готовы к подтверждению`} href="/verify?verified=ready" tone="gray" />}
+          {(["date", "price", "composition", "other"] as const).map((id) => {
+            const c = center.lists.find((x) => x.id === id);
+            return c ? <TaskCard key={id} cat={c} /> : null;
+          })}
+        </section>
+      )}
+
+      {!showAll && decisions.length + infos.length > 0 && (
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">По данным: группы пробелов</h2>
+      )}
+
       {all.length === 0 ? (
-        <Card className="p-8 text-center text-neutral-600">Всё заведено ✓</Card>
+        <Card className="p-8 text-center text-neutral-600">Задач нет ✓</Card>
       ) : showAll ? (
         <AllView all={all} />
       ) : (
@@ -221,5 +241,74 @@ function EntityRow({ e }: { e: AttentionEntity }) {
         })}
       </span>
     </li>
+  );
+}
+
+/** Сводная строка категории: один факт — одна строка и ссылка туда, где запись правится. */
+function SummaryRow({ id, count, text, href, tone }: { id: TaskCategoryId; count: number; text: string; href: string; tone: AttentionPriority }) {
+  const t = TASK_LABELS[id];
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT[tone])} aria-hidden />
+        <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
+          {t.label}
+          <span className="ml-1.5 align-middle">
+            <InfoHint wide label={`Пояснение: ${t.label}`}>
+              <p>{t.hint}</p>
+            </InfoHint>
+          </span>
+          <span className="block text-xs font-normal text-neutral-500">{text}</span>
+        </span>
+        <Link href={href} className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">
+          {t.action} →
+        </Link>
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[tone])}>{count}</span>
+      </div>
+    </Card>
+  );
+}
+
+/** Категория со списком: каждая строка — ссылка на запись и одно действие. */
+function TaskCard({ cat }: { cat: TaskCategory }) {
+  const t = TASK_LABELS[cat.id];
+  const tone: AttentionPriority = cat.id === "sum" ? "red" : "yellow";
+  return (
+    <Card className="overflow-hidden">
+      <details open={cat.id === "sum" && cat.count <= 8} className="group">
+        <summary className="flex cursor-pointer list-none items-center gap-3 p-3 hover:bg-neutral-50">
+          <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT[tone])} aria-hidden />
+          <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
+            {t.label}
+            <span className="ml-1.5 align-middle">
+              <InfoHint wide label={`Пояснение: ${t.label}`}>
+                <p>{t.hint}</p>
+              </InfoHint>
+            </span>
+          </span>
+          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[tone])}>{cat.count}</span>
+          <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+        </summary>
+        <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+          {cat.items.map((e) => (
+            <li key={e.key} className="flex flex-col gap-1 px-3 py-2 text-sm sm:flex-row sm:items-center sm:gap-3">
+              <span className="min-w-0 sm:w-64 lg:w-80">
+                <Link href={e.href} className="block break-words font-medium text-neutral-900 hover:underline">{e.title}</Link>
+                {e.sub && <span className="block break-words text-xs text-neutral-500">{e.sub}</span>}
+              </span>
+              <span className="min-w-0 flex-1 text-xs text-neutral-600">{e.text}</span>
+              <Link href={e.actionHref} className="inline-flex h-8 shrink-0 items-center self-start rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100 sm:self-auto">
+                {t.action} →
+              </Link>
+            </li>
+          ))}
+          {cat.count > cat.items.length && (
+            <li className="px-3 py-2 text-xs">
+              <Link href={cat.seeAllHref} className="text-blue-700 hover:underline">Все {cat.count} → «Подтвердить»</Link>
+            </li>
+          )}
+        </ul>
+      </details>
+    </Card>
   );
 }

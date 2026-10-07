@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { cleanSearch, escapeLike } from "@/lib/input";
+import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
@@ -8,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
-import { Input, Select } from "@/components/ui/input";
 import { ProductionTabs } from "@/components/production-tabs";
 import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
@@ -16,13 +14,15 @@ import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
-import { FilterField, FilterPanel } from "@/components/filter-panel";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { activeCount, dateRange, defineFilters, filterHref, parseFilters, pick, splitNone, toWhere } from "@/lib/filters";
+import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { GroupedByBatch } from "./grouped-view";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { batchOrderInclude } from "@/lib/batch-stats";
 import { getYearFilter } from "@/lib/year-filter";
-import { orderYearWhere } from "@/lib/year-scope";
+import { orderDateOf, orderYearWhere } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { loadOrderIndicators } from "@/lib/production-doc-checklist";
@@ -30,7 +30,7 @@ import { DocsPayBadge } from "@/components/docs-pay-badge";
 import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { TzVatBadge } from "@/components/tz-vat-badge";
-import { VAT_FILTER, matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
+import { matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -41,6 +41,35 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info"
 
 const STATUS_KEYS = Object.keys(STATUS_LABELS);
 
+const SORTS: Record<string, string> = {
+  num_desc: "№ ТЗ: по убыванию",
+  num_asc: "№ ТЗ: по возрастанию",
+};
+const DOCS_OPTIONS = [
+  { value: "docs", label: "Только без документов" },
+  { value: "pay", label: "Только без оплаты" },
+];
+const VAT_OPTIONS = [
+  { value: "20", label: "Только 20%" },
+  { value: "22", label: "Только 22%" },
+  { value: "mixed", label: "Смешанные (20% и 22%)" },
+];
+const VERIFIED_OPTIONS = [
+  { value: "yes", label: "Подтверждено" },
+  { value: "no", label: "Ждёт проверки" },
+];
+const PROD_FILTERS = defineFilters({
+  ...pick(["q", "status", "client", "season", "batch", "model", "category", "auction", "fur", "color", "docs", "vat", "verified", "from", "to", "sort", "view"], {
+    status: { allowed: STATUS_KEYS },
+    batch: { pattern: /^(\d{1,6}|none)$/ },
+    docs: { allowed: ["docs", "pay"] },
+    verified: { allowed: ["yes", "no"], label: "Проверка" },
+    color: { label: "Цвет изделия" },
+    from: { label: "Дата ТЗ с" },
+    to: { label: "Дата ТЗ по" },
+    sort: { allowed: Object.keys(SORTS) },
+  }),
+});
 export const metadata = { title: "ТЗ" };
 
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
@@ -50,55 +79,90 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   let c4 = c4Suffix(c4Mode);
   const orgId = session.user.organizationId;
   const sp = await searchParams;
-  const str = (v: unknown) => cleanSearch(v);
-  const modelId = str(sp.model);
-  const q = str(sp.q);
-  const status = STATUS_KEYS.includes(str(sp.status)) ? str(sp.status) : "";
-  const clientId = str(sp.client);
-  const seasonF = str(sp.season);
-  const SORTS: Record<string, string> = {
-    "": "Сначала новые",
-    num_desc: "№ ТЗ: по убыванию",
-    num_asc: "№ ТЗ: по возрастанию",
-  };
-  const sort = str(sp.sort) in SORTS ? str(sp.sort) : "";
-  // ?batch= — только целое число 1…999999 («1e3», «3abc», «0» — 404, а не молчаливое «всё»/другая партия).
-  const batchParam = str(sp.batch);
-  if (batchParam && (!/^\d{1,6}$/.test(batchParam) || parseInt(batchParam, 10) < 1)) notFound();
-  const batchNum = batchParam ? parseInt(batchParam, 10) : null;
-  const grouped = str(sp.view) === "batches";
-  // Фильтр «документы и оплата»: только без документов / только без оплаты (не оплачено полностью).
-  const NEEDS: Record<string, string> = { "": "Документы и оплата: все", docs: "Только без документов", pay: "Только без оплаты" };
-  const need = str(sp.need) in NEEDS ? str(sp.need) : "";
-  // Фильтр «Ставка НДС» по лотам в списаниях ТЗ: 20 / 22 / смешанные (?nds=).
-  const vatF = str(sp.nds) in VAT_FILTER ? str(sp.nds) : "";
+  const f = parseFilters(PROD_FILTERS, sp);
+  const q = f.q;
+  const sort = f.sort;
+  const grouped = f.view === "batches";
+  const filtersOn = activeCount(PROD_FILTERS, f) > 0;
+  // Фильтр «Ставка НДС» по лотам в списаниях ТЗ: 20 / 22 / смешанные.
+  const vatKinds = f.vat.map((v) => (v === "mix" ? "mixed" : v));
   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
   const PAGE_SIZE = 50;
-  const limitRaw = /^\d{1,5}$/.test(str(sp.limit)) ? parseInt(str(sp.limit), 10) : PAGE_SIZE;
+  const limitRaw = /^\d{1,5}$/.test(f.limit) ? parseInt(f.limit, 10) : PAGE_SIZE;
   const limit = Math.min(Math.max(limitRaw, PAGE_SIZE), 100000);
+
+  // Фильтры по сырью: партия закупки (аукцион) и вид меха — через лоты в списаниях ТЗ.
+  let lotOrderIds: string[] | null = null;
+  if (f.auction.length || f.fur.length) {
+    const [purchaseIds, materialIds] = await Promise.all([
+      f.auction.length ? purchaseIdsByAuction(orgId, f.auction) : Promise.resolve(null),
+      f.fur.length ? furMaterialIdsByKind(orgId, f.fur) : Promise.resolve(null),
+    ]);
+    const usages = await prisma.productionMaterialUsage.findMany({
+      where: {
+        productionOrder: { organizationId: orgId },
+        lot: {
+          ...(purchaseIds ? { purchaseId: { in: purchaseIds.length ? purchaseIds : ["__none"] } } : {}),
+          ...(materialIds ? { rawMaterialId: { in: materialIds.length ? materialIds : ["__none"] } } : {}),
+        },
+      },
+      select: { productionOrderId: true },
+      distinct: ["productionOrderId"],
+    });
+    lotOrderIds = usages.map((u) => u.productionOrderId);
+  }
 
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
-    // Общий год: дата ТЗ → конец/начало → год партии (см. lib/year-scope.ts).
-    AND: [orderYearWhere(year)],
-    ...(modelId ? { productModelId: modelId } : {}),
-    ...(status ? { status: status as "PLANNED" } : {}),
-    ...(clientId ? { clientId } : {}),
-    ...(seasonF === "none" ? { seasonId: null } : seasonF ? { seasonId: seasonF } : {}),
-    ...(batchNum ? { batch: { number: batchNum } } : {}),
-    ...(q
-      ? {
+    AND: [
+      // Общий год: дата ТЗ → конец/начало → год партии (см. lib/year-scope.ts).
+      orderYearWhere(year),
+      ...toWhere<typeof f, Prisma.ProductionOrderWhereInput>(f, {
+        model: (v) => ({ productModelId: { in: v } }),
+        status: (v) => ({ status: { in: v as Array<"PLANNED"> } }),
+        client: (v) => {
+          const { none, rest } = splitNone(v);
+          return { OR: [...(rest.length ? [{ clientId: { in: rest } }] : []), ...(none ? [{ clientId: null }] : [])] };
+        },
+        season: (v) => {
+          const { none, rest } = splitNone(v);
+          return { OR: [...(rest.length ? [{ season: { code: { in: rest } } }, { seasonId: { in: rest } }] : []), ...(none ? [{ seasonId: null }] : [])] };
+        },
+        batch: (v) => {
+          const { none, rest } = splitNone(v);
+          const nums = rest.map(Number).filter((n) => Number.isInteger(n) && n > 0);
+          return { OR: [...(nums.length ? [{ batch: { number: { in: nums } } }] : []), ...(none ? [{ batchId: null }] : [])] };
+        },
+        category: (v) => {
+          const { none, rest } = splitNone(v);
+          return { OR: [...(rest.length ? [{ productModel: { category: { in: rest } } }] : []), ...(none ? [{ productModel: { category: null } }] : [])] };
+        },
+        color: (v) => {
+          const { none, rest } = splitNone(v);
+          return {
+            OR: [
+              ...(rest.length ? [{ colorRef: { name: { in: rest } } }, { colorRefId: null, color: { in: rest } }] : []),
+              ...(none ? [{ colorRefId: null, color: null }] : []),
+            ],
+          };
+        },
+        auction: () => ({ id: { in: lotOrderIds ?? [] } }),
+        fur: () => ({ id: { in: lotOrderIds ?? [] } }),
+        verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
+        q: (text) => ({
           OR: [
-            { workOrderNumber: { contains: escapeLike(q), mode: "insensitive" } },
-            { number: { contains: escapeLike(q), mode: "insensitive" } },
-            ...modelCodeVariants(q).map((v) => ({ productModel: { name: { contains: escapeLike(v), mode: "insensitive" as const } } })),
-            { client: { name: { contains: escapeLike(q), mode: "insensitive" } } },
+            { workOrderNumber: { contains: escapeLike(text), mode: "insensitive" } },
+            { number: { contains: escapeLike(text), mode: "insensitive" } },
+            ...modelCodeVariants(text).map((v) => ({ productModel: { name: { contains: escapeLike(v), mode: "insensitive" as const } } })),
+            { client: { name: { contains: escapeLike(text), mode: "insensitive" } } },
           ],
-        }
-      : {}),
+        }),
+      }),
+    ],
   };
+  const period = dateRange(f.from, f.to);
 
-  const [rawOrders, filterModel, clients, batchList, groupedOrders] = await Promise.all([
+  const [rawOrders, filterModel, , batchList, groupedOrders] = await Promise.all([
     prisma.productionOrder.findMany({
       where,
       include: {
@@ -117,8 +181,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       },
       orderBy: { createdAt: "desc" },
     }),
-    modelId ? prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId } }) : null,
-    prisma.client.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    f.model.length === 1 ? prisma.productModel.findFirst({ where: { id: f.model[0], organizationId: orgId } }) : null,
+    Promise.resolve(null),
     prisma.productionBatch.findMany({
       where: { organizationId: orgId },
       select: { id: true, number: true, name: true, year: true },
@@ -130,8 +194,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   ]);
 
   const canEdit = canEditProduction(session.user.role);
-  const seasonList = await prisma.season.findMany({ where: { organizationId: orgId }, select: { id: true, code: true }, orderBy: { code: "asc" } });
-  const hasFilters = Boolean(q || status || clientId || modelId || batchNum || need || vatF || seasonF);
+  const opts = await getFilterOptions(orgId, year, ["client", "season", "batch", "model", "category", "auction", "fur", "color"]);
+  const hasFilters = filtersOn;
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
   // П-2026-0141) says why it is there. Exact № ТЗ / order number come first.
@@ -154,11 +218,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
   const vflags = await loadVerifyFlags(prisma, orgId);
   const orders = rawOrders.filter((o) => {
-    if (!matchesVatFilter(vatBreakdown(o.materialUsages, c4Mode).kind, vatF)) return false;
-    if (!need) return true;
+    if (vatKinds.length && !vatKinds.some((k) => matchesVatFilter(vatBreakdown(o.materialUsages, c4Mode).kind, k))) return false;
+    if (period) {
+      const d = orderDateOf(o);
+      if (!d || (period.gte && d < period.gte) || (period.lte && d > period.lte)) return false;
+    }
+    if (f.docs.length === 0) return true;
     const ind = indicators.get(o.id);
     if (!ind) return false;
-    return need === "docs" ? ind.missing.length > 0 || ind.noDocs : ind.pay.state === "UNPAID" || ind.pay.state === "PARTIAL";
+    const noDocs = ind.missing.length > 0 || ind.noDocs;
+    const noPay = ind.pay.state === "UNPAID" || ind.pay.state === "PARTIAL";
+    return (f.docs.includes("docs") && noDocs) || (f.docs.includes("pay") && noPay);
   });
   // 4% не применено ни к одному списанию в списке — подпись «(с 4%)» не ставим.
   if (!orders.some((o) => o.materialUsages.some((u) => u.commission4))) c4 = "";
@@ -243,13 +313,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             [true, "По партиям"],
           ] as const
         ).map(([g, text]) => {
-          const qs = new URLSearchParams();
-          if (g) qs.set("view", "batches");
-          if (batchNum) qs.set("batch", String(batchNum));
+          // Вид переключается без потери фильтров.
+          const href = filterHref(PROD_FILTERS, "/production", f, { view: g ? "batches" : "" });
           return (
             <Link
               key={text}
-              href={`/production${qs.size ? `?${qs}` : ""}`}
+              href={href}
               aria-current={grouped === g ? "page" : undefined}
               className={
                 "rounded-md border px-3 py-1 max-md:inline-flex max-md:min-h-8 max-md:items-center " +
@@ -262,49 +331,30 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         })}
       </div>
 
-      <FilterPanel title="Фильтры производства" applied={hasFilters || Boolean(sort)}>
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        {modelId && <input type="hidden" name="model" value={modelId} />}
-        {grouped && <input type="hidden" name="view" value="batches" />}
-        <FilterField label="Поиск"><Input name="q" defaultValue={q} placeholder="№ ТЗ, модель" className="w-full sm:w-64" /></FilterField>
-        <FilterField label="Статус"><Select name="status" defaultValue={status} className="w-full sm:w-44">
-          <option value="">Все</option>
-          {STATUS_KEYS.map((k) => <option key={k} value={k}>{STATUS_LABELS[k].label}</option>)}
-        </Select></FilterField>
-        {showClient && <FilterField label="Заказчик"><Select name="client" defaultValue={clientId} className="w-full sm:w-52">
-          <option value="">Все</option>
-          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select></FilterField>}
-        {seasonList.length > 0 && <FilterField label="Сезон"><Select name="season" defaultValue={seasonF} className="w-full sm:w-40" aria-label="Сезон">
-          <option value="">Все</option><option value="none">Без сезона</option>
-          {seasonList.map((x) => <option key={x.id} value={x.id}>{x.code}</option>)}
-        </Select></FilterField>}
-        {batchList.length > 0 && <FilterField label="Партия"><Select name="batch" defaultValue={batchNum ? String(batchNum) : ""} className="w-full sm:w-40" aria-label="Партия">
-          <option value="">Все</option>
-          {batchList.map((b) => <option key={b.id} value={b.number}>Партия {b.number}{b.year ? ` (${b.year})` : ""}</option>)}
-        </Select></FilterField>}
-        <FilterField label="Контроль"><Select name="need" defaultValue={need} className="w-full sm:w-52" aria-label="Документы и оплата">
-          {Object.entries(NEEDS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-        </Select></FilterField>
-        <FilterField label="НДС"><Select name="nds" defaultValue={vatF} className="w-full sm:w-44" aria-label="Ставка НДС">
-          {Object.entries(VAT_FILTER).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-        </Select></FilterField>
-        <FilterField label="Сортировка"><Select name="sort" defaultValue={sort} className="w-full sm:w-44" aria-label="Сортировка">
-          {Object.entries(SORTS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-        </Select></FilterField>
-        <button type="submit" className={buttonVariants({ variant: "outline" })}>
-          Найти
-        </button>
-        {(hasFilters || sort) && (
-          <Link href={grouped ? "/production?view=batches" : "/production"} className="text-sm text-neutral-500 hover:underline">
-            Сбросить
-          </Link>
-        )}
-      </form>
-      </FilterPanel>
+      <FilterBar
+        title="Фильтры производства"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, модель, заказчик" },
+          { type: "multi", name: "status", label: "Статус", options: STATUS_KEYS.map((k) => ({ value: k, label: STATUS_LABELS[k].label })), allLabel: "Все статусы" },
+          { type: "multi", name: "client", label: "Заказчик", options: opts.client, noneLabel: "Без заказчика" },
+          { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона" },
+          { type: "multi", name: "batch", label: "Партия производства", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
+          { type: "multi", name: "model", label: "Модель", options: opts.model },
+          { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
+          { type: "multi", name: "auction", label: "Партия закупки", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)" },
+          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
+          { type: "multi", name: "color", label: "Цвет изделия", options: opts.color, noneLabel: "Без цвета" },
+          { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все" },
+          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка" },
+          { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая" },
+          { type: "date", name: "from", label: "Дата ТЗ с" },
+          { type: "date", name: "to", label: "Дата ТЗ по" },
+          { type: "multi", name: "sort", label: "Сортировка", single: true, options: Object.entries(SORTS).map(([value, label]) => ({ value, label })), allLabel: "Сначала новые" },
+        ]}
+      />
 
       {grouped ? (
-        <GroupedByBatch orders={need || vatF ? groupedOrders.filter((o) => orders.some((x) => x.id === o.id)) : groupedOrders} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />
+        <GroupedByBatch orders={groupedOrders.filter((o) => orders.some((x) => x.id === o.id))} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />
       ) : (
       <>
       <ResponsiveRows table={
@@ -427,16 +477,15 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <span>
             Показано {shown.length} из {priced.length} ТЗ
           </span>
-          {([PAGE_SIZE, null] as const).map((step) => {
-            const qs = new URLSearchParams();
-            for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && k !== "limit") qs.set(k, v);
-            qs.set("limit", String(step ? Math.min(limit + step, priced.length) : priced.length));
-            return (
-              <Link key={step ?? "all"} href={`/production?${qs}`} className="text-blue-600 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center">
-                {step ? `Показать ещё ${Math.min(step, hiddenCount)}` : "Показать все"}
-              </Link>
-            );
-          })}
+          {([PAGE_SIZE, null] as const).map((step) => (
+            <Link
+              key={step ?? "all"}
+              href={filterHref(PROD_FILTERS, "/production", f, { limit: String(step ? Math.min(limit + step, priced.length) : priced.length) })}
+              className="text-blue-600 hover:underline max-md:inline-flex max-md:min-h-8 max-md:items-center"
+            >
+              {step ? `Показать ещё ${Math.min(step, hiddenCount)}` : "Показать все"}
+            </Link>
+          ))}
         </p>
       )}
       {orders.length > 0 && (

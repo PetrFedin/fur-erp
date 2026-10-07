@@ -7,6 +7,7 @@ import { ACCESS } from "@/lib/access";
 import { isUniqueViolation, normalizeNumberInput } from "@/lib/input";
 import { loadArticleList } from "@/lib/article-ref";
 import { articleKey, candidatesFromList, parseAliases, spellingsOf, type ArticleLite } from "@/lib/article-key";
+import { resolveCategoryInput } from "@/lib/categories";
 import { parseTableFile } from "@/lib/table-file";
 
 const ROLES = ACCESS.models;
@@ -15,6 +16,7 @@ export type ArticleInput = {
   name: string;
   sku: string;
   category: string;
+  categoryRefId?: string;
   salesCode: string;
   salesName: string;
   aliases: string;
@@ -84,7 +86,8 @@ export async function saveArticle(id: string | null, input: ArticleInput): Promi
   if (id && !list.some((a) => a.id === id)) return { error: "Артикул не найден" };
   const bad = conflictOf(list, id, p.own);
   if (bad) return { error: bad };
-  const data = { ...p.data, sku: p.data.sku || null, salesCode: p.data.salesCode || null };
+  const cat = await resolveCategoryInput(prisma, orgId, { category: p.data.category, categoryRefId: input.categoryRefId || null });
+  const data = { ...p.data, category: cat.category, categoryRefId: cat.categoryRefId, sku: p.data.sku || null, salesCode: p.data.salesCode || null };
   try {
     if (id) {
       const r = await prisma.productModel.updateMany({ where: { id, organizationId: orgId }, data });

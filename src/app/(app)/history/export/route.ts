@@ -13,7 +13,10 @@ export async function GET(request: Request) {
   if (!("auditLog" in prisma)) return new Response("Журнал не подключён к работающему серверу: перезапустите сервер после обновления схемы.", { status: 503 });
 
   const url = new URL(request.url);
-  const f = parseHistoryFilters(Object.fromEntries(url.searchParams));
+  // Повторяющиеся параметры (мультивыбор) сохраняем списком.
+  const params: Record<string, string[]> = {};
+  for (const [k, v] of url.searchParams) (params[k] ??= []).push(v);
+  const f = parseHistoryFilters(params);
   const rows = (await prisma.auditLog.findMany({
     where: historyWhere(session.user.organizationId, f),
     orderBy: { at: "desc" },

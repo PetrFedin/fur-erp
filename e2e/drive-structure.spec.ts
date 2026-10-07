@@ -39,15 +39,15 @@ test.describe("Сводка по годам", () => {
     expect(await page.locator("main").innerText()).not.toMatch(/NaN|undefined|Infinity/);
     // «Без НДС»: цена лотов без НДС меньше цены с НДС
     await page.getByRole("link", { name: "Без НДС" }).click();
-    await expect(page).toHaveURL(/vat=excl/);
+    await expect(page).toHaveURL(/vat(mode)?=excl/);
     const e = await summaryTotals(page);
     expect(e.price).toBeLessThan(t.price);
     expect(e.qty).toBe(t.qty);
-    // фильтр по году сужает итог и сохраняет режим НДС
-    await page.selectOption("select[name=year]", "2025");
-    await page.getByRole("button", { name: "Показать" }).click();
-    await expect(page).toHaveURL(/year=2025/);
-    await expect(page).toHaveURL(/vat=excl/);
+    // фильтр «Год закупки» (выпадающий список с галочками, применяется сразу) сужает итог и сохраняет режим НДС
+    await page.locator("summary", { hasText: "Год закупки" }).click();
+    await page.getByRole("checkbox", { name: /^2025/ }).check();
+    await expect(page).toHaveURL(/pyear=2025/);
+    await expect(page).toHaveURL(/vat(mode)?=excl/);
     const y = await summaryTotals(page);
     expect(y.price).toBeLessThan(e.price);
     await expectNoErrors(errors);

@@ -13,8 +13,9 @@ import { UsageGroupLots } from "./usage-rows";
 function cleanFilters(f: RawFilters): RawFilters {
   return {
     scope: f.scope === "lining" ? "lining" : "fur",
-    auction: String(f.auction ?? "").slice(0, 200),
-    kind: String(f.kind ?? "").slice(0, 200),
+    auction: (Array.isArray(f.auction) ? f.auction : []).map((v) => String(v).slice(0, 200)).slice(0, 60),
+    kind: (Array.isArray(f.kind) ? f.kind : []).map((v) => String(v).slice(0, 200)).slice(0, 60),
+    pyear: (Array.isArray(f.pyear) ? f.pyear : []).map((v) => String(v).slice(0, 4)).slice(0, 20),
     onlyRem: f.onlyRem === true,
     q: String(f.q ?? "").slice(0, 100),
     model: String(f.model ?? "").slice(0, 60),

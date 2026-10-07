@@ -11,6 +11,11 @@ const arr = (v: string | string[] | undefined): string[] => (Array.isArray(v) ? 
 export const one = (v: string | string[] | undefined) => arr(v)[0] ?? "";
 const many = (v: string | string[] | undefined, max = 60) =>
   Array.from(new Set(arr(v).flatMap((s) => s.split("\u0001")).map((s) => s.trim().slice(0, 80)).filter(Boolean))).slice(0, max);
+/** Значения под каноническим именем и его старыми псевдонимами (общие имена — src/lib/filters: category, auction, pyear, lotcolor). */
+const manyAs = (sp: SP, ...names: string[]) => many(names.flatMap((n) => arr(sp[n])));
+
+/** Имя параметра в адресе для поля SharedFilters (поля названы по-старому, адрес — по каноническим именам). */
+export const PARAM_OF = { cat: "category", auc: "auction", py: "pyear", lc: "lotcolor" } as const;
 
 export type VatFilter = "" | "20" | "22" | "mix";
 export const VAT_LABEL: Record<Exclude<VatFilter, "">, string> = { "20": "НДС 20%", "22": "НДС 22%", mix: "смешанные ставки" };
@@ -46,9 +51,9 @@ const num = (s: string) => {
 };
 
 export function parseShared(sp: SP): SharedFilters {
-  const vat = one(sp.vat);
+  const vat = one(sp.vat) === "mixed" ? "mix" : one(sp.vat);
   return {
-    cat: many(sp.cat),
+    cat: manyAs(sp, "category", "cat"),
     fur: many(sp.fur),
     size: many(sp.size),
     batch: many(sp.batch).filter((b) => /^\d{1,6}$/.test(b)),
@@ -60,9 +65,9 @@ export function parseShared(sp: SP): SharedFilters {
     cmax: num(one(sp.cmax)),
     onlyH: one(sp.onlyH) === "1",
     onlyL: one(sp.onlyL) === "1",
-    auc: many(sp.auc),
-    py: many(sp.py).filter((y) => /^\d{4}$/.test(y)),
-    lc: many(sp.lc),
+    auc: manyAs(sp, "auction", "auc"),
+    py: manyAs(sp, "pyear", "py").filter((y) => /^\d{4}$/.test(y)),
+    lc: manyAs(sp, "lotcolor", "lc"),
     sort: one(sp.sort).slice(0, 20),
     dir: one(sp.dir) === "asc" ? "asc" : "desc",
     all: one(sp.all) === "1",
@@ -74,7 +79,7 @@ export function parseShared(sp: SP): SharedFilters {
 export function sharedParams(f: SharedFilters, over: Partial<SharedFilters> = {}, withView = true): URLSearchParams {
   const x = { ...f, ...over };
   const p = new URLSearchParams();
-  for (const k of ["cat", "fur", "size", "batch", "color", "season", "auc", "py", "lc"] as const) for (const v of x[k]) p.append(k, v);
+  for (const k of ["cat", "fur", "size", "batch", "color", "season", "auc", "py", "lc"] as const) for (const v of x[k]) p.append(k in PARAM_OF ? PARAM_OF[k as keyof typeof PARAM_OF] : k, v);
   if (x.q) p.set("q", x.q);
   if (x.vat) p.set("vat", x.vat);
   if (x.cmin) p.set("cmin", x.cmin);

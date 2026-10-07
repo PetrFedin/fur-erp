@@ -34,7 +34,7 @@
 
 | Каталог / файл | Что хранится | В git |
 |---|---|---|
-| `src/` | приложение (Next.js App Router): `app/(app)/…` страницы, `components/`, `lib/` (бизнес-логика), `data/` (реестр сверки `reconciliation.json` и снимки) | да |
+| `src/` | приложение (Next.js App Router): `app/(app)/…` страницы, `components/`, `lib/` (бизнес-логика), `data/` (реестр сверки `reconciliation.json` и снимки). Меню — `components/nav-links.ts` (8 пунктов), вкладки «Контроль» — `components/control-tabs.tsx` (счётчики — `lib/control-counts.ts`), центр задач — `lib/task-center.ts` | да |
 | `prisma/` | `schema.prisma` и `migrations/` (только вперёд; проверка — `scripts/check-migration-safety.sh`) | да |
 | `scripts/` | разовые скрипты работы с данными: `apply-*`, `fix-*`, `seed-*`, `import-*`, `link-*`, `attach-*`; каждый пишет журнал в `docs-inventory/corrections-journal-*.json`; плюс `backup.sh`, `build-reconciliation.ts` | да |
 | `docs/` | постоянная документация: `DEPLOY`, `TESTING`, `DATA-SAFETY`, `ROADMAP`, `PRODUCTION_ADMISSION`, `analysis/`, этот файл | да |

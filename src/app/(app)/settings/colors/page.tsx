@@ -8,12 +8,17 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@/components/ui/table";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { ConfirmSubmitButton } from "../../purchases/[id]/documents-form";
 import { bindColorText, confirmColor, createColor, deleteColor, mergeColors, updateColor } from "./actions";
 
 export const metadata = { title: "Справочник цветов" };
 
 const MAX_LINKS = 6;
+
+// Фильтры справочника: поиск по названию, синонимам и примечанию; «предложено / подтверждено». ok и error — разовые сообщения.
+const COLOR_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["proposed", "confirmed"] } }) });
 
 type Usage = { orders: Array<{ id: string; number: string }>; purchases: Map<string, string>; lots: number; items: number };
 
@@ -24,6 +29,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
   const flashOk = typeof sp.ok === "string" ? sp.ok.slice(0, 300) : "";
+  const cf = parseFilters(COLOR_FILTERS, sp);
 
   const [refs, orders, items, lots] = await Promise.all([
     prisma.colorRef.findMany({
@@ -60,6 +66,12 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
     }
   }
   const queue = [...unmatched.entries()].sort((a, b) => b[1].orders.length + b[1].items + b[1].lots - (a[1].orders.length + a[1].items + a[1].lots));
+  const needle = cf.q.trim().toLowerCase();
+  const shownRefs = refs.filter(
+    (r) =>
+      (cf.status.length === 0 || cf.status.includes(isProposed(r.note) ? "proposed" : "confirmed")) &&
+      (!needle || [r.name, ...r.aliases, r.note ?? ""].some((x) => x.toLowerCase().includes(needle))),
+  );
   const lite = refs.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases, note: r.note }));
 
   return (
@@ -194,6 +206,15 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
         </Card>
       )}
 
+      <FilterBar
+        title="Фильтры цветов"
+        dropOnChange={["ok", "error"]}
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "Название, синоним, примечание" },
+          { type: "multi", name: "status", label: "Статус", options: [{ value: "proposed", label: "Предложено, ждёт подтверждения" }, { value: "confirmed", label: "Подтверждено" }], allLabel: "Все" },
+        ]}
+      />
+
       <Table>
         <Thead>
           <Tr>
@@ -206,7 +227,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
           </Tr>
         </Thead>
         <Tbody>
-          {refs.map((r) => {
+          {shownRefs.map((r) => {
             const used = r._count.orders + r._count.lots + r._count.purchaseItems;
             const proposed = isProposed(r.note);
             const note = (r.note ?? "").replace(new RegExp(`^${PROPOSED_MARK}\\.?\\s*`), "");
@@ -281,10 +302,10 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
               </Tr>
             );
           })}
-          {refs.length === 0 && (
+          {shownRefs.length === 0 && (
             <Tr>
               <Td colSpan={6} className="py-8 text-center text-neutral-400">
-                Цветов пока нет
+                {refs.length > 0 ? "Ничего не найдено" : "Цветов пока нет"}
               </Td>
             </Tr>
           )}

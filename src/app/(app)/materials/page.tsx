@@ -6,6 +6,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatQty } from "@/lib/utils";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
+import { escapeLike } from "@/lib/input";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -15,14 +18,33 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-export default async function MaterialsPage() {
+// Список: поиск по названию и артикулу; вид (мех — всё, кроме метров, подкладка — метры), категория, статус.
+const MATERIAL_FILTERS = defineFilters({
+  ...pick(["q", "category", "status"], { q: { label: "Поиск" }, status: { allowed: ["active", "inactive"] } }),
+  type: { kind: "multi", label: "Вид", allowed: ["fur", "lining"] },
+});
+
+export default async function MaterialsPage({ searchParams }: PageProps<"/materials">) {
   const session = await requireSession();
   const canCreate = hasRole(session.user.role, ACCESS.materials);
-  const materials = await prisma.rawMaterial.findMany({
-    where: { organizationId: session.user.organizationId },
-    include: { category: true },
-    orderBy: { name: "asc" },
-  });
+  const f = parseFilters(MATERIAL_FILTERS, await searchParams);
+  const cat = splitNone(f.category);
+  const orgId = session.user.organizationId;
+  const [materials, categories] = await Promise.all([
+    prisma.rawMaterial.findMany({
+      where: {
+        organizationId: orgId,
+        // Вид «мех» — единицы не метры (как на странице «Сырьё»), «подкладка» — метры.
+        ...(f.type.length === 1 ? { unit: f.type[0] === "lining" ? "M" : { not: "M" } } : {}),
+        ...(f.status.length === 1 ? { isActive: f.status[0] === "active" } : {}),
+        ...(f.category.length ? { OR: [...(cat.rest.length ? [{ category: { name: { in: cat.rest } } }] : []), ...(cat.none ? [{ categoryId: null }] : [])] } : {}),
+        ...(f.q ? { AND: [{ OR: [{ name: { contains: escapeLike(f.q), mode: "insensitive" as const } }, { sku: { contains: escapeLike(f.q), mode: "insensitive" as const } }] }] } : {}),
+      },
+      include: { category: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.rawMaterialCategory.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   const showSku = materials.some((m) => m.sku);
   const showCategory = materials.some((m) => m.category);
@@ -39,6 +61,16 @@ export default async function MaterialsPage() {
           </Link>
         )}
       </div>
+
+      <FilterBar
+        title="Фильтры материалов"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "Название или артикул" },
+          { type: "multi", name: "type", label: "Вид", options: [{ value: "fur", label: "Мех" }, { value: "lining", label: "Подкладка" }], allLabel: "Все" },
+          { type: "multi", name: "category", label: "Категория", options: categories.map((c) => ({ value: c.name, label: c.name })), noneLabel: "Без категории", allLabel: "Все категории" },
+          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+        ]}
+      />
 
       <Table>
         <Thead>
@@ -73,7 +105,7 @@ export default async function MaterialsPage() {
           {materials.length === 0 && (
             <Tr>
               <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
-                Сырья пока нет
+                {f.q || f.type.length || f.category.length || f.status.length ? "Ничего не найдено" : "Сырья пока нет"}
               </Td>
             </Tr>
           )}

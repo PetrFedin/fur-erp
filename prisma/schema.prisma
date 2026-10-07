@@ -33,6 +33,60 @@ model ColorRef {
   @@index([organizationId])
 }
 
+/// Справочник категорий изделий (Пальто, Полупальто, Жакет…): каноническое русское название + синонимы (свободный текст ProductModel.category).
+model CategoryRef {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  aliases        String[]
+  sortOrder      Int          @default(0)
+  confirmed      Boolean      @default(false)
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  models ProductModel[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+/// Справочник аукционов: короткое имя на платформе (name), полное название из документов, дом, вид.
+/// Purchase.auctionSession остаётся кэшем отображаемого имени и ключом в старых местах (оплаты, документы, реестр сверки).
+model Auction {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  fullName       String?
+  house          String?
+  kind           AuctionKind  @default(FUR)
+  year           Int?
+  month          Int?
+  currency       String?
+  auctionDate    DateTime?
+  aliases        String[]
+  isService      Boolean      @default(false)
+  confirmed      Boolean      @default(false)
+  sortOrder      Int          @default(0)
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  purchases Purchase[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+enum AuctionKind {
+  FUR
+  LINING
+  MATERIALS
+  OTHER
+}
+
 /// Справочник меха: русское и английское названия + синонимы (в инвойсах — английские, в ТЗ — русские).
 model FurRef {
   id             String       @id @default(cuid())
@@ -138,6 +192,8 @@ model Organization {
 
   users                  User[]
   colorRefs              ColorRef[]
+  categoryRefs           CategoryRef[]
+  auctions               Auction[]
   furRefs                FurRef[]
   seasons                Season[]
   productionPlans        ProductionPlan[]
@@ -376,6 +432,8 @@ model Purchase {
   // the УПД transfer-document reference) — informational, shown on the
   // purchase and carried onto its lots for the archive.
   auctionSession   String?
+  auctionId        String?
+  auction          Auction?       @relation(fields: [auctionId], references: [id], onDelete: SetNull)
   invoiceNumber    String?
   transferDocument String?
   orderDate        DateTime       @default(now())
@@ -402,6 +460,7 @@ model Purchase {
 
   @@unique([organizationId, number])
   @@index([organizationId])
+  @@index([auctionId])
 }
 
 // One line = one purchased lot/batch (лот) of a raw material. unitPrice and
@@ -719,6 +778,8 @@ model ProductModel {
   name           String
   sku            String?
   category       String?
+  categoryRefId  String?
+  categoryRef    CategoryRef? @relation(fields: [categoryRefId], references: [id], onDelete: SetNull)
   // Справочник артикулов: код и название этого же изделия в системе продаж + прочие написания.
   salesCode      String?
   salesName      String?
@@ -737,6 +798,7 @@ model ProductModel {
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+  @@index([categoryRefId])
 }
 
 // Higher-level planning: what's expected to move through which stage in

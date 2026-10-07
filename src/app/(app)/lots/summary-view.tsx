@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
+import { FilterBar } from "@/components/filters/filter-bar";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
@@ -115,14 +114,14 @@ function Node({
   sub?: React.ReactNode;
   a: Agg;
   mode: Mode;
-  level: 0 | 1 | 2;
+  level: 0 | 1 | 2 | 3;
   open?: boolean;
   children?: React.ReactNode;
   /** Серверное действие: содержимое строки подгружается при первом раскрытии (не рендерится вместе со страницей). */
   load?: () => Promise<React.ReactNode>;
 }) {
-  const indent = ["", "md:pl-4", "md:pl-8"][level];
-  const tone = ["bg-neutral-50 font-semibold", "bg-white", "bg-white"][level];
+  const indent = ["", "md:pl-4", "md:pl-8", "md:pl-12"][level];
+  const tone = ["bg-neutral-50 font-semibold", "bg-neutral-50/60 font-medium", "bg-white", "bg-white"][level];
   const summary = (
     <summary
       className={`grid cursor-pointer list-none grid-cols-1 gap-x-2 gap-y-1 px-3 py-2 text-sm hover:bg-neutral-100/60 ${COLS} ${tone} [&::-webkit-details-marker]:hidden`}
@@ -152,7 +151,7 @@ export function AuctionBody({ al, mode }: { al: Leaf[]; mode: Mode }) {
       {[...group(al, (l) => l.material).entries()]
         .sort((a, b) => cmpRu(a[0], b[0]))
         .map(([material, ml]) => (
-          <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={2}>
+          <Node key={material} title={material} sub={`${ml.length} лот.`} a={aggOf(ml)} mode={mode} level={3}>
             {ml.map((l) => (
               <LotRow key={l.id} l={l} mode={mode} />
             ))}
@@ -163,16 +162,31 @@ export function AuctionBody({ al, mode }: { al: Leaf[]; mode: Mode }) {
 }
 
 /** Фильтр сводки (как в адресной строке) — применяется и на странице, и в подгрузке строки. */
-export type SummaryFilter = { year: number | null; auction: string; material: string };
+export type SummaryFilter = {
+  /** Общий год шапки. */
+  year: number | null;
+  /** Выбранные аукционы / материалы / годы закупки (пусто — все). */
+  auction: string[];
+  material: string[];
+  years?: number[];
+};
 export const filterLeaves = (all: Leaf[], f: SummaryFilter) =>
-  all.filter((l) => (!f.year || l.year === f.year) && (!f.auction || aKey(l) === f.auction) && (!f.material || l.material === f.material));
+  all.filter(
+    (l) =>
+      (!f.year || l.year === f.year) &&
+      (f.auction.length === 0 || f.auction.includes(aKey(l))) &&
+      (f.material.length === 0 || f.material.includes(l.material)) &&
+      (!f.years?.length || f.years.includes(l.year)),
+  );
 export { aKey };
+export const kindOf = (l: Leaf): "fur" | "lining" => (l.unit === "M" ? "lining" : "fur");
+const KIND_TITLE = { fur: "Мех", lining: "Подкладка" } as const;
 
 function LotRow({ l, mode }: { l: Leaf; mode: Mode }) {
   const a = emptyAgg();
   addLeaf(a, l);
   return (
-    <div className={`grid grid-cols-1 gap-x-2 gap-y-1 border-t border-neutral-100 px-3 py-2 text-sm md:pl-12 ${COLS}`}>
+    <div className={`grid grid-cols-1 gap-x-2 gap-y-1 border-t border-neutral-100 px-3 py-2 text-sm md:pl-16 ${COLS}`}>
       <span className="min-w-0">
         <Link href={`/purchases/${l.purchaseId}`} className="hover:underline">
           Лот {l.lotNumber ?? "без номера"}
@@ -190,15 +204,18 @@ function LotRow({ l, mode }: { l: Leaf; mode: Mode }) {
 export async function PurchaseSummary({
   organizationId,
   year,
-  searchParams,
+  filters,
+  yearOptions,
 }: {
   organizationId: string;
   /** Общий фильтр года из шапки. */
   year: YearFilter;
-  searchParams: { auction?: string; material?: string; vat?: string };
+  /** Разобранные параметры адреса: аукционы, материалы (названия), год закупки, режим НДС. */
+  filters: { auction: string[]; material: string[]; pyear: string[]; vatmode: "incl" | "excl" | "" };
+  yearOptions: { value: string; label: string; count?: number }[];
 }) {
-  // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vat= — только переопределение ссылкой.
-  const vatOverride: Mode | null = searchParams.vat === "excl" ? "excl" : searchParams.vat === "incl" ? "incl" : null;
+  // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vatmode= (старое ?vat=) — только переопределение ссылкой.
+  const vatOverride: Mode | null = filters.vatmode === "excl" ? "excl" : filters.vatmode === "incl" ? "incl" : null;
   const cookieMode: Mode = parseVatModeCookie((await cookies()).get("vatDisplay")?.value);
   const mode: Mode = vatOverride ?? cookieMode;
   const [{ leaves: all, purchaseTotals }, advances, debt] = await Promise.all([
@@ -210,17 +227,20 @@ export async function PurchaseSummary({
   const auctions = [...new Set(all.map(aKey))].sort(cmpAuction);
   const materials = [...new Set(all.map((l) => l.material))].sort(cmpRu);
   const yearF = year === "all" ? null : Number(year);
-  const auctionF = auctions.includes(searchParams.auction ?? "") ? searchParams.auction! : "";
-  const materialF = materials.includes(searchParams.material ?? "") ? searchParams.material! : "";
+  const auctionF = filters.auction.filter((a) => auctions.includes(a));
+  const materialF = filters.material.filter((m) => materials.includes(m));
+  const yearsF = filters.pyear.map(Number);
+  const byMaterial = materialF.length > 0;
 
-  const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF });
-  const filtered = Boolean(auctionF || materialF);
+  const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF, years: yearsF });
+  const filtered = Boolean(auctionF.length || materialF.length || yearsF.length);
 
   const qs = (over: Record<string, string>) => {
     const p = new URLSearchParams({ tab: "summary" });
-    if (auctionF) p.set("auction", auctionF);
-    if (materialF) p.set("material", materialF);
-    if (vatOverride) p.set("vat", vatOverride);
+    for (const a of auctionF) p.append("auction", a);
+    for (const m of materialF) p.append("material", m);
+    for (const y of yearsF) p.append("pyear", String(y));
+    if (vatOverride) p.set("vatmode", vatOverride);
     for (const [k, v] of Object.entries(over)) {
       if (v) p.set(k, v);
       else p.delete(k);
@@ -278,7 +298,7 @@ export async function PurchaseSummary({
   const independentDiff = g0.full.sub(independent).abs();
   const independentOk = independentDiff.lessThanOrEqualTo(1);
   // Расхождение в копейках (до 1 ₽) — округление, итоги считаем сошедшимися, но говорим об этом прямо.
-  const roundingOnly = maxDiff.greaterThanOrEqualTo(0.005) || (!materialF && independentDiff.greaterThanOrEqualTo(0.005));
+  const roundingOnly = maxDiff.greaterThanOrEqualTo(0.005) || (!byMaterial && independentDiff.greaterThanOrEqualTo(0.005));
 
   const draftFull = leaves.filter((l) => l.draft).reduce((s, l) => s.add(mode === "excl" ? l.full.excl : l.full.incl), new Decimal(0));
   const draftCount = leaves.filter((l) => l.draft).length;
@@ -289,42 +309,14 @@ export async function PurchaseSummary({
 
   return (
     <div className="flex flex-col gap-4">
-      <form method="get" className="grid grid-cols-2 items-end gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:grid-cols-4">
-        <input type="hidden" name="tab" value="summary" />
-        {vatOverride && <input type="hidden" name="vat" value={vatOverride} />}
-        <label className="col-span-2 flex flex-col gap-1 text-xs text-neutral-500">
-          Аукцион
-          <Select name="auction" defaultValue={auctionF}>
-            <option value="">Все аукционы</option>
-            {auctions.map((a) => (
-              <option key={a} value={a}>
-                {shortAuctionName(a, 60)}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Сырьё
-          <Select name="material" defaultValue={materialF}>
-            <option value="">Всё сырьё</option>
-            {materials.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <div className="flex items-center gap-2">
-          <Button type="submit" variant="outline">
-            Показать
-          </Button>
-          {filtered && (
-            <Link href={qs({ auction: "", material: "" })} className="text-sm text-neutral-500 hover:underline">
-              Сбросить
-            </Link>
-          )}
-        </div>
-      </form>
+      <FilterBar
+        title="Фильтры сводки"
+        controls={[
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: shortAuctionName(a, 60), title: a })), allLabel: "Все партии" },
+          { type: "multi", name: "material", label: "Сырьё", options: materials.map((m) => ({ value: m, label: m })), allLabel: "Всё сырьё" },
+          { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: yearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
+        ]}
+      />
 
       {!vatOverride && <VatSync serverMode={cookieMode} />}
       <p className="text-xs text-neutral-500" data-vat-mode={mode}>
@@ -332,7 +324,7 @@ export async function PurchaseSummary({
         {vatOverride ? (
           <>
             {" "}
-            (задано ссылкой ?vat={vatOverride}; <Link href={qs({ vat: "" })} className="underline">использовать переключатель в шапке</Link>)
+            (задано ссылкой ?vatmode={vatOverride}; <Link href={qs({ vatmode: "" })} className="underline">использовать переключатель в шапке</Link>)
           </>
         ) : (
           " — переключатель «С НДС / Без НДС» в шапке страницы."
@@ -348,7 +340,7 @@ export async function PurchaseSummary({
           <div
             className={`hidden gap-x-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-500 md:grid ${COLS}`}
           >
-            <span>Год / аукцион / сырьё / лот</span>
+            <span>Год / мех · подкладка / аукцион / сырьё / лот</span>
             <span className="text-right">Шкур</span>
             <span className="text-right">Цена шкур по счетам</span>
             <span className="text-right">С расходами</span>
@@ -373,7 +365,7 @@ export async function PurchaseSummary({
               </InfoHint>
             </span>
           </div>
-          {byYear.map(([year, yl], yi) => (
+          {byYear.map(([year, yl]) => (
             <Node
               key={year}
               title={`${year} год`}
@@ -381,21 +373,29 @@ export async function PurchaseSummary({
               a={aggOf(yl)}
               mode={mode}
               level={0}
-              open={yi === 0 || byYear.length === 1}
+              open={false}
             >
-              {[...group(yl, aKey).entries()]
-                .sort((a, b) => cmpAuction(a[0], b[0]))
-                .map(([auction, al]) => (
-                  <Node
-                    key={auction}
-                    title={shortAuctionName(auction, 70)}
-                    sub={`${al.length} лот.`}
-                    a={aggOf(al)}
-                    mode={mode}
-                    level={1}
-                    load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, mode)}
-                  />
-                ))}
+              {(["fur", "lining"] as const).map((k) => {
+                const kl = yl.filter((l) => kindOf(l) === k);
+                if (kl.length === 0) return null;
+                return (
+                  <Node key={k} title={KIND_TITLE[k]} sub={`${kl.length} лот.`} a={aggOf(kl)} mode={mode} level={1} open>
+                    {[...group(kl, aKey).entries()]
+                      .sort((a, b) => cmpAuction(a[0], b[0]))
+                      .map(([auction, al]) => (
+                        <Node
+                          key={auction}
+                          title={shortAuctionName(auction, 70)}
+                          sub={`${al.length} лот.`}
+                          a={aggOf(al)}
+                          mode={mode}
+                          level={2}
+                          load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, yearsF, mode, k)}
+                        />
+                      ))}
+                  </Node>
+                );
+              })}
             </Node>
           ))}
           <div
@@ -451,8 +451,8 @@ export async function PurchaseSummary({
       )}
 
       {leaves.length > 0 && (
-        <div data-convergence={converges && (materialF || independentOk) ? "ok" : "mismatch"}>
-          {converges && (materialF || independentOk) ? (
+        <div data-convergence={converges && (byMaterial || independentOk) ? "ok" : "mismatch"}>
+          {converges && (byMaterial || independentOk) ? (
             <details className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <summary className="cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
                 <span aria-hidden>✓ </span>Итоги по годам, аукционам и типам сырья сходятся{roundingOnly ? " (в пределах округления 1 ₽)" : ""}
@@ -467,7 +467,7 @@ export async function PurchaseSummary({
                 <li>итого: {money(gf.full)}</li>
               </ul>
               <div className="mt-1 text-xs text-emerald-800">
-                {materialF
+                {byMaterial
                   ? "Сверка с суммами закупок не делается при выборе сырья: в закупке учтена только часть позиций."
                   : `Совпадает и с суммами закупок: ${money(independent)}.`}
               </div>
@@ -482,7 +482,7 @@ export async function PurchaseSummary({
                   </li>
                 ))}
                 <li>итого: {money(gf.full)}</li>
-                {!materialF && <li data-independent-check="mismatch">суммы закупок: {money(independent)}</li>}
+                {!byMaterial && <li data-independent-check="mismatch">суммы закупок: {money(independent)}</li>}
               </ul>
             </div>
           )}

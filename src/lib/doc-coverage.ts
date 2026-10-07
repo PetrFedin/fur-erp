@@ -555,25 +555,28 @@ export function summarize(rows: CovRow[]): { sections: SectionStat[]; total: Sec
 // ====================================================================== ФИЛЬТРЫ
 
 export type CovFilters = {
-  section: SectionKey | "";
+  /** Мультивыбор (повтор параметра); пусто — все. */
+  section: SectionKey[];
   year: number | null;
-  auction: string;
+  auction: string[];
   gaps: boolean;
   q: string;
   sort: "" | "gaps";
 };
 
-const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
+const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : Array.isArray(v) ? (v[0] ?? "") : "");
+const many = (v: string | string[] | undefined, max = 60): string[] =>
+  Array.from(new Set((Array.isArray(v) ? v : v == null ? [] : [v]).map((x) => String(x).trim().slice(0, 200)).filter(Boolean))).slice(0, max);
 
 export function parseCovFilters(sp: Record<string, string | string[] | undefined>): CovFilters {
-  const section = one(sp.section);
   const year = parseInt(one(sp.year), 10);
   return {
-    section: (SECTION_ORDER as string[]).includes(section) ? (section as SectionKey) : "",
+    section: many(sp.section).filter((k): k is SectionKey => (SECTION_ORDER as string[]).includes(k)),
     year: Number.isFinite(year) ? year : null,
-    auction: one(sp.auction).slice(0, 200),
+    auction: many(sp.auction),
     gaps: one(sp.gaps) === "1",
-    q: one(sp.q).trim().slice(0, 100),
+    // `dq` — прежнее имя поиска по списку документов: теперь один поиск `q` и для матрицы, и для списка.
+    q: (one(sp.q) || one(sp.dq)).trim().slice(0, 100),
     sort: one(sp.sort) === "gaps" ? "gaps" : "",
   };
 }
@@ -581,9 +584,9 @@ export function parseCovFilters(sp: Record<string, string | string[] | undefined
 export function filterCovRows(rows: CovRow[], f: CovFilters): CovRow[] {
   const q = f.q.toLowerCase().replace(/ё/g, "е");
   return rows.filter((r) => {
-    if (f.section && r.section !== f.section) return false;
+    if (f.section.length && !f.section.includes(r.section)) return false;
     if (f.year !== null && r.section !== "contracts" && r.year !== f.year) return false;
-    if (f.auction && r.auction !== f.auction) return false;
+    if (f.auction.length && !(r.auction && f.auction.includes(r.auction))) return false;
     if (f.gaps && r.gaps.length === 0) return false;
     if (q && !r.search.includes(q)) return false;
     return true;

@@ -5,13 +5,34 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
+import { escapeLike } from "@/lib/input";
 import { toggleSupplierActive } from "./actions";
 
-export default async function SuppliersPage() {
+// Список: поиск по названию, контакту, телефону и email; статус — активные / неактивные.
+const LIST_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active", "inactive"] } }) });
+
+export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
   const session = await requireSession();
+  const f = parseFilters(LIST_FILTERS, await searchParams);
+  const needle = escapeLike(f.q);
   const canCreate = hasRole(session.user.role, ACCESS.suppliers);
   const suppliers = await prisma.supplier.findMany({
-    where: { organizationId: session.user.organizationId },
+    where: {
+      organizationId: session.user.organizationId,
+      ...(f.status.length === 1 ? { isActive: f.status[0] === "active" } : {}),
+      ...(f.q
+        ? {
+            OR: [
+              { name: { contains: needle, mode: "insensitive" as const } },
+              { contactName: { contains: needle, mode: "insensitive" as const } },
+              { phone: { contains: needle, mode: "insensitive" as const } },
+              { email: { contains: needle, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { name: "asc" },
   });
 
@@ -30,6 +51,14 @@ export default async function SuppliersPage() {
           </Link>
         )}
       </div>
+
+      <FilterBar
+        title="Фильтры поставщиков"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "Название, контакт, телефон, email" },
+          { type: "multi", name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" },
+        ]}
+      />
 
       <Table>
         <Thead>
@@ -75,7 +104,7 @@ export default async function SuppliersPage() {
           {suppliers.length === 0 && (
             <Tr>
               <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
-                Поставщиков пока нет
+                {f.q || f.status.length ? "Ничего не найдено" : "Поставщиков пока нет"}
               </Td>
             </Tr>
           )}

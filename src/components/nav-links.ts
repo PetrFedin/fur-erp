@@ -1,26 +1,17 @@
-// Основное меню. Анализ документов вынесен отдельно от управленческой Сводки. `also` — вложенные и переехавшие разделы: на них
+// Основное меню (8 пунктов). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Сводка", also: [] },
   { href: "/lots", label: "Сырьё", also: ["/lining", "/raw-materials", "/analytics"] },
   { href: "/purchases", label: "Закупки", also: [] },
-  { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar"] },
+  { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/analytics/products", "/analytics/pricing"] },
-  { href: "/document-analysis", label: "Анализ документов", also: ["/documents", "/attention", "/reconciliation", "/verify", "/history"] },
-  {
-    href: "/settings",
-    label: "Настройки",
-    also: [
-      "/clients",
-      "/suppliers",
-      "/payments",
-      "/supply-plan",
-      "/materials",
-      "/warehouses",
-      "/expense-categories",
-      "/users",
-    ],
-  },
+  { href: "/payments", label: "Оплаты", also: [] },
+  // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · Анализ документов · История.
+  // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
+  { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history"] },
+  // «Настройки» — только справочники и параметры.
+  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/materials", "/warehouses", "/expense-categories", "/users"] },
 ] as const;
 
 /**

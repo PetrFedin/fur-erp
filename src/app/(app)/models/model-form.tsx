@@ -6,6 +6,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import type { ModelFormState } from "./actions";
 import type { ProductModel } from "@prisma/client";
 import { useKeepingForm } from "@/lib/use-keeping-form";
+import { CategorySelect, type CategorySelectOption } from "@/components/category-select";
 
 const initialState: ModelFormState = {};
 
@@ -15,11 +16,16 @@ export function ModelForm({
   action,
   model,
   version,
+  categories = [],
+  canCreateCategory = false,
 }: {
   /** Версия записи на момент открытия формы (защита от тихой перезаписи чужой правки). */
   version?: string;
   action: (prev: ModelFormState, formData: FormData) => Promise<ModelFormState>;
   model?: SerializedModel;
+  /** Категории справочника (выбор вместо свободного текста). */
+  categories?: CategorySelectOption[];
+  canCreateCategory?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
@@ -37,7 +43,7 @@ export function ModelForm({
       </div>
       <div>
         <Label htmlFor="category">Категория</Label>
-        <Input id="category" name="category" defaultValue={model?.category ?? ""} placeholder="Шубы" />
+        <CategorySelect id="category" refs={categories} defaultValue={model?.category ?? ""} defaultRefId={model?.categoryRefId ?? null} canCreate={canCreateCategory} placeholder="Пальто" />
       </div>
       <div className="sm:col-span-2">
         <Label htmlFor="description">Описание</Label>

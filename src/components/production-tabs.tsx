@@ -7,11 +7,12 @@ const TABS = [
   { key: "fittings", href: "/fittings", label: "Примерки" },
   { key: "plan", href: "/plan", label: "План заказа" },
   { key: "calendar", href: "/calendar", label: "Календарь" },
+  { key: "supply", href: "/supply-plan", label: "План поставок" },
 ] as const;
 
 export type ProductionTab = (typeof TABS)[number]["key"];
 
-/** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки. */
+/** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки, план заказа, календарь, план поставок. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-neutral-200 whitespace-nowrap">

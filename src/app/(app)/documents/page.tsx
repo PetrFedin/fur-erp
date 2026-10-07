@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
@@ -31,23 +32,30 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { LazyDetails } from "../lots/lazy-details";
 import { loadDocGroup } from "./group-actions";
 import { GroupCards, GroupTableRows, MatrixRow, MobileCard, OrigCell, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
 
-export const metadata = { title: "Покрытие документами" };
+export const metadata = { title: "Документы" };
 
 type SP = Record<string, string | string[] | undefined>;
 
-const MATRIX_KEYS = ["section", "year", "auction", "gaps", "q", "sort"] as const;
-const DRIVE_KEYS = ["dq", "dtype", "dyear", "dlink", "dpage"] as const;
+// Один язык фильтров: поиск `q` (прежнее `dq`) общий для матрицы и списка документов; страница списка — `page` (прежнее `dpage`).
+const DOC_FILTERS = defineFilters({
+  ...pick(["q", "auction", "sort"], { auction: { label: "Партия закупки", aliases: [] }, sort: { role: "filter", label: "Сортировка", allowed: ["gaps"] } }),
+  section: { kind: "multi", label: "Раздел", allowed: SECTION_ORDER },
+  gaps: { kind: "multi", label: "Пробелы", allowed: ["1"] },
+  dtype: { kind: "multi", label: "Тип документа" },
+  dlink: { kind: "multi", label: "Привязан к" },
+  page: stateParam("Страница", { aliases: ["dpage"], pattern: /^\d{1,6}$/ }),
+});
+const MULTI_KEYS = new Set(["section", "auction", "gaps", "dtype", "dlink"]);
 
 const pctTone = (p: number | null) =>
   p === null ? "text-neutral-400" : p >= 90 ? "text-emerald-600" : p >= 60 ? "text-amber-600" : "text-red-600";
 const barTone = (p: number | null) => (p === null ? "bg-neutral-300" : p >= 90 ? "bg-emerald-500" : p >= 60 ? "bg-amber-400" : "bg-red-500");
-
-const inputCls = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm";
 
 export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
   const session = await requireSession(); // чтение — всем ролям
@@ -57,22 +65,22 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const yNum = yf === "all" ? null : Number(yf);
   const f = { ...parseCovFilters(sp), year: yNum };
   const df = { ...parseDocListFilters(sp), year: yNum };
+  const pf = parseFilters(DOC_FILTERS, sp);
   const orgId = session.user.organizationId;
 
   const [cov, docList] = await Promise.all([computeDocCoverage(prisma, orgId), loadDocList(prisma, orgId)]);
 
   // ---------- ссылки с сохранением обеих групп параметров
+  // Патч значений (строка или null) → ссылка с сохранением всех остальных фильтров. dpage — прежнее имя page.
   const buildHref = (patch: Partial<Record<string, string | null>>, hash = "") => {
-    const p = new URLSearchParams();
-    for (const k of [...MATRIX_KEYS, ...DRIVE_KEYS]) {
-      const v = k in patch ? patch[k] : typeof sp[k] === "string" ? (sp[k] as string) : null;
-      if (v) p.set(k, v);
+    const over: Record<string, string | string[]> = {};
+    for (const [k0, v] of Object.entries(patch)) {
+      const k = k0 === "dpage" ? "page" : k0 === "dq" ? "q" : k0;
+      if (k === "year" || k === "dyear") continue;
+      over[k] = MULTI_KEYS.has(k) ? (v ? [v] : []) : (v ?? "");
     }
-    const s = p.toString();
-    return `/documents${s ? `?${s}` : ""}${hash}`;
+    return filterHref(DOC_FILTERS, "/documents", pf, over as never, { hash });
   };
-  const hidden = (keys: readonly string[]) =>
-    keys.map((k) => (typeof sp[k] === "string" && sp[k] ? <input key={k} type="hidden" name={k} value={sp[k] as string} /> : null));
 
   // ---------- матрица
   const yearRows = yNum === null ? cov.rows : cov.rows.filter((r) => r.section === "contracts" || r.year === yNum);
@@ -80,7 +88,9 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const auctions = [...new Set(cov.rows.map((r) => r.auction).filter((a): a is string => !!a))].sort();
   const visible = filterCovRows(cov.rows, f);
   const exportQs = new URLSearchParams();
-  for (const k of ["section", "year", "auction", "q"] as const) if (typeof sp[k] === "string" && sp[k]) exportQs.set(k, sp[k] as string);
+  for (const v of f.section) exportQs.append("section", v);
+  for (const v of f.auction) exportQs.append("auction", v);
+  if (f.q) exportQs.set("q", f.q);
   const totalGaps = yearRows.filter((r) => r.gaps.length > 0).length;
 
   // ---------- Drive-блок
@@ -88,7 +98,6 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const docsFiltered = groupDocList(filterDocList(docList, df)).sort((a, b) => a.title.localeCompare(b.title, "ru"));
   const typeCounts = new Map<string, number>();
   for (const d of groupDocList(filterDocList(docList, df, "type"))) typeCounts.set(d.docType, (typeCounts.get(d.docType) ?? 0) + 1);
-  const typeTotal = [...typeCounts.values()].reduce((a, b) => a + b, 0);
   const pages = Math.max(1, Math.ceil(docsFiltered.length / DOC_PAGE_SIZE));
   const page = Math.min(df.page, pages);
   const pageDocs = docsFiltered.slice((page - 1) * DOC_PAGE_SIZE, page * DOC_PAGE_SIZE);
@@ -96,18 +105,13 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const withOriginal = docList.filter((d) => d.hasOriginal).length;
   const allGroups = groupDocList(docList).length;
 
-  const chip = (active: boolean) =>
-    cn(
-      "rounded-full border px-3 py-1 text-sm",
-      active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100"
-    );
-
   return (
     <div className="flex flex-col gap-4">
+      <ControlTabs active="documents" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold">Покрытие документами</h1>
+            <h1 className="text-xl font-semibold">Документы</h1>
             <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 text-xs font-medium text-white">Год: {yf === "all" ? "все" : yf}</span>
             <InfoHint wide label="Что показывает страница и как считается процент">
               <div className="space-y-2">
@@ -143,54 +147,16 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       <RegistryBlock />
 
       {/* ---------- фильтры матрицы */}
-      <FilterPanel title="Фильтры анализа документов" applied={Boolean(f.section || f.auction || f.gaps || f.q || f.sort)}>
-      <form method="get" action="/documents" className="flex flex-wrap items-end gap-2" aria-label="Фильтры матрицы">
-        {hidden(DRIVE_KEYS)}
-        <label className="flex flex-col text-xs text-neutral-500">
-          Раздел
-          <select name="section" defaultValue={f.section} className={inputCls}>
-            <option value="">Все</option>
-            {SECTION_ORDER.map((k) => (
-              <option key={k} value={k}>
-                {SECTION_TITLES[k]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col text-xs text-neutral-500">
-          Партия закупки
-          <select name="auction" defaultValue={f.auction} className={cn(inputCls, "max-w-[14rem]")}>
-            <option value="">Все</option>
-            {auctions.map((a) => (
-              <option key={a} value={a}>
-                {a.length > 40 ? `${a.slice(0, 39)}…` : a}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col text-xs text-neutral-500">
-          Сортировка
-          <select name="sort" defaultValue={f.sort} className={inputCls}>
-            <option value="">По порядку</option>
-            <option value="gaps">По числу пробелов</option>
-          </select>
-        </label>
-        <label className="flex flex-col text-xs text-neutral-500">
-          Поиск
-          <input name="q" defaultValue={f.q} placeholder="номер, название…" className={cn(inputCls, "w-44")} />
-        </label>
-        <label className="flex h-9 items-center gap-2 text-sm">
-          <input type="checkbox" name="gaps" value="1" defaultChecked={f.gaps} className="h-4 w-4" />
-          только с пробелами
-        </label>
-        <button type="submit" className="h-9 rounded-md bg-neutral-900 px-4 text-sm text-white hover:bg-neutral-700">
-          Показать
-        </button>
-        <Link href={buildHref({ section: null, year: null, auction: null, gaps: null, q: null, sort: null })} className="py-2 text-sm text-neutral-600 underline">
-          Сбросить
-        </Link>
-      </form>
-      </FilterPanel>
+      <FilterBar
+        title="Фильтры анализа документов"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
+          { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
+          { type: "multi", name: "auction", label: "Партия закупки", options: auctions.map((a) => ({ value: a, label: a.length > 48 ? `${a.slice(0, 47)}…` : a, title: a })), allLabel: "Все партии" },
+          { type: "multi", name: "gaps", label: "Пробелы", single: true, options: [{ value: "1", label: "Только с пробелами" }], allLabel: "Все записи" },
+          { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
+        ]}
+      />
 
       {/* ---------- матрица */}
       {visible.length === 0 ? (
@@ -218,43 +184,14 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           </h2>
         </div>
 
-        <form method="get" action="/documents#drive" className="flex flex-wrap items-end gap-2" aria-label="Фильтры документов">
-          {hidden(MATRIX_KEYS)}
-          {df.type ? <input type="hidden" name="dtype" value={df.type} /> : null}
-          <label className="flex flex-col text-xs text-neutral-500">
-            Поиск по названию / номеру
-            <input name="dq" defaultValue={df.q} placeholder="например, УПД 109" className={cn(inputCls, "w-56")} />
-          </label>
-          <label className="flex flex-col text-xs text-neutral-500">
-            Привязан к
-            <select name="dlink" defaultValue={df.link} className={inputCls}>
-              <option value="">Всё</option>
-              {Object.entries(DOC_LINK_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-              <option value="none">Не привязан</option>
-            </select>
-          </label>
-          <button type="submit" className="h-9 rounded-md bg-neutral-900 px-4 text-sm text-white hover:bg-neutral-700">
-            Найти
-          </button>
-          <Link href={buildHref({ dq: null, dtype: null, dyear: null, dlink: null, dpage: null }, "#drive")} className="py-2 text-sm text-neutral-600 underline">
-            Сбросить
-          </Link>
-        </form>
-
-        <div className="flex flex-wrap gap-2" aria-label="Типы документов">
-          <Link href={buildHref({ dtype: null, dpage: null }, "#drive")} className={chip(!df.type)}>
-            Все · {typeTotal}
-          </Link>
-          {DRIVE_DOC_TYPES.filter((t) => typeCounts.get(t)).map((t) => (
-            <Link key={t} href={buildHref({ dtype: t, dpage: null }, "#drive")} className={chip(df.type === t)}>
-              {DRIVE_DOC_TYPE_LABELS[t]} · {typeCounts.get(t)}
-            </Link>
-          ))}
-        </div>
+        <FilterBar
+          title="Фильтры документов"
+          controls={[
+            { type: "text", name: "q", label: "Поиск по названию / номеру", aliases: ["dq"], placeholder: "например, УПД 109" },
+            { type: "multi", name: "dtype", label: "Тип документа", options: DRIVE_DOC_TYPES.filter((t) => typeCounts.get(t) || df.type.includes(t)).map((t) => ({ value: t, label: DRIVE_DOC_TYPE_LABELS[t], count: typeCounts.get(t) ?? 0 })), allLabel: "Все типы" },
+            { type: "multi", name: "dlink", label: "Привязан к", options: [...Object.entries(DOC_LINK_LABELS).map(([value, label]) => ({ value, label })), { value: "none", label: "Не привязан" }], allLabel: "Любая привязка" },
+          ]}
+        />
 
         {pageDocs.length === 0 ? (
           <Card className="p-6 text-center text-neutral-600">Документов по этим условиям нет.</Card>

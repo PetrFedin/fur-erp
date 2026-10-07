@@ -4,14 +4,20 @@ import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { ArticlesRefTable, type ArticleRow } from "./articles-table";
 import { ImportPanel } from "./import-panel";
+import { getCategoryOptions } from "@/lib/categories";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
+
+const ARTICLE_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active"] } }), sales: { kind: "single", label: "Код продаж", allowed: ["none"] } });
 
 export const metadata = { title: "Справочник артикулов" };
 
-export default async function ArticlesRefPage() {
+export default async function ArticlesRefPage({ searchParams }: PageProps<"/settings/articles-ref">) {
   const session = await requireSession();
   const orgId = session.user.organizationId;
+  const f = parseFilters(ARTICLE_FILTERS, await searchParams);
   const canEdit = hasRole(session.user.role, ACCESS.models);
 
+  const categories = await getCategoryOptions(orgId);
   const [models, grouped, seasonRows] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
     prisma.productionOrder.groupBy({
@@ -37,6 +43,7 @@ export default async function ArticlesRefPage() {
     name: m.name,
     sku: m.sku,
     category: m.category,
+    categoryRefId: m.categoryRefId,
     salesCode: m.salesCode,
     salesName: m.salesName,
     aliases: m.aliases,
@@ -61,7 +68,7 @@ export default async function ArticlesRefPage() {
         Один артикул — одна запись. У нас он ведётся под кодом <b>M…</b>, в системе продаж — под своим кодом и названием: впишите их рядом, чтобы
         артикул находился по любому написанию во всех формах выбора. Сопоставлено с системой продаж: <b>{withSales}</b> из <b>{rows.length}</b>.
       </p>
-      <ArticlesRefTable rows={rows} canEdit={canEdit} />
+      <ArticlesRefTable rows={rows} canEdit={canEdit} categories={categories} canCreateCategory={hasRole(session.user.role, ACCESS.categories)} initial={{ q: f.q, noSales: f.sales === "none", onlyActive: f.status.includes("active") }} />
       {canEdit && <ImportPanel />}
     </div>
   );

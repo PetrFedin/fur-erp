@@ -5,7 +5,6 @@ import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { Input, Select } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
@@ -32,12 +31,12 @@ import {
   type PricingParams,
   type PricingView,
 } from "@/lib/analytics-pricing";
-import { applyShared, filterOptions, hasSharedFilter } from "@/lib/analytics-filters";
+import { applyShared, filterOptions } from "@/lib/analytics-filters";
 import { COLUMNS, derived } from "@/lib/analytics-metrics";
 import { weightedPercent } from "@/lib/weighted";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { AcceptPriceButton } from "./accept-price-button";
-import { FilterPanel } from "../_shared/filter-panel";
+import { AnalyticsFilterBar } from "../_shared/analytics-filter-bar";
 import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
 
 export const metadata = { title: "Себестоимость и цены" };
@@ -466,12 +465,6 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   const tabBtn = (active: boolean) => (active ? "rounded-md bg-neutral-900 px-3 py-1 text-white" : "rounded-md px-3 py-1 hover:bg-neutral-100");
 
-  const hasFilter = hasSharedFilter(p) || !!p.m || p.only !== "all" || p.base !== "mat";
-  const viewHidden: [string, string][] = [];
-  if (p.view !== "model") viewHidden.push(["view", p.view]);
-  if (p.sort) viewHidden.push(["sort", p.sort], ["dir", p.dir]);
-  if (p.all) viewHidden.push(["all", "1"]);
-  if (p.cols.length) viewHidden.push(["cols", p.cols.join(",")]);
   const pickerHidden = Array.from(pricingParams(p, { cols: [], all: false }).entries()) as [string, string][];
   const toggleAll = here(p.cols.length > 0 || !p.all ? { cols: [], all: !p.all || p.cols.length > 0 } : { cols: [], all: false });
   const labelHead = p.view === "model" ? "Модель" : p.view === "category" ? "Категория" : p.view === "fur" ? "Вид меха" : "Мех · категория";
@@ -546,37 +539,13 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </div>
 
       {/* Параметры и фильтры */}
-      <FilterPanel
-        action="/analytics/pricing"
-        hidden={viewHidden}
-        f={p}
+      <AnalyticsFilterBar
         opts={opts}
-        active={hasFilter}
-        submitLabel="Пересчитать"
-        resetHref={`/analytics/pricing${p.view !== "model" ? `?view=${p.view}` : ""}`}
-        lead={
-          <>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              Целевой маркап, %
-              <Input name="m" defaultValue={p.m} placeholder={defRounded != null ? String(defRounded) : "например 300"} inputMode="decimal" className="h-9 w-32" aria-invalid={badInput || undefined} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              База наценки
-              <Select name="base" defaultValue={p.base} className="h-9 w-64 max-w-full">
-                <option value="mat">Материалы + расходы (как в «Изделиях»)</option>
-                <option value="full">Материалы + расходы + работа</option>
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              Показывать
-              <Select name="only" defaultValue={p.only} className="h-9 w-44">
-                <option value="all">Все</option>
-                <option value="noprice">Только без цены</option>
-                <option value="issues">Только с замечаниями</option>
-              </Select>
-            </label>
-          </>
-        }
+        lead={[
+          { type: "text", name: "m", label: "Целевой маркап, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
+          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
+          { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
+        ]}
       />
       {badInput && <span className="text-xs text-red-600">Маркап: введите число, например 350 — взято значение по умолчанию.</span>}
 

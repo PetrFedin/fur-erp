@@ -69,7 +69,8 @@ function Merge({ src, rows, onClose }: { src: FurRow; rows: FurRow[]; onClose: (
   );
 }
 
-export function FursTable({ rows, canEdit }: { rows: FurRow[]; canEdit: boolean }) {
+/** rows — показанные строки (после фильтров панели), allRows — весь справочник (для «Объединить»). */
+export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; allRows?: FurRow[]; canEdit: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [merging, setMerging] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -112,10 +113,10 @@ export function FursTable({ rows, canEdit }: { rows: FurRow[]; canEdit: boolean 
                 )}
               </Tr>
               {editing === r.id && <Tr><Td colSpan={cols} className="p-0"><Form id={r.id} initial={{ name: r.name, nameEn: r.nameEn ?? "", aliases: r.aliases.join(", "), note: r.note ?? "" }} onClose={() => setEditing(null)} /></Td></Tr>}
-              {merging === r.id && <Tr><Td colSpan={cols} className="p-0"><Merge src={r} rows={rows} onClose={() => setMerging(null)} /></Td></Tr>}
+              {merging === r.id && <Tr><Td colSpan={cols} className="p-0"><Merge src={r} rows={allRows} onClose={() => setMerging(null)} /></Td></Tr>}
             </Fragment>
           ))}
-          {rows.length === 0 && <Tr><Td colSpan={cols} className="py-8 text-center text-neutral-400">Справочник пуст — запустите засев (scripts/seed-fur-refs.ts) или добавьте вид меха</Td></Tr>}
+          {rows.length === 0 && <Tr><Td colSpan={cols} className="py-8 text-center text-neutral-400">{allRows.length > 0 ? "Ничего не найдено" : "Справочник пуст — запустите засев (scripts/seed-fur-refs.ts) или добавьте вид меха"}</Td></Tr>}
         </Tbody>
       </Table>
     </div>

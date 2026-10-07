@@ -447,9 +447,9 @@ test("подписи полей: клик по label ставит фокус в 
   expect(await focusedAfterLabelClick(adv, "Сумма, ₽")).toBe("INPUT:amount");
   expect(await focusedAfterLabelClick(adv, "Заметка")).toBe("INPUT:notes");
   expect(await focusedAfterLabelClick(adv, "Дата")).toBe("INPUT:paidAt");
-  // поиск по аукционам
-  await page.getByText("Поиск", { exact: true }).click();
-  expect(await page.evaluate(() => (document.activeElement as HTMLElement | null)?.id)).toBe("auction-q");
+  // поиск по названию партии (панель фильтров: поле подписано aria-label)
+  await page.getByLabel("Название партии").focus();
+  expect(await page.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe("q");
   // форма оплаты в карточке закупки
   await page.goto(`/purchases/${pid}`);
   const pf = page.locator("form", { has: page.getByRole("button", { name: /Добавить оплату/ }) });
@@ -479,17 +479,20 @@ test("список аукционов: порядок (актуальные с �
   await page.goto("/payments?q=" + encodeURIComponent("%"));
   expect((await names()).length).toBe(0);
   await expect(page.locator("main")).toContainText("По этому поиску и фильтру аукционов нет");
-  // «С остатком» (через кнопку, с учётом поиска)
+  // «С остатком» — список «Оплата» с галочками, применяется сразу (старая ссылка ?f=rest тоже работает)
   await page.goto("/payments?q=RG-S");
-  await page.getByRole("link", { name: "С остатком" }).click();
-  await page.waitForURL(/f=rest/);
+  await page.locator("summary", { hasText: "Оплата" }).first().click();
+  await page.getByRole("checkbox", { name: /С остатком/ }).check();
+  await page.waitForURL(/status=rest/);
   expect(await names()).toEqual(["RG-S1", "RG-S5", "RG-S3"]);
-  await page.getByRole("link", { name: "Все", exact: true }).click();
-  await page.waitForURL((u) => !u.search.includes("f=rest"));
+  await page.getByRole("checkbox", { name: /С остатком/ }).uncheck();
+  await page.waitForURL((u) => !u.search.includes("status=rest"));
   expect((await names()).length).toBe(5);
-  // поиск через форму
-  await page.getByLabel("Поиск").fill("RG-S4");
-  await page.getByRole("button", { name: "Найти" }).click();
+  await page.goto("/payments?q=RG-S&f=rest");
+  expect(await names()).toEqual(["RG-S1", "RG-S5", "RG-S3"]);
+  // поиск через панель фильтров (задержка ≈0,4 с, кнопки «Найти» нет)
+  await page.goto("/payments?q=RG-S");
+  await page.getByLabel("Название партии").fill("RG-S4");
   await page.waitForURL(/q=RG-S4/);
   expect(await names()).toEqual(["RG-S4"]);
   const card = page.locator('a[href*="auction=RG-S4"]').first();

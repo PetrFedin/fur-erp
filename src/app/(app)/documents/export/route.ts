@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(request.url);
-  const filters = parseCovFilters(Object.fromEntries(url.searchParams));
+  const params: Record<string, string[]> = {};
+  for (const [k, v] of url.searchParams) (params[k] ??= []).push(v);
+  const filters = parseCovFilters(params);
   const cov = await computeDocCoverage(prisma, session.user.organizationId);
   const rows = filterCovRows(cov.rows, { ...filters, gaps: true });
 

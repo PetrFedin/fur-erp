@@ -6,7 +6,7 @@ import { formatMoney, formatQty, cn } from "@/lib/utils";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
-import { MultiFilter } from "@/components/multi-filter";
+import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
 import {
   FILTER_KEYS, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, parseFilters, rowsBy,
   type FilterKey, type FlowFigures, type FurFilters, type FurKind, type FurLot, type TableRow,
@@ -19,7 +19,7 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   year: { kind: { fur: "Год закупки", lining: "Год закупки" }, all: "Все годы" },
   color: { kind: { fur: "Цвет", lining: "Цвет" }, all: "Все цвета" },
   size: { kind: { fur: "Размер", lining: "Размер" }, all: "Все размеры" },
-  auction: { kind: { fur: "Партия закупки", lining: "Партия закупки" }, all: "Все партии" },
+  auction: { kind: { fur: "Партия закупки (аукцион)", lining: "Партия закупки (аукцион)" }, all: "Все партии" },
   rest: { kind: { fur: "Остаток", lining: "Остаток" }, all: "Любой" },
 };
 
@@ -36,12 +36,15 @@ export function FurSelectionTotal({
   kind = "fur",
   globalYear = "all",
   initialQuery = {},
+  barFooter,
 }: {
   lots: FurLot[];
   kind?: FurKind;
   /** Общий год из шапки (cookie yearFilter): лоты уже отфильтрованы им; локальный «Год закупки» сужает внутри. */
   globalYear?: string;
   initialQuery?: Record<string, string | string[] | undefined>;
+  /** Блок под чипами панели фильтров (быстрые ссылки на партии закупки). */
+  barFooter?: ReactNode;
 }) {
   const unit = kind === "lining" ? "м" : "шт.";
   const unitWord = kind === "lining" ? "метр" : "шкуру";
@@ -50,11 +53,15 @@ export function FurSelectionTotal({
   const mode = useMemo(() => ({ vat, c4 }), [vat, c4]);
 
   const [filters, setFilters] = useState<FurFilters>(() => parseFilters(initialQuery, kind));
+  // Поиск по № лота, материалу, цвету, сорту — тоже здесь (лоты загружены целиком): параметр q, старое dq читается.
+  const [q, setQ] = useState(() => {
+    const v = initialQuery.q ?? initialQuery.dq;
+    return (Array.isArray(v) ? v[0] : v ?? "").trim().slice(0, 100);
+  });
   const [selected, setSelected] = useState<string[]>([]);
   const [onlySelected, setOnlySelected] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<ViewMode>("all");
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Состояние фильтров — в адресной строке (повтор параметров: fur=a&fur=b), без перезагрузки страницы.
   const first = useRef(true);
@@ -66,19 +73,26 @@ export function FurSelectionTotal({
     try {
       const url = new URL(window.location.href);
       for (const n of allParamNames(kind)) url.searchParams.delete(n);
+      for (const n of ["q", "dq"]) url.searchParams.delete(n);
       for (const [k, v] of filtersToEntries(filters, kind)) url.searchParams.append(k, v);
+      if (q.trim()) url.searchParams.set("q", q.trim());
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     } catch {
       /* адресная строка недоступна — фильтры работают и без неё */
     }
-  }, [filters, kind]);
+  }, [filters, kind, q]);
 
-  const table = useMemo(() => buildFurTable({ lots, filters, selected, onlySelected, mode }), [lots, filters, selected, onlySelected, mode]);
-  const options = useMemo(
-    () => Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(lots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>,
-    [lots, filters],
+  const needle = q.trim().toLowerCase();
+  const baseLots = useMemo(
+    () => (needle ? lots.filter((l) => [l.lotNumber, l.materialName, l.item, l.color, l.size, l.grade].some((x) => (x ?? "").toLowerCase().includes(needle))) : lots),
+    [lots, needle],
   );
-  const shownKeys: FilterKey[] = kind === "lining" ? ["item", "year", "auction", "rest"] : ["item", "year", "color", "size", "auction", "rest"];
+  const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
+  const options = useMemo(
+    () => Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>,
+    [baseLots, filters],
+  );
+  const shownKeys: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest"] : ["auction", "item", "year", "color", "size", "rest"];
 
   const setFilter = (k: FilterKey, v: string[]) => setFilters((f) => ({ ...f, [k]: v }));
   const toggleSel = (key: string) => setSelected((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]));
@@ -101,7 +115,6 @@ export function FurSelectionTotal({
   const usdNote = kind === "fur" && t.usdAvg != null ? `$${t.usdAvg.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}` : null;
   const vatWord = vat === "excl" ? "без НДС" : "с НДС";
   const c4Word = c4 === "on" ? "с 4%" : "без 4%";
-  const activeCount = FILTER_KEYS.reduce((n, k) => n + filters[k].length, 0);
 
   const showQty = view !== "money";
   const showMoney = view !== "qty";
@@ -253,61 +266,36 @@ export function FurSelectionTotal({
     );
   };
 
-  const filterBar = (
-    <div className="flex flex-wrap items-stretch gap-2 lg:flex-nowrap">
-      {shownKeys.map((k, i) => (
-        <MultiFilter
-          key={k}
-          label={FILTER_LABELS[k].kind[kind]}
-          allLabel={FILTER_LABELS[k].all}
-          options={options[k]}
-          selected={filters[k]}
-          onChange={(v) => setFilter(k, v)}
-          align={i >= shownKeys.length - 2 ? "right" : "left"}
-          className="max-lg:flex-1 max-lg:basis-[calc(50%-0.25rem)] lg:flex-1"
-        />
-      ))}
-    </div>
-  );
+  // Фильтры таблицы — та же панель, что на остальных страницах (мгновенное применение, чипы, «Сбросить всё»);
+  // лоты загружены целиком, варианты каскадные, поэтому значения считаются здесь, а адрес обновляется без перезагрузки.
+  const controls: BarControl[] = [
+    ...shownKeys.map((k): BarControl => ({
+      type: "multi",
+      name: k,
+      label: FILTER_LABELS[k].kind[kind],
+      allLabel: FILTER_LABELS[k].all,
+      options: options[k],
+    })),
+    { type: "text", name: "q", label: "Поиск", placeholder: kind === "lining" ? "№ лота, ткань, цвет, сорт" : "№ лота, материал, цвет, сорт" },
+  ];
 
   return (
     <div className="space-y-3">
-      <section className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-2.5">
-        <button
-          type="button"
-          onClick={() => setFiltersOpen((v) => !v)}
-          aria-expanded={filtersOpen}
-          className="flex h-10 w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium md:hidden"
-        >
-          <span>Фильтры{activeCount > 0 ? ` · ${activeCount}` : ""}</span>
-          <span aria-hidden className={cn("text-neutral-400 transition-transform", filtersOpen && "rotate-180")}>⌄</span>
-        </button>
-        <div className={cn("md:block", filtersOpen ? "mt-2 block" : "hidden")}>{filterBar}</div>
-        {hasFilters(filters) && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-            {FILTER_KEYS.flatMap((k) =>
-              filters[k].map((v) => {
-                const label = options[k].find((o) => o.value === v)?.label ?? v;
-                return (
-                  <button
-                    key={k + v}
-                    type="button"
-                    onClick={() => setFilter(k, filters[k].filter((x) => x !== v))}
-                    className="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-1 hover:border-neutral-500"
-                    title="Снять фильтр"
-                  >
-                    <span className="text-neutral-400">{FILTER_LABELS[k].kind[kind]}:</span> {label} <span aria-hidden className="text-neutral-400">×</span>
-                  </button>
-                );
-              }),
-            )}
-            <button type="button" onClick={() => setFilters(emptyFilters())} className="ml-1 font-medium text-neutral-600 underline">Сбросить всё</button>
-          </div>
-        )}
-        <p className="mt-2 text-[11px] leading-4 text-neutral-500">
-          «Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: {globalYear === "all" ? "все годы" : `${globalYear} год`}); число у пункта — лотов.
-        </p>
-      </section>
+      <LocalFilterBar
+        title={kind === "lining" ? "Фильтры подкладки" : "Фильтры меха"}
+        controls={controls}
+        values={{ ...filters, q: q ? [q] : [] }}
+        onChange={(name, v) => (name === "q" ? setQ(v[0] ?? "") : setFilter(name as FilterKey, v))}
+        onReset={() => { setFilters(emptyFilters()); setQ(""); }}
+        footer={
+          <>
+            {barFooter}
+            <p className="mt-2 text-[11px] leading-4 text-neutral-500">
+              «Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: {globalYear === "all" ? "все годы" : `${globalYear} год`}); число у пункта — лотов.
+            </p>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
         <span>
@@ -362,7 +350,7 @@ export function FurSelectionTotal({
             <tr data-total className="border-t border-neutral-200 bg-neutral-100/70 text-[15px] font-semibold">
               <td className="sticky left-0 z-10 bg-neutral-100 px-3 py-2.5 text-left font-semibold">
                 {table.totalOf === "selected" ? `Итого выбранное (${selectedHere} из ${allVisible.length})` : `Итого (${table.rows.length} ${kind === "lining" ? "ткан." : "вид."})`}
-                <div className="text-[11px] font-normal text-neutral-500">{table.total.lots} лот.{hasFilters(filters) ? " · по фильтрам" : ""} · {vatWord}</div>
+                <div className="text-[11px] font-normal text-neutral-500">{table.total.lots} лот.{hasFilters(filters) || needle ? " · по фильтрам" : ""} · {vatWord}</div>
               </td>
               {cells(t, { strong: true, altUsed: true })}
             </tr>

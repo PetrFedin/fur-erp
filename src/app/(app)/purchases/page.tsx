@@ -8,12 +8,15 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
+import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
-import { FilterField, FilterPanel } from "@/components/filter-panel";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { activeCount, defineFilters, filterHref, parseFilters, pick, toWhere, dateRange } from "@/lib/filters";
+import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
-import { cleanSearch, parseDateInput, escapeLike } from "@/lib/input";
+import { escapeLike } from "@/lib/input";
 import { getYearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
@@ -32,45 +35,82 @@ function statusView(status: string): { label: string; variant: "default" | "succ
 
 export const metadata = { title: "Закупки" };
 
+const PURCHASE_FILTERS = defineFilters({
+  ...pick(["auction", "status", "supplier", "fur", "verified", "vat", "pyear", "q", "from", "to"], {
+    status: { allowed: ["DRAFT", "RECEIVED", "CANCELLED"] },
+    verified: { allowed: ["yes", "no"], label: "Подтверждение" },
+    vat: { label: "НДС" },
+  }),
+});
+const STATUS_OPTIONS = [
+  { value: "DRAFT", label: "Черновик" },
+  { value: "RECEIVED", label: "Принято на склад" },
+  { value: "CANCELLED", label: "Отменено" },
+];
+const VERIFIED_OPTIONS = [
+  { value: "yes", label: "Подтверждено" },
+  { value: "no", label: "Ждёт проверки" },
+];
+const VAT_OPTIONS = [
+  { value: "20", label: "Только 20%" },
+  { value: "22", label: "Только 22%" },
+  { value: "mixed", label: "Смешанные (20% и 22%)" },
+];
+
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
   const sp = await searchParams;
   const year = await getYearFilter();
   const canCreate = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
-  const auction = cleanSearch(sp.auction);
-  const q = cleanSearch(sp.q);
+  const orgId = session.user.organizationId;
+  const f = parseFilters(PURCHASE_FILTERS, sp);
   const PAGE = 50;
-  const limitRaw = Number(typeof sp.limit === "string" ? sp.limit : PAGE);
+  const limitRaw = Number(f.limit || PAGE);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
-  const statusParam = typeof sp.status === "string" ? sp.status : "";
-  const status = ["DRAFT", "RECEIVED", "CANCELLED"].includes(statusParam) ? statusParam : "";
-  const dateStr = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && parseDateInput(v) ? v : "");
-  const from = dateStr(sp.from);
-  const to = dateStr(sp.to);
+  const filtersOn = activeCount(PURCHASE_FILTERS, f) > 0;
+
+  // Партия закупки: точное название (как в списке) либо — для старых ссылок — вхождение в название; none — «Без аукциона».
+  const auctionIds = f.auction.length ? await purchaseIdsByAuction(orgId, f.auction) : null;
+  // Вид меха: закупки с позицией, чей материал относится к выбранному виду.
+  const furMaterialIds = f.fur.length ? await furMaterialIdsByKind(orgId, f.fur) : [];
+  const vatKinds = new Set(f.vat.map((v) => (v === "mix" ? "mixed" : v)));
+  const vatWhere = (k: string): Prisma.PurchaseWhereInput =>
+    k === "mixed"
+      ? { AND: [{ items: { some: { vatRate: 20 } } }, { items: { some: { vatRate: 22 } } }] }
+      : { items: { some: { vatRate: Number(k) } }, NOT: { items: { some: { vatRate: { not: Number(k) } } } } };
+  const where: Prisma.PurchaseWhereInput = {
+    organizationId: orgId,
+    AND: [
+      // Общий год — по дате заказа закупки (дальше сужают «год закупки» и «с / по»).
+      purchaseYear(year),
+      ...toWhere<typeof f, Prisma.PurchaseWhereInput>(f, {
+        // Two states in the UI: everything not received/cancelled is a draft.
+        status: (v) => ({
+          OR: v.map((x) =>
+            x === "RECEIVED" ? { status: "RECEIVED" as const } : x === "CANCELLED" ? { status: "CANCELLED" as const } : { status: { notIn: ["RECEIVED" as const, "CANCELLED" as const] } },
+          ),
+        }),
+        supplier: (v) => ({ supplierId: { in: v } }),
+        auction: () => ({ id: { in: auctionIds ?? [] } }),
+        fur: () => ({ items: { some: { rawMaterialId: { in: furMaterialIds.length ? furMaterialIds : ["__none"] } } } }),
+        verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
+        vat: () => ({ OR: [...vatKinds].filter((k) => ["20", "22", "mixed"].includes(k)).map(vatWhere) }),
+        pyear: (v) => ({ OR: v.map((y) => ({ orderDate: { gte: new Date(Date.UTC(Number(y), 0, 1)), lt: new Date(Date.UTC(Number(y) + 1, 0, 1)) } })) }),
+        from: () => ({ orderDate: dateRange(f.from, f.to) }),
+        to: () => (f.from ? undefined : { orderDate: dateRange(f.from, f.to) }),
+        q: (q) => ({
+          OR: [
+            { number: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { invoiceNumber: { contains: escapeLike(q), mode: "insensitive" as const } },
+            { supplier: { name: { contains: escapeLike(q), mode: "insensitive" as const } } },
+            { items: { some: { lotNumber: { contains: escapeLike(q), mode: "insensitive" as const } } } },
+          ],
+        }),
+      }),
+    ],
+  };
   const purchases = await prisma.purchase.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      // Общий год — по дате заказа закупки (вместе с «с / по», если они заданы).
-      AND: [purchaseYear(year)],
-      // Two states in the UI: everything not received/cancelled is a draft.
-      ...(status === "RECEIVED" ? { status: "RECEIVED" as const } : {}),
-      ...(status === "CANCELLED" ? { status: "CANCELLED" as const } : {}),
-      ...(status === "DRAFT" ? { status: { notIn: ["RECEIVED" as const, "CANCELLED" as const] } } : {}),
-      ...(from || to
-        ? { orderDate: { ...(from ? { gte: new Date(from) } : {}), ...(to ? { lte: new Date(`${to}T23:59:59.999Z`) } : {}) } }
-        : {}),
-      ...(auction ? { auctionSession: { contains: escapeLike(auction), mode: "insensitive" as const } } : {}),
-      ...(q
-        ? {
-            OR: [
-              { number: { contains: escapeLike(q), mode: "insensitive" as const } },
-              { invoiceNumber: { contains: escapeLike(q), mode: "insensitive" as const } },
-              { supplier: { name: { contains: escapeLike(q), mode: "insensitive" as const } } },
-              { items: { some: { lotNumber: { contains: escapeLike(q), mode: "insensitive" as const } } } },
-            ],
-          }
-        : {}),
-    },
+    where,
     include: {
       supplier: true,
       items: { include: { rawMaterial: true } },
@@ -83,13 +123,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   });
   const hasMore = purchases.length > limit;
   if (hasMore) purchases.length = limit;
-  const moreParams = new URLSearchParams();
-  if (q) moreParams.set("q", q);
-  if (auction) moreParams.set("auction", auction);
-  if (status) moreParams.set("status", status);
-  if (from) moreParams.set("from", from);
-  if (to) moreParams.set("to", to);
-  moreParams.set("limit", String(limit + PAGE));
+  const moreHref = filterHref(PURCHASE_FILTERS, "/purchases", f, { limit: String(limit + PAGE) });
 
   // Оплаты по закупкам с аукционом ведутся по аукциону целиком — «оплачено» берём оттуда.
   const pageAuctionNames = [...new Set(purchases.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
@@ -97,14 +131,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     (pageAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, pageAuctionNames) : []).map((a) => [a.name, a]),
   );
 
-  const sessions = await prisma.purchase.findMany({
-    where: { organizationId: session.user.organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
-    select: { auctionSession: true },
-    distinct: ["auctionSession"],
-    orderBy: { auctionSession: "asc" },
-  });
-  const auctionOptions = sessions.map((x) => firstLine(x.auctionSession)).filter((v, i, arr) => v && arr.indexOf(v) === i)
-    .sort((x, y) => Number(isServiceAuction(x)) - Number(isServiceAuction(y)));
+  const opts = await getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur"]);
 
   const live = purchases.filter((p) => p.status !== "CANCELLED");
   const sumIncl = live.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
@@ -143,60 +170,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </div>
       </div>
 
-      <FilterPanel title="Фильтры закупок" applied={Boolean(q || auction || status || from || to)}>
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <FilterField label="Поиск">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="№ закупки, счёт, поставщик, лот"
-            aria-label="Поиск по закупкам"
-            className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-          />
-        </FilterField>
-        <FilterField label="Партия закупки">
-          <input
-            name="auction"
-            defaultValue={auction}
-            placeholder="название партии / аукциона"
-            list="auction-sessions"
-            className="h-9 w-64 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-          />
-        </FilterField>
-        <datalist id="auction-sessions">
-          {auctionOptions.map((a) => (
-            <option key={a} value={a} />
-          ))}
-        </datalist>
-        <FilterField label="Статус">
-          <select
-            name="status"
-            defaultValue={status}
-            aria-label="Статус"
-            className="h-9 rounded-md border border-neutral-300 bg-white px-3 text-sm shadow-sm"
-          >
-            <option value="">Все статусы</option>
-            <option value="DRAFT">Черновик</option>
-            <option value="RECEIVED">Принято на склад</option>
-            <option value="CANCELLED">Отменено</option>
-          </select>
-        </FilterField>
-        <FilterField label="Дата с">
-          <input type="date" name="from" defaultValue={from} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm" />
-        </FilterField>
-        <FilterField label="Дата по">
-          <input type="date" name="to" defaultValue={to} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm" />
-        </FilterField>
-        <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
-          Найти
-        </button>
-        {(q || auction || status || from || to) && (
-          <Link href="/purchases" className="text-sm text-neutral-500 hover:underline">
-            Сбросить
-          </Link>
-        )}
-      </form>
-      </FilterPanel>
+      <FilterBar
+        title="Фильтры закупок"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
+          { type: "multi", name: "auction", label: "Партия закупки", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
+          { type: "multi", name: "status", label: "Статус", options: STATUS_OPTIONS, allLabel: "Все статусы" },
+          { type: "multi", name: "supplier", label: "Поставщик", options: opts.supplier },
+          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
+          { type: "multi", name: "verified", label: "Подтверждение", options: VERIFIED_OPTIONS, allLabel: "Любое" },
+          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка" },
+          { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
+          { type: "date", name: "from", label: "Дата с" },
+          { type: "date", name: "to", label: "Дата по" },
+        ]}
+      />
 
       <ResponsiveRows
         table={
@@ -267,7 +255,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           {purchases.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-400">
-                {q || auction || status || from || to ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
+                {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
               </Td>
             </Tr>
           )}
@@ -314,13 +302,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         })}
         {purchases.length === 0 && (
           <p className="py-8 text-center text-neutral-400">
-            {q || auction || status || from || to ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
+            {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
           </p>
         )}
       </ResponsiveRows>
       {hasMore && (
         <div className="flex justify-center">
-          <Link href={`/purchases?${moreParams.toString()}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
             Показать ещё {PAGE}
           </Link>
         </div>

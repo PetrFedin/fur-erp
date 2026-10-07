@@ -122,39 +122,48 @@ export async function AuctionView({
   names,
   label,
   q,
-  materialId,
+  materialIds,
+  pyear = [],
   canEdit,
   view = "invoices",
 }: {
   organizationId: string;
   /** Названия аукционов, подходящих под фильтр (точное совпадение, иначе — вхождение в название). */
   names: string[];
+  /** Подпись в заголовке: название аукциона либо «N партий закупки». */
   label: string;
   q: string;
-  materialId: string;
+  /** Материалы (id), по которым сужены лоты. */
+  materialIds: string[];
+  /** Год закупки (локальный фильтр внутри общего года шапки). */
+  pyear?: string[];
   canEdit: boolean;
   /** Вид: «По счетам» (сворачиваемые блоки) или «Списком лотов» (плоская таблица) */
   view?: "invoices" | "lots";
 }) {
   const flat = view === "lots";
   const viewHref = (v: "invoices" | "lots") => {
-    const qs = new URLSearchParams({ auction: label });
+    const qs = new URLSearchParams();
+    for (const n of names) qs.append("auction", n);
     if (q) qs.set("q", q);
-    if (materialId) qs.set("material", materialId);
+    for (const m of materialIds) qs.append("material", m);
+    for (const y of pyear) qs.append("pyear", y);
     if (v === "lots") qs.set("view", "lots");
     return `/lots?${qs.toString()}`;
   };
-  const filtering = Boolean(q || materialId);
+  const filtering = Boolean(q || materialIds.length);
   const year = await getYearFilter();
   // Закупки аукциона: ищем по первой строке auctionSession; год — по дате заказа закупки (общий фильтр).
   const candidates = await prisma.purchase.findMany({
     where: { organizationId, auctionSession: { not: null }, ...purchaseYear(year) },
-    select: { id: true, auctionSession: true },
+    select: { id: true, auctionSession: true, orderDate: true },
   });
-  const ids = candidates.filter((p) => names.includes(auctionName(p.auctionSession) ?? "")).map((p) => p.id);
+  const ids = candidates
+    .filter((p) => names.includes(auctionName(p.auctionSession) ?? "") && (pyear.length === 0 || pyear.includes(String(p.orderDate.getUTCFullYear()))))
+    .map((p) => p.id);
 
   const itemWhere = {
-    rawMaterial: { unit: { not: "M" as const }, ...(materialId ? { id: materialId } : {}) },
+    rawMaterial: { unit: { not: "M" as const }, ...(materialIds.length ? { id: { in: materialIds } } : {}) },
     ...(q
       ? {
           OR: [
@@ -335,7 +344,7 @@ export async function AuctionView({
       <Card>
         <CardHeader>
           <CardTitle title={label}>
-            {isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
+            {names.length > 1 ? `Партии закупки: ${names.length}` : isServiceAuction(label) ? NO_AUCTION_LABEL : `Аукцион: ${shortAuctionName(label, 70)}`}
             <YearNote year={year} />
             <InfoHint label="Об этом аукционе" wide>
               <p>Выбранный аукцион: счета, лоты, документы и расчёт цены.</p>

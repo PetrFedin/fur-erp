@@ -17,11 +17,25 @@ import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { lotYear, orderYearOf, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { FurSelectionTotal } from "@/components/fur-selection-total";
-import { loadFurLots } from "@/lib/fur-table-server";
+import { loadControlCounts } from "@/lib/control-counts";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { canonicalFur } from "@/lib/fur-ref";
 import { ProductionCostTotal } from "@/components/production-cost-total";
+import type { Prisma } from "@prisma/client";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
+import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
+
+const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запланирован", IN_PROGRESS: "В работе", COMPLETED: "Завершён", CANCELLED: "Отменён" };
+
+// Фильтры Сводки (год — общий, из шапки). Значения берутся тем же способом, что в «Закупках», «Сырье» и «ТЗ».
+const DASH_FILTERS = defineFilters({
+  ...pick(["auction", "fur", "color", "batch", "client", "status", "vat"], {
+    status: { allowed: Object.keys(ORDER_STATUS_LABELS) },
+    batch: { pattern: /^(\d{1,6}|none)$/ },
+    vat: { allowed: ["20", "22"] },
+  }),
+});
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -32,6 +46,7 @@ const UNIT_LABELS: Record<string, string> = {
 };
 
 export const metadata = { title: "Сводка" };
+
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
@@ -45,6 +60,51 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const range = yearRange(year);
   const furIdx = await getFurIndex(organizationId);
 
+  // ── Фильтры панели ──
+  const f = parseFilters(DASH_FILTERS, sp);
+  const clientSel = splitNone(f.client);
+  const batchSel = splitNone(f.batch);
+  const colorSel = splitNone(f.color);
+  const lotFiltersOn = Boolean(f.auction.length || f.fur.length || f.color.length || f.vat.length);
+  const orderFiltersOn = lotFiltersOn || Boolean(f.client.length || f.status.length || f.batch.length);
+  const filtersOn = orderFiltersOn;
+  const [auctionPurchaseIds, furMaterialIds, opts] = await Promise.all([
+    f.auction.length ? purchaseIdsByAuction(organizationId, f.auction) : Promise.resolve(null),
+    f.fur.length ? furMaterialIdsByKind(organizationId, f.fur) : Promise.resolve(null),
+    getFilterOptions(organizationId, year, ["auction", "fur", "color", "batch", "client"]),
+  ]);
+  const NONE_ID = ["__none"];
+  // Лот подходит: партия закупки, вид меха, цвет лота, ставка НДС лота.
+  const lotWhere: Prisma.RawMaterialLotWhereInput = {
+    ...(auctionPurchaseIds ? { purchaseId: { in: auctionPurchaseIds.length ? auctionPurchaseIds : NONE_ID } } : {}),
+    ...(furMaterialIds ? { rawMaterialId: { in: furMaterialIds.length ? furMaterialIds : NONE_ID } } : {}),
+    ...(f.color.length ? { OR: [...(colorSel.rest.length ? [{ colorRef: { name: { in: colorSel.rest } } }, { colorRefId: null, color: { in: colorSel.rest } }] : []), ...(colorSel.none ? [{ colorRefId: null, color: null }] : [])] } : {}),
+    ...(f.vat.length ? { vatRate: { in: f.vat.map(Number) } } : {}),
+  };
+  // ТЗ подходит: заказчик, статус, партия производства; а при фильтрах по сырью — списан хотя бы один подходящий лот.
+  const batchNums = batchSel.rest.map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  const orderExtra: Prisma.ProductionOrderWhereInput = {
+    ...(f.client.length ? { OR: [...(clientSel.rest.length ? [{ clientId: { in: clientSel.rest } }] : []), ...(clientSel.none ? [{ clientId: null }] : [])] } : {}),
+    ...(f.status.length ? { status: { in: f.status as Array<"PLANNED"> } } : {}),
+    ...(f.batch.length ? { AND: [{ OR: [...(batchNums.length ? [{ batch: { number: { in: batchNums } } }] : []), ...(batchSel.none ? [{ batchId: null }] : [])] }] } : {}),
+    ...(lotFiltersOn ? { materialUsages: { some: { lot: lotWhere } } } : {}),
+  };
+  // Закупки: партия закупки — по названию; вид меха, цвет и ставка — закупки, в которых есть такая позиция.
+  const purchaseExtra: Prisma.PurchaseWhereInput = {
+    ...(auctionPurchaseIds ? { id: { in: auctionPurchaseIds.length ? auctionPurchaseIds : NONE_ID } } : {}),
+    ...(f.fur.length || f.color.length || f.vat.length
+      ? {
+          items: {
+            some: {
+              ...(furMaterialIds ? { rawMaterialId: { in: furMaterialIds.length ? furMaterialIds : NONE_ID } } : {}),
+              ...(f.vat.length ? { vatRate: { in: f.vat.map(Number) } } : {}),
+              ...(f.color.length ? { OR: [...(colorSel.rest.length ? [{ colorRef: { name: { in: colorSel.rest } } }, { colorRefId: null, color: { in: colorSel.rest } }] : []), ...(colorSel.none ? [{ colorRefId: null, color: null }] : [])] } : {}),
+            },
+          },
+        }
+      : {}),
+  };
+
   const [
     allPurchases,
     supplierDebt,
@@ -57,26 +117,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     annualProductionOrders,
     clientOrders,
     clientPaymentsAll,
-    furLotsTable,
-    liningLotsTable,
+    controlCounts,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
-      where: { organizationId, status: { not: "CANCELLED" }, ...(range ? { orderDate: range } : {}) },
+      where: { organizationId, status: { not: "CANCELLED" }, ...(range ? { orderDate: range } : {}), ...purchaseExtra },
       include: { items: true, expenses: true },
     }),
     // Единый расчёт «Долга поставщику» (то же число — везде, см. src/lib/supplier-debt.ts).
     loadSupplierDebt(prisma, organizationId, year),
     prisma.rawMaterialLot.findMany({
-      where: { organizationId, quantityRemaining: { gt: 0 }, ...lotYear(year) },
+      where: { organizationId, quantityRemaining: { gt: 0 }, ...lotYear(year), ...lotWhere },
       include: { rawMaterial: true },
     }),
     prisma.rawMaterialLot.findMany({
-      where: { organizationId, ...lotYear(year) },
+      where: { organizationId, ...lotYear(year), ...lotWhere },
       select: { id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, rawMaterial: { select: { unit: true } } },
     }),
     prisma.productionMaterialUsage.findMany({
-      where: { productionOrder: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) } },
+      where: { productionOrder: { organizationId, ...(f.status.length ? {} : { status: { not: "CANCELLED" as const } }), AND: [orderYearWhere(year), orderExtra] }, ...(lotFiltersOn ? { lot: lotWhere } : {}) },
       select: {
         quantity: true,
         totalCost: true,
@@ -86,7 +145,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       },
     }),
     prisma.productionOrder.findMany({
-      where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
+      where: { organizationId, ...(f.status.length ? {} : { status: { not: "CANCELLED" as const } }), AND: [orderYearWhere(year), orderExtra] },
       select: {
         id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
         materialCost: true, expenseCost: true, totalCost: true,
@@ -115,22 +174,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     // ТЗ производства под заказчика (давальческая схема) — заказы без
     // clientId — это собственное производство, не подлежит взысканию.
     prisma.productionOrder.findMany({
-      where: { organizationId, clientId: { not: null }, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
+      where: { organizationId, AND: [{ clientId: { not: null } }, orderExtra, orderYearWhere(year)], ...(f.status.length ? {} : { status: { not: "CANCELLED" as const } }) },
       include: { client: true },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId },
       include: { orders: { select: { productionOrderId: true } } },
     }),
-    // Таблицы «Мех» и «Подкладка»: лоты за общий год; расчёт — src/lib/fur-table.ts (тот же, что на /lots и в аналитике).
-    loadFurLots(prisma, organizationId, { kind: "fur", year, furIdx }),
-    loadFurLots(prisma, organizationId, { kind: "lining", year, furIdx }),
+    // «Задачи N»: то же число, что в «Контроле» (одна функция на все страницы).
+    loadControlCounts(organizationId, year).catch(() => null),
   ]);
   // Оплаты заказчиков года: привязанные к ТЗ года; без ТЗ — по дате оплаты.
   const yearOrderIds = new Set(clientOrders.map((o) => o.id));
-  const clientPayments = clientPaymentsAll.filter((p) =>
-    year === "all" ? true : p.orders.length > 0 ? p.orders.some((l) => yearOrderIds.has(l.productionOrderId)) : inYear(p.paidAt, year),
-  );
+  const clientPayments = clientPaymentsAll.filter((p) => {
+    if (f.client.length && !(p.clientId && clientSel.rest.includes(p.clientId))) return false;
+    if (p.orders.length > 0) return year === "all" && !orderFiltersOn ? true : p.orders.some((l) => yearOrderIds.has(l.productionOrderId));
+    return year === "all" ? true : inYear(p.paidAt, year);
+  });
+
 
   // Raw + finished stock value
   const rawStockValue = lowStockMaterials.reduce(
@@ -206,6 +267,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   // Тотал по меховому сырью: только физически принятые лоты, подкладка отдельно.
   const rawRemainingQty = allLots.filter((l) => l.rawMaterial.unit !== "M").reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+  const liningRemainingQty = allLots.filter((l) => l.rawMaterial.unit === "M").reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
 
   const furUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit === "M");
@@ -266,11 +328,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Сводка{year !== "all" ? <span className="ml-2 text-sm font-normal text-neutral-500">· {yl}</span> : null}</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/purchases" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Закупки</Link>
-          <Link href="/lots" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Сырьё</Link>
-          <Link href="/production" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Производство</Link>
-        </div>
       </div>
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
@@ -278,59 +335,82 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       )}
 
+      <FilterBar
+        title="Фильтры сводки"
+        controls={[
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, allLabel: "Все партии" },
+          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
+          { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", noneLabel: "Без цвета" },
+          { type: "multi", name: "batch", label: "Партия производства", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
+          { type: "multi", name: "client", label: "Заказчик", options: opts.client, noneLabel: "Без заказчика", allLabel: "Все заказчики" },
+          { type: "multi", name: "status", label: "Статус ТЗ", options: Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })), allLabel: "Все статусы" },
+          { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая", hint: "Ставка НДС лота" },
+        ]}
+        footer={
+          <p className="mt-2 flex flex-wrap items-center gap-1 text-[11px] leading-4 text-neutral-500">
+            Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).
+            {filtersOn
+              ? " Фильтры сужают: «Закуплено», «Склад», «Выпущено», стоимость выпуска и «Долг заказчиков»; не зависят от них: «Долг поставщику», «Задачи» и «Динамика по годам»."
+              : " Фильтры сужают плитки «Закуплено», «Склад», «Выпущено», стоимость выпуска и «Долг заказчиков»."}
+            <InfoHint label="Что фильтруется на Сводке" wide>
+              <p>Партия закупки, вид меха, цвет и ставка НДС отбирают лоты (склад, списания) и закупки, в которых есть такая позиция. Заказчик, статус и партия производства отбирают ТЗ. Ставка НДС — ставка лота.</p>
+              <p className="mt-1">«Долг поставщику» (считается по закупкам и оплатам года), «Задачи» (как в «Контроле») и «Динамика по годам» от фильтров не зависят.</p>
+            </InfoHint>
+          </p>
+        }
+      />
+
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">Executive overview</div>
-          <h2 className="mt-1 text-base font-semibold">Капитал, обязательства, склад и выпуск</h2>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">Ключевые показатели</div>
+          <h2 className="mt-1 text-base font-semibold">Закуплено, долги, склад, выпуск и задачи</h2>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
           <KpiCard
-            label="Закуплено сырья"
+            label="Закуплено"
             value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
             extra={`${allPurchases.length} закупок · ${yl}`}
             href="/purchases"
           />
           <KpiCard
-            label="Выплачено поставщику"
-            value={<CompactMoney incl={supplierCashPaid.toString()} />}
-            extra={supplierDebt.unlinkedAdvances.greaterThan(0) ? `в т.ч. авансы без привязки ${formatMoney(supplierDebt.unlinkedAdvances.toString())}` : "все выплаты привязаны"}
-            href="/payments"
-          />
-          <KpiCard
             label={<InclVatOnlyLabel base="Долг поставщику" />}
+            hint={<SupplierDebtHint debt={supplierDebt} year={year} />}
             value={<CompactMoney incl={supplierDebt.debt.toString()} />}
-            extra={`получено к оплате ${formatMoney(supplierDebt.receivedNet.toString())}`}
+            extra={`выплачено ${formatMoney(supplierCashPaid.toString())} · к оплате по УПД ${formatMoney(supplierDebt.receivedNet.toString())} · не зависит от фильтров`}
             warn={supplierDebt.debt.greaterThan(0)}
             href="/payments"
           />
           <KpiCard
-            label="Сырьё на складе"
+            label="Склад"
             value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
-            extra={`${formatQty(rawRemainingQty.toString())} ед. меха + подкладка`}
+            extra={`мех ${formatQty(rawRemainingQty.toString())} шт. · подкладка ${formatQty(liningRemainingQty.toString())} м`}
             href="/lots"
           />
           <KpiCard
-            label="Сырьё в производстве / изделиях"
-            value={<CompactMoney incl={rawInGoodsValue.add(liningInGoodsValue).toString()} />}
-            extra={`${formatQty(rawInGoodsQty.toString())} шт. меха списано в ТЗ`}
-            href="/production"
-          />
-          <KpiCard
-            label="Произведено изделий"
+            label="Выпущено"
             value={`${formatQty(producedGoodsQty.toString())} шт.`}
-            extra={`стоимость по текущей модели ${formatMoney(producedGoodsTotalCost.toString())}`}
+            extra={`средняя стоимость ${formatMoney(producedGoodsAverageCost.toString())} · сырьё + работа по ТЗ`}
             href="/production"
-          />
-          <KpiCard
-            label="Средняя стоимость изделия"
-            value={<CompactMoney incl={producedGoodsAverageCost.toString()} />}
-            extra="сырьё + стоимость работ по ТЗ"
           />
           <KpiCard
             label={<InclVatOnlyLabel base="Долг заказчиков" />}
             value={<CompactMoney incl={clientDebtTotal.toString()} />}
             extra={`работы ${formatMoney(clientBillableTotal.toString())} · оплачено ${formatMoney(clientPaidTotal.toString())}`}
             warn={clientDebtTotal.greaterThan(0)}
+            href="#client-debt"
+          />
+          <KpiCard
+            label={
+              <>
+                Задачи
+                <InfoHint label="Задачи и фильтры">Число задач — как в «Контроле»; от фильтров Сводки не зависит.</InfoHint>
+              </>
+            }
+            value={controlCounts ? String(controlCounts.tasks) : "—"}
+            extra={controlCounts ? `ждёт проверки ${controlCounts.waiting} · не хватает документов ${controlCounts.docGaps}` : undefined}
+            warn={!!controlCounts && controlCounts.tasks > 0}
+            danger={!!controlCounts && controlCounts.urgent > 0}
+            href="/attention"
           />
         </div>
 
@@ -347,7 +427,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <details className="rounded-xl border border-neutral-200 bg-white">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium hover:bg-neutral-50">
             <span>Динамика по годам</span>
-            <span className="text-xs font-normal text-neutral-500">по умолчанию свернуто · {annualRows.length} года</span>
+            <span className="text-xs font-normal text-neutral-500">по умолчанию свернуто · {annualRows.length} года · не зависит от фильтров</span>
           </summary>
           <div className="overflow-x-auto border-t border-neutral-100">
             <Table>
@@ -369,165 +449,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </details>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Капитал · Обязательства</div>
-          <h2 className="mt-1 text-base font-semibold">Структура долга поставщику и будущих денежных обязательств</h2>
-        </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard
-          label={<InclVatOnlyLabel base="Долг поставщику" />}
-          hint={<SupplierDebtHint debt={supplierDebt} year={year} />}
-          value={<CompactMoney incl={supplierDebt.debt.toString()} />}
-          warn={supplierDebt.debt.greaterThan(0)}
-          href="/payments"
-        />
-        <KpiCard
-          label="К оплате по УПД и счетам"
-          hint={
-            <InfoHint wide label="К оплате по УПД и счетам">
-              <p>Мех получен, УПД есть, а оплаты не хватает: <b>{formatMoney(supplierDebt.receivedGross.toString())}</b>. Из неё вычтены авансы без привязки <b>{formatMoney(supplierDebt.unlinkedAdvances.toString())}</b> — остаётся <b>{formatMoney(supplierDebt.receivedNet.toString())}</b>.</p>
-              <p className="mt-2 text-neutral-500">Период: {yl}. Переключатель «С 4%» долг не меняет.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={supplierDebt.receivedNet.toString()} />}
-          warn={supplierDebt.receivedNet.greaterThan(0)}
-        />
-        <KpiCard
-          label="Счёт выставлен, не оплачен"
-          hint={
-            <InfoHint wide label="Счёт выставлен, не оплачен">
-              <p>Закупка ещё не получена (черновик), но Веллмех уже выставил счёт. Суммы счетов — из документов Drive.</p>
-              {supplierDebt.byAuction.filter((a) => a.dueInvoiced.greaterThan(0.5)).map((a) => (
-                <p key={a.name} className="mt-1">
-                  <b>{a.name}</b>: {formatMoney(a.dueInvoiced.toString())}
-                  {a.invoiceDocs ? <span className="text-neutral-500"> — {a.invoiceDocs}</span> : null}
-                </p>
-              ))}
-              <p className="mt-2 text-neutral-500">Период: {yl}. После оплаты или получения меха сумма уйдёт из этой строки.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={supplierDebt.invoiced.toString()} />}
-        />
-        <KpiCard
-          label="Ожидаемые закупки"
-          hint={
-            <InfoHint wide label="Ожидаемые закупки">
-              <p>Не получены и счёта на эту часть ещё нет — это не долг сегодня, а то, что придётся заплатить.</p>
-              {supplierDebt.byAuction.filter((a) => a.dueExpected.greaterThan(0.5)).map((a) => (
-                <p key={a.name} className="mt-1"><b>{a.name}</b>: {formatMoney(a.dueExpected.toString())}</p>
-              ))}
-              <p className="mt-2 text-neutral-500">Период: {yl}.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={supplierDebt.expected.toString()} />}
-        />
-      </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Операции · Сырьё и склад</div>
-            <h2 className="mt-1 text-base font-semibold">Физический поток сырья: куплено → использовано → остаток</h2>
+      <section aria-label="Подробнее в разделах" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Link href="/payments" className="rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50">
+          <div className="text-xs text-neutral-500">Долг и оплаты</div>
+          <div className="mt-1 text-sm text-neutral-800">
+            К оплате по УПД и счетам <b>{formatMoney(supplierDebt.receivedNet.toString())}</b> · счёт выставлен, не оплачен <b>{formatMoney(supplierDebt.invoiced.toString())}</b> · ожидаемые закупки <b>{formatMoney(supplierDebt.expected.toString())}</b>
           </div>
-          <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Мех
-              <InfoHint wide label="Мех">
-                <p>Куплено → использовано в ТЗ → остаток по видам меха. «Лиса красная» — это вид «Лиса», а «красная» — цвет (фильтр «Цвет»).</p>
-                <p className="mt-1">Клик по названию раскрывает строку до партий (аукционов) и лотов; галочка слева выбирает вид для тотала. Фильтры применяются сразу и хранятся в адресе страницы.</p>
-                <p className="mt-1">Средневзвешенная цена = Σ ₽ ÷ Σ шт. (отношение сумм). Переключатели «С НДС / Без НДС» и «С 4% / Без 4%» в шапке пересчитывают таблицу.</p>
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FurSelectionTotal lots={furLotsTable} kind="fur" globalYear={year} initialQuery={sp} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Подкладка
-              <InfoHint wide label="Подкладка">
-                <p>Подкладочные ткани — отдельно от меха, в метрах: куплено → использовано → остаток и средневзвешенные цены (Σ ₽ ÷ Σ м). Фильтры и раскрытие строк — как у меха.</p>
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FurSelectionTotal lots={liningLotsTable} kind="lining" globalYear={year} initialQuery={sp} />
-          </CardContent>
-        </Card>
+          <div className="mt-2 text-xs text-neutral-500">Остаток по аукционам, оплаты и авансы → Оплаты</div>
+        </Link>
+        <Link href="/lots" className="rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50">
+          <div className="text-xs text-neutral-500">Мех и подкладка</div>
+          <div className="mt-1 text-sm text-neutral-800">
+            Мех на складе <b>{formatQty(rawRemainingQty.toString())} шт.</b> · подкладка <b>{formatQty(liningRemainingQty.toString())} м</b> · в производстве {formatQty(rawInGoodsQty.toString())} шт. меха
+          </div>
+          <div className="mt-2 text-xs text-neutral-500">Куплено → использовано → остаток по видам и партиям → Сырьё</div>
+        </Link>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Контрагенты · Платёжная экспозиция</div>
-          <h2 className="mt-1 text-base font-semibold">Где сосредоточен остаток к оплате поставщику и задолженность заказчиков</h2>
-        </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <InclVatOnlyLabel base="Остаток по партиям закупки (аукционам)" />
-              <InfoHint wide label="Остаток по партиям закупки (аукционам)">
-                <p>Топ-5 партий закупки по остатку к оплате ({yl}). Названия нормализованы по документам: например, «Закупка меха 04-26» показывается как «РП 04-26». Служебная метка «Нет информации» больше не считается аукционом и попадает в блок «Без подтверждённой партии закупки».</p>
-              </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {supplierDebt.byAuction.length === 0 ? (
-              <p className="py-6 text-center text-sm text-neutral-400">Задолженностей нет</p>
-            ) : (
-              <>
-                <div className="flex flex-col gap-2">
-                  {supplierDebt.byAuction.slice(0, 5).map((a) => (
-                    <Link
-                      key={a.name}
-                      href={`/payments?auction=${encodeURIComponent(a.name)}#auction-block`}
-                      className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2 text-sm hover:bg-neutral-50"
-                    >
-                      <span>
-                        <span className="font-medium">{a.name}</span>
-                        <span className="block text-xs text-neutral-500">
-                          оплачено {formatMoney(a.paid.toString())} из {formatMoney(a.total.toString())}
-                          {a.dueInvoiced.greaterThan(0.5) || a.dueExpected.greaterThan(0.5)
-                            ? ` · ${a.dueReceived.greaterThan(0.5) ? "получен" : a.dueInvoiced.greaterThan(0.5) ? "счёт выставлен" : "ожидается"}`
-                            : ""}
-                        </span>
-                      </span>
-                      <span className="whitespace-nowrap font-semibold text-amber-600">{formatMoney(a.due.toString())}</span>
-                    </Link>
-                  ))}
-                </div>
-                {supplierDebt.byAuction.length > 5 && (
-                  <p className="mt-1 text-xs text-neutral-500">Ещё партий закупки с остатком: {supplierDebt.byAuction.length - 5}</p>
-                )}
-              </>
-            )}
-            {supplierDebt.nonAuctionDebt.greaterThan(0.5) ? (
-              <Link
-                href="/purchases?auction=%D0%9D%D0%B5%D1%82%20%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%B8"
-                className="mt-3 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm hover:bg-amber-100"
-              >
-                <span>
-                  <span className="font-medium text-amber-900">Без подтверждённой партии закупки</span>
-                  <span className="block text-xs text-amber-800/80">
-                    {supplierDebt.nonAuctionPurchases} закупок · сюда входят записи, где раньше стояла служебная метка «Нет информации»
-                  </span>
-                </span>
-                <span className="whitespace-nowrap font-semibold text-amber-900">{formatMoney(supplierDebt.nonAuctionDebt.toString())}</span>
-              </Link>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        {clientDebts.length > 0 && (
+      {clientDebts.length > 0 && (
+      <section id="client-debt" className="scroll-mt-4 space-y-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -569,9 +509,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </Table>
           </CardContent>
         </Card>
-        )}
-      </div>
       </section>
+      )}
 
     </div>
   );

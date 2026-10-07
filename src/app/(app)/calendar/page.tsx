@@ -13,7 +13,8 @@ import { loadFactLayer, type FactItem } from "@/lib/calendar-layers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { ProductionTabs } from "@/components/production-tabs";
 import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
@@ -21,6 +22,13 @@ import { toggleDone, deleteEvent } from "./actions";
 import { ConfirmButton } from "../plan/confirm-button";
 
 export const metadata = { title: "Производственный календарь" };
+
+// Фильтры календаря: сезон (код; ?season=<id> читается тоже), действие, артикул (q; старое article), факты. view, m, w — вид и навигация.
+const CAL_FILTERS = defineFilters({
+  ...pick(["season", "q"], { q: { label: "Артикул", aliases: ["article"], maxLen: 100 } }),
+  action: { kind: "multi", label: "Действие" },
+  layers: { kind: "single", label: "Факты", role: "state", allowed: ["0", "1"] },
+});
 
 type Ev = {
   id: string;
@@ -47,10 +55,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   if (!parseMonth(cleanSearch(sp.m, 7)) && year !== "all" && month.slice(0, 4) !== year) month = `${year}-01`;
   const weekStartParam = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.w, 10)) ? cleanSearch(sp.w, 10) : "";
   const weekStart = startOfWeek(weekStartParam || (today.startsWith(month) ? today : `${month}-01`));
-  const seasonF = cleanSearch(sp.season, 40);
-  const actionF = cleanSearch(sp.action, 60);
-  const articleF = cleanSearch(sp.article, 100);
-  const layersOn = cleanSearch(sp.layers, 2) !== "0";
+  const cf = parseFilters(CAL_FILTERS, sp);
+  const articleF = cf.q;
+  const layersOn = cf.layers !== "0";
   const eventId = cleanSearch(sp.event, 40);
   const newDate = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.new, 10)) ? cleanSearch(sp.new, 10) : "";
 
@@ -66,6 +73,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     prisma.productionOrder.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { id: true, workOrderNumber: true, number: true, productModel: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 300 }),
   ]);
   models.sort((a, b) => compareModelNames(a.name, b.name));
+  const pickedIds = seasons.filter((x) => cf.season.includes(x.id) || cf.season.includes(x.code)).map((x) => x.id);
+  const pickedNone = cf.season.includes("none");
+  const seasonPicked = pickedIds.length > 0 || pickedNone;
+  const actionVals = cf.action;
+  const soleSeasonId = pickedIds.length === 1 && !pickedNone ? pickedIds[0] : "";
 
   const events = await prisma.calendarEvent.findMany({
     where: {
@@ -74,9 +86,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         { date: { lte: parseYmd(to) } },
         { OR: [{ endDate: { gte: parseYmd(from) } }, { endDate: null, date: { gte: parseYmd(from) } }] },
         ...(yr ? [{ date: yr }] : []),
+        ...(seasonPicked ? [{ OR: [...(pickedIds.length ? [{ seasonId: { in: pickedIds } }] : []), ...(pickedNone ? [{ seasonId: null }] : [])] }] : []),
+        ...(actionVals.length ? [{ OR: actionVals.map((a) => ({ action: { equals: a, mode: "insensitive" as const } })) }] : []),
       ],
-      ...(seasonF === "none" ? { seasonId: null } : seasonF ? { seasonId: seasonF } : {}),
-      ...(actionF ? { action: { equals: actionF, mode: "insensitive" as const } } : {}),
       ...(articleF ? { OR: modelCodeVariants(articleF).map((v) => ({ articleCode: { contains: escapeLike(v), mode: "insensitive" as const } })) } : {}),
     },
     include: { season: { select: { code: true } } },
@@ -95,7 +107,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   }));
 
   // Слой фактов — только когда нет фильтров по сезону/действию (у фактов их нет).
-  const factsHidden = !layersOn || Boolean(seasonF || actionF);
+  const factsHidden = !layersOn || seasonPicked || actionVals.length > 0;
   const layer = factsHidden
     ? { items: [] as FactItem[], monthLevel: [] }
     : await loadFactLayer(orgId, from, to, { article: articleF, month });
@@ -121,12 +133,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const editInitial: EventInitial | null = selected
     ? { id: selected.id, articleCode: selected.articleCode, modelId: models.find((m) => m.name === selected.articleCode)?.id ?? null, articleName: selected.articleName ?? "", quantity: String(selected.quantity), date: ymd(selected.date), endDate: selected.endDate ? ymd(selected.endDate) : "", action: selected.action, seasonId: selected.seasonId ?? "", planId: selected.planId ?? "", orderId: selected.orderId ?? "", notes: selected.notes ?? "", done: !!selected.doneAt }
     : null;
-  const newInitial: EventInitial = { articleCode: "", modelId: null, articleName: "", quantity: "", date: newDate || (today.startsWith(month) ? today : `${month}-01`), endDate: "", action: CALENDAR_ACTIONS[0].label, seasonId: seasonF && seasonF !== "none" ? seasonF : "", planId: "", orderId: "", notes: "", done: false };
+  const newInitial: EventInitial = { articleCode: "", modelId: null, articleName: "", quantity: "", date: newDate || (today.startsWith(month) ? today : `${month}-01`), endDate: "", action: CALENDAR_ACTIONS[0].label, seasonId: soleSeasonId, planId: "", orderId: "", notes: "", done: false };
 
-  const params = { view, m: month, w: view === "week" ? weekStart : "", season: seasonF, action: actionF, article: articleF, layers: layersOn ? "" : "0" };
-  const href = (patch: Record<string, string>) => {
+  const params: Record<string, string | string[]> = { view, m: month, w: view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0" };
+  const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ ...params, ...patch })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ ...params, ...patch })) {
+      if (Array.isArray(v)) for (const x of v) p.append(k, x);
+      else if (v) p.set(k, v);
+    }
     const s = p.toString();
     return `/calendar${s ? `?${s}` : ""}`;
   };
@@ -172,7 +187,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const weeks: string[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
-  const hasFilters = Boolean(seasonF || actionF || articleF);
   const planLabel = (p: (typeof plans)[number]) => `${p.articleCode}${p.color ? ` · ${p.color}` : ""}${p.season ? ` · ${p.season.code}` : ""}`;
 
   return (
@@ -241,28 +255,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         </span>
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <input type="hidden" name="view" value={view} />
-        <input type="hidden" name="m" value={month} />
-        {view === "week" && <input type="hidden" name="w" value={weekStart} />}
-        <Select name="season" defaultValue={seasonF} className="h-10 w-full sm:w-44" aria-label="Сезон">
-          <option value="">Все сезоны</option>
-          <option value="none">Без сезона</option>
-          {seasons.map((s) => <option key={s.id} value={s.id}>{s.code}</option>)}
-        </Select>
-        <Select name="action" defaultValue={actionF} className="h-10 w-full sm:w-52" aria-label="Действие">
-          <option value="">Все действия</option>
-          {CALENDAR_ACTIONS.map((a) => <option key={a.label} value={a.label}>{a.label}</option>)}
-        </Select>
-        <Input name="article" defaultValue={articleF} placeholder="Артикул" className="h-10 w-full sm:w-44" />
-        <Select name="layers" defaultValue={layersOn ? "1" : "0"} className="h-10 w-full sm:w-72" aria-label="Факты">
-          <option value="1">Показывать факты из ТЗ, отгрузок, примерок</option>
-          <option value="0">Только мои события</option>
-        </Select>
-        <button type="submit" className={buttonVariants({ variant: "outline", className: "h-10" })}>Применить</button>
-        {(hasFilters || !layersOn) && <Link href={href({ season: "", action: "", article: "", layers: "" })} className="text-sm text-neutral-500 hover:underline">Сбросить</Link>}
-      </form>
-      {layersOn && (seasonF || actionF) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}
+      <FilterBar
+        title="Фильтры календаря"
+        controls={[
+          { type: "multi", name: "season", label: "Сезон", options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
+          { type: "multi", name: "action", label: "Действие", options: CALENDAR_ACTIONS.map((a) => ({ value: a.label, label: a.label })), allLabel: "Все действия" },
+          { type: "text", name: "q", label: "Артикул", aliases: ["article"], placeholder: "Артикул" },
+          { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Показывать факты из ТЗ, отгрузок, примерок", options: [{ value: "0", label: "Только мои события" }], className: "sm:w-72" },
+        ]}
+        dropOnChange={["event", "new"]}
+      />
+      {layersOn && (seasonPicked || actionVals.length > 0) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}
 
       {/* Итоги */}
       <div className="flex flex-wrap items-center gap-2 text-xs">

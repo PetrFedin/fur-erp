@@ -4,8 +4,8 @@ import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input, Select } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { FilterBar } from "@/components/filters/filter-bar";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
 import { YearNote } from "@/components/year-note";
@@ -71,22 +71,26 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   );
   const kindOpts = Array.from(new Set(scoped.map((l) => l.kind))).sort((a, b) => a.localeCompare(b, "ru"));
 
-  const params = new URLSearchParams();
-  params.set("g", by);
-  if (f.scope === "lining") params.set("scope", "lining");
-  if (f.auction) params.set("auction", f.auction);
-  if (f.kind) params.set("kind", f.kind);
-  if (f.onlyRem) params.set("rest", "1");
-  if (f.q) params.set("q", f.q);
-  if (f.model) params.set("m", f.model);
+  const pyearOpts = Array.from(new Set(scoped.map((l) => String(l.year)))).sort((a, b) => Number(b) - Number(a));
+
+  // Ссылки страницы (вкладки, группировка, выгрузка CSV) — те же канонические параметры, что читает parseFilters:
+  // g, scope, auction, fur, pyear, rest, q, model (старые auc, kind, py, m читаются как псевдонимы).
+  const entries: Array<[string, string]> = [["g", by]];
+  if (f.scope === "lining") entries.push(["scope", "lining"]);
+  for (const v of f.auction) entries.push(["auction", v]);
+  for (const v of f.kind) entries.push(["fur", v]);
+  for (const v of f.pyear) entries.push(["pyear", v]);
+  if (f.onlyRem) entries.push(["rest", "1"]);
+  if (f.q) entries.push(["q", f.q]);
+  if (f.model) entries.push(["model", f.model]);
+  /** over: null — убрать параметр целиком, строка — заменить значением. */
   const href = (over: Record<string, string | null>) => {
-    const p = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(over)) {
-      if (v == null) p.delete(k);
-      else p.set(k, v);
-    }
+    const p = new URLSearchParams();
+    for (const [k, v] of entries) if (!(k in over)) p.append(k, v);
+    for (const [k, v] of Object.entries(over)) if (v != null) p.set(k, v);
     return `/analytics/raw?${p.toString()}`;
   };
+  const exportQs = new URLSearchParams(entries).toString();
 
   // ───── графики ─────
   const byKind = groupLots(lots, "kind");
@@ -154,10 +158,10 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           <Link href="/analytics/raw/recon" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Сверка лотов{reconLots.length > 0 ? ` (${reconLots.length})` : ""}
           </Link>
-          <a href={`/analytics/raw/export?${params.toString()}&part=groups`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <a href={`/analytics/raw/export?${exportQs}&part=groups`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             CSV: таблица
           </a>
-          <a href={`/analytics/raw/export?${params.toString()}&part=lots`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <a href={`/analytics/raw/export?${exportQs}&part=lots`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             CSV: по лотам
           </a>
         </div>
@@ -168,7 +172,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         {(["fur", "lining"] as const).map((s) => (
           <Link
             key={s}
-            href={href({ scope: s === "fur" ? null : "lining", auction: null, kind: null })}
+            href={href({ scope: s === "fur" ? null : "lining", auction: null, fur: null })}
             className={"rounded-full border px-3 py-1 text-xs max-md:min-h-8 max-md:inline-flex max-md:items-center " + (f.scope === s ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")}
           >
             {s === "fur" ? "Мех (шт.)" : "Подкладка (м)"}
@@ -179,7 +183,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       {f.model && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Показаны лоты, из которых сделано изделие «{modelName ?? "—"}».
-          <Link href={href({ m: null })} className="underline">Показать все</Link>
+          <Link href={href({ model: null })} className="underline">Показать все</Link>
         </div>
       )}
 
@@ -256,42 +260,16 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       </div>
 
       {/* Фильтры */}
-      <details className="rounded-md border border-neutral-200 bg-white" open>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Фильтры</summary>
-        <form method="get" className="grid grid-cols-2 items-end gap-2 border-t border-neutral-100 p-3 sm:grid-cols-5">
-          <input type="hidden" name="g" value={by} />
-          {f.model && <input type="hidden" name="m" value={f.model} />}
-          {f.scope === "lining" && <input type="hidden" name="scope" value="lining" />}
-          <div className="col-span-2 sm:col-span-1">
-            <label className="mb-1 block text-xs text-neutral-500">Аукцион</label>
-            <Select name="auction" defaultValue={f.auction}>
-              <option value="">Все аукционы</option>
-              {auctionOpts.map(([key, lab]) => (
-                <option key={key} value={key}>{lab === NO_AUCTION_LABEL ? lab : key === NO_AUCTION_KEY ? lab : shortAuctionName(key, 60)}</option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-neutral-500">Вид меха</label>
-            <Select name="kind" defaultValue={f.kind}>
-              <option value="">Все</option>
-              {kindOpts.map((k) => <option key={k} value={k}>{k}</option>)}
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-neutral-500">Поиск по лоту / сорту</label>
-            <Input name="q" defaultValue={f.q} placeholder="напр. 15016" title="Номер лота ищется в любом написании: без пробелов и дефисов, в любом регистре, кириллица = латиница" />
-          </div>
-          <label className="flex h-9 items-center gap-2 text-sm">
-            <input type="checkbox" name="rest" value="1" defaultChecked={f.onlyRem} className="size-4" />
-            только с остатком
-          </label>
-          <div className="col-span-2 flex items-center gap-3 sm:col-span-1">
-            <Button type="submit" variant="outline">Применить</Button>
-            <Link href={href({ auction: null, kind: null, rest: null, q: null, m: null })} className="text-sm text-neutral-500 hover:underline">Сбросить</Link>
-          </div>
-        </form>
-      </details>
+      <FilterBar
+        controls={[
+          { type: "multi", name: "auction", label: "Аукцион", aliases: ["auc"], allLabel: "Все аукционы", options: auctionOpts.map(([key, lab]) => ({ value: key, label: lab === NO_AUCTION_LABEL ? lab : key === NO_AUCTION_KEY ? lab : shortAuctionName(key, 60), title: key })) },
+          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: kindOpts.map((k) => ({ value: k, label: k })) },
+          { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOpts.map((y) => ({ value: y, label: y })) },
+          { type: "text", name: "q", label: "Поиск по лоту / сорту", placeholder: "напр. 15016" },
+          { type: "multi", name: "rest", label: "Остаток", single: true, allLabel: "Любой", options: [{ value: "1", label: "Только с остатком" }] },
+        ]}
+        resetExtra={["model", "m"]}
+      />
 
       {/* Сводная таблица */}
       <Card>

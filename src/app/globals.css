@@ -36,3 +36,9 @@ body {
       #fff;
   }
 }
+
+/* Панель фильтров (src/components/filters): пока страница пересчитывается, всё после панели чуть бледнее. */
+html[data-filtering="1"] [data-filter-bar] ~ * {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}

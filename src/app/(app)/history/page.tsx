@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -6,17 +7,18 @@ import { MODEL_TITLES } from "@/lib/audit-core";
 import { PAGE_SIZE, actorText, fmtAt, historyWhere, parseHistoryFilters, recordHref, type LogRow } from "@/lib/audit-query";
 import { ActionBadge, ChangeCell, entityTitle } from "@/components/audit-change";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { Input, Select } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { FilterBar } from "@/components/filters/filter-bar";
 
-export const metadata = { title: "История изменений" };
+export const metadata = { title: "История" };
 
 export default async function HistoryPage({ searchParams }: PageProps<"/history">) {
   const session = await requireSession();
   if (!hasRole(session.user.role, ACCESS.history)) {
     return (
       <div className="flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">История изменений</h1>
+        <ControlTabs active="history" />
+        <h1 className="text-xl font-semibold">История</h1>
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Нет доступа: журнал изменений читают владелец, администратор и бухгалтер. Ваша роль к нему доступа не имеет.
         </p>
@@ -26,7 +28,8 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
   if (!("auditLog" in prisma)) {
     return (
       <div className="flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">История изменений</h1>
+        <ControlTabs active="history" />
+        <h1 className="text-xl font-semibold">История</h1>
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Журнал ещё не подключён к работающему серверу: после обновления схемы сервер нужно перезапустить.
         </p>
@@ -49,21 +52,25 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
     else actorOptions.set(`src:${a.source}`, a.source);
   }
 
-  const qs = (over: Record<string, string | number>) => {
+  // Ссылки сохраняют все фильтры (мультивыбор — повтором параметра); смена страницы их не сбрасывает.
+  const qs = (over: { page?: number }) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ from: f.from, to: f.to, actor: f.actor, model: f.model, action: f.action, q: f.q, ...over })) {
-      if (v !== "" && v !== undefined && !(k === "page" && Number(v) <= 1)) p.set(k, String(v));
-    }
+    if (f.from) p.set("from", f.from);
+    if (f.to) p.set("to", f.to);
+    for (const [k, vals] of [["actor", f.actor], ["model", f.model], ["action", f.action]] as const) for (const v of vals) p.append(k, v);
+    if (f.q) p.set("q", f.q);
+    if (over.page && over.page > 1) p.set("page", String(over.page));
     const s = p.toString();
     return s ? `?${s}` : "";
   };
-  const exportQs = qs({ page: 1 });
+  const exportQs = qs({});
 
   return (
     <div className="flex flex-col gap-4">
+      <ControlTabs active="history" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">История изменений</h1>
+          <h1 className="text-xl font-semibold">История</h1>
           <p className="text-sm text-neutral-500">
             Журнал всегда полный: общий год из шапки здесь не применяется. Записей по фильтру: {total}.
           </p>
@@ -73,57 +80,17 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
         </a>
       </div>
 
-      <form method="get" action="/history" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          С даты
-          <Input type="date" name="from" defaultValue={f.from} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          По дату
-          <Input type="date" name="to" defaultValue={f.to} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Кто
-          <Select name="actor" defaultValue={f.actor}>
-            <option value="">все</option>
-            {[...actorOptions].map(([v, n]) => (
-              <option key={v} value={v}>
-                {n}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Что
-          <Select name="model" defaultValue={f.model}>
-            <option value="">всё</option>
-            {Object.entries(MODEL_TITLES).map(([k, t]) => (
-              <option key={k} value={k}>
-                {t}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Действие
-          <Select name="action" defaultValue={f.action}>
-            <option value="">любое</option>
-            <option value="create">создано</option>
-            <option value="update">изменено</option>
-            <option value="delete">удалено</option>
-          </Select>
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-1">
-          Поиск (номер, название, id)
-          <Input type="search" name="q" defaultValue={f.q} placeholder="З-2026-0014, ТЗ 19…" />
-        </label>
-        <div className="flex items-end gap-2">
-          <Button type="submit">Найти</Button>
-          <Link href="/history" className={buttonVariants({ variant: "ghost" })}>
-            Сбросить
-          </Link>
-        </div>
-      </form>
+      <FilterBar
+        title="Фильтры журнала"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "З-2026-0014, ТЗ 19, id…" },
+          { type: "multi", name: "actor", label: "Кто", options: [...actorOptions].map(([value, label]) => ({ value, label })), allLabel: "Все" },
+          { type: "multi", name: "model", label: "Что", options: Object.entries(MODEL_TITLES).map(([value, label]) => ({ value, label })), allLabel: "Всё" },
+          { type: "multi", name: "action", label: "Действие", options: [{ value: "create", label: "Создано" }, { value: "update", label: "Изменено" }, { value: "delete", label: "Удалено" }], allLabel: "Любое" },
+          { type: "date", name: "from", label: "С даты" },
+          { type: "date", name: "to", label: "По дату" },
+        ]}
+      />
 
       <Table>
         <Thead>

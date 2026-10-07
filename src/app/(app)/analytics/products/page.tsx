@@ -4,7 +4,6 @@ import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { buttonVariants } from "@/components/ui/button";
-import { Select } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
@@ -29,10 +28,10 @@ import {
   type Matrix,
   type ProductFilters,
 } from "@/lib/analytics-products";
-import { filterOptions, hasSharedFilter } from "@/lib/analytics-filters";
+import { filterOptions } from "@/lib/analytics-filters";
 import { COLUMNS, computeMetrics, derived, parseCols, parseSort, type ColKey } from "@/lib/analytics-metrics";
 import { SOURCE_LABEL, UNDEFINED_CATEGORY } from "@/lib/product-category";
-import { FilterPanel } from "../_shared/filter-panel";
+import { AnalyticsFilterBar } from "../_shared/analytics-filter-bar";
 import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
 
 export const metadata = { title: "Что произведено" };
@@ -78,19 +77,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
     return `/analytics/products${s ? `?${s}` : ""}`;
   };
   const exportQs = productParams(f).toString();
-  const hasFilter = hasSharedFilter(f) || f.st !== "done";
   const sortOver = (o: { sort: string; dir: string }) => href({ sort: o.sort, dir: o.dir });
   const thHref = (key: string) => sortHref(sortOver, key, sortState);
 
   const example = nodes.find((g) => g.m.unitsCosted > 0 && g.m.orders > 1) ?? nodes.find((g) => g.m.unitsCosted > 0);
   const exCost = example ? derived(example.m).costPerUnit : null;
 
-  // Параметры, которые формы должны сохранить.
-  const viewHidden: [string, string][] = [];
-  if (f.sort) viewHidden.push(["sort", f.sort], ["dir", f.dir]);
-  if (f.all) viewHidden.push(["all", "1"]);
-  if (f.cols.length) viewHidden.push(["cols", f.cols.join(",")]);
-  if (f.mx !== "units") viewHidden.push(["mx", f.mx]);
+  // Параметры, которые форма выбора колонок должна сохранить.
   const pickerHidden = Array.from(productParams(f, { cols: [], all: false }).entries()) as [string, string][];
   const toggleAll = href(f.cols.length > 0 || !f.all ? { cols: [], all: !f.all || f.cols.length > 0 } : { cols: [], all: false });
 
@@ -358,49 +351,14 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </Tbody>
       </Table>
 
-      {/* Фильтры */}
-      <FilterPanel
-        action="/analytics/products"
-        hidden={viewHidden}
-        f={f}
+      {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются) */}
+      <AnalyticsFilterBar
         opts={opts}
-        active={hasFilter || !!f.g2 || f.g !== "category"}
-        resetHref={`/analytics/products${f.g !== "category" || f.g2 ? `?${new URLSearchParams({ ...(f.g !== "category" ? { g: f.g } : {}), ...(f.g2 ? { g2: f.g2 } : {}) }).toString()}` : ""}`}
-        lead={
-          <>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              Группировать по
-              <Select name="g" defaultValue={f.g} className="h-9 w-44">
-                {GROUP_KEYS.map((k) => (
-                  <option key={k} value={k}>
-                    {GROUPS[k]}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              Внутри
-              <Select name="g2" defaultValue={f.g2} className="h-9 w-44">
-                <option value="">— без второго уровня —</option>
-                {GROUP_KEYS.filter((k) => k !== f.g).map((k) => (
-                  <option key={k} value={k}>
-                    {GROUPS[k]}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-neutral-500">
-              ТЗ
-              <Select name="st" defaultValue={f.st} className="h-9 w-44">
-                {(Object.keys(STATUS_LABEL) as (keyof typeof STATUS_LABEL)[]).map((k) => (
-                  <option key={k} value={k}>
-                    {STATUS_LABEL[k]}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </>
-        }
+        lead={[
+          { type: "multi", name: "g", label: "Группировать по", single: true, state: true, allLabel: GROUPS.category, options: GROUP_KEYS.filter((k) => k !== "category").map((k) => ({ value: k, label: GROUPS[k] })) },
+          { type: "multi", name: "g2", label: "Внутри", single: true, state: true, allLabel: "Без второго уровня", options: GROUP_KEYS.filter((k) => k !== f.g).map((k) => ({ value: k, label: GROUPS[k] })) },
+          { type: "multi", name: "st", label: "ТЗ", single: true, state: true, allLabel: STATUS_LABEL.done, options: (["work", "all"] as const).map((k) => ({ value: k, label: STATUS_LABEL[k] })) },
+        ]}
       />
 
       {/* Вид таблицы */}

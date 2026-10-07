@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
@@ -57,11 +58,12 @@ export default async function DocumentAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ControlTabs active="analysis" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Анализ документов</h1>
           <p className="mt-1 max-w-3xl text-sm text-neutral-500">
-            Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» больше этим не перегружена.
+            Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» этим не перегружена. Очередь дел — вкладка «Задачи».
           </p>
         </div>
         <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">{yearLabel(year)}</span>
@@ -84,13 +86,13 @@ export default async function DocumentAnalysisPage() {
           <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Расхождения цифр</div>
           <div className="mt-2 text-2xl font-semibold">{conflicts + reviews}</div>
           <div className="mt-1 text-xs text-neutral-500">конфликты: {conflicts} · ручное решение: {reviews}</div>
-          <Link href="/reconciliation" className="mt-2 inline-block text-xs underline">Открыть evidence-chain →</Link>
+          <Link href="/reconciliation" className="mt-2 inline-block text-xs underline">Открыть сверку →</Link>
         </Card>
         <Card className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Очередь проверки</div>
+          <Link href="/attention" className="text-xs font-semibold uppercase tracking-wide text-neutral-500 hover:underline">Задачи →</Link>
           <div className="mt-2 text-2xl font-semibold">{attention.main}</div>
           <div className="mt-1 text-xs text-neutral-500">срочных блоков: {attention.red} · справочно: {attention.info}</div>
-          <div className="mt-2 text-xs text-neutral-500">ждёт подтверждения строк: {verification.total - verification.verified}</div>
+          <Link href="/verify" className="mt-2 inline-block text-xs underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
         </Card>
       </section>
 
@@ -138,30 +140,11 @@ export default async function DocumentAnalysisPage() {
                   </div>
                 ) : null}
                 {next ? <div className="mt-2 text-xs font-medium text-amber-800">Следующее действие: {next}</div> : null}
-                <Link href="/reconciliation" className="mt-3 inline-block text-xs underline">Открыть полную evidence-chain →</Link>
+                <Link href="/reconciliation" className="mt-3 inline-block text-xs underline">Открыть сверку →</Link>
               </Card>
             );
           })}
         </div>
-      </section>
-
-      <section className="grid gap-3 lg:grid-cols-2">
-        <Card className="p-4">
-          <div className="text-sm font-semibold">Что требует решения</div>
-          <p className="mt-1 text-sm text-neutral-500">Живые проверки базы: отсутствующие платёжки, документы закупок, противоречивые статусы, неподтверждённые связи.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/attention" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">Очередь проверки · {attention.main}</Link>
-            <Link href="/verify" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">Подтвердить строки · {verification.total - verification.verified}</Link>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm font-semibold">Документы и сверка</div>
-          <p className="mt-1 text-sm text-neutral-500">Полный реестр документов отдельно от математической сверки, чтобы можно было идти от источника к цифре и обратно.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/documents" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">Все документы</Link>
-            <Link href="/reconciliation" className="rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50">Сверка цифр</Link>
-          </div>
-        </Card>
       </section>
     </div>
   );

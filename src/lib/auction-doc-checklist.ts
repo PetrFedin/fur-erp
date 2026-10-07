@@ -1,4 +1,5 @@
 import "server-only";
+import { auctionKey } from "@/lib/auction-key";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
@@ -81,6 +82,13 @@ export type LoadOpts = {
 };
 
 export async function loadAuctionPanels(db: Db, organizationId: string, opts: LoadOpts): Promise<AuctionPanelData[]> {
+  // Справочник аукционов: прежние написания (aliases) нужны, чтобы после переименования находить упоминания в снимках документов Drive.
+  const refAuctions = await db.auction.findMany({ where: { organizationId }, select: { name: true, aliases: true } });
+  const aliasesOf = (key: string): string[] => {
+    const k = auctionKey(key);
+    const a = refAuctions.find((x) => auctionKey(x.name) === k || x.aliases.some((y) => auctionKey(y) === k));
+    return a ? [a.name, ...a.aliases] : [];
+  };
   // 1) Закупки единиц.
   let units: { key: string; kind: "auction" | "purchase"; ids: string[] }[] = [];
   const base = await db.purchase.findMany({
@@ -268,7 +276,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     }
     const anyReceived = live.some((p) => p.status === "RECEIVED");
 
-    const mentions = isAuction ? auctionMentions(u.key) : null;
+    const mentions = isAuction ? auctionMentions(u.key, aliasesOf(u.key)) : null;
     const items: PanelItem[] = [];
     for (const def of ITEMS) {
       let need: Need;

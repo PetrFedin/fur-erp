@@ -7,7 +7,7 @@ const MENU = [
   "/dashboard", "/lots", "/lots?tab=lining", "/raw-materials", "/purchases", "/purchases/new",
   "/production", "/production/new", "/shipments", "/shipments/new", "/fittings", "/fittings/new",
   "/articles", "/settings", "/materials", "/materials/new", "/suppliers", "/clients", "/payments",
-  "/payments?tab=clients", "/supply-plan", "/warehouses", "/expense-categories", "/users",
+  "/payments?tab=clients", "/supply-plan", "/attention", "/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/warehouses", "/expense-categories", "/users",
   "/models", "/models/new", "/finished-stock", "/lining", "/suppliers/new", "/clients/new", "/warehouses/new", "/users/new",
 ];
 const DETAIL: string[] = JSON.parse(fs.readFileSync("/tmp/fur-qa/pages.json", "utf8")).detail;

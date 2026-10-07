@@ -2,7 +2,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { cleanSearch } from "@/lib/input";
+import { cleanSearch, escapeLike } from "@/lib/input";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { getColorOptions } from "@/lib/colors";
 import { formatQty } from "@/lib/utils";
 import { compareModelNames } from "@/lib/model-code";
@@ -24,6 +26,9 @@ import { copyPlan, deletePlan } from "./actions";
 
 export const metadata = { title: "План заказа" };
 
+// Фильтры плана: сезон (код; старые ссылки с id сезона читаются тоже) и поиск по артикулу. edit — служебный параметр формы правки.
+const PLAN_FILTERS = defineFilters({ ...pick(["season", "q"], { q: { label: "Поиск" } }) });
+
 const ORDER_STATUS: Record<string, string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "завершён" };
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
@@ -32,7 +37,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.planning);
   const sp = await searchParams;
-  const seasonParam = cleanSearch(sp.season, 40);
+  const pf = parseFilters(PLAN_FILTERS, sp);
   const editId = canEdit ? cleanSearch(sp.edit, 40) : "";
 
   const [seasons, models, colorRefs] = await Promise.all([
@@ -45,9 +50,23 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   ]);
   models.sort((a, b) => compareModelNames(a.name, b.name));
 
-  const seasonId = seasonParam === "none" ? "none" : seasons.some((s) => s.id === seasonParam) ? seasonParam : "";
+  // Выбранные сезоны: код или id; none — позиции без сезона. Неизвестные значения отбрасываются (как «все»).
+  const pickedIds = seasons.filter((s) => pf.season.includes(s.id) || pf.season.includes(s.code)).map((s) => s.id);
+  const pickedNone = pf.season.includes("none");
+  const pickedCount = pickedIds.length + (pickedNone ? 1 : 0);
+  // seasonId — «один сезон» (id, none) или "" (все / несколько): от него зависят заголовки, колонка «Сезон» и форма добавления.
+  const seasonId = pickedCount === 1 ? (pickedNone ? "none" : pickedIds[0]) : "";
+  const seasonWhere = pickedCount === 0 ? {} : { OR: [...(pickedIds.length ? [{ seasonId: { in: pickedIds } }] : []), ...(pickedNone ? [{ seasonId: null }] : [])] };
+  const textWhere = pf.q
+    ? { OR: [
+        { articleCode: { contains: escapeLike(pf.q), mode: "insensitive" as const } },
+        { articleName: { contains: escapeLike(pf.q), mode: "insensitive" as const } },
+        { color: { contains: escapeLike(pf.q), mode: "insensitive" as const } },
+        { furType: { contains: escapeLike(pf.q), mode: "insensitive" as const } },
+      ] }
+    : {};
   const plans = await prisma.productionPlan.findMany({
-    where: { organizationId: orgId, ...(seasonId === "none" ? { seasonId: null } : seasonId ? { seasonId } : {}) },
+    where: { organizationId: orgId, AND: [seasonWhere, textWhere] },
     include: { sizes: true, season: { select: { code: true } } },
     orderBy: [{ createdAt: "asc" }],
   });
@@ -118,10 +137,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     }
   }
 
-  const q = (s: string) => `/plan${s ? `?season=${s}` : ""}`;
-  const pill = (active: boolean) =>
-    "rounded-md border px-3 py-1 text-sm max-md:inline-flex max-md:min-h-8 max-md:items-center " +
-    (active ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100");
+  // Ссылка «Править» сохраняет выбранные фильтры страницы.
+  const backQs = new URLSearchParams([...pf.season.map((v) => ["season", v]), ...(pf.q ? [["q", pf.q]] : [])]).toString();
 
   const factCell = (f: PlanFact) => f.orders.length;
 
@@ -144,20 +161,20 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Сезон">
-        <span className="text-xs text-neutral-500">Сезон:</span>
-        <Link href="/plan" className={pill(seasonId === "")}>Все</Link>
-        {seasons.map((s) => (
-          <Link key={s.id} href={q(s.id)} className={pill(seasonId === s.id)}>{s.code}</Link>
-        ))}
-        <Link href={q("none")} className={pill(seasonId === "none")}>Без сезона</Link>
-      </div>
+      <FilterBar
+        title="Фильтры плана"
+        controls={[
+          { type: "multi", name: "season", label: "Сезон", options: seasons.map((s) => ({ value: s.code, label: s.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
+          { type: "text", name: "q", label: "Поиск", placeholder: "Артикул, название, цвет, мех" },
+        ]}
+        resetExtra={["edit"]}
+      />
 
       {/* Сводка */}
       <Card>
         <CardHeader>
           <CardTitle>
-            Сводка {seasonId === "" ? "по всем сезонам" : seasonId === "none" ? "по позициям без сезона" : `сезона ${seasonCode.get(seasonId)}`}
+            Сводка {pickedCount === 0 ? "по всем сезонам" : pickedCount > 1 ? "по выбранным сезонам" : seasonId === "none" ? "по позициям без сезона" : `сезона ${seasonCode.get(seasonId)}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -242,7 +259,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                       <Td className={`text-right tabular-nums ${plan - f.produced < 0 ? "text-amber-700" : ""}`}>{formatQty(plan - f.produced)}</Td>
                       <Td className="text-right tabular-nums">{pct(f.produced, plan)}%</Td>
                       <Td className="text-xs"><OrderLinks f={f} /></Td>
-                      {canEdit && <Td><RowActions id={p.id} seasonId={p.seasonId} /></Td>}
+                      {canEdit && <Td><RowActions id={p.id} back={backQs} /></Td>}
                     </Tr>
                   );
                 })}
@@ -270,7 +287,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   { label: "Не начато", value: formatQty(f.notStarted) },
                   { label: "ТЗ", value: factCell(f) ? <OrderLinks f={f} /> : "" },
                 ]}
-                extra={canEdit ? <RowActions id={p.id} seasonId={p.seasonId} /> : undefined}
+                extra={canEdit ? <RowActions id={p.id} back={backQs} /> : undefined}
               />
             );
           })}
@@ -339,11 +356,11 @@ function OrderLinks({ f }: { f: PlanFact }) {
   );
 }
 
-function RowActions({ id, seasonId }: { id: string; seasonId: string | null }) {
+function RowActions({ id, back }: { id: string; back: string }) {
   const btn = "inline-flex min-h-8 items-center rounded-md border border-neutral-300 px-2 text-xs hover:bg-neutral-100";
   return (
     <span className="flex flex-wrap gap-1">
-      <Link href={`/plan?${seasonId ? `season=${seasonId}&` : ""}edit=${id}#form`} className={btn}>Править</Link>
+      <Link href={`/plan?${back ? `${back}&` : ""}edit=${id}#form`} className={btn}>Править</Link>
       <form action={copyPlan}><input type="hidden" name="id" value={id} /><button type="submit" className={btn}>Копировать</button></form>
       <form action={deletePlan}><input type="hidden" name="id" value={id} /><ConfirmButton message="Удалить позицию плана? События календаря останутся." className={`${btn} text-red-600`}>Удалить</ConfirmButton></form>
     </span>

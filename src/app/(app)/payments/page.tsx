@@ -11,13 +11,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { ACCESS, hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { cleanSearch } from "@/lib/input";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
@@ -31,7 +29,9 @@ import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { VerifyControl } from "@/components/verify-control";
 import { loadPaymentVerify } from "../verify/verify-block";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { NONE, activeCount, dateRange, defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
+import { getFilterOptions } from "@/lib/filter-options";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -52,6 +52,26 @@ function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg
 }
 
 const FRESH_MS = 365 * 24 * 3600 * 1000;
+
+// Фильтры вкладок: поставщикам — партия закупки (мультивыбор), поиск по названию, поставщик, остаток, подтверждение, период оплат;
+// от заказчиков — заказчик, подтверждение, период. `f=rest` — старое имя «С остатком».
+const PAY_FILTERS = defineFilters({
+  ...pick(["auction", "q", "supplier", "client", "status", "verified", "from", "to", "tab"], {
+    q: { aliases: ["dq"], label: "Название партии" },
+    status: { aliases: ["f"], allowed: ["rest", "paid"], label: "Оплата" },
+    verified: { allowed: ["yes", "no"], label: "Подтверждение" },
+    from: { label: "Оплата с" },
+    to: { label: "Оплата по" },
+  }),
+});
+const PAY_STATUS_OPTIONS = [
+  { value: "rest", label: "С остатком" },
+  { value: "paid", label: "Оплачено полностью" },
+];
+const PAY_VERIFIED_OPTIONS = [
+  { value: "yes", label: "Подтверждено" },
+  { value: "no", label: "Ждёт проверки (нет платёжки)" },
+];
 
 const METHOD_LABELS: Record<string, string> = {
   CASH: "Наличные",
@@ -93,9 +113,19 @@ export default async function PaymentsPage({
   const year = await getYearFilter();
   // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «Заказчики».
   const pv = await loadPaymentVerify(tab === "clients" ? "prodPayment" : "payment");
-  const auctionQ = tab === "suppliers" ? cleanSearch(sp.auction, 200) : "";
-  const listQ = tab === "suppliers" ? cleanSearch(sp.q, 100) : "";
-  const onlyRest = tab === "suppliers" && sp.f === "rest";
+  const pf = parseFilters(PAY_FILTERS, sp);
+  const clientsTab = tab === "clients";
+  // Фильтры вкладки «Поставщикам» не действуют на «От заказчиков» и наоборот.
+  const fAuction = clientsTab ? [] : pf.auction;
+  const listQ = clientsTab ? "" : pf.q;
+  const fSupplier = clientsTab ? [] : pf.supplier;
+  const fStatus = clientsTab ? [] : pf.status;
+  const fVerified = pf.verified;
+  const period = dateRange(pf.from, pf.to);
+  const listFiltered = !clientsTab && activeCount(PAY_FILTERS, { ...pf, client: [], tab: "" }) > 0;
+  const payOpts = await getFilterOptions(orgId, year, ["auction", "supplier", "client"]);
+  // Если выбрана ровно одна партия — под списком открывается её карточка с оплатами.
+  const auctionQ = fAuction.length === 1 && fAuction[0] !== NONE ? fAuction[0] : "";
   const [payments, suppliers, clientPayments, summariesAll, auctionPurchases, plainPurchases, debt] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
@@ -113,7 +143,13 @@ export default async function PaymentsPage({
     }),
     tab === "clients"
       ? prisma.productionPayment.findMany({
-          where: { organizationId: session.user.organizationId, ...(yearRange(year) ? { paidAt: yearRange(year) } : {}) },
+          where: {
+            organizationId: session.user.organizationId,
+            ...(yearRange(year) ? { paidAt: yearRange(year) } : {}),
+            ...(pf.client.length ? { clientId: { in: pf.client } } : {}),
+            ...(period ? { AND: [{ paidAt: period }] } : {}),
+            ...(fVerified.length === 1 ? { confirmed: fVerified[0] === "yes" } : {}),
+          },
           include: {
             client: true,
             orders: { include: { productionOrder: { include: { batch: { select: { number: true } } } } } },
@@ -157,28 +193,53 @@ export default async function PaymentsPage({
       a.name.localeCompare(b.name, "ru"),
   );
   const listQLower = listQ.toLowerCase();
-  const visibleAuctions = auctions.filter(
-    (a) => (!listQLower || a.name.toLowerCase().includes(listQLower)) && (!onlyRest || a.remaining.greaterThan(PAY_EPS)),
-  );
+  // Оплаты по партиям (название партии → оплаты): для фильтров «подтверждение» и «период оплат».
+  const payAuction = (p: (typeof payments)[number]) => auctionName(p.auctionSession) ?? auctionName(p.purchase?.auctionSession);
+  const paysByAuction = new Map<string, (typeof payments)>();
+  for (const p of payments) {
+    const n = payAuction(p);
+    if (n) paysByAuction.set(n, [...(paysByAuction.get(n) ?? []), p]);
+  }
+  const knownNames = new Set(auctions.map((a) => a.name));
+  const looseAuction = fAuction.filter((v) => v !== NONE && !knownNames.has(v)).map((v) => v.toLowerCase());
+  const matchesAuction = (a: AuctionPay) =>
+    fAuction.length === 0 ||
+    fAuction.includes(a.name) ||
+    (fAuction.includes(NONE) && isServiceAuction(a.name)) ||
+    looseAuction.some((v) => a.name.toLowerCase().includes(v));
+  const visibleAuctions = auctions.filter((a) => {
+    if (!matchesAuction(a)) return false;
+    if (listQLower && !a.name.toLowerCase().includes(listQLower)) return false;
+    if (fSupplier.length && !a.suppliers.some((x) => fSupplier.includes(x.id))) return false;
+    if (fStatus.length) {
+      const rest = a.remaining.greaterThan(PAY_EPS);
+      if (!(fStatus.includes("rest") && rest) && !(fStatus.includes("paid") && !rest)) return false;
+    }
+    const pays = paysByAuction.get(a.name) ?? [];
+    if (fVerified.length === 1) {
+      const unconfirmed = pays.some((p) => p.status === "COMPLETED" && !(p.confirmed && p.confirmedAt));
+      if (fVerified[0] === "yes" ? unconfirmed || pays.length === 0 : !unconfirmed) return false;
+    }
+    if (period && !pays.some((p) => (!period.gte || p.paidAt >= period.gte) && (!period.lte || p.paidAt <= period.lte))) return false;
+    return true;
+  });
   // Служебные записи («Нет информации», «Не в реестре остатков…» и т.п.) — в конец, под группу «Прочее».
   const mainAuctions = visibleAuctions.filter((a) => !isServiceAuction(a.name));
   const serviceAuctions = visibleAuctions.filter((a) => isServiceAuction(a.name));
-  const listParams = (extra: Record<string, string>) => {
-    const u = new URLSearchParams();
-    if (listQ) u.set("q", listQ);
-    if (onlyRest) u.set("f", "rest");
-    for (const [k, v] of Object.entries(extra)) {
-      if (v === "") u.delete(k);
-      else u.set(k, v);
-    }
-    const qs = u.toString();
-    return `/payments${qs ? `?${qs}` : ""}`;
-  };
+  // Ссылка на одну партию (остальные фильтры сохраняются).
+  const auctionHref = (name: string) => filterHref(PAY_FILTERS, "/payments", pf, { auction: [name] });
   const selected = auctionQ ? auctions.find((a) => a.name === auctionQ) ?? null : null;
   const auctionPurchaseMap = new Map(auctionPurchases.map((p) => [p.id, p]));
   const inAuction = (p: (typeof payments)[number]) =>
     Boolean(p.auctionSession) || (p.purchase ? Boolean(auctionName(p.purchase.auctionSession)) : false);
-  const outside = payments.filter((p) => !inAuction(p) && inYear(p.paidAt, year));
+  const outside = payments.filter(
+    (p) =>
+      !inAuction(p) &&
+      inYear(p.paidAt, year) &&
+      (!period || ((!period.gte || p.paidAt >= period.gte) && (!period.lte || p.paidAt <= period.lte))) &&
+      (fSupplier.length === 0 || fSupplier.includes(p.supplierId)) &&
+      (fVerified.length !== 1 || (fVerified[0] === "yes") === (p.confirmed && !!p.confirmedAt)),
+  );
   const sum = (f: (a: AuctionPay) => { toString(): string }) => auctions.reduce((acc, a) => acc + Number(f(a).toString()), 0);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -239,7 +300,7 @@ export default async function PaymentsPage({
   const anyPlanned = auctions.some((a) => a.planned.greaterThan(PAY_EPS));
   const renderAuction = (a: (typeof auctions)[number]) => {
     const active = selected?.name === a.name;
-    const href = `${listParams({ auction: a.name })}#auction-block`;
+    const href = `${auctionHref(a.name)}#auction-block`;
     return (
       <Tr key={a.name} className={active ? "bg-neutral-50" : undefined}>
         <Td className="min-w-[10rem] max-w-[18rem] font-medium">
@@ -288,7 +349,7 @@ export default async function PaymentsPage({
   // «Оплачено» в шапке — без переплат (они не гасят чужой долг), а в столбце таблицы переплата видна: подписываем разницу.
   const overpaidList = auctions.filter((a) => a.remaining.lessThan(PAY_EPS.neg()));
   const overpaidSum = overpaidList.reduce((acc, a) => acc.add(a.remaining.neg()), zeroD);
-  const showServiceSum = !listQ && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS)) && (!onlyRest || sumRemaining.greaterThan(PAY_EPS));
+  const showServiceSum = !listFiltered && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS));
   const svcPurchases = svcAll.reduce((n, a) => n + a.purchases, 0) + (debt ? debt.nonAuctionPurchases : 0);
   const serviceSumRow = (
     <Tr key="__service_sum">
@@ -306,7 +367,7 @@ export default async function PaymentsPage({
   );
   const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-600" : r.lessThan(-0.005) ? "text-blue-600" : "");
   const auctionCard = (a: (typeof auctions)[number]) => {
-    const href = `${listParams({ auction: a.name })}#auction-block`;
+    const href = `${auctionHref(a.name)}#auction-block`;
     return (
       <RowCard
         key={a.name}
@@ -347,7 +408,7 @@ export default async function PaymentsPage({
   const rPlanned = mainAuctions.reduce((acc, a) => acc.add(a.planned), zeroD);
   const rRem = mainAuctions.reduce((acc, a) => acc.add(a.remaining), zeroD).add(showServiceSum ? sumRemaining : zeroD);
   const rCount = mainAuctions.reduce((n, a) => n + a.purchases, 0) + (showServiceSum ? svcPurchases : 0);
-  const reconcilable = Boolean(debt) && !listQ && !onlyRest;
+  const reconcilable = Boolean(debt) && !listFiltered;
   const reconRow = (label: string, value: string, strong?: boolean) => (
     <div className={"flex justify-between gap-4 py-0.5" + (strong ? " border-t border-neutral-200 pt-1 font-semibold" : "")}>
       <dt className="text-neutral-600">{label}</dt>
@@ -447,6 +508,15 @@ export default async function PaymentsPage({
           </Link>
           . Здесь оплаты заказчиков только собраны списком.
         </p>
+        <FilterBar
+          title="Фильтры оплат"
+          controls={[
+            { type: "multi", name: "client", label: "Заказчик", options: payOpts.client },
+            { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
+            { type: "date", name: "from", label: "Оплата с" },
+            { type: "date", name: "to", label: "Оплата по" },
+          ]}
+        />
         <ResponsiveRows table={
         <Table>
           <Thead>
@@ -593,47 +663,30 @@ export default async function PaymentsPage({
           )}
 
           {auctions.length > 0 && (
-            <FilterPanel title="Фильтры оплат" applied={Boolean(listQ || onlyRest || auctionQ)}>
-              <div className="flex flex-wrap items-end gap-3">
-                <form method="get" action="/payments" className="flex flex-wrap items-end gap-2">
-                  {onlyRest && <input type="hidden" name="f" value="rest" />}
-                  {auctionQ && <input type="hidden" name="auction" value={auctionQ} />}
-                  <label htmlFor="auction-q" className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    Партия закупки
-                    <Input id="auction-q" name="q" defaultValue={listQ} placeholder="название партии закупки" className="w-64 normal-case tracking-normal" autoComplete="off" />
-                  </label>
-                  <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
-                    Найти
-                  </button>
-                </form>
-                <div>
-                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Показывать</div>
-                  <div className="flex gap-1" role="group" aria-label="Фильтр оплат">
-                    <Link
-                      href={listParams({ f: "", ...(auctionQ ? { auction: auctionQ } : {}) })}
-                      className={"rounded-full border px-3 py-1.5 text-xs " + (!onlyRest ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100")}
-                    >
-                      Все
-                    </Link>
-                    <Link
-                      href={listParams({ f: "rest", ...(auctionQ ? { auction: auctionQ } : {}) })}
-                      className={"rounded-full border px-3 py-1.5 text-xs " + (onlyRest ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100")}
-                    >
-                      С остатком
-                    </Link>
-                  </div>
-                </div>
-                <span className="ml-auto text-xs text-neutral-500">
-                  Показано {visibleAuctions.length} из {auctions.length}
-                </span>
-              </div>
-            </FilterPanel>
+            <>
+            <FilterBar
+              title="Фильтры оплат"
+              controls={[
+                { type: "multi", name: "auction", label: "Партия закупки", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
+                { type: "text", name: "q", label: "Название партии", aliases: ["dq"], placeholder: "часть названия" },
+                { type: "multi", name: "supplier", label: "Поставщик", options: payOpts.supplier },
+                { type: "multi", name: "status", label: "Оплата", aliases: ["f"], options: PAY_STATUS_OPTIONS, allLabel: "Любая" },
+                { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
+                { type: "date", name: "from", label: "Оплата с" },
+                { type: "date", name: "to", label: "Оплата по" },
+              ]}
+            />
+            <p className="-mt-2 text-xs text-neutral-500">
+              Показано {visibleAuctions.length} из {auctions.length} партий
+              {fAuction.length === 1 && fAuction[0] !== NONE ? " · карточка выбранной партии — под списком" : fAuction.length > 1 ? " · чтобы увидеть оплаты партии, выберите одну" : ""}
+            </p>
+            </>
           )}
 
           {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
           {reconBlock}
           {serviceAuctions.length > 0 && (
-            <details className="rounded-md border border-neutral-200 bg-white" open={Boolean(listQ) || serviceAuctions.some((a) => a.name === selected?.name)}>
+            <details className="rounded-md border border-neutral-200 bg-white" open={listFiltered || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
                 Прочее (служебные записи импорта): {serviceAuctions.length}
               </summary>
@@ -652,7 +705,7 @@ export default async function PaymentsPage({
           <div id="auction-block" className="scroll-mt-4" />
           {auctionQ && !selected && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Партия закупки «{auctionQ}» не найдена. Выберите её из списка выше.
+              Партия закупки «{auctionQ}» не найдена{year === "all" ? "" : ` за ${year} год`}. Выберите её в фильтре «Партия закупки».
             </p>
           )}
           {selected && (() => {

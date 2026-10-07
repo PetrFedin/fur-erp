@@ -11,7 +11,11 @@ import { EntryRowForm } from "./entry-row-form";
 import { getYearFilter } from "@/lib/year-filter";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { ProductionTabs } from "@/components/production-tabs";
 import { STATUS_LABELS, STATUS_BADGE_VARIANT, type SupplyPlanStatusValue } from "./status";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { defineFilters, parseFilters, pick, yearOptionsFrom } from "@/lib/filters";
+import { normalizeModelCode as normCode } from "@/lib/model-code";
 
 const MONTH_NAMES = [
   "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
@@ -31,15 +35,21 @@ function EntryReadOnly({ status, eventDate, notes }: { status: SupplyPlanStatusV
   );
 }
 
-export const metadata = { title: "План поставки" };
+export const metadata = { title: "План поставок" };
 
-export default async function SupplyPlanPage() {
+// Фильтры плана: артикул (поиск), статус записи, год (по месяцу плана; дополнительно к году в шапке).
+const SUPPLY_FILTERS = defineFilters({
+  ...pick(["q", "status", "year"], { q: { label: "Артикул" }, status: { allowed: Object.keys(STATUS_LABELS) }, year: { label: "Год плана" } }),
+});
+
+export default async function SupplyPlanPage({ searchParams }: PageProps<"/supply-plan">) {
   const session = await requireSession();
   const canEdit = hasRole(session.user.role, ACCESS.supplyPlan);
   const organizationId = session.user.organizationId;
   const year = await getYearFilter();
+  const pf = parseFilters(SUPPLY_FILTERS, await searchParams);
 
-  const [entries, allModels] = await Promise.all([
+  const [allEntries, allModels] = await Promise.all([
     prisma.supplyPlanEntry.findMany({
       where: { organizationId },
       include: { productModel: true },
@@ -50,6 +60,15 @@ export default async function SupplyPlanPage() {
       select: { id: true, name: true },
     }),
   ]);
+  const yearOptions = yearOptionsFrom(allEntries.map((e) => new Date(Date.UTC(new Date(e.month).getFullYear(), 0, 1))));
+  const needle = normCode(pf.q.toLowerCase());
+  const entries = allEntries.filter(
+    (e) =>
+      (pf.status.length === 0 || pf.status.includes(e.status)) &&
+      (pf.year.length === 0 || pf.year.includes(String(new Date(e.month).getFullYear()))) &&
+      (!needle || normCode(`${e.productModel.name} ${e.notes ?? ""}`.toLowerCase()).includes(needle)),
+  );
+  const filtered = entries.length !== allEntries.length;
   // Коды моделей записаны то латиницей, то кириллицей (M012 / М012): сортируем по нормализованному коду, данные не трогаем.
   allModels.sort((a, b) => compareModelNames(a.name, b.name));
 
@@ -99,11 +118,12 @@ export default async function SupplyPlanPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ProductionTabs active="supply" />
       <div>
         <h1 className="text-xl font-semibold">
-          План поставки
+          План поставок
           <YearNote year={year} />
-          <InfoHint label="О плане поставки" wide>
+          <InfoHint label="О плане поставок" wide>
             <p>Артикулы по строкам, месяцы по столбцам. В ячейке — количество (шт.), статус, дата события и заметка.</p>
             <p className="mt-1">
               Год ({year === "all" ? "все годы" : year}): по месяцу плана. {year === "all" ? `Таблица показывает период с ${MONTH_NAMES[windowStart.getMonth()]} ${windowStart.getFullYear()} по ${MONTH_NAMES[windowEnd.getMonth()]} ${windowEnd.getFullYear()}; остальные записи — отдельным списком.` : `Таблица показывает январь–декабрь ${year}.`}
@@ -175,6 +195,15 @@ export default async function SupplyPlanPage() {
         </Card>
       )}
 
+      <FilterBar
+        title="Фильтры плана поставок"
+        controls={[
+          { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
+          { type: "multi", name: "status", label: "Статус", options: (Object.keys(STATUS_LABELS) as SupplyPlanStatusValue[]).map((k) => ({ value: k, label: STATUS_LABELS[k] })), allLabel: "Все статусы" },
+          { type: "multi", name: "year", label: "Год плана", options: yearOptions, hint: "По месяцу плана; дополнительно к году в шапке" },
+        ]}
+      />
+
       <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -228,7 +257,7 @@ export default async function SupplyPlanPage() {
             {rowList.length === 0 && (
               <tr>
                 <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-400">
-                  {year === "all" ? `План пуст${canEdit ? " — добавьте первую запись выше" : ""}` : emptyForYear(year, "записей плана", "")}
+                  {filtered ? "Ничего не найдено" : year === "all" ? `План пуст${canEdit ? " — добавьте первую запись выше" : ""}` : emptyForYear(year, "записей плана", "")}
                 </td>
               </tr>
             )}

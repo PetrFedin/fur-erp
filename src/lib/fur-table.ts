@@ -291,10 +291,10 @@ export function buildFurTable(opts: {
 
 type Q = Record<string, string | string[] | undefined>;
 
-/** Имена параметров URL: у меха `fur`, `year`, `color`, `size`, `batch`, `rest`; у подкладки — то же с префиксом `l` (`lmat`, `lyear`…). */
+/** Имена параметров URL: у меха `fur`, `pyear` (старые `year`, `py`), `color`, `size`, `batch`, `rest`; у подкладки — то же с префиксом `l` (`lmat`, `lyear`…). */
 export function paramNames(kind: FurKind): Record<FilterKey, string[]> {
   return kind === "fur"
-    ? { item: ["fur", "species"], year: ["year", "years"], color: ["color"], size: ["size"], auction: ["batch", "auc"], rest: ["rest"] }
+    ? { item: ["fur", "kind", "species"], year: ["pyear", "py", "year", "years"], color: ["color"], size: ["size"], auction: ["batch", "auc"], rest: ["rest"] }
     : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], auction: ["lbatch"], rest: ["lrest"] };
 }
 

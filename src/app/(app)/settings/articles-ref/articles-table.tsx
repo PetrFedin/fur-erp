@@ -1,11 +1,13 @@
 "use client";
 
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { articleKey, searchArticleList } from "@/lib/article-key";
+import { LocalFilterBar } from "@/components/filters/filter-bar";
+import { CategorySelect, type CategorySelectOption } from "@/components/category-select";
 import { mergeArticles, saveArticle, type ArticleInput } from "./actions";
 
 export type ArticleRow = {
@@ -13,6 +15,7 @@ export type ArticleRow = {
   name: string;
   sku: string | null;
   category: string | null;
+  categoryRefId: string | null;
   salesCode: string | null;
   salesName: string | null;
   aliases: string[];
@@ -24,11 +27,12 @@ export type ArticleRow = {
 };
 
 type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
-const EMPTY: ArticleInput = { name: "", sku: "", category: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", isActive: true };
+const EMPTY: ArticleInput = { name: "", sku: "", category: "", categoryRefId: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", isActive: true };
 const toInput = (r: ArticleRow): ArticleInput => ({
   name: r.name,
   sku: r.sku ?? "",
   category: (r.category ?? "").replace(/\s+/g, " ").trim(),
+  categoryRefId: r.categoryRefId ?? "",
   salesCode: r.salesCode ?? "",
   salesName: r.salesName ?? "",
   aliases: r.aliases.join(", "),
@@ -38,7 +42,7 @@ const toInput = (r: ArticleRow): ArticleInput => ({
 const fmtPrice = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU") + " ₽");
 const fmtQty = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
 
-function EditForm({ initial, onDone, onCancel, id }: { initial: ArticleInput; id: string | null; onDone: () => void; onCancel: () => void }) {
+function EditForm({ initial, onDone, onCancel, id, categories, canCreateCategory }: { initial: ArticleInput; id: string | null; onDone: () => void; onCancel: () => void; categories: CategorySelectOption[]; canCreateCategory: boolean }) {
   const [v, setV] = useState<ArticleInput>(initial);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -53,7 +57,17 @@ function EditForm({ initial, onDone, onCancel, id }: { initial: ArticleInput; id
     <div className="flex flex-col gap-3 bg-neutral-50 p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {f("Наш код *", "name", "M012")}
-        {f("Название / описание", "category", "Жилет женский из норки")}
+        <label className="flex flex-col gap-1 text-xs text-neutral-600">
+          Категория (справочник)
+          <CategorySelect
+            refs={categories}
+            canCreate={canCreateCategory}
+            defaultValue={initial.category}
+            defaultRefId={initial.categoryRefId || null}
+            placeholder="Жилет"
+            onChange={(text, refId) => setV((p) => ({ ...p, category: text, categoryRefId: refId }))}
+          />
+        </label>
         {f("Наш SKU", "sku")}
         {f("Цена продажи, ₽", "sellingPrice")}
         {f("Код в системе продаж", "salesCode", "как в системе продаж")}
@@ -137,10 +151,32 @@ function MergePanel({ source, rows, onClose }: { source: ArticleRow; rows: Artic
   );
 }
 
-export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdit: boolean }) {
-  const [q, setQ] = useState("");
-  const [onlyNoSales, setOnlyNoSales] = useState(false);
-  const [onlyActive, setOnlyActive] = useState(false);
+/** Фильтры панели: q — поиск (наш код, код продаж, название, другое написание), sales=none — без кода продаж, status=active — только активные. */
+export type ArticleFilters = { q: string; noSales: boolean; onlyActive: boolean };
+
+export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCategory = false, initial = { q: "", noSales: false, onlyActive: false } }: { rows: ArticleRow[]; canEdit: boolean; categories?: CategorySelectOption[]; canCreateCategory?: boolean; initial?: ArticleFilters }) {
+  const [q, setQ] = useState(initial.q);
+  const [onlyNoSales, setOnlyNoSales] = useState(initial.noSales);
+  const [onlyActive, setOnlyActive] = useState(initial.onlyActive);
+
+  // Состояние фильтров — в адресной строке (q, sales, status), без перезагрузки страницы.
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    try {
+      const url = new URL(window.location.href);
+      for (const n of ["q", "sales", "status"]) url.searchParams.delete(n);
+      if (q.trim()) url.searchParams.set("q", q.trim());
+      if (onlyNoSales) url.searchParams.set("sales", "none");
+      if (onlyActive) url.searchParams.set("status", "active");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    } catch {
+      /* адресная строка недоступна — фильтры работают и без неё */
+    }
+  }, [q, onlyNoSales, onlyActive]);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [editing, setEditing] = useState<string | null>(null);
   const [merging, setMerging] = useState<string | null>(null);
@@ -183,16 +219,22 @@ export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdi
 
   return (
     <div className="flex flex-col gap-3">
+      <LocalFilterBar
+        title="Фильтры артикулов"
+        controls={[
+          { type: "text", name: "q", label: "Поиск", placeholder: "Наш код, код в продажах, название, другое написание" },
+          { type: "multi", name: "sales", label: "Код продаж", single: true, allLabel: "Все", options: [{ value: "none", label: `Без кода продаж (${noSales})` }] },
+          { type: "multi", name: "status", label: "Статус", single: true, allLabel: "Все", options: [{ value: "active", label: "Только активные" }] },
+        ]}
+        values={{ q: q ? [q] : [], sales: onlyNoSales ? ["none"] : [], status: onlyActive ? ["active"] : [] }}
+        onChange={(name, v) => {
+          if (name === "q") setQ(v[0] ?? "");
+          else if (name === "sales") setOnlyNoSales(v.length > 0);
+          else setOnlyActive(v.length > 0);
+        }}
+        onReset={() => { setQ(""); setOnlyNoSales(false); setOnlyActive(false); }}
+      />
       <div className="flex flex-wrap items-center gap-3">
-        <Input placeholder="Поиск: наш код, код в продажах, название, другое написание" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-md" />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={onlyNoSales} onChange={(e) => setOnlyNoSales(e.target.checked)} />
-          Без кода продаж ({noSales})
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-          Только активные
-        </label>
         <span className="text-sm text-neutral-500">Показано {view.length} из {rows.length}</span>
         <span className="ml-auto flex gap-2">
           <a href="/settings/articles-ref/export" className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50">Скачать CSV</a>
@@ -202,7 +244,7 @@ export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdi
 
       {adding && (
         <div className="overflow-hidden rounded-lg border border-neutral-200">
-          <EditForm id={null} initial={EMPTY} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
+          <EditForm categories={categories} canCreateCategory={canCreateCategory} id={null} initial={EMPTY} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
         </div>
       )}
 
@@ -210,7 +252,7 @@ export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdi
         <Thead>
           <Tr>
             {th("Наш код", "name")}
-            {th("Название", "category")}
+            {th("Категория / название", "category")}
             <Th>SKU</Th>
             {th("Код и название в продажах", "salesCode")}
             <Th>Другие написания</Th>
@@ -257,7 +299,7 @@ export function ArticlesRefTable({ rows, canEdit }: { rows: ArticleRow[]; canEdi
                   )}
                 </Tr>
                 {editing === r.id && (
-                  <Tr><Td colSpan={cols} className="p-0"><EditForm id={r.id} initial={toInput(r)} onDone={() => setEditing(null)} onCancel={() => setEditing(null)} /></Td></Tr>
+                  <Tr><Td colSpan={cols} className="p-0"><EditForm categories={categories} canCreateCategory={canCreateCategory} id={r.id} initial={toInput(r)} onDone={() => setEditing(null)} onCancel={() => setEditing(null)} /></Td></Tr>
                 )}
                 {merging === r.id && (
                   <Tr><Td colSpan={cols} className="p-0"><MergePanel source={r} rows={rows} onClose={() => setMerging(null)} /></Td></Tr>

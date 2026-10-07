@@ -73,3 +73,16 @@
 5. Фильтры таблиц лотов аукциона: мгновенные клиентские или привязанные к URL по кнопке.
 6. Добавлять ли «подтверждено / ждёт» в закупки, оплаты, ТЗ, лоты.
 7. Нужны ли фильтры в коротких справочниках.
+
+## Статус миграции (07.10.2026, волна 4)
+Решения владельца: фильтры применяются сразу (текст — через ≈0,4 с), в одну строку, выпадающие списки с галочками, годы обязательны.
+Фундамент: `src/lib/filters/index.ts` (defineFilters, parseFilters, filterHref, resetHref, activeChips, toWhere, псевдонимы), `src/lib/filter-options.ts` (getFilterOptions, кэш 30 с; точка подключения справочника аукционов — `loadAuctionFilterOptions`), `src/components/filters/filter-bar.tsx` и `multi-select-filter.tsx`; проверки — `npx tsx scripts/test-filters.ts`.
+Сделано (волны 4–5): /purchases, /payments, /production, /verify, /history, /articles, /documents; /lots (Мех, Подкладка, Сводка, «Аукцион»), /dashboard, /analytics/products, pricing, raw; /shipments, /fittings, /plan, /plan/seasons, /calendar, /supply-plan; /suppliers, /clients, /users, /materials, /settings/colors, /settings/furs, /settings/articles-ref.
+- /lots, вкладки «Мех» и «Подкладка»: один блок «Фильтры меха» / «Фильтры подкладки» внутри карточки таблицы — `<LocalFilterBar>` (тот же вид, что `<FilterBar>`: выпадающие списки, чипы, «Сбросить всё», мгновенно): партия закупки (параметр `batch`, старый `auc`), вид меха `fur`, год `pyear`, цвет, размер, остаток, поиск `q` (считается на клиенте по лотам таблицы; значения пишутся в адрес через history.replaceState). Быстрые чипы `a[href^="/lots?auction="]` — в футере панели. Режим «Аукцион» (`?auction=`) — серверная панель «Фильтры меха».
+- Сводка по годам: годы свёрнуты, внутри год делится на «Мех» и «Подкладка» (свои подитоги и аукционы).
+- /dashboard: панель «Фильтры сводки» (партия закупки, вид меха, цвет, партия производства, заказчик, статус ТЗ, ставка НДС лота) сужает «Закуплено», «Склад», «Выпущено», стоимость выпуска, «Долг заказчиков»; «Долг поставщику», «Задачи», «Динамика по годам» не зависят (подписано).
+- /analytics/*: `AnalyticsFilterBar` (analytics/_shared) вместо `FilterPanel`; параметры канонические (`category`, `auction`, `pyear`, `lotcolor`; `auc`, `py`, `lc`, `cat` читаются), в raw `auction/fur/pyear` — мультивыбор (`kind`→`fur`, `m`→`model`); CSV читает те же параметры. Поля вида (группировка, статус, маркап, база наценки) — controls с `state: true`: применяются сразу, не считаются фильтрами.
+- Новое в общих компонентах: `LocalFilterBar`, `state` у контролов, `dropOnChange`, `inputMode`/`datalist` у текста; в `src/lib/filters`: `year`, `yearRanges`, `yearOptionsFrom`.
+- Удалены: `src/components/filter-panel.tsx`, `analytics/_shared/filter-panel.tsx`. `multi-filter.tsx` остаётся (его использует settings/auctions); `lots/lots-filters.tsx` (таблицы лотов аукциона) не трогали.
+Осталось: фильтры внутри таблиц лотов аукциона (`lots-filters.tsx`), /settings/auctions на общей панели, /reconciliation; e2e не запускались (build запрещён), код спеков обновлён.
+Изменения поведения: на /payments список сужается до выбранной партии; `?f=rest`→`status=rest`, `?nds`→`vat`, `?need`→`docs`, `?dq`→`q`, `?dpage`→`page`, `?vat=excl` на Сводке→`vatmode`; `?season=<id>` читается и как код сезона.

@@ -5,6 +5,7 @@
 // у ТЗ — описание материала («жилет соболь»). Категория ОПРЕДЕЛЯЕТСЯ ПО НАЗВАНИЮ
 // прозрачным правилом ниже: берём то ключевое слово, которое встречается в тексте
 // раньше всех (так «Пальто … с шарфом» — пальто, а не шарф). Данные не меняются.
+// Если у модели выбрана категория из справочника (categoryRef) — берётся она, правило ниже — запасной вариант.
 // Ничего не нашли — «категория не определена» (показывается отдельной строкой со списком).
 //
 // Правила и тестовые примеры (CATEGORY_CASES) — в этом файле; проверка:
@@ -53,17 +54,28 @@ export function categoryFromText(text: string | null | undefined): string | null
   return t ? firstHit(t, CATEGORY_MATCH) : null;
 }
 
-export type CategorySource = "category" | "description" | "name" | "none";
+/** Все категории, ключевые слова которых встречаются в тексте (больше одной — соответствие спорное). */
+export function categoryHitsFromText(text: string | null | undefined): string[] {
+  const t = (text ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+  if (!t) return [];
+  return CATEGORY_MATCH.filter((r) => r.words.some((w) => wordStart(w).test(t))).map((r) => r.label);
+}
+
+export type CategorySource = "ref" | "category" | "description" | "name" | "none";
 
 /**
  * Категория изделия: сначала текст категории модели, затем описание материала в ТЗ, затем название модели.
  * source — откуда взято (для пометки «определено по названию»).
  */
 export function classifyProduct(input: {
+  /** Каноническое название из справочника категорий (ProductModel.categoryRef.name) — главнее любого правила. */
+  refName?: string | null;
   modelCategory?: string | null;
   orderDescription?: string | null;
   modelName?: string | null;
 }): { category: string; source: CategorySource } {
+  const ref = (input.refName ?? "").trim();
+  if (ref) return { category: ref, source: "ref" };
   const a = categoryFromText(input.modelCategory);
   if (a) return { category: a, source: "category" };
   const b = categoryFromText(input.orderDescription);
@@ -74,6 +86,7 @@ export function classifyProduct(input: {
 }
 
 export const SOURCE_LABEL: Record<CategorySource, string> = {
+  ref: "по справочнику категорий",
   category: "по названию (категория модели)",
   description: "по описанию материала в ТЗ",
   name: "по названию модели",

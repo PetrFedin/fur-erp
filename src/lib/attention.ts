@@ -103,7 +103,7 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
   "no-receipt": {
     title: "Нет платёжек", kind: "decision",
     hint: "Оплаты поставщику внесены по письму или расчёту («оплачено»), а платёжного поручения в Drive нет. Деньги по ним считаются уплаченными, поэтому долг от них не завышен. Нужна выписка банка: тогда появится п/п и точная дата.",
-    link: { href: "/reconciliation", label: "Реестр сверки" },
+    link: { href: "/reconciliation", label: "Сверка" },
   },
   "advance-unlinked": {
     title: "Аванс без привязки", kind: "decision",
@@ -158,7 +158,7 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
   "batch-no-pay": {
     title: "Партии без оплат заказчика", kind: "bulk",
     hint: "По этим партиям нет ни платёжки, ни письма «оплачено» от заказчика, поэтому оплат в базе нет. Заведутся, когда появятся документы с датой. Одна запись на группу.",
-    link: { href: "/reconciliation", label: "Реестр сверки" },
+    link: { href: "/reconciliation", label: "Сверка" },
   },
   "no-auction-info": {
     title: "Закупки «Нет информации» об аукционе", kind: "bulk",

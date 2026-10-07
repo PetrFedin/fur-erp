@@ -260,7 +260,8 @@ export function ageText(days: number): string {
 
 // ───────────── фильтры и агрегация (чистые функции) ─────────────
 
-export type RawFilters = { scope: Scope; auction: string; kind: string; onlyRem: boolean; q: string; /** только лоты, из которых делали это изделие (id модели) */ model: string };
+/** auction / kind (вид меха) / pyear — мультивыбор (пусто = все); model — id изделия (только лоты, из которых его делали). */
+export type RawFilters = { scope: Scope; auction: string[]; kind: string[]; pyear: string[]; onlyRem: boolean; q: string; model: string };
 
 const CYR_LAT: Record<string, string> = {
   а: "a", в: "b", е: "e", к: "k", м: "m", н: "h", о: "o", р: "p", с: "c", т: "t", у: "y", х: "x", ё: "e",
@@ -284,8 +285,9 @@ export function lotMatches(l: RawLot, q: string): boolean {
 export function applyFilters(lots: RawLot[], f: RawFilters): RawLot[] {
   return lots.filter((l) => {
     if ((f.scope === "lining") !== (l.unit === "M")) return false;
-    if (f.auction && l.auction !== f.auction) return false;
-    if (f.kind && l.kind !== f.kind) return false;
+    if (f.auction.length && !f.auction.includes(l.auction)) return false;
+    if (f.kind.length && !f.kind.includes(l.kind)) return false;
+    if (f.pyear.length && !f.pyear.includes(String(l.year))) return false;
     if (f.onlyRem && !l.rem.greaterThan(0)) return false;
     if (f.model && !l.usages.some((u) => u.modelId === f.model)) return false;
     if (!lotMatches(l, f.q)) return false;
@@ -374,17 +376,30 @@ export function groupLots(lots: RawLot[], by: LotGroupBy): Group[] {
 }
 
 export function parseFilters(sp: Record<string, string | string[] | undefined>): { f: RawFilters; by: GroupBy } {
-  const one = (v: string | string[] | undefined, max = 200) => (typeof v === "string" ? v.slice(0, max) : "");
+  const one = (v: string | string[] | undefined, max = 200) => (typeof v === "string" ? v.slice(0, max) : Array.isArray(v) && typeof v[0] === "string" ? v[0].slice(0, max) : "");
+  // Мультивыбор: повтор параметра; старые имена (auc, kind, py, m) читаются как псевдонимы.
+  const many = (...names: string[]) => {
+    const out: string[] = [];
+    for (const n of names) {
+      const v = sp[n];
+      for (const x of Array.isArray(v) ? v : v == null ? [] : [v]) {
+        const t = String(x).trim().slice(0, 200);
+        if (t && !out.includes(t)) out.push(t);
+      }
+    }
+    return out.slice(0, 60);
+  };
   const by = GROUPS.some((g) => g.key === sp.g) ? (sp.g as GroupBy) : "auction";
   return {
     by,
     f: {
       scope: sp.scope === "lining" ? "lining" : "fur",
-      auction: one(sp.auction),
-      kind: one(sp.kind),
-      onlyRem: sp.rest === "1",
+      auction: many("auction", "auc"),
+      kind: many("fur", "kind"),
+      pyear: many("pyear", "py").filter((y) => /^\d{4}$/.test(y)),
+      onlyRem: one(sp.rest) === "1",
       q: one(sp.q, 100),
-      model: one(sp.m, 60),
+      model: one(sp.model ?? sp.m, 60),
     },
   };
 }
@@ -405,17 +420,17 @@ type OrderBrief = {
   startDate: Date | null;
   materialDescription: string | null;
   batch: { id: string; number: number; year: number | null } | null;
-  productModel: { id: string; name: string; sku: string | null; category: string | null };
+  productModel: { id: string; name: string; sku: string | null; category: string | null; categoryRef: { name: string } | null };
 };
 const ORDER_BRIEF = {
   id: true, number: true, producedQuantity: true, plannedQuantity: true, workOrderDate: true, endDate: true, startDate: true, materialDescription: true,
   batch: { select: { id: true, number: true, year: true } },
-  productModel: { select: { id: true, name: true, sku: true, category: true } },
+  productModel: { select: { id: true, name: true, sku: true, category: true, categoryRef: { select: { name: true } } } },
 } satisfies Prisma.ProductionOrderSelect;
 
 const orderDateOf = (o: { workOrderDate: Date | null; endDate: Date | null; startDate: Date | null }) => o.workOrderDate ?? o.endDate ?? o.startDate;
 const categoryOfOrder = (o: OrderBrief) =>
-  classifyProduct({ modelCategory: o.productModel.category, orderDescription: o.materialDescription, modelName: o.productModel.name }).category;
+  classifyProduct({ refName: o.productModel.categoryRef?.name, modelCategory: o.productModel.category, orderDescription: o.materialDescription, modelName: o.productModel.name }).category;
 
 /** Одно списание сырья в ТЗ (со стоимостью по цене лота). */
 export type UsageRow = {
@@ -721,7 +736,7 @@ export type ArticleLots = {
 /** «Изделие → лоты»: из каких лотов (меха и подкладки) сделано изделие и сколько ушло. null — изделия нет. */
 export async function loadArticleLots(modelId: string, organizationId?: string): Promise<ArticleLots | null> {
   const orgId = await orgIdOf(organizationId);
-  const model = await prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId }, select: { id: true, name: true, sku: true, category: true } });
+  const model = await prisma.productModel.findFirst({ where: { id: modelId, organizationId: orgId }, select: { id: true, name: true, sku: true, category: true, categoryRef: { select: { name: true } } } });
   if (!model) return null;
   const lines = await prisma.productionMaterialUsage.findMany({
     where: { productionOrder: { organizationId: orgId, productModelId: modelId } },
@@ -734,7 +749,7 @@ export async function loadArticleLots(modelId: string, organizationId?: string):
   for (const r of rows) orders.set(r.orderId, r.produced);
   const lots: ArticleLot[] = usageByLot(rows).map((g) => ({ lot: lotById.get(g.lotId)!, ...g }));
   return {
-    model: { id: model.id, name: model.name, sku: model.sku, category: model.category ?? "" },
+    model: { id: model.id, name: model.name, sku: model.sku, category: model.categoryRef?.name ?? model.category ?? "" },
     orders: orders.size,
     produced: Array.from(orders.values()).reduce((s, p) => s.add(p), zero()),
     lots,

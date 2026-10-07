@@ -6,7 +6,7 @@ const PAGES = [
   "/dashboard", "/lots", "/lots?tab=lining", "/raw-materials", "/purchases", "/purchases/new",
   "/production", "/production/new", "/shipments", "/shipments/new", "/fittings", "/fittings/new",
   "/articles", "/settings", "/materials", "/materials/new", "/suppliers", "/clients", "/payments",
-  "/payments?tab=clients", "/supply-plan", "/warehouses", "/expense-categories", "/users",
+  "/payments?tab=clients", "/supply-plan", "/attention", "/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/warehouses", "/expense-categories", "/users",
 ];
 
 test.describe("смоук: страницы открываются", () => {

@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { staleError, MODEL_V } from "@/lib/concurrency";
+import { resolveCategoryInput } from "@/lib/categories";
 import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation } from "@/lib/input";
 
 const EDIT_ROLES = ACCESS.models;
@@ -40,10 +41,11 @@ export async function createModel(
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const cat = await resolveCategoryInput(prisma, session.user.organizationId, { category: parsed.data.category, categoryRefId: String(formData.get("categoryRefId") ?? "") || null });
   let model;
   try {
     model = await prisma.productModel.create({
-      data: { organizationId: session.user.organizationId, ...parsed.data },
+      data: { organizationId: session.user.organizationId, ...parsed.data, category: cat.category, categoryRefId: cat.categoryRefId },
     });
   } catch (e) {
     if (isUniqueViolation(e)) return { error: "Модель с таким артикулом уже существует" };
@@ -69,11 +71,12 @@ export async function updateModel(
     if (stale) return { error: stale };
   }
 
+  const cat = await resolveCategoryInput(prisma, session.user.organizationId, { category: parsed.data.category, categoryRefId: String(formData.get("categoryRefId") ?? "") || null });
   let result;
   try {
     result = await prisma.productModel.updateMany({
       where: { id, organizationId: session.user.organizationId },
-      data: parsed.data,
+      data: { ...parsed.data, category: cat.category, categoryRefId: cat.categoryRefId },
     });
   } catch (e) {
     if (isUniqueViolation(e)) return { error: "Модель с таким артикулом уже существует" };

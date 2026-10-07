@@ -3,9 +3,12 @@ import { MODEL_TITLES, fieldLabel, showValue } from "@/lib/audit-core";
 
 export const PAGE_SIZE = 50;
 
-export type HistoryFilters = { from: string; to: string; actor: string; model: string; action: string; q: string; page: number };
+/** actor / model / action — мультивыбор (повтор параметра: `model=Purchase&model=Payment`); пусто — все. */
+export type HistoryFilters = { from: string; to: string; actor: string[]; model: string[]; action: string[]; q: string; page: number };
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 100) : "");
+const many = (v: string | string[] | undefined): string[] =>
+  Array.from(new Set((Array.isArray(v) ? v : v == null ? [] : [v]).map(str).filter(Boolean))).slice(0, 60);
 
 export function parseHistoryFilters(sp: Record<string, string | string[] | undefined>): HistoryFilters {
   const date = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? str(v) : "");
@@ -13,10 +16,10 @@ export function parseHistoryFilters(sp: Record<string, string | string[] | undef
   return {
     from: date(sp.from),
     to: date(sp.to),
-    actor: str(sp.actor),
-    model: Object.keys(MODEL_TITLES).includes(str(sp.model)) ? str(sp.model) : "",
-    action: ["create", "update", "delete"].includes(str(sp.action)) ? str(sp.action) : "",
-    q: str(sp.q),
+    actor: many(sp.actor),
+    model: many(sp.model).filter((m) => Object.keys(MODEL_TITLES).includes(m)),
+    action: many(sp.action).filter((a) => ["create", "update", "delete"].includes(a)),
+    q: str(sp.q || sp.dq),
     page,
   };
 }
@@ -26,9 +29,11 @@ export function historyWhere(organizationId: string, f: HistoryFilters): Prisma.
   const and: Prisma.AuditLogWhereInput[] = [{ organizationId }];
   if (f.from) and.push({ at: { gte: new Date(`${f.from}T00:00:00+03:00`) } });
   if (f.to) and.push({ at: { lt: new Date(new Date(`${f.to}T00:00:00+03:00`).getTime() + 86_400_000) } });
-  if (f.actor) and.push(f.actor.startsWith("src:") ? { actorId: null, source: f.actor.slice(4) } : { actorId: f.actor });
-  if (f.model) and.push({ model: f.model });
-  if (f.action) and.push({ action: f.action });
+  if (f.actor.length) {
+    and.push({ OR: f.actor.map((a) => (a.startsWith("src:") ? { actorId: null, source: a.slice(4) } : { actorId: a })) });
+  }
+  if (f.model.length) and.push({ model: { in: f.model } });
+  if (f.action.length) and.push({ action: { in: f.action } });
   if (f.q) {
     and.push({
       OR: [
