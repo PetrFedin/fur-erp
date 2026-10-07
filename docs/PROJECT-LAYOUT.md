@@ -76,5 +76,7 @@ npx prisma generate
 npm run dev -- -p 3200
 ```
 
+Внимание: папка лежит в `~/Documents` (синхронизация iCloud). При нехватке места macOS выгружает файлы `node_modules` в облако, и `tsc`/`next build` «зависают» на их чтении. Лекарство: `rm -rf node_modules && npm ci` (или `cp -cR` из рабочей копии с тем же `package-lock.json`). Символическая ссылка `node_modules -> node_modules.nosync` НЕ годится: Turbopack падает с `there must be a path to a root`. Перед `next build` нужен свежий `npx next typegen` (иначе `tsc` не знает `PageProps`).
+
 Данные: восстановить БД из дампа (см. раздел 5), положить `uploads/` из архива. Если дампа нет — данные пересобираются скриптами из `scripts/` (порядок и журналы — `docs/inventory/`, `docs/DATA-SAFETY.md`).
 Боевой деплой — `docs/DEPLOY.md`; допуск production — `docs/PRODUCTION_ADMISSION.md`; тесты — `docs/TESTING.md`.
