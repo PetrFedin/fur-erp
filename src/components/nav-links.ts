@@ -1,4 +1,4 @@
-// Меню из 6 пунктов. `also` — вложенные и переехавшие разделы: на них
+// Основное меню. Анализ документов вынесен отдельно от управленческой Сводки. `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Сводка", also: [] },
@@ -6,6 +6,7 @@ export const NAV_LINKS = [
   { href: "/purchases", label: "Закупки", also: [] },
   { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/analytics/products", "/analytics/pricing"] },
+  { href: "/document-analysis", label: "Анализ документов", also: ["/documents", "/attention", "/reconciliation", "/verify", "/history"] },
   {
     href: "/settings",
     label: "Настройки",
@@ -18,11 +19,6 @@ export const NAV_LINKS = [
       "/warehouses",
       "/expense-categories",
       "/users",
-      "/attention",
-      "/documents",
-      "/reconciliation",
-      "/verify",
-      "/history",
     ],
   },
 ] as const;

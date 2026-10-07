@@ -21,7 +21,13 @@ export const PAY_EPS = new Decimal("0.005");
 export const CLOSING_NOTE = "Оплачено до начала учёта в системе (закрытие остатка)";
 
 export function auctionName(session: string | null | undefined): string | null {
-  return session?.split(/\r?\n/)[0].trim() || null;
+  const raw = session?.split(/\r?\n/)[0].trim();
+  if (!raw) return null;
+  // Служебная метка импорта — не аукцион. Такие закупки показываем как «Без аукциона».
+  if (/^нет информации$/i.test(raw) || /^не в реестре остатков/i.test(raw)) return null;
+  // Канонические бизнес-названия для интерфейса: документы Drive используют РП/СП и дефис года.
+  if (/^закупка меха 04-26$/i.test(raw)) return "РП 04-26";
+  return raw.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
 }
 
 export type AuctionPayStatus = "UNPAID" | "PARTIAL" | "PAID" | "OVERPAID";
@@ -122,7 +128,8 @@ export function buildAuctionSummaries(purchases: PurchaseForPay[], auctionPaymen
     map.set(name, a);
   }
   for (const pay of auctionPayments) {
-    const a = pay.auctionSession ? map.get(pay.auctionSession) : undefined;
+    const normalized = auctionName(pay.auctionSession);
+    const a = normalized ? map.get(normalized) : undefined;
     if (!a) continue;
     if (pay.status === "COMPLETED") a.paidByAuction = a.paidByAuction.add(pay.amount);
     else if (pay.status === "PENDING") a.planned = a.planned.add(pay.amount);
@@ -148,15 +155,19 @@ export async function loadAuctionSummaries(db: Db, organizationId: string, names
     },
   });
   const wanted = names ? purchases.filter((p) => names.includes(auctionName(p.auctionSession) ?? "")) : purchases;
-  const payments = await db.payment.findMany({
+  const paymentsAll = await db.payment.findMany({
     where: {
       organizationId,
       purchaseId: null,
-      auctionSession: names ? { in: names } : { not: null },
+      auctionSession: { not: null },
       status: { in: ["COMPLETED", "PENDING"] },
     },
     select: { auctionSession: true, amount: true, status: true },
   });
+  const payments = names ? paymentsAll.filter((p) => {
+    const name = auctionName(p.auctionSession);
+    return !!name && names.includes(name);
+  }) : paymentsAll;
   return buildAuctionSummaries(wanted, payments);
 }
 

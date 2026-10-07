@@ -86,7 +86,7 @@ const PRIORITY_ORDER: Record<AttentionPriority, number> = { red: 0, yellow: 1, g
 export type AttentionGroupId =
   | "no-receipt" | "advance-unlinked" | "auction-unpaid" | "overpaid" | "late-delivery" | "tz-requisites" | "suspect-date"
   | "model-dup" | "no-auction"
-  | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots"
+  | "tz-no-date" | "tz-end-date" | "batch-no-pay" | "no-auction-info" | "stub-lots" | "production-status"
   | "awaiting" | "no-usage" | "dict";
 
 export type AttentionGroupKind = "decision" | "bulk" | "info";
@@ -169,6 +169,11 @@ export const GROUPS: Record<AttentionGroupId, AttentionGroupMeta> = {
     title: "Даты закупок и лотов — дата импорта", kind: "bulk",
     hint: "Дата заказа или прихода подставлена при импорте (01.10.2026) или не указана; настоящей даты в УПД нет. Одна запись на группу.",
     link: { href: "/lots", label: "Сырьё" },
+  },
+  "production-status": {
+    title: "Статус производства не совпадает с фактом", kind: "decision",
+    hint: "ТЗ помечено как запланированное при уже указанном выпуске либо как завершённое при нулевом факте. Нужна ручная проверка статуса/количества.",
+    link: { href: "/production", label: "ТЗ" },
   },
   awaiting: {
     title: "Ожидаемые поставки", kind: "info",
@@ -410,6 +415,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
       select: {
         id: true, number: true, status: true, notes: true, materialDescription: true, workOrderDate: true,
         endDate: true, startDate: true, batchId: true, clientId: true, contractNumber: true, productModelId: true,
+        plannedQuantity: true, producedQuantity: true,
         productModel: { select: { name: true } },
         client: { select: { name: true } },
         batch: { select: { year: true } },
@@ -424,7 +430,12 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     }),
     db.productionPayment.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
-      select: { orders: { select: { productionOrderId: true } } },
+      select: {
+        id: true, amount: true, paidAt: true, confirmed: true, docRef: true, clientId: true,
+        client: { select: { name: true } },
+        orders: { select: { productionOrderId: true } },
+      },
+      orderBy: { paidAt: "asc" },
     }),
     db.productModelMaterial.findMany({
       where: { productModel: { organizationId } },
@@ -451,6 +462,20 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
   for (const b of bomRows) bomByModel.set(b.productModelId, [...(bomByModel.get(b.productModelId) ?? []), b]);
 
   for (const o of orders) {
+    if (o.status === "PLANNED" && o.producedQuantity.greaterThan(0)) {
+      flagTz(o, {
+        text: `статус «Запланировано», но уже указано произведено ${o.producedQuantity.toString()} из ${o.plannedQuantity.toString()} — нужна ручная проверка статуса`,
+        priority: "yellow",
+        group: "production-status",
+      });
+    }
+    if (o.status === "COMPLETED" && o.producedQuantity.isZero() && o.plannedQuantity.greaterThan(0)) {
+      flagTz(o, {
+        text: `статус «Завершено», но произведено 0 из ${o.plannedQuantity.toString()} — нужна ручная проверка количества`,
+        priority: "red",
+        group: "production-status",
+      });
+    }
     // Списания сырья
     if (o.materialUsages.length === 0) {
       const ns = NON_STOCK_RE.test(`${o.notes ?? ""} ${o.materialDescription ?? ""}`);
@@ -486,6 +511,29 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
           priority: nonStock(o) || NON_STOCK_RE.test(`${o.notes ?? ""}`) ? "gray" : "red",
           group: nonStock(o) || NON_STOCK_RE.test(`${o.notes ?? ""}`) ? "no-usage" : "tz-requisites",
         });
+    }
+  }
+
+  // Оплаты производства без подтверждающего документа — красный разрыв evidence.
+  for (const p of productionPayments) {
+    if (!p.confirmed) {
+      const first = p.orders[0]?.productionOrderId;
+      flag(
+        "payment",
+        `production:${p.id}`,
+        {
+          title: `${p.client?.name ?? "Заказчик не указан"}, ${formatMoney(p.amount.toString())}`,
+          sub: `${formatDate(p.paidAt)} · оплата производства${p.orders.length ? ` · ${p.orders.length} ТЗ` : " · аванс без ТЗ"}`,
+          href: first ? `/production/${first}` : "/production",
+          year: p.paidAt.getUTCFullYear(),
+          amount: p.amount.toNumber(),
+        },
+        {
+          text: `оплата производства не подтверждена${p.docRef ? ` (основание: ${cut(p.docRef, 60)})` : ""}; нужна платёжка/выписка`,
+          priority: "red",
+          group: "no-receipt",
+        }
+      );
     }
   }
 

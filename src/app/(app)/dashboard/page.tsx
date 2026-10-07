@@ -13,16 +13,13 @@ import { c4Suffix, sumUsagesWith4 } from "@/lib/commission4";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { CompactMoney } from "./compact-money";
-import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/lib/attention";
-import { loadVerifyFlags } from "@/lib/verification";
-import { computeDocCoverage } from "@/lib/doc-coverage";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
 import { lotYear, orderYearWhere } from "@/lib/year-scope";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
-import reconciliationData from "@/data/reconciliation.json";
+import { ProductionCostTotal } from "@/components/production-cost-total";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -52,10 +49,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     allLots,
     materials,
     materialUsedAgg,
+    furPurchaseItems,
+    productionCostOrders,
+    annualPurchases,
+    annualSupplierPayments,
+    annualProductionOrders,
     clientOrders,
     clientPaymentsAll,
-    attentionChecks,
-    docCoverage,
   ] = await Promise.all([
     // Отменённые закупки в «Куплено сырья» не входят.
     prisma.purchase.findMany({
@@ -70,7 +70,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId, ...lotYear(year) },
-      select: { rawMaterialId: true, quantityReceived: true },
+      select: {
+        id: true, rawMaterialId: true, quantityReceived: true, quantityRemaining: true, unitCost: true, color: true, receivedDate: true,
+        rawMaterial: { select: { name: true, unit: true } },
+        purchase: { select: { auctionSession: true, orderDate: true, currency: true } },
+        purchaseItems: { select: { quantity: true, subtotal: true } },
+      },
     }),
     prisma.rawMaterial.findMany({
       where: { organizationId },
@@ -78,12 +83,46 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       orderBy: { name: "asc" },
     }),
     prisma.productionMaterialUsage.findMany({
-      where: { productionOrder: { organizationId, ...orderYearWhere(year) } },
+      where: { productionOrder: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) } },
       select: {
         quantity: true,
         totalCost: true,
         commission4: true,
-        lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+        rawMaterial: { select: { name: true, unit: true } },
+        lot: { select: { id: true, materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
+      },
+    }),
+    prisma.purchaseItem.findMany({
+      where: {
+        purchase: { organizationId, status: { not: "CANCELLED" }, currency: "USD", ...(range ? { orderDate: range } : {}) },
+        rawMaterial: { unit: { not: "M" } },
+      },
+      select: { quantity: true, subtotal: true },
+    }),
+    prisma.productionOrder.findMany({
+      where: { organizationId, status: { not: "CANCELLED" }, ...orderYearWhere(year) },
+      select: {
+        id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, clientWorkPricePerUnit: true,
+        materialCost: true, expenseCost: true, totalCost: true,
+        materialUsages: { select: { quantity: true, totalCost: true, rawMaterial: { select: { name: true, unit: true } } } },
+        expenses: { select: { amount: true } },
+      },
+    }),
+    prisma.purchase.findMany({
+      where: { organizationId, status: { not: "CANCELLED" } },
+      include: { items: true, expenses: true },
+      orderBy: { orderDate: "asc" },
+    }),
+    prisma.payment.findMany({
+      where: { organizationId, status: "COMPLETED" },
+      select: { amount: true, paidAt: true },
+      orderBy: { paidAt: "asc" },
+    }),
+    prisma.productionOrder.findMany({
+      where: { organizationId, status: { not: "CANCELLED" } },
+      select: {
+        producedQuantity: true, workOrderDate: true, startDate: true, createdAt: true,
+        materialUsages: { select: { totalCost: true } },
       },
     }),
     // ТЗ производства под заказчика (давальческая схема) — заказы без
@@ -96,14 +135,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { organizationId },
       include: { orders: { select: { productionOrderId: true } } },
     }),
-    computeAttention(prisma, organizationId, year),
-    computeDocCoverage(prisma, organizationId),
   ]);
-  const attentionBlocks = buildAttentionBlocks(attentionChecks);
-  const attention = countAttentionBlocks(attentionBlocks);
-  // Подтверждение строк (платежи, закупки, ТЗ, партии): отдельно от «что не заведено».
-  const vf = await loadVerifyFlags(prisma, organizationId, year);
-  const vTotal = Object.values(vf.counts).reduce((a, c) => ({ total: a.total + c.total, verified: a.verified + c.verified }), { total: 0, verified: 0 });
   // Оплаты заказчиков года: привязанные к ТЗ года; без ТЗ — по дате оплаты.
   const yearOrderIds = new Set(clientOrders.map((o) => o.id));
   const clientPayments = clientPaymentsAll.filter((p) =>
@@ -239,6 +271,100 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const totalMaterialUsedValue = usedSum.incl;
   const totalMaterialUsedValueExclVat = usedSum.excl;
 
+  // Тотал по меховому сырью: только физически принятые лоты, подкладка отдельно.
+  const furLots = allLots.filter((l) => l.rawMaterial.unit !== "M");
+  const rawQtyTotal = furLots.reduce((s, l) => s.add(l.quantityReceived), new Decimal(0));
+  const rawCostTotal = furLots.reduce((s, l) => s.add(l.quantityReceived.mul(l.unitCost)), new Decimal(0));
+  const rawRemainingQty = furLots.reduce((s, l) => s.add(l.quantityRemaining), new Decimal(0));
+  const rawRemainingValue = furLots.reduce((s, l) => s.add(l.quantityRemaining.mul(l.unitCost)), new Decimal(0));
+  const rawAvgFinalRub = rawQtyTotal.greaterThan(0) ? rawCostTotal.div(rawQtyTotal) : new Decimal(0);
+  const usdQty = furPurchaseItems.reduce((s, i) => s.add(i.quantity), new Decimal(0));
+  const usdSubtotal = furPurchaseItems.reduce((s, i) => s.add(i.subtotal), new Decimal(0));
+  const rawAvgPurchaseUsd = usdQty.greaterThan(0) ? usdSubtotal.div(usdQty) : new Decimal(0);
+
+  const furUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit !== "M");
+  const liningUsed = materialUsedAgg.filter((u) => u.rawMaterial.unit === "M");
+  const rawInGoodsQty = furUsed.reduce((s, u) => s.add(u.quantity), new Decimal(0));
+  const rawInGoodsValue = furUsed.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const liningInGoodsValue = liningUsed.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
+  const producedGoodsQty = productionCostOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
+  const productionWorkValue = productionCostOrders.reduce((s, o) => {
+    if (!o.clientWorkPricePerUnit) return s;
+    const q = o.producedQuantity.greaterThan(0) ? o.producedQuantity : o.plannedQuantity;
+    return s.add(o.clientWorkPricePerUnit.mul(q));
+  }, new Decimal(0));
+  const producedGoodsTotalCost = rawInGoodsValue.add(liningInGoodsValue).add(productionWorkValue);
+  const producedGoodsAverageCost = producedGoodsQty.greaterThan(0) ? producedGoodsTotalCost.div(producedGoodsQty) : new Decimal(0);
+  const supplierCashPaid = supplierDebt.paid.add(supplierDebt.unlinkedAdvances);
+
+  const usageByLot = new Map<string, { qty: Decimal; value: Decimal; c4Value: Decimal }>();
+  for (const u of materialUsedAgg) {
+    const id = u.lot.id;
+    const cur = usageByLot.get(id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
+    cur.qty = cur.qty.add(u.quantity);
+    cur.value = cur.value.add(u.totalCost);
+    cur.c4Value = cur.c4Value.add(u.commission4 ? new Decimal(u.totalCost).mul(1 + COMMISSION_RATE) : u.totalCost);
+    usageByLot.set(id, cur);
+  }
+  const canonicalFurName = (name: string) => /^Лиса(?:\s|$)/i.test(name) ? "Лиса" : name;
+  const normalizedAuction = (raw: string | null | undefined) => {
+    const value = raw?.split(/\r?\n/)[0].trim();
+    if (!value || /^нет информации$/i.test(value)) return "Без партии закупки";
+    if (/^закупка меха 04-26$/i.test(value)) return "РП 04-26";
+    return value.replace(/^((?:СП|РП|SAGA)\s+\d{2})\.(\d{2})$/i, "$1-$2");
+  };
+  const furInteractiveRows = allLots.filter((l) => l.rawMaterial.unit !== "M").map((l) => {
+    const used = usageByLot.get(l.id) ?? { qty: new Decimal(0), value: new Decimal(0), c4Value: new Decimal(0) };
+    const inferredColor = /^Лиса красная$/i.test(l.rawMaterial.name) ? "Красный" : null;
+    const usdQty = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.quantity), new Decimal(0)) : new Decimal(0);
+    const usdSubtotal = l.purchase?.currency === "USD" ? l.purchaseItems.reduce((a, i) => a.add(i.subtotal), new Decimal(0)) : new Decimal(0);
+    return {
+      id: l.id,
+      species: canonicalFurName(l.rawMaterial.name),
+      color: l.color || inferredColor || "Не указан",
+      auction: normalizedAuction(l.purchase?.auctionSession),
+      year: (l.purchase?.orderDate ?? l.receivedDate).getUTCFullYear(),
+      purchasedQty: l.quantityReceived.toNumber(),
+      purchasedValue: l.quantityReceived.mul(l.unitCost).toNumber(),
+      usedQty: used.qty.toNumber(),
+      usedValueBase: used.value.toNumber(),
+      usedValueWith4: used.c4Value.toNumber(),
+      remainingQty: l.quantityRemaining.toNumber(),
+      remainingValue: l.quantityRemaining.mul(l.unitCost).toNumber(),
+      usdQty: usdQty.toNumber(),
+      usdSubtotal: usdSubtotal.toNumber(),
+    };
+  });
+
+  type AnnualRow = { year: number; purchased: Decimal; supplierPaid: Decimal; produced: Decimal; materialInProduction: Decimal; clientPaid: Decimal };
+  const annualMap = new Map<number, AnnualRow>();
+  const annual = (y: number) => {
+    const cur = annualMap.get(y) ?? { year: y, purchased: new Decimal(0), supplierPaid: new Decimal(0), produced: new Decimal(0), materialInProduction: new Decimal(0), clientPaid: new Decimal(0) };
+    annualMap.set(y, cur);
+    return cur;
+  };
+  for (const p of annualPurchases) annual(p.orderDate.getUTCFullYear()).purchased = annual(p.orderDate.getUTCFullYear()).purchased.add(purchaseTotalInclVat(p));
+  for (const p of annualSupplierPayments) annual(p.paidAt.getUTCFullYear()).supplierPaid = annual(p.paidAt.getUTCFullYear()).supplierPaid.add(p.amount);
+  for (const o of annualProductionOrders) {
+    const d = o.workOrderDate ?? o.startDate ?? o.createdAt;
+    const row = annual(d.getUTCFullYear());
+    row.produced = row.produced.add(o.producedQuantity);
+    row.materialInProduction = row.materialInProduction.add(o.materialUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)));
+  }
+  for (const p of clientPaymentsAll) if (p.status === "COMPLETED") annual(p.paidAt.getUTCFullYear()).clientPaid = annual(p.paidAt.getUTCFullYear()).clientPaid.add(p.amount);
+  const annualRows = Array.from(annualMap.values()).sort((a, b) => b.year - a.year);
+  const furCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
+  const liningCostMap = new Map<string, { value: Decimal; qty: Decimal }>();
+  for (const u of materialUsedAgg) {
+    const map = u.rawMaterial.unit === "M" ? liningCostMap : furCostMap;
+    const cur = map.get(u.rawMaterial.name) ?? { value: new Decimal(0), qty: new Decimal(0) };
+    cur.value = cur.value.add(u.totalCost);
+    cur.qty = cur.qty.add(u.quantity);
+    map.set(u.rawMaterial.name, cur);
+  }
+  const furCostDetails = Array.from(furCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
+  const liningCostDetails = Array.from(liningCostMap, ([label, v]) => ({ label, value: v.value.toNumber(), qty: v.qty.toNumber() })).sort((a,b) => b.value-a.value);
+
   const draftPurchasedValue = allPurchases.filter((p) => p.status !== "RECEIVED").reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
   const receivedPurchasedValue = totalPurchasedValue.sub(draftPurchasedValue);
   // «С 4%» к остатку на складе: надбавка начисляется при списании в ТЗ (по умолчанию на сырьё и подкладку).
@@ -247,18 +373,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const clientPaidTotal = clientDebts.reduce((s, c) => s.add(c.paid), new Decimal(0));
   const clientBillableTotal = clientDebts.reduce((s, c) => s.add(c.billable), new Decimal(0));
   const yl = yearLabel(year);
-  const reconGroups = reconciliationData.groups.filter((g) => year === "all" || g.year === Number(year));
-  const reconConflicts = reconGroups.filter((g) => g.status === "conflict").length;
-  const reconReviews = reconGroups.filter((g) => g.status === "review").length;
-  const reconOpen = reconConflicts + reconReviews;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Сводка{year !== "all" ? <span className="ml-2 text-sm font-normal text-neutral-500">· {yl}</span> : null}</h1>
-        <Link href="/payments" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 max-md:inline-flex max-md:min-h-8 max-md:items-center">
-          Оплаты →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/purchases" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Закупки</Link>
+          <Link href="/lots" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Сырьё</Link>
+          <Link href="/production" className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100">Производство</Link>
+        </div>
       </div>
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
@@ -268,8 +392,99 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1 · Закупки и обязательства</div>
-          <h2 className="mt-1 text-base font-semibold">Сначала смотрим, сколько должны и что ещё предстоит оплатить</h2>
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">Executive overview</div>
+          <h2 className="mt-1 text-base font-semibold">Капитал, обязательства, склад и выпуск</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiCard
+            label="Закуплено сырья"
+            value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
+            extra={`${allPurchases.length} закупок · ${yl}`}
+            href="/purchases"
+          />
+          <KpiCard
+            label="Выплачено поставщику"
+            value={<CompactMoney incl={supplierCashPaid.toString()} />}
+            extra={supplierDebt.unlinkedAdvances.greaterThan(0) ? `в т.ч. авансы без привязки ${formatMoney(supplierDebt.unlinkedAdvances.toString())}` : "все выплаты привязаны"}
+            href="/payments"
+          />
+          <KpiCard
+            label={<InclVatOnlyLabel base="Долг поставщику" />}
+            value={<CompactMoney incl={supplierDebt.debt.toString()} />}
+            extra={`получено к оплате ${formatMoney(supplierDebt.receivedNet.toString())}`}
+            warn={supplierDebt.debt.greaterThan(0)}
+            href="/payments"
+          />
+          <KpiCard
+            label="Сырьё на складе"
+            value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
+            extra={`${formatQty(rawRemainingQty.toString())} ед. меха + подкладка`}
+            href="/lots"
+          />
+          <KpiCard
+            label="Сырьё в производстве / изделиях"
+            value={<CompactMoney incl={rawInGoodsValue.add(liningInGoodsValue).toString()} />}
+            extra={`${formatQty(rawInGoodsQty.toString())} шт. меха списано в ТЗ`}
+            href="/production"
+          />
+          <KpiCard
+            label="Произведено изделий"
+            value={`${formatQty(producedGoodsQty.toString())} шт.`}
+            extra={`стоимость по текущей модели ${formatMoney(producedGoodsTotalCost.toString())}`}
+            href="/production"
+          />
+          <KpiCard
+            label="Средняя стоимость изделия"
+            value={<CompactMoney incl={producedGoodsAverageCost.toString()} />}
+            extra="сырьё + стоимость работ по ТЗ"
+          />
+          <KpiCard
+            label={<InclVatOnlyLabel base="Долг заказчиков" />}
+            value={<CompactMoney incl={clientDebtTotal.toString()} />}
+            extra={`работы ${formatMoney(clientBillableTotal.toString())} · оплачено ${formatMoney(clientPaidTotal.toString())}`}
+            warn={clientDebtTotal.greaterThan(0)}
+          />
+        </div>
+
+        <ProductionCostTotal
+          total={producedGoodsTotalCost.toNumber()}
+          fur={rawInGoodsValue.toNumber()}
+          lining={liningInGoodsValue.toNumber()}
+          work={productionWorkValue.toNumber()}
+          furDetails={furCostDetails}
+          liningDetails={liningCostDetails}
+          products={producedGoodsQty.toNumber()}
+        />
+
+        <details className="rounded-xl border border-neutral-200 bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium hover:bg-neutral-50">
+            <span>Динамика по годам</span>
+            <span className="text-xs font-normal text-neutral-500">по умолчанию свернуто · {annualRows.length} года</span>
+          </summary>
+          <div className="overflow-x-auto border-t border-neutral-100">
+            <Table>
+              <Thead><Tr><Th>Год</Th><Th>Закуплено сырья</Th><Th>Выплачено поставщику</Th><Th>Произведено изделий</Th><Th>Сырьё в производстве</Th><Th>Получено от заказчиков</Th></Tr></Thead>
+              <Tbody>
+                {annualRows.map((r) => (
+                  <Tr key={r.year}>
+                    <Td className="font-semibold">{r.year}</Td>
+                    <Td>{formatMoney(r.purchased.toString())}</Td>
+                    <Td>{formatMoney(r.supplierPaid.toString())}</Td>
+                    <Td>{formatQty(r.produced.toString())} шт.</Td>
+                    <Td>{formatMoney(r.materialInProduction.toString())}</Td>
+                    <Td>{formatMoney(r.clientPaid.toString())}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
+        </details>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Капитал · Обязательства</div>
+          <h2 className="mt-1 text-base font-semibold">Структура долга поставщику и будущих денежных обязательств</h2>
         </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard
@@ -323,74 +538,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </section>
 
       <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 1.2 · Денежный контур</div>
-          <h2 className="mt-1 text-base font-semibold">Закуплено, оплачено, остатки и контрольные сигналы</h2>
-        </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          label="Куплено сырья"
-          hint={
-            <InfoHint wide label="Куплено сырья">
-              <p>Все закупки периода ({yl}), кроме отменённых, с НДС: мех принят <b>{formatMoney(receivedPurchasedValue.toString())}</b> + черновики (не получены) <b>{formatMoney(draftPurchasedValue.toString())}</b>.</p>
-              <p className="mt-2">«Списано в ТЗ» — стоимость сырья и подкладки в ТЗ периода{c4Mode === "on" ? ", с надбавкой 4% (включён переключатель «С 4%»)" : " без 4% (надбавку покажет переключатель «С 4%»)"}.</p>
-              <p className="mt-2 text-neutral-500">Покупки у поставщика всегда без 4%: она считается только в себестоимости.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={totalPurchasedValue.toString()} excl={totalPurchasedValueExclVat.toString()} />}
-          extra={
-            <>
-              списано в ТЗ{c4Suffix(c4Mode)}:{" "}
-              <CompactMoney incl={totalMaterialUsedValue.toString()} excl={totalMaterialUsedValueExclVat.toString()} />
-            </>
-          }
-        />
-        <KpiCard
-          label="Сырьё на складе"
-          hint={
-            <InfoHint wide label="Сырьё на складе">
-              <p>Во сколько оценивается мех и подкладка на складе (лоты закупок периода: {yl}), по цене закупки.</p>
-              <p className="mt-2">{c4Mode === "on" ? <>Включён «С 4%»: при списании в ТЗ к этой стоимости добавится 4% — <b>{formatMoney(stock4Extra.toString())}</b> (с НДС). На складе лежит по цене закупки.</> : "Переключатель «С 4%» покажет, сколько добавит 4% при списании в ТЗ."}</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={rawStockValue.toString()} excl={rawStockValueExclVat.toString()} />}
-          extra={c4Mode === "on" ? <>со списанием в ТЗ (+4%): <CompactMoney incl={rawStockValue.add(stock4Extra).toString()} excl={rawStockValueExclVat.add(stock4ExtraExcl).toString()} /></> : undefined}
-        />
-        <KpiCard
-          label="Оплачено поставщику"
-          hint={
-            <InfoHint wide label="Оплачено поставщику">
-              <p>Оплаты, засчитанные в закупки периода ({yl}): <b>{formatMoney(supplierDebt.paid.toString())}</b>; авансы без привязки (<b>{formatMoney(supplierDebt.unlinkedAdvances.toString())}</b>) считаются отдельно и вычтены из долга.</p>
-              <p className="mt-2 text-neutral-500">Оплаты по письму или расчёту без платёжки внесены с пометкой «не подтверждён»: их список — на странице «Что не заведено». Переключатель «С 4%» оплаты не меняет.</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={supplierDebt.paid.toString()} />}
-          href="/payments"
-        />
-        <KpiCard
-          label={<InclVatOnlyLabel base="Долг заказчиков" />}
-          hint={
-            <InfoHint wide label="Долг заказчиков">
-              <p>Сколько заказчики ещё должны за работу по ТЗ периода ({yl}): работа <b>{formatMoney(clientBillableTotal.toString())}</b> − оплачено <b>{formatMoney(clientPaidTotal.toString())}</b> = <b>{formatMoney(clientDebtTotal.toString())}</b>.</p>
-              <p className="mt-2">Оплаты: привязанные к ТЗ периода; без ТЗ — по дате оплаты. Авансы без ТЗ:{" "}
-                {advancesDeducted.greaterThan(0) ? `${formatMoney(advancesDeducted.toString())} уже вычтены` : "нет"}
-                {advancesNotCounted.greaterThan(0) ? `; ${formatMoney(advancesNotCounted.toString())} не вычтены (нет заказчика или его ТЗ)` : ""}.
-              </p>
-              <p className="mt-2 text-neutral-500">В оплаты партий входят шкуры подрядчика (в счетах на доплату), поэтому по отдельному году сумма может быть отрицательной — по всем годам она сходится.</p>
-              <p className="mt-2 text-neutral-500">Переключатель «С 4%» долг заказчиков не меняет (4% — только на сырьё в себестоимости).</p>
-            </InfoHint>
-          }
-          value={<CompactMoney incl={clientDebtTotal.toString()} />}
-          warn={clientDebtTotal.greaterThan(0)}
-        />
-      </div>
-      </section>
-
-      <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 2 · Сырьё и склад</div>
-            <h2 className="mt-1 text-base font-semibold">Что куплено, использовано и осталось</h2>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Операции · Сырьё и склад</div>
+            <h2 className="mt-1 text-base font-semibold">Физический поток сырья: куплено → использовано → остаток</h2>
           </div>
           <Link href="/lots" className="text-sm text-neutral-600 hover:underline">Открыть весь склад →</Link>
         </div>
@@ -400,45 +551,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <CardTitle className="flex items-center gap-2">
               Мех
               <InfoHint wide label="Мех">
-                <p>Все виды меха отдельно от подкладки. Галочками можно исключить любой вид и мгновенно пересчитать общий остаток и его стоимость.</p>
+                <p>Единый интерактивный контейнер мехового сырья. «Лиса» и «Лиса красная» объединены в один вид «Лиса»; цвет выбирается внутри фильтра.</p>
+                <p className="mt-1">Выключение вида меха пересчитывает тоталы, цвета и доступные партии закупки.</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <FurSelectionTotal
-              rows={allFurRows.map((r) => ({
-                id: r.id,
-                name: r.name,
-                unit: r.unit,
-                purchased: r.purchased.toString(),
-                remaining: r.remaining.toString(),
-                remainingValue: r.remainingValue.toString(),
-                remainingValueExclVat: r.remainingValueExclVat.toString(),
-              }))}
-            />
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Материал</Th>
-                  <Th>Куплено</Th>
-                  <Th>Использовано</Th>
-                  <Th>Остаток</Th>
-                  <Th>Стоимость остатка</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {allFurRows.map((r) => (
-                  <Tr key={r.id}>
-                    <Td className="font-medium"><Link href="/lots" className="hover:underline">{r.name}</Link></Td>
-                    <Td>{formatQty(r.purchased.toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td>{formatQty(r.purchased.sub(r.remaining).toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td className={r.remaining.greaterThan(0) ? "font-medium text-amber-600" : ""}>{formatQty(r.remaining.toString())} {UNIT_LABELS[r.unit]}</Td>
-                    <Td><Money incl={r.remainingValue} excl={r.remainingValueExclVat} /></Td>
-                  </Tr>
-                ))}
-                {allFurRows.length === 0 && <Tr><Td colSpan={5} className="py-6 text-center text-neutral-400">Мех ещё не закупался</Td></Tr>}
-              </Tbody>
-            </Table>
+          <CardContent>
+            <FurSelectionTotal rows={furInteractiveRows} c4Mode={c4Mode} />
           </CardContent>
         </Card>
 
@@ -476,16 +595,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <section className="space-y-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 3 · Расчёты и производство</div>
-          <h2 className="mt-1 text-base font-semibold">После склада смотрим расчёты по аукционам и заказчикам</h2>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Контрагенты · Платёжная экспозиция</div>
+          <h2 className="mt-1 text-base font-semibold">Где сосредоточен остаток к оплате поставщику и задолженность заказчиков</h2>
         </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <InclVatOnlyLabel base="Долг по аукционам" />
-              <InfoHint wide label="Долг по аукционам">
-                <p>Топ-5 аукционов по остатку к оплате ({yl}). Нажмите на аукцион — откроются его оплаты. Остаток аукциона = стоимость − оплачено; цвет подписи показывает, получен ли мех или выставлен счёт. Сумма всех остатков минус авансы без привязки — это «Долг поставщику».</p>
+              <InclVatOnlyLabel base="Остаток по партиям закупки (аукционам)" />
+              <InfoHint wide label="Остаток по партиям закупки (аукционам)">
+                <p>Топ-5 партий закупки по остатку к оплате ({yl}). Названия нормализованы по документам: например, «Закупка меха 04-26» показывается как «РП 04-26». Служебная метка «Нет информации» больше не считается аукционом и попадает в блок «Без подтверждённой партии закупки».</p>
               </InfoHint>
             </CardTitle>
           </CardHeader>
@@ -515,10 +634,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   ))}
                 </div>
                 {supplierDebt.byAuction.length > 5 && (
-                  <p className="mt-1 text-xs text-neutral-500">Ещё аукционов с остатком: {supplierDebt.byAuction.length - 5}</p>
+                  <p className="mt-1 text-xs text-neutral-500">Ещё партий закупки с остатком: {supplierDebt.byAuction.length - 5}</p>
                 )}
               </>
             )}
+            {supplierDebt.nonAuctionDebt.greaterThan(0.5) ? (
+              <Link
+                href="/purchases?auction=%D0%9D%D0%B5%D1%82%20%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%B8"
+                className="mt-3 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm hover:bg-amber-100"
+              >
+                <span>
+                  <span className="font-medium text-amber-900">Без подтверждённой партии закупки</span>
+                  <span className="block text-xs text-amber-800/80">
+                    {supplierDebt.nonAuctionPurchases} закупок · сюда входят записи, где раньше стояла служебная метка «Нет информации»
+                  </span>
+                </span>
+                <span className="whitespace-nowrap font-semibold text-amber-900">{formatMoney(supplierDebt.nonAuctionDebt.toString())}</span>
+              </Link>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -568,67 +701,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Шаг 4 · Контроль и доказательства</div>
-          <h2 className="mt-1 text-base font-semibold">В конце проверяем расхождения, недостающие документы и неподтверждённые строки</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <KpiCard
-            label="Расхождения сверки"
-            value={String(reconOpen)}
-            extra={`${reconConflicts} конфликтов · ${reconReviews} ручных проверок`}
-            warn={reconOpen > 0}
-            danger={reconConflicts > 0}
-            href="/reconciliation"
-          />
-        <KpiCard
-          label="Требует внимания"
-          hint={
-            <InfoHint wide label="Требует внимания">
-              <p>
-                Записей, по которым нужно ваше решение или документ: <b>{attention.main}</b>
-                {attention.red > 0 ? <>, из них срочных блоков: <b>{attention.red}</b></> : null}. Справочно (в число не входит): {attention.info}. Период: {yl}.
-              </p>
-              <ul className="mt-2 list-disc pl-4">
-                {attentionBlocks.filter((b) => b.meta.kind !== "info").map((b) => (
-                  <li key={b.id}>{b.meta.title}: {b.entities.length}{b.meta.kind === "bulk" ? " (одна запись на группу)" : ""}</li>
-                ))}
-              </ul>
-              <p className="mt-2">
-                Подтверждение строк: подтверждено <b>{vTotal.verified}</b> из {vTotal.total}, ждёт проверки <b className={vTotal.total - vTotal.verified > 0 ? "text-amber-700" : undefined}>{vTotal.total - vTotal.verified}</b> — страница{" "}
-                <a href="/verify" className="text-blue-700 underline">«Ждёт проверки»</a>.
-              </p>
-              <p className="mt-2 text-neutral-500">Весь список, по группам и по сущностям, — на странице «Что не заведено».</p>
-            </InfoHint>
-          }
-          value={attention.main === 0 ? "Всё заведено ✓" : String(attention.main)}
-          warn={attention.main > 0}
-          danger={attention.red > 0}
-          href="/attention"
-        />
-        <KpiCard
-          label="Покрытие документами"
-          hint={
-            <InfoHint wide align="right" label="Покрытие документами">
-              <p>Сколько обязательных документов (счета, УПД, расчёты, спецификации, ТЗ-приложения, платёжки, договоры) уже приложено: {docCoverage.total.have} из {docCoverage.total.required}; записей с пробелами: {docCoverage.total.rowsWithGaps}.</p>
-              <p className="mt-2 text-neutral-500">Считается по всем годам сразу.</p>
-            </InfoHint>
-          }
-          value={docCoverage.total.percent === null ? "—" : `${docCoverage.total.percent}%`}
-          warn={(docCoverage.total.percent ?? 100) < 90}
-          danger={(docCoverage.total.percent ?? 100) < 60}
-          href="/documents"
-        />
-          <KpiCard
-            label="Ждёт подтверждения"
-            value={String(vTotal.total - vTotal.verified)}
-            extra={`подтверждено ${vTotal.verified} из ${vTotal.total}`}
-            warn={vTotal.total - vTotal.verified > 0}
-            href="/verify"
-          />
-        </div>
-      </section>
     </div>
   );
 }

@@ -4,11 +4,17 @@
  "recheck": {
   "date": "2026-10-06",
   "found": [
-   "Живая структура Drive подтверждена после систематизации: «Приобретение мехового сырья» разделено на «закупка 2025» и «закупка 2026» по видам меха/материалам; ключевые первичные документы доступны по прежним fileId.",
+   "Актуальная папка «мех» полностью проинвентаризирована: 70 подпапок и 619 файлов. Существующие ссылки приложения перепривязаны к новой структуре: 1 108 прежних строк DriveDocument / 588 уникальных файлов, устаревших fileId после перепривязки — 0. После добавления 5 новых контрольных документов в приложении сейчас 1 113 строк / 593 уникальных Drive-файла.",
+   "Все 389 ссылок на evidence внутри реестра сверки перепривязаны к текущим fileId новой структуры Drive; устаревших ссылок в reconciliation.json после обновления — 0.",
+   "После дедупликации текущего Drive найдено 5 действительно новых полезных документов, которых раньше не было в реестре приложения: аудит остатков, файл «Анализ остатков сырья», план дополнительной закупки MVST v2, комментарии к договору №2502 и переписка по партии 21. Они добавлены в реестр документов со статусом проверки/привязки. Оставшиеся 26 файлов текущего Drive являются повторными копиями уже учтённых документов либо временным Excel-файлом ~$ и не создают отдельный финансовый факт.",
+   "Переписка «Re Партия 21.msg» от 01–02.10.2026 содержит 30% и сумму 442 980,00 ₽, а также ссылку на счёт №275. Это подтверждает контекст расчёта/согласования партии 21, но само по себе не является банковским доказательством оплаты.",
+   "Исторический «Анализ остатков сырья.xlsx» от 09.02.2026 перепроверен по ledger: лоты 1301, 15002, 15022, 15480, 15481, 15482, 15484, 728001, 728026 и 15019 совпадают с зафиксированным производственным остатком; последующие уменьшения по 10022, 514038 и группе 5017/5020/5016 полностью объясняются более поздними ТЗ.",
+   "По лоту 1498-1 текущий остаток 2 шт. арифметически объясняется списаниями 21 шт.; при этом у ТЗ №52 на 12 шкур отсутствует workOrderDate — это пробел качества данных, а не необъяснимое движение сырья.",
+   "На странице «Сверка лотов» добавлен отдельный исторический контроль по файлу «Анализ остатков сырья.xlsx»: для 15 лотов показаны закупка, расход по ТЗ, остаток по ТЗ, остаток производственного файла, Δ и текущий остаток ERP. Ненулевые Δ остаются evidence-gap до объяснения конкретным ТЗ/списанием.",
+   "По лоту 500748 исторический файл показывал 65 шт., текущая база — 9 шт.: 24 шт. подтверждаются более поздними ТЗ №118/127, ещё 32 шт. относятся к ТЗ №108, подтверждённому приложениями в поставке 12, но отсутствующему в историческом снимке аудита. Текущий ledger арифметически закрывается; сам файл аудита был неполным по этому ТЗ.",
    "Производство перепроверено по папкам поставок: 2025 содержит поставки 1–13; в 2026 в разделе «поставки» есть 14, 17, 18, 19, 20 и 21. Папок поставок 15 и 16 нет — это подтверждает ранее отмеченные пустые партии.",
    "Контур «Производство/2026/оплаты» подтверждён: первая часть 82 ед. (счёт №141), вторая часть (№247), третья часть (№251), дозаказы (№259 и №261). В базе из этой группы отражён только №141; №247/251/259/261 остаются без факта оплаты до банковского доказательства.",
    "Партия 20 перепроверена непосредственно по текущей папке: ТЗ №162 подписано на 14 изделий и 7 600 ₽/ед.; старый Excel расчёта содержит 10 изделий. +9 120 ₽ по 30% уже включены в счёт №265. ТЗ №152 и №160 дают остающийся недоучёт 115 110 ₽.",
-   "Папка «Мех» пересобрана: текущая структура используется как источник привязки документов; прежние fileId/версии не считаются автоматически авторитетными.",
    "Партия 7: актуальный расчёт доплаты 2 075 122,54 ₽ совпадает со счётом №1; старое расхождение 6 265 ₽ относится к предыдущей версии расчёта.",
    "Партии 8–9: счёт №7 на 427 227,39 ₽ является счётом по накопительному балансу, а не прямым счётом только на партию 9; переписка это прямо подтверждает.",
    "Партия 20: счёт №265 уже учитывает исправление ТЗ №162 (10→14 изделий, +9 120 ₽), но текущий Excel расчёта остаётся старым; ТЗ №152 и №160 по-прежнему дают +115 110 ₽ к корректной доплате относительно счёта.",
@@ -16,11 +22,15 @@
    "Союзпушнина 09-26: расчётный аванс 60 831 063,87 ₽, счёт №271 = 60 831 100 ₽; +36,13 ₽ рассматривается как округление счёта и требует ручного подтверждения, не как автоматическая ошибка."
   ],
   "notFound": [
+   "Файл «Дополнительная закупка мехового сырья MVST v2.xlsx» от 19.12.2025 содержит план 430 шкур / 15 340 000 ₽, тогда как фактическая закупка СП 12.25 в первичных документах и базе — 152 шкуры / 4 836 327,52 ₽. План не загружен как факт; нужно подтвердить, был ли отдельный заказ на оставшиеся 278 шкур.",
+   "Для ТЗ №52 отсутствует достоверная дата ТЗ/workOrderDate; в приложении №52 есть шаблонная дата 16.05.2025, которая повторяется в старом пакете ТЗ и не считается достаточным доказательством фактической даты. Расход 12 шкур лота 1498-1 подтверждается количеством.",
    "Банковские платёжки/выписки Меркури Мода отсутствуют по значительной части оплат 2026; «согласовано» не приравнивается к факту оплаты.",
    "По счёту №265 не найден отдельный корректировочный документ, который закрывал бы недоучёт 115 110 ₽ по ТЗ №152 и №160.",
    "По разнице +3 580 ₽ между локальным расчётом партии 4 и накопительным балансом 040226 не найден отдельный первичный документ/корректировка."
   ],
   "ownerDecisions": [
+   "Дополнительная закупка MVST v2 от 19.12.2025: подтвердить, это только план перед СП 12.25 или отдельная фактическая закупка; до подтверждения не менять закупочные остатки и обязательства.",
+   "ТЗ №52: найти фактическую дату в переписке/поставке/подписанном экземпляре; шаблонную 16.05.2025 автоматически не переносить. Количество списания 12 шкур не менять.",
    "Партия 20: подтвердить, нужен ли исправленный счёт дополнительно на 115 110 ₽ или существует отдельный зачёт/корректировка вне папки «Мех».",
    "Партия 4: объяснить +3 580 ₽ в накопительном балансе либо скорректировать баланс.",
    "Союзпушнина 09-26: подтвердить допустимость округления аванса +36,13 ₽.",
@@ -103,31 +113,31 @@
    "files": [
     {
      "title": "Счет на оплату № 31          от 27 февраля 2025 г-1.pdf",
-     "fileId": "13zGQV6j2mIzmtJuR6KNkSkRGZRRvLXXE"
+     "fileId": "1PpJ-Wq0SalZb2H5luYnu7t_eNGhxlljm"
     },
     {
      "title": "счет 75 СП 1 от 13.05.25 (финальный платеж) СП-РП 03-25.pdf",
-     "fileId": "1Cxd10vDTjGQJPYM8E8MacODoVooZEzAy"
+     "fileId": "1IVmzHuGUKjS7ncW620x0TyQS2ljRVN8C"
     },
     {
      "title": "УПД (статус 1) № 78           от 16 мая 2025 г.xlsx",
-     "fileId": "1B012EyfhP8G_yRXddMvS6jHdGkir8DFH"
+     "fileId": "1190B3qvEuAism5cQ2xQ45a-HzIw-BCGR"
     },
     {
      "title": "УПД № 78.pdf (скан, не читался)",
-     "fileId": "12o198rrxOW-Gsnx4nAmCpZLd5Q_DVbw1"
+     "fileId": "1K1OAN5btapCrLIPD-ppP2eTp84BrQJTR"
     },
     {
      "title": "Веллмех_ММ_Договор КП № 2502 от 26.02.25_+ Спец. № 1-2.pdf",
-     "fileId": "1lqmosmdRsZWw20KW15JnfMO9AfZ5k87M"
+     "fileId": "1OMvUZV2Nqjo1zKQSkHpfe_Ce0cnjBEwl"
     },
     {
      "title": "расчет себестоимости Соболь (итоговый).xlsx",
-     "fileId": "1T5V2EQix0hQsg0JtA9h5dgruPrSHgnSR"
+     "fileId": "1pqdC8V0Obb0mbakGOvP2VJQglpjyZgLY"
     },
     {
      "title": "Союзпушнина для УПД.xlsx",
-     "fileId": "19Z3urJejy6XDZer-AHdjl76ALE-HHgpN"
+     "fileId": "1aW3muvNaZfsOyMjcPSOcjnhKRvGRe70E"
     }
    ],
    "year": 2025,
@@ -204,31 +214,31 @@
    "files": [
     {
      "title": "Счет на оплату № 31          от 27 февраля 2025 г-1.pdf",
-     "fileId": "13zGQV6j2mIzmtJuR6KNkSkRGZRRvLXXE"
+     "fileId": "1PpJ-Wq0SalZb2H5luYnu7t_eNGhxlljm"
     },
     {
      "title": "счет 75 СП 1 от 13.05.25 (финальный платеж) СП-РП 03-25.pdf",
-     "fileId": "1Cxd10vDTjGQJPYM8E8MacODoVooZEzAy"
+     "fileId": "1IVmzHuGUKjS7ncW620x0TyQS2ljRVN8C"
     },
     {
      "title": "УПД (статус 1) № 77           от 16 мая 2025 г (1).xlsx",
-     "fileId": "1bmsHNNxZgTIk8EL_Tu23JaSGYLHu6aSA"
+     "fileId": "11V6RbjDUY08ucC_3UnFGZhL3tEESZV0u"
     },
     {
      "title": "УПД № 77.pdf (скан, не читался)",
-     "fileId": "15VGjMWi0RjfmdMLCZjbtSmiN3PWY5DIi"
+     "fileId": "1FStljNuJ--l1sXJJN0BAKMqAi7hJCUJa"
     },
     {
      "title": "Веллмех_ММ_Договор КП № 2502 от 26.02.25_+ Спец. № 1-2.pdf",
-     "fileId": "1lqmosmdRsZWw20KW15JnfMO9AfZ5k87M"
+     "fileId": "1OMvUZV2Nqjo1zKQSkHpfe_Ce0cnjBEwl"
     },
     {
      "title": "Русьпушнина для УПД.xlsx",
-     "fileId": "1ZZCEt6o4xX-nY-avZAUHS-hvKAcwu6ci"
+     "fileId": "1az8NF8d3xwIwG7E2Ftlmsudy-Io0X2xt"
     },
     {
      "title": "расчет себестоимости Соболь (итоговый).xlsx",
-     "fileId": "1T5V2EQix0hQsg0JtA9h5dgruPrSHgnSR"
+     "fileId": "1pqdC8V0Obb0mbakGOvP2VJQglpjyZgLY"
     }
    ],
    "year": 2025,
@@ -310,31 +320,31 @@
    "files": [
     {
      "title": "Счет 83 от 26052025 - аванс соболь 05-2025 (1).pdf",
-     "fileId": "1Jrgpj-93k2gsz0ppIp-l5_Kv142fEPJW"
+     "fileId": "1nrMlUArfsnmo1Am3Nt57s0PMi7W8Sqds"
     },
     {
      "title": "Счет на оплату № 143         от 18 сентября 2025 г.pdf",
-     "fileId": "1keyPDjfnuVemkc5IP0Ea6HEPybB06-Po"
+     "fileId": "1ejFImXFuqCvbYseixMlYRSAepn4y5w3-"
     },
     {
      "title": "УПД (статус 1) № 143          от 22 сентября 2025 г.xlsx",
-     "fileId": "1qoa2r0s3ZWZpDsMWZ-wdByYW2jsewHJt"
+     "fileId": "1OY9x3fvwryarC6zDP3iT-iZ8pijy4yNq"
     },
     {
      "title": "УПД №143 (pdf)",
-     "fileId": "1A_YrGowAVAhaw09gMnZiHVy0PKztgUG-"
+     "fileId": "1erPA1b_oAakPkmv2S_lu8mFB7a23xtK6"
     },
     {
      "title": "Веллмех_ММ_Спец. № 4 от 26.05.25_к Дог. КП № 2502 от 26.02.25.pdf",
-     "fileId": "16Dkx_ijPOUq-F0yiV_DdrXB0tr2hvIib"
+     "fileId": "18rviN6S0E5NMBNlHgNOUnTvPN6mBhMg7"
     },
     {
      "title": "расчет СП-РП 05-2025.xlsx",
-     "fileId": "1ogZtF-Y5IgPhLDghDx6I2TtuEP_pb_-n"
+     "fileId": "1IanEli-5wsFWIrfl5WseSBGn93K7Dk_Z"
     },
     {
      "title": "расчет СП-РП 05-2025 (1).xlsx",
-     "fileId": "14YvrZbibZZY14tnZA4R6VE7mAmOxrHFu"
+     "fileId": "1FmNVJNYrR8pSZHWyMeDREtDwQc1VjpKr"
     }
    ],
    "year": 2025,
@@ -411,31 +421,31 @@
    "files": [
     {
      "title": "Счет 83 от 26052025 - аванс соболь 05-2025 (1).pdf",
-     "fileId": "1Jrgpj-93k2gsz0ppIp-l5_Kv142fEPJW"
+     "fileId": "1nrMlUArfsnmo1Am3Nt57s0PMi7W8Sqds"
     },
     {
      "title": "Счет на оплату № 143         от 18 сентября 2025 г.pdf",
-     "fileId": "1keyPDjfnuVemkc5IP0Ea6HEPybB06-Po"
+     "fileId": "1ejFImXFuqCvbYseixMlYRSAepn4y5w3-"
     },
     {
      "title": "УПД (статус 1) № 143          от 22 сентября 2025 г.xlsx",
-     "fileId": "1qoa2r0s3ZWZpDsMWZ-wdByYW2jsewHJt"
+     "fileId": "1OY9x3fvwryarC6zDP3iT-iZ8pijy4yNq"
     },
     {
      "title": "УПД №143 (pdf)",
-     "fileId": "1A_YrGowAVAhaw09gMnZiHVy0PKztgUG-"
+     "fileId": "1erPA1b_oAakPkmv2S_lu8mFB7a23xtK6"
     },
     {
      "title": "Веллмех_ММ_Спец. № 4 от 26.05.25_к Дог. КП № 2502 от 26.02.25.pdf",
-     "fileId": "16Dkx_ijPOUq-F0yiV_DdrXB0tr2hvIib"
+     "fileId": "18rviN6S0E5NMBNlHgNOUnTvPN6mBhMg7"
     },
     {
      "title": "расчет СП-РП 05-2025.xlsx",
-     "fileId": "1ogZtF-Y5IgPhLDghDx6I2TtuEP_pb_-n"
+     "fileId": "1IanEli-5wsFWIrfl5WseSBGn93K7Dk_Z"
     },
     {
      "title": "расчет СП-РП 05-2025 (1).xlsx",
-     "fileId": "14YvrZbibZZY14tnZA4R6VE7mAmOxrHFu"
+     "fileId": "1FmNVJNYrR8pSZHWyMeDREtDwQc1VjpKr"
     }
    ],
    "year": 2025,
@@ -516,39 +526,39 @@
    "files": [
     {
      "title": "Счет на оплату № 40          от 10 марта 2025 г.pdf",
-     "fileId": "1Iq6ZknAoEqTnCSLvdF9so_dV-5cXgwUf"
+     "fileId": "1xksAKwaNMcPkvomHFlM4RqfALpADoNuq"
     },
     {
      "title": "Счет на оплату № 46          от 14 марта 2025 г.pdf",
-     "fileId": "1n1MGcyaCQcpeL0Ggx6hOPDgW-l6Dl9IZ"
+     "fileId": "1LJHA18meF2B3xeIWF8FKkryjAj_LlitK"
     },
     {
      "title": "Счета.pdf",
-     "fileId": "1qt1ts_j31vvX5TwLqE1mSxujwT_c9IeB"
+     "fileId": "1Y8FPg7XY_s-UtVOXsmFXag6FmMDa9_RU"
     },
     {
      "title": "счет 76 СП 2 от 13.05.25 (промежуточный платеж) SAGA 03-25.pdf",
-     "fileId": "1R1f_ubqgvZyQRjhSec7GEyGw28Bi0TvH"
+     "fileId": "1_u5w7GEOJePNluSVjk9iZKkxAkj-qRqn"
     },
     {
      "title": "Счет на оплату № 103         от 03 июля 2025 г (1).pdf",
-     "fileId": "15zHh7JFmtf9E13xztKb59nvpE6AEDepN"
+     "fileId": "1TqvlI879IkVbTYTrMjEZZXVXctBgDDqI"
     },
     {
      "title": "УПД (статус 1) № 103          от 03 июля 2025 г.xlsx",
-     "fileId": "18odrQUKnISm1yniylVr5Sks3ZlPZEd93"
+     "fileId": "1Pz2lmAQYn4G1fbwkuCoEu2695JGxvPBz"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 2 (испр) (3).pdf",
-     "fileId": "1783cI5skNXfEA3cEz6UooDIbDWSSvyL1"
+     "fileId": "1zql98AqZMTLHGkLlgMX2YfXCTfK5Ajg-"
     },
     {
      "title": "фин расчет SAGA 03-25 на 13052025 (1).xlsx",
-     "fileId": "1rZb8rrCfvsKo1yIn-mUFLsz0xOcHfBER"
+     "fileId": "1tIrPeK-d9_a7G_POFjM9nuVtK1jBoUQ_"
     },
     {
      "title": "расчет SAGA (для помежуточного платежа) 150525 (2).xlsx",
-     "fileId": "1d8wgqNqxp4NPynyz-ICe5vGZuRovLO2M"
+     "fileId": "1h-znGXijgr3oS43KcQtXQma9-4wo9MFK"
     }
    ],
    "year": 2025,
@@ -624,31 +634,31 @@
    "files": [
     {
      "title": "Счет на оплату № 92 от 16.06.2025 (аванс за каракуль).pdf",
-     "fileId": "1LFeLxoIJ3l4QXar_p_Hu6fVVgX8UCe1W"
+     "fileId": "1AoVTjdsJCcmdNePR5C1eZOSUt8inKs3-"
     },
     {
      "title": "Счет 127 от 13.08.2025.pdf",
-     "fileId": "17phLbMUwjhVIxM_-i3MnpdodUacdny7Y"
+     "fileId": "14APxNBA96lQgmLAK83tLkN7eRbisrXcQ"
     },
     {
      "title": "УПД (статус 1) № 127          от 13 августа 2025 г.xlsx",
-     "fileId": "1vL70wvkGAX7roBi-Bwp9BCts8GSMaDyv"
+     "fileId": "1AX9BGKSX2fo5GJHvAMUeuN33DwkEgV2i"
     },
     {
      "title": "Приложение 5 11.06.2025 (994 шт. каракуль) (1).pdf",
-     "fileId": "1hgRS74ImddMgwntnaO4rQH1PNoUFZpxS"
+     "fileId": "17A2ncVCgPxS4v8-NR2WElYGx2U7B6Abp"
     },
     {
      "title": "расчет каракуль SAGA 06-2025 (финальный).xlsx",
-     "fileId": "1EOhpy9oMTZah4nfmonZ-PTy-RGujtDS_"
+     "fileId": "1HMYOPbXhSmIl2AnmI7dsxlrOcEYwyp2c"
     },
     {
      "title": "расчет преварительный каракуль SAGA 06-2025 (2).xlsx",
-     "fileId": "11hFQcKlkHAq2QpXS--AvXGLtAlpmkq7l"
+     "fileId": "1keXYiwuVGMDaIu7QVIuWScj4rVcVUnQR"
     },
     {
      "title": "расчет SAGA 06-2025.xlsx",
-     "fileId": "1ZrWLgyE30keLyPAAWmWwPKoTyIOf76Py"
+     "fileId": "1nO-kpzLm_0ACC7U8duXYeu8794IIZvvw"
     }
    ],
    "year": 2025,
@@ -718,43 +728,43 @@
    "files": [
     {
      "title": "Счет 81 от 26052025 - аванс норка коричневая 200 шт. (1).pdf",
-     "fileId": "1wniieGUjEkkRqH4LLDNuNtphV1zEp1Zz"
+     "fileId": "1Yc1YU_-W6xzVtgLJ9CpI9w2WMpf3Kis6"
     },
     {
      "title": "счет 117 29072025 (1).pdf",
-     "fileId": "1nSY2vAIXoHuEAx_HaLUtWYXylZf_O6LW"
+     "fileId": "1dlcb45pY5FLO7gRR3igTEDSqbasMkGVS"
     },
     {
      "title": "Счет 95 аванс. ПРИЛОЖЕНИЕ 6 (норка браун 150+ сергол 70).pdf",
-     "fileId": "1-40DV93U_QKgXjkgQWavmnizzNazXoKs"
+     "fileId": "1UAu9j7E8HiYiYGhfB_qEsgsiUc10c5Z2"
     },
     {
      "title": "Счет на оплату № 122         от 04 августа 2025 г.pdf",
-     "fileId": "1HZbb_cdFXNWxjNDLl3ILWoX_kS6sGE4v"
+     "fileId": "1N39AWsr9GH2822KT3EpJDRxzfjMIWN3t"
     },
     {
      "title": "Копия УПД (статус 1) № 124          от 29 июля 2025 г.xlsx",
-     "fileId": "1cu0UNtpHqnzi-pvmxgJzObB6FIvlIjks"
+     "fileId": "1BDZGUYHOqIWMkwP1O53F_f6Mcu4NxsD9"
     },
     {
      "title": "Копия УПД (статус 1) № 122          от 26 августа 2025 г.xlsx",
-     "fileId": "1qFTXc8jXTIPqT0C7gLKQNSO4WP6yPqi8"
+     "fileId": "1MRxFKTm-ub_U73vsKsKZ9_VD1ClIGjaG"
     },
     {
      "title": "Веллмех_ММ_Спец. № 3 от 26.05.25_к Дог. КП № 2502 от 26.02.25.pdf",
-     "fileId": "1Yo4CX11-0poCOZx89gLsq4tGq-i7am7v"
+     "fileId": "1TrTjUcuAUZRwDPVjel-Tc9hHPqtyIYZS"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 6 (норка браун 150+ сергол 70).pdf",
-     "fileId": "1884L6ZR0V3F9e3_ugZV-QOlpz_OPIWoi"
+     "fileId": "1p-4_irzq6ryRIcVA6DS6WK5uJcwRL6lU"
     },
     {
      "title": "финальный расчет себестоимости норка коричневая (1).xlsx",
-     "fileId": "1G3A-a808t6dQp0KREQ8a-QB1AO6MaOzv"
+     "fileId": "18JOR3FT_CQJpIt3OzRur0Xia4UeHvMb9"
     },
     {
      "title": "Приложение 6 (Фактический расчет).xlsx",
-     "fileId": "1yX9MMUdT8MARnD13FD0WHEND103s4htw"
+     "fileId": "13ASCjdQNzewRlMG3MOYUXq_ejREqlJ-s"
     }
    ],
    "year": 2025,
@@ -831,11 +841,11 @@
    "files": [
     {
      "title": "Счет 80 от 26052025 - норка белая 179 шт. (2).pdf",
-     "fileId": "1SO7Vn1YWQJhOpszOJLuFnhGSxaonOvB-"
+     "fileId": "1vRqCEzT1DspxRkOUg3Trp-RLEzG0Lr1p"
     },
     {
      "title": "Копия УПД (статус 1) № 80           от 04 июня 2025 г.xlsx",
-     "fileId": "19yfmwEyPOKjWZgUIF5Te5OdgsBAJdrmM"
+     "fileId": "1mXeM_W3klOuDy3nUuxD6bhKO8lPq5TKy"
     }
    ],
    "year": 2025,
@@ -895,11 +905,11 @@
    "files": [
     {
      "title": "Счет 96 - 200 шкур белой норки.pdf",
-     "fileId": "1Ge8J1VCFA-1kN8pgstt8Ca1a7m1o-M6Z"
+     "fileId": "1wh35eHVVwOkSVKijO-RsEfmd3pTXC6fp"
     },
     {
      "title": "Копия УПД (статус 1) № 96           от 15 июля 2025 г.xlsx",
-     "fileId": "1YjnZHOTGdthB_blw9RnNTdYaAwyk6Jh8"
+     "fileId": "1h0O3SJxeTa1n8ZbEzLDvm6xL0MQ-TPy_"
     }
    ],
    "year": 2025,
@@ -968,15 +978,15 @@
    "files": [
     {
      "title": "Счет на оплату № 100         от 01 июля 2025 г.pdf",
-     "fileId": "1xntI0mZhdvsrpzP4N9RtYDOOz6gCZRur"
+     "fileId": "15QN_4TOqGwVFFA3LYp5R0vKPNzwmjt1w"
     },
     {
      "title": "Копия УПД (статус 1) № 109          от 11 июля 2025 г (2).xlsx",
-     "fileId": "1qj2oY_r4PsjRW974I0a48u2ZaOCoADYJ"
+     "fileId": "1zhEBMxtbJW3tWETRXCrNeZ0S3uBR8GSF"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 7 (1).docx",
-     "fileId": "1YqOfjQMXnEv_1XPkJj1YJwGxEUypR3Ye"
+     "fileId": "1z8Ueozfmj6qvnWtTKzrxkrW97yOk8tRL"
     }
    ],
    "year": 2025,
@@ -1037,7 +1047,7 @@
    "files": [
     {
      "title": "Расчет по оплатам.xlsx (колонка «Стоимость шкур» в доплатах за пошив партий 5/6/7/9)",
-     "fileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7"
+     "fileId": "1pdyNek-C3h3GQ85F187EzojyBuZzvaNT"
     }
    ],
    "year": 2026,
@@ -1132,39 +1142,39 @@
    "files": [
     {
      "title": "Счет на оплату № 93 от 25 марта 2026 г.pdf",
-     "fileId": "1Oi4KODg-KyLNgXLzIe2lTPnKl4zk9pIi"
+     "fileId": "1RZLYZCvF8QMf-d1pCsnAkxbssdsI_LbW"
     },
     {
      "title": "Счет на оплату № 105 от 06 апреля 2026 г.pdf",
-     "fileId": "1PH70z18oOUYONem1CnlesucSCDZ1XqwG"
+     "fileId": "1IzItDzKXxWA5DjgTrBx-hnuKhH7vHbvg"
     },
     {
      "title": "Счет на оплату № 195 от 03 июля 2026 г.pdf",
-     "fileId": "1JbmgkJEUvVTWH5EmEfLBHior26Bh6aP1"
+     "fileId": "1X19em-r5-Iu-AtrrjlvozKDl1fNGqk5G"
     },
     {
      "title": "УПД (статус 1) № 229 от 04 августа 2026 г.xlsx",
-     "fileId": "1BQZeyHFw_a8ZQfgoN0lFn3S29JAhxTqf"
+     "fileId": "1qLgwB3zWBW2Uksq3BkBeekEhvK6uQHd6"
     },
     {
      "title": "Спецификация 9.pdf",
-     "fileId": "1O3f9kBiVBEkQ3lCtXax4dGG8kXQn9JaL"
+     "fileId": "11VXwdimwCSI44Thm0Wl7H3x3yqc1oJzl"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 18 (SAGA - дозакупка 1 лота).docx",
-     "fileId": "1NV8AUJJCfrYzB-V0kMBxcwyRV6_Oc1S3"
+     "fileId": "1lk2whiEvi5cqEbZqTTN9_3pguDBLaVQQ"
     },
     {
      "title": "Закупка ММ SAGA 03-26 (fin).xlsx",
-     "fileId": "1IMa5KT1a_nprQpB9c7JhE4lHk_B18bQH"
+     "fileId": "19IaBC2wb1dAFUYig7IDNrIcctK1vIlcX"
     },
     {
      "title": "Закупка ММ SAGA 03-26.xlsx",
-     "fileId": "1AsUwj1FOlhPIQbYA1XMynYXIJsEK6AzZ"
+     "fileId": "1WKHRtL1RG-QEkIgAVTaKkvLkAx7A1r26"
     },
     {
      "title": "расчет на 1 лот брауна.xlsx",
-     "fileId": "1OTDnWaUxjoQzPgrcbERZqgNVhVmFbZTq"
+     "fileId": "1oT-1E-08mV62UBL869-pfH1n7l_5ICBX"
     }
    ],
    "year": 2026,
@@ -1184,7 +1194,13 @@
      "З-2026-0039",
      "З-2026-0040"
     ]
-   }
+   },
+   "manualReview": [
+    "Найти выписку за 13–14.04.2026 по счёту №105 на 22 891 800 ₽ и подтвердить фактическую дату/платёж.",
+    "Подтвердить зачёт переплаты 83 875,31 ₽ в AME счёте №253; до подтверждения не создавать искусственную оплату сверх УПД.",
+    "Найти аукционные счета SAGA по 7 артикулам; сейчас лоты подтверждены УПД, но upstream invoice evidence неполный.",
+    "Уточнить статус четырёх чужих лотов инвойса 302127: исключить как другого покупателя либо подтвердить потерянную часть заказа."
+   ]
   },
   {
    "id": "P:РП 04-26",
@@ -1267,31 +1283,31 @@
    "files": [
     {
      "title": "Счет на оплату № 117 от 13 апреля 2026 г (2).pdf",
-     "fileId": "1H1OZ9KANrFUNsE0hbRDy2smgsoVwEMgx"
+     "fileId": "1CsOSuqTb9yQnaO-H3P60b9uGmqOhXIBV"
     },
     {
      "title": "Счет на оплату № 131 от 04 мая 2026 г (аванс 2).pdf",
-     "fileId": "11Zhm6jgNDr6GHKEGoOfdb-7En0IYIfqa"
+     "fileId": "1sPK2jKasI3LY-PZLfOqt7_1mDO3LQmW0"
     },
     {
      "title": "Счет на оплату № 197 от 09 июля 2026 г.pdf",
-     "fileId": "1kzqrHs7H_nWHQaEuN7MwSRAVZgi_t3ng"
+     "fileId": "1issd04df7PfeWEpUyGRpkoCh6xzixGXN"
     },
     {
      "title": "УПД (статус 1) № 201 от 09 июля 2026 г.xlsx",
-     "fileId": "1TN_5yqXbUqSeQYyNcMDz-OvPPwVF-Dxa"
+     "fileId": "1nj0PAxx4AsIP5RRVgYGH4NGA-tDiSfcB"
     },
     {
      "title": "Спецификация 10.pdf",
-     "fileId": "1ZFN8rLA85JtOVufZGuOYs6jgTkhc6V0h"
+     "fileId": "1rICCMbD3qqAZCX7aWvDFSLFYJ01YkwIK"
     },
     {
      "title": "закупка РП 04-2026.xlsx",
-     "fileId": "1Q7XJv82rGPa8-tj-KUqLJ9LFp9JGPBoq"
+     "fileId": "1-sDSHWkfXOd6Fk9tXMILxb29ex6Dmktv"
     },
     {
      "title": "закупка РП 04-2026.xlsx (23 194 б)",
-     "fileId": "1lMjjgxcMILmSRusLKwb92qUGlcqOZr-X"
+     "fileId": "1Z8fAuwcdmTnzrJigkh4qBQiAqGiPa601"
     }
    ],
    "year": 2026,
@@ -1309,7 +1325,12 @@
      "З-2026-0045",
      "З-2026-0046"
     ]
-   }
+   },
+   "manualReview": [
+    "Найти выписку за июль 2026 по доплате счёта №197 в доле РП 5 438 524,49 ₽; до подтверждения Payment не создавать.",
+    "Не использовать номера п/п из УПД 201 как доказательство этой оплаты без суммы/выписки: список содержит расчёты по другим закупкам.",
+    "Уточнить источник транспортных 39 043 ₽ перед созданием отдельного PurchaseExpense; сейчас себестоимость уже отражена в УПД."
+   ]
   },
   {
    "id": "P:СП 05-26",
@@ -1385,31 +1406,31 @@
    "files": [
     {
      "title": "Счет на оплату № 117 от 13 апреля 2026 г (2).pdf",
-     "fileId": "1H1OZ9KANrFUNsE0hbRDy2smgsoVwEMgx"
+     "fileId": "1CsOSuqTb9yQnaO-H3P60b9uGmqOhXIBV"
     },
     {
      "title": "Счет на оплату № 149 от 22 мая 2026 г.pdf",
-     "fileId": "14uyYhkshlps9mL1OVJczoDetCeQkhDSi"
+     "fileId": "1ecIPLZ01v1vdcRMBXm-ANnefomi9SXpO"
     },
     {
      "title": "Счет на оплату № 197 от 09 июля 2026 г.pdf",
-     "fileId": "1kzqrHs7H_nWHQaEuN7MwSRAVZgi_t3ng"
+     "fileId": "1issd04df7PfeWEpUyGRpkoCh6xzixGXN"
     },
     {
      "title": "УПД (статус 1) № 199 от 09 июля 2026 г.xlsx",
-     "fileId": "19oECr6zVv_rcIyVIJF6myS_Tp4-s5HkR"
+     "fileId": "13dAUwWLr5X2ROo81zFsAGMI88Lvffkt-"
     },
     {
      "title": "Спецификация 10.pdf",
-     "fileId": "1ZFN8rLA85JtOVufZGuOYs6jgTkhc6V0h"
+     "fileId": "1rICCMbD3qqAZCX7aWvDFSLFYJ01YkwIK"
     },
     {
      "title": "закупка СП 05-2026.xlsx",
-     "fileId": "1N752q79LY19yblGqIcU0EVYwXCNk9_-Q"
+     "fileId": "1P--JNZy3qygqy6XX9-qdEoVnhReYmhh4"
     },
     {
      "title": "закупка СП 05-2026 версия 1.xlsx",
-     "fileId": "1M-8iMY7B0sZf0eGn2pGazWhIrgSq7-rG"
+     "fileId": "1UkwuNzTn16-Ghp6yc2r9l4juMDOvKXOk"
     }
    ],
    "year": 2026,
@@ -1423,7 +1444,12 @@
      "З-2026-0047",
      "З-2026-0048"
     ]
-   }
+   },
+   "manualReview": [
+    "Найти дату и п/п по авансу 19 628 147,54 ₽ (счёт №149); письмо «оплачено» без банковского доказательства не переносить в Payment.",
+    "Найти банковское подтверждение доплаты по счёту №197 в доле СП 1 798 287,54 ₽; пока оставить только согласование.",
+    "Не менять 770 шт. по первичным документам из-за опечаток в письмах; база уже приведена к УПД."
+   ]
   },
   {
    "id": "P:AME 05-26",
@@ -1505,35 +1531,35 @@
    "files": [
     {
      "title": "Счет на оплату № 153 от 22 мая 2026 г.pdf",
-     "fileId": "1bxWXBbd4y7bUilvEhN821Qm_bqTPdTog"
+     "fileId": "15pA-F5V1h4zU7gv_-NR5-nDGVsgGODJG"
     },
     {
      "title": "Счет на оплату № 167 от 29 мая 2026 г.pdf",
-     "fileId": "1I6c1vN2sjnQugoGsVznMA9pRqWgQnx3d"
+     "fileId": "1bo2aGHrUrAY8TqAsw1brEe6iuAVbITcR"
     },
     {
      "title": "Счет на оплату № 253 от 09 сентября 2026 г.pdf",
-     "fileId": "1antkxJrM7Hq1GrrSpAa-CrUfdJh_ebgq"
+     "fileId": "1VTF2EYAfNtoWAaAqQ-Db5e6sor9DCTtw"
     },
     {
      "title": "УПД (статус 1) № 253 от 09 сентября 2026 г.xlsx",
-     "fileId": "1qx4qR_1NuTKUi4rGfja_N8uv1mFbzaMH"
+     "fileId": "1dWYhpn8ahxoxPtm_CgKXhjUKGjA_l9cO"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 11 (AME 05-26).docx",
-     "fileId": "15vVWqwtjwXXzZ0X1unZpQhMmaUF6pYSZ"
+     "fileId": "1cclh-tuXwfr3zo9OTyYj8gq73e4haFNj"
     },
     {
      "title": "расчет себестоимости fin.xlsx",
-     "fileId": "1YTcVqkvWlIvO0YPnIqCO-fJ1S9tFazl9"
+     "fileId": "16PwBglRg3O3PsvNnN6UwgHVxA09oaJVw"
     },
     {
      "title": "предварительный расчет на мех ALE 05-26-1.xlsx",
-     "fileId": "19SKFKDRzh8koI7CM8wCxgJ-eWa1wLZ74"
+     "fileId": "1w6g57gpkSd1Z_JG35r3nsP1ql8QRG1gb"
     },
     {
      "title": "предварительный расчет на мех ALE 05-26.xlsx",
-     "fileId": "18qqVIGFgFiQx3kY7XsUI0JVNjj4CqI8o"
+     "fileId": "1ihIK1fEJb0NwYuQ28yZUPGULEql80OqV"
     }
    ],
    "year": 2026,
@@ -1615,15 +1641,15 @@
    "files": [
     {
      "title": "Счет на оплату № 209 от 16 июля 2026 г.pdf",
-     "fileId": "1gwhXiS0W_yz1eQQao6Moe5aQRf4RjYuN"
+     "fileId": "1RZDm5M3Cmu9J1ax2B1WdPgLes9AgOVK9"
     },
     {
      "title": "УПД (статус 1) № 209 от 16 июля 2026 г (1).xlsx",
-     "fileId": "1Cx3SQRU2m4zzpqVV1LzJLk-dfjEU_6wp"
+     "fileId": "1bXXhjLzmm0lMlnrox6sAtTjzv___a9N2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 19 (88 шкур красной лисы).docx",
-     "fileId": "1p0hX6ROwtej_gZg-yn9m6ecCFdSigOxZ"
+     "fileId": "1NIVuQtQDm1TKrAcMLqMlQz_ioFlMCRIQ"
     }
    ],
    "year": 2026,
@@ -1722,27 +1748,27 @@
    "files": [
     {
      "title": "Счет на оплату № 155 от 22 мая 2026 г (2).pdf",
-     "fileId": "1wEN3d58nkJvg3du5bvurzLbrDs8fwByy"
+     "fileId": "1b8_3OqPXXlMsoNtXtqeQz6w6E2jEZ_Zx"
     },
     {
      "title": "Счет на оплату № 173 от 05 июня 2026 г.pdf",
-     "fileId": "1fPrYO2algdiwm5axrOXMFkSMIVUMJB6-"
+     "fileId": "1Bl9y2GmnB8MJ3lKvWSKPxtJZ5fUtN0fX"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 12 (500 шкур рысевидной кошки).docx",
-     "fileId": "1DuLNQ0tLpl9ycdJBvvBU4GisA0uG2oC7"
+     "fileId": "1d_Mhn3_Kx1tAd850wcP8uwD6CnA6j1ux"
     },
     {
      "title": "Копия расчеты LYNX MVST FW26 обновленный.xlsx",
-     "fileId": "1Xjmil4h0DqabiEiTXS1_WjlrsOE_difp"
+     "fileId": "1o73kIBhVyGg3nF-a3i3Zk3EbWTN4LMQG"
     },
     {
      "title": "расчет закупки.xlsx",
-     "fileId": "1MIkP5Iv9Eqxg0tLPVaauSiq3KOTYmFQd"
+     "fileId": "1rbIJyXlkejq-LL3gEQe70sKdI3Z2uabk"
     },
     {
      "title": "не прочитан",
-     "fileId": "1OwmRhm3wncstf1gH3QNg2oLGeYolq7R4"
+     "fileId": "1-vQvux811GAi7X_jI9atmL3Dkx6NCHvQ"
     }
    ],
    "year": 2026,
@@ -1755,7 +1781,13 @@
     "purchases": [
      "З-2026-0049"
     ]
-   }
+   },
+   "manualReview": [
+    "Найти выписку за 09–10.06.2026 по авансу 2 на 85 063 078 ₽.",
+    "Найти счёт и подтверждение аванса 3 примерно на 3 603 475,98 ₽; расхождение 0,38 ₽ считать округлением только после подтверждения документа.",
+    "Подтвердить п/п аванса 1 на 30 660 000 ₽; предполагаемые номера 46539/46540 без выписки не использовать.",
+    "УПД пока отсутствует и поставка планируется октябрь–ноябрь 2026 — закупку не переводить из DRAFT только по расчёту."
+   ]
   },
   {
    "id": "P:СП 09-26",
@@ -1899,19 +1931,19 @@
    "files": [
     {
      "title": "Счет на оплату № 157 от 26 мая 2026 г.pdf",
-     "fileId": "1silgJ-GXA4Ap9WQFcVbR7A83PJ7dacib"
+     "fileId": "1FcO4k8-X27PqCmdzfULb0Z-B0qG1W0cP"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 13.docx",
-     "fileId": "1x2Klb2to_u75WF_yGfkq5gg3fNRBB1Dk"
+     "fileId": "1pNO9U0uDCX7WpqEKUnio1V6VmNSFP2ZL"
     },
     {
      "title": "предварительный_расчет_за_подкладку.xlsx",
-     "fileId": "1DIfQOowRD_mCYAtjEe-QwdNhtIcIHkhi"
+     "fileId": "1cKH-eSaM0bbtkHSKtpf37FmZqEV0LDsj"
     },
     {
      "title": "инвойс подкладка Лавин.jpg",
-     "fileId": "1V37v-vhwSWCeqXRGWPxT_293npCqx_MC"
+     "fileId": "1iJsoMuNVr6LujA-prvgE49XqNHGiqZM4"
     }
    ],
    "year": 2026,
@@ -1971,15 +2003,15 @@
    "files": [
     {
      "title": "Счет на оплату № 181 от 16 июня 2026 г.pdf",
-     "fileId": "1vtFw75lMuiNczTMdSdXdHk1SZd0k0iAI"
+     "fileId": "1_dgNaSHSU8pnmtmicPYYzCgDkgNQNVrt"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 16.docx",
-     "fileId": "1h4MeldKX-VESwz3iWiDLauZDGYPOENyN"
+     "fileId": "1_nv4tGvl1b9Qyqba5xhwh9hKZG3BpI2d"
     },
     {
      "title": "расчет за доп.материалы.xlsx",
-     "fileId": "1telqHCAsc9op1sw0HDDgTAIi7y1kfEUC"
+     "fileId": "1mT9OVt-D4cTSia0CZR97mjwukltZl3MW"
     }
    ],
    "year": 2026,
@@ -2059,11 +2091,11 @@
    "files": [
     {
      "title": "УПД_статус_1_№_283_от_30_декабря_2025_г.xlsx",
-     "fileId": "1Ta_SWnCpHTN-vRQKHfeKcL431MOmNuL-"
+     "fileId": "1KkzojitavceIPGiyydXr_ZM12fLEJbfP"
     },
     {
      "title": "ПРИЛОЖЕНИЕ_8_152_шкуры_Союзпушнина_12_25.docx",
-     "fileId": "1pYggTyZOOWYD_6Y0CL2ZibzVYXtCItf7"
+     "fileId": "1Hrhdz5BwULbg0mbl3EShwqBgwGH_m6YK"
     }
    ],
    "year": 2025,
@@ -2205,15 +2237,15 @@
    "files": [
     {
      "title": "Счет на оплату № 110         от 21 июля 2025 г.pdf",
-     "fileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL"
+     "fileId": "1zFMzH6TJirYE8zflcnMTzFsJC0_um2us"
     },
     {
      "title": "Расчет по оплатам.xlsx",
-     "fileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7"
+     "fileId": "1pdyNek-C3h3GQ85F187EzojyBuZzvaNT"
     },
     {
      "title": "предварительный расчет себестоимости изделий 130825 (1).xlsx",
-     "fileId": "1s67X_sKY1eO3cJhPwF1zqGZNWgU7dsCY"
+     "fileId": "16WtSwZyTXpus5WYp1QsYfDfcXpUjIlYM"
     }
    ],
    "year": 2025,
@@ -2303,59 +2335,59 @@
    "files": [
     {
      "title": "Счет 147 от 22.09.2025 (доплата).pdf",
-     "fileId": "1EJKI0G6eLBAAcgr4u980qaNs7_CE2GEw"
+     "fileId": "1lLIVCJcAGrySG0l1dzbVx-g9OH_SvEHK"
     },
     {
      "title": "УПД (статус 1) № 170          от 30 сентября 2025 г (на пошив).pdf",
-     "fileId": "1U2FZpzHoiJt9TG4G85tpg8-QS0wi_TnJ"
+     "fileId": "1NtUG_w4cEDOwSqPjrtoJnLGlC89kahq1"
     },
     {
      "title": "расчет себестоимости готовых изделий. Партия 1.xlsx",
-     "fileId": "1z01yyABV3eaStsP7YdmdjYRLJuB_V7dg"
+     "fileId": "1OUrHV-joahY15eVsIPtx-YurWovUzT_G"
     },
     {
      "title": "Расчет по оплатам.xlsx",
-     "fileId": "1UW9jXdunbvZYXeQz7ADEnTZqsp12jAh7"
+     "fileId": "1pdyNek-C3h3GQ85F187EzojyBuZzvaNT"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 1 (2 соболя М001К).docx",
-     "fileId": "1HX1OOM-mSug61fm0Tboej-QfdnO4NQpv"
+     "fileId": "1IaKJL0BFPYBKMoIc6Uq23FWrIvpzWv02"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 1 (2 соболя М001К) +4%.docx",
-     "fileId": "1LdsOJ0J9dKkfCaHaicrBiiOfnCHZcrnk"
+     "fileId": "1gNwzzP5mmO72Ck9jqeed_zLhbUmH8UR0"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 2 (1 соболь М002).docx",
-     "fileId": "1E4xc0k4sXnwiGTeGfo05yZw4lYIwGiKF"
+     "fileId": "1aCdJE0xAnkkDhhyoMqBzROelpKLkf9b0"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 2 (1 соболь М002) + 4 %.docx",
-     "fileId": "1FLYWXR_QOhlqcU-pzO2mfGfDQjJ9KUz9"
+     "fileId": "1rWSiRkVI9U5Z-9A_GmiHyRv13u3-1Tja"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 3 (1 соболь М003).docx",
-     "fileId": "1Jtdo7b9j3I0ojxUcd8HR6kL9OmM54GZD"
+     "fileId": "1YbSXhN0arNISOC01L5LAhFNdqPhWEu0M"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 3 (1 соболь М003)+4%.docx",
-     "fileId": "1qhBaMyXMsMlQ9iuBKjtE-0YDTu_A6v-U"
+     "fileId": "1hBhArhSUq-Haddbxer1pHikqBKe0cxww"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 4 (1 соболь М001А).docx",
-     "fileId": "152ltTGTCqI4rNf6MvXR4KXZwfmeuzXR7"
+     "fileId": "1OYV6PM8nrx1FYfGHmZ4G-Iv_B7_ew4lE"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 4 (1 соболь М001А)+4%.docx",
-     "fileId": "1LxPjAkz91YaAXbjfN6JM4zw8hStnn2I_"
+     "fileId": "1MDOCTbwqMwKS-0Q-22WU-VRQf3xpDiWt"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 5 (1 норка М009).docx",
-     "fileId": "1N8W3q-tTg94WN4wiJLLJoyX7WxCUnM25"
+     "fileId": "1t-jt6R7H4QIoEJifluuhoX9jAgNOKYy2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 5 (1 норка М009)+4%.docx",
-     "fileId": "1CyEVpaRaWgQ6FVGge0CvjUjgG82qAoCR"
+     "fileId": "1a3GrWnh3cWa6gfUH6VNHT9uusQ9Dh5TD"
     }
    ],
    "year": 2025,
@@ -2442,59 +2474,59 @@
    "files": [
     {
      "title": "Счет на оплату № 170         от 30 сентября 2025 г.pdf",
-     "fileId": "1ejea5hoBTplNE9cHabWmp-yJrrcHtmKY"
+     "fileId": "1yD25Cqoh9KiaoSc_edt7jPVAOTdFjT0D"
     },
     {
      "title": "УПД (статус 1) № 171          от 30 сентября 2025 г (на пошив).pdf",
-     "fileId": "1V0MTd-kIoJeQ05V__sHQ6V3Md8ossstH"
+     "fileId": "1F2S2k6cla62vjfssEsvAXdquYxjugUu6"
     },
     {
      "title": "МФВМ_000019.pdf",
-     "fileId": "1fdXY3TzWJT1hfw546WfjifMDUGLZNDlU"
+     "fileId": "1EcONBAxP3Zq2M9EYnyWm9-MS-GDRn9ID"
     },
     {
      "title": "МФВМ_000020.pdf",
-     "fileId": "161oiPRAuQN6kgTwNrXrhRVRG84OnUqTt"
+     "fileId": "1ZCij2HSbUbygQ4OMkZ9cd4zlgI2fYoHz"
     },
     {
      "title": "МФВМ_000022.pdf",
-     "fileId": "1Udyo-4DtgOMIymVkqLrvSvWH4JKmbJby"
+     "fileId": "1plHkXoIcOqZdqkwrBHPDN549tS5A3FSs"
     },
     {
      "title": "МФВМ_000023.pdf",
-     "fileId": "1GAAmRul03wrPxJSXBujiJ_AkQJI6z04J"
+     "fileId": "1omv2oXqKsh71sH0kbub_Ye3yinmC1pBh"
     },
     {
      "title": "МФВМ_000021.pdf",
-     "fileId": "1OL9Z0MCWSywTJ1iyl8OFiCioayv_TB6u"
+     "fileId": "1b1klB0iysfyOA1k01Y_aEwt64-xxCin5"
     },
     {
      "title": "расчет доплаты за 2ю партию.xlsx",
-     "fileId": "1upHA2RwcicTrYZxQEohqXFB0bzACpyCA"
+     "fileId": "1bzksTz4OtLG14U_OiOtVmIKfUTs8afaR"
     },
     {
      "title": "расчет доплаты за 2ю партию.xlsx",
-     "fileId": "1BJjs0Bg5iWOleXn7HEbLlcgkyLIpJFzx"
+     "fileId": "1w2VzECkleFHPjTeLuIwLLy_cNPsQk_Rw"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 19 (манишки 2 ирис 2 блекглама 1 лаванда М012) — копия.docx",
-     "fileId": "1hPJhbzSxaExp9LuDWYFTHT6_xrJAMEC7"
+     "fileId": "1UINFxUb0LyH41giJP5kkLuq_VBfsqjJT"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 19 (манишки 2 ирис 2 блекглама 1 лаванда М012) +4% — копия.docx",
-     "fileId": "1znwLZxr5JZejV5aS61BHxcFzAWeVqG5J"
+     "fileId": "1DCyz8kHuAQDD9IAkWJ00z1wfjzrrzByf"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 20 (swakara 8 изд).docx",
-     "fileId": "1Ec6YUE7eX022zU_gXyqNG1j7V5x65iTy"
+     "fileId": "1H3gazv_eRkcIGoxbI1XkKHFJhfs7vL5T"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 20 (swakara 8 изд) +4 %.docx",
-     "fileId": "1TRZTJFkYv_vVDv_YUIq_WqoyWC1y-XuO"
+     "fileId": "1eEEXnOpmnxwqueT_zoqads0JVWLb6yoV"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 21 (соболь 2 изд).docx",
-     "fileId": "1a74cVyxiRWo28CNIpa2GOvy4QiT80783"
+     "fileId": "1c-Zacj5YXYtdbZvLNzfhzbotKX76Itdb"
     }
    ],
    "year": 2025,
@@ -2568,59 +2600,59 @@
    "files": [
     {
      "title": "Счет на оплату № 181         от 17 октября 2025 г (2).pdf",
-     "fileId": "1VpEtEtU7gWVEWaxJw892IEt2-krP7_ds"
+     "fileId": "1oUKiI6MXAqXw5xKGx8zHOYlr89cLoE10"
     },
     {
      "title": "Копия расчет доплаты за 3ю партию.xlsx",
-     "fileId": "1IDMaytrhjDD2qU1hmDrWyEIs3k8x1HhO"
+     "fileId": "15PJq_a4HkwFhr0WGloG55QWXMu4QWRmq"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 24 (6 изд. из свакара)+4%.docx",
-     "fileId": "1_5fXVuYMZcftM0WQ5ZElATMqGU_2OXFu"
+     "fileId": "1LwwEg8K1wclDEhbXPgsrBVKgFU3HhMti"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 24 (6 изд. из свакара).docx",
-     "fileId": "1gDC4aVYTSGBvpy2C1YBjLnvY28Za6UjD"
+     "fileId": "1wvZpK2DVMDvivlkyPEhb20Z2zrpcHogG"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 25 (1 жакет свакара облако М021) +4%.docx",
-     "fileId": "1Fj6YuGcX1TstA_u5TkMDMk_9eQMgiRC_"
+     "fileId": "1Hfdfjil5vXvHVhpLhGst024Y3G1dNLJ_"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 25 (1 жакет свакара облако М021).docx",
-     "fileId": "1PfNjpgBMOWD2grjMorHx2rMpm2fPJytE"
+     "fileId": "1XQNS53LYXckpMpJW6W5XKjQ3uKWp7JGi"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 26 (1 соболь М005) +4%.docx",
-     "fileId": "152hERq5wV5v6Aj_kZmraDWZSbjtn_f-3"
+     "fileId": "1BM6ewirmRVslc47Qfhaz3zncGNQqR50G"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 26 (1 соболь М005).docx",
-     "fileId": "1W-iJVUAdm8vsGWMgTJhdKnqBz-jJO7-u"
+     "fileId": "1LcvGxYvsERsEZ7GIYbIYZkPsyaoK3ICD"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 27 (М017 норка белая) + 4%.docx",
-     "fileId": "1yg5TtmAD-xzhp7g6hM3f_CRNRjonNdlH"
+     "fileId": "1K-NyGuESXSATL0Aneojpmices1NvXsOR"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 27 (М017 норка белая).docx",
-     "fileId": "19YVfiCNvKA_fw-P6Cy_hrvMJ3emhK0nP"
+     "fileId": "1pEICfQXy3xSY1c60TqWhBYSo1u5OO9lt"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 28 (норка фигурная стрижка) +4%.docx",
-     "fileId": "1IXxuZxOOLgHXuhZMP3oPceCTcGuB2062"
+     "fileId": "1Whv5yCpEiWFyMMniOc5TpfS_F5RIH1EX"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 28 (норка фигурная стрижка).docx",
-     "fileId": "14D2-YdiS-bA002r3V40_rm0HUPnaii7I"
+     "fileId": "1AxwZ_resYM20sT01PY346g4iTpDNBFA0"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 29 (1 соболь 002А)+4%.docx",
-     "fileId": "1wBaUBCAhN0D6MtQMziPQZgr7bBWuDj_N"
+     "fileId": "1zDAtMCN6d9-ZUtOz4ckF9-32g90mRJep"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 29 (1 соболь 002А).docx",
-     "fileId": "1SVtK_XkWfLW_HLWx21vtmDddduquQMAB"
+     "fileId": "1eIBKUlNHL8dc0fGm8CEhp-EL7LQ9DnV-"
     }
    ],
    "year": 2025,
@@ -2778,59 +2810,59 @@
    "files": [
     {
      "title": "Счет на оплату № 235 от 04 декабря 2025 г.pdf",
-     "fileId": "1tpAlY0HjHUqV6TiMxk1Uhu_Mf-HUxAbl"
+     "fileId": "1bGbTbvYMfaornmnpMGkTGeI8Bgrv07DL"
     },
     {
      "title": "расчет доплаты за 5ю партию.xlsx",
-     "fileId": "1YNG5EXQa6Q0qgueOtywUCnp1675_WUbF"
+     "fileId": "1DnkNlF6n7ZK7R2nDU6i6f8fDw_jJg0KW"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 49 (MSC-01 шарфы соболь)+4%.docx",
-     "fileId": "1CLshBXMb6XxlNZDlC_sqvwTeCCxjPklA"
+     "fileId": "1EqHUdaDKZS_Hd9YYkXz9VOx6ZzjgeXHW"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 49 (MSC-01 шарфы соболь).docx",
-     "fileId": "1CCgyh8ntrX2n4G9VvpbfsKNsjuBmQSxw"
+     "fileId": "1GdPtTJm63R6Tr2xkruqGdWn61MEmq8aw"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 50 (М016  - 1 ед.) +4%.docx",
-     "fileId": "1nqNDJKpb5TYdqzPPkBJuDPGbWAjgyFCE"
+     "fileId": "1aoR2rIbW34hjAmISg931W80-lI4o2cM-"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 50 (М016  - 1 ед.).docx",
-     "fileId": "1v0vp2sHpjeh7WO9L1PahKCrnwxXrwLwD"
+     "fileId": "1ZLLaiPeasEyHS8Y-40uORuXIuYaiA6aP"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 51 (М002 -соболь) + 4%.docx",
-     "fileId": "1JLdJO2N7QjZ8GBYVc0_qypsleXlPyk_a"
+     "fileId": "1tdu95O8g0YJN_TkcYC5we0imVVjpIWMj"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 51 (М002 -соболь).docx",
-     "fileId": "1OrnL1ySBSq-7UJIHO5fs64h_8832DRdl"
+     "fileId": "1uU-X_O0eVB7QJUleaprArlrfjk8CsRGo"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 52 (М003 -соболь)+4%.docx",
-     "fileId": "1-f1zPNKheo1RgHvSGEdvlZuMgaaJ7Xre"
+     "fileId": "1qDB-H26tjRu6HR1Mtv2-JWyy2aMx2OVo"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 52 (М003 -соболь).docx",
-     "fileId": "1_zFfk3lZwi3oxERCXpJ58YMD7itVN_c3"
+     "fileId": "1zcu9REMvRJIhXp9V3DaBBQxismqSt5Dx"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 53 (М006 -соболь)+4 %.docx",
-     "fileId": "1Au-hF1c0TJeTGcbVyW0RKEq1u2CwrNUR"
+     "fileId": "15J1S3BsbvnM3LkV-PazMRE3BAE_8SwfY"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 54 (М022 каракульча) +4%.docx",
-     "fileId": "1GMNPx_9FYC8clgOHFl5uIv2J8AuNp6vR"
+     "fileId": "1Lg9Wr-fp30hm-y4-77EM-uSQAjob8Nfu"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 53 (М006 -соболь).docx",
-     "fileId": "1lOkLAQMu-ZfVde3aXIqNBqHM9mCKYniR"
+     "fileId": "1zflT2YXYHX5q6-peM6Q9-dlniI1o61Cd"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 54 (М022 каракульча).docx",
-     "fileId": "1xYf_RkHa2YvzppQrJhf_Rq8zUICXGOpb"
+     "fileId": "1AxBXdFAQeG8u3BMmt72zGzIgxrc8bJP7"
     }
    ],
    "year": 2025,
@@ -2916,55 +2948,55 @@
    "files": [
     {
      "title": "Счет на оплату № 239 от 18 декабря 2025 г.pdf",
-     "fileId": "1QGwUhGSTuxMR2OIj0Ftz7BScBlQjqYfT"
+     "fileId": "1AO6TSQjyjgxx20mvKidZVJfirL9w71RW"
     },
     {
      "title": "расчет доплаты за 6ю партию.xlsx",
-     "fileId": "1U5Y74CUGIbb39TQF4HlYTJH3LIUrrpai"
+     "fileId": "1VHh67Aos-WAhYYpL1cJBfDZZobFU9_nD"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 59 (М002 -соболь).docx",
-     "fileId": "1bHfUvVsuTZTZ0spSDc1wYbSKZxDftn1q"
+     "fileId": "11Buy98FxgR1YU6Da71Z4zJsVif935sSq"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 60 (соболь 004-1 ед 42 р-р).docx",
-     "fileId": "1o4LkaO_bm6vdAL1LUoCaoxjLn4AkliUE"
+     "fileId": "1VBkEp94VpsbPYGDGTZzF3CZb49Z489ph"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 61 (М021-свакара 1 изд).docx",
-     "fileId": "1k9awZWqPn0ZAUP5zBiyLN1cx2FrslBPn"
+     "fileId": "1ohl4m2wT_0Pt6kPJc7rQiHWT5qbeED5C"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 62 (MSC-02 шарфы соболь).docx",
-     "fileId": "1yHa62rOLx_SbQxgvfbHMv-_WghHT626W"
+     "fileId": "1_rJUab39ktFQDeqVE4DDG9yLr6LKZ4Df"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 63 (MH08).docx",
-     "fileId": "1fBZxZUsYRlcgz68J0N4tvbFU5bBB482F"
+     "fileId": "1q2tf2YayqAtcfYsCjJhu7JHE8xT3-L4N"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 64 (MH06 ирис).docx",
-     "fileId": "18gqZZy6TVYboSRb-JXCmMj_WSYmaSuhn"
+     "fileId": "17-Fdr18-K5gE5W21NSOmnKgkckDXKrV6"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 65 (MH06 лаванда).docx",
-     "fileId": "13XAiihD6Lk1PfI6KM12SltzF_3drZ40H"
+     "fileId": "1S_UuW1oyYrJ4L_Dxyd0ANO5O6uvtW9GR"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 66 (MH06 блекглама).docx",
-     "fileId": "1gCDijZVICtYacX8mhDM8MRHv_7O8cQwL"
+     "fileId": "1-LnmCoDnffckCmwkdrmlD0PXuESnlWI2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 67 (MH05 ам.браун).docx",
-     "fileId": "1YRbqZCnMZPgJwtLVHWJjDl0t4CZR6N67"
+     "fileId": "1E07ZISKFUH0AFFkeeAAmt63Tl0EQ4ygJ"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 68 (MH05 перл).docx",
-     "fileId": "1yANkxbrX03Ns9m3ZpPNl76R1jr-iVWBe"
+     "fileId": "12K9-ShdoDdLpfHkDAexltT0zbwP5ycT2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 69 (MH04 соболь тортора).docx",
-     "fileId": "1Ya1kHvnri1uleGjKZ1k5ncW5r8sxe2k5"
+     "fileId": "1NOyHF-eED84HnVh-CpwcItgTwyExOGyo"
     }
    ],
    "year": 2025,
@@ -3281,43 +3313,43 @@
    "files": [
     {
      "title": "Счет на оплату № 41 от 18 февраля 2026 г.pdf",
-     "fileId": "1iIFZkqVMGLIZpjUWq0f1aDR7BxQLwjhV"
+     "fileId": "1Q1UDLcFze4ULUMBD_q8_-dV8UQg4K8JN"
     },
     {
      "title": "расчет доплаты за пошив (партия 10).xlsx",
-     "fileId": "1aIHRd4yDprEej1VUMiY037zRnuI123Y1"
+     "fileId": "1moPjGAospDrSkaib-9CuxUgMasJVRCPc"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 97 (МН17 бобр + ткань) НДС 22%.docx",
-     "fileId": "112iBBbEPwgBrRSLxIuP9mm-KI5urQpr0"
+     "fileId": "1l3bkCm3IvEpBlVJIZpcnpVZt5NFBkTGD"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 97 (МН17 бобр + ткань).docx",
-     "fileId": "1UkFiX42QShXZEJSLd-8W7gddVkSjSkJF"
+     "fileId": "1_qinNFYuSY6O4F8BM-BKsXQ23tUd77UR"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 98 (МН09 соболь 10 шт) 4%.docx",
-     "fileId": "1CKOlRqJadctn84d9GZ9ogLfSFfEYQslH"
+     "fileId": "1EEUMbE4uoF5idVzvNgXJDPThEfTfsRz1"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 98 (МН09 соболь 10 шт).docx",
-     "fileId": "1gQ0J6x1qzit5yjAtFHEIwtqf5LVqBZlx"
+     "fileId": "10Dq-b_nLUAJAtOnjf5kSMMxZBqT2eOWq"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 99 (МН17 норка 3 шт.)4%.docx",
-     "fileId": "1kuyWXOkCoa8jpgr_XDqqyvejrXMWcMN8"
+     "fileId": "115yvi185TGfOEa08VKFE3TqchbwFCT6-"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 99 (МН17 норка 3 шт.).docx",
-     "fileId": "1LhsFP1fhx-4hGX48ev3oPfrXRdKObHJD"
+     "fileId": "1ogAlG8yv25hJiYHiJMCHX20Rko2cw1lE"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 100 (варежки) 4%.docx",
-     "fileId": "1aqbNnxO_nzJ272yTy6QK1sTTnJ87jvyo"
+     "fileId": "1XTGf50JBnzsht4Qow_3tiaGfpchoO5x9"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 100 (варежки).docx",
-     "fileId": "15prqOieeBqIC_xa2-ce5JsrfLASW-ctr"
+     "fileId": "1gQ986oznPUP2jYkMb3MDV17w4MqovOsC"
     }
    ],
    "year": 2026,
@@ -3389,39 +3421,39 @@
    "files": [
     {
      "title": "Счет на оплату № 51 от 24 февраля 2026 г.pdf",
-     "fileId": "1NNGFOlV-_GORVSmYS7n_rrWGTB_ofCRC"
+     "fileId": "1m3EXT-hg3k1Ax6yj4rNMjsSBZd3apS2x"
     },
     {
      "title": "расчет доплаты за пошив (партия 11).xlsx",
-     "fileId": "1FCy_VSp6IY9wn7jBOba-dSNW1BGIZ4iE"
+     "fileId": "17PxubCZ0SYaX4vzA1b2vPp4S4EsKSd2J"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 101 (MSC-01 шарфы соболь-5шт)+4%.docx",
-     "fileId": "1mY7QOfTk7PG8XxsyAiRgq0Xc30wZbmDS"
+     "fileId": "1PYfXw3E0Nlog5qfiIg1VTS7o_GDPbWSQ"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 101 (MSC-01 шарфы соболь-5шт).docx",
-     "fileId": "1s1rMCF7LR_td7DmW30GPTatws3CirHYu"
+     "fileId": "1xByl6ks6EqCkCih11kqT7e9M-vi6_R9i"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 102 (MSC-01 шарф норка пастель-1 шт)+4%.docx",
-     "fileId": "1slwhAmUlBDlJhAR5HObAr-ZX900FBKCK"
+     "fileId": "1nN8TyiFiFEl1nP8osImp8XuKeAC1LM87"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 102 (MSC-01 шарф норка пастель-1 шт).docx",
-     "fileId": "15i2ER6X7wozyDGhKlF61KkIe5WN9cO_Y"
+     "fileId": "1MyF_LjSwURqpzg8qxV0pvNzw0bQYdutA"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 103 (МН17 норка 7 шт.)+4%.docx",
-     "fileId": "1lJukqm_ERXNN5wmST1435yYEpgfx4NYd"
+     "fileId": "1ko5iVLsIpnGR-IkpCooqZxw-9BpkGaCt"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 103 (МН17 норка 7 шт.).docx",
-     "fileId": "1nRsC4FxlQ5BD-1ZTuZq63GauRNGQ0Xyp"
+     "fileId": "1f_acAu3yV0vviPSVH4DYyy1bVwq09L7W"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 104 (МН17 бобр + ткань).docx",
-     "fileId": "1-MDCEaSq2yZnFGJsonYSvzUOFPBH4kW0"
+     "fileId": "1bbocGKuust7hixgSeRCQQCmspa5-fYsK"
     }
    ],
    "year": 2026,
@@ -3499,59 +3531,59 @@
    "files": [
     {
      "title": "Счет на оплату № 65 от 02 марта 2026 г.pdf",
-     "fileId": "12aRzjJUwlih4TFuYBq00QBSLvg2SqbP0"
+     "fileId": "1XJl4fJMgzl7nltm6PKAZuYuCLTI9F0SR"
     },
     {
      "title": "Счет на оплату № 63 от 02 марта 2026 г.pdf",
-     "fileId": "1Mtf3i--2seE1p2-kNfEYJ9s2aQhe0PF0"
+     "fileId": "1ClZQGNsPisaAZNaKYft2WeI2w65pb627"
     },
     {
      "title": "расчет доплаты за пошив (партия 12).xlsx",
-     "fileId": "1Xpa_tg3wN8ZJa651WA83RsopJx7LpMRi"
+     "fileId": "1YS5gIw4QL0oFRoZ73UkCB1EsHr4yZ7tT"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 105 (MGL01 варежки 1 шт)+4%.docx",
-     "fileId": "1Y2sPcTRJx0aibbE0GEPRQDBbLT4PFcMe"
+     "fileId": "1wBGsvB0FuHTR6la-wj3k0YMy4CRHzP_u"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 105 (MGL01 варежки 1 шт).docx",
-     "fileId": "1rlY9imwPvwQ_V704bwxVONFmvWgw6Ryq"
+     "fileId": "1tobZDh6PcIcaINBMuk8ETOhq-d4Xpwcl"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 106 (MSC-01 шарф норка пастель-9 шт)+4%.docx",
-     "fileId": "1IQYHLrkS33P-wMivjIgsKQiDlgs-zGxx"
+     "fileId": "14GHrnhfpj9oJzJVGazkBmp4stzIOK3hL"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 106 (MSC-01 шарф норка пастель-9 шт).docx",
-     "fileId": "10BefDSW2RH3bzXEkvahYDS7D2AX1EmeM"
+     "fileId": "1GRj4uATx2zk3AiY1m71DYJABLBoxN52i"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 107 (MSC-01 шарф норка жемчуг-12 шт)+4%.docx",
-     "fileId": "1USUCIq2t8NKklQaeDgn_1g-o_vZDQXUg"
+     "fileId": "10F-xHcJsU9lWXEsBIyTmvrUwTkvswuej"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 107 (MSC-01 шарф норка жемчуг-12 шт).docx",
-     "fileId": "1ke22O5CrfD7uLGnM8wm2hucGPJRbbcxT"
+     "fileId": "1GS8LieCB7ybb5QUQp93hzD6PDUs5rJng"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 108 (MSC-01 шарф норка блэкглама 16 шт)+4%.docx",
-     "fileId": "13p2SwtUanGHTnhKaUQkNDeiUU11J82xY"
+     "fileId": "1lS6p9JMKcQCTju2dsZTIz19SEXjUNIp5"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 108 (MSC-01 шарф норка блэкглама 16 шт).docx",
-     "fileId": "1RjBeiNWicrGRQQgEXaYPYzjuFax3wV9R"
+     "fileId": "1_-MRNd2xXxQE8QvNB8H55DUeOKGZoCx0"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 109 (MSC-01 шарф норка ирис 10 шт)+4%.docx",
-     "fileId": "1IehfKr-AfEDcRGEJ5BbYRnYeIdJZibLY"
+     "fileId": "14E8add-VfIWiX6epuI9_bb_01F4uM9Il"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 109 (MSC-01 шарф норка ирис 10 шт).docx",
-     "fileId": "1VQVHhmMUb3MT2TxzaT29WaI825Aiweqy"
+     "fileId": "1Y6oNTDsjlkPCJxWBjXeOMHrctuOcc3zN"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 110 (М003 соболь 1 изд)+4%.docx",
-     "fileId": "175oLGSC8A8vq1s5rOPm-VTqaL3YAOBkL"
+     "fileId": "1FO84ftrSc4xLOvJ9OQDENykOavDHKhfa"
     }
    ],
    "year": 2026,
@@ -3625,19 +3657,19 @@
    "files": [
     {
      "title": "Счет на оплату № 71 от 06 марта 2026 г.pdf",
-     "fileId": "1HYL_0BA5TZXP0JEPeJBNv5EmmFYp6CFu"
+     "fileId": "1aWtsUiCYLJHaokYyIu68pjBJUCUwxtsz"
     },
     {
      "title": "расчет доплаты за пошив Партия 13.xlsx",
-     "fileId": "1P7t76xFJ7yPBl8PhwYgQsSQbWnk6n1jo"
+     "fileId": "19_ylFnZXVIM2aPWBSaFpYRTbUm-oldP7"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 111 (MH12 - 8 шт.).docx",
-     "fileId": "1t8Z2Sa57OSfllODUnzxqZ8m_x-Mrtxeh"
+     "fileId": "1v0lnZxe17zclDfCbz92-F4BFJkLCb73w"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 112 (MH13 - 12 шт.).docx",
-     "fileId": "1aZOIVfP5t3Uuz4Y3NSzXC0Y1mssryl3G"
+     "fileId": "1sdJvORsNb3yIv1e7xKLlJAQqJXASgnlZ"
     }
    ],
    "year": 2026,
@@ -3717,39 +3749,39 @@
    "files": [
     {
      "title": "Счет на оплату № 121 от 24 июня 2026 г.pdf",
-     "fileId": "19ltnYtaZ6d0ZquWiB4soC25dz826UHyV"
+     "fileId": "1Vw-Hex0dW1YVyx3iNz51yUERZwmxHjH9"
     },
     {
      "title": "расчет доплаты за 14 г-у (Партия 14).xlsx",
-     "fileId": "1X_OanKB3wRNVeYXhvf7Qmcp6d_elwhBQ"
+     "fileId": "13ahBd28-ik64v-WIJf1PufuUByS_D6aY"
     },
     {
      "title": "расчет доплаты за 14 г-у (Партия 14).xlsx",
-     "fileId": "1aVl67zNweph-HlZGvQxl5JdpJfE7NWS9"
+     "fileId": "13ahBd28-ik64v-WIJf1PufuUByS_D6aY"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 113 (MH16 - 4 шт.).docx",
-     "fileId": "1jHTO0zd6bhmMjc1DA_vejwgtOLoVcTQO"
+     "fileId": "1pY_PaANJBZDG_1jx_pT4Lzdn2W4CHJL2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 113 (MH16 - 4 шт.).docx",
-     "fileId": "1F1prBQuhUcUq3koi0gVKoky2YHnQYk2P"
+     "fileId": "1pjNg9Pf84irBPPP7LtrcS-V0NXUUiUzm"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 114 (MH16 - 2 шт.).docx",
-     "fileId": "1g7yC0HVAoZiowxzEKQYNDWMMKnn5x6lC"
+     "fileId": "1uxSu7HJBMJh-ryrdcaP7UhnaK6Ly0ONM"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 114 (MH16 - 2 шт.).docx",
-     "fileId": "1SZ5giuHEeA4uwzRjHAHSkMelI17QUhTf"
+     "fileId": "1L-w_qmTTrG9XduQ_TeqKaCQm4eaAbXoP"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 115 (MH11 - 8 шт.).docx",
-     "fileId": "1Gtzgew7IA-O2gaxwK9nVs0BQOXihZyLb"
+     "fileId": "1_Yz4b8eKnWEld0MQPmZniGM0n26rlWpQ"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 115 (MH11 - 8 шт.).docx",
-     "fileId": "1Z-r8kqd0I0OY3yN0hR3NI-z3eBzkesBk"
+     "fileId": "1V861RrfRmYqoJtjPopLp6xhLr00nEBzT"
     }
    ],
    "year": 2026,
@@ -3936,15 +3968,15 @@
    "files": [
     {
      "title": "Счет на оплату № 207 от 16 июля 2026 г.pdf",
-     "fileId": "18nPMFHQBKlFuv7xE8mIMBgEy8j4BbXOh"
+     "fileId": "1BAj9OSVkjJsq5wMYQVp1BRcP5NARbBUu"
     },
     {
      "title": "расчет доплаты за пошив Партия 17.xlsx",
-     "fileId": "1JMSq8m6dkDJbjTtV-7mKLJv6i8tgexmB"
+     "fileId": "1rq__C-jE5TtW_T_84PwSXQjVhAw9k7U6"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 118 (4 шт. аксессуары).docx",
-     "fileId": "1tfJdtNt_rdK5uJdYRwqs2b93WcNcvViY"
+     "fileId": "15JrlnocypxPTsGvGFKAbaq0Xb33au7Wa"
     }
    ],
    "year": 2026,
@@ -3961,7 +3993,12 @@
      "note": "«Ок. Тогда можно доплатить» 71 400 (не оплата)"
     }
    ],
-   "advanceRub": 166600
+   "advanceRub": 166600,
+   "manualReview": [
+    "Найти банковское подтверждение оплаты счёта №207; письмо «можно доплатить» не считать оплатой.",
+    "По авансу 166 600 ₽ ТЗ №118 подтвердить выпиской, входил ли он в ранее оплаченный аванс; до доказательства отдельно не засчитывать.",
+    "Уточнить фактическую дату ТЗ №118: дата 17.03.2026 конфликтует с поставкой/счётом июля 2026."
+   ]
   },
   {
    "id": "W:Партия 18",
@@ -4031,59 +4068,59 @@
    "files": [
     {
      "title": "Счет на оплату № 237 от 25 августа 2026 г.pdf",
-     "fileId": "1cnOqdZtAaOT4v2aWe5S5WnYlVVFHWCjy"
+     "fileId": "1jq4YYRYcT-IsT-dYonGUC5dXzFB90MNb"
     },
     {
      "title": "расчет доплаты за пошив.xlsx",
-     "fileId": "1MGykypIZubGtKB50ezt6IbUpkl8_zhYh"
+     "fileId": "1MQccnfietK5GgkBrdVYTMBpx_klyjJq7"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 119 (М025 виолет)+.docx",
-     "fileId": "1Q2vWXEk9I39fL8rfg9p-PeSIt7XybZRt"
+     "fileId": "1tUS1GDP_3CjcOqZ1nZMExqs0YcVz1EGp"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 120 (М056 перл)+.docx",
-     "fileId": "1JYDq6hs60Ye9sIsn_E6md_52gRkCm4CP"
+     "fileId": "1kJSAiJQeEvQGWLvH1RmtTJtknxHIOMHH"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 121 (М029 красная лиса)+.docx",
-     "fileId": "1_LnkLOe75G7ZcS3v0syjSLwOkFmzdB_M"
+     "fileId": "12hiPnx6c-TuIZHN0ZsASWDwLzF6LYL9E"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 122 (MSC03 белая косынка)+.docx",
-     "fileId": "1yTiSsI3ZMDlpGa41ZUGTh5Xz7wieF5SZ"
+     "fileId": "10XP6V19dnQU51tr8l_j-gu0YD8uYav1d"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 123 (М041 черная норка)+.docx",
-     "fileId": "1w_zFaHJAx0ZNyMHzKJ_rLWeLSpZiPyBR"
+     "fileId": "1HnWroUoX5uSzAcyNr1pCEgE-2UOV6jSA"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 124 (М001Е - арк.лиса)+.docx",
-     "fileId": "1Mw14_Ucu4z3fInK6jjjGnrxoTUxUR4Yk"
+     "fileId": "1qtz2Yx1HMNLHwvjDIZgJ1CBdX7BwdXzJ"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 125 (М002 - 2 соболя)+.docx",
-     "fileId": "1GM8RG4pwPZ_ASqZGlVbidNEdKm_AUefk"
+     "fileId": "119JhCQsXbntNy_9x4pn5c3RC81ZQptbj"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 126 (МSC04 - 7 шарфов пастель)+.docx",
-     "fileId": "1F0xYzsuW59Ml580dFmVQid3lZTVSu49l"
+     "fileId": "1weLBW_JM5HhhFXQzKWPPYUH6tIGv_bjz"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 127 (М012 - 2 манишки)+.docx",
-     "fileId": "1gDXORMM8wKVQAD5Stwcr3Rc-9YdWPky3"
+     "fileId": "1CKYb6WRNBAfhBlG-Hvgaka-7_QImELci"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 128 (М052 - 6 шуб из лис)+.docx",
-     "fileId": "1v2uGLCr7htY8veamZMb_n9xyAWXM7Q0c"
+     "fileId": "1qguA9GzBSI7RQ8fgbqgaeMRT46Crlcxp"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 129 (МSC03 - 4 косынки виолет)+.docx",
-     "fileId": "1vgA-Fzz6AFExGA9HGG36fvLbw7jaeRtG"
+     "fileId": "1n0PDOZVZGEmb8_LHve3M7hKGyWS4IINi"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 130 (МSC04 - 4 шарфа блэкглама)+.docx",
-     "fileId": "15SSE8e3SPIjsYdYVBZ98_94MvPpqiKVW"
+     "fileId": "1mw_JUGkfxBt15BlXVDVemZQCTI7r5LuQ"
     }
    ],
    "year": 2026,
@@ -4100,7 +4137,12 @@
      "note": "«согласовано», «доплату поставим на исполнение 02 или 03.09» (не оплата)"
     }
    ],
-   "advanceRub": 5783190
+   "advanceRub": 5783190,
+   "manualReview": [
+    "Найти банковское подтверждение оплаты счёта №237; намерение «поставим на исполнение» не считать оплатой.",
+    "Подтвердить разнесение общего аванса №141 на партию 18 по моделям/размерам, так как отдельной платёжки партии нет.",
+    "Сохранить зачёт 6 685 ₽ между партиями 18 и 19 как отдельную связь evidence, чтобы сумма не учитывалась дважды."
+   ]
   },
   {
    "id": "W:Партия 19",
@@ -4169,59 +4211,59 @@
    "files": [
     {
      "title": "Счет на оплату № 257 от 15 сентября 2026 г.pdf",
-     "fileId": "1OpiX7SLTIfz99lT9GRpieLv14TSvLyiY"
+     "fileId": "1cBf_fxwddH3aqSs_MxpTzaidEOlaTg1Z"
     },
     {
      "title": "расчет доплаты 30% за партию 19.xlsx",
-     "fileId": "1Csqg1Tw-RfLEk_dCPKxH1cKr1KvVK_Me"
+     "fileId": "1LC9bQ9xhlAZo7Lznz8Bkl4fcgjeulCy2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 136 (М009 белый - 8 шт.)+.docx",
-     "fileId": "1M2wdhfWdzro-W27erIOw0ZYl4SIktUpO"
+     "fileId": "1q31mL8qjdCS3WpJbQD8NzUkvYwFLkqvr"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 137 (М045 - 10 шт.) перл+.docx",
-     "fileId": "15aTAXxmMrrcY4ONCGldcBlI4smw5zrqz"
+     "fileId": "1zgqFmS2FpUQcoWFNucSLJIFZzdztv9ea"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 138 (М009 браун - 2 шт.)+.docx",
-     "fileId": "1nYYiBQr-ZFjysU6LfpxtgaSOVRML9_l_"
+     "fileId": "10M4xWxRSYVjKcpWzU2zs0hVtn7CuwBu2"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 139 (М046 соболь - 1 шт.)+.docx",
-     "fileId": "1KKYN-XUtAAH54WBXKn3cTZVr5jd6hu2C"
+     "fileId": "1wYRzw9yOTW2MGvI_iwpsDwUkftNHgFtV"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 140 (М002А соболь - 1 шт.)+.docx",
-     "fileId": "1caxworVRnK2j2DKQmXtPJBXXBIo3a3S2"
+     "fileId": "1lglFnIgwAtodir-tfxOrcV925qpZPHsz"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 141 (М001К соболь - 2 шт.)+.docx",
-     "fileId": "1abYK95yRSQ24vZdX5pr5WnOZKzjYWCe9"
+     "fileId": "1YcwhN1hFyw30qi7L3zzpsS-vOkP2qxx5"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 142 (М038 - 1 шт)+.docx",
-     "fileId": "1nYuB0wJTlF-lLQRXQRiodUaq98EH9EOV"
+     "fileId": "1MgjVILZ_nBZ1sqyt1AhIa22XxfS-4luz"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 143 (М050 - 1 шт)+.docx",
-     "fileId": "1O4uvUAXG60jKEnCdKt6m71eT1WZuM5O4"
+     "fileId": "1xt6I5upy_gXDAIgAo3gIhYc1u_LotSEu"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 144 (М028 - 1 шт)+.docx",
-     "fileId": "1YC2FlBP-uNC_kGaPjETg36Eyv0LQeFRE"
+     "fileId": "14ts16hDLAOvdasW3vVIzNxsLBaw52jx0"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 145 (М012 - 1 шт)+.docx",
-     "fileId": "1eYKu7v0uNsmswQhyTg2RIXkyQAjTjBgR"
+     "fileId": "1AP9evI5TliBvTHAtoPBp0_01ZTRk3IjQ"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 146 MSC06- 5 шт)+.docx",
-     "fileId": "1H2tXu4uQN1irxh1odm0UgFJ5q96e8sK9"
+     "fileId": "1EAF-ceefp1kIyZ571PsOkzkYtC5giFGs"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 147 (M012 - 3 шт)+.docx",
-     "fileId": "1sch4xGlHbNfGkilBB2vSWVBjH8Y4-UgZ"
+     "fileId": "1nmmcAgHOhGfPVWHlY0I_3qJZoo0qplXn"
     }
    ],
    "year": 2026,
@@ -4243,7 +4285,12 @@
      "note": "оплата доплаты согласована (не оплата)"
     }
    ],
-   "advanceRub": 4346300
+   "advanceRub": 4346300,
+   "manualReview": [
+    "Найти банковское подтверждение оплаты счёта №257; согласование 18.09.2026 не считать фактом оплаты.",
+    "Проверить покрытие аванса партии 19 счётом №247: 563 640 ₽ покрываются, 66 920 ₽ по третьей М012 остаются без подтверждённого аванса.",
+    "Зафиксировать зачёт 6 685 ₽ по MSC06 и проверить размеры М046 42/44 без изменения денежных сумм."
+   ]
   },
   {
    "id": "W:Партия 20",
@@ -4419,9 +4466,9 @@
    "diffs": [
     {
      "what": "Платёж по счёту №275",
-     "doc": "нет; согласования тоже нет",
+     "doc": "согласовано 02.10.2026; факта оплаты нет",
      "db": "платежа нет",
-     "why": "счёт выставлен позавчера."
+     "why": "Письмо подтверждает согласование «счёт платим», но не содержит платёжку/выписку или прямое подтверждение проведённой оплаты."
     },
     {
      "what": "Сырьё не списано: ТЗ 165 (лот СП0526.19 не найден), ТЗ 167 (лоты исчерпаны) — себестоимость не рассчитана",
@@ -4430,45 +4477,52 @@
      "why": "—"
     },
     {
-     "what": "Расчёт датирован 23.09.2026 «примерное количество без подклада»; приёмка не подтверждена документом",
-     "doc": "—",
+     "what": "Приёмка партии 21 подтверждена письмом 02.10.2026; место фактического нахождения требует уточнения",
+     "doc": "Коношенко: «Поставка принята сегодня – 02 октября 2026»; Киржнер уточняет, означает ли «принято» склад Меркури или приёмку по качеству в ателье.",
      "db": "IN_PROGRESS",
-     "why": "—"
+     "why": "Факт приёмки по качеству подтверждён перепиской, но физический статус/местонахождение из цепочки однозначно не следует."
     }
    ],
-   "notes": [],
+   "notes": [
+    "02.10.2026 согласована доплата 30% по счёту №275 на 442 980 ₽; факт оплаты пока не подтверждён.",
+    "Поставка 21 заявлена как принятая 02.10.2026; отдельно уточняется, находится ли товар уже на складе Меркури Мода или ещё в ателье после приёмки по качеству."
+   ],
    "files": [
     {
      "title": "Счет на оплату № 275 от 01 октября 2026 г.pdf",
-     "fileId": "1o6LjPGT8Sgv4S79myKBtLLl_LXJJHBCB"
+     "fileId": "1hOJMcSSt_EEI8UZkKt4axNDTO9i5ftJR"
     },
     {
      "title": "расчет доплаты по ПАртии 21.xlsx",
-     "fileId": "1ayDTOKrfMztIycZE4Wpiwe3xxwcFArbH"
+     "fileId": "1-TJt7TqJkPQMtvoCxnlSHiARKi3vpjcV"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 163 (MSC03 коричневая косынка 3 шт).docx",
-     "fileId": "12sVQTQsIL6kMNaiPMyz0rgtGWwEAHfb4"
+     "fileId": "17Z6fAjosa-uLWUMRnGwuSSuGZJDqJhZ3"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 164 (MSC05 1 вяз.соболь капюш).docx",
-     "fileId": "19LTh_R8LnCZ__0zanJSKB1LRSwyoNxgK"
+     "fileId": "1omA33fpfybn0EL-vendMcQvDd4leQNqo"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 165 (М046 соболь - 1 шт.).docx",
-     "fileId": "1KpM_nzuCzuRePx5pN2IZD5qnhuPVddXz"
+     "fileId": "1fCN80MIHOCx-uByRZOKLaY2tN3CZQgLW"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 1166 (М056 - 1 шт) норка жемчуг.docx",
-     "fileId": "1a0-FZp0rT5_BdHU_V6wkz1np7IjHx2Pj"
+     "fileId": "1p0oB1mG5UHZo5_GgOxV-7Nv17egshD2r"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 167 (М038 - 2 шт).docx",
-     "fileId": "1-bG-U5v3Evw8otbMvCQKMTV_M7ZOjouU"
+     "fileId": "13cCVbAaJ-eWcRE-HpNvafWFQT_ea4MhH"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 168 (М012 - 6 манишки браун).docx",
-     "fileId": "1c-n4t0GHH1IwpOWZaXijyxROCR_FNre2"
+     "fileId": "117c-yMdim9zFuZq5B86vnmxzbFf6KtZu"
+    },
+    {
+     "title": "Re Партия 21.msg",
+     "fileId": "1RxwHRMmBgJD-m40eGp4dIjvjSv5IQTYs"
     }
    ],
    "year": 2026,
@@ -4478,7 +4532,13 @@
    "dbLink": {
     "batch": 21
    },
-   "agreements": [],
+   "agreements": [
+    {
+     "date": "2026-10-02",
+     "by": "Киржнер Евгений Семенович",
+     "note": "Согласовано: «счёт платим». Это согласование оплаты, но не доказательство фактического платежа."
+    }
+   ],
    "advanceRub": 1033620
   },
   {
@@ -4542,31 +4602,31 @@
    "files": [
     {
      "title": "Счет на оплату № 209         от 19 ноября 2025 г.pdf",
-     "fileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg"
+     "fileId": "1m65yaVcvX82dDRlDgIXcE8PGcDuYPArU"
     },
     {
      "title": "ЖГУ (Соболь) 19112025.xlsx",
-     "fileId": "1ISrk3am5LkAbKSm-adtiBX_-I4vZQc_x"
+     "fileId": "16OYQFjYethKSZCepV_XrYLn8lff9z3kw"
     },
     {
      "title": "ЖГУ (норка) 19112025.xlsx",
-     "fileId": "1z40KFiw8KtHSyMYqXttXTSLokFOBrfwU"
+     "fileId": "1aFt-4DCJeLZLKyYXLq2iFa8Q7_yyHm4d"
     },
     {
      "title": "МГУ (общ) 19112025.xlsx",
-     "fileId": "1tQQTDuLbKPUosVZXYphEwtYMQnd0l2LH"
+     "fileId": "1TPv57sTpX40D30Gxm7eyE0e3iOd0BBFd"
     },
     {
      "title": "МГУ (общ) 171125.xlsx",
-     "fileId": "1rmvwZbyOqFt-TSIne25TXqcVkxIDktPZ"
+     "fileId": "10tR0QEPWGvPKrgcZj4OX4lGbQBGXyTdu"
     },
     {
      "title": "ЖГУ (Соболь) 171125.xlsx",
-     "fileId": "1Y3tg--d1uScDWgoSCY3fFsxyIiyMjwAO"
+     "fileId": "1OfKICX-X6TJK5E2HdvC1yucxo_eEeIo8"
     },
     {
      "title": "ЖГУ (норка) 171125.xlsx",
-     "fileId": "1D7LSQhki7J_U7kCGcGxkV8KYGYu4_Omm"
+     "fileId": "13CJZKcrWfQ9_8mR_f8F7Q1VmuZ4hYvnE"
     }
    ],
    "year": 2025,
@@ -4731,39 +4791,39 @@
    "files": [
     {
      "title": "Счет на оплату № 141 от 15 мая 2026 г (на изделия в работе).pdf",
-     "fileId": "1pIETQH62YlpGa4SpiMt7wWlXcprbXPTa"
+     "fileId": "1H959BLSCGt3ePNu25b-lukUvF5_DBitr"
     },
     {
      "title": "Счет на оплату № 247 от 01 сентября 2026 г.pdf",
-     "fileId": "1FhGN7vXVrBl8idCkuuqnPAAAzgYLtE62"
+     "fileId": "134yAUo11O79AhocNL_O-WBY5B8lRu37k"
     },
     {
      "title": "Счет на оплату № 251 от 02 сентября 2026 г (аванс 3).pdf",
-     "fileId": "1jJTnV47N8hzhr2AUTbgsQZxrZB9RmjSA"
+     "fileId": "1iobg1cxoCTssWi1jyOmws7xbYjn16Omj"
     },
     {
      "title": "расчет взятых в работу изделий 01072026.xlsx",
-     "fileId": "1767dZkn58IHOj1oQsIEfko0sAHKvajAI"
+     "fileId": "1dCblOjmuAXhdYJLY9xDjU7LiTzf4h_rg"
     },
     {
      "title": "расчет взятых в работу изделий 01072026.xlsx",
-     "fileId": "1jFto5v8vnQ10muCaTFlg3dfx8WF9gi2k"
+     "fileId": "1M4bkgNpbHpw8AE59AcB-Bl5o8DTBWu-n"
     },
     {
      "title": "обновленный расчет взятых в работу изделий 01072026.xlsx",
-     "fileId": "1LAEr1uvHPILCHWqWzqRlfhJFP4qpxzAp"
+     "fileId": "18IV5ojfdEiU04qGwahWayMsBSi6EnutC"
     },
     {
      "title": "Копия 07092026.xlsx",
-     "fileId": "1Mbnoj6X3tjB5om8HVxVnxVYpz2EuAKtb"
+     "fileId": "1VTVPDTQtvkFogOuko2Mq2tfEhY4cApvN"
     },
     {
      "title": "07092026.xlsx",
-     "fileId": "1wpr_sTSeWncQIOTHqHjCjjG-nDsJm-NF"
+     "fileId": "16juhOAzpQTXIWjjdE7nU67mmR7W_uLmD"
     },
     {
      "title": "в работе на 01.09.2026 (без аванса).xlsx",
-     "fileId": "1Awrb-m1kyBe3Ol7iUcLX98ggQNGiUuTI"
+     "fileId": "1_f4gCi6CgqhUxhwog3nPgMenOWxnWqVF"
     }
    ],
    "year": 2026,
@@ -4790,7 +4850,13 @@
      "note": "возражал против 70% авансов (также 16.09) — риск пересмотра порядка"
     }
    ],
-   "advanceRub": 22423870
+   "advanceRub": 22423870,
+   "manualReview": [
+    "Найти платёжки/выписку по счетам №247 и №251; согласование 03.09.2026 не считать оплатой.",
+    "Разнести №247 по конкретным изделиям и партиям: отдельно 563 640 ₽ партии 19 и остальную сумму по изделиям без подклада.",
+    "Найти ТЗ на М023 ×6, под которые в авансе №141 учтено 1 176 000 ₽; до ТЗ оставить как evidence gap.",
+    "Исправить номенклатурные подписи М032–М037 → М031 ×7 в расчёте аванса без изменения сумм."
+   ]
   },
   {
    "id": "W:Кейп (ТЗ 117, М057)",
@@ -4853,23 +4919,23 @@
    "files": [
     {
      "title": "Счет на оплату № 145 от 21 мая 2026 г (2).pdf",
-     "fileId": "1e126X2lOa7oe48nAkdnbEXnA8a_tqbh0"
+     "fileId": "1j3v9wALWgMubqOsQlJ3bxCre5v7PEYlJ"
     },
     {
      "title": "МФВМ000029.xls",
-     "fileId": "1x9387bCHQitgkZYZ7Io_eXAYsuiSa7Sp"
+     "fileId": "14hW0fNv9vAO24JDpiaFpS06KlDlCWwjN"
     },
     {
      "title": "МФВМ000028 от 21.05.2026.xls",
-     "fileId": "1AfCQi8lNrIldW0WLTG3PTDCQ4jdr4QTc"
+     "fileId": "12qDLM1bg8yqb8w5AW-yMNdflIm3BIe6_"
     },
     {
      "title": "расчет.xlsx",
-     "fileId": "1xMd5o0N1d01p4Wxaomkvlznp3AfOiTxa"
+     "fileId": "1jLpGt0Wo9XjjKKuUBlAMxPmrvbY_DTfi"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 117 (М057- 1 шт).docx",
-     "fileId": "1TBPynU--oedyKNIyEP1i5o6ryUYpgGAG"
+     "fileId": "1_B8JeT2HCmLTb3GyyXAS0xVsKOAFP4CR"
     }
    ],
    "year": 2026,
@@ -4939,15 +5005,15 @@
    "files": [
     {
      "title": "Счет на оплату № 193 от 02 июля 2026 г.pdf",
-     "fileId": "13DiguSf7im1Fk-6UeUfU1Id-TaeyLFVS"
+     "fileId": "1mB2s-Vh1eTjmJMAByWXFJxAyejj0vO29"
     },
     {
      "title": "расчет.xlsx",
-     "fileId": "1jMngCefDzRDmU-FiDP7h_A3r-qa5zBYt"
+     "fileId": "1gMpBDGZIJebMjgYsCLf1mpdANWCcHIC3"
     },
     {
      "title": "Каталог товаров RT Рус Мех.docx",
-     "fileId": "1PFxvfvBRmSM7g6W_r-4Z3m5kpNrWKs7Y"
+     "fileId": "1ukTZAkcDgoEEa9w2G6dSLaezHciLaCqt"
     }
    ],
    "year": 2026,
@@ -5005,19 +5071,19 @@
    "files": [
     {
      "title": "Копия LYNX MVST FW26.xlsx",
-     "fileId": "1TaW_Ve-_Y87ojw4mgVVYuyUdig8bYa7o"
+     "fileId": "1sYJGwAzhPIAhpqWnJ0akjrIBFahTOGps"
     },
     {
      "title": "image1.jpeg",
-     "fileId": "12c62BE4YDc_kxa3WgdSzM1-RZ8iUpmzb"
+     "fileId": "1sVwOd9zbymNHiT8qFdgk_EBuTEtVECdX"
     },
     {
      "title": "image2.jpeg",
-     "fileId": "1P_JAcfN8wyvyZLhRGfVal1rtnR7QGBGH"
+     "fileId": "1g4JZedm5vFOoxByzFR1tFUEXAk6pK8aR"
     },
     {
      "title": "image0.jpeg",
-     "fileId": "1C2LoiJi1sT-3B54KIqV1OgUnjdSn9yU2"
+     "fileId": "1yuVZtpfY2bi8jwHOtY8Fw6vsw1D5jlJu"
     }
    ],
    "year": 2026,
@@ -5087,15 +5153,15 @@
    "files": [
     {
      "title": "Счет на оплату № 259 от 15 сентября 2026 г (аванс за арк.лису).pdf",
-     "fileId": "1g1Cfzm71bS9RRX8RZuLQO8Wc47n0YQZb"
+     "fileId": "1eHTL_MfElqa9dP7zmEsjsEsUIagXKYnW"
     },
     {
      "title": "Счет на оплату № 261 от 15 сентября 2026 г (аванс за красную лису 10 шт).pdf",
-     "fileId": "1dJ3TdIfumX6AbOGOdi1FYM2ivB6OitEt"
+     "fileId": "1dSx5OeNBp948T_Z3wDzfE0ozBR4eBWRX"
     },
     {
      "title": "ПРИЛОЖЕНИЕ 158 (М029 красная лиса - 3in).docx",
-     "fileId": "1EQXu5LpwsLwJSdjRBM-p9yoC17WhxdDy"
+     "fileId": "11bQBa1X5O8vr4dDvfpyoMeyNIOD7q5_8"
     }
    ],
    "year": 2026,
@@ -5176,7 +5242,7 @@
    "year": 2025,
    "amountRub": 34825000,
    "purpose": "аванс 35% по Спец. №1 (СП+РП 03.25, общий на оба аукциона)",
-   "fileId": "13zGQV6j2mIzmtJuR6KNkSkRGZRRvLXXE",
+   "fileId": "1PpJ-Wq0SalZb2H5luYnu7t_eNGhxlljm",
    "fileTitle": "Счет на оплату № 31          от 27 февраля 2025 г-1.pdf",
    "groupIds": [
     "P:СП 03.25",
@@ -5207,7 +5273,7 @@
    "year": 2025,
    "amountRub": 24556500,
    "purpose": "аванс 50% по Спец. №2",
-   "fileId": "1Iq6ZknAoEqTnCSLvdF9so_dV-5cXgwUf",
+   "fileId": "1xksAKwaNMcPkvomHFlM4RqfALpADoNuq",
    "fileTitle": "Счет на оплату № 40          от 10 марта 2025 г.pdf",
    "groupIds": [
     "P:SAGA 03-25"
@@ -5236,7 +5302,7 @@
    "year": 2025,
    "amountRub": 11950000,
    "purpose": "аванс 2 по Спец. №2",
-   "fileId": "1n1MGcyaCQcpeL0Ggx6hOPDgW-l6Dl9IZ",
+   "fileId": "1LJHA18meF2B3xeIWF8FKkryjAj_LlitK",
    "fileTitle": "Счет на оплату № 46          от 14 марта 2025 г.pdf",
    "groupIds": [
     "P:SAGA 03-25"
@@ -5265,7 +5331,7 @@
    "year": 2025,
    "amountRub": 11146950,
    "purpose": "окончательный платёж по Спец. №1 (СП+РП 03.25)",
-   "fileId": "1Cxd10vDTjGQJPYM8E8MacODoVooZEzAy",
+   "fileId": "1IVmzHuGUKjS7ncW620x0TyQS2ljRVN8C",
    "fileTitle": "счет 75 СП 1 от 13.05.25 (финальный платеж) СП-РП 03-25.pdf",
    "groupIds": [
     "P:СП 03.25",
@@ -5296,7 +5362,7 @@
    "year": 2025,
    "amountRub": 10924000,
    "purpose": "промежуточный платёж (30% на таможню) — версия в «Счета.pdf» и в письме 15.05.2025",
-   "fileId": "1qt1ts_j31vvX5TwLqE1mSxujwT_c9IeB",
+   "fileId": "1Y8FPg7XY_s-UtVOXsmFXag6FmMDa9_RU",
    "fileTitle": "Счета.pdf",
    "groupIds": [
     "P:SAGA 03-25"
@@ -5325,7 +5391,7 @@
    "year": 2025,
    "amountRub": 12744000,
    "purpose": "35% — НЕ оплачен, заменён версией 10 924 000",
-   "fileId": "1R1f_ubqgvZyQRjhSec7GEyGw28Bi0TvH",
+   "fileId": "1_u5w7GEOJePNluSVjk9iZKkxAkj-qRqn",
    "fileTitle": "счет 76 СП 2 от 13.05.25 (промежуточный платеж) SAGA 03-25.pdf",
    "groupIds": [
     "P:SAGA 03-25"
@@ -5346,7 +5412,7 @@
    "year": 2025,
    "amountRub": 30666300,
    "purpose": "аванс по Спец. №4 (СП 05.25 + РП 05.25, один счёт на оба аукциона)",
-   "fileId": "1Jrgpj-93k2gsz0ppIp-l5_Kv142fEPJW",
+   "fileId": "1nrMlUArfsnmo1Am3Nt57s0PMi7W8Sqds",
    "fileTitle": "Счет 83 от 26052025 - аванс соболь 05-2025 (1).pdf",
    "groupIds": [
     "P:СП 05.25",
@@ -5377,7 +5443,7 @@
    "year": 2025,
    "amountRub": 1632000,
    "purpose": "аванс по Спец. №3 (200 шт коричневой)",
-   "fileId": "1wniieGUjEkkRqH4LLDNuNtphV1zEp1Zz",
+   "fileId": "1Yc1YU_-W6xzVtgLJ9CpI9w2WMpf3Kis6",
    "fileTitle": "Счет 81 от 26052025 - аванс норка коричневая 200 шт. (1).pdf",
    "groupIds": [
     "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
@@ -5406,7 +5472,7 @@
    "year": 2025,
    "amountRub": 1718400,
    "purpose": "100% за 179 шкур белой выделанной норки",
-   "fileId": "1SO7Vn1YWQJhOpszOJLuFnhGSxaonOvB-",
+   "fileId": "1vRqCEzT1DspxRkOUg3Trp-RLEzG0Lr1p",
    "fileTitle": "Счет 80 от 26052025 - норка белая 179 шт. (2).pdf",
    "groupIds": [
     "P:Белая норка 179 шт (счёт/УПД №80)"
@@ -5435,7 +5501,7 @@
    "year": 2025,
    "amountRub": 1210000,
    "purpose": "аванс по Спец. №5",
-   "fileId": "1LFeLxoIJ3l4QXar_p_Hu6fVVgX8UCe1W",
+   "fileId": "1AoVTjdsJCcmdNePR5C1eZOSUt8inKs3-",
    "fileTitle": "Счет на оплату № 92 от 16.06.2025 (аванс за каракуль).pdf",
    "groupIds": [
     "P:SAGA 06-25"
@@ -5464,7 +5530,7 @@
    "year": 2025,
    "amountRub": 1537404,
    "purpose": "аванс по Спец. №6 (150 коричн. + 70 серо-голуб.)",
-   "fileId": "1-40DV93U_QKgXjkgQWavmnizzNazXoKs",
+   "fileId": "1UAu9j7E8HiYiYGhfB_qEsgsiUc10c5Z2",
    "fileTitle": "Счет 95 аванс. ПРИЛОЖЕНИЕ 6 (норка браун 150+ сергол 70).pdf",
    "groupIds": [
     "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
@@ -5493,7 +5559,7 @@
    "year": 2025,
    "amountRub": 2000000,
    "purpose": "100% за 200 шкур белой отбеленной норки (лоты 5023/5022/5037/5028, 5020, 300302)",
-   "fileId": "1Ge8J1VCFA-1kN8pgstt8Ca1a7m1o-M6Z",
+   "fileId": "1wh35eHVVwOkSVKijO-RsEfmd3pTXC6fp",
    "fileTitle": "Счет 96 - 200 шкур белой норки.pdf",
    "groupIds": [
     "P:Белая выбеленная норка 200 шт (счёт/УПД №96)"
@@ -5522,7 +5588,7 @@
    "year": 2025,
    "amountRub": 1455842,
    "purpose": "100% за 680,3 м подкладки (8 тканей, 2140 ₽/м с НДС)",
-   "fileId": "1xntI0mZhdvsrpzP4N9RtYDOOz6gCZRur",
+   "fileId": "15QN_4TOqGwVFFA3LYp5R0vKPNzwmjt1w",
    "fileTitle": "Счет на оплату № 100         от 01 июля 2025 г.pdf",
    "groupIds": [
     "P:Подкладка 2025 (Спец. №7, УПД №109)"
@@ -5551,7 +5617,7 @@
    "year": 2025,
    "amountRub": 1695778,
    "purpose": "окончательный платёж по Спец. №2",
-   "fileId": "15zHh7JFmtf9E13xztKb59nvpE6AEDepN",
+   "fileId": "1TqvlI879IkVbTYTrMjEZZXVXctBgDDqI",
    "fileTitle": "Счет на оплату № 103         от 03 июля 2025 г (1).pdf",
    "groupIds": [
     "P:SAGA 03-25"
@@ -5580,7 +5646,7 @@
    "year": 2025,
    "amountRub": 21627900,
    "purpose": "аванс 70% за пошив по предварительному расчёту (НДС 20% 3 604 650)",
-   "fileId": "1v3O9D1Y5dxCxfiPUAuoVI0kTxwsrK6RL",
+   "fileId": "1zFMzH6TJirYE8zflcnMTzFsJC0_um2us",
    "fileTitle": "Счет на оплату № 110         от 21 июля 2025 г.pdf",
    "groupIds": [
     "W:Аванс 2025 (счёт №110, партии 1–9)"
@@ -5620,7 +5686,7 @@
    "year": 2025,
    "amountRub": 195404,
    "purpose": "доплата по Спец. №3",
-   "fileId": "1nSY2vAIXoHuEAx_HaLUtWYXylZf_O6LW",
+   "fileId": "1dlcb45pY5FLO7gRR3igTEDSqbasMkGVS",
    "fileTitle": "счет 117 29072025 (1).pdf",
    "groupIds": [
     "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
@@ -5649,7 +5715,7 @@
    "year": 2025,
    "amountRub": 123836,
    "purpose": "доплата по Спец. №6",
-   "fileId": "1HZbb_cdFXNWxjNDLl3ILWoX_kS6sGE4v",
+   "fileId": "1N39AWsr9GH2822KT3EpJDRxzfjMIWN3t",
    "fileTitle": "Счет на оплату № 122         от 04 августа 2025 г.pdf",
    "groupIds": [
     "P:КФХ Дуденко Л. Н. (норка коричневая и серо-голубая)"
@@ -5678,7 +5744,7 @@
    "year": 2025,
    "amountRub": 1061306,
    "purpose": "доплата (финал) по Спец. №5",
-   "fileId": "17phLbMUwjhVIxM_-i3MnpdodUacdny7Y",
+   "fileId": "14APxNBA96lQgmLAK83tLkN7eRbisrXcQ",
    "fileTitle": "Счет 127 от 13.08.2025.pdf",
    "groupIds": [
     "P:SAGA 06-25"
@@ -5707,7 +5773,7 @@
    "year": 2025,
    "amountRub": 2533779.2,
    "purpose": "финальный платёж (остаток УПД №143)",
-   "fileId": "1keyPDjfnuVemkc5IP0Ea6HEPybB06-Po",
+   "fileId": "1ejFImXFuqCvbYseixMlYRSAepn4y5w3-",
    "fileTitle": "Счет на оплату № 143         от 18 сентября 2025 г.pdf",
    "groupIds": [
     "P:СП 05.25",
@@ -5740,7 +5806,7 @@
    "year": 2025,
    "amountRub": 1866490,
    "purpose": "доплата за пошив, партия 1 (41 ед.)",
-   "fileId": "1EJKI0G6eLBAAcgr4u980qaNs7_CE2GEw",
+   "fileId": "1lLIVCJcAGrySG0l1dzbVx-g9OH_SvEHK",
    "fileTitle": "Счет 147 от 22.09.2025 (доплата).pdf",
    "groupIds": [
     "W:Партия 1"
@@ -5775,7 +5841,7 @@
    "year": 2025,
    "amountRub": 1208570,
    "purpose": "доплата за пошив, партия 2 (23 ед.)",
-   "fileId": "1ejea5hoBTplNE9cHabWmp-yJrrcHtmKY",
+   "fileId": "1yD25Cqoh9KiaoSc_edt7jPVAOTdFjT0D",
    "fileTitle": "Счет на оплату № 170         от 30 сентября 2025 г.pdf",
    "groupIds": [
     "W:Партия 2"
@@ -5804,7 +5870,7 @@
    "year": 2025,
    "amountRub": 2081360,
    "purpose": "доплата за пошив, партия 3 (34 ед.), оплатить до 22.10.2025",
-   "fileId": "1VpEtEtU7gWVEWaxJw892IEt2-krP7_ds",
+   "fileId": "1oUKiI6MXAqXw5xKGx8zHOYlr89cLoE10",
    "fileTitle": "Счет на оплату № 181         от 17 октября 2025 г (2).pdf",
    "groupIds": [
     "W:Партия 3"
@@ -5833,7 +5899,7 @@
    "year": 2025,
    "amountRub": 1759800,
    "purpose": "доплата за пошив, партия 4 (30 ед.)",
-   "fileId": "1V8thN1d1Uie79YU8vqAt42bQ_Y94I3pA",
+   "fileId": "1J6v9LkTRMV4AxZxouZwXmMhebAvvNVGi",
    "fileTitle": "Счет на оплату № 203         от 14 ноября 2025 г (2).pdf",
    "groupIds": [
     "W:Партия 4"
@@ -5862,7 +5928,7 @@
    "year": 2025,
    "amountRub": 1766870,
    "purpose": "аванс 70% × 2 524 100 (ЖГУ соболь 1 270 900 + ЖГУ норка 464 000 + МГУ 789 200), НДС 20% 294 478,33; оплатить до 24.11.2025",
-   "fileId": "1nGwkfha8lKStunZa-NbXXPYHcqwIMcJg",
+   "fileId": "1m65yaVcvX82dDRlDgIXcE8PGcDuYPArU",
    "fileTitle": "Счет на оплату № 209         от 19 ноября 2025 г.pdf",
    "groupIds": [
     "W:Аксессуары 2025 (аванс №209)"
@@ -5897,7 +5963,7 @@
    "year": 2025,
    "amountRub": 5669120,
    "purpose": "доплата за пошив, партия 5 (25 ед.) + шкуры свакары подрядчика 4 584 500; оплатить до 09.12.2025",
-   "fileId": "1tpAlY0HjHUqV6TiMxk1Uhu_Mf-HUxAbl",
+   "fileId": "1bGbTbvYMfaornmnpMGkTGeI8Bgrv07DL",
    "fileTitle": "Счет на оплату № 235 от 04 декабря 2025 г.pdf",
    "groupIds": [
     "W:Партия 5"
@@ -5932,7 +5998,7 @@
    "year": 2025,
    "amountRub": 946870,
    "purpose": "доплата за пошив, партия 6 (37 ед.), НДС 20% 157 811,67; оплатить до 23.12.2025",
-   "fileId": "1QGwUhGSTuxMR2OIj0Ftz7BScBlQjqYfT",
+   "fileId": "1AO6TSQjyjgxx20mvKidZVJfirL9w71RW",
    "fileTitle": "Счет на оплату № 239 от 18 декабря 2025 г.pdf",
    "groupIds": [
     "W:Партия 6"
@@ -5967,7 +6033,7 @@
    "year": 2025,
    "amountRub": 4836327.52,
    "purpose": "100% предоплата СП 12.25 (Спец. №8), срок 25.12.2025",
-   "fileId": "1GVCK-3w2TncU73dV_36hKWqjUpaIeghW",
+   "fileId": "1JignFux9E7_VBDimNKvjVJhbtt1vgOfs",
    "fileTitle": "Счет на оплату № 241 от 22 декабря 2025 г.pdf",
    "groupIds": [
     "P:СП 12.25 (УПД 283, спец. 8)"
@@ -6029,7 +6095,7 @@
    "year": 2026,
    "amountRub": 2075122.54,
    "purpose": "доплата за пошив, партия 7 (50 ед.), НДС 22% 374 202,43; срок в счёте «30.12.2025» (опечатка)",
-   "fileId": "1cJ2ZRUp3-1DQBxHScv1eb4-x4m1q0Bv4",
+   "fileId": "1QSeE9TX8JVXXTmk_ss23oo26czPGAoCr",
    "fileTitle": "Счет на оплату № 1 от 15 января 2026 г.pdf",
    "groupIds": [
     "W:Партия 7"
@@ -6101,7 +6167,7 @@
    "year": 2026,
    "amountRub": 303372,
    "purpose": "доплата за пошив, партия 10 (26 ед.), НДС 22% 54 706,43; срок 24.02.2026",
-   "fileId": "1iIFZkqVMGLIZpjUWq0f1aDR7BxQLwjhV",
+   "fileId": "1Q1UDLcFze4ULUMBD_q8_-dV8UQg4K8JN",
    "fileTitle": "Счет на оплату № 41 от 18 февраля 2026 г.pdf",
    "groupIds": [
     "W:Партия 10"
@@ -6127,7 +6193,7 @@
    "year": 2026,
    "amountRub": 347895,
    "purpose": "доплата за пошив, партия 11 (14 ед.), НДС 22% 62 735,16; срок 27.02.2026",
-   "fileId": "1NNGFOlV-_GORVSmYS7n_rrWGTB_ofCRC",
+   "fileId": "1m3EXT-hg3k1Ax6yj4rNMjsSBZd3apS2x",
    "fileTitle": "Счет на оплату № 51 от 24 февраля 2026 г.pdf",
    "groupIds": [
     "W:Партия 11"
@@ -6153,7 +6219,7 @@
    "year": 2026,
    "amountRub": 1183135,
    "purpose": "доплата за пошив, 48 ед. (шарфы MSC-01, варежки MGL01; ТЗ 105–109), НДС 22% 213 352,21; срок 05.03.2026",
-   "fileId": "12aRzjJUwlih4TFuYBq00QBSLvg2SqbP0",
+   "fileId": "1XJl4fJMgzl7nltm6PKAZuYuCLTI9F0SR",
    "fileTitle": "Счет на оплату № 65 от 02 марта 2026 г.pdf",
    "groupIds": [
     "W:Партия 12"
@@ -6179,7 +6245,7 @@
    "year": 2026,
    "amountRub": 217350,
    "purpose": "доплата за пошив, 1 ед. (жилет из соболя М003, ТЗ 110), НДС 22% 39 194,26; срок 05.03.2026",
-   "fileId": "1Mtf3i--2seE1p2-kNfEYJ9s2aQhe0PF0",
+   "fileId": "1ClZQGNsPisaAZNaKYft2WeI2w65pb627",
    "fileTitle": "Счет на оплату № 63 от 02 марта 2026 г.pdf",
    "groupIds": [
     "W:Партия 12"
@@ -6205,7 +6271,7 @@
    "year": 2026,
    "amountRub": 183400,
    "purpose": "доплата за пошив, партия 13 (20 ед.), НДС 22% 33 072,13; срок 12.03.2026",
-   "fileId": "1HYL_0BA5TZXP0JEPeJBNv5EmmFYp6CFu",
+   "fileId": "1aWtsUiCYLJHaokYyIu68pjBJUCUwxtsz",
    "fileTitle": "Счет на оплату № 71 от 06 марта 2026 г.pdf",
    "groupIds": [
     "W:Партия 13"
@@ -6231,7 +6297,7 @@
    "year": 2026,
    "amountRub": 24200000,
    "purpose": "аванс по спец. 9",
-   "fileId": "1Oi4KODg-KyLNgXLzIe2lTPnKl4zk9pIi",
+   "fileId": "1RZLYZCvF8QMf-d1pCsnAkxbssdsI_LbW",
    "fileTitle": "Счет на оплату № 93 от 25 марта 2026 г.pdf",
    "groupIds": [
     "P:SAGA 03-26"
@@ -6263,7 +6329,7 @@
    "year": 2026,
    "amountRub": 22891800,
    "purpose": "аванс 2 по спец. 9",
-   "fileId": "1PH70z18oOUYONem1CnlesucSCDZ1XqwG",
+   "fileId": "1IzItDzKXxWA5DjgTrBx-hnuKhH7vHbvg",
    "fileTitle": "Счет на оплату № 105 от 06 апреля 2026 г.pdf",
    "groupIds": [
     "P:SAGA 03-26"
@@ -6296,7 +6362,7 @@
    "year": 2026,
    "amountRub": 27912500,
    "purpose": "аванс 1 = 25% x 2900 шкур (спец. 10); доля РП 25% x 2245 x 38 500 = 21 608 125",
-   "fileId": "1H1OZ9KANrFUNsE0hbRDy2smgsoVwEMgx",
+   "fileId": "1CsOSuqTb9yQnaO-H3P60b9uGmqOhXIBV",
    "fileTitle": "Счет на оплату № 117 от 13 апреля 2026 г (2).pdf",
    "groupIds": [
     "P:РП 04-26",
@@ -6327,7 +6393,7 @@
    "year": 2026,
    "amountRub": 60271506.34,
    "purpose": "аванс 2 (РП)",
-   "fileId": "11Zhm6jgNDr6GHKEGoOfdb-7En0IYIfqa",
+   "fileId": "1sPK2jKasI3LY-PZLfOqt7_1mDO3LQmW0",
    "fileTitle": "Счет на оплату № 131 от 04 мая 2026 г (аванс 2).pdf",
    "groupIds": [
     "P:РП 04-26"
@@ -6414,7 +6480,7 @@
    "year": 2026,
    "amountRub": 248000,
    "purpose": "оплата пошива кейпа (ТЗ 117) 100% работы, НДС 22% 44 721,31; срок 15.06.2026",
-   "fileId": "1e126X2lOa7oe48nAkdnbEXnA8a_tqbh0",
+   "fileId": "1j3v9wALWgMubqOsQlJ3bxCre5v7PEYlJ",
    "fileTitle": "Счет на оплату № 145 от 21 мая 2026 г (2).pdf",
    "groupIds": [
     "W:Кейп (ТЗ 117, М057)"
@@ -6440,7 +6506,7 @@
    "year": 2026,
    "amountRub": 19628147.54,
    "purpose": "аванс 3 (СП 05-26)",
-   "fileId": "14uyYhkshlps9mL1OVJczoDetCeQkhDSi",
+   "fileId": "1ecIPLZ01v1vdcRMBXm-ANnefomi9SXpO",
    "fileTitle": "Счет на оплату № 149 от 22 мая 2026 г.pdf",
    "groupIds": [
     "P:СП 05-26"
@@ -6471,7 +6537,7 @@
    "year": 2026,
    "amountRub": 761250,
    "purpose": "аванс 1 (25% молотка), ссылка «спец. 11 от 25.03.26» - опечатка",
-   "fileId": "1bxWXBbd4y7bUilvEhN821Qm_bqTPdTog",
+   "fileId": "15pA-F5V1h4zU7gv_-NR5-nDGVsgGODJG",
    "fileTitle": "Счет на оплату № 153 от 22 мая 2026 г.pdf",
    "groupIds": [
     "P:AME 05-26"
@@ -6500,7 +6566,7 @@
    "year": 2026,
    "amountRub": 30660000,
    "purpose": "аванс 1 по спец. 12",
-   "fileId": "1wEN3d58nkJvg3du5bvurzLbrDs8fwByy",
+   "fileId": "1b8_3OqPXXlMsoNtXtqeQz6w6E2jEZ_Zx",
    "fileTitle": "Счет на оплату № 155 от 22 мая 2026 г (2).pdf",
    "groupIds": [
     "P:FH 06-26 (рысь)"
@@ -6531,7 +6597,7 @@
    "year": 2026,
    "amountRub": 5400000,
    "purpose": "спец. 13: 1200 м.п. x 4 500 с НДС 22% (Турция, поставка июль-август 2026)",
-   "fileId": "1silgJ-GXA4Ap9WQFcVbR7A83PJ7dacib",
+   "fileId": "1FcO4k8-X27PqCmdzfULb0Z-B0qG1W0cP",
    "fileTitle": "Счет на оплату № 157 от 26 мая 2026 г.pdf",
    "groupIds": [
     "P:Подкладка 2026 (спец. 13)"
@@ -6560,7 +6626,7 @@
    "year": 2026,
    "amountRub": 2466573,
    "purpose": "аванс 2",
-   "fileId": "1I6c1vN2sjnQugoGsVznMA9pRqWgQnx3d",
+   "fileId": "1bo2aGHrUrAY8TqAsw1brEe6iuAVbITcR",
    "fileTitle": "Счет на оплату № 167 от 29 мая 2026 г.pdf",
    "groupIds": [
     "P:AME 05-26"
@@ -6589,7 +6655,7 @@
    "year": 2026,
    "amountRub": 85063078,
    "purpose": "аванс 2 по спец. 12",
-   "fileId": "1fPrYO2algdiwm5axrOXMFkSMIVUMJB6-",
+   "fileId": "1Bl9y2GmnB8MJ3lKvWSKPxtJZ5fUtN0fX",
    "fileTitle": "Счет на оплату № 173 от 05 июня 2026 г.pdf",
    "groupIds": [
     "P:FH 06-26 (рысь)"
@@ -6618,7 +6684,7 @@
    "year": 2026,
    "amountRub": 19870,
    "purpose": "спец. 16: шерсть/альпака/шёлк 2 м x 6 985 + кожа 0,5 м x 11 800",
-   "fileId": "1vtFw75lMuiNczTMdSdXdHk1SZd0k0iAI",
+   "fileId": "1_dgNaSHSU8pnmtmicPYYzCgDkgNQNVrt",
    "fileTitle": "Счет на оплату № 181 от 16 июня 2026 г.pdf",
    "groupIds": [
     "P:Доп. материалы 2026 (спец. 16)"
@@ -6647,7 +6713,7 @@
    "year": 2026,
    "amountRub": 158600,
    "purpose": "доплата 100%, партия 14 (14 остатков муж. шапок SS25; ТЗ 113–115), НДС 22% 28 600,00",
-   "fileId": "19ltnYtaZ6d0ZquWiB4soC25dz826UHyV",
+   "fileId": "1Vw-Hex0dW1YVyx3iNz51yUERZwmxHjH9",
    "fileTitle": "Счет на оплату № 121 от 24 июня 2026 г.pdf",
    "groupIds": [
     "W:Партия 14"
@@ -6678,7 +6744,7 @@
    "year": 2026,
    "amountRub": 660000,
    "purpose": "аванс за пошив M26.TMW.CR01 (70% работы + 100% шкур), НДС 22% 119 016,39",
-   "fileId": "13DiguSf7im1Fk-6UeUfU1Id-TaeyLFVS",
+   "fileId": "1mB2s-Vh1eTjmJMAByWXFJxAyejj0vO29",
    "fileTitle": "Счет на оплату № 193 от 02 июля 2026 г.pdf",
    "groupIds": [
     "W:Капсула CR01 (M26.TMW.CR01)"
@@ -6698,7 +6764,7 @@
    "year": 2026,
    "amountRub": 2380500,
    "purpose": "аванс по спец. 18 (лот 302127, 225 шт)",
-   "fileId": "1JbmgkJEUvVTWH5EmEfLBHior26Bh6aP1",
+   "fileId": "1X19em-r5-Iu-AtrrjlvozKDl1fNGqk5G",
    "fileTitle": "Счет на оплату № 195 от 03 июля 2026 г.pdf",
    "groupIds": [
     "P:SAGA 03-26"
@@ -6727,7 +6793,7 @@
    "year": 2026,
    "amountRub": 7236812.03,
    "purpose": "доплата по УПД 199+201 (3015 шкур)",
-   "fileId": "1kzqrHs7H_nWHQaEuN7MwSRAVZgi_t3ng",
+   "fileId": "1issd04df7PfeWEpUyGRpkoCh6xzixGXN",
    "fileTitle": "Счет на оплату № 197 от 09 июля 2026 г.pdf",
    "groupIds": [
     "P:РП 04-26",
@@ -6758,7 +6824,7 @@
    "year": 2026,
    "amountRub": 1408000,
    "purpose": "спец. 19, 88 шт x 16 000 с НДС 22%",
-   "fileId": "1gwhXiS0W_yz1eQQao6Moe5aQRf4RjYuN",
+   "fileId": "1RZDm5M3Cmu9J1ax2B1WdPgLes9AgOVK9",
    "fileTitle": "Счет на оплату № 209 от 16 июля 2026 г.pdf",
    "groupIds": [
     "P:Красная лиса (спец. 19, УПД 209)"
@@ -6778,7 +6844,7 @@
    "year": 2026,
    "amountRub": 71400,
    "purpose": "доплата 30%, партия 17 (ТЗ 118, 4 аксессуара: MSC03, MSC04 ×2, MSC05), НДС 22% 12 875,41",
-   "fileId": "18nPMFHQBKlFuv7xE8mIMBgEy8j4BbXOh",
+   "fileId": "1BAj9OSVkjJsq5wMYQVp1BRcP5NARbBUu",
    "fileTitle": "Счет на оплату № 207 от 16 июля 2026 г.pdf",
    "groupIds": [
     "W:Партия 17"
@@ -6804,7 +6870,7 @@
    "year": 2026,
    "amountRub": 3397795,
    "purpose": "доплата 30% + сырьё подрядчика 880 000 + доп.материалы 27 085, партия 18 (64 изд.), НДС 22% 612 717,13",
-   "fileId": "1cnOqdZtAaOT4v2aWe5S5WnYlVVFHWCjy",
+   "fileId": "1jq4YYRYcT-IsT-dYonGUC5dXzFB90MNb",
    "fileTitle": "Счет на оплату № 237 от 25 августа 2026 г.pdf",
    "groupIds": [
     "W:Партия 18"
@@ -6830,7 +6896,7 @@
    "year": 2026,
    "amountRub": 2272060,
    "purpose": "аванс 2 (26 изд., «на просмотр без подклада»), НДС 22% 409 715,74",
-   "fileId": "1FhGN7vXVrBl8idCkuuqnPAAAzgYLtE62",
+   "fileId": "134yAUo11O79AhocNL_O-WBY5B8lRu37k",
    "fileTitle": "Счет на оплату № 247 от 01 сентября 2026 г.pdf",
    "groupIds": [
     "W:Авансы 2026 (счета №141, №247, №251)"
@@ -6856,7 +6922,7 @@
    "year": 2026,
    "amountRub": 8290940,
    "purpose": "аванс 3 (55 изд.; отгрузки до 15.10), НДС 22% 1 495 087,54",
-   "fileId": "1jJTnV47N8hzhr2AUTbgsQZxrZB9RmjSA",
+   "fileId": "1iobg1cxoCTssWi1jyOmws7xbYjn16Omj",
    "fileTitle": "Счет на оплату № 251 от 02 сентября 2026 г (аванс 3).pdf",
    "groupIds": [
     "W:Авансы 2026 (счета №141, №247, №251)"
@@ -6882,7 +6948,7 @@
    "year": 2026,
    "amountRub": 214522.92,
    "purpose": "финал: 353 992,79 минус зачёты 83 875,37 (SAGA) и 55 594,50 (подкладка)",
-   "fileId": "1antkxJrM7Hq1GrrSpAa-CrUfdJh_ebgq",
+   "fileId": "1VTF2EYAfNtoWAaAqQ-Db5e6sor9DCTtw",
    "fileTitle": "Счет на оплату № 253 от 09 сентября 2026 г.pdf",
    "groupIds": [
     "P:AME 05-26"
@@ -6913,7 +6979,7 @@
    "year": 2026,
    "amountRub": 2126255,
    "purpose": "доплата 30%, партия 19 (41 изд.), НДС 22% 383 423,03",
-   "fileId": "1OpiX7SLTIfz99lT9GRpieLv14TSvLyiY",
+   "fileId": "1cBf_fxwddH3aqSs_MxpTzaidEOlaTg1Z",
    "fileTitle": "Счет на оплату № 257 от 15 сентября 2026 г.pdf",
    "groupIds": [
     "W:Партия 19"
@@ -6944,7 +7010,7 @@
    "year": 2026,
    "amountRub": 1008000,
    "purpose": "аванс 70% дозаказ 6 × М001Е арктическая лиса (6 × 240 000 = 1 440 000), НДС 22% 181 770,49",
-   "fileId": "1g1Cfzm71bS9RRX8RZuLQO8Wc47n0YQZb",
+   "fileId": "1eHTL_MfElqa9dP7zmEsjsEsUIagXKYnW",
    "fileTitle": "Счет на оплату № 259 от 15 сентября 2026 г (аванс за арк.лису).pdf",
    "groupIds": [
     "W:Дозаказы (счета №259, №261)"
@@ -6970,7 +7036,7 @@
    "year": 2026,
    "amountRub": 805000,
    "purpose": "аванс 70% дозаказ 10 × М029 красная лиса (10 × 115 000 = 1 150 000), НДС 22% 145 163,93",
-   "fileId": "1dJ3TdIfumX6AbOGOdi1FYM2ivB6OitEt",
+   "fileId": "1dSx5OeNBp948T_Z3wDzfE0ozBR4eBWRX",
    "fileTitle": "Счет на оплату № 261 от 15 сентября 2026 г (аванс за красную лису 10 шт).pdf",
    "groupIds": [
     "W:Дозаказы (счета №259, №261)"
@@ -7055,7 +7121,7 @@
    "year": 2026,
    "amountRub": 442980,
    "purpose": "доплата 30%, партия 21 (14 изд.), НДС 22% 79 881,64; срок оплаты 06.10.2026",
-   "fileId": "1o6LjPGT8Sgv4S79myKBtLLl_LXJJHBCB",
+   "fileId": "1hOJMcSSt_EEI8UZkKt4axNDTO9i5ftJR",
    "fileTitle": "Счет на оплату № 275 от 01 октября 2026 г.pdf",
    "groupIds": [
     "W:Партия 21"
@@ -7064,8 +7130,16 @@
     "W:Партия 21": 442980
    },
    "paid": [],
-   "approvals": [],
-   "notes": []
+   "approvals": [
+    {
+     "date": "2026-10-02",
+     "by": "Киржнер Евгений Семенович",
+     "note": "«Это согласовано — счёт платим». Согласование не считается фактом оплаты."
+    }
+   ],
+   "notes": [
+    "Срок оплаты по счёту — 06.10.2026. На 06.10.2026 банковское подтверждение фактической оплаты в папке «Мех» не найдено."
+   ]
   },
   {
    "id": "purchase::2026",
