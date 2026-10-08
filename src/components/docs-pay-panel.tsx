@@ -9,15 +9,15 @@ import { cn } from "@/lib/utils";
 import type { MarkTarget, Panel, PanelItem, PanelPayment, UploadTarget, PanelMention, PanelDoc } from "@/lib/doc-panel";
 import { uploadPurchaseDocuments, replacePurchaseDocument } from "@/app/(app)/purchases/doc-actions";
 import { addDriveDocument, uploadDriveDocument, uploadDriveDocumentFile } from "@/app/(app)/drive-actions";
-import { markAuctionPayment, markPurchasePayment, attachSupplierPaymentProof } from "@/app/(app)/payments/mark-actions";
+import { attachSupplierPaymentProof } from "@/app/(app)/payments/mark-actions";
 import { deleteAuctionPayment } from "@/app/(app)/payments/actions";
 import { removePurchasePayment } from "@/app/(app)/purchases/actions";
-import { markProductionPayment, attachProductionPaymentProof } from "@/app/(app)/production/mark-actions";
+import { attachProductionPaymentProof } from "@/app/(app)/production/mark-actions";
 import { removeProductionPayment } from "@/app/(app)/production/actions";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
+import { PaymentFormButton, type PaymentPreset } from "@/components/payment-form";
 
 const MAX = 25 * 1024 * 1024;
-const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
 const ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png";
 
 type Res = { error?: string; ok?: boolean; confirm?: string } | void | undefined;
@@ -331,109 +331,12 @@ function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment;
   );
 }
 
-function MarkForm({ target, remaining, remainingText, onDone }: { target: MarkTarget; remaining: string; remainingText: string; onDone: () => void }) {
-  const [mode, setMode] = useState<"full" | "amount" | "percent">("full");
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const call = (fd: FormData) => {
-    if (target.kind === "auction") return markAuctionPayment(target.name, fd);
-    if (target.kind === "purchase") return markPurchasePayment(target.id, fd);
-    return markProductionPayment(target.kind, target.id, fd);
-  };
-
-  function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-    fd.set("mode", mode);
-    const f = fd.get("file");
-    if (f instanceof File && f.name === "" && f.size === 0) fd.delete("file"); // файл не выбран — не отправляем пустышку
-    else if (f instanceof File && f.name !== "") {
-      const err = checkFile(f);
-      if (err) return setError(err);
-    }
-    setError(null);
-    start(async () => {
-      try {
-        let res = await call(fd);
-        if (res?.confirm) {
-          if (!window.confirm(res.confirm)) return;
-          fd.set("confirmFuture", "1");
-          res = await call(fd);
-        }
-        if (res?.error) return setError(res.error);
-        form.reset();
-        onDone();
-        router.refresh();
-      } catch {
-        setError("Не удалось сохранить: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь.");
-      }
-    });
-  }
-
-  const radio = "flex min-h-9 items-center gap-2 text-sm";
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3">
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1 text-xs font-medium text-neutral-500">Что оплачено</legend>
-        <label className={radio}>
-          <input type="radio" name="m" checked={mode === "full"} onChange={() => setMode("full")} />
-          Оплачено полностью — сумма = остаток ({remainingText})
-        </label>
-        <label className={radio}>
-          <input type="radio" name="m" checked={mode === "amount"} onChange={() => setMode("amount")} />
-          Частично — указать сумму
-        </label>
-        <label className={radio}>
-          <input type="radio" name="m" checked={mode === "percent"} onChange={() => setMode("percent")} />
-          Частично — указать процент
-        </label>
-      </fieldset>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {mode === "amount" && (
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            Сумма, ₽ (остаток {remainingText})
-            <input name="amount" inputMode="decimal" autoComplete="off" required className={field} placeholder={remaining} />
-          </label>
-        )}
-        {mode === "percent" && (
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            Процент от суммы к оплате
-            <input name="percent" inputMode="decimal" autoComplete="off" required className={field} placeholder="напр. 30" />
-          </label>
-        )}
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Дата оплаты
-          <input name="paidAt" type="date" defaultValue={todayStr} required className={field} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
-          Основание: № платёжки или название письма/документа
-          <input name="basis" maxLength={300} autoComplete="off" className={field} placeholder="напр. п/п 43831 или письмо «Re оплата» от 12.05.2026" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
-          Платёжка файлом (необязательно; PDF, XLSX, DOCX, JPEG, PNG до 25 МБ) — с файлом оплата сразу «подтверждена»
-          <input type="file" name="file" accept={ACCEPT} className="text-sm" />
-        </label>
-      </div>
-      <p className="text-xs text-neutral-500">Нужно основание: либо номер/название документа, либо файл. Без файла оплата будет помечена «не подтверждена» — платёжку можно приложить позже. Запись можно откатить кнопкой «Откатить».</p>
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохраняем…" : "Отметить оплату"}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onDone} disabled={pending}>
-          Отмена
-        </Button>
-      </div>
-    </form>
-  );
+/** Цель единой формы оплаты по цели панели. */
+function presetOf(m: MarkTarget): PaymentPreset {
+  if (m.kind === "auction") return { side: "supplier", auction: m.name };
+  if (m.kind === "purchase") return { side: "supplier", purchaseId: m.id };
+  if (m.kind === "batch") return { side: "work", batchId: m.id };
+  return { side: "work", orderIds: [m.id] };
 }
 
 /**
@@ -442,7 +345,6 @@ function MarkForm({ target, remaining, remainingText, onDone }: { target: MarkTa
  * Чтение — всем; загрузка и отметка — по правам (panel.canUpload / panel.canMark).
  */
 export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { panel: Panel; compact?: boolean; verify?: Record<string, VerifyView>; canVerify?: boolean }) {
-  const [marking, setMarking] = useState(false);
   const p = panel.pay;
   const canRemain = p.state !== "PAID" && p.state !== "OVERPAID" && p.state !== "NOBASE";
   const bar = Math.max(0, Math.min(100, p.percent));
@@ -524,15 +426,9 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
 
       {panel.canMark && panel.mark && canRemain && (
         <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
-          {marking ? (
-            <MarkForm target={panel.mark} remaining={p.remaining} remainingText={p.remainingText} onDone={() => setMarking(false)} />
-          ) : (
-            <div>
-              <Button type="button" onClick={() => setMarking(true)} className="max-md:h-10 max-md:w-full">
-                Отметить оплату
-              </Button>
-            </div>
-          )}
+          <div>
+            <PaymentFormButton label="Отметить оплату" variant="default" size="default" preset={presetOf(panel.mark)} />
+          </div>
         </div>
       )}
       {panel.markBlocked && <p className="text-xs text-neutral-500">Отметить оплату здесь нельзя: {panel.markBlocked}.</p>}

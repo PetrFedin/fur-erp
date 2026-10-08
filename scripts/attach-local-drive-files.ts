@@ -64,6 +64,7 @@ type JournalEntry = {
   field: "__attach__";
   before: null;
   after: { storagePath: string; storedName: string; storedMime: string; storedSize: number };
+  sha256?: string;
   createdFile: boolean; // файл скопирован скриптом (при откате его можно удалить)
   source: string;
 };
@@ -166,7 +167,7 @@ async function main() {
   }
   const groupList = [...groups.values()];
 
-  const matched = new Map<string, { local: LocalFile; how: "путь" | "название+размер" }[]>(); // group.key → кандидаты
+  const matched = new Map<string, { local: LocalFile; how: "путь" | "название+размер" | "fileId в имени" }[]>(); // group.key → кандидаты
   const unmatched: LocalFile[] = [];
   const ambiguous: { local: LocalFile; why: string }[] = [];
   const alreadyInApp: LocalFile[] = [];
@@ -195,7 +196,15 @@ async function main() {
     const relWithRoot = norm(path.basename(rootDir) + "/" + f.rel);
     // 1) путь
     let cand = groupList.filter((g) => g.path && (g.path === relWithRoot || g.path === relNorm || g.path.endsWith("/" + relNorm)));
-    let how: "путь" | "название+размер" = "путь";
+    let how: "путь" | "название+размер" | "fileId в имени" = "путь";
+    // 1б) fileId Drive в имени файла (выгрузки вида «<fileId>.pdf» или «имя__<fileId>.pdf»)
+    if (cand.length === 0) {
+      const byId = groupList.filter((g) => g.key.length >= 20 && f.base.includes(g.key));
+      if (byId.length) {
+        cand = byId;
+        how = "fileId в имени";
+      }
+    }
     // 2) название + размер
     if (cand.length === 0) {
       how = "название+размер";
@@ -221,7 +230,7 @@ async function main() {
   }
 
   // Один файл Drive — несколько локальных кандидатов: берём единственного с совпавшим путём; иначе неоднозначно.
-  type Plan = { group: Group; local: LocalFile; how: "путь" | "название+размер"; kind: { mime: string; ext: string }; reuse: string | null };
+  type Plan = { group: Group; local: LocalFile; how: "путь" | "название+размер" | "fileId в имени"; kind: { mime: string; ext: string }; reuse: string | null };
   const plans: Plan[] = [];
   for (const [key, list] of matched) {
     const g = groups.get(key)!;
@@ -266,12 +275,17 @@ async function main() {
   L("");
   L(`СОПОСТАВЛЕНО: ${plans.length} из ${supportedTotal} подходящих файлов (по пути: ${plans.filter((p) => p.how === "путь").length}, по названию+размеру: ${plans.filter((p) => p.how !== "путь").length}); строк БД получат файл: ${plans.reduce((s, p) => s + p.group.docs.filter((d) => !d.storagePath).length, 0)}`);
   L(`Уже в приложении (пропущено): ${alreadyInApp.length}; уже есть как документ закупки (без Drive-записи): ${inPurchaseDocsOnly.length}`);
-  L(`НЕ НАЙДЕНО в базе: ${unmatched.length}`);
+  L(`НЕ НАЙДЕНО в базе (лишние локальные файлы): ${unmatched.length}`);
+  const matchedKeys = new Set(plans.map((p) => p.group.key));
+  const noFile = groupList.filter((g) => !g.hasFile && !matchedKeys.has(g.key));
+  L(`ФАЙЛ НЕ НАШЁЛСЯ для файлов Drive из базы: ${noFile.length} (строк ${noFile.reduce((s, g) => s + g.docs.length, 0)}) — в интерфейсе «файл не загружен»`);
   L(`НЕОДНОЗНАЧНО: ${ambiguous.length}`);
   L("");
   L("--- сопоставлено ---");
   for (const p of plans) L(`[${p.how}] ${p.local.rel}  ->  «${p.group.docs[0].title}» (строк ${p.group.docs.length})${p.reuse ? "  [файл уже есть у документа закупки, копия не нужна]" : ""}`);
-  L("--- не найдено ---");
+  L("--- файлы Drive из базы без локального файла ---");
+  for (const g of noFile) L(`${g.docs[0].drivePath ?? g.docs[0].title}  (${g.docs[0].docType}, строк ${g.docs.length})`);
+  L("--- лишние локальные файлы (в базе нет такого документа) ---");
   for (const f of unmatched) L(f.rel);
   L("--- неоднозначно ---");
   for (const a of ambiguous) L(`${a.local.rel}  — ${a.why}`);
@@ -328,6 +342,7 @@ async function main() {
         field: "__attach__" as const,
         before: null,
         after: data,
+        sha256: sha(buf),
         createdFile: created && i === 0,
         source: p.local.rel,
       })),

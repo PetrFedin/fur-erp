@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { createRawMaterialLot, addOrPoolLiningLot } from "@/lib/stock";
+import { receivePurchaseInTx, lockPurchase, AlreadyReceivedError } from "@/lib/purchase-receive";
 import { resolveColorInput } from "@/lib/colors";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -17,10 +18,12 @@ import { MAX_MONEY, MAX_QTY, zNum, zMoney, parseDateInput } from "@/lib/input";
 import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatMoney } from "@/lib/utils";
-import { resetByPurchase } from "@/lib/verification";
+import { resetByPurchase, resetVerification } from "@/lib/verification";
 import { resolveAuction } from "@/lib/auction-ref";
 import { replaceFirstLine } from "@/lib/auction-key";
-import { staleError, PURCHASE_V, PURCHASE_ITEM_V } from "@/lib/concurrency";
+import { staleError, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V, LOT_V } from "@/lib/concurrency";
+import { parseLotSizeGrade } from "@/lib/lot-size";
+import { invalidateFilterOptions } from "@/lib/filter-options";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -254,14 +257,6 @@ const costPlanItemSchema = z.object({
   vat: zNum("Ставка НДС", { max: 100 }),
 });
 
-/** Блокирует строку закупки до конца транзакции: правки расчёта и приёмка сериализуются. */
-async function lockPurchase(tx: Prisma.TransactionClient, purchaseId: string, orgId: string) {
-  const rows = await tx.$queryRaw<{ status: string; exchangeRate: Prisma.Decimal | string }[]>`
-    SELECT "status", "exchangeRate" FROM "Purchase"
-    WHERE "id" = ${purchaseId} AND "organizationId" = ${orgId} FOR UPDATE`;
-  return rows[0] ?? null;
-}
-
 // «Править расчёт лота»: позиция черновика с расчётом (costPlan). Пересчитывает
 // costPlan целиком по формулам расчётного листа и обновляет количество, цену,
 // сумму и НДС позиции. Курс здесь не меняется — он общий на закупку
@@ -407,7 +402,12 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   const session = await requireRole(...EDIT_ROLES);
 
   const purchase = await getEditablePurchase(session.user.organizationId, purchaseId);
-  if (!purchase) return { error: "Закупку нельзя редактировать — она уже принята на склад или отменена" };
+  if (!purchase) {
+    // Принятая закупка: поставщик, склад и валюта заблокированы (лоты уже посчитаны), но номера документов, дату и аукцион править можно.
+    const received = await prisma.purchase.findFirst({ where: { id: purchaseId, organizationId: session.user.organizationId, status: "RECEIVED" } });
+    if (received) return updateReceivedPurchaseHeader(session.user.organizationId, received, formData);
+    return { error: "Закупку нельзя редактировать — она отменена" };
+  }
   const stale = staleError(formData, purchase, PURCHASE_V, purchase.updatedAt);
   if (stale) return { error: stale };
 
@@ -457,6 +457,52 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
 
   await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
+  return {};
+}
+
+/**
+ * Шапка ПРИНЯТОЙ закупки: можно менять № счёта, УПД, дату заказа и аукцион из справочника.
+ * Нельзя (лоты уже посчитаны по этим данным): поставщик, склад, валюта, курс.
+ * Смена аукциона блокируется, если по прежнему аукциону есть оплата «аукциона целиком» (иначе оплата осталась бы за старым аукционом).
+ */
+async function updateReceivedPurchaseHeader(
+  orgId: string,
+  purchase: Prisma.PurchaseGetPayload<object>,
+  formData: FormData,
+): Promise<FormState> {
+  const stale = staleError(formData, purchase, PURCHASE_V, purchase.updatedAt);
+  if (stale) return { error: stale };
+  const dateRaw = String(formData.get("orderDate") ?? "").trim();
+  if (!dateRaw || parseDateInput(dateRaw) === null) return { error: "Укажите корректную дату заказа" };
+  const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim().slice(0, 200) || null;
+  const transferDocument = (formData.get("transferDocument") as string)?.trim().slice(0, 200) || null;
+  const auc = await purchaseAuctionFromForm(orgId, formData, purchase.auctionSession);
+  if ("error" in auc) return { error: auc.error };
+
+  const oldAuction = auctionName(purchase.auctionSession);
+  const newText = auc.auctionSession === undefined ? purchase.auctionSession : auc.auctionSession;
+  const newAuction = auctionName(newText);
+  const auctionChanged = oldAuction !== newAuction;
+  if (auctionChanged && oldAuction) {
+    const lumpPayments = await prisma.payment.count({ where: { organizationId: orgId, purchaseId: null, auctionSession: oldAuction } });
+    if (lumpPayments > 0) {
+      return {
+        error: `Аукцион менять нельзя: по аукциону «${oldAuction}» есть оплаты «целиком» (${lumpPayments} шт.) — они остались бы за прежним аукционом и расчёты разошлись бы. Сначала перенесите или удалите эти оплаты на странице «Оплаты».`,
+      };
+    }
+  }
+  await prisma.purchase.updateMany({
+    where: { id: purchase.id, organizationId: orgId, status: "RECEIVED" },
+    data: {
+      orderDate: new Date(dateRaw),
+      invoiceNumber,
+      transferDocument,
+      auctionSession: auc.auctionSession,
+      auctionId: auc.auctionId,
+    },
+  });
+  await resetVerification(prisma, orgId, { purchaseIds: [purchase.id], auctions: [oldAuction, newAuction] });
+  for (const path of [`/purchases/${purchase.id}`, "/purchases", "/lots", "/payments", "/dashboard", "/documents", "/verify"]) revalidatePath(path);
   return {};
 }
 
@@ -598,7 +644,7 @@ export async function updatePurchaseItem(
 
   const item = await prisma.purchaseItem.findFirst({
     where: { id: itemId, purchaseId },
-    include: { rawMaterial: { select: { unit: true } }, lot: { include: { purchaseItems: { select: { id: true } } } } },
+    include: { rawMaterial: { select: { unit: true, name: true } }, lot: { include: { purchaseItems: { select: { id: true } } } } },
   });
   if (!item) return { error: "Позиция не найдена" };
   const stale = staleError(formData, item, PURCHASE_ITEM_V);
@@ -642,6 +688,14 @@ export async function updatePurchaseItem(
     colorRefId: colorRes.colorRefId,
   };
 
+  // Размер лота пересчитывается из сорта, только если сорт изменился (ручной размер при той же формулировке не затираем).
+  const lotCosmetic = {
+    ...cosmetic,
+    ...(item.lot && cosmetic.grade !== (item.lot.grade ?? null)
+      ? { sizeGrade: parseLotSizeGrade(cosmetic.grade, item.rawMaterial.name) }
+      : {}),
+  };
+
   // Not yet received: no lot exists — every field is freely editable, same
   // validation as adding a fresh line.
   if (purchase.status !== "RECEIVED") {
@@ -678,7 +732,7 @@ export async function updatePurchaseItem(
     // Cosmetic-only edit — always safe, even on a fully consumed lot.
     await prisma.$transaction([
       prisma.purchaseItem.update({ where: { id: itemId }, data: cosmetic }),
-      ...(lot ? [prisma.rawMaterialLot.update({ where: { id: lot.id }, data: cosmetic })] : []),
+      ...(lot ? [prisma.rawMaterialLot.update({ where: { id: lot.id }, data: lotCosmetic })] : []),
     ]);
     await resetByPurchase(purchaseId);
     revalidatePath(`/purchases/${purchaseId}`);
@@ -781,7 +835,7 @@ export async function updatePurchaseItem(
         materialVatAmount: newInclVatRub.sub(newBaseRub).div(newQuantity),
         expenseCostExclVat: allocatedExpenseExclVatTotal.div(newQuantity),
         expenseVatAmount: allocatedExpenseVatAmountTotal.div(newQuantity),
-        ...cosmetic,
+        ...lotCosmetic,
       },
     }),
     prisma.stockMovement.updateMany({
@@ -848,6 +902,43 @@ export async function removePurchaseExpense(purchaseId: string, expenseId: strin
   await prisma.purchaseExpense.deleteMany({ where: { id: expenseId, purchaseId: purchase.id } });
   await resetByPurchase(purchaseId);
   revalidatePath(`/purchases/${purchaseId}`);
+}
+
+export async function updatePurchaseExpense(purchaseId: string, expenseId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const purchase = await getEditablePurchase(orgId, purchaseId);
+  if (!purchase) {
+    return { error: "Расходы принятой закупки менять нельзя: они уже распределены по лотам (себестоимость лотов зафиксирована). Чтобы исправить расход, верните закупку к приёмке через администратора или внесите поправку отдельным расходом в ТЗ." };
+  }
+  const exp = await prisma.purchaseExpense.findFirst({ where: { id: expenseId, purchaseId } });
+  if (!exp) return { error: "Расход не найден (возможно, уже удалён)" };
+  const stale = staleError(formData, exp, PURCHASE_EXPENSE_V);
+  if (stale) return { error: stale };
+  const parsed = expenseSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    amount: formData.get("amount"),
+    vatRate: formData.get("vatRate") ?? 0,
+    description: formData.get("description") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля расхода" };
+  const badRef = await checkOrgRefs(orgId, { expenseCategory: parsed.data.categoryId });
+  if (badRef) return { error: badRef };
+  await prisma.purchaseExpense.update({
+    where: { id: expenseId },
+    data: {
+      categoryId: parsed.data.categoryId,
+      amount: parsed.data.amount,
+      vatRate: parsed.data.vatRate,
+      description: (formData.get("description") as string)?.trim() || null,
+    },
+  });
+  await resetByPurchase(purchaseId);
+  revalidatePath(`/purchases/${purchaseId}`);
+  revalidatePath("/purchases");
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  return {};
 }
 
 // ---------- Payments ----------
@@ -959,29 +1050,160 @@ export async function removePurchasePayment(purchaseId: string, paymentId: strin
   return {};
 }
 
-// ---------- Receiving: this is where landed cost + stock-in happens ----------
+const PAY_STATUSES = ["COMPLETED", "PENDING"] as const;
 
-function parseCostPlan(raw: unknown) {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const d = (k: string) => (r[k] != null ? new Decimal(String(r[k])) : null);
-  const unitCostInclVat = d("unitCostInclVat");
-  const materialExclVat = d("materialExclVat");
-  const materialVat = d("materialVat");
-  const expenseExclVat = d("expenseExclVat");
-  const expenseVat = d("expenseVat");
-  if (!unitCostInclVat || !materialExclVat || !materialVat || !expenseExclVat || !expenseVat) return null;
-  return {
-    unitCostInclVat,
-    materialExclVat,
-    materialVat,
-    expenseExclVat,
-    expenseVat,
-    costBreakdown: r["costBreakdown"] as import("@prisma/client").Prisma.InputJsonValue,
-  };
+/**
+ * Правка оплаты закупки: сумма, дата, способ, статус (оплачена / запланирована), заметка, № п/п (docRef),
+ * перенос на другую закупку того же поставщика. Переплату проверяем так же, как при добавлении (без самой правимой оплаты).
+ * Любая правка сбрасывает «подтверждено» у оплаты и подтверждение закупки/аукциона.
+ */
+export async function updatePurchasePayment(purchaseId: string, paymentId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const existing = await prisma.payment.findFirst({
+    where: { id: paymentId, organizationId: orgId, purchaseId },
+    include: { purchase: { select: { id: true, auctionSession: true, status: true } } },
+  });
+  if (!existing || !existing.purchase) return { error: "Оплата не найдена (возможно, уже удалена или перенесена)" };
+  const stale = staleError(formData, existing, PAYMENT_EDIT_V);
+  if (stale) return { error: stale };
+
+  const parsed = paymentSchema.safeParse({
+    amount: formData.get("amount"),
+    method: formData.get("method"),
+    paidAt: formData.get("paidAt"),
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля оплаты" };
+  const statusRaw = String(formData.get("status") ?? existing.status);
+  const status = (PAY_STATUSES as readonly string[]).includes(statusRaw) ? (statusRaw as "COMPLETED" | "PENDING") : existing.status === "PENDING" ? "PENDING" : "COMPLETED";
+  const docRef = (formData.get("docRef") as string)?.trim().slice(0, 200) || null;
+  const targetId = String(formData.get("targetPurchaseId") ?? "").trim() || purchaseId;
+  const amount = new Decimal(parsed.data.amount);
+  const confirmed = formData.get("confirmOverpay") === "1";
+
+  const target =
+    targetId === purchaseId
+      ? existing.purchase
+      : await prisma.purchase.findFirst({
+          where: { id: targetId, organizationId: orgId, supplierId: existing.supplierId, status: { not: "CANCELLED" } },
+          select: { id: true, auctionSession: true, status: true },
+        });
+  if (!target) return { error: "Закупка для переноса не найдена: можно переносить только на закупку того же поставщика" };
+
+  const oldAuction = auctionName(existing.purchase.auctionSession);
+  const auction = auctionName(target.auctionSession);
+
+  const result = await prisma.$transaction(async (tx): Promise<FormState> => {
+    if (auction) await lockAuction(tx, orgId, auction);
+    if (oldAuction && oldAuction !== auction) await lockAuction(tx, orgId, oldAuction);
+    if (status === "COMPLETED") {
+      let total: Decimal | null = null;
+      let paid: Decimal | null = null;
+      let label = "закупки";
+      if (auction) {
+        const [s] = await loadAuctionSummaries(tx, orgId, [auction]);
+        if (s) {
+          total = s.total;
+          paid = s.paid;
+          label = "аукциона";
+        }
+      } else {
+        const full = await tx.purchase.findFirst({
+          where: { id: target.id, organizationId: orgId },
+          include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, select: { id: true, amount: true } } },
+        });
+        if (full) {
+          total = purchaseTotalInclVat(full);
+          paid = full.payments.reduce((x, p) => x.add(p.amount), new Decimal(0));
+        }
+      }
+      if (total && paid) {
+        const sameScope = auction ? oldAuction === auction : existing.purchaseId === target.id;
+        const base = sameScope && existing.status === "COMPLETED" ? paid.sub(existing.amount) : paid;
+        const after = base.add(amount);
+        const moneyUnchanged = sameScope && existing.status === "COMPLETED" && amount.eq(existing.amount);
+        if (!moneyUnchanged && after.sub(total).greaterThan(PAY_EPS) && !confirmed) {
+          return {
+            confirm: `Оплачено станет ${formatMoney(after.toString())} при стоимости ${label === "аукциона" ? "аукциона" : "закупки"} ${formatMoney(total.toString())} — переплата ${formatMoney(after.sub(total).toString())}. Всё равно записать?`,
+          };
+        }
+      }
+    }
+    await tx.payment.update({
+      where: { id: paymentId },
+      data: {
+        purchaseId: target.id,
+        amount,
+        method: parsed.data.method,
+        status,
+        paidAt: new Date(parsed.data.paidAt),
+        notes: (formData.get("notes") as string)?.trim() || null,
+        docRef,
+      },
+    });
+    return {};
+  });
+  if (result.error || result.confirm) return result;
+
+  await resetVerification(prisma, orgId, {
+    paymentIds: [paymentId],
+    purchaseIds: [purchaseId, target.id],
+    auctions: [oldAuction, auction],
+  });
+  for (const path of [`/purchases/${purchaseId}`, `/purchases/${target.id}`, "/payments", "/dashboard", "/verify", "/documents"]) revalidatePath(path);
+  return {};
 }
 
-class AlreadyReceivedError extends Error {}
+const lotMetaSchema = z.object({
+  lotNumber: z.string().trim().max(100),
+  grade: z.string().trim().max(500),
+  sizeGrade: z.string().trim().max(40),
+  notes: z.string().trim().max(2000),
+});
+
+/**
+ * Безопасные поля лота ПОСЛЕ приёмки: № лота, сорт/описание, размер, цвет (из справочника), примечание.
+ * Количество, цена и остатки не затрагиваются (их правит строка закупки, пока лот не списан).
+ * Размер: пусто = определить из сорта автоматически (src/lib/lot-size.ts).
+ * Если лот питает одну позицию закупки — её лот/сорт/цвет обновляются вместе с лотом.
+ */
+export async function updateLotMeta(lotId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...WAREHOUSE_ROLES);
+  const orgId = session.user.organizationId;
+  const lot = await prisma.rawMaterialLot.findFirst({
+    where: { id: lotId, organizationId: orgId },
+    include: { rawMaterial: { select: { name: true } }, purchaseItems: { select: { id: true } } },
+  });
+  if (!lot) return { error: "Лот не найден" };
+  const stale = staleError(formData, lot, LOT_V);
+  if (stale) return { error: stale };
+  const parsed = lotMetaSchema.safeParse({
+    lotNumber: String(formData.get("lotNumber") ?? ""),
+    grade: String(formData.get("grade") ?? ""),
+    sizeGrade: String(formData.get("sizeGrade") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля лота" };
+  const colorRes = await resolveColorInput(prisma, orgId, { color: String(formData.get("color") ?? ""), colorRefId: formData.get("colorRefId") as string | null });
+  const grade = parsed.data.grade || null;
+  const sizeGrade = parsed.data.sizeGrade ? parsed.data.sizeGrade.toUpperCase() : parseLotSizeGrade(grade, lot.rawMaterial.name);
+  const lotNumber = parsed.data.lotNumber || null;
+  const cosmetic = { lotNumber, grade, color: colorRes.color, colorRefId: colorRes.colorRefId };
+  await prisma.$transaction([
+    prisma.rawMaterialLot.update({ where: { id: lotId }, data: { ...cosmetic, sizeGrade, notes: parsed.data.notes || null } }),
+    ...(lot.purchaseItems.length === 1
+      ? [prisma.purchaseItem.update({ where: { id: lot.purchaseItems[0].id }, data: cosmetic })]
+      : []),
+  ]);
+  if (lot.purchaseId) await resetByPurchase(lot.purchaseId);
+  invalidateFilterOptions(orgId);
+  for (const path of ["/lots", "/analytics/raw", "/production", "/dashboard", ...(lot.purchaseId ? [`/purchases/${lot.purchaseId}`] : [])]) revalidatePath(path);
+  revalidatePath(`/analytics/raw/lot/${lotId}`);
+  return {};
+}
+
+// ---------- Receiving: this is where landed cost + stock-in happens ----------
 
 export async function receivePurchase(purchaseId: string): Promise<FormState> {
   const session = await requireRole(...WAREHOUSE_ROLES);
@@ -1006,119 +1228,11 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   // expenses are allocated across items proportionally by their inclusive
   // cost share, and rolled into that item's lot as a fixed landed cost
   // — see src/lib/stock.ts.
-  const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
   try {
     await prisma.$transaction(
       async (tx) => {
-        // Блокируем строку закупки: правки расчёта (updateCostPlanItem/Rate) берут ту же
-        // блокировку, поэтому приёмка и правки идут строго по очереди. Статус — под замком.
-        const locked = await lockPurchase(tx, purchaseId, orgId);
-        if (!locked || locked.status === "RECEIVED" || locked.status === "CANCELLED") throw new AlreadyReceivedError();
-
-        // Атомарный переход статуса: если параллельная приёмка уже выиграла,
-        // count = 0 и лоты не создаются (иначе склад задвоился бы).
-        const claimed = await tx.purchase.updateMany({
-          where: { id: purchaseId, organizationId: orgId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
-          data: { status: "RECEIVED", receivedDate: new Date() },
-        });
-        if (claimed.count === 0) throw new AlreadyReceivedError();
-
-        // Позиции и расходы читаем уже после захвата — правки, закоммиченные
-        // до этого момента, попадают в приёмку.
-        const purchase = await tx.purchase.findFirst({
-          where: { id: purchaseId, organizationId: orgId },
-          include: { items: { include: { rawMaterial: true } }, expenses: true },
-        });
-        if (!purchase) throw new Error("Закупка не найдена");
-        if (purchase.items.length === 0) throw new Error("В закупке нет позиций");
-
-        const totalExpensesExclVat = purchase.expenses.reduce((sum, e) => sum.add(e.amount), new Decimal(0));
-        const totalExpensesInclVat = purchase.expenses.reduce(
-          (sum, e) => sum.add(grossUp(e.amount, e.vatRate)),
-          new Decimal(0)
-        );
-        // VAT amount of the total expense pool — used below to split each lot's
-        // allocated share the same way materialCostExclVat/materialVatAmount
-        // already split the item's own price. See RawMaterialLot.expenseCostExclVat
-        // for why applying the item's allocation ratio to this split is exact.
-        const totalExpensesVatAmount = totalExpensesInclVat.sub(totalExpensesExclVat);
-
-        // Полная стоимость позиции (с НДС, ₽) — база для распределения расходов.
-        // Для позиции с расчётом из расчётного листа (costPlan) это стоимость
-        // единицы из расчёта × количество, для обычной — цена × курс + НДС.
-        const rows = purchase.items.map((item) => {
-          const plan = parseCostPlan(item.costPlan);
-          const baseRub = item.subtotal.mul(purchase.exchangeRate);
-          const inclVatRub = grossUp(baseRub, item.vatRate);
-          const fullInclVatRub = plan ? plan.unitCostInclVat.mul(item.quantity) : inclVatRub;
-          return { item, plan, baseRub, inclVatRub, fullInclVatRub };
-        });
-        const totalFullInclVatRub = rows.reduce((sum, r) => sum.add(r.fullInclVatRub), new Decimal(0));
-
-        for (const { item, plan, baseRub, inclVatRub, fullInclVatRub } of rows) {
-          // Same ratio drives both the inclusive allocation and its excl-VAT /
-          // VAT-amount split — exact, since the ratio is applied uniformly to
-          // the whole expense pool (excl + vat = incl by construction).
-          const allocationRatio = totalFullInclVatRub.isZero() ? new Decimal(0) : fullInclVatRub.div(totalFullInclVatRub);
-          const allocatedExpense = totalExpensesInclVat.mul(allocationRatio);
-          const allocatedExpenseExclVat = totalExpensesExclVat.mul(allocationRatio);
-          const allocatedExpenseVatAmount = totalExpensesVatAmount.mul(allocationRatio);
-          const qty = item.quantity;
-
-          // Позиция с расчётом (costPlan): стоимость единицы из расчёта
-          // (выделка/транспорт — на штуку, а не от цены) + доля расходов закупки.
-          let costBreakdown: Prisma.InputJsonValue | undefined;
-          if (plan) {
-            costBreakdown = plan.costBreakdown;
-            if (allocatedExpense.gt(0)) {
-              const bd = (plan.costBreakdown ?? {}) as { items?: { label: string; value: number }[] };
-              costBreakdown = {
-                ...(bd as object),
-                items: [
-                  ...(Array.isArray(bd.items) ? bd.items : []),
-                  { label: "Расходы закупки (доля), ₽", value: Number(allocatedExpense.div(qty).toDecimalPlaces(2).toString()) },
-                ],
-              } as Prisma.InputJsonValue;
-            }
-          }
-
-          const lotArgs = {
-            organizationId: orgId,
-            warehouseId: purchase.warehouseId,
-            rawMaterialId: item.rawMaterialId,
-            lotNumber: item.lotNumber,
-            grade: item.grade,
-            color: item.color,
-            colorRefId: item.colorRefId,
-            quantity: qty,
-            unitCost: plan ? plan.unitCostInclVat.add(allocatedExpense.div(qty)) : inclVatRub.add(allocatedExpense).div(qty),
-            totalCost: plan ? plan.unitCostInclVat.mul(qty).add(allocatedExpense) : inclVatRub.add(allocatedExpense),
-            vatRate: item.vatRate,
-            materialCostExclVat: plan ? plan.materialExclVat : baseRub.div(qty),
-            materialVatAmount: plan ? plan.materialVat : inclVatRub.sub(baseRub).div(qty),
-            expenseCostExclVat: plan
-              ? plan.expenseExclVat.add(allocatedExpenseExclVat.div(qty))
-              : allocatedExpenseExclVat.div(qty),
-            expenseVatAmount: plan
-              ? plan.expenseVat.add(allocatedExpenseVatAmount.div(qty))
-              : allocatedExpenseVatAmount.div(qty),
-            purchaseId: purchase.id,
-            purchaseItemId: item.id,
-            ...(costBreakdown !== undefined ? { costBreakdown } : {}),
-          };
-
-          // Lining fabric (tracked by the metre) is one aggregate pool per
-          // fabric, not one lot per receipt — see cfc5cd6 and
-          // addOrPoolLiningLot's own comment. Fur (and every other unit) keeps
-          // the original specific-identification behavior: a fresh lot every
-          // time.
-          if (item.rawMaterial.unit === "M") {
-            await addOrPoolLiningLot(tx, lotArgs);
-          } else {
-            await createRawMaterialLot(tx, lotArgs);
-          }
-        }
+        await receivePurchaseInTx(tx, purchaseId, orgId);
       },
       { timeout: 60_000, maxWait: 10_000 }
     );

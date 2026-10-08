@@ -241,6 +241,8 @@ export const FILTER_CATALOG = {
   year: { kind: "multi", label: "Год", pattern: /^\d{4}$/ },
   fur: { kind: "multi", label: "Вид меха", aliases: ["kind"] },
   color: { kind: "multi", label: "Цвет" },
+  /** Признак меха из справочника /settings/fur-attrs («Седина 3», «Дикий», «Тонированный»); none — без признака. */
+  attr: { kind: "multi", label: "Признак меха" },
   lotcolor: { kind: "multi", label: "Цвет лота", aliases: ["lc"] },
   batch: { kind: "multi", label: "Партия производства", pattern: /^\d{1,6}$/ },
   status: { kind: "multi", label: "Статус" },

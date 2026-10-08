@@ -11,13 +11,14 @@ import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { purchaseYear } from "@/lib/year-scope";
 import { batchLabel } from "@/lib/batch-label";
+import { ATTR_GROUP_ORDER } from "@/lib/fur-attr";
 import type { YearFilter } from "@/lib/year-filter";
 
 import type { FilterOption } from "@/lib/filters";
 
 export type { FilterOption };
 
-export const OPTION_KEYS = ["auction", "pyear", "fur", "color", "lotcolor", "batch", "supplier", "client", "season", "category", "model", "material"] as const;
+export const OPTION_KEYS = ["auction", "pyear", "fur", "color", "lotcolor", "batch", "supplier", "client", "season", "category", "model", "material", "attr"] as const;
 export type OptionKey = (typeof OPTION_KEYS)[number];
 
 /** Только эти варианты зависят от общего года шапки. */
@@ -59,6 +60,17 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
         if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
       }
       return Array.from(counts, ([value, count]) => ({ value, label: value, count })).sort(byLabel);
+    }
+    case "attr": {
+      // Признаки меха из справочника: только те, что есть у лотов или ТЗ, со счётчиком лотов; порядок — по группам.
+      const refs = await prisma.furAttrRef.findMany({
+        where: { organizationId: orgId, OR: [{ lots: { some: {} } }, { orders: { some: {} } }] },
+        select: { name: true, group: true, furKind: true, description: true, _count: { select: { lots: true } } },
+      });
+      const rank = (g: string | null) => { const i = g ? ATTR_GROUP_ORDER.indexOf(g) : -1; return i < 0 ? ATTR_GROUP_ORDER.length : i; };
+      return refs
+        .sort((a, b) => rank(a.group) - rank(b.group) || collator.compare(a.name, b.name))
+        .map((r) => ({ value: r.name, label: r.name, count: r._count.lots, title: [r.group, r.furKind, r.description].filter(Boolean).join(" · ") || undefined }));
     }
     case "batch": {
       const rows = await prisma.productionBatch.findMany({

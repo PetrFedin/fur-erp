@@ -194,7 +194,19 @@ export async function updateSeasonDates(_prev: PlanFormState, formData: FormData
   const d = seasonDates(formData);
   if ("error" in d) return { error: d.error };
   const name = cleanSearch(formData.get("name"), 100);
-  await prisma.season.update({ where: { id }, data: { name: name || null, startDate: d.start, endDate: d.end } });
+  // Код сезона можно переименовать: ТЗ, планы и события привязаны по id, не по коду.
+  const codeRaw = formData.has("code") ? cleanSearch(formData.get("code"), 30) : own.code;
+  if (!codeRaw) return { error: "Код сезона не может быть пустым" };
+  if (codeRaw !== own.code) {
+    const dup = await prisma.season.count({ where: { organizationId: session.user.organizationId, code: { equals: codeRaw, mode: "insensitive" }, id: { not: id } } });
+    if (dup) return { error: `Сезон «${codeRaw}» уже есть` };
+  }
+  try {
+    await prisma.season.update({ where: { id }, data: { code: codeRaw, name: name || null, startDate: d.start, endDate: d.end } });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: `Сезон «${codeRaw}» уже есть` };
+    throw e;
+  }
   revalidatePath("/plan");
   revalidatePath("/plan/seasons");
   return { ok: "Сохранено" };

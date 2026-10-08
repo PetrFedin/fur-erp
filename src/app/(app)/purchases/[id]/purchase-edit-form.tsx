@@ -19,7 +19,10 @@ export function PurchaseEditForm({
   version,
   auctions,
   canCreateAuction = false,
+  receivedMode = false,
 }: {
+  /** Принятая закупка: поставщик, склад и валюта не меняются (лоты уже посчитаны), правятся дата, аукцион, № счёта и УПД. */
+  receivedMode?: boolean;
   auctions: AuctionSelectOption[];
   canCreateAuction?: boolean;
   currencyLocked?: boolean;
@@ -70,7 +73,13 @@ export function PurchaseEditForm({
       className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3"
     >
       {version && <input type="hidden" name="_v" value={version} />}
-      {suppliers.length > 1 ? (
+      {receivedMode ? (
+        <>
+          <input type="hidden" name="supplierId" value={defaults.supplierId} />
+          <input type="hidden" name="warehouseId" value={defaults.warehouseId} />
+          <input type="hidden" name="currency" value={defaults.currency} />
+        </>
+      ) : suppliers.length > 1 ? (
         <div className="sm:col-span-2">
           <Label htmlFor="supplierId">Поставщик</Label>
           <Select id="supplierId" name="supplierId" required defaultValue={defaults.supplierId}>
@@ -84,7 +93,7 @@ export function PurchaseEditForm({
       ) : (
         <input type="hidden" name="supplierId" value={defaults.supplierId} />
       )}
-      {warehouses.length > 1 ? (
+      {receivedMode ? null : warehouses.length > 1 ? (
         <div>
           <Label htmlFor="warehouseId">Склад поступления</Label>
           <Select id="warehouseId" name="warehouseId" required defaultValue={defaults.warehouseId}>
@@ -98,7 +107,7 @@ export function PurchaseEditForm({
       ) : (
         <input type="hidden" name="warehouseId" value={defaults.warehouseId} />
       )}
-      <div>
+      {!receivedMode && (<div>
         <Label htmlFor="currency">Валюта позиций</Label>
         {currencyLocked && <input type="hidden" name="currency" value={defaults.currency} />}
         <Select id="currency" name={currencyLocked ? undefined : "currency"} defaultValue={defaults.currency} disabled={currencyLocked}>
@@ -106,7 +115,7 @@ export function PurchaseEditForm({
           <option value="USD">USD — доллар</option>
           <option value="EUR">EUR — евро</option>
         </Select>
-      </div>
+      </div>)}
       <div>
         <Label htmlFor="orderDate">Дата заказа</Label>
         <Input id="orderDate" name="orderDate" type="date" defaultValue={defaults.orderDate} required />
@@ -129,7 +138,9 @@ export function PurchaseEditForm({
         />
       </div>
       <p className="sm:col-span-2 text-xs text-neutral-500">
-        {currencyLocked
+        {receivedMode
+          ? "Закупка принята на склад: поставщик, склад, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта и УПД; подтверждение закупки сбросится."
+          : currencyLocked
           ? "Валюта и курс не меняются: в закупке есть позиции с расчётом из расчётного листа."
           : "При смене валюты курс сбрасывается на 1 — обновите его ниже."}
       </p>

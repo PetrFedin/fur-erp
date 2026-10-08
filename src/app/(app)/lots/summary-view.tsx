@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
-import { auctionLabeler } from "@/lib/filter-options";
+import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
@@ -170,6 +170,8 @@ export type SummaryFilter = {
   auction: string[];
   material: string[];
   years?: number[];
+  /** Признаки меха (none — без признака). */
+  attr?: string[];
 };
 export const filterLeaves = (all: Leaf[], f: SummaryFilter) =>
   all.filter(
@@ -177,7 +179,8 @@ export const filterLeaves = (all: Leaf[], f: SummaryFilter) =>
       (!f.year || l.year === f.year) &&
       (f.auction.length === 0 || f.auction.includes(aKey(l))) &&
       (f.material.length === 0 || f.material.includes(l.material)) &&
-      (!f.years?.length || f.years.includes(l.year)),
+      (!f.years?.length || f.years.includes(l.year)) &&
+      (!f.attr?.length || (l.attrs.length ? l.attrs.some((a) => f.attr!.includes(a)) : f.attr.includes("none"))),
   );
 export { aKey };
 export const kindOf = (l: Leaf): "fur" | "lining" => (l.unit === "M" ? "lining" : "fur");
@@ -212,7 +215,7 @@ export async function PurchaseSummary({
   /** Общий фильтр года из шапки. */
   year: YearFilter;
   /** Разобранные параметры адреса: аукционы, материалы (названия), год закупки, режим НДС. */
-  filters: { auction: string[]; material: string[]; pyear: string[]; vatmode: "incl" | "excl" | "" };
+  filters: { auction: string[]; material: string[]; pyear: string[]; attr: string[]; vatmode: "incl" | "excl" | "" };
   yearOptions: { value: string; label: string; count?: number }[];
 }) {
   // Один источник правды — переключатель в шапке (cookie vatDisplay); ?vatmode= (старое ?vat=) — только переопределение ссылкой.
@@ -232,16 +235,19 @@ export async function PurchaseSummary({
   const auctionF = filters.auction.filter((a) => auctions.includes(a));
   const materialF = filters.material.filter((m) => materials.includes(m));
   const yearsF = filters.pyear.map(Number);
+  const attrOptions = (await getFilterOptions(organizationId, "all", ["attr"])).attr;
+  const attrF = filters.attr;
   const byMaterial = materialF.length > 0;
 
-  const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF, years: yearsF });
-  const filtered = Boolean(auctionF.length || materialF.length || yearsF.length);
+  const leaves = filterLeaves(all, { year: yearF, auction: auctionF, material: materialF, years: yearsF, attr: attrF });
+  const filtered = Boolean(auctionF.length || materialF.length || yearsF.length || attrF.length);
 
   const qs = (over: Record<string, string>) => {
     const p = new URLSearchParams({ tab: "summary" });
     for (const a of auctionF) p.append("auction", a);
     for (const m of materialF) p.append("material", m);
     for (const y of yearsF) p.append("pyear", String(y));
+    for (const a of attrF) p.append("attr", a);
     if (vatOverride) p.set("vatmode", vatOverride);
     for (const [k, v] of Object.entries(over)) {
       if (v) p.set(k, v);
@@ -316,6 +322,7 @@ export async function PurchaseSummary({
         controls={[
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
           { type: "multi", name: "material", label: "Сырьё", options: materials.map((m) => ({ value: m, label: m })), allLabel: "Всё сырьё" },
+          ...(attrOptions.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: attrOptions, allLabel: "Все признаки", noneLabel: "Без признака", hint: "Признак лота: седина, дикий / клеточный, тонированный… Подкладка и позиции без лота — «без признака»" }] : []),
           { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: yearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
         ]}
       />
@@ -392,7 +399,7 @@ export async function PurchaseSummary({
                           a={aggOf(al)}
                           mode={mode}
                           level={2}
-                          load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, yearsF, mode, k)}
+                          load={loadSummaryAuction.bind(null, Number(year), auction, yearF ?? 0, auctionF, materialF, yearsF, mode, k, attrF)}
                         />
                       ))}
                   </Node>

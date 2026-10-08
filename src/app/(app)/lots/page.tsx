@@ -23,7 +23,7 @@ export const metadata = { title: "Сырьё" };
 // Параметры страницы «Сырьё»: tab/view/vatmode — вид (не сбрасываются кнопкой «Сбросить всё»), остальное — фильтры.
 // Фильтры внутри таблицы «Мех / Подкладка» (вид меха, цвет, размер, партия, остаток) хранятся там же в адресе (fur, color, size, batch, rest…).
 const LOT_FILTERS = defineFilters({
-  ...pick(["auction", "q", "material", "pyear", "tab", "view", "vatmode"], {
+  ...pick(["auction", "q", "material", "pyear", "attr", "tab", "view", "vatmode"], {
     tab: { allowed: ["fur", "lining", "summary"] },
     view: { allowed: ["invoices", "lots"] },
     vatmode: { aliases: ["vat"] },
@@ -80,10 +80,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const tabLink = (t: "fur" | "lining" | "summary", label: string) => {
     const carry =
       t === "fur"
-        ? { auction: f.auction, q: f.q, material: f.material, pyear: f.pyear, view: f.view, vatmode: "" }
+        ? { auction: f.auction, q: f.q, material: f.material, pyear: f.pyear, attr: f.attr, view: f.view, vatmode: "" }
         : t === "lining"
-          ? { auction: [], q: f.q, material: [], pyear: [], view: "", vatmode: "" }
-          : { auction: f.auction, q: "", material: f.material, pyear: f.pyear, view: "", vatmode: f.vatmode };
+          ? { auction: [], q: f.q, material: [], pyear: [], attr: [], view: "", vatmode: "" }
+          : { auction: f.auction, q: "", material: f.material, pyear: f.pyear, attr: f.attr, view: "", vatmode: f.vatmode };
     return (
       <Link
         href={filterHref(LOT_FILTERS, "/lots", { ...carry, tab: t === "fur" ? "" : t }, {})}
@@ -119,7 +119,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         <PurchaseSummary
           organizationId={orgId}
           year={year}
-          filters={{ auction: f.auction, material: materialNames, pyear: f.pyear, vatmode: f.vatmode as "incl" | "excl" | "" }}
+          filters={{ auction: f.auction, material: materialNames, pyear: f.pyear, attr: f.attr, vatmode: f.vatmode as "incl" | "excl" | "" }}
           yearOptions={pyearOptions}
         />
       </div>
@@ -150,9 +150,16 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <YearNote year={year} />
             </h1>
           </div>
-          <Link href="/materials/new" className={buttonVariants()}>
-            + Добавить материал
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {canEditDocs && (
+              <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+                Новая партия закупки
+              </Link>
+            )}
+            <Link href="/materials/new" className={buttonVariants()}>
+              + Добавить материал
+            </Link>
+          </div>
         </div>
         <div className="flex gap-1 border-b border-neutral-200 pb-2">
           {tabLink("fur", "Мех")}
@@ -218,12 +225,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </h1>
           <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
-        <Link
-          href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
-          className={buttonVariants()}
-        >
-          + Добавить материал
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {canEditDocs && (
+            <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+              Новая партия закупки
+            </Link>
+          )}
+          <Link
+            href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
+            className={buttonVariants()}
+          >
+            + Добавить материал
+          </Link>
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-neutral-200 pb-2">

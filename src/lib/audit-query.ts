@@ -63,7 +63,10 @@ export function recordHref(model: string, recordId: string, label: string | null
       const n = label?.match(/№(\d+)/)?.[1];
       return n ? `/production/batches/${n}` : null;
     }
+    case "Comment":
+    case "CommentReply": return "/comments";
     case "ColorRef": return "/settings/colors";
+    case "FurAttrRef": return "/settings/fur-attrs";
     case "FurRef": return "/settings/furs";
     default: return null;
   }

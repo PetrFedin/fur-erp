@@ -18,6 +18,9 @@ import { loadVerifyModel, type VerifyRow } from "@/lib/verification";
 import { loadControlCounts } from "@/lib/control-counts";
 import { buildTaskCategories, TASK_LABELS, type TaskCategory, type TaskCategoryId } from "@/lib/task-center";
 import { ControlTabs } from "@/components/control-tabs";
+import { stripCoveredPayments } from "@/lib/task-docs";
+import { ACCESS, hasRole } from "@/lib/access";
+import { DecisionsBlock, DocTasksBlock } from "./task-blocks";
 import { formatMoney, cn } from "@/lib/utils";
 
 export const metadata = { title: "Задачи" };
@@ -38,12 +41,12 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
   const showAll = sp.all === "1";
   const year = await getYearFilter();
 
-  const all = await computeAttention(prisma, session.user.organizationId, year);
+  // Числа считаем свежо и кладём в кэш: вкладки и Сводка показывают то же, что этот экран.
+  const counts = await loadControlCounts(session.user.organizationId, year, { fresh: true });
+  const taskBlocks = counts.blocks!;
+  const all = stripCoveredPayments(await computeAttention(prisma, session.user.organizationId, year), taskBlocks.coveredPaymentIds);
   // Единый центр задач: те же данные, что у «Подтвердить» (замечания строк), «Документов» и «Что не заведено», сложенные по категориям.
-  const [model, counts] = await Promise.all([
-    loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false }),
-    loadControlCounts(session.user.organizationId, year),
-  ]);
+  const model = await loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false });
   const inYear = (r: VerifyRow) => year === "all" || r.year === Number(year);
   const center = buildTaskCategories(model.rows.filter(inYear));
   const blocks = buildAttentionBlocks(all);
@@ -74,8 +77,9 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             </InfoHint>
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Требует решения: <b className="text-neutral-900">{totals.main}</b>
-            {totals.red > 0 && <> , из них срочных блоков: <b className="text-red-600">{totals.red}</b></>}
+            Открыто задач: <b className="text-neutral-900">{counts.tasks}</b>
+            <> (по данным {totals.main} · документы {counts.docTasks} · решения {counts.decisions})</>
+            {counts.urgent > 0 && <> , из них срочных: <b className="text-red-600">{counts.urgent}</b></>}
             {totals.info > 0 && <> · справочно: {totals.info}</>}
             {year !== "all" && <> · {yearLabel(year)}</>}
           </p>
@@ -84,6 +88,9 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
           {showAll ? "По категориям" : "Показать всё"}
         </Link>
       </div>
+
+      {!showAll && <DecisionsBlock decisions={taskBlocks.decisions} canDecide={hasRole(session.user.role, ACCESS.taskDecisions)} />}
+      {!showAll && <DocTasksBlock blocks={taskBlocks} />}
 
       {!showAll && (
         <section aria-label="Что требует действия" className="flex flex-col gap-2">

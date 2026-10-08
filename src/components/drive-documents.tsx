@@ -11,10 +11,12 @@ import {
   removeDriveDocumentFile,
   uploadDriveDocument,
   uploadDriveDocumentFile,
+  updateDriveDocument,
   type DriveDocState,
 } from "@/app/(app)/drive-actions";
+import { EditDialog, Field } from "@/components/edit-dialog";
 import { DocFileButtons } from "@/components/doc-preview";
-import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, safeViewUrl, type DriveDocView } from "@/lib/drive-docs";
+import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, guessDocType, safeViewUrl, type DriveDocView } from "@/lib/drive-docs";
 import { copiesLabel, countLabel, docGroupKey, groupBy } from "@/lib/drive-docs-group";
 
 const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
@@ -88,6 +90,16 @@ function fmtSize(n: number | null | undefined): string {
   return n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1).replace(".", ",")} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`;
 }
 
+/** Проверка файла до отправки: пустой, больше 25 МБ, HEIC (айфон) — с понятным объяснением, что делать. */
+export function clientFileError(file: File): string | null {
+  if (/\.(heic|heif)$/i.test(file.name) || /^image\/hei[cf]/i.test(file.type)) {
+    return `Файл «${file.name}» в формате HEIC (фото с iPhone) — приложение его не принимает. Сохраните как JPEG (на iPhone: Настройки → Камера → Форматы → «Наиболее совместимый») или отправьте фото как PDF.`;
+  }
+  if (file.size === 0) return `Файл «${file.name}» пустой (0 байт)`;
+  if (file.size > 25 * 1024 * 1024) return `Файл «${file.name}» больше 25 МБ (${formatMb(file.size)} МБ)`;
+  return null;
+}
+
 const smallBtn =
   "inline-flex h-8 cursor-pointer items-center rounded-md px-2 text-sm text-neutral-600 hover:bg-neutral-100";
 
@@ -106,13 +118,9 @@ function FilePicker({ d, label, onError }: { d: DriveDocView; label: string; onE
           const input = e.currentTarget;
           const file = input.files?.[0];
           if (!file) return;
-          if (file.size === 0) {
-            onError("Файл пустой (0 байт)");
-            input.value = "";
-            return;
-          }
-          if (file.size > 25 * 1024 * 1024) {
-            onError(`Файл больше 25 МБ (${formatMb(file.size)} МБ)`);
+          const bad = clientFileError(file);
+          if (bad) {
+            onError(bad);
             input.value = "";
             return;
           }
@@ -220,6 +228,38 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
           <span className="text-xs text-neutral-400">Управляют владелец и администратор</span>
         )}
         {editable && (
+          <EditDialog
+            title="Изменить документ"
+            variant="ghost"
+            className="h-8 px-2"
+            action={(fd) => updateDriveDocument(d.id, fd)}
+            version={d.version}
+            hint="Название, тип, номер, дата и примечание. Сам файл заменяется кнопкой «Заменить файл». Подтверждение записи, к которой привязан документ, сбросится."
+          >
+            <Field label="Название" wide>
+              <input name="title" defaultValue={d.title} maxLength={200} required className={field} />
+            </Field>
+            <Field label="Тип документа">
+              <select name="docType" defaultValue={d.docType} className={field}>
+                {DRIVE_DOC_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {DRIVE_DOC_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Номер документа">
+              <input name="docNumber" defaultValue={d.docNumber ?? ""} maxLength={100} className={field} />
+            </Field>
+            <Field label="Дата документа">
+              <input name="docDate" type="date" defaultValue={d.docDate ? d.docDate.slice(0, 10) : ""} className={field} />
+            </Field>
+            <Field label="Примечание" wide>
+              <input name="notes" defaultValue={d.notes ?? ""} maxLength={1000} className={field} />
+            </Field>
+          </EditDialog>
+        )}
+        {editable && (
           <Button
             type="button"
             variant="ghost"
@@ -274,28 +314,56 @@ export function UploadDocument({
     ...(extraTargets ?? []).map((t) => ({ key: `${t.entity}:${t.id}`, ...t })),
   ];
   const [targetKey, setTargetKey] = useState(`${entity}:${entityId}`);
+  const [docType, setDocType] = useState<string>("OTHER");
+  const [typeTouched, setTypeTouched] = useState(false);
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
-    const f = fd.get("file");
-    if (f instanceof File && f.name !== "" && f.size === 0) {
-      setState({ error: "Файл пустой (0 байт)" });
+    const files = fd.getAll("file").filter((f): f is File => f instanceof File && f.name !== "");
+    if (files.length === 0) {
+      setState({ error: "Выберите файл" });
       return;
     }
-    if (f instanceof File && f.size > 25 * 1024 * 1024) {
-      setState({ error: `Файл больше 25 МБ (${formatMb(f.size)} МБ)` });
+    if (files.length > 10) {
+      setState({ error: `За один раз можно загрузить не больше 10 файлов (выбрано ${files.length})` });
       return;
     }
+    for (const f of files) {
+      const bad = clientFileError(f);
+      if (bad) {
+        setState({ error: bad });
+        return;
+      }
+    }
+    const title = String(fd.get("title") ?? "");
     setState({});
     start(async () => {
-      try {
-        const t = targets.find((x) => x.key === targetKey) ?? targets[0];
-        const res = await uploadDriveDocument(t.entity, t.id, fd);
-        setState(res ?? {});
-        if (res?.ok) form.reset();
-      } catch {
-        setState({ error: "Не удалось загрузить файл: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь." });
+      const t = targets.find((x) => x.key === targetKey) ?? targets[0];
+      const failed: string[] = [];
+      let okCount = 0;
+      for (const f of files) {
+        const one = new FormData();
+        one.set("file", f);
+        // Название — только для одного файла; тип: выбранный вручную, иначе по имени файла.
+        if (files.length === 1 && title) one.set("title", title);
+        const type = typeTouched || docType !== "OTHER" ? docType : (guessDocType(f.name) ?? "OTHER");
+        one.set("docType", type);
+        try {
+          const res = await uploadDriveDocument(t.entity, t.id, one);
+          if (res?.ok) okCount++;
+          else failed.push(`${f.name}: ${res?.error ?? "не загружен"}`);
+        } catch {
+          failed.push(`${f.name}: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь`);
+        }
+      }
+      if (failed.length === 0) {
+        form.reset();
+        setDocType("OTHER");
+        setTypeTouched(false);
+        setState({ ok: true, ...(okCount > 1 ? { count: okCount } : {}) } as DriveDocState);
+      } else {
+        setState({ error: `${okCount > 0 ? `Загружено ${okCount}, не загружено ${failed.length}: ` : ""}${failed.join("; ")}` });
       }
     });
   }
@@ -304,8 +372,19 @@ export function UploadDocument({
       <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">{compact ? "+ Загрузить документ" : "+ Загрузить документ (файл)"}</summary>
       <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2 border-t border-neutral-200 p-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
-          Файл (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ)
-          <input type="file" name="file" required accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="text-sm" />
+          Файлы (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ каждый, до 10 за раз)
+          <input
+            type="file"
+            name="file"
+            multiple
+            required
+            accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
+            className="text-sm"
+            onChange={(e) => {
+              const fs = Array.from(e.currentTarget.files ?? []);
+              if (fs.length === 1 && !typeTouched) setDocType(guessDocType(fs[0].name) ?? "OTHER");
+            }}
+          />
         </label>
         <label className="flex flex-col gap-1 text-xs text-neutral-500">
           Название (необязательно — возьмём имя файла)
@@ -313,13 +392,14 @@ export function UploadDocument({
         </label>
         <label className="flex flex-col gap-1 text-xs text-neutral-500">
           Тип
-          <select name="docType" defaultValue="OTHER" className={field}>
+          <select name="docType" value={docType} onChange={(e) => { setDocType(e.target.value); setTypeTouched(true); }} className={field}>
             {DRIVE_DOC_TYPES.map((t) => (
               <option key={t} value={t}>
                 {DRIVE_DOC_TYPE_LABELS[t]}
               </option>
             ))}
           </select>
+          <span className="text-[11px] text-neutral-400">Определяется по имени файла; для нескольких файлов — у каждого свой, если не выбран вручную</span>
         </label>
         {targets.length > 1 && (
           <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
@@ -338,7 +418,7 @@ export function UploadDocument({
             {pending ? "Загружаем…" : "Загрузить"}
           </Button>
           {state.error && <span className="text-sm text-red-600">{state.error}</span>}
-          {state.ok && <span className="text-sm text-emerald-600">Загружено</span>}
+          {state.ok && <span className="text-sm text-emerald-600">{(state as { count?: number }).count ? `Загружено файлов: ${(state as { count?: number }).count}` : "Загружено"}</span>}
         </div>
       </form>
     </details>

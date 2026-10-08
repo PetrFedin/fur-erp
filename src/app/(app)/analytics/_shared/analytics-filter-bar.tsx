@@ -16,7 +16,7 @@ export type LeadControl = BarControl;
  */
 export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", aucOf }: { opts: Options; lead?: LeadControl[]; title?: string; aucOf?: (name: string) => { label: string; title: string } }) {
   const multi = (name: string, label: string, values: string[], extra: Partial<Extract<BarControl, { type: "multi" }>> = {}): BarControl[] =>
-    values.length === 0 ? [] : [{ type: "multi", name, label, options: toOptions(values, name === "batch" ? (v) => opts.batchLabels[v] ?? `Партия ${v}` : name === "color" || name === "size" ? (v) => (v === UNDEFINED_COLOR || v === UNDEFINED_SIZE ? `${v} в документах` : v) : undefined), ...extra }];
+    values.length === 0 ? [] : [{ type: "multi", name, label, options: toOptions(values, name === "batch" ? (v) => opts.batchLabels[v] ?? `Партия ${v}` : name === "attr" ? (v) => (v === "none" ? "Без признака" : v) : name === "color" || name === "size" ? (v) => (v === UNDEFINED_COLOR || v === UNDEFINED_SIZE ? `${v} в документах` : v) : undefined), ...extra }];
   const controls: BarControl[] = [
     ...lead,
     ...multi("fur", "Вид меха", opts.fur),
@@ -39,6 +39,7 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
       : []),
     ...multi("pyear", "Год закупки сырья", opts.py, { aliases: ["py"] }),
     ...multi("lotcolor", "Цвет лота", opts.lc, { aliases: ["lc"] }),
+    ...multi("attr", "Признак меха", opts.attr, { hint: "Признаки ТЗ и списанных в него лотов: седина, дикий / клеточный, тонированный…" }),
     { type: "multi", name: "onlyH", label: "Молоток", single: true, allLabel: "Все", options: [{ value: "1", label: "Только с молотком" }] },
     { type: "multi", name: "onlyL", label: "Подкладка", single: true, allLabel: "Все", options: [{ value: "1", label: "Только с подкладкой" }] },
     { type: "text", name: "cmin", label: "Себестоимость от, ₽", placeholder: "от", inputMode: "decimal", className: "sm:w-36" },

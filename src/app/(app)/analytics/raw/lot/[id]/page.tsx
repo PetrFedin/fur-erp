@@ -12,6 +12,11 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { formatCurrency, formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { ageText, daysSince, lotBalances, lotIssues, loadLotUsage, pctText } from "@/lib/raw-analytics";
 import { CostCell } from "../../cost-cell";
+import { prisma } from "@/lib/prisma";
+import { ACCESS, hasRole } from "@/lib/access";
+import { getColorOptions } from "@/lib/colors";
+import { rowVersion, LOT_V } from "@/lib/concurrency";
+import { LotEditButton } from "@/components/lot-edit";
 
 export const metadata = { title: "Карточка лота" };
 
@@ -24,6 +29,15 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const card = await loadLotUsage(id, session.user.organizationId);
   if (!card) notFound();
   const { lot: l, passport: p, orders } = card;
+  // Правка безопасных полей лота (цвет, размер, сорт, номер, примечание).
+  const canEditLot = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"]);
+  const lotRow = canEditLot
+    ? await prisma.rawMaterialLot.findFirst({
+        where: { id, organizationId: session.user.organizationId },
+        select: { lotNumber: true, grade: true, sizeGrade: true, color: true, colorRefId: true, notes: true },
+      })
+    : null;
+  const lotColorOptions = lotRow ? await getColorOptions(session.user.organizationId) : [];
 
   const lining = l.unit === "M";
   const unit = lining ? "м" : "шт.";
@@ -82,6 +96,15 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (issues.length === 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
           {issues.length === 0 ? "учёт сходится" : "расхождение учёта"}
         </span>
+        {lotRow && (
+          <LotEditButton
+            lotId={id}
+            version={rowVersion(lotRow, LOT_V)}
+            defaults={{ lotNumber: lotRow.lotNumber ?? "", grade: lotRow.grade ?? "", sizeGrade: lotRow.sizeGrade ?? "", color: lotRow.color ?? "", colorRefId: lotRow.colorRefId, notes: lotRow.notes ?? "" }}
+            colorOptions={lotColorOptions}
+            canAddColor={hasRole(session.user.role, ACCESS.colors)}
+          />
+        )}
         {idle && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">не использован, лежит {ageText(daysSince(l.date))}</span>}
       </div>
 

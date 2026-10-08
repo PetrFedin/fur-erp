@@ -20,6 +20,7 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   year: { kind: { fur: "Год закупки", lining: "Год закупки" }, all: "Все годы" },
   color: { kind: { fur: "Цвет", lining: "Цвет" }, all: "Все цвета" },
   size: { kind: { fur: "Размер", lining: "Размер" }, all: "Все размеры" },
+  attr: { kind: { fur: "Признак меха", lining: "Признак" }, all: "Все признаки" },
   auction: { kind: { fur: "Партия закупки (аукцион)", lining: "Партия закупки (аукцион)" }, all: "Все партии" },
   rest: { kind: { fur: "Остаток", lining: "Остаток" }, all: "Любой" },
 };
@@ -83,7 +84,7 @@ export function FurSelectionTotal({
 
   const needle = q.trim().toLowerCase();
   const baseLots = useMemo(
-    () => (needle ? lots.filter((l) => [l.lotNumber, l.materialName, l.item, l.color, l.size, l.grade].some((x) => (x ?? "").toLowerCase().includes(needle))) : lots),
+    () => (needle ? lots.filter((l) => [l.lotNumber, l.materialName, l.item, l.color, l.size, l.grade, ...l.attrs].some((x) => (x ?? "").toLowerCase().includes(needle))) : lots),
     [lots, needle],
   );
   const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
@@ -91,7 +92,7 @@ export function FurSelectionTotal({
     () => Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>,
     [baseLots, filters],
   );
-  const shownKeys: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest"] : ["auction", "item", "year", "color", "size", "rest"];
+  const shownKeys: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest"] : ["auction", "item", "year", "color", "size", "attr", "rest"];
 
   const setFilter = (k: FilterKey, v: string[]) => setFilters((f) => ({ ...f, [k]: v }));
   const toggleSel = (key: string) => setSelected((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]));
@@ -179,15 +180,42 @@ export function FurSelectionTotal({
   const nCols = 1 + 3 * perGroup;
   const widthClass = view === "qty" ? "min-w-[460px]" : view === "money" ? "min-w-[850px]" : "min-w-[1090px]";
 
-  const renderRow = (row: TableRow) => {
+  // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
+  // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
+  const hasTz = (l: FurLot) => l.usages.length > 0 || l.used > 0;
+  const totalRowKeys = new Set(table.selectedKeys.length > 0 ? table.selectedKeys : table.rows.map((r) => r.key));
+  const noTzRows = useMemo(
+    () => rowsBy(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots).filter((l) => !hasTz(l)), mode, (l) => l.item),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [table, mode],
+  );
+  const mainRows = useMemo(
+    () => table.rows.flatMap((r) => {
+      const withTz = r.lots.filter(hasTz);
+      if (withTz.length === 0) return [];
+      const flow = flowOf(withTz);
+      return [{ ...r, lots: withTz, flow, figures: figures(flow, mode) } as TableRow];
+    }),
+    [table, mode],
+  );
+  const mainTotal = useMemo(
+    () => figures(flowOf(mainRows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots)), mode),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mainRows, table, mode],
+  );
+  const noTzLots = noTzRows.reduce((n, r) => n + r.lots.length, 0);
+  const noTzTotal = useMemo(() => figures(flowOf(noTzRows.flatMap((r) => r.lots)), mode), [noTzRows, mode]);
+  const noTzOpen = expanded.has("z:block");
+
+  const renderRow = (row: TableRow, pfx = "g:") => {
     const isSel = table.selectedKeys.includes(row.key);
-    const gk = "g:" + row.key;
+    const gk = pfx + row.key;
     const open = expanded.has(gk);
     const auctions = open ? rowsBy(row.lots, mode, (l) => l.auction, (l) => l.auctionLabel) : [];
     return (
       <Fragment key={row.key}>
         <tr
-          data-row={row.key}
+          data-row={pfx === "g:" ? row.key : pfx + row.key}
           onClick={() => toggleExp(gk)}
           className={cn("cursor-pointer border-t border-neutral-100 hover:bg-neutral-50", isSel && "bg-amber-50/60 hover:bg-amber-50")}
         >
@@ -211,7 +239,7 @@ export function FurSelectionTotal({
           {cells(row.figures)}
         </tr>
         {open && auctions.map((a) => {
-          const ak = `a:${row.key}:${a.key}`;
+          const ak = `a:${pfx}${row.key}:${a.key}`;
           const aOpen = expanded.has(ak);
           return (
             <Fragment key={ak}>
@@ -232,6 +260,13 @@ export function FurSelectionTotal({
                     <div className="text-xs text-neutral-500">
                       {[l.materialName !== row.label ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year)].filter(Boolean).join(" · ")}
                     </div>
+                    {l.attrs.length > 0 && (
+                      <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
+                        {l.attrs.map((a) => (
+                          <span key={a} title="Признак меха" className="rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>
+                        ))}
+                      </div>
+                    )}
                     {(l.purchaseId || l.usages.length > 0) && (
                       <div className="mt-0.5 text-xs text-neutral-500">
                         {l.purchaseId && (
@@ -274,6 +309,7 @@ export function FurSelectionTotal({
       label: FILTER_LABELS[k].kind[kind],
       allLabel: FILTER_LABELS[k].all,
       options: options[k],
+      ...(k === "attr" ? { hint: "Седина (SIL), дикий / клеточный, тонированный… — справочник «Признаки меха» в Настройках" } : {}),
       ...(k === "auction" && kind === "fur" ? { hint: "Одна партия — откроются её счета и лоты (режим «Аукцион»); несколько — таблица сузится по ним" } : {}),
     })),
     { type: "text", name: "q", label: "Поиск", placeholder: kind === "lining" ? "№ лота, ткань, цвет, сорт" : "№ лота, материал, цвет, сорт" },
@@ -366,7 +402,31 @@ export function FurSelectionTotal({
               </td>
               {cells(t, { strong: true, altUsed: true })}
             </tr>
-            {table.rows.map(renderRow)}
+            {mainRows.map((r) => renderRow(r))}
+            {table.rows.length > 0 && (
+              <>
+                <tr data-block="with-tz" className="border-t-2 border-neutral-300 bg-neutral-50/70 text-[13px] font-medium">
+                  <td className="sticky left-0 z-10 bg-neutral-50 px-3 py-2">
+                    Лоты с ТЗ<span className="ml-1.5 text-xs font-normal text-neutral-400">{mainTotal.lots} лот.</span>
+                  </td>
+                  {cells(mainTotal, { small: true })}
+                </tr>
+                <tr data-block="no-tz" onClick={() => toggleExp("z:block")} className="cursor-pointer border-t border-neutral-200 bg-amber-50/50 text-[13px] font-medium hover:bg-amber-50">
+                  <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2">
+                    <button type="button" aria-expanded={noTzOpen} className="text-left" onClick={(e) => { e.stopPropagation(); toggleExp("z:block"); }}>
+                      <span aria-hidden className={cn("mr-1 inline-block text-neutral-400 transition-transform", noTzOpen && "rotate-90")}>›</span>
+                      Лоты без ТЗ — не использованы
+                      <span className="ml-1.5 text-xs font-normal text-neutral-400">{noTzLots} лот.</span>
+                    </button>
+                  </td>
+                  {cells(noTzTotal, { small: true })}
+                </tr>
+                {noTzOpen && noTzRows.map((r) => renderRow(r, "z:"))}
+                {noTzOpen && noTzRows.length === 0 && (
+                  <tr><td colSpan={nCols} className="px-3 py-3 pl-9 text-xs text-neutral-400">Все лоты использованы в ТЗ</td></tr>
+                )}
+              </>
+            )}
             {table.rows.length === 0 && (
               <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-400">{lots.length === 0 ? "Закупок за выбранный период нет" : "Нет данных по выбранным фильтрам"}</td></tr>
             )}

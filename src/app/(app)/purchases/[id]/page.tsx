@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { RecordHistory } from "@/components/record-history";
+import { RecordComments } from "@/components/comments/record-comments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -17,6 +18,7 @@ import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
 import { PurchasePaymentForm } from "./payment-form";
+import { PaymentFormButton } from "@/components/payment-form";
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
@@ -39,7 +41,8 @@ import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { VerifyBlock } from "../../verify/verify-block";
 import { ConfirmSubmitButton } from "./documents-form";
-import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V } from "@/lib/concurrency";
+import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
+import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -127,6 +130,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const canEditRole = hasRole(session.user.role, ACCESS.purchases);
   const canReceive = ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"].includes(session.user.role);
   const editable = statusEditable && canEditRole;
+  // Принятая закупка: № счёта, УПД, дата и аукцион правятся (поставщик, склад, валюта — нет: лоты уже посчитаны).
+  const headerEditable = canEditRole && purchase.status !== "CANCELLED";
+  const receivedHeader = headerEditable && !statusEditable;
   const canEditPlan = editable;
   const colorOptions = canEditRole ? await getColorOptions(session.user.organizationId) : [];
   const canAddColor = hasRole(session.user.role, ACCESS.colors);
@@ -168,7 +174,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ? warehouses
     : [purchase.warehouse, ...warehouses];
 
-  const auctionRefs = editable
+  const auctionRefs = headerEditable
     ? await prisma.auction.findMany({
         where: { organizationId: session.user.organizationId, isService: false },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -182,6 +188,39 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const auctionIdDefault = linked
     ? (!textKey || auctionKeys(linked).has(textKey) ? linked.id : null)
     : findAuctionIn(purchase.auctionSession, auctionRefs)?.id ?? null;
+
+  // Другие закупки этого поставщика — куда можно перенести оплату при правке.
+  const payTargets =
+    canEditRole && purchase.payments.length > 0
+      ? (
+          await prisma.purchase.findMany({
+            where: { organizationId: session.user.organizationId, supplierId: purchase.supplierId, id: { not: purchase.id }, status: { not: "CANCELLED" } },
+            orderBy: { orderDate: "desc" },
+            take: 60,
+            select: { id: true, number: true, orderDate: true, auctionSession: true },
+          })
+        ).map((t) => ({ id: t.id, label: `${t.number} · ${formatDate(t.orderDate)}${t.auctionSession ? ` · ${t.auctionSession.split(/\r?\n/)[0].trim()}` : ""}` }))
+      : [];
+  const payEdit = (p: (typeof purchase.payments)[number]) =>
+    canEditRole ? (
+      <PaymentEditButton
+        purchaseId={id}
+        paymentId={p.id}
+        version={rowVersion(p, PAYMENT_EDIT_V)}
+        targets={payTargets}
+        defaults={{ amount: p.amount.toString(), paidAt: p.paidAt.toISOString().slice(0, 10), method: p.method, status: p.status === "PENDING" ? "PENDING" : "COMPLETED", docRef: p.docRef ?? "", notes: p.notes ?? "" }}
+      />
+    ) : null;
+  const expenseEdit = (e: (typeof purchase.expenses)[number]) =>
+    editable ? (
+      <ExpenseEditButton
+        purchaseId={id}
+        expenseId={e.id}
+        version={rowVersion(e, PURCHASE_EXPENSE_V)}
+        categories={expenseCategories.map((c) => ({ id: c.id, name: c.name }))}
+        defaults={{ categoryId: e.categoryId, amount: e.amount.toString(), vatRate: e.vatRate.toString(), description: e.description ?? "" }}
+      />
+    ) : null;
 
   const grossUp = (base: Decimal, vatRate: Decimal) => base.add(base.mul(vatRate).div(100));
 
@@ -475,9 +514,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <div className="mt-2 flex items-center gap-2">
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
-          {editable && (
+          {headerEditable && (
             <div className="mt-2 max-w-md">
               <PurchaseEditForm
+                receivedMode={receivedHeader}
                 action={boundUpdatePurchase}
                 currencyLocked={planItems.length > 0}
                 auctions={auctionRefs}
@@ -770,14 +810,17 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     </Td>
                     {editable && (
                       <Td>
-                        <form
-                          action={async () => {
-                            "use server";
-                            await boundRemoveExpense(e.id);
-                          }}
-                        >
-                          <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." />
-                        </form>
+                        <div className="flex items-center gap-1">
+                          {expenseEdit(e)}
+                          <form
+                            action={async () => {
+                              "use server";
+                              await boundRemoveExpense(e.id);
+                            }}
+                          >
+                            <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." />
+                          </form>
+                        </div>
                       </Td>
                     )}
                   </Tr>
@@ -798,14 +841,17 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   ]}
                   extra={
                     editable && (
-                      <form
-                        action={async () => {
-                          "use server";
-                          await boundRemoveExpense(e.id);
-                        }}
-                      >
-                        <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." variant="outline" className="max-md:h-10" />
-                      </form>
+                      <div className="flex items-center gap-2">
+                        {expenseEdit(e)}
+                        <form
+                          action={async () => {
+                            "use server";
+                            await boundRemoveExpense(e.id);
+                          }}
+                        >
+                          <ConfirmSubmitButton message="Удалить расход закупки? Себестоимость закупки пересчитается." variant="outline" className="max-md:h-10" />
+                        </form>
+                      </div>
                     )
                   }
                 />
@@ -813,6 +859,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </ResponsiveRows>
           )}
           {purchase.expenses.length === 0 && <p className="text-sm text-neutral-400">Расходов нет</p>}
+          {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
+            <p className="text-xs text-neutral-500">
+              Расходы принятой закупки уже распределены по лотам, поэтому здесь не правятся: изменение сломало бы себестоимость лотов, которые могли уйти в ТЗ.
+            </p>
+          )}
           {purchase.expenses.length > 0 && expensesTotalInclVat.greaterThan(0) && (
             <div className="text-sm text-neutral-600">
               Расходы = {formatMoney(expensesTotalInclVat.toString())} (с НДС) → в цену единицы добавится ≈{" "}
@@ -836,7 +887,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           {purchase.status === "CANCELLED" ? (
             <p className="text-sm text-neutral-500">Закупка отменена — оплаты добавлять нельзя.</p>
           ) : !canEditRole ? null : (
-            <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
+            <div className="flex flex-col gap-3">
+              <div><PaymentFormButton label="Внести оплату (аванс, % от суммы, документы)" preset={{ side: "supplier", purchaseId: id }} /></div>
+              <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
+            </div>
           )}
           <ResponsiveRows
             table={
@@ -846,7 +900,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Th>Дата</Th>
                 <Th>Способ</Th>
                 <Th>Сумма</Th>
-                <Th>Заметка</Th>
+                <Th>П/п, заметка</Th>
                 {canEditRole && <Th></Th>}
               </Tr>
             </Thead>
@@ -859,16 +913,19 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {formatMoney(p.amount.toString())}
                     {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                   </Td>
-                  <Td>{p.notes ?? "—"}</Td>
+                  <Td>{[p.docRef ? `п/п ${p.docRef}` : null, p.notes].filter(Boolean).join(" · ") || "—"}</Td>
                   {canEditRole && (
                     <Td>
-                      <PaymentDeleteButton
-                        amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                        action={async () => {
-                          "use server";
-                          await boundRemovePayment(p.id);
-                        }}
-                      />
+                      <div className="flex items-center gap-1">
+                        {payEdit(p)}
+                        <PaymentDeleteButton
+                          amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                          action={async () => {
+                            "use server";
+                            await boundRemovePayment(p.id);
+                          }}
+                        />
+                      </div>
                     </Td>
                   )}
                 </Tr>
@@ -892,17 +949,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 badge={p.status === "PENDING" ? <span className="text-xs text-amber-600">запланирована</span> : undefined}
                 fields={[
                   { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
+                  ...(p.docRef ? [{ label: "П/п, счёт", value: p.docRef }] : []),
                   ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
                 ]}
                 extra={
                   canEditRole && (
-                    <PaymentDeleteButton
-                      amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                      action={async () => {
-                        "use server";
-                        await boundRemovePayment(p.id);
-                      }}
-                    />
+                    <div className="flex items-center gap-2">
+                      {payEdit(p)}
+                      <PaymentDeleteButton
+                        amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                        action={async () => {
+                          "use server";
+                          await boundRemovePayment(p.id);
+                        }}
+                      />
+                    </div>
                   )
                 }
               />
@@ -912,6 +973,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </CardContent>
       </Card>
       <RecordHistory model="Purchase" recordId={purchase.id} />
+      <RecordComments entityType="Purchase" entityId={purchase.id} />
     </div>
     </ItemRowShared>
   );

@@ -16,6 +16,8 @@ export type LotRow = {
   size: string;
   /** «Операция»: PurchaseItem.notes */
   op: string;
+  /** Признаки меха лота (справочник /settings/fur-attrs). */
+  attrs?: string[];
   qty: number;
   unit: string;
   /** цена лота за шкуру в валюте закупки */
@@ -39,6 +41,9 @@ export type LotRow = {
   breakdown: unknown;
   /** Параметры редактора расчёта (только у черновиков с costPlan) */
   editor: unknown;
+  /** Лот на складе (для значка документов) и число документов лота и его закупки. */
+  lotId?: string | null;
+  docs?: number;
 };
 
 export type PurchaseMeta = {

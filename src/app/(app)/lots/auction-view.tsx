@@ -16,6 +16,7 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
 import { buildAuctionRows } from "./auction-rows";
+import { docCounts } from "@/lib/doc-links";
 import { LotsProvider } from "./lots-state";
 import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable } from "./lots-table";
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
@@ -188,7 +189,7 @@ export async function AuctionView({
           where: itemWhere,
           include: {
             rawMaterial: true,
-            lot: { include: { usages: { include: { productionOrder: true } } } },
+            lot: { include: { usages: { include: { productionOrder: true } }, attrs: { select: { attr: { select: { name: true } } } } } },
           },
           orderBy: { id: "asc" },
         },
@@ -283,6 +284,8 @@ export async function AuctionView({
     select: { id: true, name: true, type: true, position: true },
   });
   const lotsData = buildAuctionRows(blocks, UNIT_LABELS, canEdit);
+  const lotDocCnt = await docCounts(organizationId, "lot", lotsData.rows.map((r) => r.lotId).filter((x): x is string => !!x));
+  for (const r of lotsData.rows) if (r.lotId) r.docs = lotDocCnt.get(r.lotId)?.total ?? 0;
 
   const docRows: { d: (typeof batchDocs)[number]; batch: boolean; purchaseId: string; purchaseLabel: string }[] = [
     ...batchDocs.map((d) => ({ d, batch: true, purchaseId: purchasesRaw[0]?.id ?? "", purchaseLabel: "" })),

@@ -248,7 +248,7 @@ function BarView({
   const field = "h-11 rounded-lg border bg-white px-3 text-sm hover:border-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400";
 
   return (
-    <section data-filter-bar aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
+    <section data-filter-bar data-comment-anchor="filters" data-comment-label="Панель фильтров" aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>

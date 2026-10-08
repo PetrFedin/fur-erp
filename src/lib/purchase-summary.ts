@@ -48,6 +48,8 @@ export type Leaf = {
   full: Money2;
   /** Оплачено с НДС (распределено). */
   paidIncl: Decimal;
+  /** Признаки меха лота позиции (справочник /settings/fur-attrs); у позиции без лота — пусто. */
+  attrs: string[];
   /** Закупка не принята (черновик/заказана): мех на складе ещё не стоит, стоимость — расчётная. */
   draft: boolean;
 };
@@ -117,10 +119,12 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
       where: { organizationId, status: { not: "CANCELLED" } },
       include: {
         expenses: true,
+        // Оплаты самой закупки (для закупок вне аукциона — единственный источник «Оплачено»).
+        payments: { where: { status: "COMPLETED" }, select: { amount: true } },
         items: {
           include: {
             rawMaterial: { select: { name: true, unit: true } },
-            lot: { include: { _count: { select: { purchaseItems: true } } } },
+            lot: { include: { _count: { select: { purchaseItems: true } }, attrs: { select: { attr: { select: { name: true } } } } } },
           },
           orderBy: { id: "asc" },
         },
@@ -176,7 +180,8 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
     // Оплачено по этой закупке: её собственные оплаты + доля оплат аукциона целиком.
     const a = byName.get(auction);
     const pp = a?.perPurchase.find((x) => x.id === p.id);
-    let paid = pp?.paid ?? zero();
+    // Закупка вне аукциона в byName не попадает (buildAuctionSummaries пропускает записи без аукциона): её оплаты — p.payments.
+    let paid = pp?.paid ?? (a ? zero() : p.payments.reduce((s, x) => s.add(x.amount), zero()));
     if (a && a.paidByAuction.greaterThan(0) && a.total.greaterThan(0) && pp) {
       paid = paid.add(a.paidByAuction.mul(pp.total).div(a.total));
     }
@@ -204,6 +209,7 @@ export async function loadSummary(organizationId: string): Promise<SummaryData> 
         price: { incl: l.priceIncl, excl: l.base },
         full: { incl: l.fullIncl, excl: l.fullExcl },
         paidIncl: paid.mul(share),
+        attrs: l.i.rawMaterial.unit === "M" ? [] : (l.i.lot?.attrs ?? []).map((a) => a.attr.name),
         draft: p.status !== "RECEIVED",
       });
     }

@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readOneDriveFile, removeDriveFileIfUnused, writeDriveFile } from "@/lib/drive-files";
 import { resetByDriveDoc } from "@/lib/verification";
+import { staleError, DRIVE_DOC_V } from "@/lib/concurrency";
 
 export type DriveDocState = { error?: string; ok?: boolean };
 
@@ -317,5 +318,42 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
   await removeDriveFileIfUnused(doc.storagePath);
   await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
+  return { ok: true };
+}
+
+/**
+ * Метаданные документа: название, тип, номер, дата, примечание (год берётся из даты).
+ * Ссылку на Drive и файл здесь не меняем (файл — «Заменить файл»). Подтверждение того, к чему привязан документ, сбрасывается:
+ * тип/номер/дата документа входят в правила «все документы на месте».
+ */
+export async function updateDriveDocument(documentId: string, formData: FormData): Promise<DriveDocState> {
+  const session = await requireSession();
+  const orgId = session.user.organizationId;
+  const doc = await prisma.driveDocument.findFirst({ where: { id: documentId, organizationId: orgId }, include: DOC_INCLUDE });
+  if (!doc) return { error: "Документ не найден" };
+  if (!hasRole(session.user.role, driveDocRemoveRoles(doc))) return { error: "Недостаточно прав для правки документов" };
+  const stale = staleError(formData, doc, DRIVE_DOC_V);
+  if (stale) return { error: stale };
+  const title = String(formData.get("title") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 200);
+  if (!title) return { error: "Укажите название документа" };
+  const typeRaw = String(formData.get("docType") ?? "OTHER");
+  if (!(DRIVE_DOC_TYPES as readonly string[]).includes(typeRaw)) return { error: "Неизвестный тип документа" };
+  const dateRaw = String(formData.get("docDate") ?? "").trim();
+  const docDate = dateRaw ? parseDateInput(dateRaw) : null;
+  if (dateRaw && !docDate) return { error: "Некорректная дата документа" };
+  await prisma.driveDocument.update({
+    where: { id: doc.id },
+    data: {
+      title,
+      docType: typeRaw as DriveDocTypeKey,
+      docNumber: String(formData.get("docNumber") ?? "").trim().slice(0, 100) || null,
+      docDate,
+      year: docDate ? docDate.getUTCFullYear() : null,
+      notes: String(formData.get("notes") ?? "").trim().slice(0, 1000) || null,
+    },
+  });
+  await resetByDriveDoc(doc);
+  revalidateDriveDoc(doc);
+  revalidatePath("/documents");
   return { ok: true };
 }

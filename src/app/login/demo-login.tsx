@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 function setValue(id: string, value: string) {
   const el = document.getElementById(id) as HTMLInputElement | null;
   if (!el) return;
@@ -8,34 +10,38 @@ function setValue(id: string, value: string) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+// Демо-доступ: спокойная секция под формой, без отдельной карточки и цветной заливки.
 export function DemoLogin({ email, password }: { email: string; password: string }) {
   return (
-    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-neutral-800">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="font-semibold text-neutral-900">Демо-доступ</div>
-          <div className="mt-0.5 text-xs text-neutral-600">Используйте эти данные для входа в демонстрационную версию.</div>
-        </div>
-        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800">DEMO</span>
+    <section aria-labelledby="demo-title" className="mt-8 border-t border-neutral-200 pt-6">
+      <div className="flex items-center gap-2">
+        <h2 id="demo-title" className="text-sm font-semibold text-neutral-900">
+          Демо-доступ
+        </h2>
+        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium tracking-wide text-neutral-700">
+          DEMO
+        </span>
       </div>
+      <p className="mt-1 text-sm text-neutral-600">Данные для входа в демонстрационную версию.</p>
 
-      <div className="grid grid-cols-[74px_1fr] gap-x-3 gap-y-2 rounded-lg bg-white/80 px-3 py-2.5">
-        <span className="text-neutral-500">Логин</span>
-        <span className="break-all font-mono font-medium select-all">{email}</span>
-        <span className="text-neutral-500">Пароль</span>
-        <span className="break-all font-mono font-medium select-all">{password}</span>
-      </div>
+      <dl className="mt-3 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+        <dt className="text-neutral-600">Email</dt>
+        <dd className="break-all font-mono text-neutral-900 select-all">{email}</dd>
+        <dt className="text-neutral-600">Пароль</dt>
+        <dd className="break-all font-mono text-neutral-900 select-all">{password}</dd>
+      </dl>
 
-      <button
+      <Button
         type="button"
-        className="mt-3 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 transition hover:bg-amber-100"
+        variant="outline"
+        className="mt-4 h-11 w-full border-neutral-500 text-sm focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
         onClick={() => {
           setValue("email", email);
           setValue("password", password);
         }}
       >
-        Подставить логин и пароль
-      </button>
-    </div>
+        Подставить email и пароль
+      </Button>
+    </section>
   );
 }

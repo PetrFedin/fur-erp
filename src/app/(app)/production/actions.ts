@@ -17,7 +17,9 @@ import { checkOrgRefs } from "@/lib/org-guard";
 import { MAX_QTY, parsePrice, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { resolveColorInput } from "@/lib/colors";
-import { staleError, ORDER_V } from "@/lib/concurrency";
+import { staleError, ORDER_V, PRODUCTION_PAYMENT_V, BATCH_V } from "@/lib/concurrency";
+import { resetByProdPayment } from "@/lib/verification";
+import { isUniqueViolation } from "@/lib/input";
 
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
@@ -1272,6 +1274,167 @@ export async function removeProductionPayment(orderId: string, paymentId: string
   await prisma.productionPayment.delete({ where: { id: paymentId } });
   for (const alloc of payment.orders) await resetByOrder(alloc.productionOrderId);
   for (const alloc of payment.orders) revalidatePath(`/production/${alloc.productionOrderId}`);
+}
+
+/**
+ * Правка оплаты работы: сумма, тип, способ, дата, № п/п, заметка и набор ТЗ, которые она покрывает.
+ * Остаток по ТЗ и по партии пересчитывается сам (он считается из оплат); «подтверждено» сбрасывается.
+ */
+export async function updateProductionPayment(orderId: string, paymentId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const payment = await prisma.productionPayment.findFirst({
+    where: { id: paymentId, organizationId: orgId, orders: { some: { productionOrderId: orderId } } },
+    include: { orders: { select: { productionOrderId: true } } },
+  });
+  if (!payment) return { error: "Оплата не найдена (возможно, уже удалена)" };
+  const stale = staleError(formData, payment, PRODUCTION_PAYMENT_V);
+  if (stale) return { error: stale };
+  const parsed = productionPaymentSchema.safeParse({
+    amount: formData.get("amount"),
+    paymentType: formData.get("paymentType") || payment.paymentType,
+    method: formData.get("method"),
+    paidAt: formData.get("paidAt"),
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { error: issue?.path[0] === "paidAt" ? "Укажите дату оплаты" : issue?.message };
+  }
+  const wanted = Array.from(new Set(formData.getAll("orderIds").map(String).filter(Boolean)));
+  if (wanted.length === 0) return { error: "Отметьте хотя бы одно ТЗ, которое покрывает оплата" };
+  const valid = await prisma.productionOrder.findMany({
+    where: { id: { in: wanted }, organizationId: orgId },
+    select: { id: true },
+  });
+  if (valid.length !== wanted.length) return { error: "Одно из выбранных ТЗ не найдено — обновите страницу" };
+  const docRef = (formData.get("docRef") as string)?.trim().slice(0, 200) || null;
+  const oldIds = payment.orders.map((o) => o.productionOrderId);
+
+  await prisma.$transaction([
+    prisma.productionPayment.update({
+      where: { id: paymentId },
+      data: {
+        amount: parsed.data.amount,
+        paymentType: parsed.data.paymentType,
+        method: parsed.data.method,
+        paidAt: new Date(parsed.data.paidAt),
+        notes: (formData.get("notes") as string)?.trim() || null,
+        docRef,
+      },
+    }),
+    prisma.productionPaymentOrder.deleteMany({ where: { productionPaymentId: paymentId, productionOrderId: { notIn: wanted } } }),
+    prisma.productionPaymentOrder.createMany({
+      data: wanted.filter((id) => !oldIds.includes(id)).map((productionOrderId) => ({ productionPaymentId: paymentId, productionOrderId })),
+      skipDuplicates: true,
+    }),
+  ]);
+  const all = Array.from(new Set([...oldIds, ...wanted]));
+  await resetByProdPayment(orgId, paymentId, all);
+  for (const id of all) revalidatePath(`/production/${id}`);
+  for (const path of ["/production", "/production/batches", "/payments", "/dashboard", "/verify", "/documents"]) revalidatePath(path);
+  return {};
+}
+
+const batchSchema = z.object({
+  number: z.string().regex(/^\d{1,4}$/, "Номер партии — целое число от 1 до 9999"),
+  name: z.string().trim().max(200),
+  year: z.string().trim().regex(/^(\d{4})?$/, "Год — четыре цифры"),
+  plannedUnits: z.string().trim().regex(/^(\d{1,6})?$/, "План, шт. — целое число"),
+  notes: z.string().trim().max(2000),
+});
+
+/** Правка партии: номер, название, год, план, примечание. Номер должен быть свободен; ТЗ, документы и оплаты остаются привязаны (связь по id). */
+export async function updateProductionBatch(batchId: string, formData: FormData): Promise<FormState & { number?: number }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const batch = await prisma.productionBatch.findFirst({ where: { id: batchId, organizationId: orgId } });
+  if (!batch) return { error: "Партия не найдена" };
+  const stale = staleError(formData, batch, BATCH_V);
+  if (stale) return { error: stale };
+  const parsed = batchSchema.safeParse({
+    number: String(formData.get("number") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    year: String(formData.get("year") ?? ""),
+    plannedUnits: String(formData.get("plannedUnits") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля партии" };
+  const number = Number(parsed.data.number);
+  if (number < 1) return { error: "Номер партии — целое число от 1 до 9999" };
+  const year = parsed.data.year ? Number(parsed.data.year) : null;
+  if (year !== null && (year < 2000 || year > 2100)) return { error: "Год вне диапазона 2000–2100" };
+  if (number !== batch.number) {
+    const taken = await prisma.productionBatch.findFirst({ where: { organizationId: orgId, number, id: { not: batchId } }, select: { id: true } });
+    if (taken) return { error: `Партия с номером ${number} уже есть — выберите другой номер или объедините ТЗ через карточки ТЗ` };
+  }
+  try {
+    await prisma.productionBatch.update({
+      where: { id: batchId },
+      data: {
+        number,
+        name: parsed.data.name || null,
+        year,
+        plannedUnits: parsed.data.plannedUnits ? Number(parsed.data.plannedUnits) : null,
+        notes: parsed.data.notes || null,
+      },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: `Партия с номером ${number} уже есть` };
+    throw e;
+  }
+  await resetByBatch(orgId, batchId);
+  invalidateFilterOptions(orgId);
+  for (const n of [batch.number, number]) revalidatePath(`/production/batches/${n}`);
+  for (const path of ["/production", "/production/batches", "/payments", "/dashboard", "/verify", "/documents", "/analytics/products", "/analytics/raw"]) revalidatePath(path);
+  return { number };
+}
+
+/**
+ * Цвета составного ТЗ (несколько цветов в одном приложении): заменяем набор строк целиком.
+ * Строки: цвет из справочника, количество (шт., необязательно), размеры («42, 46», необязательно).
+ * Пусто — цвет ТЗ снова берётся из основного поля «Цвет» формы ТЗ.
+ */
+export async function setOrderColors(orderId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const order = await prisma.productionOrder.findFirst({
+    where: { id: orderId, organizationId: orgId },
+    include: { colors: { select: { colorRefId: true, quantity: true, sizes: true }, orderBy: { createdAt: "asc" } } },
+  });
+  if (!order) return { error: "ТЗ не найдено" };
+  const cur = JSON.stringify(order.colors.map((c) => [c.colorRefId, c.quantity ?? "", c.sizes ?? ""]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+  const sent = formData.get("_v");
+  if (typeof sent === "string" && sent !== "" && sent !== cur) {
+    return { error: "Цвета ТЗ успели изменить — ваши правки не сохранены. Обновите страницу (F5) и внесите правки заново." };
+  }
+  const ids = formData.getAll("colorRefId").map(String);
+  const qtys = formData.getAll("quantity").map(String);
+  const sizes = formData.getAll("sizes").map(String);
+  const rows: { colorRefId: string; quantity: number | null; sizes: string | null }[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const colorRefId = ids[i].trim();
+    if (!colorRefId) continue;
+    const q = (qtys[i] ?? "").trim();
+    if (q && !/^\d{1,6}$/.test(q)) return { error: "Количество по цвету — целое число" };
+    rows.push({ colorRefId, quantity: q ? Number(q) : null, sizes: (sizes[i] ?? "").trim().slice(0, 100) || null });
+  }
+  if (new Set(rows.map((r) => r.colorRefId)).size !== rows.length) return { error: "Один и тот же цвет выбран дважды — объедините строки" };
+  const refs = await prisma.colorRef.count({ where: { organizationId: orgId, id: { in: rows.map((r) => r.colorRefId) } } });
+  if (refs !== rows.length) return { error: "Цвет не найден в справочнике — обновите страницу" };
+  const total = rows.reduce((s, r) => s + (r.quantity ?? 0), 0);
+  if (total > 0 && new Decimal(total).greaterThan(order.plannedQuantity)) {
+    return { error: `Сумма по цветам (${total} шт.) больше планового количества ТЗ (${order.plannedQuantity.toString()} шт.)` };
+  }
+  await prisma.$transaction([
+    prisma.productionOrderColor.deleteMany({ where: { orderId } }),
+    prisma.productionOrderColor.createMany({ data: rows.map((r) => ({ orderId, ...r })) }),
+  ]);
+  await resetByOrder(orderId);
+  invalidateFilterOptions(orgId);
+  revalidatePath(`/production/${orderId}`);
+  for (const path of ["/production", "/production/batches", "/analytics/products", "/plan"]) revalidatePath(path);
+  return {};
 }
 
 // Any not-yet-completed ТЗ (planned or in progress) can be cancelled as long

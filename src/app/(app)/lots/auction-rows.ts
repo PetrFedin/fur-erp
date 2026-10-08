@@ -20,7 +20,7 @@ type Line = {
     extra: unknown;
     rawMaterialId: string;
     rawMaterial: { name: string; unit: string };
-    lot: { quantityRemaining: Decimal; usages: { id: string; productionOrderId: string; quantity: Decimal; productionOrder: { number: string } }[] } | null;
+    lot: { id?: string; attrs?: { attr: { name: string } }[]; quantityRemaining: Decimal; usages: { id: string; productionOrderId: string; quantity: Decimal; productionOrder: { number: string } }[] } | null;
   };
   unitIncl: Decimal;
   unitExcl: Decimal;
@@ -101,6 +101,7 @@ export function buildAuctionRows(
         lotNumber: i.lotNumber ?? "",
         size: [i.grade, i.color].filter(Boolean).join(" / "),
         op: i.notes ?? "",
+        attrs: (i.lot?.attrs ?? []).map((a) => a.attr.name),
         qty,
         unit: unitLabels[i.rawMaterial.unit] ?? "",
         price: n(i.unitPrice),
@@ -114,6 +115,7 @@ export function buildAuctionRows(
         priceExcl: n(l.base),
         source: l.source,
         onStock: Boolean(i.lot),
+        lotId: i.lot?.id ?? null,
         remaining: i.lot ? n(i.lot.quantityRemaining) : 0,
         usages: (i.lot?.usages ?? []).map((u) => ({ id: u.id, orderId: u.productionOrderId, number: u.productionOrder.number, qty: n(u.quantity) })),
         parts,

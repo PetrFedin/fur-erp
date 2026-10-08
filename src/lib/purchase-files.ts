@@ -80,7 +80,12 @@ export async function readDocumentFiles(
     if (f.size > MAX_DOC_BYTES) return { error: `Файл «${name}» (${formatMb(f.size)} МБ) больше лимита 25 МБ` };
     const buf = Buffer.from(await f.arrayBuffer());
     const kind = detectDocument(buf.subarray(0, 16), name, buf);
-    if (!kind) return { error: `Файл «${name}» не подходит: допустимы PDF, XLSX, DOCX, JPEG, PNG` };
+    if (!kind) {
+      if (/\.(heic|heif)$/i.test(name)) {
+        return { error: `Файл «${name}» в формате HEIC (фото с iPhone) не принимается — сохраните его как JPEG (iPhone: Настройки → Камера → Форматы → «Наиболее совместимый») или как PDF` };
+      }
+      return { error: `Файл «${name}» не подходит: допустимы PDF, XLSX, DOCX, JPEG, PNG (до 25 МБ)` };
+    }
     out.push({ buf, kind, originalName: truncateFileName(fixFileNameExt(name, kind.ext), 200) });
   }
   return { files: out };

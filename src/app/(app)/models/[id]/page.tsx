@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getCategoryOptions } from "@/lib/categories";
 import { RecordHistory } from "@/components/record-history";
+import { RecordComments } from "@/components/comments/record-comments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
@@ -170,6 +171,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </CardContent>
       </Card>
       <RecordHistory model="ProductModel" recordId={model.id} />
+      <RecordComments entityType="ProductModel" entityId={model.id} />
     </div>
   );
 }

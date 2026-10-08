@@ -7,6 +7,8 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
 import { TILE_BOX, TileHead } from "./tile";
+import { ModeLine, Note, type ModeInfo } from "./mode-line";
+import { formatCompactMoney } from "./compact";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 type View = "fur" | "lining" | "all";
@@ -35,7 +37,7 @@ function Row({ k, v, sub, strong }: { k: string; v: React.ReactNode; sub?: React
   );
 }
 
-export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c4: "on" | "off"; lots: number }) {
+export function RawBlock({ fur, lining, c4, lots, info, orderFilters }: { fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [view, setView] = useState<View>("fur");
   const F = fur[vat];
@@ -84,7 +86,8 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
             {usdBought && "hint" in usdBought && usdBought.hint ? <p className="mt-1">{usdBought.hint}</p> : null}
             <p className="mt-1">Куплено − использовано = остаток (шт. и ₽ без 4%). «Всё» показывает только ₽: шкуры и метры не складываются.</p>
           </InfoHint>
-          <span className="text-xs text-neutral-500">{lots} лотов · {vatW}</span>
+          <span className="text-xs text-neutral-500">{lots} лотов</span>
+          <ModeLine info={info} c4={c4} />
         </div>
         <div className="flex items-center gap-3">
           <div role="tablist" aria-label="Вид сырья" className="inline-flex overflow-hidden rounded-md border border-neutral-300 print:hidden">
@@ -101,7 +104,7 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
           ) : (
             <>
               <Row k="Количество" v={`${formatQty(cur.recvQty)} ${unit}`} strong />
-              <Row k="Сумма" v={rub(cur.recvValue)} />
+              <Row k="Сумма (всегда без 4%)" v={rub(cur.recvValue)} />
               <Row k={`Средневзвешенная цена, ₽/${unit === "м" ? "м" : "шт."}`} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
               {usdTile && usdBought ? <Row k="Средневзвешенная цена, $/шт." v={usdBought.main} sub={usdBought.note} /> : null}
               {view === "lining" && usdBought ? <Row k="Цена в долларах" v={<span className="text-neutral-500">{usdBought.main}</span>} sub={usdBought.note} /> : null}
@@ -116,7 +119,7 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
             <>
               <Row k="Количество" v={`${formatQty(cur.usedQty)} ${unit}`} strong />
               <Row k={`Сумма (${c4W})`} v={rub(cur.usedValue)} sub={<>{otherW}: {rub(cur.usedValueOther)}</>} />
-              <Row k={`Средневзвешенная цена, ₽/${unit === "м" ? "м" : "шт."} (${c4W})`} v={cur.usedAvg != null ? rub(cur.usedAvg) : "—"} />
+              <Row k={`Средневзвешенная цена, ₽/${unit === "м" ? "м" : "шт."} (${c4W})`} v={cur.usedAvg != null ? rub(cur.usedAvg) : "—"} sub={cur.usedQty > 0 ? <>{otherW}: {rub(cur.usedValueOther / cur.usedQty)}</> : undefined} />
               {usdTile ? (
                 <Row k="По USD-лотам, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} sub={F.usdUsedAvg != null ? `по ${formatQty(F.usdUsedQty)} из ${formatQty(F.usedQty)} шт.` : undefined} />
               ) : null}
@@ -130,7 +133,7 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
           ) : (
             <>
               <Row k="Количество" v={`${formatQty(cur.remQty)} ${unit}`} strong />
-              <Row k="Сумма" v={rub(cur.remValue)} />
+              <Row k="Сумма (всегда без 4%)" v={rub(cur.remValue)} />
               <Row k={`Средневзвешенная цена, ₽/${unit === "м" ? "м" : "шт."}`} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
               {usdTile ? (
                 <Row k="По USD-лотам, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} sub={F.usdRemAvg != null ? `по ${formatQty(F.usdRemQty)} из ${formatQty(F.remQty)} шт.` : undefined} />
@@ -139,6 +142,32 @@ export function RawBlock({ fur, lining, c4, lots }: { fur: Pair; lining: Pair; c
           )}
         </Card>
       </div>
+      <RawBridge F={F} L={L} view={view} c4={c4} vat={vat} unit={unit} orderFilters={orderFilters} />
     </section>
+  );
+}
+
+const mln = (v: number) => formatCompactMoney(v);
+
+/** Мост «куплено = использовано (без 4%) + остаток»; 4% и НДС — отдельными прибавками, чтобы было видно, откуда разница. */
+function RawBridge({ F, L, view, c4, vat, unit, orderFilters }: { F: FlowFigures; L: FlowFigures; view: View; c4: "on" | "off"; vat: "incl" | "excl"; unit: string; orderFilters: boolean }) {
+  const parts = view === "all" ? [F, L] : [view === "lining" ? L : F];
+  const sum = (k: "recvValue" | "remValue" | "usedValue" | "usedValueOther") => parts.reduce((a, x) => a + x[k], 0);
+  const usedBase = c4 === "on" ? sum("usedValueOther") : sum("usedValue");
+  const c4Extra = Math.abs(sum("usedValue") - sum("usedValueOther"));
+  // НДС в «Куплено» — по ставке лота (20% и 22%), поэтому одной формулой «×1,2» его не получить.
+  return (
+    <div className="space-y-1">
+      <Note>
+        <b>Куплено {mln(sum("recvValue"))} = использовано {mln(usedBase)} (без 4%) + остаток {mln(sum("remValue"))}</b>
+        {view !== "all" ? <> ({formatQty(parts[0].recvQty)} = {formatQty(parts[0].usedQty)} + {formatQty(parts[0].remQty)} {unit})</> : null}
+        . «Куплено» и «Остаток» всегда без 4%: надбавка 4% начисляется только при списании в ТЗ.{" "}
+        {c4 === "on"
+          ? <>В «Использовано» сейчас <b>с 4%: +{mln(c4Extra)}</b> — поэтому {mln(sum("usedValue"))} + остаток {mln(sum("remValue"))} ≠ куплено, и средневзвешенная «куплено» может лежать вне интервала «использовано — остаток».</>
+          : <>С 4% использованное было бы на {mln(c4Extra)} больше (мелкая строка в «Использовано»).</>}
+        {" "}Цены — {vat === "incl" ? "с НДС" : "без НДС"}; НДС берётся по ставке каждого лота (20% или 22%).
+      </Note>
+      {orderFilters ? <Note tone="warn">Выбран фильтр по ТЗ: «Использовано» — только в выбранных ТЗ, остальное списание в «Остаток» не попадает, поэтому куплено − использовано ≠ остаток.</Note> : null}
+    </div>
   );
 }

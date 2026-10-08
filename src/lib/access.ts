@@ -26,6 +26,10 @@ export const ACCESS = {
   supplierPayments: ["OWNER", "ADMIN", "PURCHASER", "ACCOUNTANT"],
   // Журнал изменений (/history, блоки «История изменений» на карточках): читают владелец, администратор, бухгалтер.
   history: ["OWNER", "ADMIN", "ACCOUNTANT"],
+  // Комментарии («Оставить комментарий»): создавать и отвечать может любой вошедший; менять статус и удалять чужие — эти роли.
+  comments: ["OWNER", "ADMIN"],
+  // Решения владельца в «Контроль → Задачи» (двойной учёт, разнос аванса, ставки НДС…): записывают владелец и администратор.
+  taskDecisions: ["OWNER", "ADMIN"],
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export function hasRole(role: string | undefined | null, allowed: readonly string[]): boolean {

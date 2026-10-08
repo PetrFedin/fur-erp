@@ -10,19 +10,25 @@ import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionLabeler, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
+import { loadClientDebt, type ClientDebt, type ClientDebtRow } from "@/lib/payment-alloc";
 import { loadDebtInputs, supplierDebtFromInputs, type SupplierDebt } from "@/lib/supplier-debt";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
-import { YEARS, type YearFilter } from "@/lib/year-filter";
+import { YEARS, inYear, type YearFilter } from "@/lib/year-filter";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import {
-  figuresPair, furLiningFlows, isDone, orderMatches, prodTotals, restrictUsage, selectLots, toDrillOrder, orderFiltersOn,
+  figuresPair, furLiningFlows, isDone, orderMatches, prodTotals, restrictUsage, selectLots, toDrillOrder, orderFiltersOn, lotFiltersOn,
   type DashFilters, type Pair, type ProdTotals,
 } from "@/lib/dashboard-calc";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 
 /** Девять чисел строки «куплено / использовано / остаток»: шт, ₽, средневзвешенная ₽/шт. */
-export type Cells = { rq: number; rv: number; ra: number | null; uq: number; uv: number; ua: number | null; mq: number; mv: number; ma: number | null };
-const cellsOf = (f: FlowFigures): Cells => ({ rq: f.recvQty, rv: f.recvValue, ra: f.recvAvg, uq: f.usedQty, uv: f.usedValue, ua: f.usedAvg, mq: f.remQty, mv: f.remValue, ma: f.remAvg });
+export type Cells = {
+  rq: number; rv: number; ra: number | null; uq: number; uv: number; ua: number | null; mq: number; mv: number; ma: number | null;
+  /** «Использовано» в ПРОТИВОПОЛОЖНОЙ базе 4% (режим «с 4%» → без 4%, и наоборот): сумма и средневзвешенная. «Куплено» и «Остаток» всегда без 4%. */
+  uo: number; uoa: number | null;
+};
+const cellsOf = (f: FlowFigures): Cells => ({ rq: f.recvQty, rv: f.recvValue, ra: f.recvAvg, uq: f.usedQty, uv: f.usedValue, ua: f.usedAvg, mq: f.remQty, mv: f.remValue, ma: f.remAvg, uo: f.usedValueOther, uoa: f.usedQty > 0 ? Math.round((f.usedValueOther / f.usedQty) * 100) / 100 : null });
 export type CellsPair = Pair<Cells>;
 const cellsPair = (lots: FurLot[], c4: C4Kind): CellsPair => {
   const fl = flowOf(lots);
@@ -40,7 +46,7 @@ export type YearRow = {
   debt: number;
 };
 
-export type ClientDebtRow = { clientId: string; clientName: string; billable: number; paid: number; balance: number; unpricedOrders: number; orders: number };
+export type { ClientDebtRow };
 
 export type DashboardData = {
   c4: Commission4Mode;
@@ -52,13 +58,26 @@ export type DashboardData = {
   debt: SupplierDebt;
   supplierCashPaid: number;
   clientDebts: ClientDebtRow[];
+  /** Разнесение оплат заказчиков: разнесено на ТЗ, неразнесённые авансы (по виду), учтены ли они в остатке. */
+  clientDebtInfo: Pick<ClientDebt, "allocated" | "unallocated" | "unallocatedAll" | "unallocatedApplied" | "unallocatedByKind">;
   invoiceDeadlines: { auction: string; date: string; amount: number }[];
   control: ControlCounts | null;
-  options: Awaited<ReturnType<typeof getFilterOptions<"auction" | "fur" | "color" | "batch">>>;
+  options: Awaited<ReturnType<typeof getFilterOptions<"auction" | "fur" | "color" | "attr" | "batch">>>;
   noColorLots: number;
   /** ID выбранных ТЗ (для окна «стоимость производства»). */
   orderIds: string[];
   furTotalLots: number;
+  /** «Мост» между блоками (пояснения у цифр): всё в рублях. */
+  bridge: {
+    /** Мех + подкладка, использованные по лотам Сводки, БЕЗ 4% (то, что сравнивается с сырьём в ТЗ). */
+    usedBase: Pair<number>;
+    /** Совпадает ли «Использовано» блока «Сырьё» с сырьём в ТЗ: нет при годе шапки (разные правила года) и при фильтрах по лотам (ТЗ берутся целиком). */
+    usedComparable: boolean;
+    /** Закупки года с НДС, без отменённых: мех получен (= лоты «Куплено») и ещё не получен (черновики). */
+    purchases: { received: number; draft: number };
+    /** Работа по ТЗ с заказчиком: завершённые, в работе, и работа по ТЗ без заказчика (в «Долг заказчиков» не входит). */
+    clientWork: { done: number; work: number; noClient: number };
+  };
 };
 
 export const furNameFn = async (orgId: string) => {
@@ -92,7 +111,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     loadOrderRows(orgId, "all", c4),
     loadDebtInputs(prisma, orgId),
-    getFilterOptions(orgId, year, ["auction", "fur", "color", "batch"]),
+    getFilterOptions(orgId, year, ["auction", "fur", "color", "attr", "batch"]),
     prisma.rawMaterialLot.count({ where: { organizationId: orgId, colorRefId: null, color: null } }),
     loadControlCounts(orgId, year).catch(() => null),
     f.auction.length ? purchaseIdsByAuction(orgId, f.auction).then((a) => new Set(a)) : Promise.resolve(null),
@@ -161,11 +180,11 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   // «Итого» = сумма строк по каждой аддитивной колонке (куплено, использовано, остаток, произведено, оплачено, долг).
   // Средневзвешенные цены в итоговой строке считаются от сумм, а не складываются.
   const sumCells = (list: Cells[]): Cells => {
-    const t = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0 });
+    const t = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
     const r2 = (v: number) => Math.round(v * 100) / 100;
     const r3 = (v: number) => Math.round(v * 1000) / 1000;
     const avg = (v: number, q: number) => (q > 0 ? r2(v / q) : null);
-    return { rq: r3(t.rq), rv: r2(t.rv), ra: avg(t.rv, t.rq), uq: r3(t.uq), uv: r2(t.uv), ua: avg(t.uv, t.uq), mq: r3(t.mq), mv: r2(t.mv), ma: avg(t.mv, t.mq) };
+    return { rq: r3(t.rq), rv: r2(t.rv), ra: avg(t.rv, t.rq), uq: r3(t.uq), uv: r2(t.uv), ua: avg(t.uv, t.uq), mq: r3(t.mq), mv: r2(t.mv), ma: avg(t.mv, t.mq), uo: r2(t.uo), uoa: avg(t.uo, t.uq) };
   };
   const sumPair = (list: CellsPair[]): CellsPair => ({ incl: sumCells(list.map((c) => c.incl)), excl: sumCells(list.map((c) => c.excl)) });
   // Строки, где нет ни одной ненулевой цифры, не показываем (в сумму они ничего не вносят).
@@ -192,44 +211,32 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     .sort((a, b) => a.sort.localeCompare(b.sort))
     .map(({ auction, date, amount }) => ({ auction, date, amount }));
 
-  // Долг заказчиков (давальческие ТЗ): по ТЗ, прошедшим те же фильтры; оплаты — привязанные к ним, либо без ТЗ по году.
-  const ids = ordersYear.map((o) => o.id);
-  const [clientOrders, clientPaymentsAll] = await Promise.all([
-    prisma.productionOrder.findMany({ where: { organizationId: orgId, id: { in: ids }, clientId: { not: null } }, include: { client: true } }),
-    prisma.productionPayment.findMany({ where: { organizationId: orgId }, include: { orders: { select: { productionOrderId: true } } } }),
-  ]);
-  const yearOrderIds = new Set(clientOrders.map((o) => o.id));
-  const filtersActive = Boolean(f.auction.length || f.fur.length || f.color.length || f.vat.length || f.status.length || f.batch.length);
-  const clientPayments = clientPaymentsAll.filter((p) => {
-    if (p.status !== "COMPLETED") return false;
-    if (p.orders.length > 0) return year === "all" && !filtersActive ? true : p.orders.some((l) => yearOrderIds.has(l.productionOrderId));
-    return year === "all" ? true : new Date(p.paidAt).getUTCFullYear() === Number(year);
-  });
-  const map = new Map<string, { clientId: string; clientName: string; billable: Decimal; paid: Decimal; unpricedOrders: number; orders: number }>();
-  for (const o of clientOrders) {
-    if (!o.clientId || !o.client) continue;
-    const e = map.get(o.clientId) ?? { clientId: o.clientId, clientName: o.client.name, billable: new Decimal(0), paid: new Decimal(0), unpricedOrders: 0, orders: 0 };
-    e.orders += 1;
-    if (o.clientWorkPricePerUnit) e.billable = e.billable.add(o.clientWorkPricePerUnit.mul(orderUnits(o).toFixed(3)));
-    else e.unpricedOrders += 1;
-    map.set(o.clientId, e);
-  }
-  for (const p of clientPayments) {
-    const e = p.clientId ? map.get(p.clientId) : undefined;
-    if (e) e.paid = e.paid.add(p.amount);
-  }
-  const clientDebts: ClientDebtRow[] = Array.from(map.values())
-    .map((c) => ({ clientId: c.clientId, clientName: c.clientName, billable: c.billable.toNumber(), paid: c.paid.toNumber(), balance: c.billable.sub(c.paid).toNumber(), unpricedOrders: c.unpricedOrders, orders: c.orders }))
-    .sort((a, b) => b.balance - a.balance);
+  // Долг заказчиков (давальческие ТЗ): единая функция loadClientDebt (payment-alloc.ts) — работа выбранных ТЗ
+  // минус оплачено, где оплачено = разнесено на эти ТЗ (PaymentAllocation) + неразнесённые авансы года.
+  const filtersActive = Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length || f.status.length || f.batch.length);
+  const clientDebt = await loadClientDebt(prisma, orgId, { year, orderIds: ordersYear.map((o) => o.id), orderFiltersActive: filtersActive });
+  const clientDebts: ClientDebtRow[] = clientDebt.rows;
+
+  const furPair = figuresPair(fl.fur, c4k), liningPair = figuresPair(fl.lining, c4k);
+  const usedBaseOf = (v: "incl" | "excl") => [furPair[v], liningPair[v]].reduce((a, x) => a + (c4 === "on" ? x.usedValueOther : x.usedValue), 0);
+  const purchasesYear = debtInputs.allPurchases.filter((p) => p.status !== "CANCELLED" && inYear(p.orderDate, year));
+  const sumPurch = (pred: (st: string) => boolean) => purchasesYear.filter((p) => pred(p.status)).reduce((a, p) => a.add(purchaseTotalInclVat(p)), new Decimal(0)).toNumber();
+  const workOf = (pred: (o: OrderRow) => boolean) => ordersYear.filter(pred).reduce((a, o) => a + o.work, 0);
 
   return {
     c4,
-    raw: { fur: figuresPair(fl.fur, c4k), lining: figuresPair(fl.lining, c4k), lots: lotsYear.length },
+    raw: { fur: furPair, lining: liningPair, lots: lotsYear.length },
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))) },
     rawTable, rawTableTotal, years, debt,
     supplierCashPaid: debt.paid.add(debt.unlinkedAdvances).toNumber(),
-    clientDebts, invoiceDeadlines, control, options, noColorLots,
+    clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options, noColorLots,
     orderIds: ordersYear.map((o) => o.id),
     furTotalLots: lotsYear.length,
+    bridge: {
+      usedBase: { incl: usedBaseOf("incl"), excl: usedBaseOf("excl") },
+      usedComparable: year === "all" && !lotFiltersOn(f),
+      purchases: { received: sumPurch((st) => st === "RECEIVED"), draft: sumPurch((st) => st !== "RECEIVED") },
+      clientWork: { done: workOf((o) => o.clientName != null && isDone(o)), work: workOf((o) => o.clientName != null && !isDone(o)), noClient: workOf((o) => o.clientName == null) },
+    },
   };
 }

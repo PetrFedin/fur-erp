@@ -47,7 +47,33 @@ export type DriveDocView = {
   storedName?: string | null;
   storedMime?: string | null;
   storedSize?: number | null;
+  /** Примечание к документу (для окна «Изменить»). */
+  notes?: string | null;
+  /** Версия метаданных на момент показа (защита от одновременной правки). */
+  version?: string;
 };
+
+/**
+ * Тип документа по имени файла (подсказка при загрузке; пользователь может поправить).
+ * «Платёжка_123.pdf» → PAYMENT_PROOF, «УПД 143» → UPD, «ТЗ 88» → TZ_APPENDIX…; не распознано — null.
+ */
+export function guessDocType(fileName: string): DriveDocTypeKey | null {
+  const n = fileName.toLowerCase().replace(/ё/g, "е");
+  const rules: [RegExp, DriveDocTypeKey][] = [
+    [/платеж|п\/п|\bпп\b|payment|swift|квитанц/, "PAYMENT_PROOF"],
+    [/упд|\bupd\b|универсальн.*передат|\bакт\b/, "UPD"],
+    [/сч[её]т.*оплат|на оплату|proforma|проформ/, "PAYMENT_INVOICE"],
+    [/расчет|calc/, "CALC_SHEET"],
+    [/специф|specification/, "SPECIFICATION"],
+    [/договор|contract/, "CONTRACT"],
+    [/\bтз\b|тех.*задан|приложени/, "TZ_APPENDIX"],
+    [/письм|e-?mail|согласован/, "APPROVAL_EMAIL"],
+    [/баланс|сверк|reconcil/, "BALANCE"],
+    [/сч[её]т|invoice|инвойс|аукцион/, "AUCTION_INVOICE"],
+  ];
+  for (const [re, t] of rules) if (re.test(n)) return t;
+  return null;
+}
 
 /** Id файла Google Drive: 20+ символов [A-Za-z0-9_-]. */
 const ID_RE = /^[A-Za-z0-9_-]{20,}$/;

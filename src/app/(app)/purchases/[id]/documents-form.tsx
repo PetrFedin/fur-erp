@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { formatMb } from "@/lib/format-mb";
 import { uploadPurchaseDocuments, type DocFormState } from "../doc-actions";
 import { uploadDriveDocument } from "../../drive-actions";
+import { guessDocType } from "@/lib/drive-docs";
+import { clientFileError } from "@/components/drive-documents";
 
 const KINDS: [string, string][] = [
   ["AUCTION_INVOICE", "Счёт аукциона"],
@@ -30,12 +32,22 @@ export function DocumentsForm({
 }) {
   const [state, setState] = useState<DocFormState>({});
   const [pending, startTransition] = useTransition();
+  const [kind, setKind] = useState("AUCTION_INVOICE");
   const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
+    for (const f of fd.getAll("files")) {
+      if (typeof f !== "string" && f.name !== "" && f.name !== "undefined" && f.size > 0) {
+        const bad = clientFileError(f);
+        if (bad) {
+          setState({ error: bad });
+          return;
+        }
+      }
+    }
     const files = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
     const picked = fd.getAll("files").filter((f): f is File => typeof f !== "string" && f.name !== "" && f.name !== "undefined");
     const scope = String(fd.get("scope") ?? "purchase");
@@ -79,12 +91,24 @@ export function DocumentsForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
       <label className="flex flex-col gap-1 text-xs text-neutral-500">
-        Файлы (PDF, XLSX, DOCX, JPEG, PNG; всего до 25 МБ)
-        <input type="file" name="files" multiple required className="text-sm" />
+        Файлы (PDF, XLSX, DOCX, JPEG, PNG; до 10 за раз, всего до 25 МБ)
+        <input
+          type="file"
+          name="files"
+          multiple
+          required
+          accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
+          className="text-sm"
+          onChange={(e) => {
+            const fs = Array.from(e.currentTarget.files ?? []);
+            const g = fs.length === 1 ? guessDocType(fs[0].name) : null;
+            if (g && KINDS.some(([v]) => v === g)) setKind(g);
+          }}
+        />
       </label>
       <label className="flex flex-col gap-1 text-xs text-neutral-500">
         Тип
-        <select name="kind" defaultValue="AUCTION_INVOICE" className={field}>
+        <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={field}>
           {KINDS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}

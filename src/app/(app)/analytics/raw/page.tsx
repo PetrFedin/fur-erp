@@ -84,6 +84,16 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
     ...Array.from(sizeCount, ([value, count]) => ({ value, label: value, count })).sort((a, b) => a.label.localeCompare(b.label, "ru", { numeric: true })),
     ...(noSizeLots > 0 ? [{ value: "Не указан", label: "Размер не указан в документах", count: noSizeLots }] : []),
   ];
+  const attrCount = new Map<string, number>();
+  let noAttrLots = 0;
+  for (const l of scoped) {
+    if (l.attrs.length === 0) noAttrLots++;
+    for (const a of l.attrs) attrCount.set(a, (attrCount.get(a) ?? 0) + 1);
+  }
+  const attrOpts = [
+    ...Array.from(attrCount, ([value, count]) => ({ value, label: value, count })).sort((a, b) => a.label.localeCompare(b.label, "ru", { numeric: true })),
+    ...(attrCount.size > 0 && noAttrLots > 0 ? [{ value: "none", label: "Без признака", count: noAttrLots }] : []),
+  ];
   const pyearOpts = Array.from(new Set(scoped.map((l) => String(l.year)))).sort((a, b) => Number(b) - Number(a));
 
   // Ссылки страницы (вкладки, группировка, выгрузка CSV) — те же канонические параметры, что читает parseFilters:
@@ -94,6 +104,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   for (const v of f.kind) entries.push(["fur", v]);
   for (const v of f.pyear) entries.push(["pyear", v]);
   for (const v of f.size) entries.push(["size", v]);
+  for (const v of f.attr) entries.push(["attr", v]);
   if (f.onlyRem) entries.push(["rest", "1"]);
   if (f.q) entries.push(["q", f.q]);
   if (f.model) entries.push(["model", f.model]);
@@ -280,6 +291,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: kindOpts.map((k) => ({ value: k, label: k })) },
           { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOpts.map((y) => ({ value: y, label: y })) },
           ...(sizeOpts.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", options: sizeOpts, hint: "По документам (размер лота); без размера — отдельной строкой в конце" }] : []),
+          ...(attrOpts.length > 1 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: attrOpts, hint: "Седина (SIL), дикий / клеточный, тонированный… — справочник «Признаки меха» в Настройках" }] : []),
           { type: "text", name: "q", label: "Поиск по лоту / сорту", placeholder: "напр. 15016" },
           { type: "multi", name: "rest", label: "Остаток", single: true, allLabel: "Любой", options: [{ value: "1", label: "Только с остатком" }] },
         ]}

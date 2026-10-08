@@ -12,16 +12,16 @@ export const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запл�
 
 // Фильтры Сводки (год — общий, из шапки).
 export const DASH_FILTERS = defineFilters({
-  ...pick(["auction", "fur", "color", "batch", "status", "vat"], {
+  ...pick(["auction", "fur", "color", "attr", "batch", "status", "vat"], {
     status: { allowed: Object.keys(ORDER_STATUS_LABELS) },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     vat: { allowed: ["20", "22"] },
   }),
 });
 
-export type DashFilters = { auction: string[]; fur: string[]; color: string[]; batch: string[]; status: string[]; vat: string[] };
+export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; status: string[]; vat: string[] };
 
-export const lotFiltersOn = (f: DashFilters) => Boolean(f.auction.length || f.fur.length || f.color.length || f.vat.length);
+export const lotFiltersOn = (f: DashFilters) => Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length);
 export const orderFiltersOn = (f: DashFilters) => Boolean(f.status.length || f.batch.length);
 
 // ───────────────────────────── лоты ─────────────────────────────
@@ -35,10 +35,14 @@ export function selectLots(lots: FurLot[], year: YearFilter, f: DashFilters, auc
     if (aucIds && !(l.purchaseId != null && aucIds.has(l.purchaseId))) return false;
     if (f.fur.length && !(l.kind === "fur" && f.fur.includes(l.item))) return false;
     if (f.color.length && !((colors.none && l.color === NOT_SET) || colors.rest.includes(l.color))) return false;
+    if (f.attr.length && !hasAttr(l.attrs, f.attr)) return false;
     if (vats.length && !vats.includes(l.vatRate)) return false;
     return true;
   });
 }
+
+/** Признак меха: лот (ТЗ-строка) подходит, если у него есть любой из выбранных признаков; none — признаков нет. */
+const hasAttr = (attrs: string[], selected: string[]) => (attrs.length ? attrs.some((a) => selected.includes(a)) : selected.includes("none"));
 
 /** Использовано только по выбранным ТЗ (фильтры «Статус ТЗ» / «Партия производства»): куплено и остаток не меняются. */
 export function restrictUsage(lots: FurLot[], orderIds: Set<string> | null): FurLot[] {
@@ -82,6 +86,7 @@ export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | 
       if (aucIds && !(l.purchaseId != null && aucIds.has(l.purchaseId))) return false;
       if (f.fur.length && !(!l.isLining && f.fur.includes(furName(l.rawName)))) return false;
       if (f.color.length && !((colors.none && l.lotColor == null) || (l.lotColor != null && colors.rest.includes(l.lotColor)))) return false;
+      if (f.attr.length && !(!l.isLining && hasAttr(l.lotAttrs, f.attr))) return false;
       if (vats.length && !vats.includes(l.vat)) return false;
       return true;
     });
@@ -90,14 +95,15 @@ export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | 
   return true;
 }
 
-export type ProdTotals = { orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number };
+export type ProdTotals = { orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number; furExcl: number; liningExcl: number; c4Excl: number; expenses: number };
 
 /** Сводные числа по ТЗ: «произведено» — завершённые, «в работе» — запланированные и в работе. */
 export function prodTotals(rows: OrderRow[]): ProdTotals {
-  const t: ProdTotals = { orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0 };
+  const t: ProdTotals = { orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0, furExcl: 0, liningExcl: 0, c4Excl: 0, expenses: 0 };
   for (const o of rows) {
     t.orders += 1; t.qty += o.qty; t.costIncl += o.costIncl; t.costExcl += o.costExcl; t.workSum += o.work;
     t.furIncl += o.furIncl; t.liningIncl += o.liningIncl; t.c4Incl += o.c4Incl;
+    t.furExcl += o.furExcl; t.liningExcl += o.liningExcl; t.c4Excl += o.c4Excl; t.expenses += o.expenses;
   }
   return t;
 }

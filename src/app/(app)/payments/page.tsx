@@ -21,7 +21,8 @@ import { resolveAuctionValues } from "@/lib/auction-ref";
 import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
-import { AdvanceForm, AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
+import { PaymentForm } from "@/components/payment-form";
+import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
 import { DriveDocList, UploadDocument } from "@/components/drive-documents";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { toDriveView } from "@/lib/drive-docs-server";
@@ -33,6 +34,7 @@ import { loadPaymentVerify } from "../verify/verify-block";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NONE, activeCount, dateRange, defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { getFilterOptions } from "@/lib/filter-options";
+import { DocBadge } from "@/components/doc-viewer";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -517,7 +519,7 @@ export default async function PaymentsPage({
           ]}
         />
         <ResponsiveRows table={
-        <Table>
+        <Table anchor="table:payments" label="Таблица оплат">
           <Thead>
             <Tr>
               <Th>Дата</Th>
@@ -772,7 +774,10 @@ export default async function PaymentsPage({
                             className={"rounded-lg border bg-white p-3 " + (p.status === "PENDING" ? "border-dashed border-amber-300" : "border-neutral-200")}
                           >
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm md:grid-cols-6">
-                              <Cell label="Дата">{formatDate(p.paidAt)}</Cell>
+                              <Cell label="Дата">
+                                {formatDate(p.paidAt)}
+                                <span className="block"><DocBadge entity="payment" id={p.id} count={new Set(p.driveDocuments.map((d) => d.driveFileId)).size} title="Оплата" /></span>
+                              </Cell>
                               <Cell label="Тип">
                                 {own ? KIND_LABELS[p.kind] ?? p.kind : <span className="text-neutral-500">Оплата закупки</span>}
                                 {closing && (
@@ -892,15 +897,12 @@ export default async function PaymentsPage({
             );
           })()}
 
-          <h2 className="mt-2 text-base font-semibold">Авансы и оплаты без партии закупки</h2>
+          <h2 className="mt-2 text-base font-semibold">Внести оплату · авансы и оплаты без партии закупки</h2>
           {canPay && (
           <details className="max-w-2xl rounded-lg border border-neutral-200 bg-white" open={!selected}>
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Аванс поставщику без привязки к партии закупки</summary>
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Внести оплату: аукцион, закупка, аванс или оплата по работе (мастер)</summary>
             <div className="border-t border-neutral-100 p-3">
-              <p className="mb-3 text-xs text-neutral-500">
-                Гасит общий долг поставщика. Оплату по конкретной партии вносите в блоке этой партии выше («Добавить оплату»).
-              </p>
-              <AdvanceForm suppliers={advSuppliers.filter((x) => suppliers.some((y) => y.id === x.id))} />
+              <PaymentForm />
             </div>
           </details>
           )}

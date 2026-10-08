@@ -49,7 +49,7 @@ export function SeasonEditForm({ season }: { season: { id: string; code: string;
   return (
     <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[8rem_1fr_9rem_9rem_auto]">
       <input type="hidden" name="id" value={season.id} />
-      <div className="col-span-2 flex items-center sm:col-span-1"><span className="font-semibold">{season.code}</span></div>
+      <Input name="code" defaultValue={season.code} required maxLength={30} aria-label="Код сезона" className="col-span-2 h-9 font-semibold sm:col-span-1" />
       <Input name="name" defaultValue={season.name ?? ""} placeholder="Название" maxLength={100} aria-label="Название сезона" className="col-span-2 h-9 sm:col-span-1" />
       <Input name="startDate" type="date" defaultValue={iso(season.startDate)} aria-label="Начало сезона" className="h-9" />
       <Input name="endDate" type="date" defaultValue={iso(season.endDate)} aria-label="Конец сезона" className="h-9" />

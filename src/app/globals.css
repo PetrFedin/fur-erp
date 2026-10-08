@@ -42,3 +42,11 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   opacity: 0.55;
   transition: opacity 0.15s ease;
 }
+
+/* Комментарии (src/components/comments): подсветка блока при «Открыть место» и в режиме «Указать блок». */
+[data-comment-flash] {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 6px;
+  transition: outline-color 0.3s ease;
+}

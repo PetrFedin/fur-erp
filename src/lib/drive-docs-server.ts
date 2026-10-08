@@ -1,3 +1,4 @@
+import { rowVersion, DRIVE_DOC_V } from "@/lib/concurrency";
 import "server-only";
 import type { DriveDocument } from "@prisma/client";
 import type { DriveDocView } from "@/lib/drive-docs";
@@ -29,6 +30,8 @@ export function toDriveView(d: DriveDocument, scope?: string | null, role?: stri
     storedName: d.storedName,
     storedMime: d.storedMime,
     storedSize: d.storedSize,
+    notes: d.notes,
+    version: rowVersion(d, DRIVE_DOC_V),
     canRemove: role === undefined ? undefined : hasRole(role, driveDocRemoveRoles(d)),
   };
 }

@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
 import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
+/** anchor / label — необязательный идентификатор таблицы для комментариев («table:fur»); без него таблица получает номер автоматически. */
+export function Table({ className, anchor, label, ...props }: HTMLAttributes<HTMLTableElement> & { anchor?: string; label?: string }) {
   return (
-    <div className="table-scroll w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+    <div data-comment-anchor={anchor} data-comment-label={label} className="table-scroll w-full overflow-x-auto rounded-lg border border-neutral-200 bg-white">
       <table className={cn("w-full text-sm", className)} {...props} />
     </div>
   );

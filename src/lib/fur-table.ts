@@ -40,6 +40,8 @@ export type FurLot = {
   size: string;
   /** Размеры лота списком (lotSizes(sizeGrade)); пусто — размер в документах не указан. Лот с несколькими размерами попадает под каждый. */
   sizes: string[];
+  /** Признаки меха лота (название из справочника /settings/fur-attrs: «Седина 3», «Дикий»…); пусто — признаков нет. Лот с несколькими признаками попадает под каждый. */
+  attrs: string[];
   /** Полное название партии закупки (ключ фильтра) или NO_AUCTION. */
   auction: string;
   auctionLabel: string;
@@ -217,10 +219,13 @@ export function flowIssues(f: Flow, tolQty = 0.0005, tolMoney = 0.5): string[] {
 
 // ───────────────────────────── фильтры ─────────────────────────────
 
-export type FilterKey = "item" | "year" | "color" | "size" | "auction" | "rest";
+export type FilterKey = "item" | "year" | "color" | "size" | "attr" | "auction" | "rest";
 export type FurFilters = Record<FilterKey, string[]>;
-export const FILTER_KEYS: FilterKey[] = ["item", "year", "color", "size", "auction", "rest"];
-export const emptyFilters = (): FurFilters => ({ item: [], year: [], color: [], size: [], auction: [], rest: [] });
+export const FILTER_KEYS: FilterKey[] = ["item", "year", "color", "size", "attr", "auction", "rest"];
+export const emptyFilters = (): FurFilters => ({ item: [], year: [], color: [], size: [], attr: [], auction: [], rest: [] });
+
+/** Служебное значение фильтра «Признак меха»: у лота нет признаков. */
+export const NO_ATTR = "none";
 export const hasFilters = (f: FurFilters) => FILTER_KEYS.some((k) => f[k].length > 0);
 
 export const REST_LABELS: Record<string, string> = { with: "С остатком", zero: "Исчерпан" };
@@ -231,6 +236,7 @@ export function lotValue(l: FurLot, key: FilterKey): string {
     case "year": return String(l.year);
     case "color": return l.color;
     case "size": return l.size;
+    case "attr": return l.attrs[0] ?? NO_ATTR;
     case "auction": return l.auction;
     case "rest": return l.rem > 0 ? "with" : "zero";
   }
@@ -239,6 +245,7 @@ export function lotValue(l: FurLot, key: FilterKey): string {
 /** Значения лота для фильтра: у размера их может быть несколько (sizeGrade «XXL,XL» — под XXL и под XL); нет размера — NOT_SET. */
 export function lotValues(l: FurLot, key: FilterKey): string[] {
   if (key === "size") return l.sizes.length > 0 ? l.sizes : [NOT_SET];
+  if (key === "attr") return l.attrs.length > 0 ? l.attrs : [NO_ATTR];
   return [lotValue(l, key)];
 }
 
@@ -279,13 +286,14 @@ export function filterOptions(lots: FurLot[], filters: FurFilters, key: FilterKe
   if (key === "year") out.sort((a, b) => Number(b.value) - Number(a.value));
   else if (key === "rest") out.sort((a, b) => (a.value === "with" ? -1 : 1) - (b.value === "with" ? -1 : 1));
   // «не указан в документах» — отдельной строкой в конце списка (с числом лотов).
-  else out.sort((a, b) => Number(a.value === NOT_SET) - Number(b.value === NOT_SET) || collator.compare(a.label, b.label));
+  else out.sort((a, b) => Number(a.value === NOT_SET || a.value === NO_ATTR) - Number(b.value === NOT_SET || b.value === NO_ATTR) || collator.compare(a.label, b.label));
   return out;
 }
 
 function labelOf(l: FurLot, key: FilterKey, v: string): string {
   if (key === "auction") return l.auctionLabel;
   if (key === "rest") return REST_LABELS[v] ?? v;
+  if (v === NO_ATTR && key === "attr") return "Без признака";
   if (v === NOT_SET && key === "size") return "Размер не указан в документах";
   if (v === NOT_SET && key === "color") return "Цвет не указан в документах";
   return v;
@@ -356,8 +364,8 @@ type Q = Record<string, string | string[] | undefined>;
 /** Имена параметров URL: у меха `fur`, `pyear` (старые `year`, `py`), `color`, `size`, `batch`, `rest`; у подкладки — то же с префиксом `l` (`lmat`, `lyear`…). */
 export function paramNames(kind: FurKind): Record<FilterKey, string[]> {
   return kind === "fur"
-    ? { item: ["fur", "kind", "species"], year: ["pyear", "py", "year", "years"], color: ["color"], size: ["size"], auction: ["batch", "auc"], rest: ["rest"] }
-    : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], auction: ["lbatch"], rest: ["lrest"] };
+    ? { item: ["fur", "kind", "species"], year: ["pyear", "py", "year", "years"], color: ["color"], size: ["size"], attr: ["attr"], auction: ["batch", "auc"], rest: ["rest"] }
+    : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], attr: ["lattr"], auction: ["lbatch"], rest: ["lrest"] };
 }
 
 const asList = (v: string | string[] | undefined): string[] =>

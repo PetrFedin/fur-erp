@@ -14,12 +14,13 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4-const";
 import { formatAvg, formatExtra, type CustomFieldDef } from "@/lib/custom-fields";
-import { emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table";
+import { computeTotals, emptyFilters, sortRows, type LotRow, type Sort } from "@/lib/lot-table";
 import { CostBreakdownToggle } from "./cost-breakdown-toggle";
 import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
 import type { CostPlanEditorItem } from "../purchases/[id]/cost-plan-editor";
 import { AddFieldButton, CustomCell, CustomFieldHeader, MobileFieldsManager } from "./custom-field-controls";
 import { FilterPanel } from "./lots-filters";
+import { DocBadge } from "@/components/doc-viewer";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 
 const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 4 });
@@ -355,6 +356,65 @@ function Legend() {
   );
 }
 
+/** Лот без ТЗ — по нему нет списаний в производство. */
+const hasTz = (r: LotRow) => r.usages.length > 0;
+
+/**
+ * Разделение лотов: основной блок — лоты со списаниями в ТЗ, в конце таблицы отдельным сворачиваемым блоком — лоты без ТЗ.
+ * Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (оба считаются по тем же показанным лотам, что и итог без выбора).
+ */
+function useTzSplit(rows: LotRow[]) {
+  const { fields, extraOf } = useLots();
+  return useMemo(() => {
+    const withTz = rows.filter(hasTz);
+    const noTz = rows.filter((r) => !hasTz(r));
+    return {
+      withTz,
+      noTz,
+      withTotals: computeTotals(withTz, fields, extraOf),
+      noTotals: computeTotals(noTz, fields, extraOf),
+    };
+  }, [rows, fields, extraOf]);
+}
+
+function TzBlockFigures({ t, count }: { t: ReturnType<typeof computeTotals>; count: number }) {
+  return (
+    <span className="whitespace-nowrap text-xs font-normal text-neutral-600">
+      {count} лот. · Σ {formatQty(t.qty)} шт. · Σ <Money incl={t.totalIncl} excl={t.totalExcl} />
+      {t.qty > 0 && (
+        <>
+          {" · ср. взвеш. "}
+          <Money incl={t.totalIncl / t.qty} excl={t.totalExcl / t.qty} />
+          {"/шт."}
+        </>
+      )}
+    </span>
+  );
+}
+
+/** Строки-итоги «Лоты с ТЗ» и заголовок сворачиваемого блока «Лоты без ТЗ — не использованы» (внутри <tbody>). */
+function TzSplitHeader({ split, colSpan, open, onToggle }: { split: ReturnType<typeof useTzSplit>; colSpan: number; open: boolean; onToggle: () => void }) {
+  if (split.noTz.length === 0) return null;
+  return (
+    <>
+      <Tr className="bg-neutral-50 text-sm font-medium" data-tz-block="with">
+        <Td colSpan={colSpan}>
+          Лоты с ТЗ <TzBlockFigures t={split.withTotals} count={split.withTz.length} />
+        </Td>
+      </Tr>
+      <Tr className="cursor-pointer border-t-2 border-neutral-300 bg-amber-50/60 text-sm font-medium hover:bg-amber-50" data-tz-block="without" onClick={onToggle}>
+        <Td colSpan={colSpan}>
+          <button type="button" aria-expanded={open} onClick={(e) => { e.stopPropagation(); onToggle(); }} className="mr-2 text-left">
+            <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (open ? "rotate-90" : "")}>›</span>
+            Лоты без ТЗ — не использованы
+          </button>
+          <TzBlockFigures t={split.noTotals} count={split.noTz.length} />
+        </Td>
+      </Tr>
+    </>
+  );
+}
+
 /** Таблица лотов одного счёта. */
 export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purchaseId: string; currency: string; hasEditCol: boolean }) {
   const { fields, selected, setSelected, canEdit } = useLots();
@@ -367,6 +427,9 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
     if (headRef.current) headRef.current.indeterminate = someSel && !allSel;
   }, [someSel, allSel]);
   const h = heads(symbol(currency));
+  const split = useTzSplit(rows);
+  const [noTzOpen, setNoTzOpen] = useState(false);
+  const mainRows = split.noTz.length > 0 ? split.withTz : rows;
   return (
     <div className="flex flex-col gap-2">
       <LotsControls scope={purchaseId} />
@@ -374,15 +437,25 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
         {rows.length > 0 && rows.every((r) => !r.onStock) && (
           <p className="text-xs text-neutral-500">Мех по этому счёту ещё не принят на склад — остаток появится после приёмки.</p>
         )}
-        {rows.map((r) => (
+        {mainRows.map((r) => (
           <LotCardView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />
         ))}
+        {split.noTz.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2" data-tz-block="without">
+            <button type="button" aria-expanded={noTzOpen} onClick={() => setNoTzOpen((o) => !o)} className="text-left text-sm font-medium">
+              <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
+              Лоты без ТЗ — не использованы
+              <span className="mt-0.5 block"><TzBlockFigures t={split.noTotals} count={split.noTz.length} /></span>
+            </button>
+            {noTzOpen && split.noTz.map((r) => <LotCardView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />)}
+          </div>
+        )}
         {rows.length === 0 && (
           <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "В закупке нет позиций" : "Нет лотов, подходящих под фильтр"}</p>
         )}
       </div>
       <div className="hidden md:block">
-      <Table>
+      <Table anchor="table:lots" label="Таблица лотов закупки">
         <Thead>
           <Tr>
             <Th className="w-10 sm:w-8">
@@ -410,7 +483,11 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
           </Tr>
         </Thead>
         <Tbody>
-          {rows.map((r) => (
+          {mainRows.map((r) => (
+            <LotRowView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />
+          ))}
+          <TzSplitHeader split={split} colSpan={h.length + fields.length + 3} open={noTzOpen} onToggle={() => setNoTzOpen((o) => !o)} />
+          {noTzOpen && split.noTz.map((r) => (
             <LotRowView key={r.id} row={r} fields={fields} hasEditCol={hasEditCol} currency={currency} />
           ))}
           {rows.length === 0 && (
@@ -459,8 +536,18 @@ function LotRowView({
           </Link>
         </Td>
       )}
-      <Td className="whitespace-nowrap">{r.lotNumber || "—"}</Td>
-      <Td>{r.size || "—"}</Td>
+      <Td className="whitespace-nowrap">
+        {r.lotNumber || "—"}
+        {r.lotId && <DocBadge entity="lot" id={r.lotId} count={r.docs ?? 0} title={`Лот ${r.lotNumber || r.material}`} className="ml-1" />}
+      </Td>
+      <Td>
+        {r.size || "—"}
+        {(r.attrs?.length ?? 0) > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
+            {r.attrs!.map((a) => <span key={a} title="Признак меха" className="rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>)}
+          </div>
+        )}
+      </Td>
       <Td className="min-w-32 text-xs text-neutral-600">{r.op || "—"}</Td>
       <Td className="whitespace-nowrap">
         {formatQty(r.qty)} {r.unit}
@@ -561,6 +648,7 @@ function LotCardView({
       }
       fields={[
         { label: "Кол-во", value: `${formatQty(r.qty)} ${r.unit}` },
+        ...(r.lotId ? [{ label: "Документы", value: <DocBadge entity="lot" id={r.lotId} count={r.docs ?? 0} title={`Лот ${r.lotNumber || r.material}`} /> }] : []),
         { label: "Себестоимость всего", value: <Money incl={r.totalIncl} excl={r.totalExcl} />, strong: true },
         { label: "Себестоимость ед.", value: <Money incl={r.unitIncl} excl={r.unitExcl} /> },
         // Лот ещё не принят на склад: «Остатка на складе» нет вовсе, вместо повтора в каждой карточке — бейдж «не принят».
@@ -571,6 +659,7 @@ function LotCardView({
       details={[
         { label: "Сорт / размер", value: r.size },
         { label: "Операция", value: r.op },
+        ...((r.attrs?.length ?? 0) > 0 ? [{ label: "Признаки меха", value: r.attrs!.join(", ") }] : []),
         { label: `Цена за шк., ${symbol(currency)}`, value: formatCurrency(r.price, currency) },
         { label: "Курс", value: rateFmt(r.rate) },
         {
@@ -769,6 +858,17 @@ export function FlatLotsPanel() {
     if (headRef.current) headRef.current.indeterminate = someSel && !allSel;
   }, [someSel, allSel]);
   const cur = view.totals.currencies.length === 1 ? symbol(view.totals.currencies[0]) : "вал.";
+  const split = useTzSplit(rows);
+  const [noTzOpen, setNoTzOpen] = useState(false);
+  const mainRows = split.noTz.length > 0 ? split.withTz : rows;
+  const flatCard = (r: LotRow) => {
+    const m = purchases.get(r.purchaseId);
+    return <LotCardView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+  };
+  const flatRow = (r: LotRow) => {
+    const m = purchases.get(r.purchaseId);
+    return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
+  };
   return (
     <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" data-auction-flat>
       <div>
@@ -777,10 +877,17 @@ export function FlatLotsPanel() {
       </div>
       <LotsControls scope={ALL_SCOPE} />
       <div className="flex flex-col gap-2 md:hidden">
-        {rows.map((r) => {
-          const m = purchases.get(r.purchaseId);
-          return <LotCardView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
-        })}
+        {mainRows.map(flatCard)}
+        {split.noTz.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2" data-tz-block="without">
+            <button type="button" aria-expanded={noTzOpen} onClick={() => setNoTzOpen((o) => !o)} className="text-left text-sm font-medium">
+              <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
+              Лоты без ТЗ — не использованы
+              <span className="mt-0.5 block"><TzBlockFigures t={split.noTotals} count={split.noTz.length} /></span>
+            </button>
+            {noTzOpen && split.noTz.map(flatCard)}
+          </div>
+        )}
         {rows.length === 0 && (
           <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}</p>
         )}
@@ -820,10 +927,9 @@ export function FlatLotsPanel() {
           </Tr>
         </Thead>
         <Tbody>
-          {rows.map((r) => {
-            const m = purchases.get(r.purchaseId);
-            return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
-          })}
+          {mainRows.map(flatRow)}
+          <TzSplitHeader split={split} colSpan={FLAT_COLS.length + fields.length + 2} open={noTzOpen} onToggle={() => setNoTzOpen((o) => !o)} />
+          {noTzOpen && split.noTz.map(flatRow)}
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={FLAT_COLS.length + fields.length + 2} className="py-4 text-center text-neutral-400">

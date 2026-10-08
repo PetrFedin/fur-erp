@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { staleError } from "@/lib/concurrency";
 
 const MANAGE_ROLES = ["OWNER", "ADMIN"] as const;
 const ROLE_VALUES = [
@@ -104,6 +105,22 @@ export async function toggleUserActive(id: string): Promise<UserFormState> {
   }
 
   await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { isActive: !user.isActive } });
+  revalidatePath("/users");
+  return {};
+}
+
+/** Имя пользователя (отображается в журнале и подтверждениях). Роль и активность — отдельными действиями; e-mail и пароль здесь не меняются. */
+export async function updateUserName(id: string, formData: FormData): Promise<UserFormState> {
+  const session = await requireRole(...MANAGE_ROLES);
+  const orgId = session.user.organizationId;
+  const target = await prisma.user.findFirst({ where: { id, organizationId: orgId } });
+  if (!target) return { error: "Пользователь не найден" };
+  if (target.role === "OWNER" && session.user.role !== "OWNER") return { error: OWNER_ONLY };
+  const stale = staleError(formData, target, ["name"], target.updatedAt);
+  if (stale) return { error: stale };
+  const name = String(formData.get("name") ?? "").replace(/[\u0000-\u001f]/g, " ").trim();
+  if (name.length < 2 || name.length > 100) return { error: "Имя — от 2 до 100 символов" };
+  await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { name } });
   revalidatePath("/users");
   return {};
 }

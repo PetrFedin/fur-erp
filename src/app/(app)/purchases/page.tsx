@@ -10,6 +10,8 @@ import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-total
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
+import { DocBadge } from "@/components/doc-viewer";
+import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, toWhere, dateRange } from "@/lib/filters";
@@ -131,6 +133,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     (pageAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, pageAuctionNames) : []).map((a) => [a.name, a]),
   );
 
+  const docCnt = await docCounts(session.user.organizationId, "purchase", purchases.map((p) => p.id));
+
   const opts = await getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur"]);
 
   const live = purchases.filter((p) => p.status !== "CANCELLED");
@@ -163,9 +167,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             Оплаты
           </Link>
           {canCreate && (
-            <Link href="/purchases/new" className={buttonVariants()}>
-              + Новая закупка
-            </Link>
+            <>
+              <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+                Новая партия (мастер)
+              </Link>
+              <Link href="/purchases/new" className={buttonVariants()}>
+                + Новая закупка
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -188,7 +197,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
       <ResponsiveRows
         table={
-      <Table>
+      <Table anchor="table:purchases" label="Таблица закупок">
         <Thead>
           <Tr>
             <Th>№</Th>
@@ -215,7 +224,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 <Td className="font-medium">
                   <Link href={`/purchases/${p.id}`} className="hover:underline">
                     {p.number}
-                  </Link>
+                  </Link>{" "}
+                  <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} />
                 </Td>
                 <Td>{p.supplier.name}</Td>
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
@@ -292,6 +302,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 { label: <VatLabel base="Сумма" />, value: <Money incl={total} excl={totalExclVat} />, strong: true },
                 { label: ap ? "По партии: оплачено" : "Оплачено", value: paidView },
                 { label: "Дата", value: formatDate(p.orderDate) },
+                { label: "Документы", value: <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} /> },
               ]}
               details={[
                 { label: "Партия закупки", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },

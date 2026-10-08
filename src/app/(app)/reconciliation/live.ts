@@ -119,7 +119,7 @@ export async function loadLive(orgId: string): Promise<Live> {
         continue;
       }
       const t = batchTotals(b.orders);
-      group.set(g.id, { cost: n(t.work), paid: n(t.paid), pays: b.orders.reduce((a, o) => a + o.paymentAllocations.length, 0), note: `${b.orders.length} ТЗ` });
+      group.set(g.id, { cost: n(t.work), paid: n(t.paidGross), pays: b.orders.reduce((a, o) => a + o.paymentAllocations.length, 0), note: `${b.orders.length} ТЗ` });
     } else {
       // авансы, аксессуары, индивидуальные: по платежам, привязанным к счетам группы
       const invs = ALL_INVOICES.filter((i) => i.groupIds.includes(g.id));

@@ -306,7 +306,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       />
 
       <ResponsiveRows table={
-      <Table>
+      <Table anchor="table:articles" label="Таблица изделий">
         <Thead>
           <Tr>
             <Th>Модель</Th>

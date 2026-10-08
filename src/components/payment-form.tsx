@@ -1,0 +1,447 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input, Select } from "@/components/ui/input";
+import { DOC_ROLES, LETTER_HINT, PAY_KINDS, PRESET_PERCENTS, canConfirm, guessDocRole, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
+import { getPaymentTargets, quotePaymentTarget, savePayment, type Quote, type Recalc, type Spec, type TargetList } from "@/app/(app)/payments/pay-actions";
+
+const MAX = 25 * 1024 * 1024;
+const money = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽");
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const num = (s: string) => {
+  const t = s.replace(/[\s ]/g, "").replace(",", ".");
+  return t !== "" && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
+};
+const lab = "mb-1 block text-xs text-neutral-500";
+
+export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind };
+
+/**
+ * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид и сумма» → 3 «Документы» → 4 «Подтвердить и сохранить» → экран «Что пересчиталось».
+ * preset фиксирует цель (карточка закупки, панель «Документы и оплата», карточка ТЗ) — тогда шаг 1 только показывает сумму/оплачено/остаток.
+ */
+export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone?: () => void }) {
+  const [targets, setTargets] = useState<TargetList | null>(null);
+  const [side, setSide] = useState<"supplier" | "work">(preset?.side ?? "supplier");
+  const [auction, setAuction] = useState(preset?.auction ?? "");
+  const [purchaseId, setPurchaseId] = useState(preset?.purchaseId ?? "");
+  const [supplierId, setSupplierId] = useState(preset?.supplierId ?? "");
+  const [targetMode, setTargetMode] = useState<"auction" | "purchase" | "advance">(preset?.purchaseId ? "purchase" : preset?.auction ? "auction" : "auction");
+  const [workMode, setWorkMode] = useState<"batch" | "orders">(preset?.orderIds?.length ? "orders" : "batch");
+  const [batchId, setBatchId] = useState(preset?.batchId ?? "");
+  const [orderIds, setOrderIds] = useState<string[]>(preset?.orderIds ?? []);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  const [kind, setKind] = useState<PayKind>(preset?.kind ?? "INVOICE");
+  const [mode, setMode] = useState<"amount" | "percent" | "rest">("amount");
+  const [amount, setAmount] = useState("");
+  const [percent, setPercent] = useState("");
+  const [paidAt, setPaidAt] = useState(today());
+  const [ppNo, setPpNo] = useState("");
+  const [method, setMethod] = useState("BANK_TRANSFER");
+  const [note, setNote] = useState("");
+  const [allocateLater, setAllocateLater] = useState(false);
+  const [files, setFiles] = useState<{ file: File; role: DocRole }[]>([]);
+  const [markConfirmed, setMarkConfirmed] = useState(false);
+  const [error, setError] = useState("");
+  const [recalc, setRecalc] = useState<Recalc | null>(null);
+  const [pending, start] = useTransition();
+  const sending = useRef(false);
+  const locked = !!(preset?.auction || preset?.purchaseId || preset?.batchId || preset?.orderIds?.length);
+
+  useEffect(() => {
+    getPaymentTargets().then(setTargets).catch(() => setError("Не удалось загрузить справочники"));
+  }, []);
+
+  const spec: Spec =
+    side === "supplier"
+      ? { side, auction: targetMode === "auction" ? auction || undefined : undefined, purchaseId: targetMode === "purchase" ? purchaseId || undefined : preset?.purchaseId, supplierId: supplierId || undefined }
+      : { side, batchId: workMode === "batch" ? batchId || undefined : undefined, orderIds: workMode === "orders" ? orderIds : [] };
+  const hasTarget = side === "supplier" ? !!(spec.auction || spec.purchaseId || (targetMode === "advance" && supplierId)) : !!(spec.batchId || spec.orderIds?.length);
+  const specKey = JSON.stringify(spec);
+
+  useEffect(() => {
+    if (!hasTarget || (side === "supplier" && targetMode === "advance")) {
+      setQuote(null);
+      return;
+    }
+    let off = false;
+    quotePaymentTarget(spec).then((q) => !off && setQuote(q)).catch(() => !off && setQuote({ error: "Не удалось получить сумму" }));
+    return () => {
+      off = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specKey, hasTarget]);
+
+  const base = quote?.total ?? 0;
+  const rest = Math.max(0, quote?.remaining ?? 0);
+  const amountNum = mode === "rest" ? rest : mode === "percent" ? percentAmount(base, num(percent)) : num(amount);
+  const afterRemaining = quote?.remaining != null && Number.isFinite(amountNum) ? quote.remaining - (kind === "REFUND" ? -Math.abs(amountNum) : amountNum) : null;
+  const hasProofFile = files.some((f) => f.role === "PAYMENT_PROOF");
+  const confirmOk = canConfirm({ hasProofFile, ppNo, paidAt, amount: amountNum });
+  const noTargetAdvance = side === "supplier" && targetMode === "advance";
+  const kinds = PAY_KINDS.filter((k) => !(side === "work" && k.supplierOnly) && !(noTargetAdvance && k.v !== "ADVANCE"));
+
+  function pickFiles(list: FileList | null) {
+    const add: { file: File; role: DocRole }[] = [];
+    for (const f of Array.from(list ?? [])) {
+      if (f.size === 0) return setError(`Файл «${f.name}» пустой`);
+      if (f.size > MAX) return setError(`Файл «${f.name}» больше 25 МБ`);
+      add.push({ file: f, role: guessDocRole(f.name) });
+    }
+    setError("");
+    setFiles((x) => [...x, ...add].slice(0, 10));
+  }
+
+  function next(to: 2 | 3 | 4) {
+    setError("");
+    if (to === 2 && !hasTarget) return setError("Выберите, что оплачиваем");
+    if (to === 3) {
+      if (mode === "amount" && !(Math.abs(amountNum) > 0)) return setError("Укажите сумму или нажмите 30% / 50% / 70% / остаток");
+      if ((kind === "OTHER" || kind === "REFUND") && note.trim().length < 3) return setError("Для «Другое» и «Возврат / зачёт» напишите пометку");
+    }
+    setStep(to);
+  }
+
+  function save(confirmed = false) {
+    if (sending.current) return; // защита от двойной отправки
+    sending.current = true;
+    setError("");
+    const fd = new FormData();
+    fd.set("side", side);
+    if (spec.auction) fd.set("auction", spec.auction);
+    if (spec.purchaseId) fd.set("purchaseId", spec.purchaseId);
+    if (spec.supplierId) fd.set("supplierId", spec.supplierId);
+    if (spec.batchId) fd.set("batchId", spec.batchId);
+    for (const id of spec.orderIds ?? []) fd.append("orderIds", id);
+    fd.set("kind", kind);
+    fd.set("mode", mode);
+    fd.set("amount", amount);
+    fd.set("percent", percent);
+    fd.set("paidAt", paidAt);
+    fd.set("ppNo", ppNo);
+    fd.set("method", method);
+    fd.set("note", note);
+    if (allocateLater) fd.set("allocateLater", "1");
+    if (markConfirmed) fd.set("markConfirmed", "1");
+    if (confirmed) fd.set("confirmOverpay", "1");
+    for (const f of files) {
+      fd.append("files", f.file);
+      fd.append("fileRoles", f.role);
+    }
+    start(async () => {
+      try {
+        const r = await savePayment(fd);
+        if (r.confirm) {
+          sending.current = false;
+          if (window.confirm(r.confirm)) {
+            sending.current = true;
+            save(true);
+          }
+          return;
+        }
+        if (r.error) {
+          setError(r.error);
+          return;
+        }
+        setRecalc(r.recalc ?? null);
+        setStep(5);
+      } catch {
+        setError("Не удалось сохранить: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь. Проверьте список оплат — возможно, платёж уже записан.");
+      } finally {
+        sending.current = false;
+      }
+    });
+  }
+
+  const stepNames = ["Что оплачиваем", "Вид и сумма", "Документы", "Подтвердить"];
+  const tgt = targets;
+  return (
+    <div className="flex flex-col gap-4" data-payment-form>
+      {step < 5 && (
+        <ol className="flex flex-wrap gap-2 text-xs" aria-label="Шаги оплаты">
+          {stepNames.map((s, i) => (
+            <li key={s} className={`rounded-full border px-3 py-1 ${step === i + 1 ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-600"}`}>
+              {i + 1}. {s}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {step === 1 && (
+        <section className="flex flex-col gap-3">
+          {!locked && (
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Кому платим">
+              {tgt?.canSupplier !== false && (
+                <button type="button" role="radio" aria-checked={side === "supplier"} onClick={() => { setSide("supplier"); setQuote(null); }} className={`rounded-md border px-3 py-2 text-sm ${side === "supplier" ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+                  Поставщику (аукцион / закупка)
+                </button>
+              )}
+              {tgt?.canWork !== false && (
+                <button type="button" role="radio" aria-checked={side === "work"} onClick={() => { setSide("work"); setQuote(null); if (kind === "REFUND") setKind("INVOICE"); }} className={`rounded-md border px-3 py-2 text-sm ${side === "work" ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+                  По работе (партия / ТЗ)
+                </button>
+              )}
+            </div>
+          )}
+          {side === "supplier" && !locked && (
+            <>
+              <div className="flex flex-wrap gap-3 text-sm">
+                {(["auction", "purchase", "advance"] as const).map((m) => (
+                  <label key={m} className="flex items-center gap-1">
+                    <input type="radio" name="pf-target" checked={targetMode === m} onChange={() => { setTargetMode(m); if (m === "advance" && kind !== "ADVANCE") setKind("ADVANCE"); }} />
+                    {m === "auction" ? "Аукцион из справочника" : m === "purchase" ? "Закупка без аукциона" : "Аванс без привязки"}
+                  </label>
+                ))}
+              </div>
+              {targetMode === "auction" && (
+                <div>
+                  <label htmlFor="pf-auction" className={lab}>Аукцион</label>
+                  <Select id="pf-auction" value={auction} onChange={(e) => setAuction(e.target.value)}>
+                    <option value="">— выберите —</option>
+                    {tgt?.auctions.map((a) => (
+                      <option key={a.name} value={a.name}>{a.name} · остаток {money(a.remaining)}</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              {targetMode === "purchase" && (
+                <div>
+                  <label htmlFor="pf-purchase" className={lab}>Закупка</label>
+                  <Select id="pf-purchase" value={purchaseId} onChange={(e) => setPurchaseId(e.target.value)}>
+                    <option value="">— выберите —</option>
+                    {tgt?.purchases.map((p) => (
+                      <option key={p.id} value={p.id}>{p.label} · {p.supplier} · остаток {money(p.remaining)}</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              {targetMode === "advance" && (
+                <div>
+                  <label htmlFor="pf-supplier" className={lab}>Поставщик</label>
+                  <Select id="pf-supplier" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+                    <option value="">— выберите —</option>
+                    {tgt?.suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </Select>
+                  <p className="mt-1 text-xs text-neutral-500">Аванс без разнесения допустим: он получит пометку «разнести позже» и появится в задачах.</p>
+                </div>
+              )}
+            </>
+          )}
+          {side === "work" && !locked && (
+            <>
+              <div className="flex gap-3 text-sm">
+                <label className="flex items-center gap-1"><input type="radio" name="pf-wm" checked={workMode === "batch"} onChange={() => setWorkMode("batch")} /> Партия целиком</label>
+                <label className="flex items-center gap-1"><input type="radio" name="pf-wm" checked={workMode === "orders"} onChange={() => setWorkMode("orders")} /> Одно или несколько ТЗ</label>
+              </div>
+              {workMode === "batch" ? (
+                <div>
+                  <label htmlFor="pf-batch" className={lab}>Партия</label>
+                  <Select id="pf-batch" value={batchId} onChange={(e) => setBatchId(e.target.value)}>
+                    <option value="">— выберите —</option>
+                    {tgt?.batches.map((b) => (
+                      <option key={b.id} value={b.id}>Партия {b.number}{b.name ? ` · ${b.name}` : ""} · ТЗ: {b.orders}</option>
+                    ))}
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="pf-orders" className={lab}>ТЗ (можно несколько: Ctrl / ⌘ или тап)</label>
+                  <select id="pf-orders" multiple size={7} value={orderIds} onChange={(e) => setOrderIds(Array.from(e.target.selectedOptions).map((o) => o.value))} className="w-full rounded-md border border-neutral-300 bg-white p-1 text-sm">
+                    {tgt?.orders.map((o) => (
+                      <option key={o.id} value={o.id}>{o.label}{o.batch ? ` · партия ${o.batch}` : ""}{o.client ? ` · ${o.client}` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+          {quote && (
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm" data-testid="pf-quote">
+              {quote.error ? (
+                <p className="text-red-700">{quote.error}</p>
+              ) : (
+                <>
+                  <p className="font-medium">{quote.label}</p>
+                  <p>{side === "work" ? "Работа" : "Сумма"}: <b>{money(quote.total)}</b> · оплачено: <b>{money(quote.paid)}</b> · остаток: <b>{money(quote.remaining)}</b></p>
+                  {quote.noPrice && <p className="text-xs text-amber-700">Цена работы не задана — внести можно только аванс.</p>}
+                </>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {step === 2 && (
+        <section className="flex flex-col gap-3">
+          {quote && !quote.error && quote.total != null && <p className="text-xs text-neutral-600">{quote.label}: сумма {money(quote.total)}, оплачено {money(quote.paid)}, остаток {money(quote.remaining)}</p>}
+          <fieldset className="flex flex-wrap gap-2">
+            <legend className={lab}>Вид оплаты</legend>
+            {kinds.map((k) => (
+              <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+                {k.label}
+              </button>
+            ))}
+          </fieldset>
+          <p className="text-xs text-neutral-500">{PAY_KINDS.find((k) => k.v === kind)?.hint}</p>
+          {quote && !quote.error && quote.total != null && quote.total > 0 && (
+            <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
+              {PRESET_PERCENTS.map((p) => (
+                <Button key={p} type="button" variant="outline" size="sm" onClick={() => { setMode("percent"); setPercent(String(p)); setAmount(String(percentAmount(base, p)).replace(".", ",")); }} className={mode === "percent" && num(percent) === p ? "border-neutral-900" : ""}>
+                  {p}% · {money(percentAmount(base, p))}
+                </Button>
+              ))}
+              <Button type="button" variant="outline" size="sm" disabled={rest <= 0} onClick={() => { setMode("rest"); setAmount(String(rest).replace(".", ",")); }} className={mode === "rest" ? "border-neutral-900" : ""}>
+                Остаток · {money(rest)}
+              </Button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="pf-amount" className={lab}>Сумма, ₽</label>
+              <Input id="pf-amount" inputMode="decimal" autoComplete="off" value={mode === "amount" ? amount : Number.isFinite(amountNum) ? String(amountNum).replace(".", ",") : ""} onChange={(e) => { setMode("amount"); setAmount(e.target.value); }} placeholder="напр. 1 500 000,50" />
+            </div>
+            <div>
+              <label htmlFor="pf-date" className={lab}>Дата оплаты</label>
+              <Input id="pf-date" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="pf-pp" className={lab}>№ п/п (платёжки)</label>
+              <Input id="pf-pp" value={ppNo} onChange={(e) => setPpNo(e.target.value)} autoComplete="off" placeholder="напр. 43831" />
+            </div>
+            <div>
+              <label htmlFor="pf-method" className={lab}>Способ</label>
+              <Select id="pf-method" value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="BANK_TRANSFER">Банк. перевод</option>
+                <option value="CASH">Наличные</option>
+                <option value="CARD">Карта</option>
+                <option value="OTHER">Другое</option>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="pf-note" className={lab}>{kind === "OTHER" || kind === "REFUND" ? "Пометка (обязательно): что это за платёж" : "Пометка"}</label>
+              <Input id="pf-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={600} autoComplete="off" />
+            </div>
+          </div>
+          {noTargetAdvance && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={allocateLater} onChange={(e) => setAllocateLater(e.target.checked)} /> Аванс без разнесения — «разнести позже»
+            </label>
+          )}
+          {afterRemaining != null && Number.isFinite(amountNum) && (
+            <p className={`text-sm ${afterRemaining < -0.005 ? "font-medium text-red-600" : "text-neutral-700"}`}>
+              Остаток после этой оплаты: <b>{money(afterRemaining)}</b>{afterRemaining < -0.005 && " (переплата)"}
+            </p>
+          )}
+        </section>
+      )}
+
+      {step === 3 && (
+        <section className="flex flex-col gap-3">
+          <div>
+            <label htmlFor="pf-files" className={lab}>Документы пачкой: платёжка, счёт, письмо (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ)</label>
+            <input id="pf-files" data-testid="pf-files" type="file" multiple accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="w-full text-sm" onChange={(e) => { pickFiles(e.target.files); e.target.value = ""; }} />
+          </div>
+          {files.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {files.map((f, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-2 rounded-md border border-neutral-200 p-2 text-sm">
+                  <span className="min-w-0 break-all">{f.file.name}</span>
+                  <Select aria-label={`Тип файла ${f.file.name}`} className="w-auto" value={f.role} onChange={(e) => setFiles((x) => x.map((y, j) => (j === i ? { ...y, role: e.target.value as DocRole } : y)))}>
+                    {DOC_ROLES.map((r) => (
+                      <option key={r.v} value={r.v}>{r.label}</option>
+                    ))}
+                  </Select>
+                  <Button type="button" variant="ghost" size="sm" className="text-red-600" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))}>Убрать</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {files.some((f) => f.role === "APPROVAL_EMAIL") && <p role="note" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">{LETTER_HINT}</p>}
+          <p className="text-xs text-neutral-500">Тип определяется по названию файла — проверьте и поправьте. Платёжку можно приложить и позже: оплата останется «не подтверждена».</p>
+        </section>
+      )}
+
+      {step === 4 && (
+        <section className="flex flex-col gap-3 text-sm">
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <p><b>{quote?.label ?? (noTargetAdvance ? "Аванс без привязки" : "")}</b></p>
+            <p>{PAY_KINDS.find((k) => k.v === kind)?.label}: <b>{money(kind === "REFUND" ? -Math.abs(amountNum) : amountNum)}</b> от {paidAt}{ppNo ? `, п/п № ${ppNo}` : ""}</p>
+            <p>Документов: {files.length}{hasProofFile ? " (есть платёжка)" : ""}</p>
+          </div>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1" />
+            <span>Отметить «подтверждено»{!confirmOk && <span className="block text-xs text-neutral-500">доступно, если приложена платёжка или указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</span>}</span>
+          </label>
+        </section>
+      )}
+
+      {step === 5 && recalc && (
+        <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-white p-3 text-sm" data-testid="pf-result">
+          <h3 className="text-base font-semibold">Оплата записана — что пересчиталось</h3>
+          <p className="font-medium">{recalc.title}</p>
+          {recalc.total != null && (
+            <p>Остаток: {money(recalc.remainingBefore)} → <b>{money(recalc.remainingAfter)}</b> · оплачено {money(recalc.paidBefore)} → <b>{money(recalc.paidAfter)}</b> (из {money(recalc.total)})</p>
+          )}
+          {recalc.debtAfter != null && <p>Долг поставщику: {money(recalc.debtBefore)} → <b>{money(recalc.debtAfter)}</b></p>}
+          <p>Подтверждение: <b>{recalc.confirmation}</b></p>
+          <div>
+            <p className="font-medium">На что ещё влияет</p>
+            <ul className="list-disc pl-5 text-neutral-700">{recalc.affects.map((a) => <li key={a}>{a}</li>)}</ul>
+          </div>
+          {recalc.tasks.length > 0 && (
+            <div className="rounded-md bg-amber-50 p-2 text-amber-900">
+              <p className="font-medium">Что осталось сделать</p>
+              <ul className="list-disc pl-5">{recalc.tasks.map((a) => <li key={a}>{a}</li>)}</ul>
+            </div>
+          )}
+          <div>
+            <Button type="button" onClick={() => { onDone?.(); if (!onDone) window.location.reload(); }}>Готово</Button>
+          </div>
+        </section>
+      )}
+
+      {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {step < 5 && (
+        <div className="flex flex-wrap gap-2">
+          {step > 1 && <Button type="button" variant="outline" onClick={() => setStep((step - 1) as 1 | 2 | 3)} disabled={pending}>← Назад</Button>}
+          {step === 1 && <Button type="button" onClick={() => next(2)} disabled={!hasTarget || !!quote?.error}>Далее</Button>}
+          {step === 2 && <Button type="button" onClick={() => next(3)}>Далее</Button>}
+          {step === 3 && <Button type="button" onClick={() => next(4)}>Далее</Button>}
+          {step === 4 && <Button type="button" onClick={() => save()} disabled={pending}>{pending ? "Сохраняем…" : "Сохранить оплату"}</Button>}
+          {onDone && <Button type="button" variant="ghost" onClick={onDone} disabled={pending}>Отмена</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Кнопка, открывающая единую форму оплаты в окне (карточки закупки, ТЗ, панель «Документы и оплата»). */
+export function PaymentFormButton({ label = "Внести оплату", preset, variant = "outline", size = "sm" }: { label?: string; preset?: PaymentPreset; variant?: "outline" | "default"; size?: "sm" | "default" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (open && d && !d.open) d.showModal();
+  }, [open]);
+  return (
+    <>
+      <Button type="button" variant={variant} size={size} onClick={() => setOpen(true)} className="max-md:h-10">{label}</Button>
+      {open && (
+        <dialog ref={ref} onClose={() => { setOpen(false); }} className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
+          <div className="max-h-[88vh] overflow-y-auto p-4">
+            <h2 className="mb-3 text-base font-semibold">Внести оплату</h2>
+            <PaymentForm preset={preset} onDone={() => { ref.current?.close(); window.location.reload(); }} />
+          </div>
+        </dialog>
+      )}
+    </>
+  );
+}

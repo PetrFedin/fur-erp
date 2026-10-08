@@ -44,8 +44,10 @@ export const batchOrderInclude = {
   },
   expenses: { select: { amount: true } },
   paymentAllocations: {
-    select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true, notes: true } } },
+    select: { productionPayment: { select: { id: true, amount: true, status: true, paidAt: true, paymentType: true, docRef: true, confirmed: true, notes: true, allocations: { select: { amount: true } } } } },
   },
+  // Разнесение оплат по ТЗ (PaymentAllocation): «оплачено по ТЗ» считается из него, не из валовой суммы платежей.
+  payShares: { select: { amount: true, productionPaymentId: true, productionPayment: { select: { status: true } } } },
 } satisfies Prisma.ProductionOrderInclude;
 
 export type BatchOrder = Prisma.ProductionOrderGetPayload<{ include: typeof batchOrderInclude }>;
@@ -78,9 +80,13 @@ export type BatchTotals = {
   /** Себестоимость и работа — по всем действующим ТЗ партии (произведённым и в работе: сырьё списано, работа к оплате). */
   cost: Decimal;
   work: Decimal;
-  /** Оплаты по ТЗ партии: каждая оплата учитывается один раз, даже если покрывает несколько ТЗ. */
+  /** Оплачено = разнесено на ТЗ партии (PaymentAllocation). Остаток = работа − оплачено. */
   paid: Decimal;
   remaining: Decimal;
+  /** Валовая сумма платежей, привязанных к ТЗ партии (каждый — один раз): для сверки с документами, где платёж виден целиком. */
+  paidGross: Decimal;
+  /** Часть платежей партии, не разнесённая ни на одно ТЗ (аванс без разнесения или сверх работы, напр. шкуры подрядчика). */
+  unallocated: Decimal;
   /** Применяется ли 4% хоть к одному списанию действующих ТЗ (иначе подпись «с 4%» не ставим). */
   c4Applies: boolean;
 };
@@ -91,6 +97,8 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
   let cost = new Decimal(0);
   let work = new Decimal(0);
   const pay = new Map<string, Decimal>();
+  const rest = new Map<string, Decimal>();
+  let shared = new Decimal(0);
   const c4Applies = live.some((o) => o.materialUsages.some((u) => u.commission4));
   for (const o of live) {
     const s = orderStat(o, mode);
@@ -99,11 +107,18 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {
-      if (a.productionPayment.status !== "CANCELLED") pay.set(a.productionPayment.id, a.productionPayment.amount);
+      if (a.productionPayment.status === "CANCELLED") continue;
+      pay.set(a.productionPayment.id, a.productionPayment.amount);
+      const done = a.productionPayment.allocations.reduce((x, y) => x.add(y.amount), new Decimal(0));
+      const left = a.productionPayment.amount.sub(done);
+      rest.set(a.productionPayment.id, left.greaterThan(0) ? left : new Decimal(0));
     }
+    for (const sh of o.payShares) if (sh.productionPayment.status !== "CANCELLED") shared = shared.add(sh.amount);
   }
-  const paid = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
-  return { orders: live.length, producedUnits: new Decimal(pUnits.toFixed(3)), producedOrders: pOrders, inWorkUnits: new Decimal(wUnits.toFixed(3)), inWorkOrders: wOrders, cost, work, paid, remaining: work.sub(paid), c4Applies };
+  const paidGross = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
+  const unallocated = Array.from(rest.values()).reduce((s, v) => s.add(v), new Decimal(0));
+  const paid = shared;
+  return { orders: live.length, producedUnits: new Decimal(pUnits.toFixed(3)), producedOrders: pOrders, inWorkUnits: new Decimal(wUnits.toFixed(3)), inWorkOrders: wOrders, cost, work, paid, remaining: work.sub(paid), paidGross, unallocated, c4Applies };
 }
 
 /** Партии организации с их ТЗ (для списка партий и сгруппированного вида). */

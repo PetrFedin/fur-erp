@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { requireSession } from "@/lib/session";
+import { Suspense } from "react";
+import { CommentWidget } from "@/components/comments/comment-widget";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { VatDisplayProvider } from "@/lib/vat-display";
@@ -28,9 +30,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             userName={session.user.name}
             role={session.user.role}
           />
-          <main className="relative flex-1 overflow-y-auto p-3 md:p-6">{children}</main>
+          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16">{children}</main>
         </div>
       </div>
+      <Suspense fallback={null}>
+        <CommentWidget />
+      </Suspense>
       </YearDisplayProvider>
     </Commission4DisplayProvider>
     </VatDisplayProvider>

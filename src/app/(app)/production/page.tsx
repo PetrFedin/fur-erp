@@ -10,6 +10,8 @@ import type { Prisma } from "@prisma/client";
 import { ProductionTabs } from "@/components/production-tabs";
 import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
+import { DocBadge } from "@/components/doc-viewer";
+import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
@@ -66,7 +68,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Ждёт проверки" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "status", "season", "batch", "model", "category", "auction", "fur", "color", "size", "docs", "vat", "verified", "from", "to", "sort", "view"], {
+  ...pick(["q", "status", "season", "batch", "model", "category", "auction", "fur", "color", "attr", "size", "docs", "vat", "verified", "from", "to", "sort", "view"], {
     status: { allowed: STATUS_KEYS },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -128,6 +130,17 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       orderYearWhere(year),
       ...toWhere<typeof f, Prisma.ProductionOrderWhereInput>(f, {
         model: (v) => ({ productModelId: { in: v } }),
+        // Признак меха: назван в самом ТЗ или есть у лота, списанного в ТЗ; «none» — ни там, ни там признаков нет.
+        attr: (v) => {
+          const { none, rest } = splitNone(v);
+          const byName = { in: rest };
+          return {
+            OR: [
+              ...(rest.length ? [{ attrs: { some: { attr: { name: byName } } } }, { materialUsages: { some: { lot: { attrs: { some: { attr: { name: byName } } } } } } }] : []),
+              ...(none ? [{ AND: [{ attrs: { none: {} } }, { materialUsages: { none: { lot: { attrs: { some: {} } } } } }] }] : []),
+            ],
+          };
+        },
         status: (v) => ({ status: { in: v as Array<"PLANNED"> } }),
         season: (v) => {
           const { none, rest } = splitNone(v);
@@ -196,7 +209,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const attr = await loadOrderAttrOptions(orgId);
   const colorSel = splitNone(f.color);
   const sizeSel = splitNone(f.size);
-  const opts = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur"]);
+  const opts = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr"]);
   const hasFilters = filtersOn;
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
@@ -219,6 +232,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   };
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
   const vflags = await loadVerifyFlags(prisma, orgId);
+  const tzDocs = await docCounts(orgId, "order", rawOrders.map((o) => o.id));
   const orders = rawOrders.filter((o) => {
     // Цвет: подходит ЛЮБОЙ из цветов ТЗ (составной ТЗ — под каждый свой цвет); «без цвета» — цвет в документах не указан.
     if (f.color.length) {
@@ -309,6 +323,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           {canEdit && <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" })}>Сезоны ТЗ</Link>}
+          {canEdit && <Link href="/production/import" className={buttonVariants({ variant: "outline" })}>Загрузить ТЗ</Link>}
           {canEdit && (
             <Link href="/production/new" className={buttonVariants()}>
               + Новое ТЗ
@@ -354,6 +369,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)" },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
+          ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
           { type: "multi", name: "color", label: "Цвет изделия", options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
           ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все" },
@@ -370,7 +386,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       ) : (
       <>
       <ResponsiveRows table={
-      <Table>
+      <Table anchor="table:production" label="Таблица ТЗ">
         <Thead>
           <Tr>
             <Th>№ ТЗ</Th>
@@ -420,6 +436,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
                   { label: "Документы и оплата", value: ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : null },
                   { label: "Проверка", value: <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" /> },
+                  { label: "Документы", value: <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} /> },
                 ]}
               />,
             );
@@ -434,6 +451,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                       <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>
                     )}
                   </Link>
+                  <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} className="ml-1" />
                 </Td>
                 <Td className={cell}>
                   <Link href={href} className={link}>

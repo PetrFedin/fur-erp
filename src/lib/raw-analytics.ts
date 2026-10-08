@@ -60,6 +60,8 @@ export type RawLot = {
   size: string;
   /** Все размеры лота по документам (RawMaterialLot.sizeGrade); пусто — размер в документах не указан. */
   sizes: string[];
+  /** Признаки меха лота (справочник /settings/fur-attrs). */
+  attrs: string[];
   purchaseId: string | null;
   purchaseNumber: string | null;
   recv: Decimal;
@@ -101,6 +103,7 @@ const IN_TYPES = new Set(["PURCHASE_IN", "ADJUSTMENT_IN", "TRANSFER_IN"]);
 const LOT_INCLUDE = {
   rawMaterial: { select: { name: true, unit: true } },
   colorRef: { select: { name: true } },
+  attrs: { select: { attr: { select: { name: true } } } },
   purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true } },
   purchaseItems: { select: { quantity: true } },
   usages: {
@@ -164,6 +167,7 @@ function buildLot(l: LotRow): RawLot {
     // Размер — только по документам (sizeGrade), текст сорта не разбираем: так же, как в таблицах /lots (lot-size.ts: lotSizes).
     size: lotSizes(l.sizeGrade)[0] ?? "Не указан",
     sizes: lotSizes(l.sizeGrade),
+    attrs: l.attrs.map((a) => a.attr.name),
     purchaseId: l.purchase?.id ?? null,
     purchaseNumber: l.purchase?.number ?? null,
     recv: l.quantityReceived,
@@ -267,7 +271,7 @@ export function ageText(days: number): string {
 // ───────────── фильтры и агрегация (чистые функции) ─────────────
 
 /** auction / kind (вид меха) / pyear — мультивыбор (пусто = все); model — id изделия (только лоты, из которых его делали). */
-export type RawFilters = { scope: Scope; auction: string[]; kind: string[]; pyear: string[]; size: string[]; onlyRem: boolean; q: string; model: string };
+export type RawFilters = { scope: Scope; auction: string[]; kind: string[]; pyear: string[]; size: string[]; attr: string[]; onlyRem: boolean; q: string; model: string };
 
 const CYR_LAT: Record<string, string> = {
   а: "a", в: "b", е: "e", к: "k", м: "m", н: "h", о: "o", р: "p", с: "c", т: "t", у: "y", х: "x", ё: "e",
@@ -295,6 +299,7 @@ export function applyFilters(lots: RawLot[], f: RawFilters): RawLot[] {
     if (f.kind.length && !f.kind.includes(l.kind)) return false;
     if (f.pyear.length && !f.pyear.includes(String(l.year))) return false;
     if (f.size.length && !(l.sizes.length ? l.sizes.some((x) => f.size.includes(x)) : f.size.includes("Не указан"))) return false;
+    if (f.attr.length && !(l.attrs.length ? l.attrs.some((a) => f.attr.includes(a)) : f.attr.includes("none"))) return false;
     if (f.onlyRem && !l.rem.greaterThan(0)) return false;
     if (f.model && !l.usages.some((u) => u.modelId === f.model)) return false;
     if (!lotMatches(l, f.q)) return false;
@@ -405,6 +410,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
       kind: many("fur", "kind"),
       pyear: many("pyear", "py").filter((y) => /^\d{4}$/.test(y)),
       size: many("size"),
+      attr: many("attr"),
       onlyRem: one(sp.rest) === "1",
       q: one(sp.q, 100),
       model: one(sp.model ?? sp.m, 60),

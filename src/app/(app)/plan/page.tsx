@@ -224,7 +224,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
       {plans.length > 0 && (
         <ResponsiveRows
           table={
-            <Table>
+            <Table anchor="table:plan" label="Таблица плана">
               <Thead>
                 <Tr>
                   <Th>Артикул</Th>

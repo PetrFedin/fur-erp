@@ -15,6 +15,8 @@ import { ProductionBlock } from "./production-block";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
+import { ModeLine, type ModeInfo } from "./mode-line";
+import { formatCompactMoney } from "./compact";
 
 export const metadata = { title: "Сводка" };
 
@@ -45,8 +47,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const d = await loadDashboard(organizationId, year, f, c4Mode);
   const { debt } = d;
   const yl = yearLabel(year);
-  const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, batch: f.batch, status: f.status, vat: f.vat };
-  const prodNums = (t: typeof d.prod.done) => ({ orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum });
+  const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, status: f.status, vat: f.vat };
+  const prodNums = (t: typeof d.prod.done) => ({ orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
+  const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["vat", "НДС"], ["status", "статус ТЗ"], ["batch", "партия пр-ва"]];
+  const activeFilters = FILTER_NAMES.filter(([k]) => f[k].length > 0).map(([k, n]) => `${n} ×${f[k].length}`).join(", ");
+  const info: ModeInfo = { year: yl, filters: activeFilters || null };
+  const mln = (v: number) => formatCompactMoney(v);
   const clientTotal = d.clientDebts.reduce((s, c) => s + c.balance, 0);
   const clientBillable = d.clientDebts.reduce((s, c) => s + c.billable, 0);
   const clientPaid = d.clientDebts.reduce((s, c) => s + c.paid, 0);
@@ -75,6 +81,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
             { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
             { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета", noneLabel: d.noColorLots > 0 ? "Цвет не указан в документах" : undefined, hint: "Цвет лота по справочнику" },
+            ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки", noneLabel: "Без признака", hint: "Признаки лота по справочнику: седина, дикий / клеточный, тонированный…" }] : []),
             { type: "multi", name: "batch", label: "Партия производства", options: d.options.batch, noneLabel: "Без партии", allLabel: "Все партии" },
             { type: "multi", name: "status", label: "Статус ТЗ", options: Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })), allLabel: "Все статусы" },
             { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая", hint: "Ставка НДС лота" },
@@ -86,7 +93,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 ? " Сужают: блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков»; не зависят от них: долг и оплаты поставщику, задачи."
                 : " Фильтры сужают блоки «Сырьё» и «Производство», таблицы динамики и «Долг заказчиков»."}
               <InfoHint label="Что фильтруется на Сводке" wide>
-                <p>Партия закупки, вид меха, цвет и ставка НДС отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот. Статус и партия производства отбирают ТЗ (и «использовано» — только по ним).</p>
+                <p>Партия закупки, вид меха, цвет, признак меха и ставка НДС отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот. Статус и партия производства отбирают ТЗ (и «использовано» — только по ним).</p>
                 <p className="mt-1">Долг и оплаты поставщику (по закупкам и оплатам года) и «Задачи» (как в «Контроле») от фильтров не зависят.</p>
               </InfoHint>
             </p>
@@ -94,19 +101,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         />
       </div>
 
-      <RawBlock fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} />
+      <RawBlock fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} />
 
-      <ProductionBlock done={prodNums(d.prod.done)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} />
+      <ProductionBlock done={prodNums(d.prod.done)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
-      <YearsTable rows={d.years} c4={c4Mode} />
+      <YearsTable rows={d.years} c4={c4Mode} info={info} />
 
-      <RawTable rows={d.rawTable} total={d.rawTableTotal} c4={c4Mode} />
+      <RawTable rows={d.rawTable} total={d.rawTableTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} />
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <section aria-labelledby="dash-pay" className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="dash-pay" className="text-base font-semibold">Оплаты, долги, задачи</h2>
-          <span className="text-xs text-neutral-500">всегда с НДС · {yl}</span>
+          <ModeLine info={info} c4="na" vat="incl" filters="ignore" />
         </div>
         <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
           <div className={TILE_BOX}>
@@ -125,6 +132,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 {d.invoiceDeadlines.map((x) => <div key={x.auction + x.date}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b></div>)}
               </div>
             ) : null}
+            <div className="mt-2 border-t border-neutral-100 pt-2 text-[11px] leading-4 text-neutral-500" data-testid="debt-bridge">
+              Закупки всего <b className="tabular-nums text-neutral-700">{mln(debt.total.toNumber())}</b> = мех получен <b className="tabular-nums text-neutral-700">{mln(d.bridge.purchases.received)}</b> (это «Куплено» в «Сырьё») + ещё не получен <b className="tabular-nums text-neutral-700">{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b className="tabular-nums text-neutral-700">{mln(d.supplierCashPaid)}</b> = долг <b className="tabular-nums text-neutral-700">{mln(debt.debt.toNumber())}</b>.
+            </div>
             <Link href="/payments" className="mt-2 inline-block text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>
           </div>
 
@@ -136,11 +146,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 <>подтверждено <b className="tabular-nums">{formatMoney(pv.verified.toFixed(0))}</b> · <span className={pv.waiting.greaterThan(0) ? "text-amber-700" : undefined}>не подтверждено <b className="tabular-nums">{formatMoney(pv.waiting.toFixed(0))}</b></span></>
               ) : null}
             </TileCaption>
-            <div className="mt-1 text-xs text-neutral-500">закупки {formatMoney(debt.total.toFixed(0))} · авансы без привязки {formatMoney(debt.unlinkedAdvances.toFixed(0))}</div>
+            <div className="mt-1 text-xs text-neutral-500">по закупкам и аукционам {formatMoney(debt.paid.toFixed(0))} · авансы без привязки {formatMoney(debt.unlinkedAdvances.toFixed(0))}</div>
             <div className="mt-4 border-t border-neutral-100 pt-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг заказчиков" /></div>
               <div className={"mt-1 text-xl font-semibold tabular-nums " + (clientTotal > 0 ? "text-amber-700" : "")}>{formatMoney(clientTotal.toFixed(2))}</div>
               <div className="text-xs text-neutral-500">работы {formatMoney(clientBillable.toFixed(0))} · оплачено {formatMoney(clientPaid.toFixed(0))}</div>
+              <div className="mt-1 text-[11px] leading-4 text-neutral-500">
+                ≠ «Работа» в «Производстве» ({mln(d.prod.done.workSum + d.prod.work.workSum)}) больше на {mln(d.bridge.clientWork.noClient)}: ТЗ без заказчика сюда не входят. Работы заказчика = завершённые {mln(d.bridge.clientWork.done)} + в работе по плану {mln(d.bridge.clientWork.work)}.
+                {filtersOn || year !== "all" ? " Оплата заказчика не делится по ТЗ: при фильтре или годе она берётся целиком, если привязана хотя бы к одному выбранному ТЗ, поэтому остаток может быть отрицательным (аванс)." : ""}
+                {" "}Зависит от года и фильтров.
+              </div>
             </div>
           </div>
 

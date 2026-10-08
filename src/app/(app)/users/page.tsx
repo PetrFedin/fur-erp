@@ -1,3 +1,5 @@
+import { UserNameEdit } from "./name-edit";
+import { rowVersion } from "@/lib/concurrency";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -86,7 +88,10 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
         <Tbody>
           {users.map((u) => (
             <Tr key={u.id}>
-              <Td className="font-medium">{u.name}</Td>
+              <Td className="font-medium">
+                {u.name}
+                {canManage && (isOwner || u.role !== "OWNER") && <UserNameEdit userId={u.id} name={u.name} version={rowVersion(u, ["name"])} />}
+              </Td>
               <Td>{u.email}</Td>
               <Td>
                 {canManage && (isOwner || u.role !== "OWNER") ? (

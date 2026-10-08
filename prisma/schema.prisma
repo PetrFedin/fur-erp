@@ -222,6 +222,10 @@ model Organization {
   productionBatches      ProductionBatch[]
   driveDocuments         DriveDocument[]
   systemStates           SystemState[]
+  comments               Comment[]
+  furAttrRefs            FurAttrRef[]
+  commentReplies         CommentReply[]
+  paymentAllocations     PaymentAllocation[]
 }
 
 enum UserRole {
@@ -629,6 +633,7 @@ model ProductionPayment {
   confirmedAt    DateTime?
   confirmedBy    String?
   driveDocuments DriveDocument[]
+  allocations    PaymentAllocation[]
 
   @@index([organizationId])
   @@index([clientId])
@@ -644,6 +649,32 @@ model ProductionPaymentOrder {
 
   @@unique([productionPaymentId, productionOrderId])
   @@index([productionOrderId])
+}
+
+enum AllocationSource {
+  AUTO
+  MANUAL
+}
+
+// Разнесение оплаты производства по ТЗ: сколько рублей платежа относится к работе каждого ТЗ.
+// Σ amount по платежу <= ProductionPayment.amount; остаток платежа = «неразнесённый аванс» (не относится ни к одному ТЗ).
+// ProductionPaymentOrder остаётся «набором ТЗ, которые покрывает платёж» (документы, подписи), суммы — здесь.
+model PaymentAllocation {
+  id                  String            @id @default(cuid())
+  organizationId      String
+  organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productionPaymentId String
+  productionPayment   ProductionPayment @relation(fields: [productionPaymentId], references: [id], onDelete: Cascade)
+  productionOrderId   String
+  productionOrder     ProductionOrder   @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  amount              Decimal           @db.Decimal(14, 2)
+  note                String?
+  source              AllocationSource  @default(MANUAL)
+  createdAt           DateTime          @default(now())
+
+  @@unique([productionPaymentId, productionOrderId])
+  @@index([productionOrderId])
+  @@index([organizationId])
 }
 
 // ---------- Raw material stock (lot-based / specific identification) ----------
@@ -734,6 +765,7 @@ model RawMaterialLot {
 
   stockMovements StockMovement[]
   usages         ProductionMaterialUsage[]
+  attrs          RawMaterialLotAttr[]
   driveDocuments DriveDocument[]
 
   @@index([organizationId])
@@ -917,9 +949,11 @@ model ProductionOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  attrs                  ProductionOrderAttr[]
   materialUsages         ProductionMaterialUsage[]
   expenses               ProductionExpense[]
   paymentAllocations     ProductionPaymentOrder[]
+  payShares              PaymentAllocation[]
   shipmentLines          ShipmentLine[]
   fittings               Fitting[]
   stockMovements         StockMovement[]
@@ -1290,4 +1324,133 @@ model AuditLog {
   @@index([organizationId, at])
   @@index([model, recordId])
   @@index([actorId])
+}
+
+
+// ---------- Комментарии к частям проекта («Оставить комментарий») ----------
+// Замечание/ошибка/идея/вопрос, привязанные к странице, записи, блоку или выделенному тексту; потом выгружаются списком задач на доработку.
+enum CommentStatus {
+  OPEN
+  DONE
+  WONTFIX
+}
+
+enum CommentKind {
+  REMARK
+  BUG
+  IDEA
+  QUESTION
+}
+
+enum CommentPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+model Comment {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorId       String
+  authorName     String
+  authorRole     String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  text           String
+  status         CommentStatus   @default(OPEN)
+  kind           CommentKind     @default(REMARK)
+  priority       CommentPriority @default(NORMAL)
+  /// Адрес страницы со всеми фильтрами (без #), например /lots?tab=fur
+  pagePath       String
+  pageTitle      String
+  /// Purchase, PurchaseItem, RawMaterialLot, Payment, ProductionOrder, ProductionBatch, ProductModel, Auction, ColorRef, …
+  entityType     String?
+  entityId       String?
+  /// «Закупка З-2026-0014», «ТЗ №19»
+  entityLabel    String?
+  /// Идентификатор блока страницы: «filters», «table:fur», «tile:production» (data-comment-anchor)
+  anchor         String?
+  /// Снимок контекста: url, фильтры, год, режим НДС, 4%, роль, окно, цитата выделенного текста, название блока
+  context        Json?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?
+
+  replies CommentReply[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([entityType, entityId])
+  @@index([pagePath])
+}
+
+model CommentReply {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  commentId      String
+  comment        Comment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  authorId       String
+  authorName     String
+  authorRole     String
+  createdAt      DateTime     @default(now())
+  text           String
+
+  @@index([commentId, createdAt])
+  @@index([organizationId])
+}
+
+
+// ---------- Справочник признаков меха («Седина 3», «Дикий», «Тонированный»…) ----------
+/// Признак/подвид меха: седина соболя (SIL.1…6), происхождение (дикий/клеточный/баргузинский), обработка, марка. Определяется по описаниям лотов и ТЗ
+/// (scripts/apply-fur-attrs.ts, src/lib/fur-attr.ts); лот и ТЗ могут иметь несколько признаков. Фильтр «Признак меха» — параметр attr.
+model FurAttrRef {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  /// «Седина», «Происхождение», «Обработка», «Марка / сорт»
+  group          String?
+  /// Вид меха (канонический, как в справочнике меха): «Соболь»; null — подходит к любому
+  furKind        String?
+  aliases        String[]
+  description    String?
+  /// Владелец подтвердил название и смысл признака
+  confirmed      Boolean      @default(false)
+  /// Ставить автоматически по тексту описаний; false — только предлагать
+  autoDetect     Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  lots   RawMaterialLotAttr[]
+  orders ProductionOrderAttr[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+/// Признак лота склада. source: auto — поставлен скриптом по тексту, manual — вручную.
+model RawMaterialLotAttr {
+  lotId     String
+  lot       RawMaterialLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  attrId    String
+  attr      FurAttrRef     @relation(fields: [attrId], references: [id], onDelete: Restrict)
+  source    String         @default("manual")
+  createdAt DateTime       @default(now())
+
+  @@id([lotId, attrId])
+  @@index([attrId])
+}
+
+/// Признак, названный в самом ТЗ (описание материала). Признаки лотов, списанных в ТЗ, учитываются отдельно (производные).
+model ProductionOrderAttr {
+  orderId   String
+  order     ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  attrId    String
+  attr      FurAttrRef      @relation(fields: [attrId], references: [id], onDelete: Restrict)
+  source    String          @default("manual")
+  createdAt DateTime        @default(now())
+
+  @@id([orderId, attrId])
+  @@index([attrId])
 }

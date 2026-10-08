@@ -11,10 +11,12 @@ const ALL: Op[] = ["create", "update", "delete"];
 export const AUDITED_MODELS: Record<string, Op[]> = {
   Purchase: ALL,
   PurchaseItem: ALL,
+  PurchaseExpense: ALL,
   RawMaterialLot: ALL,
   Payment: ALL,
   ProductionPayment: ALL,
   ProductionPaymentOrder: ALL,
+  PaymentAllocation: ALL,
   ProductionOrder: ALL,
   ProductionMaterialUsage: ALL,
   ProductionExpense: ALL,
@@ -22,6 +24,7 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   ProductionOrderColor: ALL,
   ProductModel: ALL,
   ColorRef: ALL,
+  FurAttrRef: ALL,
   Auction: ALL,
   FurRef: ALL,
   Season: ALL,
@@ -39,6 +42,9 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   SupplyPlanEntry: ALL,
   FinishedGoodsStock: ["create", "delete"],
   FinishedGoodsMovement: ["create", "delete"],
+  Comment: ALL,
+  CommentReply: ALL,
+  SystemState: ALL,
 };
 
 /** Поля, которые не пишем никогда: технические и секреты. */
@@ -47,12 +53,12 @@ export const IGNORED_FIELDS = new Set(["updatedAt", "passwordHash"]);
 /** Дочерние строки, которые уходят каскадом при удалении, — кладём в снимок удалённого, чтобы можно было восстановить вручную. */
 export const DELETE_CHILDREN: Record<string, Record<string, true>> = {
   Purchase: { items: true, expenses: true },
-  ProductionOrder: { materialUsages: true, expenses: true, paymentAllocations: true, colors: true },
+  ProductionOrder: { materialUsages: true, expenses: true, paymentAllocations: true, payShares: true, colors: true },
   ProductionPlan: { sizes: true },
   Shipment: { lines: true },
   Fitting: { photos: true },
   ProductModel: { materials: true },
-  ProductionPayment: { orders: true },
+  ProductionPayment: { orders: true, allocations: true },
 };
 
 const MAX_STR = 2000;
@@ -171,6 +177,7 @@ function day(v: unknown): string {
 export const MODEL_TITLES: Record<string, string> = {
   Purchase: "Закупка",
   PurchaseItem: "Позиция закупки",
+  PurchaseExpense: "Расход закупки",
   RawMaterialLot: "Лот сырья",
   Payment: "Оплата поставщику",
   ProductionPayment: "Оплата производства",
@@ -182,6 +189,7 @@ export const MODEL_TITLES: Record<string, string> = {
   ProductionOrderColor: "Цвет ТЗ",
   ProductModel: "Модель / артикул",
   ColorRef: "Цвет",
+  FurAttrRef: "Признак меха",
   Auction: "Аукцион",
   FurRef: "Мех",
   Season: "Сезон",
@@ -199,6 +207,10 @@ export const MODEL_TITLES: Record<string, string> = {
   SupplyPlanEntry: "План поставок",
   FinishedGoodsStock: "Остаток готовой продукции",
   FinishedGoodsMovement: "Движение готовой продукции",
+  Comment: "Комментарий",
+  CommentReply: "Ответ на комментарий",
+  SystemState: "Служебная отметка (решение владельца)",
+  BatchIntake: "Новая партия закупки",
 };
 
 /** Понятное название записи: «Закупка З-2026-0014», «ТЗ №19», «Оплата 34 825 000 ₽ 28.02.2025». */
@@ -216,6 +228,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "ProductModel": return `Модель ${s("name") ?? ""}${s("sku") ? " (" + s("sku") + ")" : ""}`.trim();
     case "Auction": return `Аукцион ${s("name") ?? ""}`.trim();
     case "ColorRef": return `Цвет ${s("name") ?? ""}`.trim();
+    case "FurAttrRef": return `Признак меха ${s("name") ?? ""}`.trim();
     case "FurRef": return `Мех ${s("name") ?? ""}`.trim();
     case "Season": return `Сезон ${s("code") ?? ""}`.trim();
     case "ProductionPlan": return `План заказа ${s("articleCode") ?? ""}`.trim();
@@ -230,8 +243,12 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "Shipment": return `Отгрузка ${day(r.plannedDate)}`.trim();
     case "Fitting": return `Примерка ${day(r.fittingDate)}`.trim();
     case "SupplyPlanEntry": return `План поставок ${day(r.month)}`.trim();
+    case "PurchaseExpense": return `Расход закупки ${money(r.amount)}${s("description") ? " · " + s("description") : ""}`.trim();
     case "ProductionMaterialUsage": return `Списание материала ${s("quantity") ?? ""}`.trim();
     case "ProductionExpense": return `Расход ТЗ ${money(r.amount)}`.trim();
+    case "Comment": return `Комментарий: ${(s("text") ?? "").slice(0, 60)}${s("pageTitle") ? " · " + s("pageTitle") : ""}`.trim();
+    case "CommentReply": return `Ответ: ${(s("text") ?? "").slice(0, 60)}`.trim();
+    case "SystemState": return `Решение владельца: ${(s("key") ?? "").replace("owner-decision:", "")}`.trim();
     default: return `${t} ${s("id") ?? ""}`.trim();
   }
 }
@@ -256,6 +273,8 @@ export const FIELD_LABELS: Record<string, string> = {
   costPlan: "расчёт стоимости", costBreakdown: "состав себестоимости", extra: "свои столбцы", lining: "подкладка",
   materialDescription: "материал", plannedUnits: "план, шт", year: "год", month: "месяц", eventDate: "дата события",
   position: "порядок", type: "тип", entity: "сущность", commission4: "4%", lotId: "лот", rawMaterialId: "материал",
+  text: "текст", pagePath: "страница", pageTitle: "заголовок страницы", anchor: "блок", entityLabel: "запись", priority: "приоритет",
+  resolutionNote: "как учтено", resolvedAt: "учтено (когда)", resolvedById: "закрыл",
 };
 export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k;
 

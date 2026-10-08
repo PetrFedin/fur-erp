@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
@@ -12,11 +13,13 @@ const TABS = [
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Реестр сверки: что сходится на 100%, что нет" },
   { key: "analysis", href: "/document-analysis", label: "Анализ документов", hint: "Google Drive, спорные долги, расхождения" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
+  { key: "comments", href: "/comments", label: "Комментарии", hint: "Замечания, ошибки и идеи к частям проекта — для доработки" },
 ] as const;
 
 export type ControlTab = (typeof TABS)[number]["key"];
 
-function count(key: ControlTab, c: ControlCounts | null): { n: number; tone: string; title: string } | null {
+function count(key: ControlTab, c: ControlCounts | null, comments: number): { n: number; tone: string; title: string } | null {
+  if (key === "comments") return { n: comments, tone: "bg-blue-100 text-blue-700", title: "открытых комментариев" };
   if (!c) return null;
   if (key === "tasks") return { n: c.tasks, tone: c.urgent > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: `задач: ${c.tasks}${c.urgent ? `, срочных блоков: ${c.urgent}` : ""}` };
   if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: "ждёт проверки" };
@@ -24,12 +27,12 @@ function count(key: ControlTab, c: ControlCounts | null): { n: number; tone: str
   return null;
 }
 
-function Bar({ active, counts }: { active: ControlTab; counts: ControlCounts | null }) {
+function Bar({ active, counts, comments = 0 }: { active: ControlTab; counts: ControlCounts | null; comments?: number }) {
   return (
     <nav aria-label="Контроль" className="flex items-center gap-1 overflow-x-auto border-b border-neutral-200 whitespace-nowrap">
       <span className="mr-2 hidden text-xs font-semibold uppercase tracking-wide text-neutral-400 sm:inline">Контроль</span>
       {TABS.map((t) => {
-        const c = count(t.key, counts);
+        const c = count(t.key, counts, comments);
         const on = t.key === active;
         return (
           <Link
@@ -59,11 +62,12 @@ async function Loaded({ active }: { active: ControlTab }) {
   const session = await requireSession();
   const year = await getYearFilter();
   const counts = await loadControlCounts(session.user.organizationId, year).catch(() => null);
-  return <Bar active={active} counts={counts} />;
+  const comments = "comment" in prisma ? await prisma.comment.count({ where: { organizationId: session.user.organizationId, status: "OPEN" } }).catch(() => 0) : 0;
+  return <Bar active={active} counts={counts} comments={comments} />;
 }
 
 /**
- * Вкладки раздела «Контроль» (одна панель на шести страницах; адреса страниц прежние).
+ * Вкладки раздела «Контроль» (одна панель на семи страницах; адреса страниц прежние).
  * Счётчики подгружаются отдельно: страница не ждёт их, вкладки видны сразу.
  */
 export function ControlTabs({ active }: { active: ControlTab }) {

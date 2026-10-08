@@ -153,21 +153,24 @@ export type AuctionInput = {
   currency?: string | null; auctionDate?: Date | null; aliases?: string[]; note?: string | null; isService?: boolean;
 };
 
-export async function createAuctionIn(db: Full, orgId: string, input: AuctionInput) {
+/** Создание аукциона внутри УЖЕ ОТКРЫТОЙ транзакции (мастер «Новая партия» создаёт аукцион вместе с закупкой). */
+export async function createAuctionTx(tx: Prisma.TransactionClient, orgId: string, input: AuctionInput) {
   const name = cleanName(input.name);
   const aliases = mergeAliases([], input.aliases ?? [], name);
-  return db.$transaction(async (tx) => {
-    await assertNameFree(tx, orgId, name, aliases);
-    const max = await tx.auction.aggregate({ where: { organizationId: orgId }, _max: { sortOrder: true } });
-    return tx.auction.create({
-      data: {
-        organizationId: orgId, name, aliases, fullName: input.fullName?.trim() || null, house: input.house?.trim() || null,
-        kind: input.kind ?? "FUR", year: input.year ?? null, month: input.month ?? null, currency: input.currency?.trim() || null,
-        auctionDate: input.auctionDate ?? null, note: input.note?.trim() || null, isService: input.isService ?? false,
-        confirmed: true, sortOrder: (max._max.sortOrder ?? 0) + 1,
-      },
-    });
+  await assertNameFree(tx, orgId, name, aliases);
+  const max = await tx.auction.aggregate({ where: { organizationId: orgId }, _max: { sortOrder: true } });
+  return tx.auction.create({
+    data: {
+      organizationId: orgId, name, aliases, fullName: input.fullName?.trim() || null, house: input.house?.trim() || null,
+      kind: input.kind ?? "FUR", year: input.year ?? null, month: input.month ?? null, currency: input.currency?.trim() || null,
+      auctionDate: input.auctionDate ?? null, note: input.note?.trim() || null, isService: input.isService ?? false,
+      confirmed: true, sortOrder: (max._max.sortOrder ?? 0) + 1,
+    },
   });
+}
+
+export async function createAuctionIn(db: Full, orgId: string, input: AuctionInput) {
+  return db.$transaction(async (tx) => createAuctionTx(tx, orgId, input));
 }
 
 /** Переименование: одна транзакция — имя, старое имя в алиасы, кэш-тексты везде. Переименование само подтверждает имя. */

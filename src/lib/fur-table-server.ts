@@ -34,6 +34,7 @@ const LOT_SELECT = {
   costBreakdown: true,
   rawMaterial: { select: { name: true, unit: true } },
   colorRef: { select: { name: true } },
+  attrs: { select: { attr: { select: { name: true } } }, orderBy: { attr: { name: "asc" as const } } },
   purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, currency: true, supplier: { select: { name: true } } } },
   purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
   usages: {
@@ -96,6 +97,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     // Размер — только по документам (RawMaterialLot.sizeGrade); из текста сорта не угадываем (lot-size.ts: lotSizes).
     size: lotSizes(l.sizeGrade).join(", ") || NOT_SET,
     sizes: lotSizes(l.sizeGrade),
+    attrs: l.attrs.map((a) => a.attr.name),
     auction: name ?? NO_AUCTION,
     auctionLabel: name ? shortAuctionName(name) || NO_AUCTION_LABEL : NO_AUCTION_LABEL,
     year: d.getUTCFullYear(),

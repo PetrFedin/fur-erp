@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { RecordHistory } from "@/components/record-history";
+import { RecordComments } from "@/components/comments/record-comments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -13,6 +14,8 @@ import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { canEditProduction } from "@/lib/production-access";
 import { RemovePaymentButton } from "./remove-payment-button";
+import { OrderColorsEditButton, ProductionPaymentEditButton } from "./edit-buttons";
+import { PRODUCTION_PAYMENT_V } from "@/lib/concurrency";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
@@ -30,6 +33,7 @@ import { batchLabel } from "@/lib/batch-label";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
 import { RetailPriceForm } from "./retail-price-form";
 import { ProductionPaymentForm } from "./payment-form";
+import { PaymentFormButton } from "@/components/payment-form";
 import { OpenDetailsLink } from "./open-details-link";
 import { ProducedQuantityForm } from "./produced-quantity-form";
 import { UsageRow, type EditableLotOption } from "./usage-row";
@@ -133,7 +137,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       batch: { select: { id: true, number: true } },
       season: { select: { id: true, code: true } },
       ...ORDER_COLORS_INCLUDE,
-      materialUsages: { include: { rawMaterial: true, lot: true }, orderBy: { date: "asc" } },
+      attrs: { select: { attr: { select: { name: true } } } },
+      materialUsages: { include: { rawMaterial: true, lot: { include: { attrs: { select: { attr: { select: { name: true } } } } } } }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
         include: { productionPayment: { include: { orders: { include: { productionOrder: true } } } } },
@@ -418,6 +423,25 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const sharedPayments = payments.filter((p) => p.orders.some((a) => a.productionOrder.id !== id));
   const hasSharedPayments = sharedPayments.length > 0;
 
+  const payEdit = (p: (typeof payments)[number]) =>
+    canEdit ? (
+      <ProductionPaymentEditButton
+        orderId={id}
+        paymentId={p.id}
+        version={rowVersion(p, PRODUCTION_PAYMENT_V)}
+        orders={paymentOrders.map((o) => ({ id: o.id, label: o.label }))}
+        defaults={{
+          amount: p.amount.toString(),
+          paymentType: p.paymentType,
+          method: p.method,
+          paidAt: p.paidAt.toISOString().slice(0, 10),
+          docRef: p.docRef ?? "",
+          notes: p.notes ?? "",
+          orderIds: p.orders.map((a) => a.productionOrder.id),
+        }}
+      />
+    ) : null;
+
   const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[], variant: "row" | "card" = "row") =>
     list.map((u) => (
       <UsageRow
@@ -491,6 +515,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       : `план ${formatQty(order.plannedQuantity.toString())} шт.`;
 
   const clean = (v: string | null | undefined) => (v ?? "").trim();
+  const furAttrNames = Array.from(new Set([...order.attrs.map((a) => a.attr.name), ...order.materialUsages.flatMap((u) => u.lot.attrs.map((a) => a.attr.name))])).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
   const headerParts = [
     <Link key="model" href={`/models/${order.productModelId}`} className="font-medium text-neutral-800 underline underline-offset-2" title="Карточка изделия: состав, цена">
       <ArticleName model={order.productModel} />
@@ -508,6 +533,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     order.client && clean(order.contractNumber) && contractLabel(clean(order.contractNumber)),
     order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
     clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
+    furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.map((a) => (
+      <span key={a} className="ml-1 rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>
+    ))}</span>,
     clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
   ].filter((x) => Boolean(x)) as React.ReactNode[];
   const navItems = [
@@ -537,6 +565,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <a href={`/api/production/${id}/docx`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
             Скачать .docx
           </a>
+          {canEdit && (
+            <OrderColorsEditButton
+              key={order.colors.map((c) => `${c.colorRefId}:${c.quantity ?? ""}:${c.sizes ?? ""}`).join("|")}
+              orderId={id}
+              colors={colorOptions.map((c) => ({ id: c.id, name: c.name }))}
+              rows={order.colors.map((c) => ({ colorRefId: c.colorRefId, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" }))}
+            />
+          )}
           {canEdit && <OrderEditForm
             action={boundUpdateOrder}
             models={modelOptions.map((m) => ({ id: m.id, name: articleLabel(m) }))}
@@ -863,6 +899,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 )}
               </p>
             )}
+            {canWrite && <div><PaymentFormButton label="Внести оплату (аванс, % от работы, документы)" preset={{ side: "work", orderIds: [id] }} /></div>}
             {canWrite && <ProductionPaymentForm orderId={id} orders={paymentOrders} />}
             <ResponsiveRows
               table={
@@ -893,13 +930,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       <Td>{p.notes ?? "—"}</Td>
                       <Td>
                         {canEdit && (
-                          <RemovePaymentButton
-                            summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                            action={async () => {
-                              "use server";
-                              await boundRemovePayment(p.id);
-                            }}
-                          />
+                          <div className="flex items-center gap-1">
+                            {payEdit(p)}
+                            <RemovePaymentButton
+                              summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                              action={async () => {
+                                "use server";
+                                await boundRemovePayment(p.id);
+                              }}
+                            />
+                          </div>
                         )}
                       </Td>
                     </Tr>
@@ -924,13 +964,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     ]}
                     extra={
                       canEdit && (
-                        <RemovePaymentButton
-                          summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                          action={async () => {
-                            "use server";
-                            await boundRemovePayment(p.id);
-                          }}
-                        />
+                        <div className="flex items-center gap-2">
+                          {payEdit(p)}
+                          <RemovePaymentButton
+                            summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
+                            action={async () => {
+                              "use server";
+                              await boundRemovePayment(p.id);
+                            }}
+                          />
+                        </div>
                       )
                     }
                   />
@@ -1023,6 +1066,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </Section>
 
       <RecordHistory model="ProductionOrder" recordId={order.id} />
+      <RecordComments entityType="ProductionOrder" entityId={order.id} />
     </div>
   );
 }

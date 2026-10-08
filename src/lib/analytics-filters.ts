@@ -29,6 +29,8 @@ export type SharedFilters = {
   size: string[];
   batch: string[];
   color: string[];
+  /** Признаки меха (+ «none» — ТЗ без признака, если признаки вообще есть). */
+  attr: string[];
   season: string[];
   q: string;
   vat: VatFilter;
@@ -71,6 +73,7 @@ export function parseShared(sp: SP): SharedFilters {
     auc: manyAs(sp, "auction", "auc"),
     py: manyAs(sp, "pyear", "py").filter((y) => /^\d{4}$/.test(y)),
     lc: manyAs(sp, "lotcolor", "lc"),
+    attr: many(sp.attr),
     sort: one(sp.sort).slice(0, 20),
     dir: one(sp.dir) === "asc" ? "asc" : "desc",
     all: one(sp.all) === "1",
@@ -82,7 +85,7 @@ export function parseShared(sp: SP): SharedFilters {
 export function sharedParams(f: SharedFilters, over: Partial<SharedFilters> = {}, withView = true): URLSearchParams {
   const x = { ...f, ...over };
   const p = new URLSearchParams();
-  for (const k of ["cat", "fur", "size", "batch", "color", "season", "auc", "py", "lc"] as const) for (const v of x[k]) p.append(k in PARAM_OF ? PARAM_OF[k as keyof typeof PARAM_OF] : k, v);
+  for (const k of ["cat", "fur", "size", "batch", "color", "season", "auc", "py", "lc", "attr"] as const) for (const v of x[k]) p.append(k in PARAM_OF ? PARAM_OF[k as keyof typeof PARAM_OF] : k, v);
   if (x.q) p.set("q", x.q);
   if (x.vat) p.set("vat", x.vat);
   if (x.cmin) p.set("cmin", x.cmin);
@@ -101,7 +104,7 @@ export function sharedParams(f: SharedFilters, over: Partial<SharedFilters> = {}
 }
 
 export const hasSharedFilter = (f: SharedFilters) =>
-  !!(f.cat.length || f.fur.length || f.size.length || f.batch.length || f.color.length || f.season.length || f.q || f.vat || f.cmin || f.cmax || f.onlyH || f.onlyL || f.auc.length || f.py.length || f.lc.length);
+  !!(f.cat.length || f.fur.length || f.size.length || f.batch.length || f.color.length || f.season.length || f.q || f.vat || f.cmin || f.cmax || f.onlyH || f.onlyL || f.auc.length || f.py.length || f.lc.length || f.attr.length);
 
 const unitCost = (r: OrderRow) => (r.qty > 0 && r.costIncl > 0 ? r.costIncl / r.qty : null);
 
@@ -131,6 +134,7 @@ export function applyShared(rows: OrderRow[], f: SharedFilters): OrderRow[] {
     if (f.auc.length && !r.auctions.some((a) => f.auc.includes(a))) return false;
     if (f.py.length && !r.purchaseYears.some((y) => f.py.includes(String(y)))) return false;
     if (f.lc.length && !r.lotColors.some((c) => f.lc.includes(c))) return false;
+    if (f.attr.length && !(r.attrs.length ? r.attrs.some((a) => f.attr.includes(a)) : f.attr.includes("none"))) return false;
     if (cmin != null || cmax != null) {
       const u = unitCost(r);
       if (u == null || (cmin != null && u < cmin) || (cmax != null && u > cmax)) return false;
@@ -148,6 +152,7 @@ export type Options = {
   /** Подпись партии с годом: «Партия 5 · 2025». */
   batchLabels: Record<string, string>;
   color: string[];
+  attr: string[];
   season: string[];
   auc: string[];
   py: string[];
@@ -167,6 +172,7 @@ export function filterOptions(all: OrderRow[]): Options {
     batch: uniq(all.map((r) => (r.batchNumber == null ? null : String(r.batchNumber)))).sort((a, b) => Number(a) - Number(b)),
     batchLabels: Object.fromEntries(all.filter((r) => r.batchNumber != null && r.batchText).map((r) => [String(r.batchNumber), r.batchText as string])),
     color: [...uniq(all.flatMap((r) => r.colors)).sort(ru), ...(all.some((r) => r.colors.length === 0) ? [UNDEFINED_COLOR] : [])],
+    attr: (() => { const a = uniq(all.flatMap((r) => r.attrs)).sort((x, y) => x.localeCompare(y, "ru", { numeric: true })); return a.length ? [...a, ...(all.some((r) => r.attrs.length === 0) ? ["none"] : [])] : []; })(),
     season: uniq(all.map((r) => r.seasonCode)).sort(ru),
     auc: uniq(all.flatMap((r) => r.auctions)).sort(ru),
     py: uniq(all.flatMap((r) => r.purchaseYears.map(String))).sort(),

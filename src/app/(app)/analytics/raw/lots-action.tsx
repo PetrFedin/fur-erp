@@ -17,6 +17,7 @@ function cleanFilters(f: RawFilters): RawFilters {
     kind: (Array.isArray(f.kind) ? f.kind : []).map((v) => String(v).slice(0, 200)).slice(0, 60),
     pyear: (Array.isArray(f.pyear) ? f.pyear : []).map((v) => String(v).slice(0, 4)).slice(0, 20),
     size: (Array.isArray(f.size) ? f.size : []).map((v) => String(v).slice(0, 40)).slice(0, 60),
+    attr: (Array.isArray(f.attr) ? f.attr : []).map((v) => String(v).slice(0, 80)).slice(0, 60),
     onlyRem: f.onlyRem === true,
     q: String(f.q ?? "").slice(0, 100),
     model: String(f.model ?? "").slice(0, 60),

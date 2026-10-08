@@ -42,6 +42,8 @@ export type LotLine = {
   vat: number;
   /** Цвет лота (по справочнику цветов, иначе как записан). */
   lotColor: string | null;
+  /** Признаки меха лота (справочник /settings/fur-attrs). */
+  lotAttrs: string[];
   /** Молоток за шкуру, ₽ (без НДС / с НДС) и откуда он взят; null — в расчёте лота молотка нет. Для подкладки всегда null. */
   hammerExcl: number | null;
   hammerIncl: number | null;
@@ -126,6 +128,8 @@ export type OrderRow = {
   vatKind: VatKind;
   /** Значения для фильтров по сырью: цвета лотов, аукционы, годы закупки (только меховые лоты). */
   lotColors: string[];
+  /** Признаки меха ТЗ: названные в самом ТЗ и признаки списанных лотов меха (фильтр attr). */
+  attrs: string[];
   auctions: string[];
   purchaseYears: number[];
 };
@@ -165,6 +169,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         color: true,
         size: true,
         materialDescription: true,
+        attrs: { select: { attr: { select: { name: true } } } },
         workOrderDate: true,
         endDate: true,
         startDate: true,
@@ -213,6 +218,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
           costBreakdown: true,
           vatRate: true,
           colorRef: { select: { name: true } },
+          attrs: { select: { attr: { select: { name: true } } } },
           purchase: { select: { id: true, number: true, orderDate: true, auctionSession: true, supplier: { select: { name: true } } } },
           purchaseItems: { select: { costPlan: true } },
         },
@@ -221,7 +227,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
   const lotInfo = new Map(
     lotRows.map((l) => {
       const h = lotHammer(l.costBreakdown, Number(l.vatRate), l.purchaseItems.map((i) => i.costPlan));
-      return [l.id, { h, colorRef: l.colorRef?.name ?? null, purchase: l.purchase }] as const;
+      return [l.id, { h, colorRef: l.colorRef?.name ?? null, attrs: l.attrs.map((a) => a.attr.name), purchase: l.purchase }] as const;
     }),
   );
 
@@ -285,6 +291,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         c4: u.commission4,
         vat: n(u.lot.vatRate),
         lotColor,
+        lotAttrs: isLining ? [] : (info?.attrs ?? []),
         hammerExcl: h?.excl ?? null,
         hammerIncl: h?.incl ?? null,
         hammerUsd: h?.usd ?? null,
@@ -358,6 +365,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       modelAliases: o.productModel.aliases,
       vatKind,
       lotColors: uniq(furLines.map((l) => l.lotColor)),
+      attrs: Array.from(new Set([...o.attrs.map((a) => a.attr.name), ...furLines.flatMap((l) => l.lotAttrs)])).sort((a, b) => a.localeCompare(b, "ru", { numeric: true })),
       auctions: uniq(furLines.map((l) => l.auction)),
       purchaseYears: uniq(furLines.map((l) => l.purchaseYear)).sort(),
     };

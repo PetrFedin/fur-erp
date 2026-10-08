@@ -5,6 +5,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { RecordHistory } from "@/components/record-history";
+import { RecordComments } from "@/components/comments/record-comments";
 import { canEditProduction } from "@/lib/production-access";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,8 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix } from "@/lib/commission4";
 import { BatchDocsPay } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
+import { BatchEditButton } from "../../[id]/edit-buttons";
+import { rowVersion, BATCH_V } from "@/lib/concurrency";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -123,6 +126,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             .join(" · ") || "—"}
         </p>
         {batch.notes && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{batch.notes}</p>}
+        {canEditProduction(session.user.role) && (
+          <div className="mt-2">
+            <BatchEditButton
+              batchId={batch.id}
+              version={rowVersion(batch, BATCH_V)}
+              defaults={{ number: String(batch.number), name: batch.name ?? "", year: batch.year != null ? String(batch.year) : "", plannedUnits: batch.plannedUnits != null ? String(batch.plannedUnits) : "", notes: batch.notes ?? "" }}
+            />
+          </div>
+        )}
       </div>
 
       <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
@@ -277,6 +289,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </CardContent>
       </Card>
       <RecordHistory model="ProductionBatch" recordId={batch.id} />
+      <RecordComments entityType="ProductionBatch" entityId={batch.id} />
     </div>
   );
 }
