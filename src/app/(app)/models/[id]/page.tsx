@@ -64,7 +64,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       <Link href="/articles" className="text-sm text-neutral-500 hover:underline">← Изделия</Link>
       <Card>
         <CardHeader>
-          <CardTitle>Модель: <ArticleName model={model} /></CardTitle>
+          <CardTitle as="h1" className="text-xl">Модель: <ArticleName model={model} /></CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="text-sm text-neutral-600">

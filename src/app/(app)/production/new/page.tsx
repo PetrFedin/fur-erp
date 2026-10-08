@@ -18,7 +18,7 @@ export default async function NewProductionOrderPage() {
       <div>
         <Card>
           <CardHeader>
-            <CardTitle>Новое ТЗ</CardTitle>
+            <CardTitle as="h1" className="text-xl">Новое ТЗ</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-neutral-600">
@@ -85,7 +85,7 @@ export default async function NewProductionOrderPage() {
     <div>
       <Card>
         <CardHeader>
-          <CardTitle>Новое ТЗ</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новое ТЗ</CardTitle>
         </CardHeader>
         <CardContent>
           <ProductionCreateForm

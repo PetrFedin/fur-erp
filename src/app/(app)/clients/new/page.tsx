@@ -9,7 +9,7 @@ export default function NewClientPage() {
       <div className="text-sm"><Link href="/clients" className="text-neutral-500 hover:underline">← Заказчики</Link></div>
       <Card>
         <CardHeader>
-          <CardTitle>Новый заказчик</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новый заказчик</CardTitle>
         </CardHeader>
         <CardContent>
           <ClientForm action={createClient} />

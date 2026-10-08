@@ -16,7 +16,7 @@ export default async function NewBatchPage() {
   const role = session.user.role;
 
   return (
-    <div className="flex max-w-5xl flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="text-sm">
         <Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link>
       </div>

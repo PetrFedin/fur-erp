@@ -23,7 +23,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
       <div className="text-sm"><Link href="/suppliers" className="text-neutral-500 hover:underline">← Поставщики</Link></div>
       <Card>
         <CardHeader>
-          <CardTitle>Редактировать поставщика</CardTitle>
+          <CardTitle as="h1" className="text-xl">Редактировать поставщика</CardTitle>
         </CardHeader>
         <CardContent>
           {!canEdit && <p className="mb-3 text-sm text-neutral-500">Только просмотр: редактировать поставщиков могут владелец, администратор и закупщик.</p>}

@@ -22,7 +22,7 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
       <div className="text-sm"><Link href="/clients" className="text-neutral-500 hover:underline">← Заказчики</Link></div>
       <Card>
         <CardHeader>
-          <CardTitle>Редактировать заказчика</CardTitle>
+          <CardTitle as="h1" className="text-xl">Редактировать заказчика</CardTitle>
         </CardHeader>
         <CardContent>
           {!canEdit && <p className="mb-3 text-sm text-neutral-500">Только просмотр: редактировать заказчиков могут владелец, администратор и технолог.</p>}

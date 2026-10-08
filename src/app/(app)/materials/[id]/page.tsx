@@ -29,7 +29,7 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Редактировать материал</CardTitle>
+          <CardTitle as="h1" className="text-xl">Редактировать материал</CardTitle>
         </CardHeader>
         <CardContent>
           <MaterialForm

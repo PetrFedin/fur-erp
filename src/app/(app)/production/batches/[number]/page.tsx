@@ -120,7 +120,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   );
 
   return (
-    <div className="flex max-w-5xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <ProductionTabs active="batches" />
       <IntegrityBanner kind="batch" id={batch.id} />
       <div>

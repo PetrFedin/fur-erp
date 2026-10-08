@@ -21,7 +21,7 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Новый материал</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новый материал</CardTitle>
         </CardHeader>
         <CardContent>
           <MaterialForm action={createMaterial} categories={categories} defaultUnit={defaultUnit} />

@@ -9,7 +9,7 @@ export default function NewSupplierPage() {
       <div className="text-sm"><Link href="/suppliers" className="text-neutral-500 hover:underline">← Поставщики</Link></div>
       <Card>
         <CardHeader>
-          <CardTitle>Новый поставщик</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новый поставщик</CardTitle>
         </CardHeader>
         <CardContent>
           <SupplierForm action={createSupplier} />

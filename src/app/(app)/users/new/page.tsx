@@ -26,7 +26,7 @@ export default function NewUserPage() {
     <div className="max-w-md">
       <Card>
         <CardHeader>
-          <CardTitle>Новый пользователь</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новый пользователь</CardTitle>
           <CardDescription>
             Пароль сообщите сотруднику лично.
           </CardDescription>

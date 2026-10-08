@@ -17,7 +17,7 @@ export default async function EditWarehousePage({ params }: PageProps<"/warehous
     <div className="max-w-md">
       <Card>
         <CardHeader>
-          <CardTitle>Редактировать склад</CardTitle>
+          <CardTitle as="h1" className="text-xl">Редактировать склад</CardTitle>
         </CardHeader>
         <CardContent>
           <WarehouseForm action={updateWarehouse.bind(null, id)} warehouse={warehouse} />

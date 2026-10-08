@@ -7,7 +7,7 @@ export default function NewWarehousePage() {
     <div className="max-w-md">
       <Card>
         <CardHeader>
-          <CardTitle>Новый склад</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новый склад</CardTitle>
         </CardHeader>
         <CardContent>
           <WarehouseForm action={createWarehouse} />

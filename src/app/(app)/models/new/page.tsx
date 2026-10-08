@@ -14,7 +14,7 @@ export default async function NewModelPage() {
     <div>
       <Card>
         <CardHeader>
-          <CardTitle>Новая модель изделия</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новая модель изделия</CardTitle>
         </CardHeader>
         <CardContent>
           <ModelForm action={createModel} categories={categories} canCreateCategory={hasRole(session.user.role, ACCESS.categories)} />

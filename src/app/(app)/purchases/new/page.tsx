@@ -37,7 +37,7 @@ export default async function NewPurchasePage() {
       <div className="text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
       <Card>
         <CardHeader>
-          <CardTitle>Новая закупка</CardTitle>
+          <CardTitle as="h1" className="text-xl">Новая закупка</CardTitle>
         </CardHeader>
         <CardContent>
           <PurchaseCreateForm
