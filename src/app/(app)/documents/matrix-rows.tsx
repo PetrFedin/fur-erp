@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export function OrigCell({ have, total }: { have: number; total: number }) {
   return (
-    <span className={cn("text-center text-xs tabular-nums", total === 0 ? "text-neutral-300" : have === total ? "text-emerald-600" : have === 0 ? "text-neutral-400" : "text-amber-600")} title="Сколько документов записи лежит в приложении файлом (остальные — только ссылка на Drive)">
+    <span className={cn("text-center text-xs tabular-nums", total === 0 ? "text-neutral-300" : have === total ? "text-emerald-600" : have === 0 ? "text-neutral-400" : "text-amber-600")} title="Сколько документов записи лежит в приложении файлом (остальные — файл ещё не загружен)">
       {total === 0 ? "—" : `${have} из ${total}`}
     </span>
   );

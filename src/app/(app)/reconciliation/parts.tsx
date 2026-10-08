@@ -13,7 +13,6 @@ import {
 import type { GroupDb, InvDb } from "./live";
 
 export const money = (v: number | null | undefined) => (v == null ? "—" : formatMoney(v));
-export const driveUrl = (id: string) => `https://drive.google.com/file/d/${id}/view`;
 const dmy = (d: string | null, approx?: boolean) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}${approx ? " (≈)" : ""}` : "дата не найдена");
 const pct = (v: number) => `${v >= 99.95 || v <= 0.05 ? Math.round(v) : v.toFixed(1).replace(".", ",")} %`;
 
@@ -123,7 +122,7 @@ function PayLines({ c, db }: { c: InvCalc; db: InvDb | undefined }) {
               <div>Источник: {p.source}</div>
               {p.note ? <div>Примечание: {p.note}</div> : null}
               {p.dateApprox ? <div>Дата в документе невозможна или неточна — указана вероятная.</div> : null}
-              {p.basis !== "pp" && p.evidence === "fact" ? <div>Номера платёжки нет; банковской выписки в Drive нет.</div> : null}
+              {p.basis !== "pp" && p.evidence === "fact" ? <div>Номера платёжки нет; банковской выписки в документах нет.</div> : null}
             </div>
           </InfoHint>
         </li>
@@ -181,11 +180,9 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
         {label("За что")}
         <span className="break-words">{inv.purpose || "—"}</span>
         {inv.fileId ? (
-          <a href={driveUrl(inv.fileId)} target="_blank" rel="noreferrer" className="ml-1 text-blue-700 hover:underline">
-            счёт
-          </a>
+          <span className="ml-1 text-neutral-500">счёт есть</span>
         ) : (
-          <span className="ml-1 text-red-700">счёта нет в Drive</span>
+          <span className="ml-1 text-red-700">счёта нет в документах</span>
         )}
         {inv.notes.map((n, i) => (
           <InfoHint key={i} label="Примечание" className="ml-1">{n}</InfoHint>

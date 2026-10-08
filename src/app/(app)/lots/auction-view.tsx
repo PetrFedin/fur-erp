@@ -22,7 +22,7 @@ import { AuctionTotalsPanel, FlatLotsPanel, PurchaseCostParts, PurchaseLotsTable
 import { CUSTOM_FIELD_ENTITY } from "@/lib/custom-fields";
 import { DriveDocuments } from "@/components/drive-documents";
 import { toDriveView } from "@/lib/drive-docs-server";
-import { safeViewUrl } from "@/lib/drive-docs";
+import { DocFileButtons } from "@/components/doc-preview";
 import { copiesLabel, countLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { getYearFilter, type YearFilter } from "@/lib/year-filter";
@@ -328,7 +328,7 @@ export async function AuctionView({
     ),
   );
 
-  // Один файл — одна строка: ссылки Drive на тот же файл (по имени и размеру) уходят в кнопку «Drive» строки файла,
+  // Один файл — одна строка: привязки того же файла (по имени и размеру) сворачиваются в строку файла,
   // повторы файлов (то же имя + тип + размер) схлопываются в «×N».
   const driveMatch = matchDriveToFiles(
     docRows.map((r) => ({ names: [r.d.originalName, r.d.title], size: r.d.sizeBytes })),
@@ -336,7 +336,7 @@ export async function AuctionView({
   );
   const pairedDrive = new Set(driveMatch.flat());
   const driveOnly = driveDocs.filter((_, i) => !pairedDrive.has(i));
-  const fileEntries = docRows.map((r, i) => ({ ...r, driveUrl: driveMatch[i].map((di) => safeViewUrl(driveDocs[di].viewUrl)).find(Boolean) ?? null }));
+  const fileEntries = docRows.map((r) => ({ ...r }));
   const fileGroups = groupBy(fileEntries, (r) => docGroupKey(r.d.originalName || r.d.title, r.d.kind, r.d.sizeBytes));
   const driveGroupCount = groupBy(driveOnly, (d) => docGroupKey(d.title, d.docType, d.storedSize)).length;
   const docGroupTotal = fileGroups.length + driveGroupCount;
@@ -582,7 +582,6 @@ export async function AuctionView({
               <Tbody className="max-md:block">
                 {fileGroups.map((g) => {
                   const { d } = g[0];
-                  const driveUrl = g.map((x) => x.driveUrl).find(Boolean) ?? null;
                   const v = docVersion(d.storagePath);
                   const where = (r: (typeof g)[number]) => (r.batch ? `вся партия ${r.d.batch ?? ""}` : `закупка ${r.purchaseLabel}`);
                   const controls = (r: (typeof g)[number]) => (
@@ -625,25 +624,7 @@ export async function AuctionView({
                       <Td className="whitespace-nowrap max-md:inline-block max-md:px-0 max-md:py-0">{fmtSize(d.sizeBytes)}</Td>
                       <Td className="max-md:block max-md:px-0 max-md:py-1">
                         <div className="flex flex-wrap gap-1">
-                          <a
-                            href={`/api/purchase-docs/${d.id}?download=1&v=${v}`}
-                            className={buttonVariants({ variant: "outline", size: "sm" })}
-                          >
-                            Скачать
-                          </a>
-                          <a
-                            href={`/api/purchase-docs/${d.id}?v=${v}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={buttonVariants({ variant: "ghost", size: "sm" })}
-                          >
-                            Открыть
-                          </a>
-                          {driveUrl && (
-                            <a href={driveUrl} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                              Drive
-                            </a>
-                          )}
+                          <DocFileButtons href={`/api/purchase-docs/${d.id}?v=${v}`} mime={d.mimeType} title={d.title} />
                         </div>
                       </Td>
                       {canEdit && (

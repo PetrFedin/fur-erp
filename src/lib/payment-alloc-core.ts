@@ -87,3 +87,15 @@ export type UnallocatedKind = "advance" | "excess";
 export function unallocatedKind(p: { paymentType: string; linkedOrders: number }): UnallocatedKind {
   return p.linkedOrders > 0 && p.paymentType !== "ADVANCE" ? "excess" : "advance";
 }
+
+/** Вариант ТЗ в редакторе разнесения оплаты. */
+export type AllocOrderOpt = {
+  id: string;
+  label: string;
+  /** ТЗ входит в набор, который покрывает платёж. */
+  linked: boolean;
+  /** Работа ТЗ, коп. */
+  workCents: number;
+  /** Уже разнесено на ТЗ от ДРУГИХ платежей, коп. */
+  otherCents: number;
+};

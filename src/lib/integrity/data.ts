@@ -59,10 +59,12 @@ export type IntegrityData = {
   driveLinks: IDriveLink[];
   /** Id записей, менявшихся позже даты подтверждения (по журналу): purchaseId/orderId → есть ли правки. */
   auditAfter: { model: string; recordId: string; at: Date }[];
+  /** Сумма разнесений (PaymentAllocation) по оплатам подрядчику. */
+  allocByPayment: Map<string, number>;
 };
 
 export async function loadIntegrityData(db: PrismaClient, orgId: string): Promise<IntegrityData> {
-  const [purchases, lots, usages, expGroups, orders, batches, payments, prodPayments, models, auctions, fgStock, fgMoves, driveLinks] = await Promise.all([
+  const [purchases, lots, usages, expGroups, orders, batches, payments, prodPayments, models, auctions, fgStock, fgMoves, driveLinks, allocGroups] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId: orgId },
       select: {
@@ -115,6 +117,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
       where: { organizationId: orgId },
       select: { driveFileId: true, purchaseId: true, lotId: true, productionOrderId: true, productionBatchId: true, paymentId: true, productionPaymentId: true },
     }),
+    db.paymentAllocation.groupBy({ by: ["productionPaymentId"], where: { organizationId: orgId }, _sum: { amount: true } }),
   ]);
 
   // Журнал: правки после подтверждения (нужны только для подтверждённых строк).
@@ -184,5 +187,6 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
     fgMoves: fgMoves.map((m) => ({ ...m, quantity: num(m.quantity) })),
     driveLinks,
     auditAfter,
+    allocByPayment: new Map(allocGroups.map((g) => [g.productionPaymentId, num(g._sum.amount)])),
   };
 }

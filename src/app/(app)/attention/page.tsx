@@ -21,6 +21,7 @@ import { ControlTabs } from "@/components/control-tabs";
 import { stripCoveredPayments } from "@/lib/task-docs";
 import { ACCESS, hasRole } from "@/lib/access";
 import { DecisionsBlock, DocTasksBlock } from "./task-blocks";
+import { UnallocatedAdvancesBlock } from "./unallocated-block";
 import { formatMoney, cn } from "@/lib/utils";
 
 export const metadata = { title: "Задачи" };
@@ -91,6 +92,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
 
       {!showAll && <DecisionsBlock decisions={taskBlocks.decisions} canDecide={hasRole(session.user.role, ACCESS.taskDecisions)} />}
       {!showAll && <DocTasksBlock blocks={taskBlocks} />}
+      {!showAll && <UnallocatedAdvancesBlock orgId={session.user.organizationId} />}
 
       {!showAll && (
         <section aria-label="Что требует действия" className="flex flex-col gap-2">

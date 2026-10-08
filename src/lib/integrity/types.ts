@@ -65,6 +65,8 @@ export type IntegrityReport = {
   failing: number;
   failingErrors: number;
   failingWarns: number;
+  /** Справочные (серые) расхождения — в колокольчик не попадают. */
+  failingInfo: number;
   knownCount: number;
   checksTotal: number;
   checksFailed: number;
@@ -76,6 +78,7 @@ export type IntegritySummary = {
   checkedAt: string;
   failing: number;
   failingErrors: number;
+  failingWarns: number;
   knownCount: number;
   ok: boolean;
   items: { checkId: string; title: string; severity: Severity; message: string; delta: number | null; unit: Violation["unit"]; href: string; entityLabel: string }[];

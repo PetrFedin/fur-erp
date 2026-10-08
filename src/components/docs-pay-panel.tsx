@@ -134,16 +134,16 @@ function ReplaceButton({ doc }: { doc: PanelDoc }) {
   return (
     <span className="inline-flex flex-col gap-1">
       <FileButton
-        label="Заменить"
+        label={doc.href ? "Заменить" : "Загрузить файл"}
         variant="ghost"
         disabled={pending}
         onFile={(f) => {
           const err = checkFile(f);
           if (err) return setMsg({ error: err });
-          if (!window.confirm(`Заменить файл документа «${doc.title}» на «${f.name}»? Старый файл будет удалён.`)) return;
+          if (doc.href && !window.confirm(`Заменить файл документа «${doc.title}» на «${f.name}»? Старый файл будет удалён.`)) return;
           const fd = new FormData();
           fd.set("file", f);
-          run(() => (r.action === "purchaseDoc" ? replacePurchaseDocument(r.id, fd) : uploadDriveDocumentFile(r.id, fd)), "Файл заменён");
+          run(() => (r.action === "purchaseDoc" ? replacePurchaseDocument(r.id, fd) : uploadDriveDocumentFile(r.id, fd)), doc.href ? "Файл заменён" : "Файл загружен");
         }}
       />
       <Msg msg={msg} pending={pending} />
@@ -157,18 +157,13 @@ function AttachMention({ m }: { m: PanelMention }) {
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-700">
       <span className="min-w-0 break-words">{m.text}</span>
-      {m.driveUrl && (
-        <a href={m.driveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-          Drive
-        </a>
-      )}
       {a && (
         <Button
           type="button"
           size="sm"
           variant="outline"
           disabled={pending}
-          title="Привязать этот документ с Google Drive к карточке: сопоставление делаете вы, по названию в папке"
+          title="Привязать этот документ к карточке: сопоставление делаете вы; сам файл затем загрузите кнопкой «Загрузить файл»"
           onClick={() => {
             const fd = new FormData();
             fd.set("link", a.fileId);
@@ -220,11 +215,6 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
                   </a>
                 </>
               )}
-              {d.driveUrl && (
-                <a href={d.driveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                  Drive
-                </a>
-              )}
               {canUpload && <ReplaceButton doc={d} />}
             </li>
           ))}
@@ -242,11 +232,6 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
                           Открыть
                         </a>
                       )}
-                      {d.driveUrl && (
-                        <a href={d.driveUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                          Drive
-                        </a>
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -257,7 +242,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
       )}
       {it.mentions.length > 0 && (
         <div className="rounded border border-dashed border-neutral-300 bg-white/70 px-2 py-1.5">
-          <p className="text-xs font-medium text-neutral-600">Названо в папке Drive «мех», но не привязано здесь:</p>
+          <p className="text-xs font-medium text-neutral-600">Упомянуто в документах, но не привязано здесь:</p>
           <ul className="mt-1 flex flex-col gap-1">
             {it.mentions.map((m, i) => (canUpload ? <AttachMention key={i} m={m} /> : <li key={i} className="text-xs text-neutral-700">{m.text}</li>))}
           </ul>
@@ -414,7 +399,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
         )}
         {panel.mentionedPayments.length > 0 && (
           <details className="rounded-md border border-dashed border-neutral-300 px-3 py-2 text-xs text-neutral-700">
-            <summary className="cursor-pointer font-medium text-neutral-600">Оплаты, упомянутые в документах Drive ({panel.mentionedPayments.length}) — это не учёт, а справка</summary>
+            <summary className="cursor-pointer font-medium text-neutral-600">Оплаты, упомянутые в документах ({panel.mentionedPayments.length}) — это не учёт, а справка</summary>
             <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4">
               {panel.mentionedPayments.map((t, i) => (
                 <li key={i}>{t}</li>

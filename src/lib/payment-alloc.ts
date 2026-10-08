@@ -11,7 +11,7 @@
  */
 import { Decimal } from "@prisma/client/runtime/library";
 import { orderUnits } from "@/lib/production-totals";
-import { fromCents, splitByWeights, toCents, unallocatedKind, type AllocLine, type UnallocatedKind } from "@/lib/payment-alloc-core";
+import { fromCents, splitByWeights, toCents, unallocatedKind, type AllocLine, type AllocOrderOpt, type UnallocatedKind } from "@/lib/payment-alloc-core";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = Record<string, any>;
@@ -282,4 +282,43 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
     unallocatedByKind: { advance: Math.round(byKind.advance * 100) / 100, excess: Math.round(byKind.excess * 100) / 100 },
     payments: yearPayments,
   };
+}
+
+// ---------- Данные для редактора разнесения ----------
+
+/**
+ * Для платежей (id, заказчик, набор ТЗ) — варианты ТЗ заказчика (работа, разнесено другими платежами) и текущие строки разнесения.
+ * Нужны кнопке «Разнесение» (components/allocation-editor.tsx) на /payments и в Контроле.
+ */
+export async function loadAllocEditorData(
+  db: Db,
+  orgId: string,
+  payments: { id: string; clientId: string | null; linkedOrderIds: string[] }[],
+): Promise<Map<string, { orders: AllocOrderOpt[]; initial: { orderId: string; amount: string }[] }>> {
+  const out = new Map<string, { orders: AllocOrderOpt[]; initial: { orderId: string; amount: string }[] }>();
+  if (payments.length === 0) return out;
+  const clientIds = [...new Set(payments.map((p) => p.clientId).filter((x): x is string => !!x))];
+  const orders: (OrderQty & { id: string; clientId: string | null; number: string; workOrderNumber: string | null })[] = await db.productionOrder.findMany({
+    where: { organizationId: orgId, status: { not: "CANCELLED" }, OR: [{ clientId: { in: clientIds } }, { id: { in: payments.flatMap((p) => p.linkedOrderIds) } }] },
+    select: { id: true, clientId: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true },
+  });
+  const allocs: { productionOrderId: string; productionPaymentId: string; amount: Decimal }[] = await db.paymentAllocation.findMany({
+    where: { organizationId: orgId, productionOrderId: { in: orders.map((o) => o.id) }, productionPayment: { status: { not: "CANCELLED" } } },
+    select: { productionOrderId: true, productionPaymentId: true, amount: true },
+  });
+  for (const p of payments) {
+    const linked = new Set(p.linkedOrderIds);
+    const opts = orders
+      .filter((o) => linked.has(o.id) || (p.clientId != null && o.clientId === p.clientId))
+      .map((o) => ({
+        id: o.id,
+        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
+        linked: linked.has(o.id),
+        workCents: orderWorkCents(o),
+        otherCents: allocs.filter((a) => a.productionOrderId === o.id && a.productionPaymentId !== p.id).reduce((s, a) => s + toCents(a.amount), 0),
+      }))
+      .sort((a, b) => Number(b.linked) - Number(a.linked) || a.label.localeCompare(b.label, "ru", { numeric: true }));
+    out.set(p.id, { orders: opts, initial: allocs.filter((a) => a.productionPaymentId === p.id).map((a) => ({ orderId: a.productionOrderId, amount: new Decimal(a.amount).toFixed(2) })) });
+  }
+  return out;
 }

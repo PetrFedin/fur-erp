@@ -34,9 +34,9 @@ async function main() {
           if (c.violations.length > 8) console.log(`        … ещё ${c.violations.length - 8}`);
           if (process.argv.includes("--all")) for (const v of c.known) console.log(`        ~ известно: ${v.message}\n          причина: ${v.reason}`);
         }
-        console.log(`\nИтого: расхождений ${r.failing} (ошибок ${r.failingErrors}, предупреждений ${r.failingWarns}), известных ${r.knownCount}; проверок с расхождениями ${r.checksFailed} из ${r.checksTotal}.`);
+        console.log(`\nИтого: расхождений ${r.failing} (ошибок ${r.failingErrors}, предупреждений ${r.failingWarns}, справочных ${r.failingInfo}), известных ${r.knownCount}; проверок с расхождениями ${r.checksFailed} из ${r.checksTotal}.`);
       }
-      if (!r.ok) bad += 1;
+      if (r.failingErrors > 0) bad += 1; // выход ≠ 0 только при красном (ошибки)
     }
     process.exitCode = bad ? 1 : 0;
   } finally {

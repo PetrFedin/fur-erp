@@ -1,4 +1,7 @@
+
+import { IntegrityBanner } from "@/components/integrity-banner";
 import Link from "next/link";
+import { cleanNote } from "@/lib/note-tags";
 import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +28,6 @@ import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { ItemRowShared, PurchaseItemRow } from "./item-row";
 import { DocumentsForm } from "./documents-form";
-import { AddForm } from "@/components/drive-documents";
 import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { countLabel } from "@/lib/drive-docs-group";
@@ -489,6 +491,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex max-w-4xl flex-col gap-4">
+      <IntegrityBanner kind="purchase" id={purchase.id} />
       <div className="-mb-2 text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
       <div className="flex items-start justify-between">
         <div>
@@ -772,7 +775,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     : undefined
                 }
               />
-              <AddForm entity="purchase" entityId={id} />
             </div>
           )}
         </CardContent>
@@ -913,7 +915,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     {formatMoney(p.amount.toString())}
                     {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                   </Td>
-                  <Td>{[p.docRef ? `п/п ${p.docRef}` : null, p.notes].filter(Boolean).join(" · ") || "—"}</Td>
+                  <Td>{[p.docRef ? `п/п ${p.docRef}` : null, cleanNote(p.notes)].filter(Boolean).join(" · ") || "—"}</Td>
                   {canEditRole && (
                     <Td>
                       <div className="flex items-center gap-1">
@@ -950,7 +952,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 fields={[
                   { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
                   ...(p.docRef ? [{ label: "П/п, счёт", value: p.docRef }] : []),
-                  ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
+                  ...(cleanNote(p.notes) ? [{ label: "Заметка", value: cleanNote(p.notes) }] : []),
                 ]}
                 extra={
                   canEditRole && (

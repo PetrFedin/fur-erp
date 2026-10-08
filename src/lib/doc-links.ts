@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { stripServiceTags } from "@/lib/note-tags";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 
 /**
@@ -52,12 +53,52 @@ async function purchaseOf(entity: DocEntity, id: string, orgId: string) {
   return null;
 }
 
+/**
+ * Партия: документы самой партии + её ТЗ + оплат этих ТЗ (как на карточке партии).
+ * Возвращает по каждой партии id её ТЗ (с подписью) и id оплат.
+ */
+async function batchScopes(orgId: string, batchIds: string[]) {
+  const orders = await prisma.productionOrder.findMany({
+    where: { organizationId: orgId, batchId: { in: batchIds } },
+    select: { id: true, batchId: true, number: true, workOrderNumber: true },
+  });
+  const allocs = orders.length
+    ? await prisma.paymentAllocation.findMany({ where: { organizationId: orgId, productionOrderId: { in: orders.map((o) => o.id) } }, select: { productionOrderId: true, productionPaymentId: true } })
+    : [];
+  const out = new Map<string, { orders: Map<string, string>; payIds: Set<string> }>();
+  for (const b of batchIds) out.set(b, { orders: new Map(), payIds: new Set() });
+  const batchOfOrder = new Map<string, string>();
+  for (const o of orders) {
+    if (!o.batchId) continue;
+    batchOfOrder.set(o.id, o.batchId);
+    out.get(o.batchId)?.orders.set(o.id, `ТЗ №${o.workOrderNumber ?? o.number}`);
+  }
+  for (const a of allocs) {
+    const b = batchOfOrder.get(a.productionOrderId);
+    if (b) out.get(b)?.payIds.add(a.productionPaymentId);
+  }
+  return out;
+}
+
 export async function listDocs(orgId: string, entity: DocEntity, id: string): Promise<DocItem[]> {
   const col = DRIVE_COL[entity];
   const own = await prisma.driveDocument.findMany({
     where: { organizationId: orgId, [col]: id },
     orderBy: [{ docDate: "asc" }, { title: "asc" }],
   });
+  const batchScope = entity === "batch" ? (await batchScopes(orgId, [id])).get(id) : undefined;
+  const viaBatch = batchScope
+    ? await prisma.driveDocument.findMany({
+        where: {
+          organizationId: orgId,
+          OR: [
+            ...(batchScope.orders.size ? [{ productionOrderId: { in: [...batchScope.orders.keys()] } }] : []),
+            ...(batchScope.payIds.size ? [{ productionPaymentId: { in: [...batchScope.payIds] } }] : []),
+          ],
+        },
+        orderBy: [{ docDate: "asc" }, { title: "asc" }],
+      })
+    : [];
   const purchase = await purchaseOf(entity, id, orgId);
   const viaPurchase =
     entity === "lot" && purchase
@@ -83,7 +124,7 @@ export async function listDocs(orgId: string, entity: DocEntity, id: string): Pr
       key: `d:${d.id}`,
       src: "drive",
       id: d.id,
-      title: d.title,
+      title: stripServiceTags(d.title),
       typeLabel: DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType,
       number: d.docNumber,
       date: d.docDate ? d.docDate.toISOString().slice(0, 10) : null,
@@ -96,6 +137,7 @@ export async function listDocs(orgId: string, entity: DocEntity, id: string): Pr
   };
   own.forEach((d) => addDrive(d, null));
   viaPurchase.forEach((d) => addDrive(d, "Закупка"));
+  viaBatch.forEach((d) => addDrive(d, d.productionOrderId ? (batchScope?.orders.get(d.productionOrderId) ?? "ТЗ") : "оплата"));
   for (const p of pdocs) {
     out.push({
       key: `p:${p.id}`,
@@ -121,6 +163,27 @@ export type DocCount = { total: number; stored: number };
 export async function docCounts(orgId: string, entity: DocEntity, ids: string[]): Promise<Map<string, DocCount>> {
   const res = new Map<string, DocCount>();
   if (ids.length === 0) return res;
+  if (entity === "batch") {
+    const scopes = await batchScopes(orgId, ids);
+    const orderIds = [...scopes.values()].flatMap((x) => [...x.orders.keys()]);
+    const payIds = [...new Set([...scopes.values()].flatMap((x) => [...x.payIds]))];
+    const rows = await prisma.driveDocument.findMany({
+      where: {
+        organizationId: orgId,
+        OR: [{ productionBatchId: { in: ids } }, ...(orderIds.length ? [{ productionOrderId: { in: orderIds } }] : []), ...(payIds.length ? [{ productionPaymentId: { in: payIds } }] : [])],
+      },
+      select: { driveFileId: true, storagePath: true, productionBatchId: true, productionOrderId: true, productionPaymentId: true },
+    });
+    for (const [bid, sc] of scopes) {
+      const files = new Map<string, boolean>();
+      for (const d of rows) {
+        const mine = d.productionBatchId === bid || (d.productionOrderId != null && sc.orders.has(d.productionOrderId)) || (d.productionPaymentId != null && sc.payIds.has(d.productionPaymentId));
+        if (mine) files.set(d.driveFileId, (files.get(d.driveFileId) ?? false) || !!d.storagePath);
+      }
+      if (files.size) res.set(bid, { total: files.size, stored: [...files.values()].filter(Boolean).length });
+    }
+    return res;
+  }
   const col = Prisma.raw(`"${DRIVE_COL[entity]}"`);
   const rows =
     entity === "lot"

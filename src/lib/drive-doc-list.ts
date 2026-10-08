@@ -117,7 +117,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
       year: d.year ?? (date ? date.getUTCFullYear() : null),
       hasOriginal: !!d.storagePath,
       size: d.sizeBytes ?? d.storedSize,
-      openHref: d.storagePath || d.viewUrl ? `/api/drive-docs/${d.id}` : null,
+      openHref: d.storagePath ? `/api/drive-docs/${d.id}` : null,
       links,
     });
   }

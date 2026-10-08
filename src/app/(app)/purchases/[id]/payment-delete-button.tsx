@@ -8,7 +8,7 @@ export function PaymentDeleteButton({ action, amountLabel }: { action: () => Pro
     <form
       action={action}
       onSubmit={(e) => {
-        if (!window.confirm(`Удалить оплату ${amountLabel}? Это изменит «Оплачено» и остаток закупки; прикреплённые к оплате документы Google Drive тоже будут удалены (сами файлы на Диске останутся).`)) e.preventDefault();
+        if (!window.confirm(`Удалить оплату ${amountLabel}? Это изменит «Оплачено» и остаток закупки; прикреплённые к оплате документы (в том числе загруженные файлы) тоже будут удалены.`)) e.preventDefault();
       }}
     >
       <Button type="submit" variant="outline" size="sm" className="max-md:h-10">

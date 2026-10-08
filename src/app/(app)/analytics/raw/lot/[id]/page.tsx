@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { IntegrityBanner } from "@/components/integrity-banner";
+import { cleanNote } from "@/lib/note-tags";
 import { notFound } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
 import { requireSession } from "@/lib/session";
@@ -78,6 +80,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-4">
+      <IntegrityBanner kind="lot" id={id} />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Link href={`/analytics/raw${lining ? "?scope=lining" : ""}`} className="text-neutral-500 hover:underline">← Аналитика сырья</Link>
         <Link href="/analytics/raw/recon" className="text-neutral-500 hover:underline">· Сверка лотов</Link>
@@ -158,7 +161,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                 </span>,
               )}
           </dl>
-          {p.notes && <p className="mt-3 text-xs text-neutral-500">Примечание: {p.notes}</p>}
+          {cleanNote(p.notes) && <p className="mt-3 text-xs text-neutral-500">Примечание: {cleanNote(p.notes)}</p>}
         </CardContent>
       </Card>
 

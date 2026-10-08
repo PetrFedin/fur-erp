@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IntegrityBanner } from "@/components/integrity-banner";
 import { ArticleName } from "@/components/article-name";
 import { notFound, redirect } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -12,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { DriveDocuments } from "@/components/drive-documents";
+import { DocBadge } from "@/components/doc-viewer";
+import { docCounts } from "@/lib/doc-links";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
@@ -72,6 +75,16 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     }
   }
   const payments = Array.from(payMap.values()).sort((a, b) => a.p.paidAt.getTime() - b.p.paidAt.getTime());
+  // Разнесение по ТЗ партии: сколько из каждого платежа отнесено на ТЗ ЭТОЙ партии, и оплачено по каждому ТЗ.
+  const shareByPay = new Map<string, Decimal>();
+  const paidByOrder = new Map<string, Decimal>();
+  for (const o of orders) {
+    for (const sh of o.payShares) {
+      if (sh.productionPayment.status === "CANCELLED") continue;
+      shareByPay.set(sh.productionPaymentId, (shareByPay.get(sh.productionPaymentId) ?? new Decimal(0)).add(sh.amount));
+      paidByOrder.set(o.id, (paidByOrder.get(o.id) ?? new Decimal(0)).add(sh.amount));
+    }
+  }
 
   // Переплата: оплата больше работы партии. Если в заметке платежа сказано про шкуры подрядчика — объясняем.
   const overpaid = t.remaining.lessThan(-0.005);
@@ -80,6 +93,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     .reduce<Decimal | null>((s, v) => (v ? (s ? s.add(v) : v) : s), null);
 
   const orderIds = orders.map((o) => o.id);
+  const payDocCnt = await docCounts(orgId, "productionPayment", payments.map((x) => x.p.id));
   const driveRows = await prisma.driveDocument.findMany({
     where: {
       organizationId: orgId,
@@ -107,6 +121,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   return (
     <div className="flex max-w-5xl flex-col gap-4">
       <ProductionTabs active="batches" />
+      <IntegrityBanner kind="batch" id={batch.id} />
       <div>
         <p className="flex items-center gap-3 text-sm">
           <Link href="/production/batches" className="text-neutral-500 hover:underline">
@@ -155,6 +170,13 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           Ставка НДС в списаниях сырья и подкладки: <TzVatBadge b={batchVat} />
         </p>
       )}
+      {t.unallocated.greaterThan(0.005) && (
+        <p className="text-sm text-neutral-600">
+          Не отнесено ни к одному ТЗ: <span className="font-medium">{formatMoney(t.unallocated.toString())}</span>
+          {hidesInPay ? ` (в оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())})` : " — платёж больше остатка работы ТЗ партии"}. В остаток по ТЗ это не входит; список —{" "}
+          <Link href="/attention" className="text-blue-600 hover:underline">Контроль → Задачи → Неразнесённые авансы</Link>.
+        </p>
+      )}
       {overpaid && (
         <p className="text-sm text-neutral-600">
           Переплата {formatMoney(t.remaining.abs().toString())}
@@ -181,6 +203,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   Себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""}
                 </Th>
                 <Th className="hidden md:table-cell">Работа</Th>
+                <Th className="hidden md:table-cell" title="Разнесено на это ТЗ из оплат заказчика">Оплачено</Th>
+                <Th className="hidden md:table-cell" title="Работа минус оплачено по ТЗ">Остаток</Th>
                 <Th className="hidden md:table-cell" title="Ставки НДС лотов в списаниях ТЗ">НДС</Th>
               </Tr>
             </Thead>
@@ -205,6 +229,10 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                     </Td>
                     <Td className="hidden whitespace-nowrap sm:table-cell">{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</Td>
+                    <Td className="hidden whitespace-nowrap md:table-cell">{paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "—"}</Td>
+                    <Td className="hidden whitespace-nowrap md:table-cell">
+                      {s.work.isZero() || o.status === "CANCELLED" ? "—" : (() => { const left = s.work.sub(paidByOrder.get(o.id) ?? 0); return <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span>; })()}
+                    </Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">
                       <TzVatBadge b={vatBreakdown(o.materialUsages, c4Mode)} compact />
                     </Td>
@@ -213,7 +241,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               })}
               {orders.length === 0 && (
                 <Tr>
-                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={9} className="py-6 text-center text-neutral-400">
                     К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production?view=batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
                   </Td>
                 </Tr>
@@ -238,8 +266,10 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Дата</Th>
                 <Th>Тип</Th>
                 <Th>Сумма</Th>
+                <Th className="hidden sm:table-cell" title="Часть платежа, отнесённая на ТЗ этой партии">На ТЗ партии</Th>
                 <Th className="hidden sm:table-cell">Документ</Th>
                 <Th className="hidden sm:table-cell">ТЗ</Th>
+                <Th>Документы</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -252,13 +282,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                     {!p.confirmed && <span className="ml-1 text-xs text-amber-600">не подтверждена</span>}
                   </Td>
                   <Td className="whitespace-nowrap font-medium">{formatMoney(p.amount.toString())}</Td>
+                  <Td className="hidden whitespace-nowrap sm:table-cell">{shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—"}</Td>
                   <Td className="hidden sm:table-cell">{p.docRef ?? "—"}</Td>
                   <Td className="hidden sm:table-cell">{tz.join(", ")}</Td>
+                  <Td><DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                 </Tr>
               ))}
               {payments.length === 0 && (
                 <Tr>
-                  <Td colSpan={5} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
                     Оплат по ТЗ партии пока нет
                   </Td>
                 </Tr>

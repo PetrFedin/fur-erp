@@ -21,6 +21,8 @@ import { DocsPayBadge } from "@/components/docs-pay-badge";
 import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { payShort } from "@/lib/doc-panel";
+import { DocBadge } from "@/components/doc-viewer";
+import { docCounts } from "@/lib/doc-links";
 
 export const metadata = { title: "Партии" };
 
@@ -38,31 +40,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
       : allBatches
           .map((b) => ({ ...b, orders: b.orders.filter((o) => orderInYear({ ...o, batch: { year: b.year } }, year)) }))
           .filter((b) => b.orders.length > 0 || b.year === Number(year));
-  // «Документы» — как на карточке партии: документы самой партии + её ТЗ + оплат этих ТЗ (каждый документ один раз).
+  // «Документы» — как на карточке партии: документы самой партии + её ТЗ + оплат этих ТЗ (каждый файл один раз).
   const orgId = session.user.organizationId;
-  const orderIds = batches.flatMap((b) => b.orders.map((o) => o.id));
-  const payIds = [...new Set(batches.flatMap((b) => b.orders.flatMap((o) => o.paymentAllocations.map((a) => a.productionPayment.id))))];
-  const docRows = await prisma.driveDocument.findMany({
-    where: {
-      organizationId: orgId,
-      OR: [
-        { productionBatchId: { in: batches.map((b) => b.id) } },
-        ...(orderIds.length ? [{ productionOrderId: { in: orderIds } }] : []),
-        ...(payIds.length ? [{ productionPaymentId: { in: payIds } }] : []),
-      ],
-    },
-    select: { id: true, productionBatchId: true, productionOrderId: true, productionPaymentId: true },
-  });
-  const docsOf = (b: (typeof batches)[number]) => {
-    const orders = new Set(b.orders.map((o) => o.id));
-    const pays = new Set(b.orders.flatMap((o) => o.paymentAllocations.map((a) => a.productionPayment.id)));
-    return docRows.filter(
-      (d) =>
-        d.productionBatchId === b.id ||
-        (d.productionOrderId != null && orders.has(d.productionOrderId)) ||
-        (d.productionPaymentId != null && pays.has(d.productionPaymentId)),
-    ).length;
-  };
+  const batchDocCnt = await docCounts(orgId, "batch", batches.map((b) => b.id));
+  const docsOf = (b: (typeof batches)[number]) => batchDocCnt.get(b.id)?.total ?? 0;
   const allRows = batches.map((b) => ({ b, t: batchTotals(b.orders, c4Mode), docs: docsOf(b) }));
   // Пустые партии (ни одного ТЗ) скрыты по умолчанию; ?empty=1 показывает.
   const isEmptyBatch = (r: (typeof allRows)[number]) => r.b.orders.length === 0;
@@ -190,7 +171,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th className="hidden lg:table-cell" title="Ставки НДС лотов в списаниях ТЗ партии">НДС</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
             <Th>Остаток</Th>
-            <Th className="hidden sm:table-cell" title="Файлы из Google Drive: самой партии, её ТЗ и оплат">Файлов в Drive</Th>
+            <Th className="hidden sm:table-cell" title="Документы самой партии, её ТЗ и оплат; нажмите, чтобы открыть или загрузить">Документы</Th>
             <Th className="hidden lg:table-cell" title="Чего не хватает по документам и оплачена ли работа заказчиком">Документы и оплата</Th>
             <Th className="hidden lg:table-cell" title="Подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки">Проверка</Th>
           </Tr>
@@ -230,7 +211,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                     ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
                     : formatMoney(t.remaining.toString())}
               </Td>
-              <Td className="hidden sm:table-cell">{docs || "—"}</Td>
+              <Td className="hidden sm:table-cell"><DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} /></Td>
               <Td className="hidden lg:table-cell">
                 {panelByNumber.get(b.number) ? (
                   <Link href={`/production/batches/${b.number}`} className="inline-block">
@@ -254,7 +235,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={12} className="py-8 text-center text-neutral-400">
-                {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}
+                {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}
               </Td>
             </Tr>
           )}
@@ -283,7 +264,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: `Себестоимость${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
-                { label: "Файлов в Drive", value: docs || "—" },
+                { label: "Документы", value: <DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} /> },
                 { label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> },
                 {
                   label: "Документы и оплата",
@@ -302,7 +283,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           );
         })}
         {rows.length === 0 && (
-          <p className="py-8 text-center text-neutral-400">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям из Google Drive.")}</p>
+          <p className="py-8 text-center text-neutral-400">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}</p>
         )}
       </ResponsiveRows>
 

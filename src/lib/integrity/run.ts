@@ -58,6 +58,8 @@ async function compute(db: PrismaClient, orgId: string): Promise<IntegrityReport
   }
   const failing = results.reduce((s, r) => s + r.violations.length, 0);
   const failingErrors = results.filter((r) => r.severity === "error").reduce((s, r) => s + r.violations.length, 0);
+  const failingWarns = results.filter((r) => r.severity === "warn").reduce((s, r) => s + r.violations.length, 0);
+  const hardFailed = results.filter((r) => r.severity !== "info" && r.status === "fail").length;
   return {
     checkedAt: new Date().toISOString(),
     orgId,
@@ -65,11 +67,12 @@ async function compute(db: PrismaClient, orgId: string): Promise<IntegrityReport
     results,
     failing,
     failingErrors,
-    failingWarns: failing - failingErrors,
+    failingWarns,
+    failingInfo: failing - failingErrors - failingWarns,
     knownCount: results.reduce((s, r) => s + r.known.length, 0),
     checksTotal: results.length,
     checksFailed: results.filter((r) => r.status === "fail").length,
-    ok: results.every((r) => r.status !== "fail"),
+    ok: hardFailed === 0,
   };
 }
 
@@ -86,16 +89,23 @@ export function runIntegrityChecks(db: PrismaClient, orgId: string, opts: { forc
   return value;
 }
 
+/** Сбросить кэш отчёта (после правки данных), чтобы колокольчик и плашки не показывали устаревшее. Вызывает recalcAfterEdit. */
+export function invalidateIntegrity(orgId?: string): void {
+  if (!orgId) cache.clear();
+  else cache.delete(orgId);
+}
+
 const SEV_ORDER = { error: 0, warn: 1, info: 2 } as const;
 
 /** Короткая сводка для колокольчика: самые серьёзные расхождения первыми. */
 export function summarize(r: IntegrityReport, limit = 12): IntegritySummary {
-  const flat = r.results.flatMap((c) => c.violations.map((v) => ({ c, v })));
+  const flat = r.results.filter((c) => c.severity !== "info").flatMap((c) => c.violations.map((v) => ({ c, v })));
   flat.sort((a, b) => SEV_ORDER[a.c.severity] - SEV_ORDER[b.c.severity] || Math.abs(b.v.delta ?? 0) - Math.abs(a.v.delta ?? 0));
   return {
     checkedAt: r.checkedAt,
-    failing: r.failing,
+    failing: r.failingErrors + r.failingWarns,
     failingErrors: r.failingErrors,
+    failingWarns: r.failingWarns,
     knownCount: r.knownCount,
     ok: r.ok,
     items: flat.slice(0, limit).map(({ c, v }) => ({ checkId: c.id, title: c.title, severity: c.severity, message: v.message, delta: v.delta, unit: v.unit, href: v.href, entityLabel: v.entity.label })),

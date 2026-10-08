@@ -57,7 +57,7 @@ export function GroupedByBatch({
   if (groups.length === 0) {
     return (
       <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
-        {filtered ? "Ничего не найдено" : emptyForYear(year, "партий с ТЗ", "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте из Google Drive.")}
+        {filtered ? "Ничего не найдено" : emptyForYear(year, "партий с ТЗ", "Партий с ТЗ пока нет. Партия назначается ТЗ при импорте или вручную.")}
       </p>
     );
   }

@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { stripServiceTags } from "@/lib/note-tags";
 import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import type { Live } from "./live";
 import { groupInvoices, totalsOf, TOL, type Group } from "./model";
-import { GroupDbLine, InvoiceHeader, InvoiceRow, driveUrl, money } from "./parts";
+import { GroupDbLine, InvoiceHeader, InvoiceRow, money } from "./parts";
 
 /** Документы и оплата по группе — те же панели и статусы, что в карточках аукциона/партии и на «Документах». */
 export type DocInfo = { href: string; label: string; missing: number; proofMissing: number; dot: string };
@@ -163,11 +164,7 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
               </ul>
             </div>
           ) : null}
-          {g.folderUrl ? (
-            <a href={g.folderUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
-              Папка Drive{g.folderPath ? `: ${g.folderPath}` : ""}
-            </a>
-          ) : g.folderPath ? <span className="text-neutral-500">Папка Drive: {g.folderPath}</span> : null}
+          {g.folderPath ? <InfoHint label="Исходная папка документов"><span className="break-all">{g.folderPath}</span></InfoHint> : null}
           <span>
             Документы: стоимость <b className="tabular-nums">{money(g.doc.costRub)}</b>, оплачено <b className="tabular-nums">{money(g.doc.paidRub)}</b>
           </span>
@@ -240,11 +237,11 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
             <span className="text-neutral-600">аванс, засчитанный в расчёте партии: <b className="tabular-nums">{money(g.advanceRub)}</b></span>
           ) : null}
           {g.files.length > 0 && (
-            <InfoHint label="Документы Drive" wide>
+            <InfoHint label="Документы группы" wide>
               <ul className="space-y-0.5">
                 {g.files.map((f) => (
                   <li key={f.fileId} className="truncate">
-                    <a href={driveUrl(f.fileId)} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{f.title}</a>
+                    {stripServiceTags(f.title)}
                   </li>
                 ))}
               </ul>

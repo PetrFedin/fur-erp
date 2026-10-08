@@ -99,13 +99,14 @@ async function main() {
   const article = await raw.productModel.findFirstOrThrow({ where: { organizationId: org } });
   const batch = await raw.productionBatch.findFirstOrThrow({ where: { organizationId: org }, orderBy: { number: "desc" } });
   const color = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, NOT: { note: { contains: "Предложено" } } } });
+  const color2 = await raw.colorRef.findFirstOrThrow({ where: { organizationId: org, id: { not: color.id }, NOT: { note: { contains: "Предложено" } } } });
   const ordersBefore = await raw.productionOrder.count();
   const remA = Number(lotA.quantityRemaining);
   const remB = Number(lotB.quantityRemaining);
   const mk = (o: Partial<import("../src/lib/tz-import-core").TzDraft>) => ({ ...core.emptyDraft("t"), ...o });
   const drafts = [
     mk({ key: "1", number: "WIZ-T1", article: article.name, colors: color.name, sizes: "44×2, 46×1", batch: String(batch.number), price: "1500", materials: `${lotA.lotNumber}\t1,5\n${lotB.lotNumber}\t2 без4` }),
-    mk({ key: "2", number: "WIZ-T2", article: article.name, colors: `${color.name} ×1 (42); ${color.name}2 ×1`, qty: "2", materials: `${lotA.lotNumber}\t1` }),
+    mk({ key: "2", number: "WIZ-T2", article: article.name, colors: `${color.name} ×1 (42); ${color2.name} ×1`, qty: "2", materials: `${lotA.lotNumber}\t1` }),
   ];
 
   // ---- проверка: проблемы подсвечиваются
@@ -114,7 +115,7 @@ async function main() {
     mk({ key: "p2", number: "WIZ-DUP", article: article.name, qty: "1" }),
     mk({ key: "p3", number: "WIZ-DUP", article: article.name, qty: "1", materials: `${lotA.lotNumber}\t${remA + 1}` }),
     mk({ key: "p4", number: "WIZ-S", article: article.name, qty: "1", calcTotal: "5", materials: `${lotA.lotNumber}\t1` }),
-    mk({ key: "p5", number: "WIZ-C1", article: article.name, qty: "1", materials: `${lotA.lotNumber}\t${remA}` }),
+    mk({ key: "p5", number: "WIZ-C1", article: article.name, qty: "1", materials: `${lotA.lotNumber}\t${remA - 1}` }),
     mk({ key: "p6", number: "WIZ-C2", article: article.name, qty: "1", materials: `${lotA.lotNumber}\t1` }),
   ];
   const chk = await A.checkTzDrafts(probe, { createRefs: false });
@@ -142,6 +143,7 @@ async function main() {
   fd.set("drafts", JSON.stringify(drafts));
   fd.append("files", file("tz.xlsx", await xlsx([["a"]])));
   const r = await A.createTzBatch(fd);
+  if (!r.ok && r.analysis) console.log("   разбор:", JSON.stringify(r.analysis.map((a) => [a.key, a.issues.map((i) => `${i.level}:${i.field}:${i.text}`)])));
   ok(!!r.ok && r.orders?.length === 2, `создано 2 ТЗ: ${r.error ?? ""}`);
   const created = await raw.productionOrder.findMany({ where: { workOrderNumber: { in: ["WIZ-T1", "WIZ-T2"] } }, include: { materialUsages: true, colors: true }, orderBy: { workOrderNumber: "asc" } });
   ok(created.length === 2 && created[0].materialUsages.length === 2 && created[0].status === "IN_PROGRESS", "ТЗ 1: два списания, «В работе»");

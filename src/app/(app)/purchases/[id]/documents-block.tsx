@@ -6,7 +6,6 @@ import { formatDate } from "@/lib/utils";
 import { deletePurchaseDocument } from "../doc-actions";
 import type { DriveDocView } from "@/lib/drive-docs";
 import { copiesLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
-import { safeViewUrl } from "@/lib/drive-docs";
 
 export type FileDocRow = {
   id: string;
@@ -61,7 +60,7 @@ export function buildDocGroups(files: FileDocRow[], drives: DriveDocRow[]): Entr
 
 const entryId = (e: Entry) => (e.type === "drive" ? e.d.view.id : e.d.id);
 
-/** Один блок «Документы»: файлы закупки/партии и документы Google Drive вместе, повторы — одной строкой «×N». */
+/** Один блок «Документы»: файлы закупки/партии и привязанные документы вместе, повторы — одной строкой «×N». */
 export function PurchaseDocumentsList({
   purchaseId,
   files,
@@ -78,7 +77,6 @@ export function PurchaseDocumentsList({
   const list = buildDocGroups(files, drives);
 
   function fileRow(d: FileDocRow, drive?: DriveDocRow[]) {
-    const driveUrl = drive?.length ? safeViewUrl(drive[0].view.viewUrl) : null;
     return (
       <div key={d.id} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">
@@ -89,19 +87,9 @@ export function PurchaseDocumentsList({
             {DOC_KIND_LABELS[d.kind as keyof typeof DOC_KIND_LABELS]}
             {d.batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
           </span>
-          {drive && (
-            <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600" title="Файл в приложении и ссылка на Google Drive — один и тот же документ">
-              файл + Drive
-            </span>
-          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
-          {driveUrl && (
-            <a href={driveUrl} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center rounded-md px-2 text-sm text-blue-600 hover:bg-neutral-100">
-              Drive
-            </a>
-          )}
           {canEdit && (
             <form
               action={async () => {
@@ -130,7 +118,7 @@ export function PurchaseDocumentsList({
         {fileRow(e.d, e.drives)}
         {canEdit && e.drives.some((x) => x.view.canRemove !== false) && (
           <details className="text-xs text-neutral-500">
-            <summary className="cursor-pointer">Ссылки Drive (убрать)</summary>
+            <summary className="cursor-pointer">Повторные записи документа (убрать)</summary>
             <div className="mt-1">
               <DriveDocList docs={e.drives.map((x) => x.view)} canEdit={canEdit} />
             </div>

@@ -4,8 +4,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { batchExtraName, batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import { batchRules, normTitle, paymentRules, tzRules, uniq, type CovDoc, type Need } from "@/lib/doc-coverage";
-import { DRIVE_DOC_TYPE_LABELS, safeViewUrl, type DriveDocTypeKey } from "@/lib/drive-docs";
-import { batchMentions, driveFileUrl, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
+import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { batchMentions, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
 import { buildPanelPay, isManualRef, overallTone, payShort, type Panel, type PanelDoc, type PanelItem, type PanelMention, type PanelPay, type PanelPayment, type Tone, type UploadTarget } from "@/lib/doc-panel";
 import { formatDate, formatMoney } from "@/lib/utils";
 
@@ -51,9 +51,8 @@ const orderTitle = (o: { workOrderNumber: string | null; number: string }) => (o
 const toDoc = (d: DocRow): PanelDoc => ({
   id: d.id,
   title: d.title,
-  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · ссылка Drive"}`,
+  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · файл не загружен"}`,
   href: d.storagePath ? `/api/drive-docs/${d.id}` : null,
-  driveUrl: safeViewUrl(d.viewUrl),
   replace: { action: "driveDoc", id: d.id },
 });
 
@@ -147,14 +146,13 @@ function mentionsFor(kinds: MentionDocKind[], docType: DriveDocTypeKey, batchNum
     }
     out.push({
       text: mentionDocText(d),
-      driveUrl: d.fileId ? driveFileUrl(d.fileId) : null,
-      attach: d.fileId
+            attach: d.fileId
         ? { entity, id, fileId: d.fileId, title: d.title ?? mentionDocText(d), docType, docNumber: d.no, docDate: d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : null }
         : null,
     });
   }
   shown.n += out.length;
-  if (more > 0) out.push({ text: `…и ещё ${more}`, driveUrl: null, attach: null });
+  if (more > 0) out.push({ text: `…и ещё ${more}`, attach: null });
   return out;
 }
 

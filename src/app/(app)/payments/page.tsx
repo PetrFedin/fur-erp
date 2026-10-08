@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cleanNote } from "@/lib/note-tags";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +36,8 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { NONE, activeCount, dateRange, defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { getFilterOptions } from "@/lib/filter-options";
 import { DocBadge } from "@/components/doc-viewer";
+import { ClientDebtBlock } from "./client-debt-block";
+import { docCounts } from "@/lib/doc-links";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -267,6 +270,7 @@ export default async function PaymentsPage({
       supplierIds: [p.supplierId],
     })),
   ];
+  const ppDocCnt = await docCounts(orgId, "productionPayment", clientPayments.map((p) => p.id));
   const payDocs = (p: (typeof payments)[number]) => p.driveDocuments.map((d) => toDriveView(d, "оплата", session.user.role));
   const canDocs = hasRole(session.user.role, ["OWNER", "ADMIN"]);
   const docBlock = (p: (typeof payments)[number]) => {
@@ -510,6 +514,7 @@ export default async function PaymentsPage({
           </Link>
           . Здесь оплаты заказчиков только собраны списком.
         </p>
+        <ClientDebtBlock orgId={orgId} year={year} role={session.user.role} />
         <FilterBar
           title="Фильтры оплат"
           controls={[
@@ -527,6 +532,7 @@ export default async function PaymentsPage({
               <Th>ТЗ</Th>
               <Th>Тип</Th>
               <Th>Сумма</Th>
+              <Th>Документы</Th>
               <Th></Th>
             </Tr>
           </Thead>
@@ -564,6 +570,7 @@ export default async function PaymentsPage({
                 </Td>
                 <Td>{PAYMENT_TYPE_LABELS[p.paymentType]}</Td>
                 <Td>{formatMoney(p.amount.toString())}</Td>
+                <Td><DocBadge entity="productionPayment" id={p.id} count={ppDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                 <Td>
                   {p.orders[0] ? (
                     <Link href={`/production/${p.orders[0].productionOrderId}`} className="text-sm hover:underline">
@@ -582,7 +589,7 @@ export default async function PaymentsPage({
             ))}
             {clientPayments.length === 0 && (
               <Tr>
-                <Td colSpan={6} className="py-8 text-center text-neutral-400">
+                <Td colSpan={7} className="py-8 text-center text-neutral-400">
                   Оплат от заказчиков пока нет
                 </Td>
               </Tr>
@@ -598,6 +605,7 @@ export default async function PaymentsPage({
               fields={[
                 { label: "Сумма", value: formatMoney(p.amount.toString()), strong: true },
                 { label: "Дата", value: formatDate(p.paidAt) },
+                { label: "Документы", value: <DocBadge entity="productionPayment" id={p.id} count={ppDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /> },
                 ...(pv.verify[p.id] ? [{ label: "Подтверждение", value: <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact /> }] : []),
                 {
                   label: "ТЗ",
@@ -834,7 +842,7 @@ export default async function PaymentsPage({
                               </Cell>
                             </div>
                             <div className="mt-2 text-sm">{payFlags(p)}</div>
-                            {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
+                            {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
                             {docBlock(p)}
                             {own && canPay && (
                               <div className="mt-2 border-t border-neutral-100 pt-2">
@@ -929,7 +937,7 @@ export default async function PaymentsPage({
                 </Cell>
               </div>
               <div className="mt-2 text-sm">{payFlags(p)}</div>
-              {p.notes && <p className="mt-2 text-xs text-neutral-600">Заметка: {p.notes}</p>}
+              {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
               {docBlock(p)}
               {canPay && !p.purchaseId && !p.auctionSession && (
                 <div className="mt-2 flex flex-col gap-2 border-t border-neutral-100 pt-2">

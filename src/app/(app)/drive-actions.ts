@@ -310,7 +310,7 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
   if (!hasRole(session.user.role, driveDocRemoveRoles(doc))) return { error: "Недостаточно прав для удаления файла" };
   if (!doc.storagePath) return { ok: true };
   // У документа без ссылки на Drive файл — единственное содержимое: убрать его можно только вместе с записью.
-  if (!doc.viewUrl) return { error: "У документа нет ссылки на Drive — удалите документ целиком («Убрать»), либо замените файл" };
+  if (!doc.viewUrl) return { error: "Это единственное содержимое документа — удалите документ целиком («Убрать») либо замените файл" };
   await prisma.driveDocument.update({
     where: { id: doc.id },
     data: { storagePath: null, storedName: null, storedMime: null, storedSize: null, storedAt: null },

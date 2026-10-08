@@ -6,8 +6,8 @@ import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
 import { isServiceAuction } from "@/lib/auction-names";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { CONTRACTOR_RAW_TAG, PURCHASE_KIND_TO_TYPE, normTitle, noAuctionInvoice, purchaseRules, type Need } from "@/lib/doc-coverage";
-import { DRIVE_DOC_TYPE_LABELS, safeViewUrl, type DriveDocTypeKey } from "@/lib/drive-docs";
-import { auctionMentions, driveFileUrl, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
+import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { auctionMentions, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
 import { buildPanelPay, isManualRef, type Panel, type PanelDoc, type PanelItem, type PanelMention, type PanelPayment, type UploadTarget } from "@/lib/doc-panel";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -230,7 +230,6 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
         title: d.title,
         meta: `${DOC_KIND_LABELS[d.kind] ?? d.kind} · ${d.purchaseId ? "эта закупка" : "весь аукцион"} · ${formatDate(d.createdAt)}`,
         href: `/api/purchase-docs/${d.id}`,
-        driveUrl: null,
         replace: { action: "purchaseDoc", id: d.id },
       });
     }
@@ -242,9 +241,8 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
       addDoc(d.docType, [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`], {
         id: d.id,
         title: d.title,
-        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · ссылка Drive"}`,
+        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · файл не загружен"}`,
         href: d.storagePath ? `/api/drive-docs/${d.id}` : null,
-        driveUrl: safeViewUrl(d.viewUrl),
         replace: { action: "driveDoc", id: d.id },
       });
     }
@@ -256,7 +254,6 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
           title: p.document.title,
           meta: `Платёжка · ${formatDate(p.paidAt)}`,
           href: `/api/purchase-docs/${p.document.id}`,
-          driveUrl: null,
           replace: { action: "purchaseDoc", id: p.document.id },
         });
       }
@@ -303,7 +300,6 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
           }
           ment.push({
             text: mentionDocText(m),
-            driveUrl: m.fileId ? driveFileUrl(m.fileId) : null,
             attach: m.fileId
               ? {
                   entity: "purchase",
@@ -318,7 +314,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
           });
         }
       }
-      if (mentionedMore > 0) ment.push({ text: `…и ещё ${mentionedMore}`, driveUrl: null, attach: null });
+      if (mentionedMore > 0) ment.push({ text: `…и ещё ${mentionedMore}`, attach: null });
       items.push({
         key: def.key,
         label: def.label,

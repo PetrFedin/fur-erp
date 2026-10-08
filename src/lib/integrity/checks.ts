@@ -192,7 +192,7 @@ const CHECKS: CheckDef[] = [
     title: "Позиция закупки: сумма = количество × цена",
     group: "Закупки",
     severity: "warn",
-    tolerance: "до 0,005 ₽ на единицу (цена хранится с копейками)",
+    tolerance: "до 5 ₽ на позицию (цена хранится с копейками × количество)",
     what: "PurchaseItem.subtotal совпадает с quantity × unitPrice.",
     fix: "Карточка закупки: позиция (количество и цена).",
     run: ({ d, helpers: h }) => {
@@ -202,7 +202,7 @@ const CHECKS: CheckDef[] = [
         for (const i of p.items) {
           n++;
           const delta = r2(i.subtotal - i.quantity * i.unitPrice);
-          if (Math.abs(delta) > 0.005 * i.quantity + 0.01) {
+          if (Math.abs(delta) > 5) {
             v.push({ key: i.id, message: `${h.ref.purchase(p).label}: сумма позиции ${money(i.subtotal)}, а количество × цена = ${money(r2(i.quantity * i.unitPrice))}`, delta, unit: "₽", entity: h.ref.purchase(p), href: h.href.purchase(p.id), tags: [p.number] });
           }
         }
@@ -691,11 +691,11 @@ const CHECKS: CheckDef[] = [
   // ===== Подтверждение и документы =====
   {
     id: "verified-after-edit",
-    title: "Подтверждённое не менялось после подтверждения",
+    title: "Подтверждённое не менялось после подтверждения (по журналу)",
     group: "Подтверждение и документы",
     severity: "error",
     tolerance: "1 минута",
-    what: "Закупка, ТЗ или партия, отмеченные «подтверждено», не правились после этого (ни сама запись, ни её позиции, расходы, лоты, списания, оплаты) — иначе подтверждение устарело.",
+    what: "В журнале изменений нет правок закупки, ТЗ или партии (и их позиций, лотов, списаний, оплат) после даты подтверждения — иначе подтверждение устарело.",
     fix: "Контроль → Подтвердить: снять и поставить подтверждение заново после проверки (правка в server actions должна сбрасывать его автоматически).",
     run: ({ d, helpers: h }) => {
       const v: Violation[] = [];
@@ -710,18 +710,50 @@ const CHECKS: CheckDef[] = [
         if (!p.verifiedAt) continue;
         n++;
         const ids = [p.id, ...p.items.map((i) => i.id), ...p.payments.map((x) => x.id), ...(h.lotsByPurchase.get(p.id) ?? []).map((l) => l.id)];
-        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 || later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10)}, но после этого менялась`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
+        if (later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10)}, но после этого менялась`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
       }
       for (const o of d.orders) {
         if (!o.verifiedAt) continue;
         n++;
         const ids = [o.id, ...(h.usagesByOrder.get(o.id) ?? []).map((u) => u.id), ...o.allocations.map((a) => a.paymentId)];
-        if (o.updatedAt.getTime() > o.verifiedAt.getTime() + 60_000 || later(ids, o.verifiedAt)) v.push({ key: o.id, message: `${h.ref.order(o).label} подтверждено ${o.verifiedAt.toISOString().slice(0, 10)}, но после этого менялось`, delta: null, unit: "", entity: h.ref.order(o), href: h.href.order(o.id) });
+        if (later(ids, o.verifiedAt)) v.push({ key: o.id, message: `${h.ref.order(o).label} подтверждено ${o.verifiedAt.toISOString().slice(0, 10)}, но после этого менялось`, delta: null, unit: "", entity: h.ref.order(o), href: h.href.order(o.id) });
       }
       for (const b of d.batches) {
         if (!b.verifiedAt) continue;
         n++;
         if (later([b.id], b.verifiedAt)) v.push({ key: b.id, message: `${h.ref.batch(b).label} подтверждена ${b.verifiedAt.toISOString().slice(0, 10)}, но после этого менялась`, delta: null, unit: "", entity: h.ref.batch(b), href: h.href.batch(b.number) });
+      }
+      return { checked: n, violations: v };
+    },
+  },
+  {
+    id: "verified-updated-at",
+    title: "Подтверждённая запись не обновлялась после подтверждения (метка updatedAt)",
+    group: "Подтверждение и документы",
+    severity: "warn",
+    tolerance: "1 минута",
+    what: "У подтверждённой закупки или ТЗ метка updatedAt не позже подтверждения. Если она новее, а в журнале правок нет — запись изменена скриптом/в обход журнала: подтверждение стоит перепроверить.",
+    fix: "Контроль → Подтвердить: перепроверить запись и подтвердить заново. Массовые скрипты должны писать журнал и сбрасывать подтверждение.",
+    run: ({ d, helpers: h }) => {
+      const v: Violation[] = [];
+      let n = 0;
+      const touched = new Map<string, Date>();
+      for (const a of d.auditAfter) {
+        const cur = touched.get(a.recordId);
+        if (!cur || a.at > cur) touched.set(a.recordId, a.at);
+      }
+      const later = (ids: string[], since: Date) => ids.some((id) => (touched.get(id)?.getTime() ?? 0) > since.getTime() + 60_000);
+      for (const p of d.purchases) {
+        if (!p.verifiedAt) continue;
+        n++;
+        const ids = [p.id, ...p.items.map((i) => i.id), ...p.payments.map((x) => x.id), ...(h.lotsByPurchase.get(p.id) ?? []).map((l) => l.id)];
+        if (p.updatedAt.getTime() > p.verifiedAt.getTime() + 60_000 && !later(ids, p.verifiedAt)) v.push({ key: p.id, message: `${h.ref.purchase(p).label} подтверждена ${p.verifiedAt.toISOString().slice(0, 10)}, но запись обновлена позже (updatedAt ${p.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.purchase(p), href: h.href.purchase(p.id) });
+      }
+      for (const o of d.orders) {
+        if (!o.verifiedAt) continue;
+        n++;
+        const ids = [o.id, ...(h.usagesByOrder.get(o.id) ?? []).map((u) => u.id), ...o.allocations.map((a) => a.paymentId)];
+        if (o.updatedAt.getTime() > o.verifiedAt.getTime() + 60_000 && !later(ids, o.verifiedAt)) v.push({ key: o.id, message: `${h.ref.order(o).label} подтверждено ${o.verifiedAt.toISOString().slice(0, 10)}, но запись обновлена позже (updatedAt ${o.updatedAt.toISOString().slice(0, 10)}), а в журнале правок нет`, delta: null, unit: "", entity: h.ref.order(o), href: h.href.order(o.id) });
       }
       return { checked: n, violations: v };
     },
@@ -739,7 +771,7 @@ const CHECKS: CheckDef[] = [
       for (const p of d.purchases) if (p.verifiedAt) verified.set(`purchase:${p.id}`, h.ref.purchase(p));
       for (const o of d.orders) if (o.verifiedAt) verified.set(`order:${o.id}`, h.ref.order(o));
       for (const b of d.batches) if (b.verifiedAt) verified.set(`batch:${b.id}`, h.ref.batch(b));
-      const skip = new Set(["verified-vs-data", "verified-after-edit", "cache-auction", "cache-color", "cache-category", "cache-lot-item", "order-price-model", "prod-payment-alloc"]);
+      const skip = new Set(["verified-vs-data", "verified-after-edit", "verified-updated-at", "cache-auction", "cache-color", "cache-category", "cache-lot-item", "order-price-model", "prod-payment-alloc"]);
       const v: Violation[] = [];
       const seen = new Set<string>();
       for (const [cid, list] of prev) {
@@ -795,6 +827,28 @@ const CHECKS: CheckDef[] = [
         n++;
         const delta = r2(live - docCost);
         if (Math.abs(delta) > ROUND_TOL_RUB) v.push({ key: g.id, message: `${g.title}: в документах ${money(docCost)}, в базе ${money(r2(live))}`, delta, unit: "₽", entity: ent, href, tags: [`group:${g.id}`] });
+      }
+      return { checked: n, violations: v };
+    },
+  },
+
+  {
+    id: "alloc-over-payment",
+    title: "Разнесение оплаты подрядчику не больше суммы оплаты",
+    group: "Оплаты и долг",
+    severity: "error",
+    tolerance: "1 ₽",
+    what: "Σ разнесений оплаты по ТЗ (PaymentAllocation) не превышает сумму самой оплаты.",
+    fix: "Производство → оплаты → «Изменить»: уменьшить доли по ТЗ либо исправить сумму оплаты.",
+    run: ({ d }) => {
+      const v: Violation[] = [];
+      let n = 0;
+      for (const p of d.prodPayments) {
+        const a = d.allocByPayment.get(p.id);
+        if (a == null) continue;
+        n++;
+        const delta = r2(a - p.amount);
+        if (delta > 1) v.push({ key: p.id, message: `Оплата подрядчику ${money(p.amount)} от ${p.paidAt.toISOString().slice(0, 10)}: разнесено ${money(r2(a))}, больше суммы оплаты`, delta, unit: "₽", entity: { kind: "prodPayment", id: p.id, label: `Оплата подрядчику ${money(p.amount)}` }, href: "/payments?tab=clients" });
       }
       return { checked: n, violations: v };
     },

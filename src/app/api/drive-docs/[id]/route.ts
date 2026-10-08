@@ -2,7 +2,6 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
 import { fixFileNameExt } from "@/lib/purchase-files";
-import { safeViewUrl } from "@/lib/drive-docs";
 
 const MIME_EXT: Record<string, string> = {
   "application/pdf": "pdf",
@@ -14,7 +13,7 @@ const MIME_EXT: Record<string, string> = {
 
 /**
  * Выдача документа Drive по id. Есть файл в приложении — отдаём его (PDF и картинки открываются
- * во вкладке, xlsx/docx скачиваются; ?download=1 — всегда скачивание). Файла нет — 302 на ссылку Google Drive.
+ * во вкладке, xlsx/docx скачиваются; ?download=1 — всегда скачивание). Файла нет — 404 (внешних ссылок приложение не отдаёт).
  * Путь берётся только из БД, доступ — только своей организации.
  */
 export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[id]">) {
@@ -25,21 +24,16 @@ export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return new Response("Not found", { status: 404 });
   const doc = await prisma.driveDocument.findFirst({
     where: { id, organizationId: session.user.organizationId },
-    select: { storagePath: true, storedName: true, storedMime: true, viewUrl: true, title: true },
+    select: { storagePath: true, storedName: true, storedMime: true, title: true },
   });
   if (!doc) return new Response("Not found", { status: 404 });
 
   if (!doc.storagePath || !doc.storedMime || !(doc.storedMime in MIME_EXT)) {
-    const url = safeViewUrl(doc.viewUrl);
-    if (!url) return new Response("Not found", { status: 404 });
-    return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "private, no-store" } });
+    return new Response("Файл не загружен", { status: 404 });
   }
   const buf = await readStoredFile(doc.storagePath);
   if (!buf) {
-    // Файл пропал с диска — не ломаем открытие документа, если есть ссылка на Drive.
-    const url = safeViewUrl(doc.viewUrl);
-    if (url) return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "private, no-store" } });
-    return new Response("Not found", { status: 404 });
+    return new Response("Файл не найден на диске", { status: 404 });
   }
   const ext = MIME_EXT[doc.storedMime];
   const fileName = fixFileNameExt((doc.storedName || doc.title || "документ").replace(/["\u0000-\u001f]/g, "'"), ext);

@@ -23,7 +23,7 @@ export function toDriveView(d: DriveDocument, scope?: string | null, role?: stri
     docType: d.docType,
     docDate: d.docDate ? d.docDate.toISOString() : null,
     docNumber: d.docNumber,
-    viewUrl: d.viewUrl,
+    hasLink: !!d.viewUrl,
     drivePath: d.drivePath,
     scope: scope ?? null,
     hasFile: !!d.storagePath,

@@ -16,7 +16,6 @@ export type PanelDoc = {
   meta: string;
   /** Открыть оригинал в приложении. */
   href: string | null;
-  driveUrl: string | null;
   /** Заменить файл: файл закупки (PurchaseDocument) или документ Drive (DriveDocument). */
   replace: { action: "purchaseDoc" | "driveDoc"; id: string } | null;
 };
@@ -24,7 +23,6 @@ export type PanelDoc = {
 /** Документ, который упомянут в файлах Drive «мех», но в приложении не привязан: его можно привязать одним кликом. */
 export type PanelMention = {
   text: string;
-  driveUrl: string | null;
   attach: { entity: "purchase" | "order" | "batch"; id: string; fileId: string; title: string; docType: string; docNumber: string | null; docDate: string | null } | null;
 };
 

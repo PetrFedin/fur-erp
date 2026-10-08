@@ -17,6 +17,7 @@ import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
 import { resetVerification } from "@/lib/verification";
+import { autoAllocatePayment } from "@/lib/payment-alloc";
 import { formatMoney } from "@/lib/utils";
 import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type DocRole, type PayKind } from "@/lib/payment-form-core";
 
@@ -408,6 +409,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
             },
           });
           paymentId = pay.id;
+          // Разнесение по ТЗ набора: пропорционально работе, в пределах остатка работы каждого ТЗ.
+          await autoAllocatePayment(tx, orgId, pay.id);
           for (const s of stored) {
             const f = await writeDriveFile(orgId, s.doc);
             storedDriveFiles.push(f.storagePath);

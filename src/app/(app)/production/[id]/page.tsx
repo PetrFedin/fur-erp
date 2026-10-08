@@ -1,4 +1,9 @@
 import { OrderDocsPay } from "../docs-pay";
+import { AllocationEditButton, type AllocOrderOpt } from "@/components/allocation-editor";
+import { IntegrityBanner } from "@/components/integrity-banner";
+import { cleanNote } from "@/lib/note-tags";
+import { DocBadge } from "@/components/doc-viewer";
+import { docCounts } from "@/lib/doc-links";
 import { VerifyBlock } from "../../verify/verify-block";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -141,9 +146,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       materialUsages: { include: { rawMaterial: true, lot: { include: { attrs: { select: { attr: { select: { name: true } } } } } } }, orderBy: { date: "asc" } },
       expenses: { include: { category: true }, orderBy: { date: "asc" } },
       paymentAllocations: {
-        include: { productionPayment: { include: { orders: { include: { productionOrder: true } } } } },
+        include: { productionPayment: { include: { orders: { include: { productionOrder: true } }, allocations: { select: { amount: true, productionOrderId: true } } } } },
         orderBy: { productionPayment: { paidAt: "asc" } },
       },
+      // Разнесение оплат по ТЗ: сколько из каждого платежа отнесено на ЭТО ТЗ.
+      payShares: { select: { productionPaymentId: true, amount: true, source: true } },
     },
   });
   if (!order) notFound();
@@ -170,6 +177,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     },
     orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
   });
+  const payDocCnt = await docCounts(session.user.organizationId, "productionPayment", payments.map((p) => p.id));
   const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null, session.user.role));
 
   // All ТЗ of this client (incl. the current one) for the payment form:
@@ -187,7 +195,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           plannedQuantity: true,
           producedQuantity: true,
           clientWorkPricePerUnit: true,
-          paymentAllocations: { select: { productionPayment: { select: { amount: true } } } },
         },
       })
     : [];
@@ -198,11 +205,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
     })
   ).map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
+  // Разнесённое на ТЗ заказчика (все платежи, кроме отменённых): для «оплачено / остаток» и редактора разнесения.
+  const allocRows = clientOrders.length
+    ? await prisma.paymentAllocation.findMany({
+        where: { organizationId: session.user.organizationId, productionOrderId: { in: clientOrders.map((o) => o.id) }, productionPayment: { status: { not: "CANCELLED" } } },
+        select: { productionOrderId: true, productionPaymentId: true, amount: true },
+      })
+    : [];
   const paymentOrders = clientOrders
     .map((o) => {
       const qty = orderUnitsDec(o);
       const due = o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.mul(qty) : null;
-      const paid = o.paymentAllocations.reduce((sum, a) => sum.add(a.productionPayment.amount), new Decimal(0));
+      const paid = allocRows.filter((a) => a.productionOrderId === o.id).reduce((sum, a) => sum.add(a.amount), new Decimal(0));
       return {
         id: o.id,
         label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
@@ -410,8 +424,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundUpdateOrder = updateProductionOrder.bind(null, id);
   const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
-  const paidTotal = payments.reduce((s, p) => s.add(p.amount), new Decimal(0));
+  // Оплачено по ТЗ = разнесено на ЭТО ТЗ (PaymentAllocation) от неотменённых платежей. Остаток = работа − оплачено.
+  const liveShares = order.payShares.filter((a) => payments.some((p) => p.id === a.productionPaymentId && p.status !== "CANCELLED"));
+  const shareOf = new Map(liveShares.map((a) => [a.productionPaymentId, a.amount]));
+  const paidTotal = liveShares.reduce((s, a) => s.add(a.amount), new Decimal(0));
   const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
+  /** Платежи, у которых часть суммы не отнесена к ТЗ (аванс без разнесения / сверх работы). */
+  const paysWithRest = payments.filter((p) => p.status !== "CANCELLED" && p.allocations.reduce((s, a) => s.add(a.amount), new Decimal(0)).lessThan(p.amount.sub(0.005)));
   // Some payments may cover this order together with sibling ТЗ for the same
   // client (many-to-many via ProductionPaymentOrder — see payment-form.tsx).
   // "Оплачено" above is deliberately the gross amount of every payment that
@@ -422,6 +441,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // as exact.
   const sharedPayments = payments.filter((p) => p.orders.some((a) => a.productionOrder.id !== id));
   const hasSharedPayments = sharedPayments.length > 0;
+
+  const allocEdit = (p: (typeof payments)[number]) => {
+    if (!canEdit || p.status === "CANCELLED") return null;
+    const linkedIds = new Set(p.orders.map((a) => a.productionOrder.id));
+    const opts: AllocOrderOpt[] = clientOrders
+      .filter((o) => o.status !== "CANCELLED")
+      .map((o) => {
+        const w = o.clientWorkPricePerUnit ? Math.round(o.clientWorkPricePerUnit.mul(orderUnitsDec(o)).mul(100).toNumber()) : 0;
+        const other = allocRows.filter((a) => a.productionOrderId === o.id && a.productionPaymentId !== p.id).reduce((sum, a) => sum + Math.round(Number(a.amount.toString()) * 100), 0);
+        return { id: o.id, label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`, linked: linkedIds.has(o.id), workCents: w, otherCents: other };
+      })
+      .sort((a, b) => Number(b.linked) - Number(a.linked) || a.label.localeCompare(b.label, "ru", { numeric: true }));
+    const initial = allocRows.filter((a) => a.productionPaymentId === p.id).map((a) => ({ orderId: a.productionOrderId, amount: a.amount.toFixed(2) }));
+    return <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={opts} initial={initial} />;
+  };
 
   const payEdit = (p: (typeof payments)[number]) =>
     canEdit ? (
@@ -548,6 +582,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   return (
     <div className="flex max-w-4xl flex-col gap-4">
+      <IntegrityBanner kind="order" id={order.id} />
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">
@@ -866,35 +901,30 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {clientRevenue && (
               <p className="text-sm text-neutral-600">
                 К оплате <span className="font-medium text-neutral-900">{formatMoney(clientRevenue.toString())}</span>
-                {hasSharedPayments ? (
-                  batchStat && order.batch ? (
-                    <>
-                      {" · "}
-                      <Link href={`/production/batches/${order.batch.number}`} className="text-blue-600 hover:underline">
-                        оплачено по партии {order.batch.number}:{" "}
-                        <span className="font-medium">{formatMoney(batchStat.paid.toString())}</span> из{" "}
-                        <span className="font-medium">{formatMoney(batchStat.work.toString())}</span>
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      {" · "}оплачено общими платежами: <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
-                    </>
-                  )
-                ) : (
+                {" · оплачено по этому ТЗ "}
+                <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
+                {" · "}
+                {balanceDue!.lessThan(-0.005) ? "переплата " : "остаток к оплате "}
+                <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-600" : "text-neutral-900"}`}>
+                  {formatMoney(balanceDue!.abs().toString())}
+                </span>
+                {batchStat && order.batch && (
                   <>
-                    {" · оплачено "}
-                    <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
                     {" · "}
-                    {balanceDue!.lessThan(-0.005) ? "переплата " : "остаток к оплате "}
-                    <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-600" : "text-neutral-900"}`}>
-                      {formatMoney(balanceDue!.abs().toString())}
-                    </span>
+                    <Link href={`/production/batches/${order.batch.number}`} className="text-blue-600 hover:underline">
+                      партия {order.batch.number}: оплачено <span className="font-medium">{formatMoney(batchStat.paid.toString())}</span> из{" "}
+                      <span className="font-medium">{formatMoney(batchStat.work.toString())}</span>
+                    </Link>
                   </>
                 )}
                 {hasSharedPayments && (
                   <span className="block text-xs text-neutral-500">
-                    Платежей на несколько ТЗ: {sharedPayments.length} — сумма по ТЗ не разбивается, остаток по одному ТЗ не считается.
+                    Общих платежей на несколько ТЗ: {sharedPayments.length} — на это ТЗ отнесена только часть, указанная в столбце «На это ТЗ»; разнесение можно поправить кнопкой «Разнесение».
+                  </span>
+                )}
+                {paysWithRest.length > 0 && (
+                  <span className="block text-xs text-amber-700">
+                    Часть суммы платежей не отнесена ни к одному ТЗ (аванс без разнесения или сверх работы) — см. «Контроль → Задачи → Неразнесённые авансы».
                   </span>
                 )}
               </p>
@@ -908,10 +938,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <Tr>
                   <Th>Дата</Th>
                   <Th>Тип</Th>
-                  <Th>Сумма</Th>
+                  <Th>Сумма платежа</Th>
+                  <Th>На это ТЗ</Th>
                   <Th>Способ</Th>
                   <Th>Также покрывает</Th>
                   <Th>Заметка</Th>
+                  <Th>Документы</Th>
                   <Th></Th>
                 </Tr>
               </Thead>
@@ -925,12 +957,15 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       <Td>{formatDate(p.paidAt)}</Td>
                       <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
                       <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
+                      <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-400">не разнесено</span>}</Td>
                       <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
                       <Td>{otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—"}</Td>
-                      <Td>{p.notes ?? "—"}</Td>
+                      <Td>{cleanNote(p.notes) ?? "—"}</Td>
+                      <Td><DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                       <Td>
                         {canEdit && (
                           <div className="flex items-center gap-1">
+                            {allocEdit(p)}
                             {payEdit(p)}
                             <RemovePaymentButton
                               summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
@@ -945,7 +980,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     </Tr>
                   );
                 })}
-                {payments.length === 0 && <EmptyRow cols={7}>Оплат пока нет</EmptyRow>}
+                {payments.length === 0 && <EmptyRow cols={9}>Оплат пока нет</EmptyRow>}
               </Tbody>
             </Table>
               }
@@ -958,14 +993,17 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     title={formatMoney(p.amount.toString())}
                     subtitle={`${formatDate(p.paidAt)} · ${PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}`}
                     fields={[
+                      { label: "На это ТЗ", value: shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : "не разнесено" },
                       { label: "Способ", value: PAYMENT_METHOD_LABELS[p.method] ?? p.method },
                       { label: "Также покрывает", value: otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—" },
-                      ...(p.notes ? [{ label: "Заметка", value: p.notes }] : []),
+                      ...(cleanNote(p.notes) ? [{ label: "Заметка", value: cleanNote(p.notes) }] : []),
+                      { label: "Документы", value: <DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /> },
                     ]}
                     extra={
                       canEdit && (
                         <div className="flex items-center gap-2">
-                          {payEdit(p)}
+                          {allocEdit(p)}
+                            {payEdit(p)}
                           <RemovePaymentButton
                             summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
                             action={async () => {
@@ -1015,7 +1053,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CardContent className="pt-4">
             <DriveDocuments
               docs={driveDocs}
-              title="Google Drive"
+              title="Документы"
               entity="order"
               entityId={id}
               canEdit={canEdit}

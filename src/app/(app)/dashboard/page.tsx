@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IntegrityBanner } from "@/components/integrity-banner";
 import { requireSession } from "@/lib/session";
 import { formatMoney } from "@/lib/utils";
 import { InclVatOnlyLabel } from "@/components/vat-label";
@@ -62,6 +63,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   return (
     <div className="flex flex-col gap-5">
       <style>{PRINT_CSS}</style>
+      <IntegrityBanner />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">
           Сводка<span className="ml-2 text-sm font-normal text-neutral-500">· {yl} · {c4Mode === "on" ? "с 4%" : "без 4%"}</span>
@@ -151,9 +153,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг заказчиков" /></div>
               <div className={"mt-1 text-xl font-semibold tabular-nums " + (clientTotal > 0 ? "text-amber-700" : "")}>{formatMoney(clientTotal.toFixed(2))}</div>
               <div className="text-xs text-neutral-500">работы {formatMoney(clientBillable.toFixed(0))} · оплачено {formatMoney(clientPaid.toFixed(0))}</div>
+              <div className="text-xs text-neutral-500">
+                из оплаченного: разнесено по ТЗ {formatMoney(d.clientDebtInfo.allocated.toFixed(0))}
+                {d.clientDebtInfo.unallocatedApplied ? (
+                  <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocated.toFixed(0))}</>
+                ) : d.clientDebtInfo.unallocatedAll > 0.005 ? (
+                  <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocatedAll.toFixed(0))} в остаток при фильтре по ТЗ не входят</>
+                ) : null}
+              </div>
               <div className="mt-1 text-[11px] leading-4 text-neutral-500">
                 ≠ «Работа» в «Производстве» ({mln(d.prod.done.workSum + d.prod.work.workSum)}) больше на {mln(d.bridge.clientWork.noClient)}: ТЗ без заказчика сюда не входят. Работы заказчика = завершённые {mln(d.bridge.clientWork.done)} + в работе по плану {mln(d.bridge.clientWork.work)}.
-                {filtersOn || year !== "all" ? " Оплата заказчика не делится по ТЗ: при фильтре или годе она берётся целиком, если привязана хотя бы к одному выбранному ТЗ, поэтому остаток может быть отрицательным (аванс)." : ""}
                 {" "}Зависит от года и фильтров.
               </div>
             </div>

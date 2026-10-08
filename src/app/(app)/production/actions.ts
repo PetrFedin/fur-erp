@@ -19,6 +19,7 @@ import { defaultCommission4 } from "@/lib/commission4-const";
 import { resolveColorInput } from "@/lib/colors";
 import { staleError, ORDER_V, PRODUCTION_PAYMENT_V, BATCH_V } from "@/lib/concurrency";
 import { resetByProdPayment } from "@/lib/verification";
+import { autoAllocatePayment } from "@/lib/payment-alloc";
 import { isUniqueViolation } from "@/lib/input";
 
 const optDate = (label: string) =>
@@ -1233,18 +1234,22 @@ export async function addProductionPayment(orderId: string, formData: FormData):
     select: { id: true },
   });
 
-  await prisma.productionPayment.create({
-    data: {
-      organizationId: session.user.organizationId,
-      clientId: order.clientId,
-      amount: parsed.data.amount,
-      paymentType: parsed.data.paymentType,
-      method: parsed.data.method,
-      status: "COMPLETED",
-      paidAt: new Date(parsed.data.paidAt),
-      notes: parsed.data.notes,
-      orders: { create: validOrders.map((o) => ({ productionOrderId: o.id })) },
-    },
+  // Платёж и его разнесение по ТЗ (пропорционально работе, в пределах остатка работы) — одной транзакцией.
+  await prisma.$transaction(async (tx) => {
+    const created = await tx.productionPayment.create({
+      data: {
+        organizationId: session.user.organizationId,
+        clientId: order.clientId,
+        amount: parsed.data.amount,
+        paymentType: parsed.data.paymentType,
+        method: parsed.data.method,
+        status: "COMPLETED",
+        paidAt: new Date(parsed.data.paidAt),
+        notes: parsed.data.notes,
+        orders: { create: validOrders.map((o) => ({ productionOrderId: o.id })) },
+      },
+    });
+    await autoAllocatePayment(tx, session.user.organizationId, created.id);
   });
 
   await resetByOrder(orderId);
@@ -1311,8 +1316,14 @@ export async function updateProductionPayment(orderId: string, paymentId: string
   const docRef = (formData.get("docRef") as string)?.trim().slice(0, 200) || null;
   const oldIds = payment.orders.map((o) => o.productionOrderId);
 
-  await prisma.$transaction([
-    prisma.productionPayment.update({
+  // Разнесение по ТЗ: строки на ТЗ, которые платёж больше не покрывает, снимаются; Σ разнесений не может превысить новую сумму.
+  const keptAlloc = await prisma.paymentAllocation.findMany({ where: { productionPaymentId: paymentId, productionOrderId: { in: wanted } }, select: { amount: true, source: true } });
+  const keptSum = keptAlloc.reduce((s, a) => s.add(a.amount), new Decimal(0));
+  if (keptAlloc.some((a) => a.source === "MANUAL") && keptSum.greaterThan(new Decimal(String(parsed.data.amount)))) {
+    return { error: `Новая сумма меньше уже разнесённого вручную по ТЗ (${Number(keptSum.toString()).toLocaleString("ru-RU", { minimumFractionDigits: 2 })} ₽). Сначала уменьшите разнесение оплаты.` };
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.productionPayment.update({
       where: { id: paymentId },
       data: {
         amount: parsed.data.amount,
@@ -1322,13 +1333,15 @@ export async function updateProductionPayment(orderId: string, paymentId: string
         notes: (formData.get("notes") as string)?.trim() || null,
         docRef,
       },
-    }),
-    prisma.productionPaymentOrder.deleteMany({ where: { productionPaymentId: paymentId, productionOrderId: { notIn: wanted } } }),
-    prisma.productionPaymentOrder.createMany({
+    });
+    await tx.productionPaymentOrder.deleteMany({ where: { productionPaymentId: paymentId, productionOrderId: { notIn: wanted } } });
+    await tx.paymentAllocation.deleteMany({ where: { productionPaymentId: paymentId, productionOrderId: { notIn: wanted } } });
+    await tx.productionPaymentOrder.createMany({
       data: wanted.filter((id) => !oldIds.includes(id)).map((productionOrderId) => ({ productionPaymentId: paymentId, productionOrderId })),
       skipDuplicates: true,
-    }),
-  ]);
+    });
+    await autoAllocatePayment(tx, orgId, paymentId);
+  });
   const all = Array.from(new Set([...oldIds, ...wanted]));
   await resetByProdPayment(orgId, paymentId, all);
   for (const id of all) revalidatePath(`/production/${id}`);

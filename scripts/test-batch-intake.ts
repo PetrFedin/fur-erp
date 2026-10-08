@@ -34,8 +34,9 @@ M._resolveFilename = function (this: unknown, req: unknown, ...rest: unknown[]) 
 };
 
 type G = { __TEST_SESSION?: unknown };
+let testUserId = ""; // настоящий пользователь базы: createdById — внешний ключ
 const as = (role: string, organizationId: string) => {
-  (globalThis as G).__TEST_SESSION = { user: { id: "u-test", role, organizationId, name: "Тест" } };
+  (globalThis as G).__TEST_SESSION = { user: { id: testUserId || "u-test", role, organizationId, name: "Тест" } };
 };
 let fails = 0;
 const ok = (c: unknown, m: string) => {
@@ -142,6 +143,7 @@ async function partB() {
   const sup = await raw.supplier.findFirstOrThrow({ where: { organizationId: org.id, isActive: true } });
   const wh = await raw.warehouse.findFirstOrThrow({ where: { organizationId: org.id } });
   const sup2 = await raw.supplier.create({ data: { organizationId: org2.id, name: "Чужой" } });
+  testUserId = (await raw.user.findFirstOrThrow({ where: { organizationId: org.id, role: "OWNER" } })).id;
   as("OWNER", org.id);
 
   // --- файл: CSV → parseIntakeFile
@@ -202,7 +204,7 @@ async function partB() {
   ok(near(p.totals.exclVat, expected / 1.22), "сумма без НДС = с НДС / 1,22");
   ok(near(p.totals.avgInclPerUnit, expected / expectedQty, 0.01) && p.totals.avgForeign !== null && near(p.totals.avgForeign, 2420 / expectedQty, 0.01), "средние цены ₽ и $ за шкуру");
   ok(p.docs[0].recon?.ok === true, "сумма документа сходится с лотами");
-  const pvBad = await A.previewBatch(JSON.stringify(payload("preview-only", { docs: [{ idx: 0, name: "x.docx", kind: "ADVANCE_INVOICE", number: "9001", date: "", amount: String(expected * 1.04) }] })));
+  const pvBad = await A.previewBatch(JSON.stringify(payload("preview-only", { docs: [{ idx: 0, name: "x.docx", kind: "ADVANCE_INVOICE", number: "9001", date: "", amount: fmtRu(expected * 1.04) }] })));
   ok("ok" in pvBad && pvBad.preview.docs[0].recon?.ok === false && pvBad.preview.docs[0].recon!.reasons[0].startsWith("4%") && pvBad.preview.mismatchDocs === 1, "документ +4% — расхождение с причиной «4%»");
 
   // --- состояние ДО
@@ -266,7 +268,8 @@ async function partB() {
   fd1b.append("files", await mkDocx(fmtRu(expected)));
   const r1b = await A.createBatch(fd1b);
   ok(!("error" in r1b) && r1b.duplicate === true, "повтор с тем же ключом → «уже создано»");
-  const concurrent = await Promise.all([1, 2].map(async () => { const f = new FormData(); f.set("payload", JSON.stringify(payload("batch-test-0002", { header: { ...header, newAuction: null, auctionId: pur.auctionId! }, rows: rows.map((r) => ({ ...r, lot: r.lot + "x" })), docs: [], decisions: {fur:{}, color:{}} }))); return A.createBatch(f); }));
+  const concurrent = await Promise.all([1, 2].map(async () => { const f = new FormData(); f.set("payload", JSON.stringify(payload("batch-test-0002", { header: { ...header, newAuction: null, auctionId: pur.auctionId! }, rows: rows.map((r) => ({ ...r, lot: r.lot + "x" })), docs: [], decisions }))); return A.createBatch(f); }));
+  // «Сизый тестовый» после B3 ждёт подтверждения владельцем и в справочнике «не числится» — мастер просит решение снова, повторное «добавить» берёт ту же запись.
   const created2 = concurrent.filter((r) => !("error" in r) && !r.duplicate).length;
   ok(created2 === 1, "две одновременные отправки с одним ключом создали ровно одну партию (создано: " + created2 + ")");
   const after2 = await cnt();

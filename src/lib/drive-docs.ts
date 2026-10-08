@@ -36,7 +36,8 @@ export type DriveDocView = {
   docType: DriveDocTypeKey;
   docDate: string | null;
   docNumber: string | null;
-  viewUrl: string | null;
+  /** Есть ли у записи внешняя ссылка (сама ссылка в интерфейс не отдаётся). */
+  hasLink?: boolean;
   drivePath: string | null;
   /** Подпись «к чему привязан», если документ показан не на своей странице. */
   scope?: string | null;
@@ -60,13 +61,13 @@ export type DriveDocView = {
 export function guessDocType(fileName: string): DriveDocTypeKey | null {
   const n = fileName.toLowerCase().replace(/ё/g, "е");
   const rules: [RegExp, DriveDocTypeKey][] = [
-    [/платеж|п\/п|\bпп\b|payment|swift|квитанц/, "PAYMENT_PROOF"],
-    [/упд|\bupd\b|универсальн.*передат|\bакт\b/, "UPD"],
+    [/платеж|п[\/-]п|(?<![\p{L}\d])пп(?![\p{L}\d])|payment|swift|квитанц/u, "PAYMENT_PROOF"],
+    [/упд|\bupd\b|универсальн.*передат|(?<![\p{L}\d])акт(?![\p{L}\d])/u, "UPD"],
     [/сч[её]т.*оплат|на оплату|proforma|проформ/, "PAYMENT_INVOICE"],
     [/расчет|calc/, "CALC_SHEET"],
     [/специф|specification/, "SPECIFICATION"],
     [/договор|contract/, "CONTRACT"],
-    [/\bтз\b|тех.*задан|приложени/, "TZ_APPENDIX"],
+    [/(?<![\p{L}\d])тз(?![\p{L}\d])|тех.*задан|приложени/u, "TZ_APPENDIX"],
     [/письм|e-?mail|согласован/, "APPROVAL_EMAIL"],
     [/баланс|сверк|reconcil/, "BALANCE"],
     [/сч[её]т|invoice|инвойс|аукцион/, "AUCTION_INVOICE"],
