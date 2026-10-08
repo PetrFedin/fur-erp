@@ -20,9 +20,7 @@ export default async function NewBatchPage() {
       <div className="text-sm">
         <Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link>
       </div>
-      <h1 className="text-xl font-semibold">
-        Новая партия закупки
-        <span className="ml-2 align-middle text-sm font-normal">
+      <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Новая партия закупки</h1><span className="ml-2 align-middle text-sm font-normal">
           <InfoHint wide label="Как завести новую партию">
 
           <p className="font-medium text-neutral-900">Как завести новую партию</p>
@@ -36,8 +34,7 @@ export default async function NewBatchPage() {
             <span className="font-medium text-neutral-800">Что пересчитается автоматически:</span> остаток меха на складе, себестоимость лотов, долг поставщику, «Закуплено» и «Склад» в Сводке, задачи «что загрузить» и «что оплатить». Черновик сохраняется в этом браузере.
           </p>
                   </InfoHint>
-        </span>
-      </h1>
+        </span></div>
       <BatchWizard
         userKey={session.user.id}
         refs={{

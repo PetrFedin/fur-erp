@@ -41,11 +41,11 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
-        <h1 className="text-xl font-semibold">Признаки меха<InfoHint label="О справочнике" wide>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Признаки меха</h1><InfoHint label="О справочнике" wide>
           Признак, подвид или обработка шкуры, которые пишут в описаниях лотов и ТЗ помимо вида и цвета: седина соболя (SIL.1…SIL.6, «серебристый», «без седины»),
           дикий / клеточный / баргузинский, тонированный, крашеный. Признаки ставятся лотам и ТЗ по тексту описаний (<code>scripts/apply-fur-attrs.ts</code>) по названию и синонимам;
           по ним работает фильтр «Признак меха» на «Сырье», Сводке, в «ТЗ» и аналитике. «Предложено» — признак заведён по найденным в данных написаниям и ждёт вашего подтверждения.
-        </InfoHint></h1>
+        </InfoHint></div>
       </div>
       {flashError && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>}
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
@@ -122,8 +122,8 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
                     <div className="mt-0.5 text-xs font-normal text-neutral-500">{r.group ?? "Без группы"}</div>
                     {r.description && <InfoHint label="Что означает признак" wide>{r.description}</InfoHint>}
                   </Td>
-                  <Td className="align-top text-sm">{r.furKind ?? <span className="text-neutral-400">любой</span>}</Td>
-                  <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-400">—</span>}</Td>
+                  <Td className="align-top text-sm">{r.furKind ?? <span className="text-neutral-500">любой</span>}</Td>
+                  <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">—</span>}</Td>
                   <Td className="text-right align-top">{r.lots}</Td>
                   <Td className="text-right align-top">{formatQty(r.qty)}</Td>
                   <Td className="text-right align-top">{r.ordersOwn} / {r.ordersViaLots}</Td>
@@ -192,7 +192,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
             })}
             {shown.length === 0 && (
               <Tr>
-                <Td colSpan={7} className="py-8 text-center text-neutral-400">
+                <Td colSpan={7} className="py-8 text-center text-neutral-500">
                   {rows.length > 0 ? "Ничего не найдено" : "Признаков пока нет. Запустите scripts/apply-fur-attrs.ts --apply (заведёт предложенные признаки) или добавьте вручную."}
                 </Td>
               </Tr>

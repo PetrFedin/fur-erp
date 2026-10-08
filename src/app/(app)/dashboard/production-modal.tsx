@@ -125,7 +125,7 @@ export function ProductionModal({
                 <button type="button" onClick={() => setPath([])} disabled={path.length === 0} className={"rounded px-1.5 py-0.5 " + (path.length === 0 ? "font-semibold text-neutral-900" : "text-blue-700 underline hover:bg-blue-50")}>Все</button>
                 {path.map((s, i) => (
                   <span key={i} className="flex items-center gap-1">
-                    <span aria-hidden className="text-neutral-400">›</span>
+                    <span aria-hidden className="text-neutral-500">›</span>
                     {i === path.length - 1 && level.kind === "dim" ? (
                       <span className="font-semibold">{s.label}</span>
                     ) : (
@@ -133,7 +133,7 @@ export function ProductionModal({
                     )}
                   </span>
                 ))}
-                {level.kind === "composition" ? <><span aria-hidden className="text-neutral-400">›</span><span className="font-semibold">состав</span></> : null}
+                {level.kind === "composition" ? <><span aria-hidden className="text-neutral-500">›</span><span className="font-semibold">состав</span></> : null}
               </nav>
 
               <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -156,7 +156,7 @@ export function ProductionModal({
                     const active = shown?.key === it.key;
                     return (
                       <div key={it.key} role="listitem" className="flex min-w-[34px] flex-1 flex-col items-center justify-end">
-                        <div className="mb-0.5 text-[10px] leading-3 tabular-nums text-neutral-700">{formatCompactMoney(it.value).replace(" ₽", "")}</div>
+                        <div className="mb-0.5 text-[11px] leading-3 tabular-nums text-neutral-700">{formatCompactMoney(it.value).replace(" ₽", "")}</div>
                         <button
                           type="button"
                           onClick={() => pick(it)}
@@ -174,7 +174,7 @@ export function ProductionModal({
                             opacity: shown && !active ? 0.75 : 1,
                           }}
                         />
-                        <div className="mt-1 line-clamp-2 h-7 w-full break-words text-center text-[10px] leading-[14px] text-neutral-600" title={it.label}>{it.label}</div>
+                        <div className="mt-1 line-clamp-2 h-7 w-full break-words text-center text-[11px] leading-[14px] text-neutral-600" title={it.label}>{it.label}</div>
                       </div>
                     );
                   })}
@@ -183,7 +183,7 @@ export function ProductionModal({
                 <div className="mt-2 min-h-[20px] text-xs text-neutral-700" aria-live="polite">
                   {shown ? (
                     <><b>{shown.label}</b>: <b className="tabular-nums">{formatMoney(shown.value)}</b>{shown.outside ? "" : <> · {pct(shown.share)} от уровня</>}{shown.qtyText ? <> · {shown.qtyText}</> : null}{shown.work ? <> · работа {formatMoney(shown.work)}</> : null}</>
-                  ) : <span className="text-neutral-400">Наведите на столбец — сумма и доля. Нажмите, чтобы раскрыть.</span>}
+                  ) : <span className="text-neutral-500">Наведите на столбец — сумма и доля. Нажмите, чтобы раскрыть.</span>}
                 </div>
               </div>
 

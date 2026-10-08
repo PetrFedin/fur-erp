@@ -129,7 +129,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
           ))}
           {users.length === 0 && (
             <Tr>
-              <Td colSpan={5} className="py-8 text-center text-neutral-400">
+              <Td colSpan={5} className="py-8 text-center text-neutral-500">
                 Ничего не найдено
               </Td>
             </Tr>

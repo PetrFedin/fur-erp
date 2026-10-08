@@ -308,7 +308,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
             );
           })}
           {view.length === 0 && (
-            <Tr><Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-400">Ничего не найдено</Td></Tr>
+            <Tr><Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-500">Ничего не найдено</Td></Tr>
           )}
         </Tbody>
       </Table>

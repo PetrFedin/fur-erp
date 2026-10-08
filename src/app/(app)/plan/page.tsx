@@ -149,13 +149,10 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
     <div className="flex flex-col gap-4">
       <ProductionTabs active="plan" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          План заказа{" "}
-          <InfoHint wide>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">План заказа</h1><InfoHint wide>
             План — это сколько единиц какого артикула в каких размерах вы хотите произвести в сезоне. Рядом система показывает факт по ТЗ: сколько уже произведено, что в работе, что ещё не начато.
             Факт берётся из ТЗ этого же артикула и сезона (сезон у ТЗ присваивается на странице «Сезоны ТЗ»). Количество по размерам в ТЗ записано не всегда: если у ТЗ один размер — единицы идут в него, если «единый», «44, 46» или пусто — в «набор размеров».
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/calendar" className={buttonVariants({ variant: "outline" })}>Календарь</Link>
           <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" })}>
@@ -377,7 +374,7 @@ function sizesText(sizes: { size: string; quantity: number }[]) {
 }
 
 function OrderLinks({ f }: { f: PlanFact }) {
-  if (f.orders.length === 0) return <span className="text-neutral-400">нет</span>;
+  if (f.orders.length === 0) return <span className="text-neutral-500">нет</span>;
   return (
     <span className="flex flex-col gap-0.5">
       {f.orders.slice(0, 5).map((o) => (

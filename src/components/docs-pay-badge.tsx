@@ -26,7 +26,7 @@ export function DocsPayBadge({
     <span className={cn("inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs", className)} title={title}>
       <span aria-hidden className={cn("inline-block size-2.5 shrink-0 rounded-full", TONE_DOT[tone])} />
       <span className={cn(missing > 0 || noDocs ? "font-semibold text-red-700" : "text-neutral-600")}>{docs}</span>
-      <span className="text-neutral-400">·</span>
+      <span className="text-neutral-500">·</span>
       <span className={tone === "bad" && !missing ? "font-semibold text-red-700" : "text-neutral-600"}>{payText}</span>
       {proofMissing > 0 && <span className="text-amber-700">· платёжек нет: {proofMissing}</span>}
     </span>

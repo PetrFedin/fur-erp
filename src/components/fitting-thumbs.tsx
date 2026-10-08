@@ -1,6 +1,6 @@
 /** Миниатюры фото примерки (до 3) — общий вид для ленты, карточки ТЗ и модели. */
 export function FittingThumbs({ photoIds, total }: { photoIds: string[]; total: number }) {
-  if (total === 0) return <span className="text-xs text-neutral-400">нет фото</span>;
+  if (total === 0) return <span className="text-xs text-neutral-500">нет фото</span>;
   const shown = photoIds.slice(0, 3);
   return (
     <span className="inline-flex items-center gap-1">

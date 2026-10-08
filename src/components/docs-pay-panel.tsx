@@ -66,7 +66,7 @@ function Msg({ msg, pending }: { msg: { error?: string; ok?: string }; pending?:
     <>
       {pending && <span className="text-xs text-neutral-500">Выполняем…</span>}
       {msg.error && <span role="alert" className="w-full text-xs text-red-600">{msg.error}</span>}
-      {msg.ok && <span className="text-xs text-emerald-600">{msg.ok}</span>}
+      {msg.ok && <span className="text-xs text-emerald-700">{msg.ok}</span>}
     </>
   );
 }
@@ -185,7 +185,7 @@ function AttachMention({ m }: { m: PanelMention }) {
 function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   const bad = it.need === "required" && !it.ok;
   const mark = it.ok ? "✓" : it.need === "required" ? "✗" : "○";
-  const markCls = it.ok ? "text-emerald-600" : it.need === "required" ? "text-red-600" : "text-neutral-400";
+  const markCls = it.ok ? "text-emerald-700" : it.need === "required" ? "text-red-600" : "text-neutral-500";
   const shownDocs = it.docs.slice(0, 3);
   if (it.ok && it.mentions.length === 0) {
     // Документ есть — одна строка; файлы и «Заменить» — внутрь.
@@ -197,7 +197,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
             <span className="font-medium">{it.label}</span>
             {it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
             {it.note && <InfoHint wide label={`Пояснение: ${it.label}`}><p>{it.note}</p></InfoHint>}
-            <span className="ml-auto text-xs text-neutral-400">файлы ›</span>
+            <span className="ml-auto text-xs text-neutral-500">файлы ›</span>
           </summary>
           <ul className="mt-2 flex flex-col gap-1">
             {it.docs.map((d) => (
@@ -458,7 +458,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
       </div>
 
       {panel.markBlocked && <p className="text-xs text-neutral-500">Отметить оплату здесь нельзя: {panel.markBlocked}.</p>}
-      {!panel.canMark && !panel.canUpload && <p className="text-xs text-neutral-400">Загрузка документов и отметка оплаты доступны ролям, которые ведут закупки и производство.</p>}
+      {!panel.canMark && !panel.canUpload && <p className="text-xs text-neutral-500">Загрузка документов и отметка оплаты доступны ролям, которые ведут закупки и производство.</p>}
     </section>
   );
 }

@@ -172,7 +172,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
           })}
           {fittings.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-400">
+              <Td colSpan={7} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : "Примерок пока нет"}
               </Td>
             </Tr>

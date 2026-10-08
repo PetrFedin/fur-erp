@@ -94,15 +94,12 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     <div className="flex flex-col gap-4">
       <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Отгрузки
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Отгрузки</h1><YearNote year={year} />
           <InfoHint label="Об отгрузках" wide>
             <p>Отгрузка — план и факт отправки готовых изделий заказчику; склад она не списывает.</p>
             <p className="mt-1">Год ({year === "all" ? "все годы" : year}): по плановой дате отгрузки. Блок «На ближайшие 7 дней» от года не зависит.</p>
             <p className="mt-1">Стоимости здесь нет — переключатель «С 4%» на эту страницу не влияет.</p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         {canEdit && !isEmpty && (
           <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
             + Новая отгрузка
@@ -179,7 +176,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           })}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={6} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "отгрузок", "Отгрузок пока нет")}
               </Td>
             </Tr>

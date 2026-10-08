@@ -116,7 +116,7 @@ export function ArticleSelect({
           }
           setOpen(true);
         }}
-        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 disabled:opacity-50"
+        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 disabled:opacity-50"
       />
       {open && !disabled && (
         <ul className="absolute z-30 mt-1 max-h-72 w-full min-w-72 overflow-auto rounded-md border border-neutral-200 bg-white text-sm shadow-lg">
@@ -124,10 +124,10 @@ export function ArticleSelect({
             <li key={a.id}>
               <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-neutral-100" onClick={() => choose(a)}>
                 <span className="font-medium">{a.name}</span>
-                {!a.isActive && <span className="ml-1 text-xs text-neutral-400">(не активен)</span>}
+                {!a.isActive && <span className="ml-1 text-xs text-neutral-500">(не активен)</span>}
                 <span className="ml-2 text-neutral-500">{(a.category ?? "").replace(/\s+/g, " ").slice(0, 50)}</span>
                 {(a.salesCode || (a.via && a.via.kind !== "name")) && (
-                  <span className="block text-xs text-neutral-400">
+                  <span className="block text-xs text-neutral-500">
                     {a.salesCode ? `в продажах: ${a.salesCode}` : ""}
                     {a.via && a.via.kind !== "name" ? `${a.salesCode ? " · " : ""}найдено по: ${SPELLING_LABEL[a.via.kind]} «${a.via.text}»` : ""}
                   </span>
@@ -135,7 +135,7 @@ export function ArticleSelect({
               </button>
             </li>
           ))}
-          {items.length === 0 && !canCreate && <li className="px-3 py-2 text-neutral-400">Ничего не найдено</li>}
+          {items.length === 0 && !canCreate && <li className="px-3 py-2 text-neutral-500">Ничего не найдено</li>}
           {canCreate && (
             <li className="border-t border-neutral-100">
               <button

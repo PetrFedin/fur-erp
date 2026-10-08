@@ -32,7 +32,7 @@ export async function UnallocatedAdvancesBlock({ orgId }: { orgId: string }) {
               <span className="font-medium tabular-nums">{formatMoney(p.rest.toFixed(2))}</span>
               <span className="text-neutral-500"> · {formatDate(p.paidAt)} · {p.clientName ?? "без заказчика"} · {KIND[p.kind]}</span>
             </span>
-            <span className="text-xs text-neutral-400">из {formatMoney(p.amount.toFixed(2))}</span>
+            <span className="text-xs text-neutral-500">из {formatMoney(p.amount.toFixed(2))}</span>
           </li>
         ))}
       </ul>

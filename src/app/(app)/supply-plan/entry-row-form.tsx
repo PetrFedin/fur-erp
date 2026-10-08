@@ -49,7 +49,7 @@ export function EntryRowForm({
         onClick={(e) => {
           if (!window.confirm("Убрать эту плановую поставку из плана? Количество и заметка будут удалены.")) e.preventDefault();
         }}
-        className="h-7 px-1.5 text-xs text-neutral-400 hover:text-red-600"
+        className="h-7 px-1.5 text-xs text-neutral-500 hover:text-red-600"
       >
         ×
       </button>

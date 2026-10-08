@@ -10,7 +10,7 @@ import { Money } from "./money";
 export function Mode4Badge({ mode, className = "" }: { mode: Commission4Mode; className?: string }) {
   return (
     <span
-      className={`ml-1 rounded-full border px-1.5 py-0.5 align-middle text-[10px] font-medium ${
+      className={`ml-1 rounded-full border px-1.5 py-0.5 align-middle text-[11px] font-medium ${
         mode === "on" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-neutral-300 bg-neutral-50 text-neutral-500"
       } ${className}`}
     >

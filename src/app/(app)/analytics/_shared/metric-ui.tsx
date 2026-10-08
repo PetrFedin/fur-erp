@@ -10,7 +10,7 @@ export const pct1 = (x: number) => `${(x * 100).toFixed(1).replace(".", ",")}%`;
 export const pct0 = (x: number) => `${Math.round(x * 100)}%`;
 export const q2 = (x: number | null) => (x == null ? "—" : formatQty(Math.round(x * 100) / 100));
 
-const Dash = () => <span className="text-neutral-400">—</span>;
+const Dash = () => <span className="text-neutral-500">—</span>;
 
 /** Ячейка колонки для показателей строки. total — показатели всей таблицы (для «Доли»). */
 export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: Metrics }): ReactNode {
@@ -43,7 +43,7 @@ export function MetricCell({ col, m, total }: { col: ColKey; m: Metrics; total: 
           )}
         </div>
       ) : m.skins > 0 ? (
-        <span className="text-[11px] text-neutral-400">нет данных</span>
+        <span className="text-[11px] text-neutral-500">нет данных</span>
       ) : (
         <Dash />
       );

@@ -410,7 +410,7 @@ export async function AuctionView({
             {paySummaries.length > 0 && (
               <div>
                 <dt className="text-xs text-neutral-500">Остаток к оплате (с НДС)</dt>
-                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>
+                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-700" : "")}>
                   {formatMoney(payRemaining.toString())}
                 </dd>
                 <dd className="text-xs text-neutral-500">

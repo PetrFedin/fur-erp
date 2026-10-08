@@ -39,15 +39,12 @@ export default async function IntegrityPage() {
       <ControlTabs active="integrity" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-neutral-900">
-            Самопроверка данных
-            <span className="ml-2 align-middle text-sm font-normal">
+          <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold text-neutral-900">Самопроверка данных</h1><span className="ml-2 align-middle text-sm font-normal">
               <InfoHint wide label="О самопроверке">
                 <p>Всё, что сведено (остатки, стоимости, себестоимость, оплаты, долг, подтверждения), пересчитывается из нижних уровней и сравнивается с тем, что записано сверху. Только чтение: ничего не меняется.</p>
                 <p className="mt-2">Известные объяснимые расхождения показаны серым с причиной и не считаются ошибкой.</p>
               </InfoHint>
-            </span>
-          </h1>
+            </span></div>
         </div>
         <div className="flex items-center gap-3">
           {r && <span className="text-xs text-neutral-500">Проверено {new Date(r.checkedAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })} · {r.ms} мс</span>}
@@ -78,7 +75,7 @@ export default async function IntegrityPage() {
                         <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">{c.title}</span>
                         <span className={cn("text-xs font-medium", t.cls)}>{t.label}</span>
                         <span className="text-xs tabular-nums text-neutral-600">{magnitude(c)}</span>
-                        <span className="text-xs text-neutral-400">проверено записей: {c.checked}</span>
+                        <span className="text-xs text-neutral-500">проверено записей: {c.checked}</span>
                       </summary>
                       <div className="mt-2 space-y-2 pl-5 text-sm text-neutral-700">
                         <p className="text-xs text-neutral-500">
@@ -128,7 +125,7 @@ export default async function IntegrityPage() {
                   <li key={c.id} className="flex flex-wrap items-center gap-x-3 px-3 py-1.5 text-sm">
                     <span className="size-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
                     <span className="min-w-0 flex-1 text-neutral-800">{c.title}</span>
-                    <span className="text-xs text-neutral-400">записей: {c.checked}</span>
+                    <span className="text-xs text-neutral-500">записей: {c.checked}</span>
                   </li>
                 ))}
               </ul>

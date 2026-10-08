@@ -52,15 +52,12 @@ export default async function ReconPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="text-sm"><Link href="/analytics/raw" className="text-neutral-500 hover:underline">← Аналитика сырья</Link></div>
-      <h1 className="text-xl font-semibold">
-        Сверка лотов
-        <YearNote year={year} />
+      <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Сверка лотов</h1><YearNote year={year} />
         <Mode4Badge mode={c4} />
         <InfoHint label="О сверке" wide>
           <p>Проверка качества учёта по всем лотам выбранного года (мех и подкладка): сходятся ли журнал движений склада, сам лот и списания в ТЗ; какие лоты купили, но не использовали; где использовано больше, чем куплено.</p>
           <p className="mt-1">Год — общий, из шапки (по дате закупки лота). Всего лотов в проверке: {data.lots.length}.</p>
-        </InfoHint>
-      </h1>
+        </InfoHint></div>
 
       {/* Расхождения */}
       <Card>

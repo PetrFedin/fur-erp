@@ -85,7 +85,7 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
       </span>
       <span className={cell}>
         <span className={lab}>Остаток</span>
-        <span className={f.remaining.greaterThan(0.005) ? "text-amber-600" : f.remaining.lessThan(-0.005) ? "text-blue-600" : ""}>
+        <span className={f.remaining.greaterThan(0.005) ? "text-amber-700" : f.remaining.lessThan(-0.005) ? "text-blue-600" : ""}>
           {money(f.remaining)}
         </span>
       </span>

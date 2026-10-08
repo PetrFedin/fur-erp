@@ -47,9 +47,10 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
   return (
     <section aria-labelledby="dash-prod" className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="dash-prod" className="flex items-center gap-2 text-base font-semibold">Производство
+        <div className="flex items-center gap-2">
+          <h2 id="dash-prod" className="text-base font-semibold">Производство</h2>
           <ProdBridgeHint done={done} work={work} c4={c4} vat={vat} bridge={bridge} />
-        </h2>
+        </div>
         <div className="flex items-center gap-3 text-xs text-neutral-500">
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
         </div>

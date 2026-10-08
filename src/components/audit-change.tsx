@@ -18,7 +18,7 @@ export function ChangeCell({ row, compact }: { row: LogRow; compact?: boolean })
       {shown.map((l, i) => (
         <span key={i}>{l}</span>
       ))}
-      {lines.length > shown.length && <span className="text-neutral-400">и ещё {lines.length - shown.length}…</span>}
+      {lines.length > shown.length && <span className="text-neutral-500">и ещё {lines.length - shown.length}…</span>}
       {row.action === "update" && details.length > shown.length && (
         <details>
           <summary className="cursor-pointer text-neutral-500">все изменения ({details.length})</summary>
@@ -33,7 +33,7 @@ export function ChangeCell({ row, compact }: { row: LogRow; compact?: boolean })
         <details>
           <summary className="cursor-pointer text-neutral-500">{row.action === "delete" ? "Показать снимок" : "Показать данные"}</summary>
           <pre className="mt-1 max-h-72 max-w-xl overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-50 p-2 text-[11px] leading-snug">{snapshotText(row.changes)}</pre>
-          {row.action === "delete" && !compact && <p className="mt-1 text-[11px] text-neutral-400">Снимок для ручного восстановления; автоматически запись не возвращается.</p>}
+          {row.action === "delete" && !compact && <p className="mt-1 text-[11px] text-neutral-500">Снимок для ручного восстановления; автоматически запись не возвращается.</p>}
         </details>
       )}
     </div>

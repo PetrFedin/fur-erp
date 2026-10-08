@@ -230,9 +230,9 @@ export function FurSelectionTotal({
                 className="mt-1 size-4 shrink-0 accent-neutral-900"
               />
               <button type="button" aria-expanded={open} className="min-w-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(gk); }}>
-                <span aria-hidden className={cn("mr-1 inline-block text-neutral-400 transition-transform", open && "rotate-90")}>›</span>
+                <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
                 <span className="font-medium">{row.label}</span>
-                <span className="ml-1.5 text-xs text-neutral-400">{row.lots.length} лот.</span>
+                <span className="ml-1.5 text-xs text-neutral-500">{row.lots.length} лот.</span>
               </button>
             </div>
           </td>
@@ -246,9 +246,9 @@ export function FurSelectionTotal({
               <tr data-sub="auction" onClick={() => toggleExp(ak)} className="cursor-pointer border-t border-neutral-100 bg-neutral-50/80 text-[13px] hover:bg-neutral-100/70">
                 <td className="sticky left-0 z-10 bg-neutral-50 py-1.5 pl-9 pr-3">
                   <button type="button" aria-expanded={aOpen} className="text-left" onClick={(e) => { e.stopPropagation(); toggleExp(ak); }}>
-                    <span aria-hidden className={cn("mr-1 inline-block text-neutral-400 transition-transform", aOpen && "rotate-90")}>›</span>
+                    <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", aOpen && "rotate-90")}>›</span>
                     {a.label}
-                    <span className="ml-1.5 text-xs text-neutral-400">{a.lots.length} лот.</span>
+                    <span className="ml-1.5 text-xs text-neutral-500">{a.lots.length} лот.</span>
                   </button>
                 </td>
                 {cells(a.figures, { small: true })}
@@ -412,28 +412,28 @@ export function FurSelectionTotal({
               <>
                 <tr data-block="with-tz" className="border-t-2 border-neutral-300 bg-neutral-50/70 text-[13px] font-medium">
                   <td className="sticky left-0 z-10 bg-neutral-50 px-3 py-2">
-                    Лоты с ТЗ<span className="ml-1.5 text-xs font-normal text-neutral-400">{mainTotal.lots} лот.</span>
+                    Лоты с ТЗ<span className="ml-1.5 text-xs font-normal text-neutral-500">{mainTotal.lots} лот.</span>
                   </td>
                   {cells(mainTotal, { small: true })}
                 </tr>
                 <tr data-block="no-tz" onClick={() => toggleExp("z:block")} className="cursor-pointer border-t border-neutral-200 bg-amber-50/50 text-[13px] font-medium hover:bg-amber-50">
                   <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2">
                     <button type="button" aria-expanded={noTzOpen} className="text-left" onClick={(e) => { e.stopPropagation(); toggleExp("z:block"); }}>
-                      <span aria-hidden className={cn("mr-1 inline-block text-neutral-400 transition-transform", noTzOpen && "rotate-90")}>›</span>
+                      <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", noTzOpen && "rotate-90")}>›</span>
                       Лоты без ТЗ — не использованы
-                      <span className="ml-1.5 text-xs font-normal text-neutral-400">{noTzLots} лот.</span>
+                      <span className="ml-1.5 text-xs font-normal text-neutral-500">{noTzLots} лот.</span>
                     </button>
                   </td>
                   {cells(noTzTotal, { small: true })}
                 </tr>
                 {noTzOpen && noTzRows.map((r) => renderRow(r, "z:"))}
                 {noTzOpen && noTzRows.length === 0 && (
-                  <tr><td colSpan={nCols} className="px-3 py-3 pl-9 text-xs text-neutral-400">Все лоты использованы в ТЗ</td></tr>
+                  <tr><td colSpan={nCols} className="px-3 py-3 pl-9 text-xs text-neutral-500">Все лоты использованы в ТЗ</td></tr>
                 )}
               </>
             )}
             {table.rows.length === 0 && (
-              <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-400">{lots.length === 0 ? "Закупок за выбранный период нет" : "Нет данных по выбранным фильтрам"}</td></tr>
+              <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-500">{lots.length === 0 ? "Закупок за выбранный период нет" : "Нет данных по выбранным фильтрам"}</td></tr>
             )}
           </tbody>
         </table>

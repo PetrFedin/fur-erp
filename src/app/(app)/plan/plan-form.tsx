@@ -324,7 +324,7 @@ export function PlanForm({
                   <div className="mb-1 flex items-center justify-between text-xs font-medium text-neutral-600">
                     <span>{sz}</span>
                     {ri === 0 && rows.every((x) => !(x.qty[sz] ?? "").trim()) && (
-                      <button type="button" aria-label={`Убрать размер ${sz}`} className="text-neutral-400 hover:text-red-600" onClick={() => setSizes((s) => s.filter((x) => x !== sz))}>×</button>
+                      <button type="button" aria-label={`Убрать размер ${sz}`} className="text-neutral-500 hover:text-red-600" onClick={() => setSizes((s) => s.filter((x) => x !== sz))}>×</button>
                     )}
                   </div>
                   <input

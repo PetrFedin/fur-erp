@@ -23,7 +23,7 @@ export function MoneyClient({
   return (
     <span className={className} title={isFallback ? "Без НДС недоступно для этой суммы — показано с НДС" : undefined}>
       {formatMoney(showExcl ? excl : incl)}
-      {isFallback && <sup className="ml-0.5 text-neutral-400">*</sup>}
+      {isFallback && <sup className="ml-0.5 text-neutral-500">*</sup>}
     </span>
   );
 }

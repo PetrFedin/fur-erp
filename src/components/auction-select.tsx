@@ -83,7 +83,7 @@ export function AuctionSelect({
             if (filtered[0]) pick(filtered[0]);
           }
         }}
-        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
       />
       {/* кэш-текст: короткое имя выбранного; если не выбран — прежний текст закупки (он не из справочника) или пусто */}
       <input type="hidden" name={name} value={sel ? sel.name : legacyText} />

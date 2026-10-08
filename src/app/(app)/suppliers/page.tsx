@@ -106,7 +106,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
           ))}
           {suppliers.length === 0 && (
             <Tr>
-              <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
+              <Td colSpan={colCount} className="py-8 text-center text-neutral-500">
                 {f.q || f.status.length ? "Ничего не найдено" : "Поставщиков пока нет"}
               </Td>
             </Tr>

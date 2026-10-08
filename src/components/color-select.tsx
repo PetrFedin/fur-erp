@@ -87,7 +87,7 @@ export function ColorSelect({
         onKeyDown={(e) => {
           if (e.key === "Escape") setOpen(false);
         }}
-        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+        className="flex h-9 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
       />
       <input type="hidden" name={refName} value={refId} />
       {open && filtered.length > 0 && (
@@ -96,7 +96,7 @@ export function ColorSelect({
             <li key={r.id}>
               <button type="button" onClick={() => pick(r)} className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left hover:bg-neutral-100">
                 <span>{r.name}</span>
-                {r.proposed && <span className="text-xs text-amber-600">предложено</span>}
+                {r.proposed && <span className="text-xs text-amber-700">предложено</span>}
               </button>
             </li>
           ))}

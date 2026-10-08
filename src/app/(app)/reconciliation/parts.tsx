@@ -154,7 +154,7 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
   const shared = inv.groupIds.length > 1;
   const cell = dbCell(c, db);
   const share = inv.shares[groupId];
-  const label = (s: string) => <span className="text-[11px] uppercase tracking-wide text-neutral-400 xl:hidden">{s} </span>;
+  const label = (s: string) => <span className="text-[11px] uppercase tracking-wide text-neutral-500 xl:hidden">{s} </span>;
   return (
     <div
       className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-neutral-100 px-3 py-2.5 text-sm xl:grid-cols-[6.5rem_9rem_minmax(0,1fr)_minmax(0,1.5fr)_8rem_9rem_10rem] xl:items-start"

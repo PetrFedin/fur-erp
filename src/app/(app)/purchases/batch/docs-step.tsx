@@ -77,7 +77,7 @@ export function DocsStep({
                   <div className="truncate font-medium">{d.name}</div>
                   <div className="text-xs text-neutral-500">{(d.size / 1024).toFixed(0)} КБ{d.textRead ? " · текст прочитан" : " · текст не прочитан"}</div>
                 </div>
-                <button type="button" className="text-neutral-400 hover:text-red-600" aria-label={`Убрать документ ${d.name}`} onClick={() => setDocs((prev) => prev.filter((x) => x.id !== d.id))}>
+                <button type="button" className="text-neutral-500 hover:text-red-600" aria-label={`Убрать документ ${d.name}`} onClick={() => setDocs((prev) => prev.filter((x) => x.id !== d.id))}>
                   ×
                 </button>
               </div>

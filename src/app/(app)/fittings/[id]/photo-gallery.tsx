@@ -13,7 +13,7 @@ export function PhotoGallery({
   onDelete: (photoId: string) => Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
-  if (photos.length === 0) return <p className="text-sm text-neutral-400">Фото пока нет</p>;
+  if (photos.length === 0) return <p className="text-sm text-neutral-500">Фото пока нет</p>;
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {photos.map((p) => (

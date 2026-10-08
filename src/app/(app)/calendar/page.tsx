@@ -194,13 +194,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     <div className="flex flex-col gap-4">
       <ProductionTabs active="calendar" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Производственный календарь<YearNote year={year} />{" "}
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Производственный календарь</h1><YearNote year={year} />{" "}
           <InfoHint wide>
             Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Серые пунктирные ярлыки — факты из других разделов (план поставок, отгрузки, примерки, окончание ТЗ); они только для просмотра, клик ведёт в свою карточку.
             Красная рамка — дата прошла, а событие не отмечено выполненным. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/plan" className={buttonVariants({ variant: "outline" })}>План заказа</Link>
           <Link href="/supply-plan" className={buttonVariants({ variant: "outline" })}>План поставок</Link>
@@ -340,12 +338,12 @@ function WeekRow({ wk, month, view, today, dayBlock, dayTotal, evByDay, canEdit,
       {wk.map((d) => {
         const outside = view === "month" && !d.startsWith(month);
         return (
-          <div key={d} className={`${view === "week" ? "min-h-48" : "min-h-28"} flex flex-col gap-1 p-1 ${outside ? "bg-neutral-50 text-neutral-400" : "bg-white"} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
+          <div key={d} className={`${view === "week" ? "min-h-48" : "min-h-28"} flex flex-col gap-1 p-1 ${outside ? "bg-neutral-50 text-neutral-500" : "bg-white"} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
             <div className="flex items-center justify-between text-xs">
               <span className={d === today ? "font-bold" : "font-medium"}>{Number(d.slice(8))}</span>
               <span className="flex items-center gap-1">
-                {dayTotal(d) > 0 && <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-700" title="Единиц за день">Σ {dayTotal(d)}</span>}
-                {canEdit && <Link href={href({ new: d, event: "" }) + "#event"} className="rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900" aria-label={`Добавить событие на ${d}`}>+</Link>}
+                {dayTotal(d) > 0 && <span className="rounded bg-neutral-100 px-1 text-[11px] text-neutral-700" title="Единиц за день">Σ {dayTotal(d)}</span>}
+                {canEdit && <Link href={href({ new: d, event: "" }) + "#event"} className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" aria-label={`Добавить событие на ${d}`}>+</Link>}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">{dayBlock(d, view !== "week")}</div>

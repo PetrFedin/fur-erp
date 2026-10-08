@@ -75,7 +75,7 @@ export function TopbarModes() {
         className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
       >
         Режимы
-        <span aria-hidden="true" className="text-neutral-400">
+        <span aria-hidden="true" className="text-neutral-500">
           {open ? "▴" : "▾"}
         </span>
       </button>

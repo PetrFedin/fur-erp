@@ -51,12 +51,12 @@ export function DriveDocuments({
   return (
     <section className="flex flex-col gap-2" data-drive-docs>
       <h3 className="text-sm font-semibold text-neutral-800">
-        {title} <span className="font-normal text-neutral-400">({countLabel(groups.length, docs.length)})</span>
+        {title} <span className="font-normal text-neutral-500">({countLabel(groups.length, docs.length)})</span>
       </h3>
       {docs.length > 0 ? (
         <GroupedItems groups={groups} canEdit={canEdit} />
       ) : (
-        <p className="text-sm text-neutral-400">Документов пока нет</p>
+        <p className="text-sm text-neutral-500">Документов пока нет</p>
       )}
       {canEdit && <UploadDocument entity={entity} entityId={entityId} options={options} extraTargets={extraTargets} />}
     </section>
@@ -65,7 +65,7 @@ export function DriveDocuments({
 
 /** Список документов без формы добавления. canEdit включает «Загрузить файл» / «Убрать» (если у документа canRemove не false). */
 export function DriveDocList({ docs, canEdit = false }: { docs: DriveDocView[]; canEdit?: boolean }) {
-  if (docs.length === 0) return <p className="text-sm text-neutral-400">Документов нет</p>;
+  if (docs.length === 0) return <p className="text-sm text-neutral-500">Документов нет</p>;
   return <GroupedItems groups={groupDocs(docs)} canEdit={canEdit} />;
 }
 
@@ -211,12 +211,12 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
             {editable ? (
               <FilePicker d={d} label="Загрузить файл" onError={setErr} primary />
             ) : (
-              <span className="text-xs text-neutral-400">Файл не загружен — загрузить может сотрудник с правом правки</span>
+              <span className="text-xs text-neutral-500">Файл не загружен — загрузить может сотрудник с правом правки</span>
             )}
           </>
         )}
         {canEdit && d.canRemove === false && (
-          <span className="text-xs text-neutral-400">Управляют владелец и администратор</span>
+          <span className="text-xs text-neutral-500">Управляют владелец и администратор</span>
         )}
         {editable && (
           <EditDialog
@@ -390,7 +390,7 @@ export function UploadDocument({
               </option>
             ))}
           </select>
-          <span className="text-[11px] text-neutral-400">Определяется по имени файла; для нескольких файлов — у каждого свой, если не выбран вручную</span>
+          <span className="text-[11px] text-neutral-500">Определяется по имени файла; для нескольких файлов — у каждого свой, если не выбран вручную</span>
         </label>
         {targets.length > 1 && (
           <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
@@ -409,7 +409,7 @@ export function UploadDocument({
             {pending ? "Загружаем…" : "Загрузить"}
           </Button>
           {state.error && <span className="text-sm text-red-600">{state.error}</span>}
-          {state.ok && <span className="text-sm text-emerald-600">{(state as { count?: number }).count ? `Загружено файлов: ${(state as { count?: number }).count}` : "Загружено"}</span>}
+          {state.ok && <span className="text-sm text-emerald-700">{(state as { count?: number }).count ? `Загружено файлов: ${(state as { count?: number }).count}` : "Загружено"}</span>}
         </div>
       </form>
     </details>

@@ -89,9 +89,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     <div className="flex flex-col gap-4">
       <ProductionTabs active="batches" />
       <div>
-        <h1 className="text-xl font-semibold">
-          Партии пошива
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Партии пошива</h1><YearNote year={year} />
           <InfoHint label="Что такое партия пошива" wide>
             <p>Партия пошива — группа ТЗ, отправленных одной поставкой. Не путать с партией закупки (аукцион, поставка меха). Откройте партию, чтобы увидеть ТЗ, оплаты и документы.</p>
             <p className="mt-1">
@@ -106,8 +104,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <p className="mt-1">
               Группировка ТЗ по партиям — вид «По партиям» на странице <Link href="/production?view=batches" className="underline">ТЗ</Link>.
             </p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
       </div>
       {emptyCount > 0 && (
         <p className="text-sm text-neutral-500">

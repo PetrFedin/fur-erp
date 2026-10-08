@@ -22,7 +22,7 @@ export function MonthlyChart({ points, unit }: { points: MonthPoint[]; unit: str
   const bw = Math.min(28, slot * 0.6);
   const h = hover != null ? points[hover] : null;
 
-  if (points.length === 0) return <p className="text-sm text-neutral-400">Нет закупок.</p>;
+  if (points.length === 0) return <p className="text-sm text-neutral-500">Нет закупок.</p>;
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">

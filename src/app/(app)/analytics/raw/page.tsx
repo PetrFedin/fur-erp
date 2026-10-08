@@ -184,17 +184,14 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Аналитика сырья
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Аналитика сырья</h1><YearNote year={year} />
           <Mode4Badge mode={c4} />
           <InfoHint label="О странице" wide>
             <p>Куплено → использовано в ТЗ → остаток по аукционам, годам, видам меха, лотам, сортам и размерам. Источник — лоты склада: каждая принятая закупка создаёт лот, списания в ТЗ ссылаются на лот.</p>
             <p className="mt-1">Год — общий, из шапки (по дате заказа закупки). Для выбранного года считаются лоты закупок этого года и всё, что из них списано в ТЗ (в любом году).</p>
             <p className="mt-1">Деньги — по цене лота за единицу (с учётом курса, НДС и расходов закупки); «Без НДС» переключается в шапке. Среднее везде средневзвешенное: Σ(цена × кол-во) ÷ Σ кол-во. 4% (режим в шапке) показан справочной строкой «с 4%» и в самой цене лота не учтён.</p>
             <p className="mt-1">Мех (шт.) и подкладка (м) считаются отдельно — единицы разные.</p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/analytics/raw/recon" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Сверка лотов{reconLots.length > 0 ? ` (${reconLots.length})` : ""}
@@ -362,7 +359,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 <span>Ср. цена закупки</span>
                 <span>Стоимость остатка</span>
               </div>
-              {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{year === "all" ? "Нет лотов по выбранным фильтрам" : `За ${year} год лотов по выбранным фильтрам нет`}</p>}
+              {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">{year === "all" ? "Нет лотов по выбранным фильтрам" : `За ${year} год лотов по выбранным фильтрам нет`}</p>}
               {groups.map((g) => (
                 <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
               ))}
@@ -396,7 +393,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 const max = Math.max(...byKind.map((x) => x.agg.recv.toNumber()), 1);
                 return <StackBar key={g.key} label={g.label} agg={g.agg} max={max} unit={unit} />;
               })}
-              {byKind.length === 0 && <p className="text-sm text-neutral-400">Нет данных.</p>}
+              {byKind.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
             </div>
           </CardContent>
         </Card>
@@ -416,7 +413,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 const max = Math.max(...byAuction.map((x) => x.agg.recv.toNumber()), 1);
                 return <StackBar key={g.key} label={g.label} title={g.title} agg={g.agg} max={max} unit={unit} showPct />;
               })}
-              {byAuction.length === 0 && <p className="text-sm text-neutral-400">Нет данных.</p>}
+              {byAuction.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
             </div>
           </CardContent>
         </Card>
@@ -530,7 +527,7 @@ function StackBar({ label, title, agg, max, unit, showPct }: { label: string; ti
 function Check({ ok, warn, text, children }: { ok: boolean; warn?: boolean; text: string; children?: React.ReactNode }) {
   return (
     <div className="flex gap-2">
-      <span className={"mt-0.5 shrink-0 text-xs font-bold " + (ok ? "text-emerald-600" : warn ? "text-amber-600" : "text-red-600")} aria-label={ok ? "в порядке" : "замечание"}>
+      <span className={"mt-0.5 shrink-0 text-xs font-bold " + (ok ? "text-emerald-700" : warn ? "text-amber-700" : "text-red-600")} aria-label={ok ? "в порядке" : "замечание"}>
         {ok ? "✓" : warn ? "!" : "✗"}
       </span>
       <div>
@@ -576,9 +573,9 @@ function GroupRow({ g, by, f, unit, c4 }: { g: Group; by: GroupBy; f: RawFilters
           title={g.title}
         >
           <span className="col-span-2 font-medium md:col-span-1">
-            <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+            <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
             {g.label}
-            <span className="ml-1 text-xs font-normal text-neutral-400">· {g.agg.lots} лот.</span>
+            <span className="ml-1 text-xs font-normal text-neutral-500">· {g.agg.lots} лот.</span>
           </span>
           <Cells a={g.agg} unit={unit} c4={c4} />
         </summary>
@@ -625,7 +622,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         <span>Стоимость списания</span>
         <span>Стоимость на 1 изделие</span>
       </div>
-      {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{year === "all" ? "Нет списаний по выбранным фильтрам" : `За ${year} год списаний по выбранным фильтрам нет`}</p>}
+      {groups.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">{year === "all" ? "Нет списаний по выбранным фильтрам" : `За ${year} год списаний по выбранным фильтрам нет`}</p>}
       {groups.map((g) => (
         <LazyDetails
           key={g.key}
@@ -634,7 +631,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
           summary={
             <summary className={`grid cursor-pointer list-none grid-cols-2 gap-2 px-3 py-2 hover:bg-neutral-50 ${USAGE_COLS} [&::-webkit-details-marker]:hidden`}>
               <span className="col-span-2 font-medium md:col-span-1">
-                <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+                <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
                 {g.label}
                 <span className="block pl-3 text-xs font-normal text-neutral-500">{g.sub}</span>
               </span>

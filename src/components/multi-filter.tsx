@@ -81,12 +81,12 @@ export function MultiFilter({
         )}
       >
         <span className="min-w-0">
-          <span className="block text-[10px] font-semibold uppercase leading-tight tracking-wide text-neutral-400">{label}</span>
+          <span className="block text-[11px] font-semibold uppercase leading-tight tracking-wide text-neutral-500">{label}</span>
           <span className="block max-w-[170px] truncate font-medium leading-tight text-neutral-900">{summary}</span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {!all && <span className="rounded-full bg-neutral-900 px-1.5 text-[11px] font-medium leading-5 text-white">{selected.length}</span>}
-          <span aria-hidden className={cn("text-neutral-400 transition-transform", open && "rotate-180")}>⌄</span>
+          <span aria-hidden className={cn("text-neutral-500 transition-transform", open && "rotate-180")}>⌄</span>
         </span>
       </button>
       {open && (
@@ -110,17 +110,17 @@ export function MultiFilter({
           <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium hover:bg-neutral-50">
             <input type="checkbox" checked={all} onChange={() => onChange([])} className="size-4 accent-neutral-900" />
             <span className="min-w-0 flex-1 truncate">{allLabel}</span>
-            <span className="text-xs font-normal text-neutral-400">{options.length}</span>
+            <span className="text-xs font-normal text-neutral-500">{options.length}</span>
           </label>
           <div className="max-h-64 overflow-auto border-t border-neutral-100 pt-1">
             {shown.map((o) => (
               <label key={o.value} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-neutral-50">
                 <input type="checkbox" checked={set.has(o.value)} onChange={() => toggle(o.value)} className="size-4 accent-neutral-900" />
-                <span className={cn("min-w-0 flex-1 truncate", o.count === 0 && "text-neutral-400")} title={o.label}>{o.label}</span>
-                {o.count != null && <span className="text-xs tabular-nums text-neutral-400">{o.count}</span>}
+                <span className={cn("min-w-0 flex-1 truncate", o.count === 0 && "text-neutral-500")} title={o.label}>{o.label}</span>
+                {o.count != null && <span className="text-xs tabular-nums text-neutral-500">{o.count}</span>}
               </label>
             ))}
-            {shown.length === 0 && <div className="px-2 py-3 text-sm text-neutral-400">Ничего не найдено</div>}
+            {shown.length === 0 && <div className="px-2 py-3 text-sm text-neutral-500">Ничего не найдено</div>}
           </div>
         </div>
       )}

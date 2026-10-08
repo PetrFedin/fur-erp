@@ -323,7 +323,7 @@ export function LotsStep(p: Props) {
                       </td>
                     )}
                     <td className="px-1 py-1 text-center">
-                      <button type="button" onClick={() => delRow(r.n)} className="text-neutral-400 hover:text-red-600" aria-label={`Удалить строку ${i + 1}`}>×</button>
+                      <button type="button" onClick={() => delRow(r.n)} className="text-neutral-500 hover:text-red-600" aria-label={`Удалить строку ${i + 1}`}>×</button>
                     </td>
                   </tr>,
                   issues.length > 0 ? (

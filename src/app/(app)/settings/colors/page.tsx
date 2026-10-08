@@ -79,10 +79,10 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
-        <h1 className="text-xl font-semibold">Справочник цветов<InfoHint label="О справочнике" wide>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник цветов</h1><InfoHint label="О справочнике" wide>
           Один цвет — одно название на русском. В ТЗ, закупках и лотах цвет выбирается отсюда; переименование здесь сразу меняет название везде.
           В «Синонимах» — как этот цвет пишут в реестре и документах (латиница, опечатки).
-        </InfoHint></h1>
+        </InfoHint></div>
       </div>
       {flashError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>}
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
@@ -121,7 +121,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                               {o.number}
                             </Link>
                           ))}
-                          {u.orders.length > MAX_LINKS && <span className="text-neutral-400">…ещё {u.orders.length - MAX_LINKS}</span>}
+                          {u.orders.length > MAX_LINKS && <span className="text-neutral-500">…ещё {u.orders.length - MAX_LINKS}</span>}
                         </div>
                         {(u.items > 0 || u.lots > 0) && (
                           <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1">
@@ -133,7 +133,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                                 {num}
                               </Link>
                             ))}
-                            {purchases.length > MAX_LINKS && <span className="text-neutral-400">…ещё {purchases.length - MAX_LINKS}</span>}
+                            {purchases.length > MAX_LINKS && <span className="text-neutral-500">…ещё {purchases.length - MAX_LINKS}</span>}
                           </div>
                         )}
                       </Td>
@@ -144,7 +144,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                             <div className="text-xs text-neutral-500">{sug.reason}</div>
                           </>
                         ) : (
-                          <span className="text-neutral-400">нет похожего цвета</span>
+                          <span className="text-neutral-500">нет похожего цвета</span>
                         )}
                       </Td>
                       <Td>
@@ -235,7 +235,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
                   {r.name} {proposed && <Badge variant="warning">ждёт подтверждения</Badge>}
                   {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
                 </Td>
-                <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-400">—</span>}</Td>
+                <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-500">—</span>}</Td>
                 <Td className="text-right align-top">{r._count.orders}</Td>
                 <Td className="text-right align-top">{r._count.lots}</Td>
                 <Td className="text-right align-top">{r._count.purchaseItems}</Td>
@@ -302,7 +302,7 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
           })}
           {shownRefs.length === 0 && (
             <Tr>
-              <Td colSpan={6} className="py-8 text-center text-neutral-400">
+              <Td colSpan={6} className="py-8 text-center text-neutral-500">
                 {refs.length > 0 ? "Ничего не найдено" : "Цветов пока нет"}
               </Td>
             </Tr>

@@ -8,7 +8,7 @@ const TONE: Record<string, string> = {
   "22": "border-violet-300 bg-violet-50 text-violet-800",
   mixed: "border-amber-300 bg-amber-50 text-amber-800",
   other: "border-neutral-300 bg-neutral-50 text-neutral-700",
-  none: "border-neutral-200 text-neutral-400",
+  none: "border-neutral-200 text-neutral-500",
 };
 
 /**
@@ -16,11 +16,11 @@ const TONE: Record<string, string> = {
  * Ставка берётся у лота каждой строки; суммы — построчные, не одной общей ставкой.
  */
 export function TzVatBadge({ b, compact = false, hint = true, className = "" }: { b: VatBreakdown; compact?: boolean; hint?: boolean; className?: string }) {
-  if (b.kind === "none") return <span className="text-neutral-400">—</span>;
+  if (b.kind === "none") return <span className="text-neutral-500">—</span>;
   const total = b.rows.reduce((s, r) => s.add(r.incl), b.share20.incl.mul(0));
   return (
     <span className={`inline-flex flex-wrap items-center gap-1 ${className}`}>
-      <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${TONE[b.kind]}`}>
+      <span className={`rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${TONE[b.kind]}`}>
         {compact ? "" : "НДС: "}
         {vatKindLabel(b)}
       </span>

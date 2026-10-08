@@ -171,7 +171,7 @@ export function ShipmentForm({ clients, orders, initial, submit, submitLabel, ca
                         onChange={(e) => setRow(o.id, i, { quantity: e.target.value })}
                         aria-label="Количество"
                       />
-                      <button type="button" className="justify-self-start text-sm text-neutral-400 hover:text-red-600" onClick={() => delRow(o.id, i)} title="Удалить строку">
+                      <button type="button" className="justify-self-start text-sm text-neutral-500 hover:text-red-600" onClick={() => delRow(o.id, i)} title="Удалить строку">
                         ✕
                       </button>
                     </div>

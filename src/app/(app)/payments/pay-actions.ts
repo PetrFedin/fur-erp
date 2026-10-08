@@ -199,7 +199,9 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
   const markConfirmed = formData.get("markConfirmed") === "1";
   const warnOk = formData.get("confirmOverpay") === "1";
   if ((kind === "OTHER" || kind === "REFUND") && noteIn.length < 3) return { error: "Для вида «Другое» и «Возврат / зачёт» напишите пометку — что это за платёж" };
-  if (paidIso > todayIso() && !warnOk) return { confirm: `Дата оплаты (${paidIso}) в будущем. Всё равно записать как оплаченную?` };
+  // Предупреждения (дата в будущем, переплата, повтор) собираются вместе и подтверждаются ОДНИМ вопросом: иначе «ОК» на одно из них пропускало бы остальные.
+  const warns: string[] = [];
+  if (paidIso > todayIso()) warns.push(`Дата оплаты (${paidIso}) в будущем.`);
 
   // ---- файлы пачкой: тип (платёжка / счёт / письмо / другое) выбран на форме, по умолчанию определён по имени
   const entries = formData.getAll("files").filter(isPickedFile);
@@ -252,6 +254,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
         let total: Decimal | null = null;
         let title = "";
         const dupSince = new Date(Date.now() - 2 * 60 * 1000);
+        const warn = [...warns];
 
         // 1. цель, сумма, проверки
         let supplierId = "";
@@ -310,8 +313,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
           } else amount = new Decimal(amountIn).toDecimalPlaces(2);
           if (kind === "REFUND") amount = amount.abs().neg();
           if (amount.abs().lessThan("0.01")) return { error: "Сумма меньше 1 копейки" };
-          if (kind !== "REFUND" && total && paidBefore && paidBefore.add(amount).sub(total).greaterThan(PAY_EPS) && !warnOk) {
-            return { confirm: `Оплачено станет ${formatMoney(paidBefore.add(amount).toString())} при стоимости ${formatMoney(total.toString())} — переплата ${formatMoney(paidBefore.add(amount).sub(total).toString())}. Всё равно записать?` };
+          if (kind !== "REFUND" && total && paidBefore && paidBefore.add(amount).sub(total).greaterThan(PAY_EPS)) {
+            warn.push(`Оплачено станет ${formatMoney(paidBefore.add(amount).toString())} при стоимости ${formatMoney(total.toString())} — переплата ${formatMoney(paidBefore.add(amount).sub(total).toString())}.`);
           }
         } else {
           orders = await loadWorkOrders(tx, orgId, spec);
@@ -333,8 +336,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
           } else amount = new Decimal(amountIn).toDecimalPlaces(2);
           if (amount.lessThan("0.01")) return { error: "Сумма меньше 1 копейки" };
           if (kind !== "ADVANCE" && !total.greaterThan(0)) return { error: "Цена работы не задана — оплату по ТЗ можно внести только как аванс" };
-          if (total.greaterThan(0) && paidBefore.add(amount).sub(total).greaterThan(PAY_EPS) && !warnOk) {
-            return { confirm: `Оплачено станет ${formatMoney(paidBefore.add(amount).toString())} при работе ${formatMoney(total.toString())} — переплата ${formatMoney(paidBefore.add(amount).sub(total).toString())}. Всё равно записать?` };
+          if (total.greaterThan(0) && paidBefore.add(amount).sub(total).greaterThan(PAY_EPS)) {
+            warn.push(`Оплачено станет ${formatMoney(paidBefore.add(amount).toString())} при работе ${formatMoney(total.toString())} — переплата ${formatMoney(paidBefore.add(amount).sub(total).toString())}.`);
           }
         }
 
@@ -343,7 +346,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
           side === "supplier"
             ? await tx.payment.count({ where: { organizationId: orgId, supplierId, amount, paidAt, purchaseId: purchaseForLink, auctionSession: auctionForLink, createdAt: { gte: dupSince } } })
             : await tx.productionPayment.count({ where: { organizationId: orgId, amount, paidAt, createdAt: { gte: dupSince }, orders: { some: { productionOrderId: { in: orders.map((o) => o.id) } } } } });
-        if (dup > 0 && !warnOk) return { confirm: "Такая же оплата (сумма, дата, цель) только что уже записана — возможно, это двойная отправка. Записать ещё одну?" };
+        if (dup > 0) warn.push("Такая же оплата (сумма, дата, цель) только что уже записана — возможно, это двойная отправка.");
+        if (warn.length > 0 && !warnOk) return { confirm: `${warn.join(" ")} Всё равно записать?` };
 
         // 3. документы
         const stored: { role: DocRole; doc: ReadDoc }[] = docs.map((d) => ({ role: d.role, doc: d.read }));

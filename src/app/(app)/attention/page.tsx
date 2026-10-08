@@ -62,9 +62,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
       <ControlTabs active="tasks" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            Задачи
-            <InfoHint wide label="Как считается число">
+          <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Задачи</h1><InfoHint wide label="Как считается число">
               <p>
                 Единый список «что требует действия»: нет документа, нет платёжки, расхождение суммы, ждёт подтверждения, нет даты, цены или состава.
                 Живые проверки по базе: исправили запись — она исчезает.
@@ -75,8 +73,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
                 это <b>одна запись на группу</b>: их не исправить без новых документов. Справочное (ожидаемые поставки, справочники) в число не входит.
               </p>
               <p className="mt-2">Один факт — одно место: «нет документа» и «нет платёжки» здесь одной строкой со ссылкой, подробности — во вкладках «Документы» и «Подтвердить». Полный список по сущностям — «Показать всё».</p>
-            </InfoHint>
-          </h1>
+            </InfoHint></div>
           <p className="mt-1 text-sm text-neutral-500">
             Открыто: <b className="text-neutral-900">{counts.tasks}</b>
             {counts.urgent > 0 && <> · срочно: <b className="text-red-600">{counts.urgent}</b></>}
@@ -175,7 +172,7 @@ function BlockCard({ b }: { b: AttentionBlock }) {
             </Link>
           )}
           <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[b.priority])}>{blockSummary(b)}</span>
-          <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+          <span className="shrink-0 text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
         </summary>
         <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
           {shown.map((e) => (
@@ -205,7 +202,7 @@ function AllView({ all }: { all: AttentionEntity[] }) {
                 <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT[top])} aria-hidden />
                 <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">{KIND_LABELS[k]}</span>
                 <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[top])}>{rows.length}</span>
-                <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+                <span className="shrink-0 text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
               </summary>
               <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
                 {rows.slice(0, MAX_ROWS).map((e) => (
@@ -295,7 +292,7 @@ function TaskCard({ cat }: { cat: TaskCategory }) {
             </span>
           </span>
           <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE[tone])}>{cat.count}</span>
-          <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+          <span className="shrink-0 text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
         </summary>
         <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
           {cat.items.map((e) => (

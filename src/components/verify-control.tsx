@@ -154,7 +154,7 @@ export function VerifyControl({
 
 /** Компактная отметка для списков: «✓ подтверждено» / «ждёт проверки»; ведёт в очередь /verify. */
 export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
-  if (!flag) return <span className="text-neutral-400">—</span>;
+  if (!flag) return <span className="text-neutral-500">—</span>;
   return (
     <Link
       href={`/verify?tab=${tab}`}

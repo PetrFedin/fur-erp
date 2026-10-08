@@ -74,9 +74,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <style>{PRINT_CSS}</style>
       <IntegrityBanner />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Сводка<PageModes info={info} c4={c4Mode} />
-        </h1>
+        {/* Режимы и «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сводка · все годы · с НДС … i». */}
+        <div className="flex flex-wrap items-center">
+          <h1 className="text-xl font-semibold">Сводка</h1>
+          <PageModes info={info} c4={c4Mode} />
+        </div>
         <PrintButton />
       </div>
       <p data-print-date className="hidden text-xs text-neutral-600">
@@ -222,7 +224,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     <tr key={c.clientId} className="border-t border-neutral-100">
                       <td className="px-3 py-1.5">
                         <Link href={`/production?q=${encodeURIComponent(c.clientName)}`} className="hover:underline">{c.clientName}</Link>
-                        {c.unpricedOrders > 0 ? <span className="ml-1 text-xs text-neutral-400">({c.unpricedOrders} ТЗ без цены работ — не учтены)</span> : null}
+                        {c.unpricedOrders > 0 ? <span className="ml-1 text-xs text-neutral-500">({c.unpricedOrders} ТЗ без цены работ — не учтены)</span> : null}
                       </td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{c.orders}</td>
                       <td className={"px-3 py-1.5 text-right tabular-nums " + (c.balance > 0 ? "text-amber-700" : "")}>{formatMoney(c.balance.toFixed(2))}</td>

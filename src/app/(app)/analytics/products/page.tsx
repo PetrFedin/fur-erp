@@ -196,7 +196,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <Td className={level === 1 ? "pl-8 font-normal" : "font-medium"}>
         <details>
           <summary className="cursor-pointer hover:underline">
-            {level === 1 && <span className="mr-1 text-neutral-400">↳</span>}
+            {level === 1 && <span className="mr-1 text-neutral-500">↳</span>}
             {g === "model" && n.rows[0] ? <span title={n.rows[0].modelHint}>{n.rows[0].modelLabel}</span> : n.label}
             {g === "category" && n.label === UNDEFINED_CATEGORY && <span className="ml-1 text-xs font-normal text-amber-700">(модели без названия категории — список ниже)</span>}
           </summary>
@@ -241,9 +241,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Что произведено
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Что произведено</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />
           <InfoHint label="О странице" wide>
             <p>Какие ТЗ сделаны и во что они обошлись: по категориям, видам меха, размерам, моделям (артикулам), партиям, годам, цветам и по каждому ТЗ. Одна строка источника = одно ТЗ (отменённые не считаются).</p>
@@ -268,8 +266,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
               <b>Категория</b> определена по названию (текст «категория» у модели, затем описание материала в ТЗ) правилом из файла <code>src/lib/product-category.ts</code>; не определилась — строка «{UNDEFINED_CATEGORY}». <b>Вид меха</b> — по сырью, списанному в ТЗ (несколько видов — «A + B»). <b>Цвет</b> — по справочнику цветов.
             </p>
             <p className="mt-1">Фурнитура в учёте не списывается (в ТЗ только мех и подкладка). «Набор размеров» — ТЗ сразу на несколько размеров: сколько единиц какого размера, в ТЗ не записано.</p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <a href={`/analytics/products/export?${exportQs}&part=groups`} className={buttonVariants({ variant: "outline", size: "sm" })}>
             CSV: таблица
@@ -327,7 +324,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                     <Money incl={s.d.hammerPerSkin.incl} excl={s.d.hammerPerSkin.excl} /> <span className="text-[11px] font-normal text-neutral-500">({pct0(s.d.hammerSkinShare ?? 0)})</span>
                   </>
                 ) : (
-                  <span className="text-neutral-400">нет данных</span>
+                  <span className="text-neutral-500">нет данных</span>
                 )}
               </Td>
             ))}
@@ -370,7 +367,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-neutral-500">
           Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · {STATUS_LABEL[f.st]} · ТЗ: {total.orders} · единиц: {formatQty(total.units)}
-          {total.units === 0 && <span className="ml-2 text-neutral-400">нет данных за выбранный год и фильтры</span>}
+          {total.units === 0 && <span className="ml-2 text-neutral-500">нет данных за выбранный год и фильтры</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -414,7 +411,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
               )}
               {nodes.length === 0 && (
                 <Tr>
-                  <Td colSpan={cols.length + 1} className="py-8 text-center text-neutral-400">
+                  <Td colSpan={cols.length + 1} className="py-8 text-center text-neutral-500">
                     {year !== "all" ? `За ${year} год ТЗ по этим условиям нет` : "ТЗ по этим условиям нет"}
                   </Td>
                 </Tr>
@@ -432,7 +429,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             className="bg-neutral-50"
           />
         )}
-        {nodes.length === 0 && <p className="py-8 text-center text-neutral-400">ТЗ по этим условиям нет</p>}
+        {nodes.length === 0 && <p className="py-8 text-center text-neutral-500">ТЗ по этим условиям нет</p>}
       </ResponsiveRows>
 
       {/* Матрицы */}
@@ -456,7 +453,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="text-sm text-neutral-400">Нет данных для матриц.</p>
+        <p className="text-sm text-neutral-500">Нет данных для матриц.</p>
       ) : (
         <>
           <div>

@@ -131,7 +131,7 @@ export function Field({ label, children, wide, hint }: { label: string; children
     <label className={`flex flex-col gap-1 text-xs text-neutral-500 ${wide ? "sm:col-span-2" : ""}`}>
       {label}
       {children}
-      {hint && <span className="text-[11px] text-neutral-400">{hint}</span>}
+      {hint && <span className="text-[11px] text-neutral-500">{hint}</span>}
     </label>
   );
 }

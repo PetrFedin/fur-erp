@@ -86,10 +86,8 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
     <div className="flex flex-col gap-4">
       <ProductionTabs active="plan" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Сезоны ТЗ<YearNote year={year} />{" "}
-          <InfoHint wide>Здесь каждому ТЗ присваивается сезон — по нему план заказа считает факт. Можно выбрать ТЗ галочками и присвоить сезон сразу всем, либо посмотреть предложение по датам (ничего не применяется без вашего подтверждения). Данные ТЗ при этом не меняются, кроме поля «сезон».</InfoHint>
-        </h1>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Сезоны ТЗ</h1><YearNote year={year} />{" "}
+          <InfoHint wide>Здесь каждому ТЗ присваивается сезон — по нему план заказа считает факт. Можно выбрать ТЗ галочками и присвоить сезон сразу всем, либо посмотреть предложение по датам (ничего не применяется без вашего подтверждения). Данные ТЗ при этом не меняются, кроме поля «сезон».</InfoHint></div>
         <Link href="/plan" className={buttonVariants({ variant: "outline" })}>← План заказа</Link>
       </div>
 

@@ -37,7 +37,7 @@ export async function RecordHistory({ model, recordId, extraModels, panelModels 
               <span>{fmtAt(r.at)}</span>
               <span>{actorText(r)}</span>
               <ActionBadge action={r.action} />
-              {r.model !== model && <span className="text-neutral-400">{r.label}</span>}
+              {r.model !== model && <span className="text-neutral-500">{r.label}</span>}
             </div>
             <ChangeCell row={r} compact />
           </div>

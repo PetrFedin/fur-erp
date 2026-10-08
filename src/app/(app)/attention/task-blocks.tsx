@@ -67,7 +67,7 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
                     <span key={r.href + r.label}>{i > 0 && " · "}<Link href={r.href} className="text-blue-700 hover:underline">{r.label}</Link></span>
                   ))}
                 </p>
-                <p className="mt-2 text-neutral-400">Источник: {d.source}</p>
+                <p className="mt-2 text-neutral-500">Источник: {d.source}</p>
               </InfoHint>
             </span>
           </div>
@@ -146,7 +146,7 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{counted}</span>
-                <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+                <span className="shrink-0 text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
               </summary>
               {(owner === "mm" || owner === "vellmex") && (
                 <div className="border-t border-neutral-100 p-3">

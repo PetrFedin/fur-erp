@@ -39,9 +39,9 @@ export function AssignTable({ orders, seasons, canEdit }: { orders: AssignOrder[
                 {canEdit && <td className="px-3 py-2"><input type="checkbox" name="orderId" value={o.id} checked={sel.has(o.id)} onChange={() => toggle(o.id)} aria-label={`Выбрать ${o.label}`} className="size-4" /></td>}
                 <td className="px-3 py-2 font-medium"><Link href={`/production/${o.id}`} className="hover:underline">{o.label}</Link></td>
                 <td className="px-3 py-2">{o.model}</td>
-                <td className="px-3 py-2 tabular-nums">{o.date ?? <span className="text-neutral-400">нет даты</span>}</td>
+                <td className="px-3 py-2 tabular-nums">{o.date ?? <span className="text-neutral-500">нет даты</span>}</td>
                 <td className="px-3 py-2 tabular-nums">{o.qty}</td>
-                <td className="px-3 py-2">{o.season ?? <span className="text-neutral-400">—</span>}</td>
+                <td className="px-3 py-2">{o.season ?? <span className="text-neutral-500">—</span>}</td>
               </tr>
             ))}
             {orders.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-neutral-500">ТЗ по фильтру не найдено</td></tr>}

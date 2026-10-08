@@ -72,7 +72,7 @@ export function PlanArticlePicker({
           onChange({ code: e.target.value, modelId: null });
         }}
         onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-        className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+        className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm shadow-sm placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
       />
       {open && found.length > 0 && (
         <ul className="absolute z-30 mt-1 max-h-60 w-full min-w-56 overflow-auto rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">

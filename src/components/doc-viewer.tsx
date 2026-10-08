@@ -44,7 +44,7 @@ export function DocBadge({ entity, id, count, title, className = "" }: { entity:
         aria-label={none ? "Нет документов" : `Документы: ${count}`}
         data-doc-badge={entity}
         className={`inline-flex h-6 items-center gap-0.5 whitespace-nowrap rounded-md px-1.5 text-xs ${
-          none ? "text-neutral-400 hover:bg-neutral-100" : "bg-neutral-100 font-medium text-neutral-700 hover:bg-neutral-200"
+          none ? "text-neutral-500 hover:bg-neutral-100" : "bg-neutral-100 font-medium text-neutral-700 hover:bg-neutral-200"
         } ${className}`}
       >
         {none ? "нет документов" : `📎 ${count}`}
@@ -154,7 +154,7 @@ export function DocViewer({ entity, id, title, onClose }: { entity: DocEntity; i
                     <span className="block text-neutral-500">
                       {[d.typeLabel, d.number && `№ ${d.number}`, fmtDate(d.date), fmtSize(d.size)].filter(Boolean).join(" · ")}
                     </span>
-                    <span className="block text-neutral-400">
+                    <span className="block text-neutral-500">
                       {[d.scope, d.hasFile ? null : "файл не загружен"].filter(Boolean).join(" · ")}
                     </span>
                   </button>
@@ -223,7 +223,7 @@ function EmptyUpload({ upload, onDone }: { upload: Upload; onDone: () => void })
             />
           </label>
         ) : (
-          <div className="text-neutral-400">Загрузите документ в карточке закупки.</div>
+          <div className="text-neutral-500">Загрузите документ в карточке закупки.</div>
         )}
         {msg && <div className="text-red-600">{msg}</div>}
       </div>
@@ -399,7 +399,7 @@ function TextPane({ doc }: { doc: DocItem }) {
                   </tbody>
                 </table>
               </div>
-              {s.truncated && <p className="mt-1 text-xs text-neutral-400">Показаны первые строки листа — полный файл можно скачать.</p>}
+              {s.truncated && <p className="mt-1 text-xs text-neutral-500">Показаны первые строки листа — полный файл можно скачать.</p>}
             </section>
           ))
         )}

@@ -47,7 +47,7 @@ export default async function WarehousesPage() {
           ))}
           {warehouses.length === 0 && (
             <Tr>
-              <Td colSpan={3} className="py-8 text-center text-neutral-400">
+              <Td colSpan={3} className="py-8 text-center text-neutral-500">
                 Складов пока нет
               </Td>
             </Tr>

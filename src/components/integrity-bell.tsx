@@ -63,7 +63,7 @@ export function IntegrityBell() {
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
         {n > 0 && (
-          <span className={cn("absolute -right-1.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 text-white tabular-nums", red ? "bg-red-600" : "bg-amber-500")}>{n > 99 ? "99+" : n}</span>
+          <span className={cn("absolute -right-1.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[11px] font-semibold leading-4 text-white tabular-nums", red ? "bg-red-600" : "bg-amber-500")}>{n > 99 ? "99+" : n}</span>
         )}
       </button>
       {open && (
@@ -94,7 +94,7 @@ export function IntegrityBell() {
               {s.more > 0 && <li className="text-xs text-neutral-500">…и ещё {s.more}. <Link href="/integrity" onClick={() => setOpen(false)} className="text-blue-700 hover:underline">Показать все</Link></li>}
             </ul>
           )}
-          {s && <div className="mt-2 text-[11px] text-neutral-400">Проверено {new Date(s.checkedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}{s.knownCount ? ` · известных (не в счёт): ${s.knownCount}` : ""}</div>}
+          {s && <div className="mt-2 text-[11px] text-neutral-500">Проверено {new Date(s.checkedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}{s.knownCount ? ` · известных (не в счёт): ${s.knownCount}` : ""}</div>}
         </div>
       )}
     </div>

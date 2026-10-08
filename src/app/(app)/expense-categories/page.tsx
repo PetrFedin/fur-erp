@@ -89,7 +89,7 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
           ))}
           {categories.length === 0 && (
             <Tr>
-              <Td colSpan={4} className="py-8 text-center text-neutral-400">
+              <Td colSpan={4} className="py-8 text-center text-neutral-500">
                 Статей расходов пока нет
               </Td>
             </Tr>

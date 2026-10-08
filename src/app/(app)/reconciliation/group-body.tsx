@@ -36,7 +36,7 @@ function EvidenceStep({
   return (
     <div className={cn("min-w-0 rounded-lg border p-2.5", cls)}>
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] text-white", dot)}>{n}</span>
+        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] text-white", dot)}>{n}</span>
         {title}
       </div>
       <div className="mt-1.5 break-words text-sm font-semibold text-neutral-900">{value}</div>
@@ -58,8 +58,8 @@ function closeActions(g: Group, remaining: number, proofMissing: number) {
 }
 
 function Mark({ ok }: { ok: boolean | null }) {
-  if (ok === null) return <span className="text-neutral-400">нет данных</span>;
-  return ok ? <span className="text-emerald-600">✓</span> : <span className="text-red-600">✗</span>;
+  if (ok === null) return <span className="text-neutral-500">нет данных</span>;
+  return ok ? <span className="text-emerald-700">✓</span> : <span className="text-red-600">✗</span>;
 }
 
 /** Раскрытое содержимое группы реестра: счета, строка «в базе», проверки и расхождения, документы. Грузится при раскрытии. */

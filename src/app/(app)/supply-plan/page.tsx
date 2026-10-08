@@ -122,9 +122,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
     <div className="flex flex-col gap-4">
       <ProductionTabs active="supply" />
       <div>
-        <h1 className="text-xl font-semibold">
-          План поставок
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">План поставок</h1><YearNote year={year} />
           <InfoHint label="О плане поставок" wide>
             <p>Артикулы по строкам, месяцы по столбцам. В ячейке — количество (шт.), статус, дата события и заметка.</p>
             <p className="mt-1">
@@ -137,8 +135,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
                 <Badge key={st} variant={STATUS_BADGE_VARIANT[st]}>{STATUS_LABELS[st]}</Badge>
               ))}
             </p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <p className="mt-1 text-xs text-neutral-500">
           Те же даты по дням — в <Link href="/calendar" className="text-blue-600 hover:underline">производственном календаре</Link>, количества по размерам — в <Link href="/plan" className="text-blue-600 hover:underline">плане заказа</Link>.
         </p>
@@ -249,7 +246,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
             ))}
             {rowList.length === 0 && (
               <tr>
-                <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-400">
+                <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-500">
                   {filtered ? "Ничего не найдено" : year === "all" ? `План пуст${canEdit ? " — добавьте первую запись выше" : ""}` : emptyForYear(year, "записей плана", "")}
                 </td>
               </tr>

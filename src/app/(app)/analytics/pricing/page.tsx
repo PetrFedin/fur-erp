@@ -62,7 +62,7 @@ function segments(a: PriceAgg): Seg[] {
 function Bar({ a }: { a: PriceAgg }) {
   const segs = segments(a);
   const total = segs.reduce((s, x) => s + x.value, 0);
-  if (total <= 0) return <span className="text-neutral-400">—</span>;
+  if (total <= 0) return <span className="text-neutral-500">—</span>;
   return (
     <div className="min-w-32">
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-100" role="img" aria-label={segs.map((s) => `${s.label} ${((s.value / total) * 100).toFixed(0)}%`).join(", ")}>
@@ -182,7 +182,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     const full = a.costIncl + a.work;
     const share = (x: number) => (full > 0 ? pct1((x / full) * 100) : "—");
     const row = (label: React.ReactNode, incl: number, excl: number, shareBase: number, opts: { strong?: boolean; dim?: boolean } = {}) => (
-      <Tr key={String(label)} className={opts.strong ? "bg-neutral-50 font-semibold" : opts.dim ? "text-neutral-400" : ""}>
+      <Tr key={String(label)} className={opts.strong ? "bg-neutral-50 font-semibold" : opts.dim ? "text-neutral-500" : ""}>
         <Td>{label}</Td>
         <Td className="text-right tabular-nums"><Money incl={u(incl)} excl={u(excl)} /></Td>
         <Td className="text-right tabular-nums"><Money incl={incl} excl={excl} /></Td>
@@ -206,7 +206,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           {c4Mode === "on" ? (
             row(`4% на сырьё и подкладку`, a.c4Incl, a.c4Excl, a.c4Incl)
           ) : (
-            <Tr className="text-neutral-400">
+            <Tr className="text-neutral-500">
               <Td>4% — не включено (режим «Без 4%»)</Td>
               <Td className="text-right tabular-nums">+{rub(u(c4Excluded))}</Td>
               <Td className="text-right tabular-nums">+{rub(c4Excluded)}</Td>
@@ -264,7 +264,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                     {l.hammerUsd != null && <span className="text-[11px] text-neutral-500"> (${formatQty(l.hammerUsd)})</span>}
                   </>
                 ) : (
-                  <span className="text-[11px] text-neutral-400">нет данных</span>
+                  <span className="text-[11px] text-neutral-500">нет данных</span>
                 )}
               </Td>
               <Td className="text-right tabular-nums"><Money incl={l.incl} excl={l.excl} /></Td>
@@ -309,17 +309,17 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     const d = derived(a.m);
     const c = calcOf(a);
     const r = recommend(a, p.base, target);
-    const dash = <span className="text-neutral-400">—</span>;
+    const dash = <span className="text-neutral-500">—</span>;
     const items: [string, React.ReactNode][] = [
       ["Произведено", <>{formatQty(a.units)} ед. · ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</>],
       ["По годам", breakdown(a, "year") || dash],
-      ["По сезонам", a.rows.some((x) => x.seasonCode) ? breakdown(a, "season") : <span className="text-neutral-400">сезон в ТЗ не указан</span>],
+      ["По сезонам", a.rows.some((x) => x.seasonCode) ? breakdown(a, "season") : <span className="text-neutral-500">сезон в ТЗ не указан</span>],
       ["По партиям", breakdown(a, "batch") || dash],
       ["Шкур на ед.", d.skinsPerUnit != null ? <>{q2(d.skinsPerUnit)} <span className="text-neutral-500">(Σ {formatQty(a.m.skins)})</span></> : dash],
       ["Подкладка, м на ед.", d.liningPerUnit != null ? <>{q2(d.liningPerUnit)} <span className="text-neutral-500">(Σ {q2(a.m.liningM)} м)</span></> : dash],
       [`Мех за ед.${c4}`, d.furPerUnit ? <Money incl={d.furPerUnit.incl} excl={d.furPerUnit.excl} /> : dash],
       [`Мех за шкуру${c4}`, d.furPerSkin ? <Money incl={d.furPerSkin.incl} excl={d.furPerSkin.excl} /> : dash],
-      ["Молоток за шкуру", d.hammerPerSkin ? <><Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} /> <span className="text-neutral-500">(данные: {pct0(d.hammerSkinShare ?? 0)} шкур, лотов {a.m.lotsHammer} из {a.m.lots})</span></> : <span className="text-neutral-400">нет данных (лотов {a.m.lots})</span>],
+      ["Молоток за шкуру", d.hammerPerSkin ? <><Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} /> <span className="text-neutral-500">(данные: {pct0(d.hammerSkinShare ?? 0)} шкур, лотов {a.m.lotsHammer} из {a.m.lots})</span></> : <span className="text-neutral-500">нет данных (лотов {a.m.lots})</span>],
       ["Работа за ед.", d.workPerUnit != null ? formatMoney(d.workPerUnit.toFixed(2)) : dash],
       [`Себестоимость за ед.${c4}`, d.costPerUnit ? <><Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />{a.m.minCostIncl != null && a.m.maxCostIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minCostIncl} excl={a.m.minCostExcl} /> до <Money incl={a.m.maxCostIncl} excl={a.m.maxCostExcl} />)</span>}</> : dash],
       [`Полная с работой${c4}`, d.fullPerUnit ? <><Money incl={d.fullPerUnit.incl} excl={d.fullPerUnit.excl} />{a.m.minFullIncl != null && a.m.maxFullIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minFullIncl} excl={a.m.minFullExcl} /> до <Money incl={a.m.maxFullIncl} excl={a.m.maxFullExcl} />)</span>}</> : dash],
@@ -397,7 +397,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       ) : (
         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">цена не задана</span>
       );
-    if (p.view !== "category") return <span className="text-neutral-400">—</span>;
+    if (p.view !== "category") return <span className="text-neutral-500">—</span>;
     const m = catMarkup.get(a.label);
     return m && m.total > 0 ? <span className="text-xs text-neutral-500">цена у {m.priced} из {m.total} моделей</span> : "—";
   };
@@ -421,7 +421,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const recOf = (a: PriceAgg) => recommend(a, p.base, target);
   const recCell = (a: PriceAgg) => {
     const r = recOf(a);
-    if (!r) return <span className="text-neutral-400">нужна целевая наценка</span>;
+    if (!r) return <span className="text-neutral-500">нужна целевая наценка</span>;
     const canAccept = canEditPrice && !!a.modelId && (!a.price || calcOf(a).belowCost);
     const cur = a.price ? formatMoney(a.price.toFixed(2)) : null;
     return (
@@ -433,7 +433,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         {canAccept && a.modelId && (
           <AcceptPriceButton modelId={a.modelId} modelName={a.label} price={String(r.incl)} priceText={formatMoney(r.incl.toFixed(2))} currentText={cur} basis={`${basis}; цена с НДС`} />
         )}
-        {!canEditPrice && a.modelId && !a.price && <span className="text-[11px] text-neutral-400">нет прав менять цену</span>}
+        {!canEditPrice && a.modelId && !a.price && <span className="text-[11px] text-neutral-500">нет прав менять цену</span>}
       </div>
     );
   };
@@ -484,9 +484,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Себестоимость и цены
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Себестоимость и цены</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />
           <InfoHint label="О странице" wide>
             <p>Из чего складывается себестоимость единицы по моделям (артикулам), категориям и видам меха, сколько в ней мех, подкладка, 4%, расходы и работа, сколько шкур и метров подкладки уходит на единицу, какой был молоток закупки и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
@@ -509,8 +507,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             )}
             <p className="mt-1">Целевая наценка по умолчанию — средневзвешенная по моделям, у которых цена уже есть (вес — себестоимость партии). <b>Рекомендация — расчёт, а не факт</b>: рынок и скидки в нём не учтены.</p>
             <p className="mt-1"><b>Карточка артикула</b> — раскройте строку: сводка по годам, сезонам и партиям, шкуры и подкладка на единицу, мех, молоток, работа, полная себестоимость с разбросом, цена и наценка, затем состав, лоты (со ссылками) и ТЗ.</p>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
         <a href={`/analytics/pricing/export?${qs}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
           CSV: таблица
         </a>
@@ -645,7 +642,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               ))}
               {shown.length === 0 && (
                 <Tr>
-                  <Td colSpan={7 + cols.length} className="py-8 text-center text-neutral-400">
+                  <Td colSpan={7 + cols.length} className="py-8 text-center text-neutral-500">
                     {year !== "all" ? `За ${year} год завершённых ТЗ по этим условиям нет` : "Нет данных по этим условиям"}
                   </Td>
                 </Tr>
@@ -689,7 +686,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             />
           );
         })}
-        {shown.length === 0 && <p className="py-8 text-center text-neutral-400">Нет данных по этим условиям</p>}
+        {shown.length === 0 && <p className="py-8 text-center text-neutral-500">Нет данных по этим условиям</p>}
       </ResponsiveRows>
 
       {/* Качество данных */}

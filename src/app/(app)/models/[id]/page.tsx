@@ -149,7 +149,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <summary className="cursor-pointer text-sm font-medium">Примерки этой модели ({fittings.length})</summary>
         <div className="mt-2">
           {fittings.length === 0 ? (
-            <p className="text-sm text-neutral-400">Примерок по этой модели пока нет</p>
+            <p className="text-sm text-neutral-500">Примерок по этой модели пока нет</p>
           ) : (
             <ul className="flex flex-col divide-y divide-neutral-100">
               {fittings.map((f) => {

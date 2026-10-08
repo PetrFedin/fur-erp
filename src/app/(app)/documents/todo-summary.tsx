@@ -136,7 +136,7 @@ function TodoTable({ rows, missingText, mentionText }: { rows: Row[]; missingTex
                         </Link>
                       </td>
                       <td className="px-3 py-2">
-                        {missingText(r.panel).length > 0 ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-400">всё есть</span>}
+                        {missingText(r.panel).length > 0 ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-500">всё есть</span>}
                       </td>
                       <td className="px-3 py-2">
                         <Link href={r.href} className="hover:underline">

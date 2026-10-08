@@ -15,7 +15,7 @@ const th = "whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-medium text-
 const td = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
 
 function Chevron({ open }: { open: boolean }) {
-  return <span aria-hidden className={"inline-block w-4 text-neutral-400 transition-transform " + (open ? "rotate-90" : "")}>›</span>;
+  return <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>›</span>;
 }
 
 /** Узкая колонка со стрелкой раскрытия: у всех строк на одной вертикали; у строк без раскрытия — пустая ячейка той же ширины. */
@@ -39,15 +39,15 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
       <td className={td}>{formatQty(c.rq)} {unit}</td><td className={td}>{rub(c.rv)}</td>
       <td className={td}>{formatQty(c.uq)} {unit}</td><td className={td}>{rub(c.uv)}</td>
       <td className={td}>{formatQty(c.mq)} {unit}</td><td className={td}>{rub(c.mv)}</td>
-      <td className={td} colSpan={4}><span className="text-neutral-400">—</span></td>
+      <td className={td} colSpan={4}><span className="text-neutral-500">—</span></td>
     </tr>
   );
 
   return (
     <section aria-labelledby="dash-years" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="dash-years" className="flex items-center gap-2 text-base font-semibold">
-          Динамика по годам
+        <div className="flex items-center gap-2">
+        <h2 id="dash-years" className="text-base font-semibold">Динамика по годам</h2>
           <InfoHint label="Как читать динамику по годам" wide>
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — {c4W}.</p>
             <p className="mt-1">Штуки — только мех; подкладка (метры) — в раскрытой строке, а в рублях она учтена. </p>
@@ -57,10 +57,10 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p className="mt-1"><b>Использовано</b> — {c4W}; в другой базе (переключатель «4% к сырью» в шапке) «без 4%» + остаток = куплено. Оплачено и долг — всегда с НДС, не зависят от фильтров и 4%.</p>
             <p className="mt-1"><b>В одной строке «Использовано» и «Произведено» не сравниваются:</b> «Использовано» — сырьё лотов, купленных в этом году (где бы ни было списано); «Произведено» — ТЗ этого года ТЗ (дата ТЗ → окончание → начало → год партии). Мех, купленный в 2025, мог уйти в ТЗ 2026. В «Итого» всё сходится: использовано (без 4%) = себестоимость завершённых + ТЗ «в работе».</p>
           </InfoHint>
-        </h2>
+        </div>
         <span className="text-xs text-neutral-500">строка — раскрыть: мех и подкладка</span>
       </div>
-      <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[880px] text-sm">
           <thead>
             <tr className="border-b border-neutral-200">
@@ -204,18 +204,18 @@ export function RawTable({ rows, total, c4, info: _info, orderFilters }: { rows:
   return (
     <section aria-labelledby="dash-raw-table" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="dash-raw-table" className="flex items-center gap-2 text-base font-semibold">
-          Динамика по сырью
+        <div className="flex items-center gap-2">
+        <h2 id="dash-raw-table" className="text-base font-semibold">Динамика по сырью</h2>
           <InfoHint label="Как читать таблицу по сырью" wide>
             <p>Строка — вид меха или ткань подкладки («Лиса красная» — вид «Лиса», красная — цвет). Нажмите на вид — разбивка по аукционам.</p>
             <p className="mt-1"><b>Средневзвешенная цена</b> = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано — {c4W}; куплено и остаток — без 4%.</p>
             <p className="mt-1">Год шапки и фильтры панели действуют. «Всего» складывает мех и подкладку только в рублях.</p>
             <p className="mt-1"><b>Куплено = использовано (без 4%) + остаток</b> по штукам и рублям. «Куплено» и «Остаток» — всегда без 4%; 4% добавляется только к «Использовано» (мелкая строка — другая база). Поэтому при «с 4%» цена купленного может лежать вне интервала «использовано — остаток»: сравнивайте с «без 4%».{orderFilters ? " Фильтр по ТЗ сужает только «Использовано»: тогда куплено − использовано ≠ остаток." : ""}</p>
           </InfoHint>
-        </h2>
+        </div>
         <button type="button" onClick={() => setAvg((v) => !v)} aria-pressed={avg} className="text-xs text-blue-700 hover:underline print:hidden">{avg ? "скрыть цены" : "ещё колонки: цены"}</button>
       </div>
-      <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className={"w-full text-sm " + (avg ? "min-w-[1080px]" : "min-w-[760px]")}>
           <thead>
             <tr className="border-b border-neutral-200">

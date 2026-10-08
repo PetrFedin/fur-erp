@@ -55,7 +55,7 @@ const DOC_FILTERS = defineFilters({
 const MULTI_KEYS = new Set(["section", "auction", "gaps", "dtype", "dlink"]);
 
 const pctTone = (p: number | null) =>
-  p === null ? "text-neutral-400" : p >= 90 ? "text-emerald-600" : p >= 60 ? "text-amber-600" : "text-red-600";
+  p === null ? "text-neutral-500" : p >= 90 ? "text-emerald-700" : p >= 60 ? "text-amber-700" : "text-red-600";
 const barTone = (p: number | null) => (p === null ? "bg-neutral-300" : p >= 90 ? "bg-emerald-500" : p >= 60 ? "bg-amber-400" : "bg-red-500");
 
 export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
@@ -178,7 +178,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             Все документы
             <span className="text-sm font-normal text-neutral-500">
-              {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-600" : ""}>{unlinked}</strong>
+              {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-700" : ""}>{unlinked}</strong>
             </span>
             <InfoHint wide label="Что в списке документов">
               Все документы (файлы и записи без файла) вместе: {allGroups} файлов ({docList.length} привязок). Одинаковый файл, привязанный к нескольким записям, показан одной строкой «×N». Не привязаны ни к чему: {unlinked}. Год — из шапки.
@@ -231,7 +231,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                         <td className="px-3 py-2">
                           <GroupLinks d={d} />
                         </td>
-                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-600">✓ в приложении</span> : <span className="text-neutral-400">только ссылка</span>}</td>
+                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-700">✓ в приложении</span> : <span className="text-neutral-500">только ссылка</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -281,7 +281,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 }
 
 function GroupLinks({ d, mobile }: { d: DocGroup; mobile?: boolean }) {
-  if (d.links.length === 0) return <span className={mobile ? "text-xs text-amber-600" : "text-amber-600"}>не привязан</span>;
+  if (d.links.length === 0) return <span className={mobile ? "text-xs text-amber-700" : "text-amber-700"}>не привязан</span>;
   const cls = mobile ? "inline-block py-1 text-xs underline" : "text-neutral-700 underline hover:text-neutral-900";
   const list = (
     <span className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -297,7 +297,7 @@ function GroupLinks({ d, mobile }: { d: DocGroup; mobile?: boolean }) {
     <details>
       <summary className={cn("cursor-pointer text-neutral-700", mobile && "py-1 text-xs")}>
         {d.links.length} {plural(d.links.length, "привязка", "привязки", "привязок")}
-        {d.unlinked > 0 ? <span className="ml-1 text-amber-600">· без привязки: {d.unlinked}</span> : null}
+        {d.unlinked > 0 ? <span className="ml-1 text-amber-700">· без привязки: {d.unlinked}</span> : null}
       </summary>
       <div className="mt-1">{list}</div>
     </details>
@@ -325,7 +325,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
       <div className="mt-1 text-xs text-neutral-500">
         есть {stat.have} из {stat.required}
       </div>
-      <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-600")}>
+      <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
         {stat.rowsWithGaps > 0 ? `пробелы: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов (${stat.rows})`}
       </div>
     </Link>
@@ -338,11 +338,11 @@ function Legend({ totalGaps }: { totalGaps: number }) {
       <span>Всего записей с пробелами: <b>{totalGaps}</b></span>
       <InfoHint wide label="Условные обозначения таблиц">
         <ul className="space-y-1">
-          <li><b className="text-emerald-600">✓ 2</b> — документ есть (сколько штук).</li>
+          <li><b className="text-emerald-700">✓ 2</b> — документ есть (сколько штук).</li>
           <li><b className="text-red-600">нет</b> — нужен по правилам, но не приложен.</li>
           <li><b>необяз.</b> — желателен, в пробелы не входит.</li>
           <li><b>не треб.</b> — по правилам не нужен.</li>
-          <li>Колонка «Реестр»: <b className="text-emerald-600">✓ лист, строка</b> — запись найдена в едином реестре; <b className="text-red-700">нет в реестре</b>; серое — позже даты реестра; бледно-серое — в реестре не ведётся.</li>
+          <li>Колонка «Реестр»: <b className="text-emerald-700">✓ лист, строка</b> — запись найдена в едином реестре; <b className="text-red-700">нет в реестре</b>; серое — позже даты реестра; бледно-серое — в реестре не ведётся.</li>
         </ul>
       </InfoHint>
     </p>
@@ -396,12 +396,12 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
               className="group border-b border-neutral-100 last:border-b-0"
               summary={<summary className="grid cursor-pointer list-none items-center gap-1 bg-white px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
+                  <span className="text-neutral-500 transition-transform group-open:rotate-90" aria-hidden>›</span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium" title={g.title}>{g.title}</span>
                     <span className="block text-xs text-neutral-500">
                       {g.rows.length} зап. ·{" "}
-                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-600"}>{gapsOf(g) > 0 ? `пробелов: ${gapsOf(g)}` : "без пробелов"}</span>
+                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `пробелов: ${gapsOf(g)}` : "без пробелов"}</span>
                     </span>
                   </span>
                 </span>
@@ -409,7 +409,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
                   const need = g.rows.filter((r) => r.cells[c.key].need === "required");
                   const ok = need.filter((r) => r.cells[c.key].ok).length;
                   return (
-                    <span key={c.key} className={cn("text-center text-xs tabular-nums", need.length === 0 ? "text-neutral-300" : ok === need.length ? "text-emerald-600" : ok === 0 ? "text-red-600" : "text-amber-600")}>
+                    <span key={c.key} className={cn("text-center text-xs tabular-nums", need.length === 0 ? "text-neutral-300" : ok === need.length ? "text-emerald-700" : ok === 0 ? "text-red-600" : "text-amber-700")}>
                       {need.length === 0 ? "" : `${ok}/${need.length}`}
                     </span>
                   );
@@ -466,7 +466,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
               {n} {plural(n, "пробел", "пробела", "пробелов")}
             </span>
           ) : (
-            <span className="text-sm text-emerald-600">без пробелов</span>
+            <span className="text-sm text-emerald-700">без пробелов</span>
           );
         })()}
       </div>

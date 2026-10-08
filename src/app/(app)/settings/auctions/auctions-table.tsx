@@ -168,7 +168,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                 </Fragment>
               ))}
               {shown.length === 0 && (
-                <Tr><Td colSpan={8} className="py-8 text-center text-neutral-400">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</Td></Tr>
+                <Tr><Td colSpan={8} className="py-8 text-center text-neutral-500">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</Td></Tr>
               )}
             </Tbody>
           </Table>
@@ -197,7 +197,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
             }
           />
         ))}
-        {shown.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</p>}
+        {shown.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</p>}
       </ResponsiveRows>
     </div>
   );
@@ -259,7 +259,7 @@ function Details({ row, all, canEdit, onResult }: { row: AuctionRowData; all: Au
     <div className="grid gap-4 p-2 md:grid-cols-2">
       <div>
         <div className="mb-1 text-xs font-medium text-neutral-500">Закупки аукциона ({row.purchaseCount})</div>
-        {row.purchases.length === 0 ? <p className="text-sm text-neutral-400">Закупок нет</p> : (
+        {row.purchases.length === 0 ? <p className="text-sm text-neutral-500">Закупок нет</p> : (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
             {row.purchases.map((p) => <Link key={p.id} href={`/purchases/${p.id}`} className="text-blue-600 hover:underline">{p.number}{p.status === "CANCELLED" ? " (отм.)" : ""}</Link>)}
           </div>

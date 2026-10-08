@@ -76,9 +76,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
     <div className="flex flex-col gap-4">
       <ControlTabs active="verify" />
       <div>
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          Подтвердить
-          <YearNote year={year} />
+        <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Подтвердить</h1><YearNote year={year} />
           <InfoHint wide label="Как работает подтверждение">
             <div className="space-y-2">
               <p>
@@ -92,8 +90,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
               </p>
               <p>Долг поставщику считается как раньше: оплаты без подтверждения остаются в расчёте, но помечены в подсказке долга.</p>
             </div>
-          </InfoHint>
-        </h1>
+          </InfoHint></div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

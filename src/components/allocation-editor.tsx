@@ -132,7 +132,7 @@ function AllocationRows({ amount, orders, initial }: { amount: string; orders: A
                 Убрать
               </Button>
               {o && (
-                <span className={`text-[11px] sm:basis-full ${exceeds ? "text-amber-700" : "text-neutral-400"}`}>
+                <span className={`text-[11px] sm:basis-full ${exceeds ? "text-amber-700" : "text-neutral-500"}`}>
                   работа {rub(o.workCents)} ₽ · от других платежей {rub(o.otherCents)} ₽ · свободно {rub(Math.max(0, room))} ₽{exceeds ? " — больше остатка работы" : ""}
                 </span>
               )}

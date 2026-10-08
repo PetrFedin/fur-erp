@@ -660,7 +660,7 @@ function NewForm({
           placeholder="Что нужно учесть при доработке?"
           className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
         />
-        <span className="text-right text-xs text-neutral-400">{text.length} / {MAX_TEXT}</span>
+        <span className="text-right text-xs text-neutral-500">{text.length} / {MAX_TEXT}</span>
       </label>
 
       <div className="flex flex-wrap gap-2">
@@ -686,7 +686,7 @@ function NewForm({
       {state?.ok && !pending && text === "" && <p role="status" className="rounded-md bg-emerald-50 px-2 py-1.5 text-sm text-emerald-800">Комментарий сохранён.</p>}
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-neutral-400">Esc — закрыть, текст сохранится. В снимок попадут адрес с фильтрами, год, НДС, 4%.</span>
+        <span className="text-xs text-neutral-500">Esc — закрыть, текст сохранится. В снимок попадут адрес с фильтрами, год, НДС, 4%.</span>
         <button type="submit" disabled={pending || !text.trim()} className="shrink-0 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50">
           {pending ? "Сохраняю…" : "Сохранить"}
         </button>

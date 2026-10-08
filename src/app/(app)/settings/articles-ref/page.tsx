@@ -65,10 +65,10 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Справочник артикулов <InfoHint label="О справочнике" wide>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник артикулов</h1><InfoHint label="О справочнике" wide>
         Один артикул — одна запись. У нас он ведётся под кодом <b>M…</b>, в системе продаж — под своим кодом и названием: впишите их рядом, чтобы
         артикул находился по любому написанию во всех формах выбора. Сопоставлено с системой продаж: <b>{withSales}</b> из <b>{rows.length}</b>.
-      </InfoHint></h1>
+      </InfoHint></div>
         <div className="flex gap-3 text-sm">
           <Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link>
           <Link href="/articles" className="text-neutral-500 hover:underline">Изделия (себестоимость, склад)</Link>

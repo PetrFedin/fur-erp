@@ -156,7 +156,7 @@ export function DocEditControls({
       )}
       {pending && <span className="text-xs text-neutral-500">Выполняем…</span>}
       {msg.error && <span className="text-xs text-red-600">{msg.error}</span>}
-      {msg.ok && <span className="text-xs text-emerald-600">{msg.ok}</span>}
+      {msg.ok && <span className="text-xs text-emerald-700">{msg.ok}</span>}
     </div>
   );
 }

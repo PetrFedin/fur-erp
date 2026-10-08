@@ -107,7 +107,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
           ))}
           {materials.length === 0 && (
             <Tr>
-              <Td colSpan={colCount} className="py-8 text-center text-neutral-400">
+              <Td colSpan={colCount} className="py-8 text-center text-neutral-500">
                 {f.q || f.type.length || f.category.length || f.status.length ? "Ничего не найдено" : "Сырья пока нет"}
               </Td>
             </Tr>

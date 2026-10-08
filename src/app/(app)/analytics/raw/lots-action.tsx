@@ -33,7 +33,7 @@ export async function loadGroupLots(by: GroupBy, key: string, f: RawFilters) {
   const filters = cleanFilters(f);
   const data = await loadRawData(session.user.organizationId, year);
   const group = groupLots(applyFilters(data.lots, filters), safeBy).find((g) => g.key === String(key));
-  if (!group) return <p className="px-3 py-3 text-sm text-neutral-400">Лоты не найдены — обновите страницу.</p>;
+  if (!group) return <p className="px-3 py-3 text-sm text-neutral-500">Лоты не найдены — обновите страницу.</p>;
   return <GroupLots lots={group.lots} unit={filters.scope === "lining" ? "м" : "шт."} c4={c4} showAuction={safeBy !== "auction"} />;
 }
 
@@ -48,7 +48,7 @@ export async function loadUsageGroupLots(by: UsageGroupBy, key: string, f: RawFi
   const lots = applyFilters(data.lots, filters);
   const byId = new Map(lots.map((l) => [l.id, l]));
   const group = groupUsage(usage.filter((r) => byId.has(r.lotId)), safeBy).find((g) => g.key === String(key));
-  if (!group) return <p className="px-3 py-3 text-sm text-neutral-400">Строки не найдены — обновите страницу.</p>;
+  if (!group) return <p className="px-3 py-3 text-sm text-neutral-500">Строки не найдены — обновите страницу.</p>;
   return <UsageGroupLots rows={group.rows} lots={byId} unit={filters.scope === "lining" ? "м" : "шт."} c4={c4} by={safeBy} />;
 }
 

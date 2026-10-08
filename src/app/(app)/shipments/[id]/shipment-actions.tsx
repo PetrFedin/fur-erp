@@ -107,7 +107,7 @@ export function ShippedEdit({ id, shippedDate, notes }: { id: string; shippedDat
         <Button type="submit" size="sm" disabled={pending}>
           Сохранить
         </Button>
-        {saved && <span className="text-sm text-emerald-600">Сохранено</span>}
+        {saved && <span className="text-sm text-emerald-700">Сохранено</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </form>

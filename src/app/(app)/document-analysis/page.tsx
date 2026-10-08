@@ -62,14 +62,11 @@ export default async function DocumentAnalysisPage() {
       <ControlTabs active="analysis" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">
-            Анализ документов
-            <span className="ml-2 align-middle text-sm font-normal">
+          <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Анализ документов</h1><span className="ml-2 align-middle text-sm font-normal">
               <InfoHint wide label="О странице">
                 <p>Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
               </InfoHint>
-            </span>
-          </h1>
+            </span></div>
         </div>
         <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">{yearLabel(year)}</span>
       </div>

@@ -90,10 +90,10 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
-        <h1 className="text-xl font-semibold">Справочник категорий<InfoHint label="О справочнике" wide>
+        <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник категорий</h1><InfoHint label="О справочнике" wide>
           Одна категория изделия — одно название на русском («Пальто», «Полупальто», «Жакет»…). В моделях и артикулах категория выбирается отсюда;
           аналитика («Что произведено», цены) группирует по этому названию. В «Синонимах» — как категорию записывали раньше («Пальто женское из соболя»).
-        </InfoHint></h1>
+        </InfoHint></div>
       </div>
       {flashError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>}
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
@@ -120,14 +120,14 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
               <Tbody>
                 {queue.map((r) => (
                   <Tr key={r.key}>
-                    <Td className="font-medium">{r.text || <span className="font-normal text-neutral-400">(категория не указана)</span>}</Td>
+                    <Td className="font-medium">{r.text || <span className="font-normal text-neutral-500">(категория не указана)</span>}</Td>
                     <Td className="text-xs">
                       <div className="flex flex-wrap gap-x-2 gap-y-1">
                         <span className="text-neutral-500">{r.ids.length} мод., ТЗ {r.orders}:</span>
                         {r.names.slice(0, MAX_LINKS).map((m) => (
                           <Link key={m.id} href={`/models/${m.id}`} className="text-blue-600 hover:underline">{m.name}</Link>
                         ))}
-                        {r.names.length > MAX_LINKS && <span className="text-neutral-400">…ещё {r.names.length - MAX_LINKS}</span>}
+                        {r.names.length > MAX_LINKS && <span className="text-neutral-500">…ещё {r.names.length - MAX_LINKS}</span>}
                       </div>
                     </Td>
                     <Td className="text-sm">
@@ -137,7 +137,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                           <div className="text-xs text-neutral-500">{r.sug.reason}{r.suggestSource ? ` (${r.suggestSource})` : ""}</div>
                         </>
                       ) : (
-                        <span className="text-neutral-400">нет подсказки — выберите вручную</span>
+                        <span className="text-neutral-500">нет подсказки — выберите вручную</span>
                       )}
                     </Td>
                     <Td>
@@ -220,7 +220,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                   {r.name} {!r.confirmed && <Badge variant="warning">ждёт подтверждения</Badge>}
                   {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
                 </Td>
-                <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-400">—</span>}</Td>
+                <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-500">—</span>}</Td>
                 <Td className="text-right align-top">{s.models}</Td>
                 <Td className="text-right align-top">{s.orders}</Td>
                 <Td className="align-top">
@@ -278,7 +278,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
           })}
           {shown.length === 0 && (
             <Tr>
-              <Td colSpan={5} className="py-8 text-center text-neutral-400">
+              <Td colSpan={5} className="py-8 text-center text-neutral-500">
                 {refs.length > 0 ? "Ничего не найдено" : "Категорий пока нет"}
               </Td>
             </Tr>

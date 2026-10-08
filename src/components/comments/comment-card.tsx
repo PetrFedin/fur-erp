@@ -128,7 +128,7 @@ export function CommentCard({
         <ul className="mt-2 flex flex-col gap-1.5 border-t border-neutral-100 pt-2">
           {c.replies.map((r) => (
             <li key={r.id} className="text-xs">
-              <span className="font-medium text-neutral-700">{r.authorName}</span> <span className="text-neutral-400">({r.authorRole}) · {fmtMsk(new Date(r.createdAt))}</span>
+              <span className="font-medium text-neutral-700">{r.authorName}</span> <span className="text-neutral-500">({r.authorRole}) · {fmtMsk(new Date(r.createdAt))}</span>
               <p className="whitespace-pre-wrap break-words text-neutral-800">{r.text}</p>
             </li>
           ))}
