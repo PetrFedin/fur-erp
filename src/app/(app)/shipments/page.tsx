@@ -136,7 +136,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         ]}
       />
 
-      <Table className="min-w-[720px]">
+      <Table stickyHeader className="min-w-[720px]">
         <Thead>
           <Tr>
             <Th>Плановая дата</Th>

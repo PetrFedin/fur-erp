@@ -178,7 +178,8 @@ export function FurSelectionTotal({
     </>
   );
   const nCols = 1 + 3 * perGroup;
-  const widthClass = view === "qty" ? "min-w-[460px]" : view === "money" ? "min-w-[850px]" : "min-w-[1090px]";
+  // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
+  const widthClass = view === "qty" ? "min-w-[520px]" : view === "money" ? "min-w-[990px]" : "min-w-[1290px]";
 
   // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
   // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
@@ -389,9 +390,9 @@ export function FurSelectionTotal({
             <col className="w-[150px] md:w-[210px]" />
             {[0, 1, 2].map((i) => (
               <Fragment key={i}>
-                {showQty && <col style={{ width: 80 }} />}
-                {showMoney && <col style={{ width: 124 }} />}
-                {showMoney && <col style={{ width: 92 }} />}
+                {showQty && <col style={{ width: 100 }} />}
+                {showMoney && <col style={{ width: 152 }} />}
+                {showMoney && <col style={{ width: 108 }} />}
               </Fragment>
             ))}
           </colgroup>

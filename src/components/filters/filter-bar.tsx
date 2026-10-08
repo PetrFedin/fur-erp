@@ -281,7 +281,7 @@ function BarView({
           const value = vals[c.name]?.[0] ?? "";
           return (
             <label key={c.name} className={cn("relative flex min-w-0 flex-col max-sm:w-full", c.type === "text" ? "sm:flex-[2] sm:basis-60" : "sm:flex-1 sm:basis-40", c.className)}>
-              <span className="pointer-events-none absolute left-3 top-1 text-[11px] font-semibold uppercase leading-tight tracking-wide text-neutral-600">{c.label}</span>
+              <span className="pointer-events-none absolute left-3 top-1.5 max-w-[calc(100%-1.5rem)] truncate text-[10px] font-semibold uppercase leading-none tracking-[0.02em] text-neutral-600">{c.label}</span>
               <input
                 type={c.type === "date" ? "date" : "search"}
                 inputMode={c.type === "text" ? c.inputMode : undefined}

@@ -75,7 +75,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
         ]}
       />
 
-      <Table>
+      <Table stickyHeader>
         <Thead>
           <Tr>
             <Th>Название</Th>

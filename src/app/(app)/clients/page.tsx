@@ -63,7 +63,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
         ]}
       />
 
-      <Table>
+      <Table stickyHeader>
         <Thead>
           <Tr>
             <Th>Название</Th>

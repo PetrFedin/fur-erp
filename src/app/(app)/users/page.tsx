@@ -75,7 +75,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
         ]}
       />
 
-      <Table>
+      <Table stickyHeader>
         <Thead>
           <Tr>
             <Th>Имя</Th>

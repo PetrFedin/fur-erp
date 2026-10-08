@@ -116,7 +116,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         ]}
       />
 
-      <Table className="min-w-[720px]">
+      <Table stickyHeader className="min-w-[720px]">
         <Thead>
           <Tr>
             <Th>Дата</Th>

@@ -63,7 +63,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
         ]}
       />
 
-      <Table>
+      <Table stickyHeader>
         <Thead>
           <Tr>
             <Th>Название</Th>

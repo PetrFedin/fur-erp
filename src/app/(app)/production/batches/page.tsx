@@ -152,7 +152,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         </InfoHint>
       </div>
       <ResponsiveRows table={
-      <Table>
+      <Table stickyHeader>
         <Thead>
           <Tr>
             <Th>Партия</Th>
