@@ -130,7 +130,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
     fd.set("method", method);
     fd.set("note", note);
     if (allocateLater) fd.set("allocateLater", "1");
-    if (markConfirmed) fd.set("markConfirmed", "1");
+    if (markConfirmed && confirmOk) fd.set("markConfirmed", "1"); // убрали платёжку после галочки — не отправляем «подтверждено»
     if (confirmed) fd.set("confirmOverpay", "1");
     for (const f of files) {
       fd.append("files", f.file);
@@ -141,10 +141,8 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
         const r = await savePayment(fd);
         if (r.confirm) {
           sending.current = false;
-          if (window.confirm(r.confirm)) {
-            sending.current = true;
-            save(true);
-          }
+          // sending уже сброшен выше: иначе повторный вызов save(true) упирался в защиту от двойной отправки и «ОК» ничего не делал
+          if (window.confirm(r.confirm)) save(true);
           return;
         }
         if (r.error) {

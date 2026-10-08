@@ -72,7 +72,7 @@ export function CostBreakdownToggle({
           )}
           <table className="w-full table-fixed border-collapse">
             <thead>
-              <tr className="text-left text-neutral-400">
+              <tr className="text-left text-neutral-500">
                 <th className="py-0.5 pr-3 font-normal">Составляющая</th>
                 <th className="w-24 py-0.5 pr-2 text-right font-normal">Значение</th>
                 <th className="w-10 py-0.5 font-normal">Ед.</th>
@@ -83,7 +83,7 @@ export function CostBreakdownToggle({
                 <tr>
                   <td colSpan={3} className="border-t border-neutral-200 pt-1.5 pb-0.5 font-medium text-neutral-700">
                     {g.title}
-                    {g.hint && <span className="ml-1 font-normal text-neutral-400">({g.hint})</span>}
+                    {g.hint && <span className="ml-1 font-normal text-neutral-500">({g.hint})</span>}
                   </td>
                 </tr>
                 {g.items.map((item, i) => {
@@ -93,7 +93,7 @@ export function CostBreakdownToggle({
                     <tr key={i} className={bold ? "font-semibold" : undefined}>
                       <td className={`py-px pr-3 ${bold ? "" : "text-neutral-500"}`}>{item.label}</td>
                       <td className="py-px pr-2 text-right font-mono">{isRateLabel(item.label) ? fmtRate(item.value) : fmt(item.value)}</td>
-                      <td className="py-px text-neutral-400">{unit ?? ""}</td>
+                      <td className="py-px text-neutral-500">{unit ?? ""}</td>
                     </tr>
                   );
                 })}
@@ -105,21 +105,21 @@ export function CostBreakdownToggle({
               <p className="mb-0.5 font-medium text-neutral-700">Итог для приложения — себестоимость единицы, идёт в ТЗ</p>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <div className="text-neutral-400">Без НДС</div>
+                  <div className="text-neutral-500">Без НДС</div>
                   <div className="font-mono font-semibold">{fmt(excl)}</div>
                 </div>
                 <div>
-                  <div className="text-neutral-400">НДС</div>
+                  <div className="text-neutral-500">НДС</div>
                   <div className="font-mono font-semibold">{fmt(incl - excl)}</div>
                 </div>
                 <div>
-                  <div className="text-neutral-400">Всего</div>
+                  <div className="text-neutral-500">Всего</div>
                   <div className="font-mono font-semibold">{fmt(incl)}</div>
                 </div>
               </div>
             </div>
           )}
-          <p className="mt-2 text-neutral-400">Числа — из отчёта поставщика, в его единицах.</p>
+          <p className="mt-2 text-neutral-500">Числа — из отчёта поставщика, в его единицах.</p>
         </div>
         )}
       </dialog>

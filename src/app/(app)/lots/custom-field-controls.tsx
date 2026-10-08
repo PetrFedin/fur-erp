@@ -90,7 +90,7 @@ function FieldDialog({
                 </label>
               ))}
             </div>
-            <span className="text-neutral-400">
+            <span className="text-neutral-500">
               Столбец появится у всех счетов и лотов организации (не больше {MAX_CUSTOM_FIELDS}). Числовые столбцы идут в строку «Итого».
             </span>
           </fieldset>
@@ -150,7 +150,7 @@ export function CustomFieldHeader({ field, index, count }: { field: CustomFieldD
       <div className="flex items-center gap-1">
         {canEdit && <AddFieldButton beforeId={field.id} />}
         <span className="min-w-0 break-words">{field.name}</span>
-        <span className="rounded bg-neutral-100 px-1 text-[10px] font-normal normal-case text-neutral-500">{FIELD_TYPE_LABELS[field.type]}</span>
+        <span className="rounded bg-neutral-100 px-1 text-[11px] font-normal normal-case text-neutral-500">{FIELD_TYPE_LABELS[field.type]}</span>
       </div>
       {canEdit && (
         <div className="flex gap-1">
@@ -177,7 +177,7 @@ export function CustomFieldHeader({ field, index, count }: { field: CustomFieldD
           </button>
         </div>
       )}
-      {err && <span className="max-w-40 whitespace-normal text-[10px] font-normal normal-case text-red-600">{err}</span>}
+      {err && <span className="max-w-40 whitespace-normal text-[11px] font-normal normal-case text-red-600">{err}</span>}
       {renaming && <FieldDialog mode="rename" field={field} onClose={() => setRenaming(false)} />}
     </div>
   );
@@ -226,7 +226,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
           <option value="true">Да</option>
           <option value="false">Нет</option>
         </select>
-        {err && <div className="max-w-40 whitespace-normal text-[10px] text-red-600">{err}</div>}
+        {err && <div className="max-w-40 whitespace-normal text-[11px] text-red-600">{err}</div>}
       </div>
     );
   }
@@ -283,7 +283,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
         }}
         className={card ? "h-9 w-full rounded border border-neutral-400 bg-white px-2 text-sm" : "h-7 w-28 rounded border border-neutral-400 bg-white px-1 text-sm"}
       />
-      {err && <div className="max-w-40 whitespace-normal text-[10px] text-red-600">{err}</div>}
+      {err && <div className="max-w-40 whitespace-normal text-[11px] text-red-600">{err}</div>}
     </div>
   );
 }
@@ -313,7 +313,7 @@ export function MobileFieldsManager() {
           <li key={f.id} className="flex flex-col gap-1.5 py-2">
             <div className="flex items-center gap-2 text-sm">
               <span className="min-w-0 break-words font-medium">{f.name}</span>
-              <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-500">{FIELD_TYPE_LABELS[f.type]}</span>
+              <span className="rounded bg-neutral-100 px-1 text-[11px] text-neutral-500">{FIELD_TYPE_LABELS[f.type]}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button type="button" className={btn} disabled={pending} onClick={() => setRenaming(f)}>

@@ -39,14 +39,14 @@ const TIP = {
 function Stat({ k, tip, children }: { k: string; tip: string; children: ReactNode }) {
   return (
     <div className="whitespace-nowrap">
-      <abbr title={tip} className="mr-1 cursor-help text-[10px] font-semibold uppercase text-neutral-400 no-underline">
+      <abbr title={tip} className="mr-1 cursor-help text-[11px] font-semibold uppercase text-neutral-500 no-underline">
         {k}
       </abbr>
       <span className="font-medium">{children}</span>
     </div>
   );
 }
-const Note = ({ children }: { children: ReactNode }) => <div className="text-[10px] font-normal text-neutral-400">{children}</div>;
+const Note = ({ children }: { children: ReactNode }) => <div className="text-[11px] font-normal text-neutral-500">{children}</div>;
 
 /** Колонки, которые видны в заголовке/итогах (без чекбокса и кнопки правки). */
 const heads = (currency: string) => [
@@ -300,7 +300,7 @@ function LotsControls({ scope }: { scope: string }) {
           data-filter-toggle
           className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50"
         >
-          Фильтр{view.filterCount > 0 ? ` (${view.filterCount})` : ""} <span className="text-neutral-400">{open ? "▴" : "▾"}</span>
+          Фильтр{view.filterCount > 0 ? ` (${view.filterCount})` : ""} <span className="text-neutral-500">{open ? "▴" : "▾"}</span>
         </button>
         <button
           type="button"
@@ -406,7 +406,7 @@ function TzSplitHeader({ split, colSpan, open, onToggle }: { split: ReturnType<t
       <Tr className="cursor-pointer border-t-2 border-neutral-300 bg-amber-50/60 text-sm font-medium hover:bg-amber-50" data-tz-block="without" onClick={onToggle}>
         <Td colSpan={colSpan}>
           <button type="button" aria-expanded={open} onClick={(e) => { e.stopPropagation(); onToggle(); }} className="mr-2 text-left">
-            <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (open ? "rotate-90" : "")}>›</span>
+            <span aria-hidden className={"mr-1 inline-block text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>›</span>
             Лоты без ТЗ — не использованы
           </button>
           <TzBlockFigures t={split.noTotals} count={split.noTz.length} />
@@ -444,7 +444,7 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
         {split.noTz.length > 0 && (
           <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2" data-tz-block="without">
             <button type="button" aria-expanded={noTzOpen} onClick={() => setNoTzOpen((o) => !o)} className="text-left text-sm font-medium">
-              <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
+              <span aria-hidden className={"mr-1 inline-block text-neutral-500 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
               Лоты без ТЗ — не использованы
               <span className="mt-0.5 block"><TzBlockFigures t={split.noTotals} count={split.noTz.length} /></span>
             </button>
@@ -452,7 +452,7 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
           </div>
         )}
         {rows.length === 0 && (
-          <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "В закупке нет позиций" : "Нет лотов, подходящих под фильтр"}</p>
+          <p className="py-4 text-center text-sm text-neutral-500">{view.all.length === 0 ? "В закупке нет позиций" : "Нет лотов, подходящих под фильтр"}</p>
         )}
       </div>
       <div className="hidden md:block">
@@ -493,7 +493,7 @@ export function PurchaseLotsTable({ purchaseId, currency, hasEditCol }: { purcha
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={h.length + fields.length + 3} className="py-4 text-center text-neutral-400">
+              <Td colSpan={h.length + fields.length + 3} className="py-4 text-center text-neutral-500">
                 {view.all.length === 0 ? "В закупке нет позиций" : "Нет лотов, подходящих под фильтр"}
               </Td>
             </Tr>
@@ -575,7 +575,7 @@ function LotRowView({
             </>
           )
         ) : (
-          <span className="text-xs text-neutral-400">ещё не на складе</span>
+          <span className="text-xs text-neutral-500">ещё не на складе</span>
         )}
       </Td>
       <Td>
@@ -724,7 +724,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
         </p>
       </div>
       {view.basis.length === 0 ? (
-        <p className="text-sm text-neutral-400">Нет лотов для расчёта</p>
+        <p className="text-sm text-neutral-500">Нет лотов для расчёта</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {lines.map((l) => {
@@ -735,7 +735,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="min-w-0 flex-1 break-words">
                     {l.title}
-                    {l.hint && (l.kind !== "unresolved" || isNotable(v)) && <span className="block text-xs text-neutral-400">{l.hint}</span>}
+                    {l.hint && (l.kind !== "unresolved" || isNotable(v)) && <span className="block text-xs text-neutral-500">{l.hint}</span>}
                   </span>
                   <span className="whitespace-nowrap font-medium tabular-nums">{formatMoney(v)}</span>
                   <span className="w-14 whitespace-nowrap text-right text-xs text-neutral-500 tabular-nums">{pct(v, total)}</span>
@@ -753,7 +753,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             </span>
             <span className="w-14 text-right text-xs font-normal text-neutral-500">100 %</span>
           </li>
-          <li className="text-xs text-neutral-400">
+          <li className="text-xs text-neutral-500">
             Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "= итогу" : "≠ итогу"}.
             {b.skippedUnallocated && " Расходы закупки не входят: выбрана только часть лотов закупки."}
           </li>
@@ -883,7 +883,7 @@ export function FlatLotsPanel() {
         {split.noTz.length > 0 && (
           <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2" data-tz-block="without">
             <button type="button" aria-expanded={noTzOpen} onClick={() => setNoTzOpen((o) => !o)} className="text-left text-sm font-medium">
-              <span aria-hidden className={"mr-1 inline-block text-neutral-400 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
+              <span aria-hidden className={"mr-1 inline-block text-neutral-500 transition-transform " + (noTzOpen ? "rotate-90" : "")}>›</span>
               Лоты без ТЗ — не использованы
               <span className="mt-0.5 block"><TzBlockFigures t={split.noTotals} count={split.noTz.length} /></span>
             </button>
@@ -891,7 +891,7 @@ export function FlatLotsPanel() {
           </div>
         )}
         {rows.length === 0 && (
-          <p className="py-4 text-center text-sm text-neutral-400">{view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}</p>
+          <p className="py-4 text-center text-sm text-neutral-500">{view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}</p>
         )}
       </div>
       <div className="hidden md:block">
@@ -934,7 +934,7 @@ export function FlatLotsPanel() {
           {noTzOpen && split.noTz.map(flatRow)}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={FLAT_COLS.length + fields.length + 2} className="py-4 text-center text-neutral-400">
+              <Td colSpan={FLAT_COLS.length + fields.length + 2} className="py-4 text-center text-neutral-500">
                 {view.all.length === 0 ? "У аукциона нет лотов" : "Нет лотов, подходящих под фильтр"}
               </Td>
             </Tr>

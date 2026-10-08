@@ -89,7 +89,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
               <Td>
                 {l.lotNumber ?? "без номера"}
                 {(l.grade || l.color) && (
-                  <div className="text-xs text-neutral-400">
+                  <div className="text-xs text-neutral-500">
                     {[l.grade, l.color].filter(Boolean).join(" / ")}
                   </div>
                 )}
@@ -109,7 +109,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
               <Td className="whitespace-nowrap">{formatMoney(excl.toString())}</Td>
               <Td className="whitespace-nowrap">
                 {formatMoney(vat.toString())}
-                <div className="text-xs text-neutral-400">{l.vatRate.toString()}%</div>
+                <div className="text-xs text-neutral-500">{l.vatRate.toString()}%</div>
               </Td>
               <Td className="whitespace-nowrap font-medium">
                 {formatMoney(l.unitCost.toString())}
@@ -144,7 +144,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
                     <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
                       {l.purchase.supplier.name} ({l.purchase.number})
                     </Link>
-                    <div className="text-xs text-neutral-400">
+                    <div className="text-xs text-neutral-500">
                       {[
                         formatDate(l.receivedDate),
                         l.purchase.auctionSession ? shortAuctionName(l.purchase.auctionSession.split("\n")[0], 60) : null,
@@ -174,7 +174,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
         })}
         {rowLots.length === 0 && (
           <Tr>
-            <Td colSpan={8} className="py-4 text-center text-neutral-400">
+            <Td colSpan={8} className="py-4 text-center text-neutral-500">
               Лоты не найдены (сузьте поиск/фильтр выше)
             </Td>
           </Tr>
@@ -227,7 +227,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
                     <Link href={`/purchases/${l.purchase.id}`} className="underline">
                       {l.purchase.supplier.name} ({l.purchase.number})
                     </Link>
-                    <div className="text-xs text-neutral-400">
+                    <div className="text-xs text-neutral-500">
                       {[
                         formatDate(l.receivedDate),
                         l.purchase.auctionSession ? shortAuctionName(l.purchase.auctionSession.split("\n")[0], 60) : null,
@@ -245,10 +245,10 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
         );
       })}
       {rowLots.length === 0 && (
-        <p className="py-4 text-center text-neutral-400">Лоты не найдены (сузьте поиск/фильтр выше)</p>
+        <p className="py-4 text-center text-neutral-500">Лоты не найдены (сузьте поиск/фильтр выше)</p>
       )}
     </ResponsiveRows>
-    <p className="mt-1 text-xs text-neutral-400">Цены — за единицу материала.</p>
+    <p className="mt-1 text-xs text-neutral-500">Цены — за единицу материала.</p>
   </div>
   );
 }

@@ -48,6 +48,7 @@ import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Section, SectionNav } from "./section";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { compareModelNames } from "@/lib/model-code";
 import { batchOrderInclude, batchTotals, orderUnitsDec } from "@/lib/batch-stats";
 import Link from "next/link";
@@ -920,10 +921,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
       {order.client && (
         <Section id="pay" title="Оплаты от заказчика">
+        <CollapsibleBlock
+          title="Оплаты от заказчика"
+          problem={Boolean(balanceDue && balanceDue.lessThan(-0.005))}
+          summary={
+            clientRevenue
+              ? `оплачено ${formatMoney(paidTotal.toString())} из ${formatMoney(clientRevenue.toString())} · ${
+                  balanceDue!.lessThan(-0.005) ? "переплата " : balanceDue!.lessThan(50) ? "оплачено ≈ полностью, остаток " : "остаток "
+                }${formatMoney(balanceDue!.abs().toString())} · платежей: ${payments.length}`
+              : `оплачено ${formatMoney(paidTotal.toString())} · платежей: ${payments.length}`
+          }
+        >
         <Card>
-          <CardHeader className="hidden sm:flex">
-            <CardTitle>Оплаты от заказчика</CardTitle>
-          </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {clientRevenue && (
               <p className="text-sm text-neutral-600">
@@ -1051,6 +1060,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </ResponsiveRows>
           </CardContent>
         </Card>
+        </CollapsibleBlock>
         </Section>
       )}
 

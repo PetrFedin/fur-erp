@@ -22,20 +22,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <VatDisplayProvider initialMode={vatMode}>
       <Commission4DisplayProvider initialMode={c4Mode}>
       <YearDisplayProvider initialYear={yearFilter}>
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex h-screen w-full overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
             organizationName={session.user.organizationName}
             userName={session.user.name}
             role={session.user.role}
           />
-          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16">{children}</main>
+          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">{children}</main>
         </div>
       </div>
-      <Suspense fallback={null}>
-        <CommentWidget />
-      </Suspense>
+      <div className="print:hidden">
+        <Suspense fallback={null}>
+          <CommentWidget />
+        </Suspense>
+      </div>
       </YearDisplayProvider>
     </Commission4DisplayProvider>
     </VatDisplayProvider>

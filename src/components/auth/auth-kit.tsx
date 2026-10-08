@@ -5,16 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Общие части страниц входа и регистрации. Общие компоненты приложения (Input, Button, Card) не меняем:
-// отличия задаём классами здесь, чтобы остальные страницы остались как были.
+import { FIELD, FOCUS } from "./styles";
 
-/** Один заметный фокус: тёмное кольцо с отступом (≥3:1 на белом). */
-export const FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2";
+// Общие части служебных страниц (вход, регистрация, ошибки). Общие компоненты приложения (Input, Button, Card)
+// не меняем: отличия задаём классами из ./styles, чтобы остальные страницы остались как были.
+export { FIELD, FOCUS, FOOTER_LINK } from "./styles";
 
-/** Поле формы: 44px высотой, 16px текстом (без увеличения на iPhone), рамка и плейсхолдер ≥4.5:1. */
-export const FIELD = `h-11 border-neutral-500 text-base shadow-none placeholder:text-neutral-500 ${FOCUS}`;
-
+/** Каркас страницы на сером фоне: название над белой карточкой, под ней необязательная строка. */
 export function AuthShell({
   title,
   description,
@@ -23,7 +20,7 @@ export function AuthShell({
 }: {
   title: string;
   description: string;
-  footer: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -39,14 +36,11 @@ export function AuthShell({
           </CardContent>
         </Card>
 
-        <p className="mt-4 text-center text-sm text-neutral-600">{footer}</p>
+        {footer ? <p className="mt-4 text-center text-sm text-neutral-600">{footer}</p> : null}
       </div>
     </main>
   );
 }
-
-/** Ссылка под карточкой: тихая, но с целью нажатия 44px. */
-export const FOOTER_LINK = `inline-flex min-h-11 items-center rounded-md px-1 font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-700 ${FOCUS}`;
 
 export function FormError({ id, children }: { id: string; children: ReactNode }) {
   return (

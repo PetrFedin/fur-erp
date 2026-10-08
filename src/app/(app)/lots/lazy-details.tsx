@@ -71,7 +71,7 @@ export function LazyDetails({
       {load && !defaultOpen ? (
         shown && (
           <>
-            {state === "loading" && <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-3 text-sm text-neutral-400">Загружаем…</div>}
+            {state === "loading" && <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-3 text-sm text-neutral-500">Загружаем…</div>}
             {state === "error" && (
               <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-3 text-sm text-red-600">
                 Не удалось загрузить.{" "}

@@ -53,6 +53,11 @@ function fmtPct(v: number): string {
 }
 
 /** Остаток: отрицательный — «переплата X ₽». */
+function isPastRu(date: string): boolean {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(date);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59).getTime() < Date.now() : false;
+}
+
 function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
   return r.lessThan(-0.005) ? `переплата ${formatMoney(r.neg().toString())}` : formatMoney(r.toString());
 }
@@ -99,6 +104,19 @@ const STATUS_VARIANT: Record<AuctionPayStatus, "danger" | "warning" | "success" 
   PAID: "success",
   OVERPAID: "info",
 };
+
+/** Допуск округления: остаток меньше 50 ₽ — партия считается оплаченной («Оплачен ≈»). */
+const ROUND_TOL = 50;
+function statusBadge(a: AuctionPay) {
+  const nearly = a.status === "PARTIAL" && a.remaining.greaterThan(PAY_EPS) && a.remaining.lessThan(ROUND_TOL);
+  return nearly ? (
+    <Badge variant="success" title={`Остаток ${a.remaining.toFixed(2)} ₽ — копейки округления, партия считается оплаченной`}>
+      Оплачен ≈
+    </Badge>
+  ) : (
+    <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
+  );
+}
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   ADVANCE: "Аванс",
@@ -303,6 +321,15 @@ export default async function PaymentsPage({
     </>
   );
 
+  // Ближайшие сроки счетов (из документов Drive «срок дд.мм.гггг»), как на Сводке.
+  const deadlines = (debt?.byAuction ?? [])
+    .filter((a) => a.dueInvoiced.greaterThan(0) && a.invoiceDocs)
+    .map((a) => {
+      const m = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i.exec(a.invoiceDocs ?? "");
+      return m ? { auction: shortAuctionName(a.name), date: `${m[1]}.${m[2]}.${m[3]}`, amount: a.dueInvoiced.toNumber(), sort: `${m[3]}${m[2]}${m[1]}` } : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x != null)
+    .sort((a, b) => a.sort.localeCompare(b.sort));
   const anyPlanned = auctions.some((a) => a.planned.greaterThan(PAY_EPS));
   const renderAuction = (a: (typeof auctions)[number]) => {
     const active = selected?.name === a.name;
@@ -330,7 +357,7 @@ export default async function PaymentsPage({
           {fmtRemaining(a.remaining)}
         </Td>
         <Td>
-          <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
+          {statusBadge(a)}
         </Td>
         <Td>
           <Link href={href} scroll className={buttonVariants({ variant: active ? "default" : "outline", size: "sm" })}>
@@ -379,7 +406,7 @@ export default async function PaymentsPage({
         key={a.name}
         title={shortAuctionName(a.name)}
         href={href}
-        badge={<Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>}
+        badge={statusBadge(a)}
         fields={[
           { label: "Остаток", value: <span className={remClass(a.remaining)}>{fmtRemaining(a.remaining)}</span>, strong: true },
           { label: "Стоимость", value: formatMoney(a.total.toString()) },
@@ -638,36 +665,70 @@ export default async function PaymentsPage({
         <>
           {debt && (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-                <Stat label="Стоимость закупок, с НДС" value={formatMoney(debt.total.toString())} />
-                <Stat label="Оплачено" value={formatMoney(debt.paid.toString())} />
-                {debt.unlinkedAdvances.greaterThan(PAY_EPS) && <Stat label="Авансы без привязки" value={formatMoney(debt.unlinkedAdvances.toString())} />}
-                {anyPlanned && <Stat label="Запланировано" value={formatMoney(sum((a) => a.planned))} />}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4" data-pay-tiles>
                 <Stat
-                  label="Остаток к оплате"
+                  label="Остаток к оплате (долг)"
                   value={formatMoney(debt.debt.toString())}
                   hint={<SupplierDebtHint debt={debt} year={year} />}
                   warn={debt.debt.greaterThan(PAY_EPS)}
                 />
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Stat
-                  label="К оплате по УПД и счетам"
+                  label="Платить в первую очередь"
                   value={formatMoney(debt.receivedNet.toString())}
-                  hint={<InfoHint wide label="К оплате по УПД и счетам"><p>Мех получен, УПД есть, а оплаты не хватает. Из этой части уже вычтены авансы без привязки ({formatMoney(debt.unlinkedAdvances.toString())}). Это то, что нужно платить в первую очередь.</p></InfoHint>}
+                  hint={<InfoHint wide label="Платить в первую очередь"><p>«К оплате по УПД и счетам»: мех получен, УПД есть, а оплаты не хватает. Авансы без привязки ({formatMoney(debt.unlinkedAdvances.toString())}) уже вычтены. Это часть общего долга слева.</p></InfoHint>}
                   warn={debt.receivedNet.greaterThan(PAY_EPS)}
+                  note={deadlines.length > 0 ? undefined : "сроков по счетам нет"}
+                  extra={
+                    deadlines.length > 0 ? (
+                      <div className="mt-1 text-xs text-neutral-600">
+                        {deadlines.map((x) => {
+                          const late = isPastRu(x.date);
+                          return (
+                            <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>
+                              срок {x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>
+                              {late ? " · просрочен" : ""}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null
+                  }
                 />
                 <Stat
-                  label="Счёт выставлен, не оплачен"
-                  value={formatMoney(debt.invoiced.toString())}
-                  hint={<InfoHint wide label="Счёт выставлен, не оплачен"><p>Закупка ещё не получена (черновик), но Веллмех уже выставил на неё счёт: FH 06.26 (счёт №173), СП 09.26 (счёт №271), Подкладка 05.26 (№157), Доп. материалы 06.26 (№181). Суммы счетов взяты из документов Drive; после оплаты или получения меха сумма уйдёт из этой строки.</p></InfoHint>}
+                  label="Оплачено"
+                  value={formatMoney(debt.paid.add(debt.unlinkedAdvances).toString())}
+                  hint={
+                    <InfoHint wide label="Из чего состоит «Оплачено»">
+                      <p>Та же цифра, что «Оплачено поставщику» на Сводке (с НДС, от фильтров и 4% не зависит).</p>
+                      <dl className="mt-2 flex flex-col gap-1">
+                        <div className="flex justify-between gap-4"><dt>По закупкам и аукционам</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.paid.toString())}</dd></div>
+                        <div className="flex justify-between gap-4"><dt>+ авансы без привязки</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.unlinkedAdvances.toString())}</dd></div>
+                        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>= Оплачено</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.paid.add(debt.unlinkedAdvances).toString())}</dd></div>
+                      </dl>
+                    </InfoHint>
+                  }
                 />
                 <Stat
-                  label="Ожидаемые закупки"
-                  value={formatMoney(debt.expected.toString())}
-                  hint={<InfoHint wide label="Ожидаемые закупки"><p>Закупки не получены и счёта на эту часть ещё нет (например, аванс 3 по рыси «по факту затрат» и часть СП 09.26 «оплата по готовности»). Это не долг сегодня, а то, что придётся заплатить.</p></InfoHint>}
+                  label="Неразнесённые авансы"
+                  value={formatMoney(debt.unlinkedAdvances.toString())}
+                  hint={<InfoHint wide label="Неразнесённые авансы"><p>Деньги отправлены поставщику, но не привязаны ни к закупке, ни к партии. Они уже входят в «Оплачено» и вычтены из долга; привяжите их к партии кнопкой «Привязать» в списке оплат.</p></InfoHint>}
+                  note={debt.unlinkedAdvances.greaterThan(PAY_EPS) ? undefined : "всё разнесено"}
                 />
               </div>
+              <details className="rounded-md border border-neutral-200 bg-white" data-pay-more>
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">Подробнее: из чего состоит долг</summary>
+                <dl className="grid max-w-xl gap-0 border-t border-neutral-100 px-3 py-2 text-sm">
+                  {[
+                    ["Стоимость закупок, с НДС", debt.total],
+                    ...(anyPlanned ? [["Запланировано", new Decimal(sum((a) => a.planned))] as [string, Decimal]] : []),
+                    ["К оплате по УПД и счетам", debt.receivedNet],
+                    ["Счёт выставлен, не оплачен (мех не получен)", debt.invoiced],
+                    ["Ожидаемые закупки (счёта ещё нет)", debt.expected],
+                  ].map(([l, v]) => (
+                    <div key={String(l)} className="flex justify-between gap-4 py-0.5"><dt className="text-neutral-600">{String(l)}</dt><dd className="whitespace-nowrap text-right tabular-nums">{formatMoney((v as Decimal).toString())}</dd></div>
+                  ))}
+                </dl>
+              </details>
             </>
           )}
 
@@ -754,7 +815,7 @@ export default async function PaymentsPage({
                     <div className="flex-1">
                       <ProgressBar percent={selected.percentPaid} status={selected.status} />
                     </div>
-                    <Badge variant={STATUS_VARIANT[selected.status]}>{AUCTION_PAY_STATUS_LABELS[selected.status]}</Badge>
+                    {statusBadge(selected)}
                   </div>
                   {selected.status === "OVERPAID" && (
                     <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
@@ -993,12 +1054,13 @@ function batchLabel(orders: { productionOrder: { batch: { number: number } | nul
   return n == null ? "" : ` (партия ${n})`;
 }
 
-function Stat({ label, value, note, warn, hint }: { label: string; value: string; note?: string; warn?: boolean; hint?: React.ReactNode }) {
+function Stat({ label, value, note, warn, hint, extra }: { label: string; value: string; note?: string; warn?: boolean; hint?: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="flex items-center gap-1.5 text-xs text-neutral-500">{label}{hint}</div>
       <div className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-600" : ""}`}>{value}</div>
       {note && <div className="text-xs text-neutral-500">{note}</div>}
+      {extra}
     </div>
   );
 }

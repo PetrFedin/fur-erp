@@ -87,8 +87,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     return (
       <Link
         href={filterHref(LOT_FILTERS, "/lots", { ...carry, tab: t === "fur" ? "" : t }, {})}
+        aria-current={tab === t ? "page" : undefined}
         className={
-          "rounded-md px-3 py-1.5 text-sm " +
+          "inline-flex items-center rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-10 " +
           (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
         }
       >
@@ -102,16 +103,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">
-              Сырьё
+            {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сырьё О сводке». */}
+            <div className="flex flex-wrap items-center">
+              <h1 className="text-xl font-semibold">Сырьё</h1>
               <YearNote year={year} />
-              <InfoHint label="О сводке" wide>
-                <p>Сводка закупок по годам, аукционам и типам сырья. Год выбирается в шапке (Все / 2025 / 2026) и действует на всех страницах; год закупки — по дате заказа.</p>
-              </InfoHint>
-            </h1>
+              <span className="ml-2 inline-flex">
+                <InfoHint label="О сводке" wide>
+                  <p>Сводка закупок по годам, аукционам и типам сырья. Год выбирается в шапке (Все / 2025 / 2026) и действует на всех страницах; год закупки — по дате заказа.</p>
+                </InfoHint>
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex gap-1 border-b border-neutral-200 pb-2">
+        <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
@@ -145,10 +149,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-semibold">
-              Сырьё
+            <div className="flex flex-wrap items-center">
+              <h1 className="text-xl font-semibold">Сырьё</h1>
               <YearNote year={year} />
-            </h1>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {canEditDocs && (
@@ -156,12 +160,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 Новая партия закупки
               </Link>
             )}
-            <Link href="/materials/new" className={buttonVariants()}>
+            <Link href="/materials/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
               + Добавить материал
             </Link>
           </div>
         </div>
-        <div className="flex gap-1 border-b border-neutral-200 pb-2">
+        <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
@@ -209,9 +213,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">
-            Сырьё
+          {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сырьё О странице…». */}
+          <div className="flex flex-wrap items-center">
+            <h1 className="text-xl font-semibold">Сырьё</h1>
             <YearNote year={year} />
+            <span className="ml-2 inline-flex">
             <InfoHint label="О странице «Сырьё»" wide>
               <p>Куплено → использовано в ТЗ → остаток по видам меха (или по тканям подкладки). Клик по названию раскрывает строку до партий (аукционов) и лотов; галочка слева выбирает строку для тотала.</p>
               <p className="mt-1">
@@ -222,7 +228,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               </p>
               <p className="mt-1">«Лиса красная» — это вид «Лиса» цвета «Красный».</p>
             </InfoHint>
-          </h1>
+            </span>
+          </div>
           <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -233,14 +240,14 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           )}
           <Link
             href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
-            className={buttonVariants()}
+            className={`${buttonVariants()} max-md:order-first max-md:w-full`}
           >
             + Добавить материал
           </Link>
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-neutral-200 pb-2">
+      <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
         {tabLink("fur", "Мех")}
         {tabLink("lining", "Подкладка")}
         {tabLink("summary", "Сводка по годам")}

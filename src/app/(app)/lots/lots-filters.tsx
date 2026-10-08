@@ -44,7 +44,7 @@ function MultiSelect({
         className={`${inputCls} flex items-center justify-between gap-2 text-left ${selected.length ? "border-neutral-900 font-medium" : ""}`}
       >
         <span className="truncate">{selected.length === 0 ? "Все" : selected.length === 1 ? selected[0] : `Выбрано: ${selected.length}`}</span>
-        <span className="text-neutral-400">▾</span>
+        <span className="text-neutral-500">▾</span>
       </button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
@@ -62,10 +62,10 @@ function MultiSelect({
               <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-sm hover:bg-neutral-50">
                 <input type="checkbox" className="mt-0.5" checked={selected.includes(o.value)} onChange={() => toggle(o.value)} />
                 <span className="min-w-0 flex-1 break-words">{o.value}</span>
-                <span className="text-xs text-neutral-400">{o.count}</span>
+                <span className="text-xs text-neutral-500">{o.count}</span>
               </label>
             ))}
-            {shown.length === 0 && <p className="px-1 py-2 text-xs text-neutral-400">Ничего не найдено</p>}
+            {shown.length === 0 && <p className="px-1 py-2 text-xs text-neutral-500">Ничего не найдено</p>}
           </div>
         </div>
       )}
@@ -85,7 +85,7 @@ function RangeInput({ label, value, onChange }: { label: string; value: Range | 
         <input inputMode="decimal" placeholder="от" value={v.from} aria-invalid={badFrom} title={badFrom ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, from: e.target.value })} className={`${inputCls} ${badFrom ? bad : ""}`} />
         <input inputMode="decimal" placeholder="до" value={v.to} aria-invalid={badTo} title={badTo ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, to: e.target.value })} className={`${inputCls} ${badTo ? bad : ""}`} />
       </div>
-      {(badFrom || badTo) && <span className="mt-0.5 block text-[10px] text-red-600">Некорректное число — фильтр не действует</span>}
+      {(badFrom || badTo) && <span className="mt-0.5 block text-[11px] text-red-600">Некорректное число — фильтр не действует</span>}
     </div>
   );
 }

@@ -280,8 +280,8 @@ function BarView({
           }
           const value = vals[c.name]?.[0] ?? "";
           return (
-            <label key={c.name} className={cn("relative flex min-w-0 flex-col max-sm:w-full", c.type === "text" ? "sm:w-60" : "sm:w-40", c.className)}>
-              <span className="pointer-events-none absolute left-3 top-1 text-[10px] font-semibold uppercase leading-tight tracking-wide text-neutral-400">{c.label}</span>
+            <label key={c.name} className={cn("relative flex min-w-0 flex-col max-sm:w-full", c.type === "text" ? "sm:flex-[2] sm:basis-60" : "sm:flex-1 sm:basis-40", c.className)}>
+              <span className="pointer-events-none absolute left-3 top-1 text-[11px] font-semibold uppercase leading-tight tracking-wide text-neutral-600">{c.label}</span>
               <input
                 type={c.type === "date" ? "date" : "search"}
                 inputMode={c.type === "text" ? c.inputMode : undefined}
@@ -369,9 +369,9 @@ function BarView({
               title="Убрать этот фильтр"
               className="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-300 bg-white py-1 pl-2.5 pr-2 text-xs text-neutral-800 hover:border-neutral-500 max-md:min-h-8"
             >
-              <span className="text-neutral-400">{c.label}:</span>
+              <span className="text-neutral-500">{c.label}:</span>
               <span className="max-w-[220px] truncate font-medium">{labelOf(c, v)}</span>
-              <span aria-hidden className="text-neutral-400">×</span>
+              <span aria-hidden className="text-neutral-500">×</span>
               <span className="sr-only">убрать</span>
             </button>
           ))}

@@ -61,7 +61,7 @@ const money = (d: Decimal | number) => formatMoney(d.toString());
 function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
   const f = figures(a, mode);
   const cell = "flex items-baseline justify-between gap-2 md:block md:text-right";
-  const lab = "text-xs text-neutral-400 md:hidden";
+  const lab = "text-xs text-neutral-500 md:hidden";
   return (
     <>
       <span className={cell}>
@@ -128,9 +128,9 @@ function Node({
       className={`grid cursor-pointer list-none grid-cols-1 gap-x-2 gap-y-1 px-3 py-2 text-sm hover:bg-neutral-100/60 ${COLS} ${tone} [&::-webkit-details-marker]:hidden`}
     >
       <span className={`min-w-0 ${indent}`}>
-        <span className="mr-1 inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+        <span className="mr-1 inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
         {title}
-        {sub && <span className="ml-2 text-xs font-normal text-neutral-400">{sub}</span>}
+        {sub && <span className="ml-2 text-xs font-normal text-neutral-500">{sub}</span>}
       </span>
       <Metrics a={a} mode={mode} />
     </summary>
@@ -195,7 +195,7 @@ function LotRow({ l, mode }: { l: Leaf; mode: Mode }) {
         <Link href={`/purchases/${l.purchaseId}`} className="hover:underline">
           Лот {l.lotNumber ?? "без номера"}
         </Link>
-        <span className="ml-2 text-xs text-neutral-400">
+        <span className="ml-2 text-xs text-neutral-500">
           {l.invoice ? `счёт ${l.invoice} · ` : ""}
           {l.purchaseNumber}
         </span>

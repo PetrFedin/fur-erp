@@ -149,10 +149,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          Закупки
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Значок «i» и метка года — рядом с заголовком, а не внутри него: иначе название заголовка читается как «Закупки О странице…». */}
+        <div className="flex flex-wrap items-center">
+          <h1 className="text-xl font-semibold">Закупки</h1>
           <YearNote year={year} />
+          <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Закупки»" wide>
             <p>Список закупок сырья и подкладки: поставщик, партия закупки, счёт, сумма и оплата. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
             <p className="mt-1">
@@ -163,17 +165,19 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             </p>
             <p className="mt-1">4% к закупкам, оплатам и долгу поставщику не применяется — это наценка на сырьё и подкладку в ТЗ.</p>
           </InfoHint>
-        </h1>
+          </span>
+        </div>
+        {/* Телефон: главное действие — первым и на всю ширину, второстепенные ниже в ряд. */}
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/payments" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/payments" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>
             Оплаты
           </Link>
           {canCreate && (
             <>
-              <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+              <Link href="/purchases/batch" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>
                 Новая партия (мастер)
               </Link>
-              <Link href="/purchases/new" className={buttonVariants()}>
+              <Link href="/purchases/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
                 + Новая закупка
               </Link>
             </>
@@ -199,7 +203,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
       <ResponsiveRows
         table={
-      <Table anchor="table:purchases" label="Таблица закупок">
+      <Table anchor="table:purchases" label="Таблица закупок" stickyHeader>
         <Thead>
           <Tr>
             <Th>№</Th>
@@ -208,8 +212,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             <Th>Счёт</Th>
             <Th>Дата</Th>
             <Th>Статус</Th>
-            <Th>Сумма</Th>
-            <Th>
+            <Th className="text-right">Сумма</Th>
+            <Th className="text-right">
               Оплачено
               <InfoHint label="Как читать «Оплачено»" align="right">
                 Если закупка входит в партию (аукцион), оплата ведётся по партии целиком: «из» — сумма всей партии, у остальных закупок этой партии — «↑ по партии». Нажмите — откроется оплата партии.
@@ -243,14 +247,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 <Td>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </Td>
-                <Td>
+                <Td className="text-right tabular-nums">
                   <Money incl={total} excl={totalExclVat} />
                 </Td>
-                <Td className="whitespace-nowrap">
+                <Td className="whitespace-nowrap text-right tabular-nums">
                   {ap ? (
                     <Link
                       href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
-                      className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
+                      className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-700" : "text-emerald-700"}`}
                       title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}
                     >
                       {repeat ? (
@@ -258,12 +262,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       ) : (
                         <>
                           <span className="block">{formatMoney(ap.paid.toString())}</span>
-                          <span className="block text-xs font-normal text-neutral-400">из {formatMoney(ap.total.toString())}</span>
+                          <span className="block text-xs font-normal text-neutral-600">из{formatMoney(ap.total.toString())}</span>
                         </>
                       )}
                     </Link>
                   ) : (
-                    <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
+                    <span className={paid.lessThan(total) ? "text-amber-700" : "text-emerald-700"}>{formatMoney(paid.toString())}</span>
                   )}
                 </Td>
               </Tr>
@@ -271,8 +275,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           })}
           {purchases.length === 0 && (
             <Tr>
-              <Td colSpan={multiSupplier ? 8 : 7} className="py-8 text-center text-neutral-400">
+              <Td colSpan={multiSupplier ? 8 : 7} className="py-8 text-center text-neutral-600">
                 {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
+                {filtersOn && (
+                  <Link href="/purchases" className="ml-2 font-medium text-neutral-900 underline underline-offset-4">
+                    Сбросить фильтры
+                  </Link>
+                )}
               </Td>
             </Tr>
           )}
@@ -291,12 +300,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           const paidView = ap ? (
             <Link
               href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
-              className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
+              className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-700" : "text-emerald-700"}`}
             >
               {repeat ? "↑ по партии" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
             </Link>
           ) : (
-            <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>
+            <span className={paid.lessThan(total) ? "text-amber-700" : "text-emerald-700"}>{formatMoney(paid.toString())}</span>
           );
           return (
             <RowCard
@@ -319,8 +328,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           );
         })}
         {purchases.length === 0 && (
-          <p className="py-8 text-center text-neutral-400">
+          <p className="py-8 text-center text-neutral-600">
             {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
+            {filtersOn && (
+              <Link href="/purchases" className="ml-2 inline-block py-2 font-medium text-neutral-900 underline underline-offset-4">
+                Сбросить фильтры
+              </Link>
+            )}
           </p>
         )}
       </ResponsiveRows>
@@ -331,7 +345,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </Link>
         </div>
       )}
-      <div className="flex items-center gap-1 text-xs text-neutral-400">
+      <div className="flex items-center gap-1 text-xs text-neutral-600">
         Показано закупок: {purchases.length}{hasMore ? " (есть ещё)" : ""}
         {purchases.length > 0 && (
           <>

@@ -91,23 +91,23 @@ export function MultiSelectFilter({
         setOpen(e.currentTarget.open);
         if (!e.currentTarget.open) setQuery("");
       }}
-      className={cn("group relative min-w-0 max-sm:w-full", className)}
+      className={cn("group relative min-w-0 max-sm:w-full sm:flex-1 sm:basis-40", className)}
     >
       <summary
         title={title}
         aria-label={`${label}: ${summary}`}
         className={cn(
-          "flex h-11 min-w-[140px] cursor-pointer list-none items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm hover:border-neutral-400 [&::-webkit-details-marker]:hidden",
+          "flex h-11 w-full min-w-[140px] cursor-pointer list-none items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm hover:border-neutral-400 [&::-webkit-details-marker]:hidden",
           none ? "border-neutral-300" : "border-neutral-900",
         )}
       >
         <span className="min-w-0">
-          <span className="block text-[10px] font-semibold uppercase leading-tight tracking-wide text-neutral-400">{label}</span>
+          <span className="block text-[11px] font-semibold uppercase leading-tight tracking-wide text-neutral-600">{label}</span>
           <span className="block max-w-[180px] truncate font-medium leading-tight text-neutral-900 max-sm:max-w-[60vw]">{summary}</span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {!none && <span className="rounded-full bg-neutral-900 px-1.5 text-[11px] font-medium leading-5 text-white">{value.length}</span>}
-          <span aria-hidden className="text-neutral-400 transition-transform group-open:rotate-180">⌄</span>
+          <span aria-hidden className="text-neutral-500 transition-transform group-open:rotate-180">⌄</span>
         </span>
       </summary>
       <div
@@ -129,7 +129,7 @@ export function MultiSelectFilter({
         <label className={cn(row, "font-medium")}>
           <input type={single ? "radio" : "checkbox"} name={single ? name : undefined} value="" checked={none} onChange={() => onChange([])} className="size-4 accent-neutral-900" />
           <span className="min-w-0 flex-1 truncate">{allLabel}</span>
-          <span className="text-xs font-normal text-neutral-400">{list.length}</span>
+          <span className="text-xs font-normal text-neutral-500">{list.length}</span>
         </label>
         <div className="max-h-64 overflow-auto border-t border-neutral-100 pt-1">
           {shown.map((o) => (
@@ -142,13 +142,13 @@ export function MultiSelectFilter({
                 onChange={() => pick(o.value)}
                 className="size-4 accent-neutral-900"
               />
-              <span className={cn("min-w-0 flex-1 truncate", o.count === 0 && "text-neutral-400", o.value === NONE && "italic")} title={o.title ?? o.label}>
+              <span className={cn("min-w-0 flex-1 truncate", o.count === 0 && "text-neutral-500", o.value === NONE && "italic")} title={o.title ?? o.label}>
                 {o.label}
               </span>
-              {o.count != null && <span className="text-xs tabular-nums text-neutral-400">{o.count}</span>}
+              {o.count != null && <span className="text-xs tabular-nums text-neutral-500">{o.count}</span>}
             </label>
           ))}
-          {shown.length === 0 && <div className="px-2 py-3 text-sm text-neutral-400">Ничего не найдено</div>}
+          {shown.length === 0 && <div className="px-2 py-3 text-sm text-neutral-500">Ничего не найдено</div>}
         </div>
         {!single && (
           <div className="mt-1 flex justify-between border-t border-neutral-100 px-2 pt-2 text-xs">

@@ -24,7 +24,7 @@ export function Topbar({
   role: string;
 }) {
   return (
-    <header className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
+    <header className="print:hidden flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
         <MobileNav />
         <div className="truncate text-sm font-medium text-neutral-700">{organizationName}</div>

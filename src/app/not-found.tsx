@@ -1,19 +1,21 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import { AuthShell } from "@/components/auth/auth-kit";
+import { actionClass } from "@/components/auth/styles";
 
 export const metadata = { title: "Страница не найдена" };
 
 export default function NotFound() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-24 text-center">
-      <p className="text-5xl font-semibold text-neutral-300">404</p>
-      <h1 className="text-xl font-semibold">Страница не найдена</h1>
-      <p className="max-w-md text-sm text-neutral-500">
-        Такой страницы нет или запись была удалена. Проверьте адрес или вернитесь на главную.
-      </p>
-      <Link href="/" className={buttonVariants()}>
-        На главную
-      </Link>
-    </div>
+    <AuthShell
+      title="Страница не найдена"
+      description="Такой страницы нет или запись была удалена. Проверьте адрес или вернитесь на главную."
+      footer="Код ошибки: 404"
+    >
+      <div className="mt-6">
+        <Link href="/" className={`w-full sm:w-auto ${actionClass()}`}>
+          На главную
+        </Link>
+      </div>
+    </AuthShell>
   );
 }

@@ -27,7 +27,20 @@ body {
 
 /* Подсказка горизонтальной прокрутки таблиц на мобильном: тень у края, где есть скрытое содержимое. */
 @media (max-width: 1023px) {
-  .table-scroll {
+  .table-scroll,
+  .scroll-hint {
+    background:
+      linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)) left center / 24px 100% no-repeat local,
+      linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 24px 100% no-repeat local,
+      linear-gradient(to right, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0)) left center / 10px 100% no-repeat scroll,
+      linear-gradient(to left, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0)) right center / 10px 100% no-repeat scroll,
+      #fff;
+  }
+}
+
+/* Широкая таблица в карточке на любом экране: тень у края, где есть скрытые столбцы. */
+@media (min-width: 1024px) {
+  .scroll-hint {
     background:
       linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)) left center / 24px 100% no-repeat local,
       linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 24px 100% no-repeat local,
@@ -49,4 +62,13 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   outline-offset: 2px;
   border-radius: 6px;
   transition: outline-color 0.3s ease;
+}
+
+/* Телефон: все нажимаемые элементы — не ниже 40 px (значок «i» расширен невидимой зоной касания в самом компоненте). */
+@media (max-width: 767px), (max-width: 1023px) and (pointer: coarse) {
+  button:not(.info-i):not([data-touch-ok]),
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]) {
+    min-height: 40px;
+  }
 }

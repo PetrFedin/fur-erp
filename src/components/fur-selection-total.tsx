@@ -382,7 +382,8 @@ export function FurSelectionTotal({
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+      {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75% высоты экрана. */}
+      <div className="scroll-hint max-h-[75vh] overflow-auto rounded-xl border border-neutral-200 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20">
         <table className={cn("w-full table-fixed text-sm tabular-nums", widthClass)}>
           <colgroup>
             <col className="w-[150px] md:w-[210px]" />

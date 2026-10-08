@@ -23,16 +23,19 @@ export const metadata = { title: "Сводка" };
 
 const PRINT_CSS = `
 @media print {
-  @page { size: A4 landscape; margin: 9mm; }
-  html, body { background: #fff !important; }
+  @page { size: A4 landscape; margin: 8mm; }
+  html { font-size: 10px; }
+  html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .h-screen { height: auto !important; }
   .overflow-hidden, main { overflow: visible !important; }
-  aside, header, nav[aria-label="Контроль"] { display: none !important; }
+  nav, aside, header, body > .fixed, body > div.fixed, button.fixed, [data-nextjs-dev-tools-button], nextjs-portal { display: none !important; }
   main { padding: 0 !important; }
-  table { font-size: 9px !important; }
-  .table-scroll { overflow: visible !important; }
-  table { min-width: 0 !important; }
+  [class*="overflow-x-auto"], [class*="overflow-auto"], .table-scroll { overflow: visible !important; max-height: none !important; }
+  table { font-size: 9px !important; min-width: 0 !important; width: 100% !important; }
+  th, td { white-space: normal !important; }
+  tr { break-inside: avoid; }
   section { break-inside: avoid-page; }
+  [data-print-date] { display: block !important; }
 }`;
 
 /** Срок «дд.мм.гггг» уже прошёл (конец дня). */
@@ -76,6 +79,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </h1>
         <PrintButton />
       </div>
+      <p data-print-date className="hidden text-xs text-neutral-600">
+        Напечатано: {new Date().toLocaleString("ru-RU", { timeZone: "Europe/Moscow", dateStyle: "long", timeStyle: "short" })} (МСК) · {yl}{activeFilters ? ` · фильтры: ${activeFilters}` : ""}
+      </p>
       {forbidden && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           Недостаточно прав для этого действия

@@ -129,8 +129,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                 <Th>Короткое имя</Th>
                 <Th>Полное название</Th>
                 <Th>Дом</Th>
-                <Th>Вид</Th>
-                <Th>Год/мес.</Th>
+                <Th>Вид · год/мес.</Th>
                 <Th className="text-right">Закупок</Th>
                 <Th className="text-right">Сумма</Th>
                 <Th>Статус</Th>
@@ -143,16 +142,19 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                   <Tr>
                     <Td className="align-top">
                       <NameEditor row={r} canEdit={canEdit} onResult={report} />
-                      {r.aliases.length > 0 && <div className="mt-1 max-w-xs text-xs text-neutral-500">раньше: {r.aliases.join("; ")}</div>}
+                      {r.aliases.length > 0 && <div className="mt-1 max-w-[10rem] text-xs text-neutral-500">раньше: {r.aliases.join("; ")}</div>}
                     </Td>
-                    <Td className="max-w-xs align-top text-xs text-neutral-600">{r.fullName ?? "—"}</Td>
+                    <Td className="max-w-[13rem] align-top text-xs text-neutral-600">{r.fullName ?? "—"}</Td>
                     <Td className="align-top text-sm">{r.house ?? "—"}</Td>
-                    <Td className="align-top text-sm">{KIND_LABELS[r.kind]}{r.isService && <div><Badge>служебный</Badge></div>}</Td>
-                    <Td className="align-top text-sm tabular-nums">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "—"}</Td>
+                    <Td className="align-top text-sm">
+                      {KIND_LABELS[r.kind]}
+                      {r.isService && <div><Badge>служебный</Badge></div>}
+                      <div className="text-xs tabular-nums text-neutral-500">{r.year ? `${r.year}${r.month ? `/${String(r.month).padStart(2, "0")}` : ""}` : "—"}</div>
+                    </Td>
                     <Td className="text-right align-top tabular-nums">{r.purchaseCount}</Td>
                     <Td className="whitespace-nowrap text-right align-top tabular-nums">{r.total ? formatMoney(r.total) : "—"}</Td>
-                    <Td className="align-top"><StatusCell row={r} canEdit={canEdit} onResult={report} /></Td>
-                    <Td className="align-top">
+                    <Td className="max-w-[9rem] align-top"><StatusCell row={r} canEdit={canEdit} onResult={report} /></Td>
+                    <Td className="w-px whitespace-nowrap align-top">
                       <Button variant="ghost" size="sm" onClick={() => setOpen(open === r.id ? null : r.id)} aria-expanded={open === r.id}>
                         {open === r.id ? "Свернуть" : "Подробнее"}
                       </Button>
@@ -160,13 +162,13 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                   </Tr>
                   {open === r.id && (
                     <Tr>
-                      <Td colSpan={9} className="bg-neutral-50"><Details row={r} all={rows} canEdit={canEdit} onResult={report} /></Td>
+                      <Td colSpan={8} className="bg-neutral-50"><Details row={r} all={rows} canEdit={canEdit} onResult={report} /></Td>
                     </Tr>
                   )}
                 </Fragment>
               ))}
               {shown.length === 0 && (
-                <Tr><Td colSpan={9} className="py-8 text-center text-neutral-400">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</Td></Tr>
+                <Tr><Td colSpan={8} className="py-8 text-center text-neutral-400">{rows.length ? "Нет аукционов по выбранным фильтрам" : "Справочник пуст — добавьте первый аукцион"}</Td></Tr>
               )}
             </Tbody>
           </Table>
@@ -217,7 +219,7 @@ function NameEditor({ row, canEdit, onResult }: { row: AuctionRowData; canEdit: 
     });
   };
   return (
-    <div className="min-w-44">
+    <div className="w-40 max-w-full">
       <Input
         key={row.name}
         value={value}

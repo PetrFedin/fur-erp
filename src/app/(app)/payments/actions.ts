@@ -159,7 +159,7 @@ export async function allocateAdvance(paymentId: string, parts: AllocPart[], con
         if (!s || s.purchases === 0) return { error: `Аукцион «${name}» не найден или в нём нет действующих закупок` };
         if (!s.suppliers.some((x) => x.id === cur.supplierId)) return { error: `Аукцион «${name}» оформлен на другого поставщика, чем этот аванс` };
         const after = cur.status === "COMPLETED" ? s.paid.add(add) : s.paid.add(s.planned).add(add);
-        if (after.sub(s.total).greaterThan(PAY_EPS)) overpay.push(`«${name}»: ${overpayText(after, s.total, cur.status).replace(" Всё равно записать?", "")}`);
+        if (after.sub(s.total).greaterThan(PAY_EPS)) overpay.push(`«${name}»: ${overpayText(after, s.total, cur.status).replace(/\.? Всё равно записать\?/, "")}`);
       }
     }
     for (const [pid, add] of addByPurchase) {

@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { canEditProduction } from "@/lib/production-access";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadBatchPanels, loadOrderPanel } from "@/lib/production-doc-checklist";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { DocsPayPanel } from "@/components/docs-pay-panel";
 import { loadPaymentVerify } from "../verify/verify-block";
 
@@ -27,5 +28,24 @@ export async function OrderDocsPay({ orderId }: { orderId: string }) {
   const o = await loadOrderPanel(prisma, orgId, orderId, c);
   if (!o) return null;
   const { verify, canVerify } = await loadPaymentVerify("prodPayment");
-  return <DocsPayPanel panel={o.panel} verify={verify} canVerify={canVerify} />;
+  const pn = o.panel;
+  const required = pn.items.filter((i) => i.need === "required");
+  const have = required.filter((i) => i.ok).length;
+  const missing = required.length - have;
+  const problem = Boolean(pn.alert) || pn.pay.tone === "bad";
+  const pay = pn.pay.state === "NOBASE" ? pn.pay.label : `${pn.pay.paidText} из ${pn.pay.totalText}`;
+  return (
+    <CollapsibleBlock
+      title="Документы и оплата"
+      problem={problem}
+      summary={
+        <>
+          Документы: есть {have}, не хватает {missing}
+          {pn.proofMissing > 0 && ` · без платёжки: ${pn.proofMissing}`} · Оплата: {pay}
+        </>
+      }
+    >
+      <DocsPayPanel panel={pn} verify={verify} canVerify={canVerify} />
+    </CollapsibleBlock>
+  );
 }

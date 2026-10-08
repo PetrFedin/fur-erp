@@ -369,7 +369,7 @@ export async function AuctionView({
               <dd className="text-lg font-semibold">
                 {counted.length} / {formatQty(totalQty.toString())}
               </dd>
-              <dd className="text-xs text-neutral-400">
+              <dd className="text-xs text-neutral-500">
                 {totalLots} лот.{statusParts.length > 0 ? ` · ${statusParts.join(", ")}` : ""}
               </dd>
             </div>
@@ -398,7 +398,7 @@ export async function AuctionView({
               <dd className="text-lg font-semibold">
                 <Money incl={fullIncl} excl={fullExcl} />
               </dd>
-              <dd className="text-xs text-neutral-400">
+              <dd className="text-xs text-neutral-500">
                 расходы{" "}
                 {fullIncl.sub(priceIncl).abs().lessThan(1) && fullExcl.sub(priceExcl).abs().lessThan(1) ? (
                   "—"
@@ -413,7 +413,7 @@ export async function AuctionView({
                 <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>
                   {formatMoney(payRemaining.toString())}
                 </dd>
-                <dd className="text-xs text-neutral-400">
+                <dd className="text-xs text-neutral-500">
                   {payPaid.greaterThan(0.005) ? `оплачено ${formatMoney(payPaid.toString())}` : "оплат нет"} ·{" "}
                   <Link
                     href={paySummaries.length === 1 ? `/payments?auction=${encodeURIComponent(paySummaries[0].name)}#auction-block` : "/payments"}
@@ -423,7 +423,7 @@ export async function AuctionView({
                   </Link>
                 </dd>
                 {hasUnlinkedAdvances && (
-                  <dd className="text-xs text-neutral-400">
+                  <dd className="text-xs text-neutral-500">
                     Авансы без привязки: в{" "}
                     <Link href="/payments" className="text-blue-600 hover:underline">
                       «Оплатах»
@@ -487,7 +487,7 @@ export async function AuctionView({
             className="group rounded-lg border border-neutral-200 bg-white"
           >
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
-              <span className="inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+              <span className="inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
               <span className="font-medium">{p.invoiceNumber ? `Счёт ${p.invoiceNumber}` : p.number}</span>
               <span className="text-xs text-neutral-500">
                 {p.number} · {formatDate(p.orderDate)} · {p.supplier.name}
@@ -524,7 +524,7 @@ export async function AuctionView({
                     📄 {invoice.title}
                   </a>
                 ) : (
-                  <span className="text-xs text-neutral-400">счёта аукциона в документах нет</span>
+                  <span className="text-xs text-neutral-500">счёта аукциона в документах нет</span>
                 )}
                 {p.currency !== "RUB" && (
                   <span className="text-xs text-neutral-500">
@@ -603,7 +603,7 @@ export async function AuctionView({
                             {copiesLabel(g.length)}
                           </span>
                         )}
-                        <div className="text-xs font-normal text-neutral-400">{d.originalName}</div>
+                        <div className="text-xs font-normal text-neutral-500">{d.originalName}</div>
                       </Td>
                       <Td className="whitespace-nowrap max-md:block max-md:px-0 max-md:py-0">{DOC_KIND_LABELS[d.kind]}</Td>
                       <Td className="text-xs max-md:block max-md:px-0 max-md:py-0">
@@ -652,7 +652,7 @@ export async function AuctionView({
               </Tbody>
             </Table>
           ) : (
-            <p className="text-sm text-neutral-400">Документов у аукциона пока нет</p>
+            <p className="text-sm text-neutral-500">Документов у аукциона пока нет</p>
           )}
           <div className="border-t border-neutral-100 pt-3">
             <DriveDocuments
