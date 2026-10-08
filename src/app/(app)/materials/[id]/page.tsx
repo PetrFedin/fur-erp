@@ -21,7 +21,7 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
   if (!material) notFound();
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardContent className="pt-4">
           <CategoryQuickAdd />

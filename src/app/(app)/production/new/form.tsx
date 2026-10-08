@@ -55,9 +55,9 @@ export function ProductionCreateForm({
   const errors = state.errors ?? (state.error ? [state.error] : []);
 
   return (
-    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       <input type="hidden" name="productModelId" value={modelId} />
-      <div className="sm:col-span-2">
+      <div className="col-span-full">
         <Label htmlFor="modelText">Модель изделия</Label>
         <Input
           id="modelText"
@@ -123,7 +123,7 @@ export function ProductionCreateForm({
           onChange={set("workOrderNumber")}
         />
       </div>
-      <div className="sm:col-span-2">
+      <div className="col-span-full">
         <Label htmlFor="clientId">Заказчик</Label>
         <Select
           id="clientId"
@@ -144,7 +144,7 @@ export function ProductionCreateForm({
         </Select>
       </div>
 
-      <div className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
+      <div className="col-span-full rounded-md border border-neutral-200 p-3">
         <Label htmlFor="lots">Лоты меха</Label>
         <Textarea
           id="lots"
@@ -160,7 +160,7 @@ export function ProductionCreateForm({
         </p>
       </div>
 
-      <div className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
+      <div className="col-span-full rounded-md border border-neutral-200 p-3">
         <p className="mb-2 text-sm font-medium text-neutral-700">Подкладка</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -204,7 +204,7 @@ export function ProductionCreateForm({
         </div>
       </div>
 
-      <details className="sm:col-span-2 rounded-md border border-neutral-200 p-3">
+      <details className="col-span-full rounded-md border border-neutral-200 p-3">
         <summary className="cursor-pointer text-sm font-medium text-neutral-700">Дополнительно</summary>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -288,7 +288,7 @@ export function ProductionCreateForm({
               ))}
             </Select>
           </div>
-          <div className="sm:col-span-2">
+          <div className="col-span-full">
             <Label htmlFor="notes">Заметки</Label>
             <Textarea id="notes" name="notes" rows={2} value={f.notes ?? ""} onChange={set("notes")} />
           </div>
@@ -296,13 +296,13 @@ export function ProductionCreateForm({
       </details>
 
       {errors.length > 0 && (
-        <ul className="sm:col-span-2 list-disc rounded-md bg-red-50 px-6 py-2 text-sm text-red-700">
+        <ul className="col-span-full list-disc rounded-md bg-red-50 px-6 py-2 text-sm text-red-700">
           {errors.map((e, i) => (
             <li key={i}>{e}</li>
           ))}
         </ul>
       )}
-      <div className="sm:col-span-2 flex items-center justify-end gap-3">
+      <div className="col-span-full flex items-center justify-end gap-3">
         {!modelId && <span className="text-sm text-amber-700">Выберите модель из списка</span>}
         <Button type="submit" disabled={pending || !modelId}>
           {pending ? "Создаём..." : "Создать ТЗ"}

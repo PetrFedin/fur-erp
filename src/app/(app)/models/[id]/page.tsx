@@ -60,7 +60,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const boundRemove = removeBomLine.bind(null, id);
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <Link href="/articles" className="text-sm text-neutral-500 hover:underline">← Изделия</Link>
       <Card>
         <CardHeader>

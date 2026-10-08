@@ -20,8 +20,8 @@ export function ClientForm({
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
-    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="sm:col-span-2">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="col-span-full">
         <Label htmlFor="name">Название</Label>
         <Input id="name" name="name" required defaultValue={client?.name} />
       </div>
@@ -41,20 +41,20 @@ export function ClientForm({
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" defaultValue={client?.email ?? ""} />
       </div>
-      <div className="sm:col-span-2">
+      <div className="col-span-full">
         <Label htmlFor="address">Адрес</Label>
         <Input id="address" name="address" defaultValue={client?.address ?? ""} />
       </div>
-      <div className="sm:col-span-2">
+      <div className="col-span-full">
         <Label htmlFor="notes">Заметки</Label>
         <Textarea id="notes" name="notes" rows={3} defaultValue={client?.notes ?? ""} />
       </div>
       {state.error && (
-        <p className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="col-span-full rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       )}
-      <div className="sm:col-span-2 flex justify-end gap-2">
+      <div className="col-span-full flex justify-end gap-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Сохраняем..." : "Сохранить"}
         </Button>

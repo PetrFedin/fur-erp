@@ -19,7 +19,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
   const canEdit = hasRole(session.user.role, ACCESS.suppliers);
 
   return (
-    <div className="flex max-w-2xl flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="text-sm"><Link href="/suppliers" className="text-neutral-500 hover:underline">← Поставщики</Link></div>
       <Card>
         <CardHeader>

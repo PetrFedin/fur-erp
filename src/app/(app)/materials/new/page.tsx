@@ -18,7 +18,7 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
   });
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>Новый материал</CardTitle>

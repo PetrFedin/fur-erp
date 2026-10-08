@@ -82,7 +82,7 @@ export function MultiSelectFilter({
       if (box.current) box.current.open = false;
     } else onChange(set.has(v) ? value.filter((x) => x !== v) : [...value, v]);
   };
-  const row = "flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-neutral-50";
+  const row = "flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm leading-snug text-neutral-900 hover:bg-neutral-100 has-[:checked]:bg-neutral-50 has-[:checked]:font-medium";
 
   return (
     <details
@@ -97,8 +97,8 @@ export function MultiSelectFilter({
         title={title}
         aria-label={`${label}: ${summary}`}
         className={cn(
-          "flex h-11 w-full min-w-[140px] cursor-pointer list-none items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm hover:border-neutral-400 [&::-webkit-details-marker]:hidden",
-          none ? "border-neutral-300" : "border-neutral-900",
+          "flex h-11 w-full min-w-[140px] cursor-pointer list-none items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm hover:border-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 [&::-webkit-details-marker]:hidden",
+          none ? "border-neutral-400" : "border-neutral-900",
         )}
       >
         <span className="min-w-0">
@@ -112,7 +112,7 @@ export function MultiSelectFilter({
       </summary>
       <div
         className={cn(
-          "absolute z-40 mt-1 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-neutral-200 bg-white p-2 shadow-xl",
+          "absolute z-40 mt-1.5 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-neutral-300 bg-white p-2 shadow-xl",
           align === "right" ? "right-0" : "left-0",
         )}
       >
@@ -123,15 +123,15 @@ export function MultiSelectFilter({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Поиск в списке…"
             aria-label={`Поиск: ${label}`}
-            className="mb-1 h-9 w-full rounded-md border border-neutral-300 px-2 text-sm outline-none focus:border-neutral-500"
+            className="mb-2 h-10 w-full rounded-lg border border-neutral-400 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-500 focus-visible:border-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900"
           />
         )}
         <label className={cn(row, "font-medium")}>
           <input type={single ? "radio" : "checkbox"} name={single ? name : undefined} value="" checked={none} onChange={() => onChange([])} className="size-4 accent-neutral-900" />
           <span className="min-w-0 flex-1 truncate">{allLabel}</span>
-          <span className="text-xs font-normal text-neutral-500">{list.length}</span>
+          <span className="text-xs font-normal tabular-nums text-neutral-600">{list.length}</span>
         </label>
-        <div className="max-h-64 overflow-auto border-t border-neutral-100 pt-1">
+        <div className="mt-1 max-h-72 overflow-auto border-t border-neutral-200 pt-1">
           {shown.map((o) => (
             <label key={o.value} className={row}>
               <input
@@ -145,22 +145,22 @@ export function MultiSelectFilter({
               <span className={cn("min-w-0 flex-1 truncate", o.count === 0 && "text-neutral-500", o.value === NONE && "italic")} title={o.title ?? o.label}>
                 {o.label}
               </span>
-              {o.count != null && <span className="text-xs tabular-nums text-neutral-500">{o.count}</span>}
+              {o.count != null && <span className="text-xs tabular-nums text-neutral-600">{o.count}</span>}
             </label>
           ))}
           {shown.length === 0 && <div className="px-2 py-3 text-sm text-neutral-500">Ничего не найдено</div>}
         </div>
         {!single && (
-          <div className="mt-1 flex justify-between border-t border-neutral-100 px-2 pt-2 text-xs">
+          <div className="mt-1 flex justify-between gap-2 border-t border-neutral-200 pt-1.5 text-sm">
             <button
               type="button"
-              className="text-blue-600 hover:underline disabled:text-neutral-300 disabled:no-underline"
+              className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-400 disabled:no-underline disabled:hover:bg-transparent"
               disabled={shown.length === 0 || shown.length === list.length && !q}
               onClick={() => onChange(Array.from(new Set([...value, ...shown.map((o) => o.value)])))}
             >
               Выбрать показанные{q ? ` (${shown.length})` : ""}
             </button>
-            <button type="button" className="text-blue-600 hover:underline disabled:text-neutral-300 disabled:no-underline" disabled={none} onClick={() => onChange([])}>
+            <button type="button" className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline disabled:text-neutral-400 disabled:no-underline disabled:hover:bg-transparent" disabled={none} onClick={() => onChange([])}>
               Сбросить
             </button>
           </div>

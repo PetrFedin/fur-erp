@@ -11,7 +11,7 @@ export default async function NewModelPage() {
   const session = await requireSession();
   const categories = await getCategoryOptions(session.user.organizationId);
   return (
-    <div className="max-w-2xl">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Новая модель изделия</CardTitle>

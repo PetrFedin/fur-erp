@@ -66,7 +66,7 @@ export function NewFittingForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-2xl flex-col gap-4">
+    <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <Label htmlFor="orderText">ТЗ</Label>
         <Input

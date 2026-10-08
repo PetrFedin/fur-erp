@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MULTI_KEYS, isBoundValid, multiValue, type Filters, type MultiKey, type Range } from "@/lib/lot-table";
 import { useLots, useScope } from "./lots-state";
 
-const inputCls = "h-8 w-full min-w-0 rounded-md border border-neutral-300 bg-white px-2 text-sm";
+const inputCls = "h-9 w-full min-w-0 rounded-md border border-neutral-400 bg-white px-2.5 text-sm text-neutral-900 placeholder:text-neutral-500 hover:border-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900";
 
 const MULTI_LABELS: Record<MultiKey, string> = { material: "Мех", size: "Размер / описание", op: "Операция" };
 
@@ -36,7 +36,7 @@ function MultiSelect({
   const toggle = (v: string) => onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
   return (
     <div className="relative" ref={box}>
-      <span className="mb-1 block text-xs text-neutral-500">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-neutral-600">{label}</span>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -47,25 +47,25 @@ function MultiSelect({
         <span className="text-neutral-500">▾</span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
+        <div className="absolute left-0 top-full z-30 mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-300 bg-white p-2 shadow-xl">
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск…" className={inputCls} />
-          <div className="my-1 flex justify-between text-xs">
-            <button type="button" className="text-blue-600 hover:underline" onClick={() => onChange(Array.from(new Set([...selected, ...shown.map((o) => o.value)])))}>
+          <div className="my-1 flex justify-between gap-2 text-sm">
+            <button type="button" className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline" onClick={() => onChange(Array.from(new Set([...selected, ...shown.map((o) => o.value)])))}>
               Выбрать показанные
             </button>
-            <button type="button" className="text-blue-600 hover:underline" onClick={() => onChange([])}>
+            <button type="button" className="min-h-9 rounded-md px-2 font-medium text-blue-700 hover:bg-blue-50 hover:underline" onClick={() => onChange([])}>
               Сбросить
             </button>
           </div>
-          <div className="max-h-56 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto border-t border-neutral-200 pt-1">
             {shown.map((o) => (
-              <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 text-sm hover:bg-neutral-50">
-                <input type="checkbox" className="mt-0.5" checked={selected.includes(o.value)} onChange={() => toggle(o.value)} />
+              <label key={o.value} className="flex min-h-9 cursor-pointer items-start gap-2.5 rounded-lg px-2 py-1.5 text-sm leading-snug text-neutral-900 hover:bg-neutral-100 has-[:checked]:bg-neutral-50 has-[:checked]:font-medium">
+                <input type="checkbox" className="mt-0.5 size-4 accent-neutral-900" checked={selected.includes(o.value)} onChange={() => toggle(o.value)} />
                 <span className="min-w-0 flex-1 break-words">{o.value}</span>
-                <span className="text-xs text-neutral-500">{o.count}</span>
+                <span className="text-xs tabular-nums text-neutral-600">{o.count}</span>
               </label>
             ))}
-            {shown.length === 0 && <p className="px-1 py-2 text-xs text-neutral-500">Ничего не найдено</p>}
+            {shown.length === 0 && <p className="px-2 py-2 text-sm text-neutral-500">Ничего не найдено</p>}
           </div>
         </div>
       )}
@@ -80,7 +80,7 @@ function RangeInput({ label, value, onChange }: { label: string; value: Range | 
   const badTo = !isBoundValid(v.to);
   return (
     <div className="min-w-0">
-      <span className="mb-1 block min-w-0 break-words text-xs text-neutral-500">{label}</span>
+      <span className="mb-1 block min-w-0 break-words text-xs font-medium text-neutral-600">{label}</span>
       <div className="flex gap-1">
         <input inputMode="decimal" placeholder="от" value={v.from} aria-invalid={badFrom} title={badFrom ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, from: e.target.value })} className={`${inputCls} ${badFrom ? bad : ""}`} />
         <input inputMode="decimal" placeholder="до" value={v.to} aria-invalid={badTo} title={badTo ? "Некорректное число — фильтр не действует" : undefined} onChange={(e) => onChange({ ...v, to: e.target.value })} className={`${inputCls} ${badTo ? bad : ""}`} />

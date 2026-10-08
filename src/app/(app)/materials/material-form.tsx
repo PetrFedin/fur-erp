@@ -39,8 +39,8 @@ export function MaterialForm({
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
 
   return (
-    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="sm:col-span-2">
+    <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="col-span-full">
         <Label htmlFor="name">Название</Label>
         <Input
           id="name"
@@ -66,7 +66,7 @@ export function MaterialForm({
         </Select>
       </div>
       <details
-        className="sm:col-span-2 rounded-md border border-neutral-200"
+        className="col-span-full rounded-md border border-neutral-200"
         open={Boolean(
           material?.sku ||
           material?.categoryId ||
@@ -108,7 +108,7 @@ export function MaterialForm({
               defaultValue={material?.minStockLevel ?? ""}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div className="col-span-full">
             <Label htmlFor="description">Описание</Label>
             <Textarea
               id="description"
@@ -120,11 +120,11 @@ export function MaterialForm({
         </div>
       </details>
       {state.error && (
-        <p className="sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="col-span-full rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
         </p>
       )}
-      <div className="sm:col-span-2 flex justify-end">
+      <div className="col-span-full flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Сохраняем..." : "Сохранить"}
         </Button>

@@ -15,7 +15,7 @@ export default async function NewProductionOrderPage() {
   const session = await requireSession();
   if (!canEditProduction(session.user.role)) {
     return (
-      <div className="max-w-3xl">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>Новое ТЗ</CardTitle>
@@ -82,7 +82,7 @@ export default async function NewProductionOrderPage() {
   }));
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Новое ТЗ</CardTitle>

@@ -254,7 +254,7 @@ function BarView({
   );
   const count = chips.length;
 
-  const field = "h-11 rounded-lg border bg-white px-3 text-sm hover:border-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400";
+  const field = "h-11 rounded-lg border bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-500 hover:border-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900";
 
   const moreControls = controls.filter((c) => c.more);
   const mainControls = controls.filter((c) => !c.more);
@@ -298,7 +298,7 @@ function BarView({
                     flush();
                   }
                 }}
-                className={cn(field, "pt-4", value ? "border-neutral-900" : "border-neutral-300", "w-full")}
+                className={cn(field, "pt-4", value ? "border-neutral-900" : "border-neutral-400", "w-full")}
               />
               {c.type === "text" && c.datalist && (
                 <datalist id={`${c.name}-list`}>

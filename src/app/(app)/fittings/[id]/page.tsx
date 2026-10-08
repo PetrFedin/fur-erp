@@ -40,7 +40,7 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
   const o = fitting.productionOrder;
 
   return (
-    <div className="flex max-w-4xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <ProductionTabs active="fittings" />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Примерка от {formatDate(fitting.fittingDate)}</h1>
