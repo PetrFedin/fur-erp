@@ -315,18 +315,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     <div className="flex flex-col gap-4">
       <ProductionTabs active="orders" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          ТЗ
+        <div className="flex flex-wrap items-center">
+          <h1 className="text-xl font-semibold">ТЗ</h1>
           {filterModel && (
-            <span className="ml-2 text-base font-normal text-neutral-500">— {filterModel.name}</span>
+            <span className="ml-2 text-base font-normal text-neutral-600">— {filterModel.name}</span>
           )}
           <YearNote year={year} />
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" })}>Сезоны ТЗ</Link>}
-          {canEdit && <Link href="/production/import" className={buttonVariants({ variant: "outline" })}>Загрузить ТЗ</Link>}
+        </div>
+        {/* Телефон: главное действие — первым и на всю ширину. */}
+        <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+          {canEdit && <Link href="/plan/seasons" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>Сезоны ТЗ</Link>}
+          {canEdit && <Link href="/production/import" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>Загрузить ТЗ</Link>}
           {canEdit && (
-            <Link href="/production/new" className={buttonVariants()}>
+            <Link href="/production/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
               + Новое ТЗ
             </Link>
           )}
@@ -387,7 +388,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       ) : (
       <>
       <ResponsiveRows table={
-      <Table anchor="table:production" label="Таблица ТЗ">
+      <Table anchor="table:production" label="Таблица ТЗ" stickyHeader>
         <Thead>
           <Tr>
             <Th>№ ТЗ</Th>
@@ -511,7 +512,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-400">
+              <Td colSpan={7} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>
@@ -520,7 +521,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       </Table>
       }>
         {cards}
-        {orders.length === 0 && <p className="py-8 text-center text-neutral-400">{hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}</p>}
+        {orders.length === 0 && <p className="py-8 text-center text-neutral-500">{hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}</p>}
       </ResponsiveRows>
       {hiddenCount > 0 && (
         <p className="flex flex-wrap items-center justify-center gap-3 text-sm text-neutral-500">

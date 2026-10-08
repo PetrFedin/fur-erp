@@ -117,13 +117,13 @@ export function CostPlanItemEditor({
                     value={vals[f.name] ?? ""}
                     onChange={(e) => setVals((v) => ({ ...v, [f.name]: e.target.value }))}
                   />
-                  {f.hint && <span className="text-[11px] text-neutral-400">{f.hint}</span>}
+                  {f.hint && <span className="text-[11px] text-neutral-500">{f.hint}</span>}
                 </label>
               ))}
               <label className="flex flex-col gap-1 text-xs text-neutral-500">
                 Курс ЦБ (общий на закупку)
                 <Input value={show(item.rate)} readOnly disabled className="text-neutral-700 disabled:opacity-100" />
-                <span className="text-[11px] text-neutral-400">меняется формой «Курс закупки» в блоке расчёта</span>
+                <span className="text-[11px] text-neutral-500">меняется формой «Курс закупки» в блоке расчёта</span>
               </label>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}

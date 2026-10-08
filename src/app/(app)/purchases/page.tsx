@@ -23,6 +23,7 @@ import { getYearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { PurchasesTabs } from "@/components/raw-tabs";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
@@ -184,6 +185,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           )}
         </div>
       </div>
+
+      <PurchasesTabs />
 
       <FilterBar
         title="Фильтры закупок"

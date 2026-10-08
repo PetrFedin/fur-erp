@@ -582,7 +582,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   ];
 
   return (
-    <div className="flex max-w-4xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <IntegrityBanner kind="order" id={order.id} />
       <div>
         <div className="flex flex-wrap items-center gap-2">
@@ -741,7 +741,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <SummaryLine
                   label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
                   value={<Money incl={margin} excl={marginExcl} />}
-                  className={margin.lessThan(0) ? "text-amber-600" : undefined}
+                  className={margin.lessThan(0) ? "text-amber-700" : undefined}
                 />
               </>
             )}
@@ -819,7 +819,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <TotalRow
                     label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
                     value={<Money incl={margin} excl={marginExcl} />}
-                    className={margin.lessThan(0) ? "text-amber-600" : undefined}
+                    className={margin.lessThan(0) ? "text-amber-700" : undefined}
                   />
                 </>
               ) : (
@@ -831,17 +831,17 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           >
             <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Мех</div>
             {usageRows(furUsages, allFurLots, "card")}
-            {furUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Мех ещё не списан</p>}
+            {furUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Мех ещё не списан</p>}
             {showLining && (
               <>
                 <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Подкладка</div>
                 {usageRows(liningUsages, allLiningLots, "card")}
-                {liningUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Подкладка не указана</p>}
+                {liningUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Подкладка не указана</p>}
               </>
             )}
             <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Расходы</div>
             {expenseRows("card")}
-            {order.expenses.length === 0 && <p className="py-2 text-center text-sm text-neutral-400">Расходов нет</p>}
+            {order.expenses.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Расходов нет</p>}
           </ResponsiveRows>
 
           <div className="flex flex-col gap-2 text-sm">
@@ -941,7 +941,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                 <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
                 {" · "}
                 {balanceDue!.lessThan(-0.005) ? "переплата " : "остаток к оплате "}
-                <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-600" : "text-neutral-900"}`}>
+                <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-700" : "text-neutral-900"}`}>
                   {formatMoney(balanceDue!.abs().toString())}
                 </span>
                 {batchStat && order.batch && (
@@ -996,7 +996,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       <Td>{formatDate(p.paidAt)}</Td>
                       <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
                       <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
-                      <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-400">не разнесено</span>}</Td>
+                      <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-500">не разнесено</span>}</Td>
                       <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
                       <Td>{otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—"}</Td>
                       <Td>{cleanNote(p.notes) ?? "—"}</Td>
@@ -1056,7 +1056,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   />
                 );
               })}
-              {payments.length === 0 && <p className="py-3 text-center text-sm text-neutral-400">Оплат пока нет</p>}
+              {payments.length === 0 && <p className="py-3 text-center text-sm text-neutral-500">Оплат пока нет</p>}
             </ResponsiveRows>
           </CardContent>
         </Card>
@@ -1162,7 +1162,7 @@ function SectionRow({ children }: { children: React.ReactNode }) {
 function EmptyRow({ children, cols = 7 }: { children: React.ReactNode; cols?: number }) {
   return (
     <Tr>
-      <Td colSpan={cols} className="py-3 text-center text-neutral-400">
+      <Td colSpan={cols} className="py-3 text-center text-neutral-500">
         {children}
       </Td>
     </Tr>

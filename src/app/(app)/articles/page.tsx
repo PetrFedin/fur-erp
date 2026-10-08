@@ -227,9 +227,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">
-          Изделия
+        {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Изделия О странице…». */}
+        <div className="flex flex-wrap items-center">
+          <h1 className="text-xl font-semibold">Изделия</h1>
           <YearNote year={year} />
+          <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Изделия»" wide>
             <p>Модели, остаток готовой продукции на складах, средневзвешенная себестоимость единицы, розничная цена и наценка.</p>
             <p className="mt-1">
@@ -244,7 +246,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <p className="mt-1">«С 4%» добавляет 4% к сырью и подкладке каждого ТЗ (кроме ТЗ без 4%, например партия 6); работа не облагается.</p>
             {canCreate && <p className="mt-1">Розничную цену можно ввести прямо в таблице: Enter или переход в другое поле сохраняет её.</p>}
           </InfoHint>
-        </h1>
+          </span>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-neutral-500">
             <VatLabel base="Стоимость остатков" />
@@ -306,7 +309,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       />
 
       <ResponsiveRows table={
-      <Table anchor="table:articles" label="Таблица изделий">
+      <Table anchor="table:articles" label="Таблица изделий" stickyHeader>
         <Thead>
           <Tr>
             <Th>Модель</Th>
@@ -347,7 +350,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                             excl={st.quantity.mul(r.avgUnitCostExclVat ?? st.avgUnitCost)}
                           />
                           {r.c4Missing && (
-                            <span className="ml-1 text-neutral-400" title="Нет завершённых ТЗ с разбивкой по сырью — 4% не посчитан">
+                            <span className="ml-1 text-neutral-500" title="Нет завершённых ТЗ с разбивкой по сырью — 4% не посчитан">
                               (без 4%)
                             </span>
                           )}
@@ -412,7 +415,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-400">
+              <Td colSpan={7} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
               </Td>
             </Tr>
@@ -471,7 +474,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           />
         ))}
         {rows.length === 0 && (
-          <p className="py-8 text-center text-neutral-400">
+          <p className="py-8 text-center text-neutral-500">
             {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
           </p>
         )}

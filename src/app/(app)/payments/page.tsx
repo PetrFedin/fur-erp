@@ -37,6 +37,7 @@ import { NONE, activeCount, dateRange, defineFilters, filterHref, parseFilters, 
 import { getFilterOptions } from "@/lib/filter-options";
 import { DocBadge } from "@/components/doc-viewer";
 import { ClientDebtBlock } from "./client-debt-block";
+import { RawTab } from "@/components/raw-tabs";
 import { docCounts } from "@/lib/doc-links";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
@@ -297,7 +298,7 @@ export default async function PaymentsPage({
       <div className="mt-2 flex flex-col gap-1">
         {docs.length > 0 && (
           <>
-            <div className="text-xs text-neutral-400">Документы ({docs.length})</div>
+            <div className="text-xs text-neutral-500">Документы ({docs.length})</div>
             <DriveDocList docs={docs} canEdit={canDocs} />
           </>
         )}
@@ -345,13 +346,13 @@ export default async function PaymentsPage({
         <Td className="whitespace-nowrap text-right">{formatMoney(a.total.toString())}</Td>
         <Td className="whitespace-nowrap text-right">
           {formatMoney(a.paid.toString())}
-          <span className="block text-xs text-neutral-400">{fmtPct(a.percentPaid)}</span>
+          <span className="block text-xs text-neutral-500">{fmtPct(a.percentPaid)}</span>
         </Td>
         {anyPlanned && <Td className="whitespace-nowrap text-right">{a.planned.greaterThan(PAY_EPS) ? formatMoney(a.planned.toString()) : "—"}</Td>}
         <Td
           className={
             "whitespace-nowrap text-right font-semibold " +
-            (a.remaining.greaterThan(0.005) ? "text-amber-600" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")
+            (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")
           }
         >
           {fmtRemaining(a.remaining)}
@@ -393,12 +394,12 @@ export default async function PaymentsPage({
       <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumPaid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
-      <Td className={"whitespace-nowrap text-right font-semibold " + (sumRemaining.greaterThan(0.005) ? "text-amber-600" : "")}>{fmtRemaining(sumRemaining)}</Td>
+      <Td className={"whitespace-nowrap text-right font-semibold " + (sumRemaining.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(sumRemaining)}</Td>
       <Td></Td>
       <Td></Td>
     </Tr>
   );
-  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-600" : r.lessThan(-0.005) ? "text-blue-600" : "");
+  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-blue-600" : "");
   const auctionCard = (a: (typeof auctions)[number]) => {
     const href = `${auctionHref(a.name)}#auction-block`;
     return (
@@ -494,42 +495,27 @@ export default async function PaymentsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="flex flex-wrap items-center gap-2 text-xl font-semibold">
-        Оплаты
-        {year !== "all" && <span className="text-sm font-normal text-neutral-500">· {yearLabel(year)}</span>}
+      {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Оплаты О странице оплат». */}
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-xl font-semibold">Оплаты</h1>
+        {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
           <p>Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}; оплаты связываем с партиями закупки. Суммы — с НДС, это наш долг поставщику.</p>
           <p className="mt-2">Год (переключатель в шапке): партия закупки — по дате заказа, оплата без партии и от заказчиков — по дате оплаты. Оплаты внутри выбранной партии показываются все.</p>
           <p className="mt-2">Переключатель «С 4%» оплаты и долг поставщику не меняет.</p>
         </InfoHint>
-      </h1>
+      </div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
 
-      <div className="flex gap-1 border-b border-neutral-200 pb-2">
-        <Link
-          href="/payments"
-          className={
-            "rounded-md px-3 py-1.5 text-sm " +
-            (tab === "suppliers"
-              ? "bg-neutral-900 text-white"
-              : "text-neutral-700 hover:bg-neutral-100")
-          }
-        >
+      <div role="navigation" aria-label="Разделы оплат" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+        <RawTab href="/payments" active={tab === "suppliers"}>
           Поставщикам
-        </Link>
-        <Link
-          href="/payments?tab=clients"
-          className={
-            "rounded-md px-3 py-1.5 text-sm " +
-            (tab === "clients"
-              ? "bg-neutral-900 text-white"
-              : "text-neutral-700 hover:bg-neutral-100")
-          }
-        >
+        </RawTab>
+        <RawTab href="/payments?tab=clients" active={tab === "clients"}>
           От заказчиков
-        </Link>
+        </RawTab>
       </div>
 
       {tab === "clients" ? (
@@ -551,7 +537,7 @@ export default async function PaymentsPage({
           ]}
         />
         <ResponsiveRows table={
-        <Table anchor="table:payments" label="Таблица оплат">
+        <Table anchor="table:payments" label="Таблица оплат" stickyHeader>
           <Thead>
             <Tr>
               <Th>Дата</Th>
@@ -604,7 +590,7 @@ export default async function PaymentsPage({
                       К ТЗ
                     </Link>
                   ) : (
-                    <span className="text-neutral-400">—</span>
+                    <span className="text-neutral-500">—</span>
                   )}
                   {pv.verify[p.id] && (
                     <div className="mt-1">
@@ -616,7 +602,7 @@ export default async function PaymentsPage({
             ))}
             {clientPayments.length === 0 && (
               <Tr>
-                <Td colSpan={7} className="py-8 text-center text-neutral-400">
+                <Td colSpan={7} className="py-8 text-center text-neutral-500">
                   Оплат от заказчиков пока нет
                 </Td>
               </Tr>
@@ -658,7 +644,7 @@ export default async function PaymentsPage({
               )) }] : []}
             />
           ))}
-          {clientPayments.length === 0 && <p className="py-6 text-center text-neutral-400">Оплат от заказчиков пока нет</p>}
+          {clientPayments.length === 0 && <p className="py-6 text-center text-neutral-500">Оплат от заказчиков пока нет</p>}
         </ResponsiveRows>
         </>
       ) : (
@@ -898,7 +884,7 @@ export default async function PaymentsPage({
                                     </span>
                                   </span>
                                 ) : (
-                                  <span className="text-neutral-400">нет</span>
+                                  <span className="text-neutral-500">нет</span>
                                 )}
                               </Cell>
                             </div>
@@ -933,7 +919,7 @@ export default async function PaymentsPage({
                         );
                       })}
                       {rows.length === 0 && (
-                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">По этой партии закупки оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
+                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этой партии закупки оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
                       )}
                     </div>
                   </div>
@@ -993,12 +979,12 @@ export default async function PaymentsPage({
                       {p.purchase.number}
                     </Link>
                   ) : (
-                    <span className="text-neutral-400">Аванс</span>
+                    <span className="text-neutral-500">Аванс</span>
                   )}
                 </Cell>
                 <Cell label="Сумма">
                   <span className="font-semibold">{formatMoney(p.amount.toString())}</span>
-                  {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
+                  {p.status === "PENDING" && <span className="block text-xs text-amber-700">запланирована</span>}
                 </Cell>
               </div>
               <details className="mt-2 text-xs">
@@ -1036,7 +1022,7 @@ export default async function PaymentsPage({
               </div>
             ))}
             {outside.length === 0 && (
-              <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">Оплат без партии закупки нет</p>
+              <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">Оплат без партии закупки нет</p>
             )}
           </div>
         </>
@@ -1058,7 +1044,7 @@ function Stat({ label, value, note, warn, hint, extra }: { label: string; value:
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="flex items-center gap-1.5 text-xs text-neutral-500">{label}{hint}</div>
-      <div className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-600" : ""}`}>{value}</div>
+      <div className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-700" : ""}`}>{value}</div>
       {note && <div className="text-xs text-neutral-500">{note}</div>}
       {extra}
     </div>
@@ -1068,7 +1054,7 @@ function Stat({ label, value, note, warn, hint, extra }: { label: string; value:
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs text-neutral-400">{label}</div>
+      <div className="text-xs text-neutral-500">{label}</div>
       <div>{children}</div>
     </div>
   );

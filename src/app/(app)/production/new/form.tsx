@@ -81,7 +81,7 @@ export function ProductionCreateForm({
           </p>
         )}
         {modelText && !modelId && (
-          <p className="mt-1 text-xs text-amber-600">Выберите модель из списка подсказок (точное название).</p>
+          <p className="mt-1 text-xs text-amber-700">Выберите модель из списка подсказок (точное название).</p>
         )}
       </div>
       <div>
@@ -179,7 +179,7 @@ export function ProductionCreateForm({
               ))}
             </Select>
             {lining && liningRemaining <= 0 && (
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-amber-700">
                 Ткань закончилась: остаток 0 м — сначала докупите на вкладке «Подкладка» раздела Сырьё.
               </p>
             )}
@@ -196,7 +196,7 @@ export function ProductionCreateForm({
               onChange={set("liningQuantity")}
             />
             {lining && liningRemaining > 0 && liningQty > liningRemaining && (
-              <p className="mt-1 text-xs text-amber-600">
+              <p className="mt-1 text-xs text-amber-700">
                 Больше остатка: на складе {lining.remaining} м, ТЗ не создастся.
               </p>
             )}
@@ -303,7 +303,7 @@ export function ProductionCreateForm({
         </ul>
       )}
       <div className="sm:col-span-2 flex items-center justify-end gap-3">
-        {!modelId && <span className="text-sm text-amber-600">Выберите модель из списка</span>}
+        {!modelId && <span className="text-sm text-amber-700">Выберите модель из списка</span>}
         <Button type="submit" disabled={pending || !modelId}>
           {pending ? "Создаём..." : "Создать ТЗ"}
         </Button>

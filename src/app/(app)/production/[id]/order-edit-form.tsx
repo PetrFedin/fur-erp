@@ -96,7 +96,7 @@ export function OrderEditForm({
                 <div className="flex h-9 items-center text-sm text-neutral-500">
                   {defaults.productModelName}
                 </div>
-                <p className="mt-1 text-xs text-amber-600">
+                <p className="mt-1 text-xs text-amber-700">
                   По ТЗ уже списано сырьё или зафиксирован выпуск — модель изменить нельзя.
                 </p>
               </>
@@ -169,7 +169,7 @@ export function OrderEditForm({
           </div>
 
           <div className="sm:col-span-2 mt-2 border-t border-neutral-200 pt-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
               Заказчик и ТЗ
             </p>
           </div>

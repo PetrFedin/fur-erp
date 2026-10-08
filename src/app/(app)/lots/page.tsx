@@ -12,6 +12,7 @@ import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { RawTab } from "@/components/raw-tabs";
 import { FurSelectionTotal } from "@/components/fur-selection-total";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
@@ -115,7 +116,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </div>
           </div>
         </div>
-        <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
+        <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+          <RawTab href="/purchases" active={false}>
+            Закупки
+          </RawTab>
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
@@ -165,7 +169,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </Link>
           </div>
         </div>
-        <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
+        <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+          <RawTab href="/purchases" active={false}>
+            Закупки
+          </RawTab>
           {tabLink("fur", "Мех")}
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
@@ -247,8 +254,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         </div>
       </div>
 
-      <div role="navigation" aria-label="Разделы сырья" className="flex gap-1 border-b border-neutral-200 pb-2">
-        {tabLink("fur", "Мех")}
+      <div role="navigation" aria-label="Разделы сырья" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+        <RawTab href="/purchases" active={false}>
+            Закупки
+          </RawTab>
+          {tabLink("fur", "Мех")}
         {tabLink("lining", "Подкладка")}
         {tabLink("summary", "Сводка по годам")}
       </div>

@@ -92,7 +92,7 @@ export function ArticlePriceForm({
       />
       <span
         role={error ? "alert" : undefined}
-        className={`text-xs ${error ? "text-red-600" : pending || dirty || saved ? "text-neutral-500" : "text-amber-600"}`}
+        className={`text-xs ${error ? "text-red-600" : pending || dirty || saved ? "text-neutral-500" : "text-amber-700"}`}
       >
         {error ?? (pending ? "Сохраняю…" : dirty ? "Enter — сохранить; цена применяется к незавершённым ТЗ" : saved ? "Задана" : "Не задана")}
       </span>

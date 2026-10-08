@@ -136,7 +136,7 @@ export function DocumentsForm({
         {pending ? "Загружаем…" : "Загрузить"}
       </Button>
       {state.error && <p className="w-full text-sm text-red-600">{state.error}</p>}
-      {state.ok && <p className="w-full text-sm text-emerald-600">Загружено</p>}
+      {state.ok && <p className="w-full text-sm text-emerald-700">Загружено</p>}
     </form>
   );
 }

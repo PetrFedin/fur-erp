@@ -244,7 +244,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               })}
               {orders.length === 0 && (
                 <Tr>
-                  <Td colSpan={9} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={9} className="py-6 text-center text-neutral-500">
                     К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production?view=batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
                   </Td>
                 </Tr>
@@ -281,8 +281,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   <Td className="whitespace-nowrap">{formatDate(p.paidAt)}</Td>
                   <Td>
                     {PAY_TYPE[p.paymentType] ?? p.paymentType}
-                    {p.status === "PENDING" && <span className="ml-1 text-xs text-neutral-400">план</span>}
-                    {!p.confirmed && <span className="ml-1 text-xs text-amber-600">не подтверждена</span>}
+                    {p.status === "PENDING" && <span className="ml-1 text-xs text-neutral-500">план</span>}
+                    {!p.confirmed && <span className="ml-1 text-xs text-amber-700">не подтверждена</span>}
                   </Td>
                   <Td className="whitespace-nowrap font-medium">{formatMoney(p.amount.toString())}</Td>
                   <Td className="hidden whitespace-nowrap sm:table-cell">{shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—"}</Td>
@@ -293,7 +293,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               ))}
               {payments.length === 0 && (
                 <Tr>
-                  <Td colSpan={7} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={7} className="py-6 text-center text-neutral-500">
                     Оплат по ТЗ партии пока нет
                   </Td>
                 </Tr>
@@ -333,7 +333,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
   return (
     <div>
       <dt className="text-xs text-neutral-500">{label}</dt>
-      <dd className={"text-base font-semibold " + (warn ? "text-amber-600" : "")}>{value}</dd>
+      <dd className={"text-base font-semibold " + (warn ? "text-amber-700" : "")}>{value}</dd>
     </div>
   );
 }

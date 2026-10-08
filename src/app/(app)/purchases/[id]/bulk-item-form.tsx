@@ -55,7 +55,7 @@ export function BulkItemForm({
           {pending ? "Добавляем..." : "Добавить в закупку"}
         </Button>
         {state.created !== undefined && (
-          <span className="text-sm text-emerald-600">Добавлено позиций: {state.created}</span>
+          <span className="text-sm text-emerald-700">Добавлено позиций: {state.created}</span>
         )}
       </div>
       {state.error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>}

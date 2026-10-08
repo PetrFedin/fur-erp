@@ -466,7 +466,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         </>
                       ) : hasPlan ? (
                         <>
-                          <Td className="text-neutral-400">—</Td>
+                          <Td className="text-neutral-500">—</Td>
                           <Td className="whitespace-nowrap">
                             <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                           </Td>
@@ -475,7 +475,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         <Td>
                           <Money incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                           {isForeignCurrency && (
-                            <span className="ml-1 text-xs text-neutral-400">
+                            <span className="ml-1 text-xs text-neutral-500">
                               ({formatCurrency(item.subtotal.toString(), purchase.currency)} без НДС)
                             </span>
                           )}
@@ -490,19 +490,20 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
 
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
-    <div className="flex max-w-4xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <IntegrityBanner kind="purchase" id={purchase.id} />
       <div className="-mb-2 text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold">
-            Закупка {purchase.number}
+          {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}
+          <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
             <InfoHint label="О закупке" wide>
               <p>Позиции сырья и подкладки, расходы закупки, расчёт себестоимости, оплаты и документы.</p>
               <p className="mt-1">Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года (2025 / 2026) на страницах «Закупки» и «Сырьё».</p>
               <p className="mt-1">Переключатель «С 4%» эту страницу не меняет: 4% — наценка посредника на сырьё и подкладку при списании в ТЗ; закупка, оплаты и долг поставщику остаются как есть.</p>
             </InfoHint>
-          </h1>
+          </div>
           <p className="text-sm text-neutral-500">
             {purchase.supplier.name} · склад «{purchase.warehouse.name}» · {formatDate(purchase.orderDate)}
             {isForeignCurrency && ` · валюта позиций: ${purchase.currency}`}
@@ -686,7 +687,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 {purchase.items.map((item) => itemRow(item, "row"))}
                 {purchase.items.length === 0 && (
                   <Tr>
-                    <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-400">
+                    <Td colSpan={itemColSpan} className="py-6 text-center text-neutral-500">
                       Позиций пока нет
                     </Td>
                   </Tr>
@@ -696,7 +697,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               }
             >
               {purchase.items.map((item) => itemRow(item, "card"))}
-              {purchase.items.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Позиций пока нет</p>}
+              {purchase.items.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">Позиций пока нет</p>}
             </ResponsiveRows>
           </details>
         </CardContent>
@@ -869,7 +870,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               ))}
             </ResponsiveRows>
           )}
-          {purchase.expenses.length === 0 && <p className="text-sm text-neutral-400">Расходов нет</p>}
+          {purchase.expenses.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
           {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
             <p className="text-xs text-neutral-500">
               Расходы принятой закупки уже распределены по лотам, поэтому здесь не правятся: изменение сломало бы себестоимость лотов, которые могли уйти в ТЗ.
@@ -922,9 +923,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   <Td>{METHOD_LABELS[p.method] ?? p.method}</Td>
                   <Td>
                     {formatMoney(p.amount.toString())}
-                    {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
+                    {p.status === "PENDING" && <span className="block text-xs text-amber-700">запланирована</span>}
                   </Td>
-                  <Td>{[p.docRef ? `п/п ${p.docRef}` : null, cleanNote(p.notes)].filter(Boolean).join(" · ") || "—"}</Td>
+                  <Td>{[p.docRef ? (/^п\/п/i.test(p.docRef) ? p.docRef : `п/п ${p.docRef}`) : null, cleanNote(p.notes)].filter(Boolean).join(" · ") || "—"}</Td>
                   {canEditRole && (
                     <Td>
                       <div className="flex items-center gap-1">
@@ -943,7 +944,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               ))}
               {purchase.payments.length === 0 && (
                 <Tr>
-                  <Td colSpan={canEditRole ? 5 : 4} className="py-6 text-center text-neutral-400">
+                  <Td colSpan={canEditRole ? 5 : 4} className="py-6 text-center text-neutral-500">
                     Оплат пока нет
                   </Td>
                 </Tr>
@@ -957,7 +958,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 key={p.id}
                 title={formatMoney(p.amount.toString())}
                 subtitle={formatDate(p.paidAt)}
-                badge={p.status === "PENDING" ? <span className="text-xs text-amber-600">запланирована</span> : undefined}
+                badge={p.status === "PENDING" ? <span className="text-xs text-amber-700">запланирована</span> : undefined}
                 fields={[
                   { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
                   ...(p.docRef ? [{ label: "П/п, счёт", value: p.docRef }] : []),
@@ -979,7 +980,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 }
               />
             ))}
-            {purchase.payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-400">Оплат пока нет</p>}
+            {purchase.payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">Оплат пока нет</p>}
           </ResponsiveRows>
         </CardContent>
       </Card>
@@ -1007,7 +1008,7 @@ function SummaryCard({
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
       <div className="text-xs text-neutral-500">{label}</div>
       <div
-        className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-600" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
+        className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-700" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
       >
         {value}
       </div>

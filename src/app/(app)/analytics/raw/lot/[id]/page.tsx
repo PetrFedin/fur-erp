@@ -87,15 +87,16 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-xl font-semibold">
-          {lining ? "Подкладка" : "Лот"} {l.lotNumber}
-          <Mode4Badge mode={c4} />
+        {/* Режим 4% и «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Лот … О карточке». */}
+        <h1 className="text-xl font-semibold">{lining ? "Подкладка" : "Лот"} {l.lotNumber}</h1>
+        <Mode4Badge mode={c4} />
+        <span className="inline-flex">
           <InfoHint label="О карточке" wide>
             <p>Всё про один лот: откуда он (аукцион, закупка), сколько куплено, в каких изделиях использован, сколько осталось и сходится ли учёт.</p>
             <p className="mt-1">«В учёте» — журнал движений склада (приходы и списания). «По лоту» — сам лот (получено и остаток). «Σ ТЗ» — сумма списаний в техзаданиях. Если три источника не равны, строка подсвечивается красным.</p>
             <p className="mt-1">Карточка показывает лот целиком, не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% (режим в шапке) добавляется только к списаниям, где оно применяется.</p>
           </InfoHint>
-        </h1>
+        </span>
         <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (issues.length === 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
           {issues.length === 0 ? "учёт сходится" : "расхождение учёта"}
         </span>
@@ -223,7 +224,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                     <td className="py-1.5 pr-3 tabular-nums">{cell(r.journal)}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{cell(r.lotV)}</td>
                     <td className="py-1.5 pr-3 tabular-nums" title={r.note}>{cell(r.third)}</td>
-                    <td className={"py-1.5 text-xs font-bold " + (r.good ? "text-emerald-600" : "text-red-600")}>{r.good ? "✓ сходится" : "✗ расходится"}</td>
+                    <td className={"py-1.5 text-xs font-bold " + (r.good ? "text-emerald-700" : "text-red-600")}>{r.good ? "✓ сходится" : "✗ расходится"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -251,7 +252,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (
-            <p className="py-4 text-center text-sm text-neutral-400">Лот ещё не использован ни в одном ТЗ{l.rem.greaterThan(0) ? ` — на складе ${qty(l.rem)} (${formatMoney(q2(remIncl))} с НДС)` : ""}.</p>
+            <p className="py-4 text-center text-sm text-neutral-500">Лот ещё не использован ни в одном ТЗ{l.rem.greaterThan(0) ? ` — на складе ${qty(l.rem)} (${formatMoney(q2(remIncl))} с НДС)` : ""}.</p>
           ) : (
             <ResponsiveRows
               table={

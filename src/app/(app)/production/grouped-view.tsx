@@ -70,7 +70,7 @@ export function GroupedByBatch({
         return (
           <details key={g.key} open className="group rounded-lg border border-neutral-200 bg-white">
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
-              <span className="inline-block text-neutral-400 transition-transform group-open:rotate-90">›</span>
+              <span className="inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
               {g.batch ? (
                 <Link href={`/production/batches/${g.batch.number}`} className="font-medium hover:underline">
                   {batchLabel(g.batch.number, g.batch.year, g.orders)}
@@ -86,7 +86,7 @@ export function GroupedByBatch({
                 себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}
                 <b>{formatMoney(t.paid.toString())}</b> ·{" "}
                 {t.remaining.lessThan(-0.005) ? "оплачено сверх работы" : "остаток"}{" "}
-                <b className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{formatMoney(t.remaining.abs().toString())}</b>
+                <b className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{formatMoney(t.remaining.abs().toString())}</b>
               </span>
             </summary>
             <ul className="divide-y divide-neutral-100 border-t border-neutral-100 text-sm">

@@ -196,15 +196,15 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <Td>
                 {formatQty(t.producedUnits.toString())}
                 {t.inWorkOrders > 0 && <span className="block text-xs text-neutral-500">в работе {formatQty(t.inWorkUnits.toString())}</span>}
-                {b.plannedUnits != null && <span className="block text-xs text-neutral-400">план {b.plannedUnits}</span>}
+                {b.plannedUnits != null && <span className="block text-xs text-neutral-500">план {b.plannedUnits}</span>}
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
-                {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-400">без 4%</span>}
+                {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-500">без 4%</span>}
                 <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact hint={false} />
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{t.paid.isZero() ? "—" : formatMoney(t.paid.toString())}</Td>
-              <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-600" : "")}>
+              <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-700" : "")}>
                 {t.work.isZero() && t.paid.isZero()
                   ? "—"
                   : t.remaining.lessThan(-0.005)
@@ -234,7 +234,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={8} className="py-8 text-center text-neutral-400">
+              <Td colSpan={8} className="py-8 text-center text-neutral-500">
                 {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}
               </Td>
             </Tr>
@@ -255,7 +255,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               href={`/production/batches/${b.number}`}
               subtitle={batchExtraName(b.name)}
               fields={[
-                { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-600" : ""}>{rem}</span>, strong: true },
+                { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
                 { label: "ТЗ", value: <Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link> },
                 { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${t.inWorkOrders > 0 ? ` · в работе ${formatQty(t.inWorkUnits.toString())}` : ""}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
@@ -283,7 +283,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           );
         })}
         {rows.length === 0 && (
-          <p className="py-8 text-center text-neutral-400">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}</p>
+          <p className="py-8 text-center text-neutral-500">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}</p>
         )}
       </ResponsiveRows>
 

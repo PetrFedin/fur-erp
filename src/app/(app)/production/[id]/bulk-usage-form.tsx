@@ -53,11 +53,11 @@ export function BulkUsageForm({ orderId, defaultCommission4 = true }: { orderId:
           <Button type="submit" variant="outline" size="sm" disabled={pending}>
             {pending ? "Списываем..." : "Списать все строки"}
           </Button>
-          <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-400 hover:underline">
+          <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-500 hover:underline">
             Скрыть
           </button>
           {state.created !== undefined && (
-            <span className="text-xs text-emerald-600">Списано позиций: {state.created}</span>
+            <span className="text-xs text-emerald-700">Списано позиций: {state.created}</span>
           )}
         </div>
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}

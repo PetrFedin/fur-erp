@@ -52,7 +52,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
                     <span className="font-medium tabular-nums">{formatMoney(p.rest.toFixed(2))}</span>
                     <span className="text-neutral-500"> из {formatMoney(p.amount.toFixed(2))} · {formatDate(p.paidAt)} · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · {KIND_LABEL[p.kind]}</span>
                   </div>
-                  <div className="text-xs text-neutral-500">{p.clientName ?? "без заказчика"}{p.docRef ? ` · п/п ${p.docRef}` : ""}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</div>
+                  <div className="text-xs text-neutral-500">{p.clientName ?? "без заказчика"}{p.docRef ? ` · ${/^п\/п/i.test(p.docRef) ? p.docRef : `п/п ${p.docRef}`}` : ""}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</div>
                 </div>
                 {edit.get(p.id) && <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={edit.get(p.id)!.orders} initial={edit.get(p.id)!.initial} label="Разнести" />}
               </li>

@@ -149,7 +149,7 @@ export function PurchaseItemRow({
                   required
                   readOnly={!canEditFinancials}
                   defaultValue={defaults.quantity}
-                  className={!canEditFinancials ? "bg-neutral-100 text-neutral-400" : undefined}
+                  className={!canEditFinancials ? "bg-neutral-100 text-neutral-500" : undefined}
                 />
               </div>
               <div>
@@ -162,7 +162,7 @@ export function PurchaseItemRow({
                   required
                   readOnly={!canEditFinancials}
                   defaultValue={defaults.unitPrice}
-                  className={!canEditFinancials ? "bg-neutral-100 text-neutral-400" : undefined}
+                  className={!canEditFinancials ? "bg-neutral-100 text-neutral-500" : undefined}
                 />
               </div>
               <div>
@@ -191,7 +191,7 @@ export function PurchaseItemRow({
               <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex items-center justify-between gap-4">
                 <div>
                   {!canEditFinancials && lockedNote && (
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-amber-700">
                       {lockedNote}
                       <OrderLinks orders={lockedOrders} />
                     </p>

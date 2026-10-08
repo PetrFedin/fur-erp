@@ -106,7 +106,7 @@ export function PurchaseExpenseForm({
           + Добавить расход
         </Button>
       </div>
-      {categoryId === "" && <p className="text-xs text-neutral-400">Выберите статью, затем введите сумму.</p>}
+      {categoryId === "" && <p className="text-xs text-neutral-500">Выберите статью, затем введите сумму.</p>}
     </div>
   );
 }

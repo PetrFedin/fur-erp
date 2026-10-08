@@ -124,7 +124,7 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
       </Button>
       {error && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">{error}</p>}
       {materialId && lotsForMaterial.length === 0 && (
-        <p className="sm:col-span-2 lg:col-span-5 text-sm text-amber-600">
+        <p className="sm:col-span-2 lg:col-span-5 text-sm text-amber-700">
           {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого материала на складе"}
         </p>
       )}

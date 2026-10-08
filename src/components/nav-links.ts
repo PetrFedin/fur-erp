@@ -1,9 +1,9 @@
-// Основное меню (8 пунктов). `also` — вложенные и переехавшие разделы: на них
+// Основное меню (7 пунктов). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Сводка", also: [] },
-  { href: "/lots", label: "Сырьё", also: ["/lining", "/raw-materials", "/analytics"] },
-  { href: "/purchases", label: "Закупки", also: [] },
+  // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
+  { href: "/lots", label: "Сырьё", also: ["/purchases", "/lining", "/raw-materials", "/analytics"] },
   { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/analytics/products", "/analytics/pricing"] },
   { href: "/payments", label: "Оплаты", also: [] },

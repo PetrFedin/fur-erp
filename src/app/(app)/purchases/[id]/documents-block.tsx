@@ -129,7 +129,7 @@ export function PurchaseDocumentsList({
       <DriveDocList key={e.d.view.id} docs={[e.d.view]} canEdit={canEdit} />
     );
 
-  if (list.length === 0) return <p className="text-sm text-neutral-400">Документов пока нет</p>;
+  if (list.length === 0) return <p className="text-sm text-neutral-500">Документов пока нет</p>;
   return (
     <div className="flex flex-col gap-3">
       {list.map((g) =>
