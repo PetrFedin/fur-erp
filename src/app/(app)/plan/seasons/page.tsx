@@ -95,12 +95,16 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
 
       {msg === "assigned" && <p className="rounded-md bg-emerald-50 p-2 text-sm text-emerald-800">Готово: сезон изменён у ТЗ — {n || 0}.</p>}
       {MSG[msg] && <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">{MSG[msg]}</p>}
-      {seasons.length === 0 && (
-        <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">
-          Сезонов ещё нет. Заведите сезон на странице <Link href="/plan#seasons" className="underline">«План заказа»</Link> (внизу блок «Сезоны»).
-        </p>
-      )}
-
+      {seasons.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col gap-2 py-6">
+            <p className="text-base font-medium">Сезонов ещё нет</p>
+            <p className="text-sm text-neutral-500">Сначала заведите сезон на странице «План заказа» (блок «Сезоны» внизу), затем здесь присвойте сезон ТЗ.</p>
+            <Link href="/plan#seasons" className={buttonVariants({ variant: "default" }) + " self-start"}>Завести сезон</Link>
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -164,6 +168,8 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
         })}
       />
       {orders.length === LIMIT && <p className="text-xs text-neutral-500">Показаны первые {LIMIT} ТЗ — сузьте поиск.</p>}
+      </>
+      )}
     </div>
   );
 }

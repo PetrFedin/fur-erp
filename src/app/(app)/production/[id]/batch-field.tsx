@@ -77,7 +77,7 @@ export function OrderBatchBlock({
   if (!editing && current) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-sky-300 bg-sky-50 px-3 py-2 text-sm">
-        <span className="font-semibold">Партия:</span>
+        <span className="font-semibold">Партия пошива:</span>
         <a href={`/production/batches/${current.number}`} className="font-medium text-blue-700 underline-offset-2 hover:underline">
           {current.label}
         </a>

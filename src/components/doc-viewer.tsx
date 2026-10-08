@@ -75,6 +75,7 @@ export function DocViewer({ entity, id, title, onClose }: { entity: DocEntity; i
   }, [entity, id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     void load();
   }, [load]);
@@ -337,6 +338,7 @@ function TextPane({ doc }: { doc: DocItem }) {
   }, [re, content]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHit(0);
   }, [query]);
   useEffect(() => {

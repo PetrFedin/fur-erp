@@ -304,13 +304,13 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <Td className="text-right font-semibold tabular-nums">{formatQty(sAll.m.units)}</Td>
           </Tr>
           <Tr>
-            <Td>Партий</Td>
+            <Td>Партий пошива</Td>
             <Td className="text-right tabular-nums">{sDone.batches}</Td>
             <Td className="text-right tabular-nums">{sWork.batches}</Td>
             <Td className="text-right font-semibold tabular-nums">{sAll.batches}</Td>
           </Tr>
           <Tr>
-            <Td>Σ шкур</Td>
+            <Td>Шкур</Td>
             <Td className="text-right tabular-nums">{formatQty(sDone.m.skins)}</Td>
             <Td className="text-right tabular-nums">{formatQty(sWork.m.skins)}</Td>
             <Td className="text-right font-semibold tabular-nums">{formatQty(sAll.m.skins)}</Td>
@@ -334,7 +334,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </Tr>
           <Tr>
             <Td>
-              Σ работы
+              Работа
               <InfoHint label="Что такое работа">Цена работы по ТЗ × количество (как в «Партиях»). В себестоимость системы не входит.</InfoHint>
             </Td>
             <Td className="text-right tabular-nums">{formatMoney(sDone.m.work.toFixed(2))}</Td>
@@ -343,7 +343,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </Tr>
           <Tr>
             <Td>
-              Σ себестоимости{c4}
+              Себестоимость{c4}
               <InfoHint label="Что в сумме" wide>
                 Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У ТЗ «в работе» часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»).
               </InfoHint>
@@ -436,6 +436,9 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       </ResponsiveRows>
 
       {/* Матрицы */}
+      <details className="rounded-lg border border-neutral-200 bg-white p-3">
+      <summary className="cursor-pointer text-sm font-medium text-neutral-700">Матрицы «категория × мех» и «категория × размер»</summary>
+      <div className="mt-3 flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">
           Матрицы
@@ -466,14 +469,16 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </div>
         </>
       )}
+      </div>
+      </details>
 
       {/* Качество данных */}
-      <section className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
-        <h2 className="mb-2 text-base font-semibold">
+      <details className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <summary className="cursor-pointer text-base font-semibold">
           Качество данных
-          <InfoHint label="О проверках">Проверки по всем ТЗ выбранного года (без фильтров таблицы). Данные не правятся — только показано, где неполно.</InfoHint>
-        </h2>
-        <ul className="flex flex-col gap-2">
+        </summary>
+        <p className="mt-2 text-xs text-neutral-500">Проверки по всем ТЗ выбранного года (без фильтров таблицы). Данные не правятся — только показано, где неполно.</p>
+        <ul className="flex flex-col mt-2 gap-2">
           <li>
             Молоток записан у <b>{sAll.m.lotsHammer}</b> из <b>{sAll.m.lots}</b> лотов меха, использованных в ТЗ ({sAll.d.hammerSkinShare != null ? pct0(sAll.d.hammerSkinShare) : "—"} шкур). ТЗ, где молоток известен не для всех шкур: <b>{partHammer.length}</b>
             {partHammer.length > 0 && (
@@ -543,7 +548,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </Link>
           .
         </div>
-      </section>
+      </details>
     </div>
   );
 }

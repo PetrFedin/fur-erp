@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Card, CardContent } from "@/components/ui/card";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { loadIntakeRefs } from "@/lib/batch-intake-server";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -20,9 +20,11 @@ export default async function NewBatchPage() {
       <div className="text-sm">
         <Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link>
       </div>
-      <h1 className="text-xl font-semibold">Новая партия закупки</h1>
-      <Card>
-        <CardContent className="pt-4 text-sm text-neutral-700">
+      <h1 className="text-xl font-semibold">
+        Новая партия закупки
+        <span className="ml-2 align-middle text-sm font-normal">
+          <InfoHint wide label="Как завести новую партию">
+
           <p className="font-medium text-neutral-900">Как завести новую партию</p>
           <ol className="mt-1 list-decimal space-y-0.5 pl-5">
             <li>Выберите аукцион из справочника или создайте новый; укажите поставщика, валюту и курс.</li>
@@ -33,8 +35,9 @@ export default async function NewBatchPage() {
           <p className="mt-2 text-neutral-600">
             <span className="font-medium text-neutral-800">Что пересчитается автоматически:</span> остаток меха на складе, себестоимость лотов, долг поставщику, «Закуплено» и «Склад» в Сводке, задачи «что загрузить» и «что оплатить». Черновик сохраняется в этом браузере.
           </p>
-        </CardContent>
-      </Card>
+                  </InfoHint>
+        </span>
+      </h1>
       <BatchWizard
         userKey={session.user.id}
         refs={{

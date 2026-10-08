@@ -131,6 +131,12 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
               Год ({year === "all" ? "все годы" : year}): по месяцу плана. {year === "all" ? `Таблица показывает период с ${MONTH_NAMES[windowStart.getMonth()]} ${windowStart.getFullYear()} по ${MONTH_NAMES[windowEnd.getMonth()]} ${windowEnd.getFullYear()}; остальные записи — отдельным списком.` : `Таблица показывает январь–декабрь ${year}.`}
             </p>
             <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4%» на эту страницу не влияет.</p>
+            <p className="mt-1">Те же даты по дням — в производственном календаре, количества по размерам — в плане заказа (ссылки под заголовком).</p>
+            <p className="mt-2 flex flex-wrap gap-1">
+              {(Object.keys(STATUS_LABELS) as SupplyPlanStatusValue[]).map((st) => (
+                <Badge key={st} variant={STATUS_BADGE_VARIANT[st]}>{STATUS_LABELS[st]}</Badge>
+              ))}
+            </p>
           </InfoHint>
         </h1>
         <p className="mt-1 text-xs text-neutral-500">
@@ -139,28 +145,13 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
       </div>
 
       {canEdit && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Добавить запись в план</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">+ Добавить запись в план</summary>
+          <div className="mt-3">
             <AddSupplyPlanForm models={allModels} />
-          </CardContent>
-        </Card>
+          </div>
+        </details>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Статусы</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          {(Object.keys(STATUS_LABELS) as SupplyPlanStatusValue[]).map((s) => (
-            <Badge key={s} variant={STATUS_BADGE_VARIANT[s]}>
-              {STATUS_LABELS[s]}
-            </Badge>
-          ))}
-        </CardContent>
-      </Card>
 
       {hiddenEntries.length > 0 && (
         <Card>

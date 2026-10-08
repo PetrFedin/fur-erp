@@ -125,6 +125,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   });
   const hasMore = purchases.length > limit;
   if (hasMore) purchases.length = limit;
+  // Поставщик в списке — только если их несколько (иначе колонка повторяет одно и то же).
+  const multiSupplier = new Set(purchases.map((p) => p.supplier.id)).size > 1;
   const moreHref = filterHref(PURCHASE_FILTERS, "/purchases", f, { limit: String(limit + PAGE) });
 
   // Оплаты по закупкам с аукционом ведутся по аукциону целиком — «оплачено» берём оттуда.
@@ -201,13 +203,18 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         <Thead>
           <Tr>
             <Th>№</Th>
-            <Th>Поставщик</Th>
+            {multiSupplier && <Th>Поставщик</Th>}
             <Th>Партия закупки</Th>
             <Th>Счёт</Th>
             <Th>Дата</Th>
             <Th>Статус</Th>
             <Th>Сумма</Th>
-            <Th>Оплачено</Th>
+            <Th>
+              Оплачено
+              <InfoHint label="Как читать «Оплачено»" align="right">
+                Если закупка входит в партию (аукцион), оплата ведётся по партии целиком: «из» — сумма всей партии, у остальных закупок этой партии — «↑ по партии». Нажмите — откроется оплата партии.
+              </InfoHint>
+            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -227,7 +234,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                   </Link>{" "}
                   <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} />
                 </Td>
-                <Td>{p.supplier.name}</Td>
+                {multiSupplier && <Td>{p.supplier.name}</Td>}
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
                   {p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : "—"}
                 </Td>
@@ -247,11 +254,11 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                       title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}
                     >
                       {repeat ? (
-                        <span className="text-xs font-normal">по партии — см. выше</span>
+                        <span className="text-xs font-normal">↑ по партии</span>
                       ) : (
                         <>
-                          <span className="block text-xs font-normal text-neutral-400">по партии:</span>
-                          оплачено {formatMoney(ap.paid.toString())} из {formatMoney(ap.total.toString())}
+                          <span className="block">{formatMoney(ap.paid.toString())}</span>
+                          <span className="block text-xs font-normal text-neutral-400">из {formatMoney(ap.total.toString())}</span>
                         </>
                       )}
                     </Link>
@@ -264,7 +271,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           })}
           {purchases.length === 0 && (
             <Tr>
-              <Td colSpan={8} className="py-8 text-center text-neutral-400">
+              <Td colSpan={multiSupplier ? 8 : 7} className="py-8 text-center text-neutral-400">
                 {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
               </Td>
             </Tr>
@@ -286,7 +293,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
               className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-600" : "text-emerald-600"}`}
             >
-              {repeat ? "по партии — см. выше" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
+              {repeat ? "↑ по партии" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
             </Link>
           ) : (
             <span className={paid.lessThan(total) ? "text-amber-600" : "text-emerald-600"}>{formatMoney(paid.toString())}</span>

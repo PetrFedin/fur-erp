@@ -143,6 +143,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   const backQs = new URLSearchParams([...pf.season.map((v) => ["season", v]), ...(pf.q ? [["q", pf.q]] : [])]).toString();
 
   const factCell = (f: PlanFact) => f.orders.length;
+  const emptyPlan = plans.length === 0 && !initial && !pf.q && pf.season.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -163,17 +164,43 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
         </div>
       </div>
 
-      <FilterBar
+      {emptyPlan && (
+        <Card>
+          <CardContent className="flex flex-col gap-3 py-6">
+            <p className="text-base font-medium">План заказа пока пуст</p>
+            <p className="text-sm text-neutral-500">{canEdit ? "Добавьте первую позицию: артикул, цвет, вид меха и количество по размерам." : "Позиций плана пока нет."}</p>
+            {canEdit && (
+              <details>
+                <summary className={buttonVariants({ variant: "default" }) + " inline-flex cursor-pointer list-none"}>+ Добавить позицию плана</summary>
+                <div className="mt-4">
+                  <PlanForm
+                    key="new"
+                    seasons={seasons.map((s) => ({ id: s.id, code: s.code }))}
+                    models={models}
+                    colorRefs={colorRefs}
+                    canCreateArticle={hasRole(session.user.role, ACCESS.models)}
+                    canCreateColor={hasRole(session.user.role, ACCESS.colors)}
+                    defaultSeasonId=""
+                    initial={undefined}
+                  />
+                </div>
+              </details>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!emptyPlan && <FilterBar
         title="Фильтры плана"
         controls={[
           { type: "multi", name: "season", label: "Сезон", options: seasons.map((s) => ({ value: s.code, label: s.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
           { type: "text", name: "q", label: "Поиск", placeholder: "Артикул, название, цвет, мех" },
         ]}
         resetExtra={["edit"]}
-      />
+      />}
 
       {/* Сводка */}
-      <Card>
+      {!emptyPlan && <Card>
         <CardHeader>
           <CardTitle>
             Сводка {pickedCount === 0 ? "по всем сезонам" : pickedCount > 1 ? "по выбранным сезонам" : seasonId === "none" ? "по позициям без сезона" : `сезона ${seasonCode.get(seasonId)}`}
@@ -218,7 +245,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             </>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Таблица позиций */}
       {plans.length > 0 && (
@@ -302,7 +329,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
       )}
 
       {/* Форма */}
-      {canEdit ? (
+      {emptyPlan ? null : canEdit ? (
         <Card id="form">
           <CardHeader><CardTitle>{initial ? "Правка позиции плана" : "Новая позиция плана"}</CardTitle></CardHeader>
           <CardContent>
@@ -331,9 +358,14 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {seasons.length === 0 && <p className="text-sm text-neutral-500">Сезонов пока нет. Заведите первый — например по подсказке из документов.</p>}
+          {seasons.length === 0 && <p className="text-sm text-neutral-500">Сезонов пока нет — добавьте первый, чтобы разнести ТЗ по сезонам.</p>}
           {canEdit ? seasons.map((s) => <SeasonEditForm key={s.id} season={s} />) : seasons.map((s) => <div key={s.id} className="text-sm font-medium">{s.code}{s.name ? ` — ${s.name}` : ""}</div>)}
-          {canEdit && <SeasonCreateForm hints={SEASON_HINTS.filter((h) => !seasons.some((s) => s.code.toLowerCase() === h.code.toLowerCase()))} />}
+          {canEdit && (seasons.length === 0 ? (
+            <details>
+              <summary className="inline-flex cursor-pointer list-none rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100">+ Добавить сезон</summary>
+              <div className="mt-3"><SeasonCreateForm hints={[...SEASON_HINTS]} /></div>
+            </details>
+          ) : <SeasonCreateForm hints={SEASON_HINTS.filter((h) => !seasons.some((s) => s.code.toLowerCase() === h.code.toLowerCase()))} />)}
         </CardContent>
       </Card>
     </div>

@@ -56,7 +56,10 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
           </div>
         </InfoHint>
         <span className="text-xs text-neutral-500">
-          требуют внимания: <b className={todo.length ? "text-red-700" : "text-emerald-700"}>{todo.length}</b> из {all.length} · не хватает документов: {missingDocs} · оплата не закрыта: {unpaid} · в порядке: {done}
+          требуют внимания: <b className={todo.length ? "text-red-700" : "text-emerald-700"}>{todo.length}</b> из {all.length}
+          <InfoHint label="Из чего складывается">
+            <p>Не хватает документов: {missingDocs} · оплата не закрыта: {unpaid} · в порядке: {done}</p>
+          </InfoHint>
         </span>
       </div>
       {todo.length === 0 ? (
@@ -64,47 +67,14 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
       ) : (
         <ResponsiveRows
           table={
-            <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Что</th>
-                    <th className="px-3 py-2 font-medium">Какой документ нужен</th>
-                    <th className="px-3 py-2 font-medium">Где упомянут</th>
-                    <th className="px-3 py-2 font-medium">Оплата отмечена?</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {todo.map((r) => (
-                    <tr key={r.key} className="align-top">
-                      <td className="px-3 py-2">
-                        <Link href={r.href} className="flex items-start gap-2 font-medium hover:underline">
-                          <span aria-hidden className={cn("mt-1.5 inline-block size-2.5 shrink-0 rounded-full", TONE_DOT[r.tone])} />
-                          <span>
-                            {r.title}
-                            <span className="block text-xs font-normal text-neutral-500">
-                              {r.kind}
-                              {r.year ? ` · ${r.year}` : ""}
-                              {r.unmatched ? " · нет сопоставимых документов" : ""}
-                            </span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2">
-                        {missingText(r.panel).length > 0 ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-400">всё есть</span>}
-                      </td>
-                      <td className="max-w-md px-3 py-2 text-xs text-neutral-600">{mentionText(r.panel) || <span className="text-neutral-400">в документах не названо</span>}</td>
-                      <td className="px-3 py-2">
-                        <Link href={r.href} className="hover:underline">
-                          <span className={cn("font-medium", r.panel.pay.tone === "bad" ? "text-red-700" : r.panel.pay.tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{r.panel.pay.label}</span>
-                          {r.panel.pay.state !== "PAID" && r.panel.pay.state !== "NOBASE" && <span className="block text-xs text-neutral-500">остаток {r.panel.pay.remainingText}</span>}
-                          {r.panel.proofMissing > 0 && <span className="block text-xs text-amber-700">платёжек нет: {r.panel.proofMissing}</span>}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-col gap-2">
+              <TodoTable rows={todo.slice(0, TOP)} missingText={missingText} mentionText={mentionText} />
+              {todo.length > TOP && (
+                <details>
+                  <summary className="cursor-pointer list-none px-1 py-1 text-sm text-blue-700 hover:underline">Ещё {todo.length - TOP}</summary>
+                  <div className="mt-2"><TodoTable rows={todo.slice(TOP)} missingText={missingText} mentionText={mentionText} /></div>
+                </details>
+              )}
             </div>
           }
         >
@@ -128,5 +98,57 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
         </ResponsiveRows>
       )}
     </section>
+  );
+}
+
+const TOP = 10;
+
+function TodoTable({ rows, missingText, mentionText }: { rows: Row[]; missingText: (p: Panel) => string[]; mentionText: (p: Panel) => string }) {
+  return (
+            <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 text-left text-xs text-neutral-500">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Что</th>
+                    <th className="px-3 py-2 font-medium">Какой документ нужен</th>
+                    <th className="px-3 py-2 font-medium">Оплата отмечена?</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {rows.map((r) => (
+                    <tr key={r.key} className="align-top">
+                      <td className="px-3 py-2">
+                        <Link href={r.href} className="flex items-start gap-2 font-medium hover:underline">
+                          <span aria-hidden className={cn("mt-1.5 inline-block size-2.5 shrink-0 rounded-full", TONE_DOT[r.tone])} />
+                          <span>
+                            {r.title}
+                            {mentionText(r.panel) && (
+                              <span className="ml-1.5 align-middle font-normal">
+                                <InfoHint wide label="Где упомянут документ"><p>{mentionText(r.panel)}</p></InfoHint>
+                              </span>
+                            )}
+                            <span className="block text-xs font-normal text-neutral-500">
+                              {r.kind}
+                              {r.year ? ` · ${r.year}` : ""}
+                              {r.unmatched ? " · нет сопоставимых документов" : ""}
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2">
+                        {missingText(r.panel).length > 0 ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-400">всё есть</span>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Link href={r.href} className="hover:underline">
+                          <span className={cn("font-medium", r.panel.pay.tone === "bad" ? "text-red-700" : r.panel.pay.tone === "warn" ? "text-amber-700" : "text-emerald-700")}>{r.panel.pay.label}</span>
+                          {r.panel.pay.state !== "PAID" && r.panel.pay.state !== "NOBASE" && <span className="block text-xs text-neutral-500">остаток {r.panel.pay.remainingText}</span>}
+                          {r.panel.proofMissing > 0 && <span className="block text-xs text-amber-700">платёжек нет: {r.panel.proofMissing}</span>}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
   );
 }

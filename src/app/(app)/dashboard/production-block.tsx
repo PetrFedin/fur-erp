@@ -7,7 +7,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { ProductionModal } from "./production-modal";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
-import { ModeLine, Note, type ModeInfo } from "./mode-line";
+import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
 export type ProdNums = { orders: number; qty: number; costIncl: number; costExcl: number; work: number; matIncl: number; matExcl: number; c4Incl: number; c4Excl: number };
@@ -38,6 +38,7 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
   const [open, setOpen] = useState<null | "done" | "work">(null);
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
   const avg = done.qty > 0 ? cost(done) / done.qty : null;
+  void info;
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
   const c4W = c4 === "on" ? "с 4%" : "без 4%";
   const money = (v: number) => formatMoney(v.toFixed(2));
@@ -46,15 +47,16 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
   return (
     <section aria-labelledby="dash-prod" className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="dash-prod" className="text-base font-semibold">Производство</h2>
+        <h2 id="dash-prod" className="flex items-center gap-2 text-base font-semibold">Производство
+          <ProdBridgeHint done={done} work={work} c4={c4} vat={vat} bridge={bridge} />
+        </h2>
         <div className="flex items-center gap-3 text-xs text-neutral-500">
-          <ModeLine info={info} c4={c4} />
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
         </div>
       </div>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         <Tile
-          label="Произведено изделий"
+          label="Произведено"
           onClick={() => setOpen("done")}
           aria="Произведено изделий — открыть состав стоимости производства"
           hint={
@@ -65,10 +67,10 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
             </InfoHint>
           }
           value={<>{formatQty(done.qty)} шт.</>}
-          caption={<>{done.orders} ТЗ «Завершён»<br />нажмите — состав</>}
+          caption={<>{done.orders} ТЗ · состав →</>}
         />
         <Tile
-          label="На сумму (себестоимость)"
+          label="Себестоимость"
           onClick={() => setOpen("done")}
           aria="Себестоимость произведённого — открыть гистограмму по партиям, годам, категориям и меху"
           hint={
@@ -78,27 +80,26 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
             </InfoHint>
           }
           value={money(cost(done))}
-          caption={<>+ работа <b className="tabular-nums text-neutral-700">{money(done.work)}</b><br />сырьё + работа <b className="tabular-nums text-neutral-700">{money(cost(done) + done.work)}</b></>}
+          caption={<>+ работа <b className="tabular-nums text-neutral-700">{money(done.work)}</b><br />всего <b className="tabular-nums text-neutral-700">{money(cost(done) + done.work)}</b></>}
         />
         <Tile
-          label="Средняя себестоимость изделия"
+          label="На 1 изделие"
           hint={
             <InfoHint label="Как считается средняя себестоимость" wide align="right">
               <p><b>Средневзвешенная</b> = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ). Режимы: {vatW}, {c4W}.</p>
             </InfoHint>
           }
           value={avg != null ? money(avg) : "—"}
-          caption={<>за 1 изделие, без работы{avg != null && done.work > 0 ? <><br />с работой {money(avg + done.work / done.qty)}</> : null}</>}
+          caption={<>без работы{avg != null && done.work > 0 ? <><br />с работой {money(avg + done.work / done.qty)}</> : null}</>}
         />
         <Tile
           label="В работе"
           onClick={() => setOpen("work")}
           aria="В работе — открыть состав стоимости"
           value={<>{formatQty(work.qty)} шт.</>}
-          caption={<>{work.orders} ТЗ · по плану<br />списано сырья на <b className="tabular-nums text-neutral-700">{money(cost(work))}</b></>}
+          caption={<>{work.orders} ТЗ · списано <b className="tabular-nums text-neutral-700">{money(cost(work))}</b></>}
         />
       </div>
-      <ProdBridgeNote done={done} work={work} c4={c4} vat={vat} bridge={bridge} />
       {open ? (
         <ProductionModal
           scope={open}
@@ -114,8 +115,8 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
 
 const mln = (v: number) => formatCompactMoney(v);
 
-/** Мост цифр Производства: состав себестоимости, работа, НДС и связь с блоком «Сырьё». */
-function ProdBridgeNote({ done, work, c4, vat, bridge }: { done: ProdNums; work: ProdNums; c4: "on" | "off"; vat: "incl" | "excl"; bridge: ProdBridge }) {
+/** Мост цифр Производства: состав себестоимости, работа, НДС и связь с блоком «Сырьё» — теперь в «i» у заголовка. */
+function ProdBridgeHint({ done, work, c4, vat, bridge }: { done: ProdNums; work: ProdNums; c4: "on" | "off"; vat: "incl" | "excl"; bridge: ProdBridge }) {
   const g = (n: ProdNums) => ({ cost: vat === "incl" ? n.costIncl : n.costExcl, mat: vat === "incl" ? n.matIncl : n.matExcl, c4: vat === "incl" ? n.c4Incl : n.c4Excl });
   const D = g(done), W = g(work);
   const rawOther = D.cost - D.mat - D.c4;
@@ -123,24 +124,17 @@ function ProdBridgeNote({ done, work, c4, vat, bridge }: { done: ProdNums; work:
   const vatAmount = done.costIncl - done.costExcl;
   const matBoth = D.mat + W.mat;
   return (
-    <div className="space-y-1">
-      <Note>
-        <b>Себестоимость {mln(D.cost)} = сырьё (мех + подкладка) {mln(D.mat)} + {c4 === "on" ? <>4%: +{mln(D.c4)}</> : "4%: не начислено"} + расходы ТЗ и прочее {mln(other)}</b>
-        {" "}· работа {mln(done.work)} в себестоимость не входит: сырьё + работа = {mln(D.cost + done.work)}.{" "}
-        НДС в себестоимости ({vat === "incl" ? "учтён" : "вычтен"}): {mln(vatAmount)} — по ставке лота (20% или 22%). 4% — только на мех и подкладку.
-      </Note>
+    <BridgeHint label="Как сходятся цифры производства" warn={!bridge.comparable}>
+      <p><b>Себестоимость {mln(D.cost)} = сырьё (мех + подкладка) {mln(D.mat)} + {c4 === "on" ? <>4%: +{mln(D.c4)}</> : "4%: не начислено"} + расходы ТЗ и прочее {mln(other)}.</b> Работа {mln(done.work)} в себестоимость не входит: сырьё + работа = {mln(D.cost + done.work)}.</p>
+      <p className="mt-1">НДС в себестоимости ({vat === "incl" ? "учтён" : "вычтен"}): {mln(vatAmount)} — по ставке лота (20% или 22%). 4% — только на мех и подкладку. Средняя на изделие = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ).</p>
       {bridge.comparable ? (
-        <Note>
-          <b>Связь с блоком «Сырьё»:</b> использовано сырья {mln(bridge.usedBase[vat])} (без 4%) = в завершённых ТЗ {mln(D.mat)} + в ТЗ «в работе» {mln(W.mat)} ({matBoth === 0 ? "—" : "сходится"}). В «Произведено» входят только завершённые, поэтому «Использовано» в «Сырьё» больше на списанное в ТЗ «в работе».
-        </Note>
+        <p className="mt-1"><b>Связь с блоком «Сырьё»:</b> использовано сырья {mln(bridge.usedBase[vat])} (без 4%) = в завершённых ТЗ {mln(D.mat)} + в ТЗ «в работе» {mln(W.mat)} ({matBoth === 0 ? "—" : "сходится"}). В «Произведено» входят только завершённые, поэтому «Использовано» в «Сырьё» больше на списанное в ТЗ «в работе».</p>
       ) : (
-        <Note tone="warn">
-          ≠ <b>С блоком «Сырьё» цифры здесь не равны:</b>{" "}
+        <p className="mt-1"><b>С блоком «Сырьё» цифры не равны:</b>{" "}
           {bridge.yearOnly ? "«Сырьё» отбирает лоты по году закупки, «Производство» — ТЗ по году ТЗ (сырьё 2025 года могло уйти в ТЗ 2026). " : ""}
           {bridge.lotFilters ? "При фильтре по меху/цвету/НДС/аукциону «Сырьё» показывает только выбранные лоты, а «Производство» — ТЗ целиком, где такой лот списан. " : ""}
-          Без фильтров и на «Все годы» они сходятся.
-        </Note>
+          Без фильтров и на «Все годы» они сходятся.</p>
       )}
-    </div>
+    </BridgeHint>
   );
 }

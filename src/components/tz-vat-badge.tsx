@@ -15,7 +15,7 @@ const TONE: Record<string, string> = {
  * «НДС: 20% / 22% / смешанный (доля 20%: X ₽)» по списаниям ТЗ + подсказка с разбивкой по ставкам.
  * Ставка берётся у лота каждой строки; суммы — построчные, не одной общей ставкой.
  */
-export function TzVatBadge({ b, compact = false, className = "" }: { b: VatBreakdown; compact?: boolean; className?: string }) {
+export function TzVatBadge({ b, compact = false, hint = true, className = "" }: { b: VatBreakdown; compact?: boolean; hint?: boolean; className?: string }) {
   if (b.kind === "none") return <span className="text-neutral-400">—</span>;
   const total = b.rows.reduce((s, r) => s.add(r.incl), b.share20.incl.mul(0));
   return (
@@ -29,7 +29,7 @@ export function TzVatBadge({ b, compact = false, className = "" }: { b: VatBreak
           доля 20%: <Money incl={b.share20.incl} excl={b.share20.excl} />
         </span>
       )}
-      <InfoHint label="Ставки НДС в списаниях ТЗ">
+      {hint && <InfoHint label="Ставки НДС в списаниях ТЗ">
         <b>Ставки НДС в списаниях этого ТЗ</b>
         <p className="mt-1">
           Ставка НДС — у лота: закупки 2025 г. — 20%, 2026 г. и далее — 22% (по УПД). В одном ТЗ могут быть лоты разных закупок и лет, поэтому и ставки разные.
@@ -68,7 +68,7 @@ export function TzVatBadge({ b, compact = false, className = "" }: { b: VatBreak
         <p className="mt-1">
           Σ с НДС = Σ (количество × цена лота с его ставкой), Σ без НДС = Σ (количество × цена лота без НДС): каждая строка по ставке своего лота, а не итог × одна ставка. Сырьё и подкладка (расходы и работа в таблице не участвуют).
         </p>
-      </InfoHint>
+      </InfoHint>}
     </span>
   );
 }

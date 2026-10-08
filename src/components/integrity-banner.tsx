@@ -14,8 +14,9 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
   // Сводка: общая плашка со счётчиком.
   if (!kind || !id) {
     const s = summarize(report, 3);
-    if (!s.failing) return null;
-    const red = s.failingErrors > 0;
+    // На Сводке — только красное (ошибки); жёлтые предупреждения видны в колокольчике и в «Контроле → Самопроверка».
+    if (!s.failingErrors) return null;
+    const red = true;
     return (
       <div role="status" className={cn("mb-3 rounded-lg border px-3 py-2 text-sm", red ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900")}>
         <span className="font-medium">Данные не сходятся: {s.failing}.</span>{" "}

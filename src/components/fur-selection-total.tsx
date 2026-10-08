@@ -166,7 +166,7 @@ export function FurSelectionTotal({
             g.key === "used" ? (
               <Num first={!showQty} strong={o.strong} small={o.small} title={`${c4 === "on" ? "без 4%" : "с 4%"}: ${formatMoney(f.usedValueOther)}`}>
                 <div>{R(f.usedValue)}</div>
-                {o.altUsed && <div className="text-[11px] font-normal text-neutral-400">{c4 === "on" ? "без 4%" : "с 4%"}: {formatMoney(f.usedValueOther)}</div>}
+                
               </Num>
             ) : (
               <Num first={!showQty} strong={o.strong} small={o.small}>{R(g.val(f))}</Num>
@@ -336,23 +336,27 @@ export function FurSelectionTotal({
         onReset={() => { setFilters(emptyFilters()); setQ(""); }}
         footer={
           <>
-            <p className="mt-2 text-[11px] leading-4 text-neutral-500">
-              {options.year.length > 1 || filters.year.length > 0
-                ? `«Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: ${globalYear === "all" ? "все годы" : `${globalYear} год`}); число у пункта — лотов.`
-                : "Число у пункта — лотов. Фильтры, у которых в данных одно значение, не показываются."}
+            <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
+              Число у пункта — лотов
+              <InfoHint label="О фильтрах" align="left">
+                {options.year.length > 1 || filters.year.length > 0
+                  ? `«Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: ${globalYear === "all" ? "все годы" : `${globalYear} год`}). Число у пункта — лотов.`
+                  : "Число у пункта — лотов. Фильтры, у которых в данных одно значение, не показываются."}
+              </InfoHint>
             </p>
           </>
         }
       />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
-        <span>
-          Выбрано: <b className="text-neutral-900">{selectedHere}</b> из {allVisible.length} {kind === "lining" ? "тканей" : "видов"}
-          {selectedHere > 0 && (
+        {selectedHere > 0 && (
+          <span>
+            Выбрано: <b className="text-neutral-900">{selectedHere}</b> из {allVisible.length}
             <button type="button" onClick={() => { setSelected([]); setOnlySelected(false); }} className="ml-2 underline">снять выбор</button>
-          )}
-        </span>
-        {usdNote && <span title="Только лоты с ценой в USD: в долларах в расчёте, евро × курс из расчёта, молоток ₽ ÷ курс USD/RUB из расчёта">Ср. цена закупки в валюте: <b className="text-neutral-900">{usdNote}</b>/{unit} (по {t.usdQty.toLocaleString("ru-RU")} из {t.recvQty.toLocaleString("ru-RU")} шт.)</span>}
+          </span>
+        )}
+        {usdNote && <span className="inline-flex items-center gap-1">Цена в $: <b className="text-neutral-900">{usdNote}</b>/{unit}
+          <InfoHint label="Как считается цена в $" align="left">Средняя по {t.usdQty.toLocaleString("ru-RU")} из {t.recvQty.toLocaleString("ru-RU")} шт. — только лоты с ценой в USD: в долларах в расчёте, евро × курс из расчёта, молоток ₽ ÷ курс USD/RUB из расчёта.</InfoHint></span>}
         <span className="ml-auto flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
             {([["all", "Все"], ["sel", "Только выбранные"]] as const).map(([key, label]) => {
@@ -433,9 +437,12 @@ export function FurSelectionTotal({
           </tbody>
         </table>
       </div>
-      <p className="px-1 text-[11px] leading-4 text-neutral-500">
-        {unitWord === "шкуру" ? "Цены — за шкуру, " : "Цены — за метр, "}
-        ₽ показаны {vatWord}; «использовано» — {c4Word} (4% — только строки списания в ТЗ, где оно разрешено); остаток = куплено − использовано (шт. и ₽ без 4%).
+      <p className="flex items-center gap-1 px-1 text-[11px] leading-4 text-neutral-500">
+        Как читать таблицу
+        <InfoHint label="Как читать таблицу" wide>
+          {unitWord === "шкуру" ? "Цены — за шкуру, " : "Цены — за метр, "}
+          ₽ показаны {vatWord}; «использовано» — {c4Word} (4% — только строки списания в ТЗ, где оно разрешено; в другой базе: переключатель «4% к сырью» в шапке); остаток = куплено − использовано (шт. и ₽ без 4%).
+        </InfoHint>
       </p>
     </div>
   );

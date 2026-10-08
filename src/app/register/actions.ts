@@ -29,13 +29,25 @@ function slugify(input: string) {
   return transliterated || "org";
 }
 
-export type RegisterState = { error?: string };
+export type RegisterField = "companyName" | "name" | "email" | "password";
+
+/** values — введённое (кроме пароля): после ошибки поля остаются заполненными; field — поле, которое нужно исправить. */
+export type RegisterState = {
+  error?: string;
+  field?: RegisterField;
+  values?: { companyName: string; name: string; email: string };
+};
 
 export async function registerOrganization(
   _prev: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
-  if (process.env.ALLOW_REGISTRATION === "false") return { error: "Регистрация закрыта. Попросите администратора создать вам доступ." };
+  const values = {
+    companyName: String(formData.get("companyName") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+  };
+  if (process.env.ALLOW_REGISTRATION === "false") return { error: "Регистрация закрыта. Попросите администратора создать вам доступ.", values };
   const parsed = registerSchema.safeParse({
     companyName: formData.get("companyName"),
     name: formData.get("name"),
@@ -44,14 +56,20 @@ export async function registerOrganization(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0];
+    return {
+      error: issue?.message ?? "Проверьте поля формы",
+      field: typeof field === "string" ? (field as RegisterField) : undefined,
+      values,
+    };
   }
 
   const { companyName, name, email, password } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return { error: "Пользователь с таким email уже зарегистрирован" };
+    return { error: "Пользователь с таким email уже зарегистрирован", field: "email", values };
   }
 
   const baseSlug = slugify(companyName);

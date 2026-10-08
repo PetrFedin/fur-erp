@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -67,6 +68,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
 
   useEffect(() => {
     if (!hasTarget || (side === "supplier" && targetMode === "advance")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuote(null);
       return;
     }
@@ -230,7 +232,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </Select>
-                  <p className="mt-1 text-xs text-neutral-500">Аванс без разнесения допустим: он получит пометку «разнести позже» и появится в задачах.</p>
+                  <p className="mt-1 text-xs text-neutral-500">Аванс без привязки<InfoHint label="Про аванс без разнесения"><p>Аванс без разнесения допустим: он получит пометку «разнести позже» и появится в задачах.</p></InfoHint></p>
                 </div>
               )}
             </>
@@ -290,7 +292,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
               </button>
             ))}
           </fieldset>
-          <p className="text-xs text-neutral-500">{PAY_KINDS.find((k) => k.v === kind)?.hint}</p>
+          <p className="text-xs text-neutral-500">Что это значит<InfoHint label="Пояснение к виду оплаты"><p>{PAY_KINDS.find((k) => k.v === kind)?.hint}</p></InfoHint></p>
           {quote && !quote.error && quote.total != null && quote.total > 0 && (
             <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
               {PRESET_PERCENTS.map((p) => (
@@ -365,7 +367,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
             </ul>
           )}
           {files.some((f) => f.role === "APPROVAL_EMAIL") && <p role="note" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">{LETTER_HINT}</p>}
-          <p className="text-xs text-neutral-500">Тип определяется по названию файла — проверьте и поправьте. Платёжку можно приложить и позже: оплата останется «не подтверждена».</p>
+          <p className="text-xs text-neutral-500">Тип по названию файла — проверьте<InfoHint label="Про документы"><p>Тип определяется по названию файла — проверьте и поправьте. Платёжку можно приложить и позже: оплата останется «не подтверждена».</p></InfoHint></p>
         </section>
       )}
 
@@ -378,7 +380,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
           </div>
           <label className="flex items-start gap-2">
             <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1" />
-            <span>Отметить «подтверждено»{!confirmOk && <span className="block text-xs text-neutral-500">доступно, если приложена платёжка или указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</span>}</span>
+            <span>Отметить «подтверждено»{!confirmOk && <InfoHint label="Когда можно отметить"><p>Доступно, если приложена платёжка или указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</p></InfoHint>}</span>
           </label>
         </section>
       )}

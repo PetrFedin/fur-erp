@@ -1,3 +1,4 @@
+import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
@@ -70,7 +71,10 @@ export default async function CommentsPage({ searchParams }: PageProps<"/comment
         <div>
           <h1 className="text-xl font-semibold">Комментарии</h1>
           <p className="text-sm text-neutral-500">
-            Замечания, ошибки, идеи и вопросы к частям проекта: кнопка «Комментарий» справа внизу на любой странице. Открытых: {openCount}. Найдено по фильтрам: {total}. Общий год из шапки здесь не применяется.
+            Открытых: {openCount} · найдено: {total}
+            <InfoHint wide label="О комментариях">
+              <p>Замечания, ошибки, идеи и вопросы к частям проекта: кнопка «Комментарий» справа внизу на любой странице. Общий год из шапки здесь не применяется.</p>
+            </InfoHint>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

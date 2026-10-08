@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -89,11 +90,10 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
-        <h1 className="text-xl font-semibold">Справочник категорий</h1>
-        <p className="mt-1 max-w-3xl text-sm text-neutral-600">
+        <h1 className="text-xl font-semibold">Справочник категорий<InfoHint label="О справочнике" wide>
           Одна категория изделия — одно название на русском («Пальто», «Полупальто», «Жакет»…). В моделях и артикулах категория выбирается отсюда;
           аналитика («Что произведено», цены) группирует по этому названию. В «Синонимах» — как категорию записывали раньше («Пальто женское из соболя»).
-        </p>
+        </InfoHint></h1>
       </div>
       {flashError && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>}
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
@@ -173,11 +173,9 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
       )}
 
       {canEdit && (
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Добавить категорию</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">+ Добавить категорию</summary>
+          <div className="mt-3">
             <form action={createCategory} className="flex flex-wrap items-end gap-2">
               <div className="min-w-48 flex-1">
                 <Label htmlFor="new-name">Название (по-русски)</Label>
@@ -189,8 +187,8 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
               </div>
               <Button type="submit">Добавить</Button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </details>
       )}
 
       <FilterBar
@@ -220,7 +218,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
               <Tr key={r.id}>
                 <Td className="align-top font-medium">
                   {r.name} {!r.confirmed && <Badge variant="warning">ждёт подтверждения</Badge>}
-                  {note && <div className="mt-0.5 max-w-md text-xs font-normal text-neutral-500">{note}</div>}
+                  {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
                 </Td>
                 <Td className="max-w-md align-top text-sm">{r.aliases.join("; ") || <span className="text-neutral-400">—</span>}</Td>
                 <Td className="text-right align-top">{s.models}</Td>

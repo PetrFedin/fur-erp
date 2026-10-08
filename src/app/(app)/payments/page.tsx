@@ -905,7 +905,12 @@ export default async function PaymentsPage({
             );
           })()}
 
-          <h2 className="mt-2 text-base font-semibold">Внести оплату · авансы и оплаты без партии закупки</h2>
+          <h2 className="mt-2 flex items-center gap-2 text-base font-semibold">
+            Авансы и оплаты без партии
+            <InfoHint wide label="Что здесь">
+              <p>Оплаты, не привязанные к партии закупки (авансы). Здесь же можно внести новую оплату — по аукциону, закупке, авансом или по работе.</p>
+            </InfoHint>
+          </h2>
           {canPay && (
           <details className="max-w-2xl rounded-lg border border-neutral-200 bg-white" open={!selected}>
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Внести оплату: аукцион, закупка, аванс или оплата по работе (мастер)</summary>
@@ -918,7 +923,7 @@ export default async function PaymentsPage({
           <div className="flex flex-col gap-2">
             {outside.map((p) => (
               <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-4">
                 <Cell label="Дата">{formatDate(p.paidAt)}</Cell>
                 <Cell label="Поставщик">{p.supplier.name}</Cell>
                 <Cell label="Закупка">
@@ -930,15 +935,19 @@ export default async function PaymentsPage({
                     <span className="text-neutral-400">Аванс</span>
                   )}
                 </Cell>
-                <Cell label="Способ">{METHOD_LABELS[p.method]}</Cell>
                 <Cell label="Сумма">
-                  {formatMoney(p.amount.toString())}
+                  <span className="font-semibold">{formatMoney(p.amount.toString())}</span>
                   {p.status === "PENDING" && <span className="block text-xs text-amber-600">запланирована</span>}
                 </Cell>
               </div>
-              <div className="mt-2 text-sm">{payFlags(p)}</div>
-              {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
-              {docBlock(p)}
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer list-none text-neutral-500 hover:text-neutral-800">
+                  {!p.confirmed ? <span className="text-amber-700">без платёжки</span> : "платёжка есть"} · {METHOD_LABELS[p.method]} · подробнее ›
+                </summary>
+                <div className="mt-2 text-sm">{payFlags(p)}</div>
+                {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
+                {docBlock(p)}
+              </details>
               {canPay && !p.purchaseId && !p.auctionSession && (
                 <div className="mt-2 flex flex-col gap-2 border-t border-neutral-100 pt-2">
                   {p.status !== "CANCELLED" && (

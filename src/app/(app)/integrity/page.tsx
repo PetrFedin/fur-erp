@@ -3,6 +3,7 @@ import { ControlTabs } from "@/components/control-tabs";
 import { requireSession } from "@/lib/session";
 import { getIntegrityReport } from "@/lib/integrity";
 import { fmtNum } from "@/lib/integrity/checks";
+import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import type { CheckResult } from "@/lib/integrity/types";
 import { RecheckButton } from "./recheck-button";
@@ -29,17 +30,24 @@ function magnitude(c: CheckResult) {
 export default async function IntegrityPage() {
   const session = await requireSession();
   const r = await getIntegrityReport(session.user.organizationId);
-  const groups = r ? [...new Set(r.results.map((c) => c.group))] : [];
+  // По умолчанию — только то, что не сходится; сошедшиеся проверки свёрнуты в одну строку.
+  const attention = r ? r.results.filter((c) => c.status !== "ok") : [];
+  const okChecks = r ? r.results.filter((c) => c.status === "ok") : [];
+  const groups = [...new Set(attention.map((c) => c.group))];
   return (
     <div className="space-y-4">
       <ControlTabs active="integrity" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-neutral-900">Самопроверка данных</h1>
-          <p className="mt-1 max-w-3xl text-sm text-neutral-600">
-            Всё, что сведено (остатки, стоимости, себестоимость, оплаты, долг, подтверждения), пересчитывается из нижних уровней и сравнивается с тем, что записано сверху. Только чтение: ничего не меняется.
-            Известные объяснимые расхождения показаны серым с причиной и не считаются ошибкой.
-          </p>
+          <h1 className="text-xl font-semibold text-neutral-900">
+            Самопроверка данных
+            <span className="ml-2 align-middle text-sm font-normal">
+              <InfoHint wide label="О самопроверке">
+                <p>Всё, что сведено (остатки, стоимости, себестоимость, оплаты, долг, подтверждения), пересчитывается из нижних уровней и сравнивается с тем, что записано сверху. Только чтение: ничего не меняется.</p>
+                <p className="mt-2">Известные объяснимые расхождения показаны серым с причиной и не считаются ошибкой.</p>
+              </InfoHint>
+            </span>
+          </h1>
         </div>
         <div className="flex items-center gap-3">
           {r && <span className="text-xs text-neutral-500">Проверено {new Date(r.checkedAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })} · {r.ms} мс</span>}
@@ -60,7 +68,7 @@ export default async function IntegrityPage() {
             <section key={g} className="space-y-1.5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{g}</h2>
               <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
-                {r.results.filter((c) => c.group === g).map((c) => {
+                {attention.filter((c) => c.group === g).map((c) => {
                   const t = tone(c);
                   const open = c.status === "fail";
                   return (
@@ -73,7 +81,14 @@ export default async function IntegrityPage() {
                         <span className="text-xs text-neutral-400">проверено записей: {c.checked}</span>
                       </summary>
                       <div className="mt-2 space-y-2 pl-5 text-sm text-neutral-700">
-                        <p className="text-xs text-neutral-500">{c.what} <b>Допуск:</b> {c.tolerance}. <b>Где исправлять:</b> {c.fix}</p>
+                        <p className="text-xs text-neutral-500">
+                          <InfoHint wide label="Что проверяется и где исправлять">
+                            <p>{c.what}</p>
+                            <p className="mt-1"><b>Допуск:</b> {c.tolerance}.</p>
+                            <p className="mt-1"><b>Где исправлять:</b> {c.fix}</p>
+                          </InfoHint>
+                          <span className="ml-1">что проверяется и где исправлять</span>
+                        </p>
                         {c.error && <p className="text-red-700">Проверка не выполнилась: {c.error}</p>}
                         {c.violations.length > 0 && (
                           <ul className="space-y-1">
@@ -105,6 +120,20 @@ export default async function IntegrityPage() {
               </div>
             </section>
           ))}
+          {okChecks.length > 0 && (
+            <details className="rounded-lg border border-neutral-200 bg-white">
+              <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-neutral-50">Сходится: {okChecks.length} проверок</summary>
+              <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+                {okChecks.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-x-3 px-3 py-1.5 text-sm">
+                    <span className="size-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                    <span className="min-w-0 flex-1 text-neutral-800">{c.title}</span>
+                    <span className="text-xs text-neutral-400">записей: {c.checked}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </>
       )}
     </div>

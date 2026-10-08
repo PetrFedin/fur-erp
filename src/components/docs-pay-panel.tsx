@@ -187,6 +187,42 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   const mark = it.ok ? "✓" : it.need === "required" ? "✗" : "○";
   const markCls = it.ok ? "text-emerald-600" : it.need === "required" ? "text-red-600" : "text-neutral-400";
   const shownDocs = it.docs.slice(0, 3);
+  if (it.ok && it.mentions.length === 0) {
+    // Документ есть — одна строка; файлы и «Заменить» — внутрь.
+    return (
+      <li className={cn("rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm", it.need === "na" && "opacity-60")}>
+        <details>
+          <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className={cn("text-base font-bold leading-none", markCls)} aria-hidden>{mark}</span>
+            <span className="font-medium">{it.label}</span>
+            {it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
+            {it.note && <InfoHint wide label={`Пояснение: ${it.label}`}><p>{it.note}</p></InfoHint>}
+            <span className="ml-auto text-xs text-neutral-400">файлы ›</span>
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {it.docs.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="min-w-0 break-words font-medium text-neutral-800">{d.title}</span>
+                <InfoHint label="Подробности файла"><p>{d.meta}</p></InfoHint>
+                {d.href && (
+                  <>
+                    <a href={d.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Открыть</a>
+                    <a href={`${d.href}${d.href.includes("?") ? "&" : "?"}download=1`} className="text-blue-600 hover:underline">Скачать</a>
+                  </>
+                )}
+                {canUpload && <ReplaceButton doc={d} />}
+              </li>
+            ))}
+          </ul>
+          {canUpload && it.uploads.length > 0 && it.need !== "na" && (
+            <div className="mt-2 flex flex-wrap items-start gap-2">
+              {it.uploads.slice(0, 2).map((u, i) => <UploadButton key={i} t={u} />)}
+            </div>
+          )}
+        </details>
+      </li>
+    );
+  }
   return (
     <li className={cn("flex flex-col gap-1.5 rounded-md border px-3 py-2 text-sm", bad ? "border-red-300 bg-red-50" : "border-neutral-200 bg-white", it.need === "na" && "opacity-60")}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -195,7 +231,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
         </span>
         <span className="font-medium">{it.label}</span>
         {it.need === "optional" && <span className="text-xs text-neutral-500">желательно</span>}
-        {it.note && <span className="text-xs text-neutral-500">· {it.note}</span>}
+        {it.note && <InfoHint wide label={`Пояснение: ${it.label}`}><p>{it.note}</p></InfoHint>}
         {it.ok && it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
       </div>
       {bad && it.missing && <p className="text-sm font-semibold text-red-700">{it.missing}</p>}
@@ -311,7 +347,14 @@ function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment;
         )}
         <Msg msg={msg} pending={pending} />
       </div>
-      {v && !p.planned && <VerifyControl v={v} canEdit={!!canVerify} compact />}
+      {v && !p.planned && (
+        <details className="text-xs">
+          <summary className="cursor-pointer list-none text-neutral-500 hover:text-neutral-800">
+            {v.verified ? "✓ подтверждена" : "ждёт проверки"} · подробнее ›
+          </summary>
+          <div className="mt-1.5"><VerifyControl v={v} canEdit={!!canVerify} compact /></div>
+        </details>
+      )}
     </li>
   );
 }
@@ -349,8 +392,11 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
             ))}
           </ul>
         </InfoHint>
-        <span className="ml-auto text-xs text-neutral-500">
-          обязательных документов: {have} из {required.length}
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          <span className="text-xs text-neutral-500">документов: {have} из {required.length}</span>
+          {panel.canMark && panel.mark && canRemain && (
+            <PaymentFormButton label="Отметить оплату" variant="default" size="default" preset={presetOf(panel.mark)} />
+          )}
         </span>
       </div>
 
@@ -362,7 +408,10 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
 
       <div className={cn("flex flex-col gap-2 rounded-md border px-3 py-2", TONE_BOX[p.tone])}>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-sm font-bold">{p.label}</span>
+          <span className="text-sm font-bold">
+            {p.label}
+            {p.note && <span className="ml-1.5 align-middle font-normal"><InfoHint wide label="Пояснение к оплате"><p>{p.note}</p></InfoHint></span>}
+          </span>
           {p.state !== "NOBASE" && (
             <span className="text-xs">
               к оплате {p.totalText} · оплачено {p.paidText} · остаток {p.remainingText}
@@ -374,7 +423,6 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
             <div className={cn("h-full", TONE_BAR[p.tone])} style={{ width: `${bar}%` }} />
           </div>
         )}
-        {p.note && <p className="text-xs font-medium">{p.note}</p>}
       </div>
 
       <ul className="flex flex-col gap-2">
@@ -409,13 +457,6 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
         )}
       </div>
 
-      {panel.canMark && panel.mark && canRemain && (
-        <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
-          <div>
-            <PaymentFormButton label="Отметить оплату" variant="default" size="default" preset={presetOf(panel.mark)} />
-          </div>
-        </div>
-      )}
       {panel.markBlocked && <p className="text-xs text-neutral-500">Отметить оплату здесь нельзя: {panel.markBlocked}.</p>}
       {!panel.canMark && !panel.canUpload && <p className="text-xs text-neutral-400">Загрузка документов и отметка оплаты доступны ролям, которые ведут закупки и производство.</p>}
     </section>

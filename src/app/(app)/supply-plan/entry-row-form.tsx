@@ -22,6 +22,8 @@ export function EntryRowForm({
   const boundRemove = removeSupplyPlanEntry.bind(null, entryId);
 
   return (
+    <details className="text-xs">
+      <summary className="cursor-pointer list-none text-neutral-500 underline-offset-2 hover:underline">{notes ? `${notes} · изменить` : "изменить"}</summary>
     <form
       action={async (formData) => {
         const res = await bound(formData);
@@ -52,5 +54,6 @@ export function EntryRowForm({
         ×
       </button>
     </form>
+    </details>
   );
 }

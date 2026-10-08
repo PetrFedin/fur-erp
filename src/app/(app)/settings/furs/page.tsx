@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -34,14 +35,13 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Справочник меха (рус ↔ англ)</h1>
-        <Link href="/settings" className="text-sm text-neutral-500 hover:underline">← Настройки</Link>
-      </div>
-      <p className="max-w-3xl text-sm text-neutral-600">
+        <h1 className="text-xl font-semibold">Справочник меха <InfoHint label="О справочнике" wide>
         Один вид меха — одна запись: русское название (его видно в аналитике и лотах), английское (из инвойсов и спецификаций — показывается в подсказке) и синонимы.
         В инвойсах мех написан латиницей («sable», «mink», «swakara»), в ТЗ — по-русски («шкура норки», «соболя»): любое из этих написаний приводится к русскому названию.
         Сопоставлено: лотов <b>{T.lotsMatched}</b> из <b>{T.lots}</b>, позиций закупок <b>{T.itemsMatched}</b> из <b>{T.items}</b>, ТЗ <b>{T.ordersMatched}</b> из <b>{T.orders}</b>.
-      </p>
+      </InfoHint></h1>
+        <Link href="/settings" className="text-sm text-neutral-500 hover:underline">← Настройки</Link>
+      </div>
       <FilterBar
         title="Фильтры меха"
         controls={[

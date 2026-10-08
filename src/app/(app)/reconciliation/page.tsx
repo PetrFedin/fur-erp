@@ -200,7 +200,11 @@ export default async function ReconciliationPage() {
           <HowToRead />
         </div>
         <p className="mt-1 text-sm text-neutral-600">
-          Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. Сверено {data.checkedAt}; база читается при каждом заходе ({yearLabel(year)}).
+          Счета Веллмех и оплата по документам · сверено {data.checkedAt}
+          <InfoHint wide label="О сверке">
+            <p>Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. База читается при каждом заходе ({yearLabel(year)}).</p>
+            <p className="mt-2 text-neutral-500">Строки документов собраны скриптом <code>npx tsx scripts/build-reconciliation.ts</code> (src/data/reconciliation.json + docs-inventory/reconciliation-extra.json). Счетов в реестре: {ALL_INVOICES.length}.</p>
+          </InfoHint>
         </p>
       </div>
 
@@ -210,18 +214,18 @@ export default async function ReconciliationPage() {
             <div>
               <div className="text-sm font-semibold text-blue-950">Перепроверка по актуальной структуре Google Drive · {RECHECK.date}</div>
               <div className="mt-1 text-xs text-blue-900/80">
-                Подтверждено: {RECHECK.found.length} · не найдено / не подтверждено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
+                Подтверждено: {RECHECK.found.length} · не найдено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
+                {RECHECK.notFound.length > 0 && (
+                  <InfoHint wide label="Что не найдено">
+                    <ul className="space-y-1">{RECHECK.notFound.map((x, i) => <li key={i}>• {x}</li>)}</ul>
+                  </InfoHint>
+                )}
               </div>
             </div>
             <Link href="/documents?gaps=1" className="rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-900 hover:bg-blue-100">
               Показать пробелы документов →
             </Link>
           </div>
-          {RECHECK.notFound.length > 0 ? (
-            <ul className="mt-2 grid gap-1 text-xs text-blue-950 md:grid-cols-2">
-              {RECHECK.notFound.slice(0, 4).map((x, i) => <li key={i}>• {x}</li>)}
-            </ul>
-          ) : null}
         </Card>
       ) : null}
 
@@ -288,7 +292,6 @@ export default async function ReconciliationPage() {
           return tone === "unpaid" ? 0 : tone === "approved" ? 1 : tone === "partial" ? 2 : tone === "closed" ? 3 : 4;
         };
         const sorted = [...list].sort((a, b) => order(a) - order(b));
-        const t = totalsOf(calcAll.filter((c) => c.inv.section === sec.key));
         return (
           <section key={sec.key} className="space-y-2">
             <h2 className="flex items-center gap-1.5 text-base font-semibold">
@@ -300,10 +303,6 @@ export default async function ReconciliationPage() {
                   : "Партии пошива и авансы подрядчику Веллмех: счета на аванс (70 %) и на доплату за каждую партию. Аванс засчитывается в расчёте партии; сумма счёта на доплату — отдельная строка. Партии без счёта (8, 15, 16) — доплата включена в другой счёт или данных нет."}
               </InfoHint>
             </h2>
-            <Card className="space-y-1 p-3">
-              <Progress t={t} />
-              <CountsLine t={t} />
-            </Card>
             <div className="space-y-2">
               {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} />)}
             </div>
@@ -311,10 +310,6 @@ export default async function ReconciliationPage() {
         );
       })}
 
-      <p className="text-xs text-neutral-500">
-        Строки документов собраны скриптом <code>npx tsx scripts/build-reconciliation.ts</code> (файл src/data/reconciliation.json + docs-inventory/reconciliation-extra.json). Недостающие документы — на странице{" "}
-        <Link href="/documents" className="underline">Документы</Link>, список дел — «Задачи». Счетов в реестре: {ALL_INVOICES.length}.
-      </p>
     </div>
   );
 }

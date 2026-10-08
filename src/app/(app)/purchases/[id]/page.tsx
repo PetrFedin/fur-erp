@@ -615,6 +615,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         )}
       </div>
 
+      <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
+
+      <VerifyBlock kind="purchase" id={id} title="Подтверждение закупки" collapsed />
+
       <Card>
         <CardHeader>
           <CardTitle>Позиции ({purchase.items.length})</CardTitle>
@@ -711,7 +715,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="flex items-center gap-1 text-xs text-neutral-600">
+              {statusEditable ? "Править: «Править расчёт» в строке позиции" : "Расчёт закрыт для правок"}
+              <InfoHint wide label="Кто и как правит расчёт">
+                <p>
               {statusEditable ? (
                 canEditRole ? (
                   <>Цена, количество и расходы лота правятся кнопкой «Править расчёт» в строке позиции.</>
@@ -734,7 +741,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   )}
                 </>
               )}
-            </p>
+                </p>
+              </InfoHint>
+            </div>
             {canEditPlan && (
               <CostPlanRateForm
                 key={purchase.exchangeRate.toString()}
@@ -748,14 +757,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <VerifyBlock kind="purchase" id={id} title="Подтверждение закупки" />
-
-      <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
 
       <Card>
-        <CardHeader>
-          <CardTitle>Документы ({countLabel(docGroupCount, docRecords)})</CardTitle>
-        </CardHeader>
+       <details>
+        <summary className="cursor-pointer list-none p-4 text-base font-semibold hover:bg-neutral-50">
+          Все файлы закупки ({countLabel(docGroupCount, docRecords)})
+          <span className="ml-2 text-xs font-normal text-blue-700">показать ›</span>
+        </summary>
         <CardContent className="flex flex-col gap-3">
           <PurchaseDocumentsList
             purchaseId={id}
@@ -778,6 +786,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </div>
           )}
         </CardContent>
+       </details>
       </Card>
 
       <Card>

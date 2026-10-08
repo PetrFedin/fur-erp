@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -121,7 +123,7 @@ export function TzImportWizard() {
               Файлы приложения / расчёта ТЗ — один или несколько
             </label>
             <input id="tz-files" data-testid="tz-files" type="file" multiple accept=".xlsx,.csv,.txt,.docx,.pdf" className="w-full text-sm" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
-            <p className="mt-1 text-xs text-neutral-500">xlsx / csv — таблица с заголовками («№ ТЗ», «Артикул», «Цвет», «Размеры», «Кол-во», «Партия», «Заказчик», «Цена работы», «Лот», «Расход»; одна строка — один лот, № ТЗ можно не повторять); docx и pdf с текстом — строки «ТЗ № …», «Артикул: …», «Цвет: …», «Лот … количество». PDF-скан без текста не читается — вставьте таблицу.</p>
+            <p className="mt-1 text-xs text-neutral-500">Форматы: xlsx, csv, docx, pdf с текстом.<InfoHint label="Какие столбцы нужны" wide>xlsx / csv — таблица с заголовками («№ ТЗ», «Артикул», «Цвет», «Размеры», «Кол-во», «Партия», «Заказчик», «Цена работы», «Лот», «Расход»; одна строка — один лот, № ТЗ можно не повторять); docx и pdf с текстом — строки «ТЗ № …», «Артикул: …», «Цвет: …», «Лот … количество». PDF-скан без текста не читается — вставьте таблицу.</InfoHint></p>
           </div>
           <div>
             <label htmlFor="tz-text" className="mb-1 block text-sm font-medium">

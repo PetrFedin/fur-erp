@@ -94,10 +94,8 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">Справочник аукционов</h1>
         <Hint />
+        <span className="text-xs text-neutral-500">Имя правится прямо в строке (Enter)</span>
       </div>
-      <p className="max-w-3xl text-sm text-neutral-600">
-        Короткое имя аукциона так и будет фигурировать на платформе. Правьте имя прямо в строке (Enter или щелчок мимо поля) — оно обновится везде.
-      </p>
       {flash?.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flash.error}</p>}
       {flash?.ok && <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flash.ok}</p>}
 

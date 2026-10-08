@@ -1,3 +1,4 @@
+import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { ArticleName } from "@/components/article-name";
@@ -125,14 +126,14 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <div>
         <p className="flex items-center gap-3 text-sm">
           <Link href="/production/batches" className="text-neutral-500 hover:underline">
-            ← Все партии
+            ← Партии пошива
           </Link>
           <Link href={`/production/batches/${batch.number}/print`} className="ml-auto rounded border border-neutral-300 px-2 py-1 text-neutral-700 hover:bg-neutral-50">
             Печать сводки партии
           </Link>
         </p>
         <h1 className="text-xl font-semibold">
-          Партия {batch.number}
+          Партия пошива {batch.number}
           {batchExtraName(batch.name) ? <span className="ml-2 text-base font-normal text-neutral-500">{batchExtraName(batch.name)}</span> : null}
         </h1>
         <p className="text-sm text-neutral-500">
@@ -165,22 +166,23 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           warn={t.remaining.greaterThan(0.005)}
         />
       </dl>
-      {batchVat.kind !== "none" && (
+      {(batchVat.kind !== "none" || t.unallocated.greaterThan(0.005) || overpaid) && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-neutral-600">
-          Ставка НДС в списаниях сырья и подкладки: <TzVatBadge b={batchVat} />
-        </p>
-      )}
-      {t.unallocated.greaterThan(0.005) && (
-        <p className="text-sm text-neutral-600">
-          Не отнесено ни к одному ТЗ: <span className="font-medium">{formatMoney(t.unallocated.toString())}</span>
-          {hidesInPay ? ` (в оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())})` : " — платёж больше остатка работы ТЗ партии"}. В остаток по ТЗ это не входит; список —{" "}
-          <Link href="/attention" className="text-blue-600 hover:underline">Контроль → Задачи → Неразнесённые авансы</Link>.
-        </p>
-      )}
-      {overpaid && (
-        <p className="text-sm text-neutral-600">
-          Переплата {formatMoney(t.remaining.abs().toString())}
-          {hidesInPay ? ` (в оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())})` : " — оплаты больше работы партии"}.
+          {batchVat.kind !== "none" && <TzVatBadge b={batchVat} />}
+          {t.unallocated.greaterThan(0.005) && (
+            <span>
+              Не отнесено к ТЗ: <span className="font-medium">{formatMoney(t.unallocated.toString())}</span>
+              <InfoHint label="Про неотнесённую сумму" wide>
+                {hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Платёж больше остатка работы ТЗ партии."} В остаток по ТЗ это не входит; список — <Link href="/attention" className="underline">Контроль → Задачи → Неразнесённые авансы</Link>.
+              </InfoHint>
+            </span>
+          )}
+          {overpaid && (
+            <span>
+              Переплата {formatMoney(t.remaining.abs().toString())}
+              <InfoHint label="Про переплату">{hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Оплаты больше работы партии."}</InfoHint>
+            </span>
+          )}
         </p>
       )}
 
@@ -199,13 +201,14 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Изделие</Th>
                 <Th>Шт.</Th>
                 <Th>Статус</Th>
-                <Th className="hidden sm:table-cell" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
+                <Th className="hidden sm:table-cell">
                   Себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""}
+                  <InfoHint label="Что значит 4%" wide>4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
                 </Th>
                 <Th className="hidden md:table-cell">Работа</Th>
-                <Th className="hidden md:table-cell" title="Разнесено на это ТЗ из оплат заказчика">Оплачено</Th>
-                <Th className="hidden md:table-cell" title="Работа минус оплачено по ТЗ">Остаток</Th>
-                <Th className="hidden md:table-cell" title="Ставки НДС лотов в списаниях ТЗ">НДС</Th>
+                <Th className="hidden md:table-cell">Оплачено</Th>
+                <Th className="hidden md:table-cell">Остаток</Th>
+                <Th className="hidden md:table-cell">НДС</Th>
               </Tr>
             </Thead>
             <Tbody>

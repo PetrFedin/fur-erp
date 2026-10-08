@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const TABS = [
   { key: "orders", href: "/production", label: "ТЗ" },
-  { key: "batches", href: "/production/batches", label: "Партии" },
+  { key: "batches", href: "/production/batches", label: "Партии пошива" },
   { key: "shipments", href: "/shipments", label: "Отгрузки" },
   { key: "fittings", href: "/fittings", label: "Примерки" },
   { key: "plan", href: "/plan", label: "План заказа" },

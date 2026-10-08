@@ -15,10 +15,29 @@ const HINT: Record<VerifyKind, string> = {
 };
 
 /** Блок «Подтверждено ✓ / Ждёт ручной проверки» для карточки (закупка, ТЗ, партия). */
-export async function VerifyBlock({ kind, id, title = "Подтверждение" }: { kind: VerifyKind; id: string; title?: string }) {
+export async function VerifyBlock({ kind, id, title = "Подтверждение", collapsed = false }: { kind: VerifyKind; id: string; title?: string; collapsed?: boolean }) {
   const session = await requireSession();
   const row = await loadVerifyRow(prisma, session.user.organizationId, kind, id, { userId: session.user.id as string, canUpload: true, canMark: true });
   if (!row) return null;
+  if (collapsed) {
+    // Один главный статус наверху карточки; детали «что не сходится» и кнопки — внутри «Подробнее».
+    return (
+      <details className="group rounded-lg border border-neutral-200 bg-white" data-verify-block={`${kind}:${id}`} open={false}>
+        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 text-sm hover:bg-neutral-50 sm:px-4">
+          <span className="font-semibold">{title}</span>
+          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? "✓ подтверждена" : `ждёт проверки${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
+          <InfoHint wide label="Что значит «подтверждено»">
+            <p>{HINT[kind]}</p>
+            <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова.</p>
+          </InfoHint>
+          <span className="ml-auto text-xs text-blue-700 group-open:hidden">Подробнее ›</span>
+        </summary>
+        <div className="border-t border-neutral-100 p-3 sm:p-4">
+          <VerifyControl v={row} canEdit={canVerify(session.user.role, kind)} />
+        </div>
+      </details>
+    );
+  }
   return (
     <section className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" data-verify-block={`${kind}:${id}`}>
       <h3 className="flex items-center gap-2 text-base font-semibold">

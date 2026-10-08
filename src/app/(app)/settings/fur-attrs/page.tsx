@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { loadFurAttrRows } from "@/lib/fur-attr-server";
 import { formatQty } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,22 +41,19 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
-        <h1 className="text-xl font-semibold">Признаки меха</h1>
-        <p className="mt-1 max-w-3xl text-sm text-neutral-600">
+        <h1 className="text-xl font-semibold">Признаки меха<InfoHint label="О справочнике" wide>
           Признак, подвид или обработка шкуры, которые пишут в описаниях лотов и ТЗ помимо вида и цвета: седина соболя (SIL.1…SIL.6, «серебристый», «без седины»),
           дикий / клеточный / баргузинский, тонированный, крашеный. Признаки ставятся лотам и ТЗ по тексту описаний (<code>scripts/apply-fur-attrs.ts</code>) по названию и синонимам;
           по ним работает фильтр «Признак меха» на «Сырье», Сводке, в «ТЗ» и аналитике. «Предложено» — признак заведён по найденным в данных написаниям и ждёт вашего подтверждения.
-        </p>
+        </InfoHint></h1>
       </div>
       {flashError && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>}
       {flashOk && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flashOk}</p>}
 
       {canEdit && (
-        <Card className="max-w-3xl">
-          <CardHeader>
-            <CardTitle>Добавить признак</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <details className="max-w-3xl rounded-xl border border-neutral-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">+ Добавить признак</summary>
+          <div className="mt-3">
             <form action={createFurAttr} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
                 <Label htmlFor="new-name">Название</Label>
@@ -86,8 +83,8 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
               </div>
             </form>
             <datalist id="attr-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
-          </CardContent>
-        </Card>
+          </div>
+        </details>
       )}
 
       <FilterBar
@@ -123,7 +120,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
                     {!r.confirmed && <Badge variant="warning">ждёт подтверждения</Badge>}
                     {!r.autoDetect && <Badge>только предложение</Badge>}
                     <div className="mt-0.5 text-xs font-normal text-neutral-500">{r.group ?? "Без группы"}</div>
-                    {r.description && <div className="mt-0.5 max-w-md text-xs font-normal text-neutral-500">{r.description}</div>}
+                    {r.description && <InfoHint label="Что означает признак" wide>{r.description}</InfoHint>}
                   </Td>
                   <Td className="align-top text-sm">{r.furKind ?? <span className="text-neutral-400">любой</span>}</Td>
                   <Td className="align-top text-sm">{r.aliases.join(", ") || <span className="text-neutral-400">—</span>}</Td>

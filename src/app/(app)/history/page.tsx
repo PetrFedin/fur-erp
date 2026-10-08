@@ -1,3 +1,4 @@
+import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
@@ -72,7 +73,10 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
         <div>
           <h1 className="text-xl font-semibold">История</h1>
           <p className="text-sm text-neutral-500">
-            Журнал всегда полный: общий год из шапки здесь не применяется. Записей по фильтру: {total}.
+            Записей: {total}
+            <InfoHint label="О журнале">
+              <p>Журнал всегда полный: общий год из шапки здесь не применяется.</p>
+            </InfoHint>
           </p>
         </div>
         <a href={`/history/export${exportQs}`} className={buttonVariants({ variant: "outline" })}>

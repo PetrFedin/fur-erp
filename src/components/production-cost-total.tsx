@@ -50,6 +50,7 @@ export function ProductionCostTotal({
       return part;
     });
     return `conic-gradient(${parts.join(",")})`;
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [positive, total]);
 
   return (

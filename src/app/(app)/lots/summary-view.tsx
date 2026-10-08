@@ -18,7 +18,7 @@ import { InfoHint } from "@/components/info-hint";
 import { loadSummaryAuction } from "./summary-node-action";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
-const COLS = "md:min-w-[980px] md:grid-cols-[minmax(200px,2.2fr)_repeat(7,minmax(100px,1fr))]";
+const COLS = "md:min-w-[940px] md:text-[13px] md:grid-cols-[minmax(160px,1.4fr)_repeat(7,minmax(100px,1fr))]";
 
 type Mode = "incl" | "excl";
 
@@ -328,7 +328,7 @@ export async function PurchaseSummary({
       />
 
       {!vatOverride && <VatSync serverMode={cookieMode} />}
-      <p className="text-xs text-neutral-500" data-vat-mode={mode}>
+      <p className={vatOverride ? "text-xs text-neutral-500" : "sr-only"} data-vat-mode={mode}>
         Суммы: <b>{mode === "excl" ? "без НДС" : "с НДС"}</b>
         {vatOverride ? (
           <>
@@ -336,7 +336,7 @@ export async function PurchaseSummary({
             (задано ссылкой ?vatmode={vatOverride}; <Link href={qs({ vatmode: "" })} className="underline">использовать переключатель в шапке</Link>)
           </>
         ) : (
-          " — переключатель «С НДС / Без НДС» в шапке страницы."
+          " (переключатель «С НДС / Без НДС» в шапке)."
         )}
       </p>
 
@@ -419,25 +419,18 @@ export async function PurchaseSummary({
       {leaves.length > 0 && (
         <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm" data-supplier-debt>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">Долг поставщику (с НДС, {year === "all" ? "все годы" : `${year} год`})</span>
+            <span className="inline-flex items-center gap-1.5 font-medium">Долг поставщику
+            <InfoHint label="Как считается долг поставщику" wide>
+              <p>С НДС, {year === "all" ? "все годы" : `${year} год`}. Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
+                {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}.</p>
+              <p className="mt-1">Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».</p>
+              <p className="mt-1">Считается за общий год из шапки: закупки года и их оплаты; фильтры аукциона и материала и 4% на это число не влияют.</p>
+              {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) ? (
+                <p className="mt-1">В таблице «Оплачено» {money(grand.paidIncl)} — фактически внесено, включая переплату по отдельным закупкам ({money(grand.paidIncl.sub(debt.paid))}); в долге переплата одной закупки не гасит остаток другой.</p>
+              ) : null}
+            </InfoHint></span>
             <span className="font-semibold">{money(debt.debt)}</span>
           </div>
-          <div className="mt-0.5 flex items-center gap-1 text-xs text-neutral-500">
-            Откуда цифра
-            <InfoHint label="Как считается долг поставщику" wide>
-              <p>
-                Остаток по закупкам {money(debt.total.sub(debt.paid))} − авансы без привязки {money(debt.unlinkedAdvances)}
-                {debt.total.sub(debt.paid).sub(debt.unlinkedAdvances).lessThan(0) ? " (авансы больше остатка — долг не ниже нуля)" : ""}.
-              </p>
-              <p className="mt-1">Стоимость закупок {money(debt.total)}, оплачено {money(debt.paid)} — те же суммы, что на Сводке и в «Оплатах».</p>
-              <p className="mt-1">Считается за общий год из шапки ({year === "all" ? "все годы" : `${year} год`}): закупки года и их оплаты; фильтры аукциона и материала на это число не влияют; 4% на долг не влияет (4% — только наценка на сырьё и подкладку в ТЗ).</p>
-            </InfoHint>
-          </div>
-          {!filtered && mode === "incl" && grand.paidIncl.sub(debt.paid).abs().greaterThan(0.005) && (
-            <div className="mt-0.5 text-xs text-neutral-500">
-              В таблице «Оплачено» {money(grand.paidIncl)} — фактически внесено, включая переплату по отдельным закупкам ({money(grand.paidIncl.sub(debt.paid))}); в долге переплата одной закупки не гасит остаток другой.
-            </div>
-          )}
         </div>
       )}
 
@@ -445,12 +438,12 @@ export async function PurchaseSummary({
         <div className="flex flex-col gap-0.5 text-xs text-neutral-600" data-summary-notes>
           {draftCount > 0 && (
             <div>
-              Из них не принято на склад: {money(draftFull)} ({draftCount} поз.) — расчётная стоимость.
+              Не принято на склад: {money(draftFull)} ({draftCount} поз.)
             </div>
           )}
           {advances.length > 0 && (
             <div className="text-amber-700">
-              Авансы без аукциона: {money(advancesTotal)} ({advances.length} п/п) — в «Оплачено» не входят.{" "}
+              Авансы без аукциона: {money(advancesTotal)} ({advances.length} п/п){" "}
               <Link href="/payments" className="underline">
                 Распределить в «Оплатах»
               </Link>
@@ -462,25 +455,19 @@ export async function PurchaseSummary({
       {leaves.length > 0 && (
         <div data-convergence={converges && (byMaterial || independentOk) ? "ok" : "mismatch"}>
           {converges && (byMaterial || independentOk) ? (
-            <details className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              <summary className="cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
-                <span aria-hidden>✓ </span>Итоги по годам, аукционам и типам сырья сходятся{roundingOnly ? " (в пределах округления 1 ₽)" : ""}
-                <span className="ml-2 text-xs font-normal text-emerald-700 underline">как проверено</span>
-              </summary>
-              <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-                {views.map((v) => (
-                  <li key={v.name}>
-                    {v.name}: {money(pick(v.a).full)}
-                  </li>
-                ))}
-                <li>итого: {money(gf.full)}</li>
-              </ul>
-              <div className="mt-1 text-xs text-emerald-800">
-                {byMaterial
+            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-800">
+              <span aria-hidden>✓</span>Итоги сходятся{roundingOnly ? " (с точностью до 1 ₽)" : ""}
+              <InfoHint label="Как проверены итоги" wide>
+                <p>Итоги по годам, аукционам и типам сырья сходятся{roundingOnly ? " в пределах округления 1 ₽" : ""}:</p>
+                <ul className="mt-1 space-y-0.5">
+                  {views.map((v) => (<li key={v.name}>{v.name}: {money(pick(v.a).full)}</li>))}
+                  <li>итого: {money(gf.full)}</li>
+                </ul>
+                <p className="mt-1">{byMaterial
                   ? "Сверка с суммами закупок не делается при выборе сырья: в закупке учтена только часть позиций."
-                  : `Совпадает и с суммами закупок: ${money(independent)}.`}
-              </div>
-            </details>
+                  : `Совпадает и с суммами закупок: ${money(independent)}.`}</p>
+              </InfoHint>
+            </div>
           ) : (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               <div className="font-medium">Итоги не сходятся: расхождение {money(converges ? independentDiff : maxDiff)}</div>

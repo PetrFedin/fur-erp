@@ -33,7 +33,6 @@ function count(key: ControlTab, c: ControlCounts | null, comments: number, integ
 function Bar({ active, counts, comments = 0, integrity = null }: { active: ControlTab; counts: ControlCounts | null; comments?: number; integrity?: { n: number; red: boolean } | null }) {
   return (
     <nav aria-label="Контроль" className="flex items-center gap-1 overflow-x-auto border-b border-neutral-200 whitespace-nowrap">
-      <span className="mr-2 hidden text-xs font-semibold uppercase tracking-wide text-neutral-400 sm:inline">Контроль</span>
       {TABS.map((t) => {
         const c = count(t.key, counts, comments, integrity);
         const on = t.key === active;
@@ -44,7 +43,7 @@ function Bar({ active, counts, comments = 0, integrity = null }: { active: Contr
             title={t.hint}
             aria-current={on ? "page" : undefined}
             className={cn(
-              "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-sm",
+              "-mb-px flex items-center gap-1.5 border-b-2 px-2.5 py-1.5 text-sm",
               on ? "border-neutral-900 font-medium text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-900",
             )}
           >

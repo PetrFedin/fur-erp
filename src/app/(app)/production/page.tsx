@@ -13,6 +13,7 @@ import { Money } from "@/components/money";
 import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
+import { InfoHint } from "@/components/info-hint";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
@@ -313,7 +314,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="orders" />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">
           ТЗ
           {filterModel && (
@@ -337,7 +338,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         {(
           [
             [false, "Списком"],
-            [true, "По партиям"],
+            [true, "По партиям пошива"],
           ] as const
         ).map(([g, text]) => {
           // Вид переключается без потери фильтров.
@@ -363,21 +364,21 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, модель, заказчик" },
           { type: "multi", name: "status", label: "Статус", options: STATUS_KEYS.map((k) => ({ value: k, label: STATUS_LABELS[k].label })), allLabel: "Все статусы" },
-          { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона" },
-          { type: "multi", name: "batch", label: "Партия производства", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
+          { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
+          { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Модель", options: opts.model },
-          { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)" },
-          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
-          ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
-          { type: "multi", name: "color", label: "Цвет изделия", options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
-          ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
+          { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории", more: true },
+          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
+          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur, more: true },
+          ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true, hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
+          { type: "multi", name: "color", label: "Цвет изделия", more: true, options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
+          ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все" },
-          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка" },
-          { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая" },
-          { type: "date", name: "from", label: "Дата ТЗ с" },
-          { type: "date", name: "to", label: "Дата ТЗ по" },
-          { type: "multi", name: "sort", label: "Сортировка", single: true, options: Object.entries(SORTS).map(([value, label]) => ({ value, label })), allLabel: "Сначала новые" },
+          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка", more: true },
+          { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },
+          { type: "date", name: "from", label: "Дата ТЗ с", more: true },
+          { type: "date", name: "to", label: "Дата ТЗ по", more: true },
+          { type: "multi", name: "sort", label: "Сортировка", single: true, options: Object.entries(SORTS).map(([value, label]) => ({ value, label })), allLabel: "Сначала новые", more: true },
         ]}
       />
 
@@ -391,15 +392,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <Tr>
             <Th>№ ТЗ</Th>
             <Th>Модель</Th>
-            <Th className="hidden md:table-cell">Партия</Th>
+            <Th className="hidden md:table-cell">Партия пошива</Th>
             {showClient && <Th className="hidden lg:table-cell">Заказчик</Th>}
             <Th className="hidden sm:table-cell" title="Запланировано / сделано, шт.">
               План / факт, шт.
             </Th>
-            <Th>Статус</Th>
-            <Th className="hidden lg:table-cell" title="Какие документы не хватает и оплачена ли работа заказчиком">Документы и оплата</Th>
-            <Th className="hidden lg:table-cell" title="Подтверждено ли ТЗ (дата, приложение, количество, работа, материалы) или ждёт ручной проверки">Проверка</Th>
-            <Th className="hidden md:table-cell" title="Ставки НДС лотов в списаниях ТЗ">НДС</Th>
+            <Th>
+              Статус
+              <InfoHint label="Что значит проверка">Под статусом — проверка: подтверждено ли ТЗ (дата, приложение, количество, работа, материалы) или оно ждёт ручной проверки.</InfoHint>
+            </Th>
+            <Th className="hidden lg:table-cell">
+              Документы и оплата
+              <InfoHint label="Что значит документы и оплата" align="right">Каких документов не хватает и оплачена ли работа заказчиком.</InfoHint>
+            </Th>
             <Th>
               <VatLabel base={`Итого себестоимость${c4}`} />
             </Th>
@@ -427,10 +432,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   },
                 ]}
                 details={[
-                    { label: "Сезон", value: o.season?.code },
-                  { label: "Партия", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "без партии" },
-                  { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
-                  { label: "Партия", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "без партии" },
+                  { label: "Сезон", value: o.season?.code },
+                  { label: "Партия пошива", value: o.batch ? batchLabel(o.batch.number, o.batch.year, [o]) : "без партии" },
                   { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
                   { label: "Заказчик", value: o.client?.name },
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
@@ -483,32 +486,32 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </Link>
                 </Td>
                 <Td className={cell}>
-                  <Link href={href} className={link}>
+                  <Link href={href} className={`${link} pb-0`}>
                     <Badge variant={st.variant}>{st.label}</Badge>
                   </Link>
+                  <div className="px-3 pb-2">
+                    <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" />
+                  </div>
                 </Td>
                 <Td className={`${cell} hidden lg:table-cell`}>
                   <Link href={`${href}#docpay`} className={link}>
                     {ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : "—"}
                   </Link>
                 </Td>
-                <Td className="hidden whitespace-nowrap px-3 py-2 lg:table-cell">
-                  <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" />
-                </Td>
-                <Td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
-                  <TzVatBadge b={vatB} />
-                </Td>
                 <Td className={cell}>
-                  <Link href={href} className={link}>
+                  <Link href={href} className={`${link} pb-0`}>
                     {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
                   </Link>
+                  <div className="px-3 pb-2">
+                    <TzVatBadge b={vatB} compact hint={false} />
+                  </div>
                 </Td>
               </Tr>
             );
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={9} className="py-8 text-center text-neutral-400">
+              <Td colSpan={7} className="py-8 text-center text-neutral-400">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

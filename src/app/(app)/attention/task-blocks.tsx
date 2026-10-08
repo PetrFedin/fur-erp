@@ -17,8 +17,9 @@ const sortTasks = (a: DocTaskView, b: DocTaskView) =>
   rank[a.priority] - rank[b.priority] || (b.overdueDays ?? 0) - (a.overdueDays ?? 0) || (b.amount ?? 0) - (a.amount ?? 0);
 
 export function DecisionsBlock({ decisions, canDecide }: { decisions: DecisionView[]; canDecide: boolean }) {
-  const open = decisions.filter((d) => d.open);
+  const open = decisions.filter((d) => d.open).sort((a, b) => (b.decision.amount ?? -1) - (a.decision.amount ?? -1));
   const done = decisions.filter((d) => !d.open);
+  const TOP = 5;
   return (
     <section id="owner-decisions" aria-label="Решения владельца" className="flex scroll-mt-4 flex-col gap-2">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -27,7 +28,15 @@ export function DecisionsBlock({ decisions, canDecide }: { decisions: DecisionVi
           <p>Вопросы из списков «Не решено» (аудит расчётов, расшифровка долга). Выберите вариант и нажмите — решение запишется с вашим именем и датой, правка видна в «Истории». Сами данные кнопка не меняет: под вариантом написано, что сделать дальше.</p>
         </InfoHint>
       </h2>
-      {open.map((d) => <DecisionCard key={d.decision.id} v={d} canDecide={canDecide} />)}
+      {open.slice(0, TOP).map((d) => <DecisionCard key={d.decision.id} v={d} canDecide={canDecide} />)}
+      {open.length > TOP && (
+        <details className="rounded-lg border border-neutral-200 bg-white">
+          <summary className="cursor-pointer list-none p-3 text-sm font-medium hover:bg-neutral-50">Ещё вопросов: {open.length - TOP}</summary>
+          <div className="flex flex-col gap-2 border-t border-neutral-100 p-2">
+            {open.slice(TOP).map((d) => <DecisionCard key={d.decision.id} v={d} canDecide={canDecide} />)}
+          </div>
+        </details>
+      )}
       {open.length === 0 && <Card className="p-3 text-sm text-neutral-600">Открытых вопросов нет ✓</Card>}
       {done.length > 0 && (
         <details className="rounded-lg border border-neutral-200 bg-white">
@@ -48,14 +57,20 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
     <Card className="p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-neutral-900">{d.title}</div>
-          <p className="mt-1 text-xs text-neutral-600">{d.why}</p>
-          <p className="mt-1 text-xs text-neutral-500">
-            {d.refs.map((r, i) => (
-              <span key={r.href + r.label}>{i > 0 && " · "}<Link href={r.href} className="text-blue-700 hover:underline">{r.label}</Link></span>
-            ))}
-            <span className="ml-2 text-neutral-400">{d.source}</span>
-          </p>
+          <div className="text-sm font-medium text-neutral-900">
+            {d.title}
+            <span className="ml-1.5 align-middle">
+              <InfoHint wide label={`Подробности: ${d.title}`}>
+                <p>{d.why}</p>
+                <p className="mt-2">
+                  {d.refs.map((r, i) => (
+                    <span key={r.href + r.label}>{i > 0 && " · "}<Link href={r.href} className="text-blue-700 hover:underline">{r.label}</Link></span>
+                  ))}
+                </p>
+                <p className="mt-2 text-neutral-400">Источник: {d.source}</p>
+              </InfoHint>
+            </span>
+          </div>
         </div>
         {d.amount != null && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">{money(d.amount)}</span>}
       </div>
@@ -74,7 +89,7 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
       ) : canDecide ? (
         <form action={decideAction} className="mt-2 flex flex-col gap-2">
           <input type="hidden" name="id" value={d.id} />
-          <input name="note" maxLength={500} placeholder="Заметка к решению (необязательно)" aria-label="Заметка к решению" className="h-8 rounded-md border border-neutral-300 px-2 text-xs" />
+          <input name="note" maxLength={500} placeholder="Заметка (необязательно)" aria-label="Заметка к решению" className="h-8 max-w-sm rounded-md border border-neutral-300 px-2 text-xs" />
           <div className="flex flex-wrap gap-2">
             {d.options.map((o) => (
               <button key={o.key} name="choice" value={o.key} title={o.then} className="min-h-8 rounded-md border border-neutral-300 bg-white px-3 py-1 text-left text-xs hover:bg-neutral-100">
@@ -108,18 +123,27 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
           <p className="mt-2">«После поставки» ({blocks.laterDocs}) в число не входят. Оплаты, описанные здесь, не считаются повторно в «Нет платёжек».</p>
         </InfoHint>
       </h2>
-      <p className="text-xs text-neutral-500">Под вопросом по открытым задачам: <b className="tabular-nums text-neutral-800">{money(blocks.openAmount)}</b> · долг поставщику сейчас <b className="tabular-nums text-neutral-800">{formatMoney(blocks.debtRub)}</b> (расчёт не меняется)</p>
+      <p className="text-xs text-neutral-500">
+        Под вопросом: <b className="tabular-nums text-neutral-800">{money(blocks.openAmount)}</b>
+        <InfoHint label="Про долг">
+          <p>Долг поставщику сейчас: <b className="tabular-nums">{formatMoney(blocks.debtRub)}</b>. Расчёт долга задачи не меняют.</p>
+        </InfoHint>
+      </p>
       {OWNER_ORDER.map((owner) => {
         const items = open.filter((v) => v.task.owner === owner).sort(sortTasks);
         if (items.length === 0) return null;
         const counted = items.filter((v) => v.counts).length;
         return (
           <Card key={owner} className="overflow-hidden">
-            <details open={counted > 0} className="group">
+            <details open={counted > 0 && owner === OWNER_ORDER.find((o) => open.some((v) => v.task.owner === o && v.counts))} className="group">
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-3 hover:bg-neutral-50">
                 <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
                   {OWNER_LABEL[owner]}
-                  <span className="block text-xs font-normal text-neutral-500">{OWNER_HINT[owner]}</span>
+                  <span className="ml-1.5 align-middle">
+                    <InfoHint wide label={`У кого: ${OWNER_LABEL[owner]}`}>
+                      <p>{OWNER_HINT[owner]}</p>
+                    </InfoHint>
+                  </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{counted}</span>
                 <span className="shrink-0 text-neutral-400 transition-transform group-open:rotate-90" aria-hidden>›</span>
@@ -134,7 +158,15 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
                 </div>
               )}
               <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
-                {items.map((v) => <DocTaskRow key={v.task.id} v={v} />)}
+                {items.slice(0, 5).map((v) => <DocTaskRow key={v.task.id} v={v} />)}
+                {items.length > 5 && (
+                  <li>
+                    <details>
+                      <summary className="cursor-pointer list-none px-3 py-2 text-xs text-blue-700 hover:underline">Ещё {items.length - 5}</summary>
+                      <ul className="divide-y divide-neutral-100">{items.slice(5).map((v) => <DocTaskRow key={v.task.id} v={v} />)}</ul>
+                    </details>
+                  </li>
+                )}
               </ul>
             </details>
           </Card>
@@ -165,24 +197,24 @@ function DocTaskRow({ v }: { v: DocTaskView }) {
         <div className="min-w-0 flex-1">
           <div className="font-medium text-neutral-900">{t.title}</div>
           <div className="text-xs text-neutral-500">
-            {DOC_KIND_LABEL[t.kind]} · К записи: <Link href={v.recordHref} className="text-blue-700 hover:underline">{t.record}</Link>
-            {t.viaStatement && " · закрывается выпиской р/с за период"}
+            {DOC_KIND_LABEL[t.kind]} · <Link href={v.recordHref} className="text-blue-700 hover:underline">{t.record}</Link>
+            <span className="ml-1.5 align-middle">
+              <InfoHint wide label="Подробности по задаче">
+                {t.viaStatement && <p>Закрывается выпиской р/с за период.</p>}
+                <p>Проверено: {t.checked}</p>
+                {v.dueText && <p>Срок: {v.dueText}</p>}
+                {v.missing && <p>{v.missing}: проверьте запись.</p>}
+                {v.need > 1 && <p>Загружено {v.have} из {v.need}</p>}
+              </InfoHint>
+            </span>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {v.amount != null && <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums", BADGE[v.priority])}>{money(v.amount)}</span>}
           {v.overdueDays != null && <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">просрочено {v.overdueDays} дн.</span>}
           {t.later && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">после поставки</span>}
+          <Link href={v.uploadHref} className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Загрузить →</Link>
         </div>
-      </div>
-      <div className="pl-4 text-xs text-neutral-600">
-        <div>Проверено: {t.checked}</div>
-        {v.dueText && <div>Срок: {v.dueText}</div>}
-        {v.missing && <div className="text-amber-800">{v.missing}: проверьте запись.</div>}
-        {v.need > 1 && <div>Загружено {v.have} из {v.need}</div>}
-      </div>
-      <div className="pl-4">
-        <Link href={v.uploadHref} className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Загрузить документ →</Link>
       </div>
     </li>
   );

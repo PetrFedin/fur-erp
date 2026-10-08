@@ -408,14 +408,14 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       if (c.markupX == null) return "—";
       return (
         <div className={c.belowCost ? "text-red-700" : ""}>
-          <span className="font-semibold">×{c.markupX.toFixed(2).replace(".", ",")}</span> <span className="text-xs">(+{Math.round(c.markupPct ?? 0)}%)</span>
+          <span className="font-semibold">×{c.markupX.toFixed(2).replace(".", ",")}</span>
           <div className="text-[11px] text-neutral-500">маржа {pct1(c.marginPct ?? 0)}{c.belowCost ? " — ниже себестоимости" : ""}</div>
         </div>
       );
     }
     if (p.view !== "category") return "—";
     const m = catMarkup.get(a.label);
-    return m?.pct != null ? <div>средняя +{Math.round(m.pct)}%<div className="text-[11px] text-neutral-500">×{(1 + m.pct / 100).toFixed(2).replace(".", ",")} по моделям с ценой</div></div> : "—";
+    return m?.pct != null ? <div>средняя ×{(1 + m.pct / 100).toFixed(2).replace(".", ",")}<div className="text-[11px] text-neutral-500">по моделям с ценой</div></div> : "—";
   };
 
   const recOf = (a: PriceAgg) => recommend(a, p.base, target);
@@ -528,15 +528,17 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white p-3">
           <div className="text-xs text-neutral-500">
-            Средняя наценка по ценам
+            Средняя наценка
             <InfoHint label="Как посчитана" wide>Средневзвешенная по {def.count} моделям с ценой: Σ(наценка × себестоимость партии) ÷ Σ себестоимость партии. База — {baseLabel}{c4Mode === "on" ? ", с 4%" : ", без 4%"}.</InfoHint>
           </div>
-          <div className="text-lg font-semibold">{def.pct != null ? `+${Math.round(def.pct)}%` : "—"}</div>
+          <div className="text-lg font-semibold">{def.pct != null ? `×${(1 + def.pct / 100).toFixed(2).replace(".", ",")}` : "—"}</div>
         </div>
         <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">Целевая наценка (для рекомендаций)</div>
-          <div className="text-lg font-semibold">{target != null ? `+${target}%` : "не задана"}</div>
-          <div className="text-[11px] text-neutral-500">{typed != null ? "введена вручную" : defRounded != null ? "по умолчанию из данных" : "нет цен — введите вручную"}</div>
+          <div className="text-xs text-neutral-500">
+            Целевая наценка
+            <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")} = +${target}%. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
+          </div>
+          <div className="text-lg font-semibold">{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</div>
         </div>
       </div>
 
@@ -545,12 +547,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         opts={opts}
         aucOf={aucOf}
         lead={[
-          { type: "text", name: "m", label: "Целевой маркап, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
+          { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
           { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
           { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
         ]}
       />
-      {badInput && <span className="text-xs text-red-600">Маркап: введите число, например 350 — взято значение по умолчанию.</span>}
+      {badInput && <span className="text-xs text-red-600">Наценка: введите число, например 350 — взято значение по умолчанию.</span>}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1 text-sm">
@@ -579,7 +581,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       <div className="flex flex-wrap items-center gap-2">
         <ViewBar all={p.all} picked={p.cols.length > 0} cols={cols} toggleAllHref={toggleAll} action="/analytics/pricing" hidden={pickerHidden} />
         <MobileSort items={mobileSortItems} cur={sortState} />
-        <span className="text-xs text-neutral-500">Клик по заголовку колонки — сортировка. Строк: {shown.length}</span>
+        <span className="text-xs text-neutral-500">Строк: {shown.length}<InfoHint label="Сортировка">Клик по заголовку колонки — сортировка.</InfoHint></span>
       </div>
 
       <ResponsiveRows
@@ -691,12 +693,10 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </ResponsiveRows>
 
       {/* Качество данных */}
-      <section className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
-        <h2 className="mb-2 text-base font-semibold">
-          Качество данных
-          <InfoHint label="О проверках">Проверки по моделям и ТЗ выбранного года (с учётом фильтров). Данные не правятся — только показано, что мешает посчитать цену.</InfoHint>
-        </h2>
-        <ul className="flex flex-col gap-2">
+      <details className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
+        <summary className="cursor-pointer text-base font-semibold">Качество данных</summary>
+        <p className="mt-2 text-xs text-neutral-500">Проверки по моделям и ТЗ выбранного года (с учётом фильтров). Данные не правятся — только показано, что мешает посчитать цену.</p>
+        <ul className="mt-2 flex flex-col gap-2">
           <li>
             Моделей без цены (с завершёнными ТЗ): <b>{modelsNoPrice.length}</b>
             {modelsNoPrice.length > 0 && (
@@ -737,7 +737,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           <Link href="/analytics/products" className="underline underline-offset-2">«Изделия»</Link>; цены правятся на странице{" "}
           <Link href="/articles" className="underline underline-offset-2">«Изделия» (меню)</Link>.
         </div>
-      </section>
+      </details>
     </div>
   );
 }

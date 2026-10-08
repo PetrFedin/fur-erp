@@ -20,30 +20,31 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
   const controls: BarControl[] = [
     ...lead,
     ...multi("fur", "Вид меха", opts.fur),
-    ...multi("color", "Цвет", opts.color),
+    ...multi("color", "Цвет", opts.color, { more: true }),
     ...multi("category", "Категория", opts.cat, { aliases: ["cat"] }),
-    ...multi("size", "Размер", opts.size),
-    ...multi("batch", "Партия", opts.batch),
-    ...multi("season", "Сезон", opts.season),
+    ...multi("size", "Размер", opts.size, { more: true }),
+    ...multi("batch", "Партия пошива", opts.batch),
+    ...multi("season", "Сезон", opts.season, { more: true }),
     {
       type: "multi",
       name: "vat",
       label: "Ставка НДС",
       single: true,
+      more: true,
       allLabel: "Любая",
       options: (Object.keys(VAT_LABEL) as (keyof typeof VAT_LABEL)[]).map((k) => ({ value: k, label: VAT_LABEL[k] })),
     },
     { type: "text", name: "q", label: "Модель, артикул", placeholder: "Код, название, № ТЗ, синоним", datalist: opts.models },
     ...(opts.auc.length
-      ? [{ type: "multi" as const, name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], allLabel: "Все партии", options: opts.auc.map((v) => ({ value: v, label: aucOf?.(v).label ?? v, title: aucOf?.(v).title })) }]
+      ? [{ type: "multi" as const, name: "auction", label: "Партия закупки (аукцион)", more: true, aliases: ["auc"], allLabel: "Все партии", options: opts.auc.map((v) => ({ value: v, label: aucOf?.(v).label ?? v, title: aucOf?.(v).title })) }]
       : []),
-    ...multi("pyear", "Год закупки сырья", opts.py, { aliases: ["py"] }),
-    ...multi("lotcolor", "Цвет лота", opts.lc, { aliases: ["lc"] }),
-    ...multi("attr", "Признак меха", opts.attr, { hint: "Признаки ТЗ и списанных в него лотов: седина, дикий / клеточный, тонированный…" }),
-    { type: "multi", name: "onlyH", label: "Молоток", single: true, allLabel: "Все", options: [{ value: "1", label: "Только с молотком" }] },
-    { type: "multi", name: "onlyL", label: "Подкладка", single: true, allLabel: "Все", options: [{ value: "1", label: "Только с подкладкой" }] },
-    { type: "text", name: "cmin", label: "Себестоимость от, ₽", placeholder: "от", inputMode: "decimal", className: "sm:w-36" },
-    { type: "text", name: "cmax", label: "Себестоимость до, ₽", placeholder: "до", inputMode: "decimal", className: "sm:w-36" },
+    ...multi("pyear", "Год закупки сырья", opts.py, { aliases: ["py"], more: true }),
+    ...multi("lotcolor", "Цвет лота", opts.lc, { aliases: ["lc"], more: true }),
+    ...multi("attr", "Признак меха", opts.attr, { more: true, hint: "Признаки ТЗ и списанных в него лотов: седина, дикий / клеточный, тонированный…" }),
+    { type: "multi", name: "onlyH", label: "Молоток", single: true, more: true, allLabel: "Все", options: [{ value: "1", label: "Только с молотком" }] },
+    { type: "multi", name: "onlyL", label: "Подкладка", single: true, more: true, allLabel: "Все", options: [{ value: "1", label: "Только с подкладкой" }] },
+    { type: "text", name: "cmin", label: "Себестоимость от, ₽", placeholder: "от", inputMode: "decimal", more: true, className: "sm:w-36" },
+    { type: "text", name: "cmax", label: "Себестоимость до, ₽", placeholder: "до", inputMode: "decimal", more: true, className: "sm:w-36" },
   ];
   return <FilterBar title={title} controls={controls} />;
 }

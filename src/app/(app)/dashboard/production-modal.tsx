@@ -96,7 +96,7 @@ export function ProductionModal({
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства · {scope === "done" ? "произведено" : "в работе"}</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
             <p className="mt-0.5 text-xs text-neutral-500">
-              {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · себестоимость ТЗ без работы. Нажмите на столбец, чтобы раскрыть дальше.
+              {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · без работы
               <InfoHint label="Что в столбцах" wide>
                 <p><b>Столбец = себестоимость</b> ТЗ: мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ. <b>Работа</b> в себестоимость не входит и показана отдельно («стоимость = себестоимость + работа»).</p>
                 <p className="mt-1">{scope === "done" ? "Здесь только ТЗ в статусе «Завершён» (выпуск)." : "Здесь только ТЗ «В работе» и «Запланировано» (план; сырьё — по списаниям на сегодня)."} Произведено и в работе не смешиваются.</p>
@@ -142,20 +142,20 @@ export function ProductionModal({
                   <span className="ml-2 text-xs text-neutral-500">{level.title} · {level.orders} ТЗ</span>
                 </div>
                 {level.totalWork != null && level.totalWork !== 0 ? (
-                  <div className="text-xs text-neutral-600">+ работа <b className="tabular-nums">{formatMoney(level.totalWork)}</b> → стоимость сырьё + работа <b className="tabular-nums">{formatMoney(level.total + level.totalWork)}</b></div>
+                  <div className="text-xs text-neutral-600">+ работа <b className="tabular-nums">{formatMoney(level.totalWork)}</b> · всего <b className="tabular-nums">{formatMoney(level.total + level.totalWork)}</b></div>
                 ) : null}
               </div>
 
               {/* Гистограмма */}
               <div className="mt-3 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50/60 p-3">
-                <div className="flex items-end gap-[2px]" style={{ height: 230, minWidth: Math.max(0, level.items.length * 60) }} role="list" aria-label={`Гистограмма ${level.title}`}>
+                <div className="flex items-end gap-[2px]" style={{ height: 230, minWidth: Math.max(0, level.items.length * 38) }} role="list" aria-label={`Гистограмма ${level.title}`}>
                   {level.items.map((it) => {
                     const h = Math.max(it.value === 0 ? 0 : 3, (Math.abs(it.value) / max) * 170);
                     const color = it.outside ? undefined : it.tone ? TONE[it.tone] : BAR;
                     const can = it.drillable && !it.outside;
                     const active = shown?.key === it.key;
                     return (
-                      <div key={it.key} role="listitem" className="flex min-w-[56px] flex-1 flex-col items-center justify-end">
+                      <div key={it.key} role="listitem" className="flex min-w-[34px] flex-1 flex-col items-center justify-end">
                         <div className="mb-0.5 text-[10px] leading-3 tabular-nums text-neutral-700">{formatCompactMoney(it.value).replace(" ₽", "")}</div>
                         <button
                           type="button"
@@ -183,7 +183,7 @@ export function ProductionModal({
                 <div className="mt-2 min-h-[20px] text-xs text-neutral-700" aria-live="polite">
                   {shown ? (
                     <><b>{shown.label}</b>: <b className="tabular-nums">{formatMoney(shown.value)}</b>{shown.outside ? "" : <> · {pct(shown.share)} от уровня</>}{shown.qtyText ? <> · {shown.qtyText}</> : null}{shown.work ? <> · работа {formatMoney(shown.work)}</> : null}</>
-                  ) : <span className="text-neutral-400">Наведите на столбец или выберите его клавишей Tab — здесь точная сумма и доля.</span>}
+                  ) : <span className="text-neutral-400">Наведите на столбец — сумма и доля. Нажмите, чтобы раскрыть.</span>}
                 </div>
               </div>
 
@@ -220,7 +220,7 @@ export function ProductionModal({
                   </tbody>
                   <tfoot>
                     <tr className="font-semibold">
-                      <td className="py-1.5 pr-2">Итого (Σ столбцов)</td>
+                      <td className="py-1.5 pr-2">Итого</td>
                       <td />
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>
                       <td className="px-2 py-1.5 text-right">100%</td>
@@ -235,7 +235,7 @@ export function ProductionModal({
                   <span className={matches ? "text-emerald-700" : "text-red-700"}>{matches ? "✓ Σ столбцов равна итогу плитки" : `Σ столбцов ${formatMoney(level.total)} ≠ плитка ${formatMoney(tileTotal)} — число ТЗ в окне ограничено`}</span>
                 ) : null}
                 {level.links.map((l) => <Link key={l.href} href={l.href} className="text-blue-700 underline-offset-2 hover:underline">{l.label} →</Link>)}
-                {level.kind === "composition" ? <span>Нажмите «Мех», «Подкладка» или «Надбавка 4%», чтобы увидеть лоты и закупки.</span> : null}
+                {level.kind === "composition" ? <span>Нажмите составляющую — лоты и закупки.</span> : null}
               </div>
             </>
           ) : null}

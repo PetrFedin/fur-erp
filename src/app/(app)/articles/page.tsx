@@ -247,7 +247,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </h1>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-neutral-500">
-            <VatLabel base="Стоимость остатков (по себестоимости)" />
+            <VatLabel base="Стоимость остатков" />
             <Mode4Badge mode={c4Mode} />:{" "}
             <span className="font-semibold text-neutral-900">
               <Money incl={totalStockValue} excl={totalStockValueExclVat} />
@@ -267,7 +267,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               align="right"
             >
               <p className="mt-1">
-                Остаток каждой модели × средневзвешенная себестоимость единицы (по завершённым ТЗ выбранного года). С 4%: {formatMoney(stockOnTotal.toFixed(2))}.
+                Считается по себестоимости. Остаток каждой модели × средневзвешенная себестоимость единицы (по завершённым ТЗ выбранного года). С 4%: {formatMoney(stockOnTotal.toFixed(2))}.
               </p>
               {noC4Models.length > 0 && (
                 <p className="mt-1 font-medium text-amber-700">
@@ -276,7 +276,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               )}
             </C4Hint>
           </span>
-          <Link href="/analytics/products" className={buttonVariants({ variant: "outline" })} title="Что произведено, из чего складывается себестоимость, наценки и рекомендуемые цены">
+          <Link href="/analytics/products" className={buttonVariants({ variant: "outline" })}>
             Аналитика изделий и цены
           </Link>
           {canCreate && (
@@ -293,13 +293,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: articleOpts.category, noneLabel: "Без категории" },
           { type: "multi", name: "fur", label: "Вид (тип) меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },
-          { type: "multi", name: "lining", label: "Подкладка", options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
-          { type: "multi", name: "tzyear", label: year === "all" ? "Год ТЗ" : `Год ТЗ (внутри ${year})`, options: tzOpts.tzyear, hint: "дополнительно к общему году в шапке" },
-          { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz },
-          { type: "multi", name: "batch", label: "Партия", options: tzOpts.batch, noneLabel: "Без партии" },
-          { type: "multi", name: "color", label: "Цвет", options: tzOpts.color },
-          { type: "multi", name: "size", label: "Размер", options: tzOpts.size },
-          { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона" },
+          { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
+          { type: "multi", name: "tzyear", label: year === "all" ? "Год ТЗ" : `Год ТЗ (внутри ${year})`, options: tzOpts.tzyear, hint: "дополнительно к общему году в шапке", more: true },
+          { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz, more: true },
+          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии", more: true },
+          { type: "multi", name: "color", label: "Цвет", options: tzOpts.color, more: true },
+          { type: "multi", name: "size", label: "Размер", options: tzOpts.size, more: true },
+          { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "price", label: "Цена", options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
           ...(emptyCount > 0 ? [{ type: "multi" as const, name: "empty", label: "Состав списка", single: true, options: [{ value: "1", label: `Все модели · +${emptyCount}` }], allLabel: "Основные" }] : []),
         ]}
@@ -312,7 +312,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th>Модель</Th>
             <Th>Остаток готовой, шт.</Th>
             <Th>
-              Ср. взвеш. себестоимость за ед.{c4}
+              Себестоимость за ед.{c4}
               <InfoHint label="Как считается себестоимость единицы" wide>
                 <p>Средневзвешенная себестоимость единицы по завершённым ТЗ модели: Σ(себестоимость ТЗ × выпуск) ÷ Σ выпуск — взвешено по количеству.</p>
                 <p className="mt-1">В режиме «С 4%» надбавка 4% только на сырьё и подкладку; у ТЗ без 4% (партия 6 и др.) не добавляется.</p>
@@ -393,7 +393,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td>
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </Td>
-              <Td className="font-medium">{r.markup ? `×${r.markup.toFixed(2)}` : "—"}</Td>
+              <Td className="font-medium">{r.markup ? `×${r.markup.toFixed(2).replace(".", ",")}` : "—"}</Td>
               <Td>
                 {r.orderCount > 0 ? (
                   <Link href={`/production?model=${r.id}`} className="hover:underline" title="ТЗ этой модели">
@@ -429,7 +429,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             fields={[
               { label: "Остаток, шт.", value: formatQty(r.stockQty.toString()), strong: true },
               { label: `Себестоимость за ед.${c4}`, value: r.avgUnitCost ? <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} /> : "—" },
-              { label: "Наценка", value: r.markup ? `×${r.markup.toFixed(2)}` : "—" },
+              { label: "Наценка", value: r.markup ? `×${r.markup.toFixed(2).replace(".", ",")}` : "—" },
               {
                 label: "ТЗ",
                 value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—",

@@ -21,6 +21,7 @@ import type { CostPlanEditorItem } from "../purchases/[id]/cost-plan-editor";
 import { AddFieldButton, CustomCell, CustomFieldHeader, MobileFieldsManager } from "./custom-field-controls";
 import { FilterPanel } from "./lots-filters";
 import { DocBadge } from "@/components/doc-viewer";
+import { InfoHint } from "@/components/info-hint";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 
 const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 4 });
@@ -540,7 +541,7 @@ function LotRowView({
         {r.lotNumber || "—"}
         {r.lotId && <DocBadge entity="lot" id={r.lotId} count={r.docs ?? 0} title={`Лот ${r.lotNumber || r.material}`} className="ml-1" />}
       </Td>
-      <Td>
+      <Td className="min-w-48">
         {r.size || "—"}
         {(r.attrs?.length ?? 0) > 0 && (
           <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
@@ -555,9 +556,10 @@ function LotRowView({
       <Td className="whitespace-nowrap">{formatCurrency(r.price, currency)}</Td>
       <Td className="whitespace-nowrap">{rateFmt(r.rate)}</Td>
       <Td className="whitespace-nowrap">
-        <Money incl={r.unitIncl} excl={r.unitExcl} />
-        <Unit4Note incl={r.unitIncl} excl={r.unitExcl} />
-        {r.source === "price" && <div className="text-xs text-neutral-400">по цене лота, без расчёта</div>}
+        <span className="inline-flex items-center gap-1">
+          <Money incl={r.unitIncl} excl={r.unitExcl} />
+          <Unit4Note incl={r.unitIncl} excl={r.unitExcl} source={r.source === "price"} />
+        </span>
         {r.breakdown ? <CostBreakdownToggle breakdown={r.breakdown as never} unitCostExcl={String(r.unitExcl)} unitCostIncl={String(r.unitIncl)} /> : null}
       </Td>
       <Td className="whitespace-nowrap font-medium">
@@ -950,13 +952,14 @@ export function FlatLotsPanel() {
  * Справочно, только в режиме «С 4%»: себестоимость единицы лота +4% («с 4%: X»).
  * Закупки, суммы лотов и долги остаются без 4% — 4% начисляется при списании в ТЗ.
  */
-function Unit4Note({ incl, excl }: { incl: number; excl: number }) {
+function Unit4Note({ incl, excl, source }: { incl: number; excl: number; source?: boolean }) {
   const { mode } = useCommission4Display();
-  if (mode !== "on") return null;
   const k = 1 + COMMISSION_RATE;
+  if (mode !== "on" && !source) return null;
   return (
-    <div className="whitespace-nowrap text-xs text-neutral-500" title={COMMISSION4_HINT}>
-      с 4%: <Money incl={incl * k} excl={excl * k} />
-    </div>
+    <InfoHint label="Пояснение к цене лота" align="right">
+      {mode === "on" ? <p>С 4%: <Money incl={incl * k} excl={excl * k} />. {COMMISSION4_HINT}</p> : null}
+      {source ? <p className={mode === "on" ? "mt-1" : undefined}>Цена по цене лота, без расчёта.</p> : null}
+    </InfoHint>
   );
 }

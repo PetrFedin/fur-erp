@@ -7,7 +7,15 @@ import { NONE, type FilterOption } from "@/lib/filters";
 import { MultiSelectFilter } from "./multi-select-filter";
 
 /** state — параметр вида/расчёта (группировка, статус, наценка…): меняется так же сразу, но не считается фильтром — без чипа, не входит в «применены: N» и не стирается «Сбросить всё». */
-type Common = { name: string; label: string; aliases?: string[]; className?: string; state?: boolean };
+type Common = {
+  name: string;
+  label: string;
+  aliases?: string[];
+  className?: string;
+  state?: boolean;
+  /** Второстепенный фильтр: прячется под «Ещё фильтры» (раскрыт сам, если в нём уже есть выбор). */
+  more?: boolean;
+};
 export type MultiControl = Common & {
   type: "multi";
   options: FilterOption[];
@@ -232,6 +240,7 @@ function BarView({
   children?: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const controls = useMemo(() => allControls.filter((c) => !isPointless(c, vals)), [allControls, vals]);
   const labelOf = (c: BarControl, v: string) => {
     if (c.type === "date") return ruDate(v);
@@ -247,38 +256,11 @@ function BarView({
 
   const field = "h-11 rounded-lg border bg-white px-3 text-sm hover:border-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400";
 
-  return (
-    <section data-filter-bar data-comment-anchor="filters" data-comment-label="Панель фильтров" aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>
-          {count > 0 && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white">применены: {count}</span>}
-          {pending && (
-            <span role="status" className="flex items-center gap-1 text-xs text-neutral-500">
-              <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
-              Обновляю…
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-expanded={mobileOpen}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 sm:hidden"
-        >
-          Фильтры{count > 0 ? ` (${count})` : ""} {mobileOpen ? "▴" : "▾"}
-        </button>
-      </div>
-      <form
-        method="get"
-        action={action}
-        onSubmit={(e) => e.preventDefault()}
-        className={cn("flex flex-wrap items-end gap-2", !mobileOpen && "max-sm:hidden")}
-      >
-        {hidden.map(([k, v], i) => (
-          <input key={`${k}-${i}`} type="hidden" name={k} value={v} />
-        ))}
-        {controls.map((c) => {
+  const moreControls = controls.filter((c) => c.more);
+  const mainControls = controls.filter((c) => !c.more);
+  const moreCount = moreControls.filter((c) => !c.state).reduce((n, c) => n + (vals[c.name] ?? []).length, 0);
+  const moreActive = moreOpen || moreCount > 0;
+  const renderControl = (c: BarControl) => {
           if (c.type === "multi") {
             return (
               <MultiSelectFilter
@@ -327,7 +309,51 @@ function BarView({
               )}
             </label>
           );
-        })}
+  };
+
+  return (
+    <section data-filter-bar data-comment-anchor="filters" data-comment-label="Панель фильтров" aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>
+          {count > 0 && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white">применены: {count}</span>}
+          {pending && (
+            <span role="status" className="flex items-center gap-1 text-xs text-neutral-500">
+              <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
+              Обновляю…
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-expanded={mobileOpen}
+          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 sm:hidden"
+        >
+          Фильтры{count > 0 ? ` (${count})` : ""} {mobileOpen ? "▴" : "▾"}
+        </button>
+      </div>
+      <form
+        method="get"
+        action={action}
+        onSubmit={(e) => e.preventDefault()}
+        className={cn("flex flex-wrap items-end gap-2", !mobileOpen && "max-sm:hidden")}
+      >
+        {hidden.map(([k, v], i) => (
+          <input key={`${k}-${i}`} type="hidden" name={k} value={v} />
+        ))}
+        {mainControls.map(renderControl)}
+        {moreControls.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-expanded={moreActive}
+            className="h-11 rounded-lg border border-dashed border-neutral-300 bg-white px-3 text-sm text-neutral-600 hover:border-neutral-500"
+          >
+            Ещё фильтры{moreCount > 0 ? ` (${moreCount})` : ""} {moreActive ? "▴" : "▾"}
+          </button>
+        )}
+        {moreActive && moreControls.map(renderControl)}
         {children ? <Fragment key="extra">{children}</Fragment> : null}
         <noscript>
           <button type="submit" className="h-11 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-medium">Применить</button>

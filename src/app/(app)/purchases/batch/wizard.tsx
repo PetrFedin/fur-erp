@@ -86,6 +86,7 @@ export function BatchWizard({
       const raw = window.localStorage.getItem(draftKey);
       if (raw) {
         const d = JSON.parse(raw) as Draft;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (d.v === 1 && (d.rows.length > 0 || d.step > 1)) setSaved(d);
       }
     } catch {

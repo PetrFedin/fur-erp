@@ -589,7 +589,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             {tzTitle}
           </h1>
           {order.workOrderNumber && (
-            <span className="text-sm text-neutral-500">заказ {order.number}</span>
+            <InfoHint label="Номер заказа">Внутренний номер заказа в системе: {order.number}. В списках и документах ТЗ называется по номеру ТЗ.</InfoHint>
           )}
           <Badge variant={status.variant}>{status.label}</Badge>
           <TzVatBadge b={vatB} />
@@ -676,7 +676,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         />
       ) : order.batch ? (
         <p className="text-sm">
-          Партия:{" "}
+          Партия пошива:{" "}
           <Link href={`/production/batches/${order.batch.number}`} className="text-blue-700 hover:underline">
             {batchOptions.find((b) => b.id === order.batch!.id)?.label ?? `Партия ${order.batch.number}`}
           </Link>
@@ -684,6 +684,33 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ) : (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 ring-1 ring-amber-300">Партия не указана</p>
       )}
+
+      <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4" aria-label="Главное по ТЗ">
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <dt className="text-xs text-neutral-500">Выпуск, шт.</dt>
+          <dd className="font-semibold">
+            {order.status === "COMPLETED" ? `${formatQty(order.producedQuantity.toString())} из ${formatQty(order.plannedQuantity.toString())}` : `план ${formatQty(order.plannedQuantity.toString())}`}
+          </dd>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <dt className="text-xs text-neutral-500">
+            Себестоимость{c4}
+            <InfoHint label="Что в себестоимости">Мех, подкладка и расходы ТЗ. Подробный расчёт ниже, в блоке «Расчёт и списание».</InfoHint>
+          </dt>
+          <dd className="font-semibold">{projectedTotal.isZero() ? "—" : <Money incl={projectedTotal} excl={projectedTotalExclVat} />}</dd>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <dt className="text-xs text-neutral-500">Работа заказчику</dt>
+          <dd className="font-semibold">{clientRevenue ? formatMoney(clientRevenue.toString()) : "не указана"}</dd>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+          <dt className="text-xs text-neutral-500">Оплачено</dt>
+          <dd className="font-semibold">
+            {order.client ? formatMoney(paidTotal.toString()) : "—"}
+            {balanceDue && balanceDue.greaterThan(0.005) && <span className="block text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span>}
+          </dd>
+        </div>
+      </dl>
 
       <SectionNav items={navItems} />
 
@@ -918,13 +945,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   </>
                 )}
                 {hasSharedPayments && (
-                  <span className="block text-xs text-neutral-500">
+                  <InfoHint label="Про общие платежи" wide>
                     Общих платежей на несколько ТЗ: {sharedPayments.length} — на это ТЗ отнесена только часть, указанная в столбце «На это ТЗ»; разнесение можно поправить кнопкой «Разнесение».
-                  </span>
+                  </InfoHint>
                 )}
                 {paysWithRest.length > 0 && (
-                  <span className="block text-xs text-amber-700">
-                    Часть суммы платежей не отнесена ни к одному ТЗ (аванс без разнесения или сверх работы) — см. «Контроль → Задачи → Неразнесённые авансы».
+                  <span className="text-amber-700">
+                    {" · есть неразнесённая часть"}
+                    <InfoHint label="Про неразнесённую часть" wide>
+                      Часть суммы платежей не отнесена ни к одному ТЗ (аванс без разнесения или сверх работы) — см. «Контроль → Задачи → Неразнесённые авансы».
+                    </InfoHint>
                   </span>
                 )}
               </p>
@@ -1090,12 +1120,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         )}
         <div className="text-sm text-neutral-600">
           Наценка{" "}
-          <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2)}` : "—"}</span>
+          <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2).replace(".", ",")}` : "—"}</span>
           <InfoHint label="Как считается наценка">
             {MARKUP_HINT}
             {markup && order.retailPrice && (
               <p className="mt-1">
-                Здесь: {formatMoney(order.retailPrice.toString())} ÷ {formatMoney(estimatedUnitCost.toFixed(2))} = ×{markup.toFixed(2)} ({c4Mode === "on" ? "с 4%" : "без 4%"}).
+                Здесь: {formatMoney(order.retailPrice.toString())} ÷ {formatMoney(estimatedUnitCost.toFixed(2))} = ×{markup.toFixed(2).replace(".", ",")} ({c4Mode === "on" ? "с 4%" : "без 4%"}).
               </p>
             )}
           </InfoHint>

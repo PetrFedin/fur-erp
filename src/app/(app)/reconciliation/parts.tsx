@@ -75,19 +75,23 @@ export function CountsLine({ t }: { t: Totals }) {
 
 export function ConfirmLine({ t }: { t: Totals }) {
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-neutral-700">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-neutral-700">
       <span>
-        Оплата подтверждена документами: <b className="tabular-nums">{money(t.paidDocs)}</b>
+        Подтверждено документами: <b className="tabular-nums">{money(t.paidDocs)}</b>
       </span>
-      <span>
-        только письмом: <b className="tabular-nums">{money(t.paidLetter)}</b>
-      </span>
-      <span>
-        только согласовано (не оплата): <b className="tabular-nums">{money(t.approvedRub)}</b>
-      </span>
-      <span>
-        нет подтверждения: <b className="tabular-nums">{money(t.noneRub)}</b>
-      </span>
+      {t.noneRub > 0 && (
+        <span>
+          нет подтверждения: <b className="tabular-nums">{money(t.noneRub)}</b>
+        </span>
+      )}
+      <InfoHint wide label="Чем подтверждена оплата">
+        <ul className="space-y-1">
+          <li>Подтверждена документами: <b className="tabular-nums">{money(t.paidDocs)}</b></li>
+          <li>Только письмом: <b className="tabular-nums">{money(t.paidLetter)}</b></li>
+          <li>Только согласовано (не оплата): <b className="tabular-nums">{money(t.approvedRub)}</b></li>
+          <li>Нет подтверждения: <b className="tabular-nums">{money(t.noneRub)}</b></li>
+        </ul>
+      </InfoHint>
     </div>
   );
 }

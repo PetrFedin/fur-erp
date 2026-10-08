@@ -9,7 +9,6 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
 import { YearNote } from "@/components/year-note";
-import { Ref4 } from "@/components/c4-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { isServiceAuction, NO_AUCTION_LABEL } from "@/lib/auction-names";
@@ -165,6 +164,23 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const pctAll = usedPct(total);
   const ex = (l: Decimal) => formatQty(l.toString());
 
+  const checkEls = [
+      <Check key="c1" ok={purchasedDiff.isZero()} text={`Куплено по лотам = количество в принятых закупках: ${ex(all.recv)} и ${ex(data.purchasedByItems)}${purchasedDiff.isZero() ? "" : ` (разница ${ex(purchasedDiff)})`}. Мех и подкладка вместе.`} />,
+      <Check key="c2" ok={usageDiff.isZero()} text={`Использовано по лотам = Σ списаний в ТЗ: ${ex(all.used)} и ${ex(data.usageTotal)}${usageDiff.isZero() ? "" : ` (разница ${ex(usageDiff)})`}.`} />,
+      <Check key="c3" ok={otherOutLots.length === 0} text={otherOutLots.length === 0 ? "Остаток лота = получено − списано в ТЗ: у всех лотов." : `У ${otherOutLots.length} лотов остаток ≠ получено − списано в ТЗ (ушло не через ТЗ):`}>
+            {otherOutLots.length > 0 && lotList(otherOutLots, (l) => `${ex(l.otherOut)}`)}
+          </Check>,
+      <Check key="c4" ok={gapLots.length === 0} text={gapLots.length === 0 ? "Остаток склада = Σ лотов: журнал движений сходится с остатком у всех лотов." : `У ${gapLots.length} лотов остаток склада расходится с журналом движений:`}>
+            {gapLots.length > 0 && lotList(gapLots, (l) => `журнал − остаток = ${ex(l.movementGap)}`)}
+          </Check>,
+      <Check key="c5" ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений склада без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />,
+      <Check key="c6" ok={data.receivedItemsWithoutLot === 0} text={data.receivedItemsWithoutLot === 0 ? "У каждой позиции принятой закупки есть лот." : `Позиций принятых закупок без лота: ${data.receivedItemsWithoutLot}.`} />,
+      <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length} — их нельзя разнести по «Сорт / цвет»:`}>
+            {noGrade.length > 0 && lotList(noGrade)}
+          </Check>,
+      <Check key="c8" ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без распознанного размера: ${noSize.length} — попадают в «Не указан» (размер ищется в тексте сорта: XXL, XL, L, M…).`} />,
+      <Check key="c9" ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без реального аукциона («Нет информации», доп. закупки и т. п.): ${noAuction.length}.`} />
+  ];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -307,7 +323,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               <p>Группируйте по аукциону, году закупки, виду меха, лоту, сорту/цвету или размеру. Строку можно развернуть: внутри — лоты с остатком, ценой и ТЗ, где использован лот.</p>
               <p className="mt-1"><b>Изделие (артикул)</b> и <b>ТЗ</b> — другой разрез: что ушло на каждое изделие или ТЗ (шкур или метров, ₽, на 1 изделие); строка раскрывается в лоты. У каждого лота есть карточка «Где использован» — в какие изделия он ушёл, учёт и остаток.</p>
               <p className="mt-1">Сорт/цвет и размер берутся из поля «сорт» лота: размер берётся из документов (поле «размер» лота: XXL, XL, 30, 40/30…), сорт — остальной текст до размера. Размер не указан в документах — «Не указан».</p>
-              <p className="mt-1"><b>Средняя цена</b> = Σ(кол-во × цена лота) ÷ Σ кол-во по лотам группы. <b>Стоимость остатка</b> = Σ(остаток × цена лота). Строка «с 4%» — справочно (режим в шапке).</p>
+              <p className="mt-1"><b>Средняя цена</b> = Σ(кол-во × цена лота) ÷ Σ кол-во по лотам группы. <b>Стоимость остатка</b> = Σ(остаток × цена лота). Цены и остаток — без 4%: надбавка 4% начисляется только при списании в ТЗ (в плитках сверху — справочно, режим в шапке).</p>
               {groups[0] && avgPrice(groups[0].agg) && (
                 <p className="mt-1">Пример — «{groups[0].label}»: куплено {qty(groups[0].agg.recv, unit)} на {rub(groups[0].agg.recvIncl)} → {rub(groups[0].agg.recvIncl)} ÷ {ex(groups[0].agg.recv)} = {rub(avgPrice(groups[0].agg)!.incl)} за единицу.</p>
               )}
@@ -338,7 +354,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 <span className="inline-flex items-center gap-1">
                   В учёте
                   <InfoHint label="В учёте" wide>
-                    <p>Остаток по журналу движений склада: приход − списания в ТЗ − прочие списания. Должен совпадать с колонкой «Остаток» (остаток самого лота). Расхождение подсвечивается красным, подробности — в карточке лота и в «Сверке лотов».</p>
+                    <p>Остаток по журналу движений склада: приход − списания в ТЗ − прочие списания. Должен совпадать с колонкой «Остаток» (остаток самого лота); если совпадает, показан значок ✓. Расхождение подсвечивается красным, подробности — в карточке лота и в «Сверке лотов».</p>
                   </InfoHint>
                 </span>
                 <span>Остаток</span>
@@ -441,25 +457,13 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             </span>
             <InfoHint label="О контроле" wide>
               <p>Проверки по всем лотам выбранного года (мех и подкладка вместе, без фильтров таблицы): сходятся ли «куплено» с закупками, «использовано» со списаниями, остаток с журналом движений.</p>
+              {checkEls.filter((c) => c.props.ok).map((c) => <p key={c.key} className="mt-1 text-emerald-800">✓ {c.props.text}</p>)}
             </InfoHint>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
-          <Check ok={purchasedDiff.isZero()} text={`Куплено по лотам = количество в принятых закупках: ${ex(all.recv)} и ${ex(data.purchasedByItems)}${purchasedDiff.isZero() ? "" : ` (разница ${ex(purchasedDiff)})`}. Мех и подкладка вместе.`} />
-          <Check ok={usageDiff.isZero()} text={`Использовано по лотам = Σ списаний в ТЗ: ${ex(all.used)} и ${ex(data.usageTotal)}${usageDiff.isZero() ? "" : ` (разница ${ex(usageDiff)})`}.`} />
-          <Check ok={otherOutLots.length === 0} text={otherOutLots.length === 0 ? "Остаток лота = получено − списано в ТЗ: у всех лотов." : `У ${otherOutLots.length} лотов остаток ≠ получено − списано в ТЗ (ушло не через ТЗ):`}>
-            {otherOutLots.length > 0 && lotList(otherOutLots, (l) => `${ex(l.otherOut)}`)}
-          </Check>
-          <Check ok={gapLots.length === 0} text={gapLots.length === 0 ? "Остаток склада = Σ лотов: журнал движений сходится с остатком у всех лотов." : `У ${gapLots.length} лотов остаток склада расходится с журналом движений:`}>
-            {gapLots.length > 0 && lotList(gapLots, (l) => `журнал − остаток = ${ex(l.movementGap)}`)}
-          </Check>
-          <Check ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений склада без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />
-          <Check ok={data.receivedItemsWithoutLot === 0} text={data.receivedItemsWithoutLot === 0 ? "У каждой позиции принятой закупки есть лот." : `Позиций принятых закупок без лота: ${data.receivedItemsWithoutLot}.`} />
-          <Check ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length} — их нельзя разнести по «Сорт / цвет»:`}>
-            {noGrade.length > 0 && lotList(noGrade)}
-          </Check>
-          <Check ok={noSize.length === 0} warn text={noSize.length === 0 ? "У всех лотов меха распознан размер." : `Лотов меха без распознанного размера: ${noSize.length} — попадают в «Не указан» (размер ищется в тексте сорта: XXL, XL, L, M…).`} />
-          <Check ok={noAuction.length === 0} warn text={noAuction.length === 0 ? "Все лоты привязаны к аукциону." : `Лотов без реального аукциона («Нет информации», доп. закупки и т. п.): ${noAuction.length}.`} />
+          {checkEls.filter((c) => !c.props.ok)}
+          {checkEls.every((c) => c.props.ok) ? <p className="text-neutral-600">Все проверки в порядке.</p> : null}
         </CardContent>
       </Card>
     </div>
@@ -484,7 +488,7 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit:
       )}
       {avg && avg.incl != null && (
         <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
-          ср. взвеш.: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
+          ср. цена: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
         </div>
       )}
       {sub}
@@ -545,18 +549,17 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
       <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(a.recv, unit)}</span>
       <span className="tabular-nums"><span className={lab}>Использовано</span>{qty(a.used, unit)}</span>
       <span className={"tabular-nums " + (a.jrem.equals(a.rem) ? "text-neutral-600" : "font-medium text-red-700")} title={a.jrem.equals(a.rem) ? undefined : "Остаток по журналу склада не равен остатку лотов"}>
-        <span className={lab}>В учёте</span>{qty(a.jrem, unit)}
+        <span className={lab}>В учёте</span>{a.jrem.equals(a.rem) ? <span aria-label="совпадает с остатком">✓</span> : qty(a.jrem, unit)}
       </span>
       <span className="font-medium tabular-nums"><span className={lab}>Остаток</span>{qty(a.rem, unit)}</span>
       <span className="tabular-nums"><span className={lab}>% исп.</span>{pctText(usedPct(a))}</span>
       <span className="tabular-nums">
         <span className={lab}>Ср. цена закупки</span>
-        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /><Ref4 mode={c4} incl={q2(p.incl)} excl={q2(p.excl)} /></> : "—"}
+        {p ? <><Money incl={q2(p.incl)} excl={q2(p.excl)} /></> : "—"}
       </span>
       <span className="tabular-nums">
         <span className={lab}>Стоимость остатка</span>
         <Money incl={q2(a.remIncl)} excl={q2(a.remExcl)} />
-        <Ref4 mode={c4} incl={q2(a.remIncl)} excl={q2(a.remExcl)} />
       </span>
     </>
   );

@@ -496,8 +496,8 @@ function RegStatTile({ s }: { s: RegStat }) {
 function RegistryBlock() {
   const r = registryCoverage;
   return (
-    <section aria-label="Покрытие реестром" className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <details aria-label="Покрытие реестром" className="group rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+      <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           Покрытие реестром
           <InfoHint wide label="Что такое покрытие реестром и как обновить сверку">
@@ -509,8 +509,9 @@ function RegistryBlock() {
             </div>
           </InfoHint>
         </h2>
-        <span className="text-xs text-neutral-500">сверка от {regDate(r.checkedAt)}</span>
-      </div>
+        <span className="text-xs text-neutral-500">сверка от {regDate(r.checkedAt)} · в реестре, но не в базе: {r.registryOnly.length} · <span className="text-blue-700">показать ›</span></span>
+      </summary>
+      <div className="mt-3 flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {r.coverage.map((s) => (
           <RegStatTile key={s.key} s={s} />
@@ -554,7 +555,7 @@ function RegistryBlock() {
           «Как добавить»: откройте «Закупки → Новая закупка», внесите поставщика, лоты и сумму по строкам реестра; УПД и платёжку приложите к закупке позже. Если закупка не ваша — отметьте строки отчёта у владельца как «не наша».
         </InfoHint>
       </p>
-
-    </section>
+      </div>
+    </details>
   );
 }

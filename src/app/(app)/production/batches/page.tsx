@@ -24,7 +24,7 @@ import { payShort } from "@/lib/doc-panel";
 import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 
-export const metadata = { title: "Партии" };
+export const metadata = { title: "Партии пошива" };
 
 export default async function BatchesPage({ searchParams }: PageProps<"/production/batches">) {
   const sp = await searchParams;
@@ -90,10 +90,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
       <ProductionTabs active="batches" />
       <div>
         <h1 className="text-xl font-semibold">
-          Партии
+          Партии пошива
           <YearNote year={year} />
-          <InfoHint label="Что такое партия" wide>
-            <p>Партия — группа ТЗ, отправленных одной поставкой. Откройте партию, чтобы увидеть ТЗ, оплаты и документы.</p>
+          <InfoHint label="Что такое партия пошива" wide>
+            <p>Партия пошива — группа ТЗ, отправленных одной поставкой. Не путать с партией закупки (аукцион, поставка меха). Откройте партию, чтобы увидеть ТЗ, оплаты и документы.</p>
             <p className="mt-1">
               Год: {year === "all" ? "все годы" : `${year}`} — партия попадает в год по датам её ТЗ (дата ТЗ, иначе окончание или начало, иначе год партии); в цифрах только ТЗ этого года.
             </p>
@@ -159,21 +159,23 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         <Thead>
           <Tr>
             <Th>Партия</Th>
-            <Th className="hidden sm:table-cell">Год</Th>
             <Th>ТЗ</Th>
-            <Th title="Произведено — выпуск завершённых ТЗ партии. ТЗ в работе и запланированные показаны отдельно («в работе»).">Произведено, шт.</Th>
-            <Th className="hidden md:table-cell" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
+            <Th>
+              Произведено, шт.
+              <InfoHint label="Что значит произведено">Выпуск завершённых ТЗ партии. ТЗ в работе и запланированные показаны отдельно («в работе»).</InfoHint>
+            </Th>
+            <Th className="hidden md:table-cell">
               Себестоимость
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
             <Th className="hidden md:table-cell">Работа</Th>
-            <Th className="hidden lg:table-cell" title="Ставки НДС лотов в списаниях ТЗ партии">НДС</Th>
             <Th className="hidden lg:table-cell">Оплачено</Th>
             <Th>Остаток</Th>
-            <Th className="hidden sm:table-cell" title="Документы самой партии, её ТЗ и оплат; нажмите, чтобы открыть или загрузить">Документы</Th>
-            <Th className="hidden lg:table-cell" title="Чего не хватает по документам и оплачена ли работа заказчиком">Документы и оплата</Th>
-            <Th className="hidden lg:table-cell" title="Подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки">Проверка</Th>
+            <Th className="hidden lg:table-cell">
+              Документы и оплата
+              <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки. Число у значка документов — файлы самой партии, её ТЗ и оплат; нажмите, чтобы открыть или загрузить.</InfoHint>
+            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -183,9 +185,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 <Link href={`/production/batches/${b.number}`} className="hover:underline">
                   Партия {b.number}
                 </Link>
+                <span className="ml-1.5 text-xs font-normal text-neutral-500">{b.year ?? ""}</span>
                 {batchExtraName(b.name) && <span className="block text-xs font-normal text-neutral-500">{batchExtraName(b.name)}</span>}
               </Td>
-              <Td className="hidden sm:table-cell">{b.year ?? "—"}</Td>
               <Td>
                 <Link href={`/production?batch=${b.number}`} className="hover:underline">
                   {t.orders}
@@ -198,11 +200,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
                 {c4Mode === "on" && !t.c4Applies && !t.cost.isZero() && <span className="block text-xs text-neutral-400">без 4%</span>}
+                <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact hint={false} />
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>
-              <Td className="hidden whitespace-nowrap lg:table-cell">
-                <TzVatBadge b={vatBreakdown(b.orders.filter((o) => o.status !== "CANCELLED").flatMap((o) => o.materialUsages), c4Mode)} compact />
-              </Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{t.paid.isZero() ? "—" : formatMoney(t.paid.toString())}</Td>
               <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-600" : "")}>
                 {t.work.isZero() && t.paid.isZero()
@@ -211,9 +211,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                     ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
                     : formatMoney(t.remaining.toString())}
               </Td>
-              <Td className="hidden sm:table-cell"><DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} /></Td>
               <Td className="hidden lg:table-cell">
                 {panelByNumber.get(b.number) ? (
+                  <span className="inline-flex items-center gap-1">
                   <Link href={`/production/batches/${b.number}`} className="inline-block">
                     <DocsPayBadge
                       tone={panelByNumber.get(b.number)!.tone}
@@ -223,18 +223,18 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                       proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
                     />
                   </Link>
+                  <DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} />
+                  </span>
                 ) : (
                   "—"
                 )}
-              </Td>
-              <Td className="hidden lg:table-cell">
-                <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" />
+                <div className="mt-1"><VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /></div>
               </Td>
             </Tr>
           ))}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={12} className="py-8 text-center text-neutral-400">
+              <Td colSpan={8} className="py-8 text-center text-neutral-400">
                 {emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}
               </Td>
             </Tr>
@@ -251,7 +251,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           return (
             <RowCard
               key={b.id}
-              title={`Партия ${b.number}`}
+              title={`Партия ${b.number}${b.year ? ` · ${b.year}` : ""}`}
               href={`/production/batches/${b.number}`}
               subtitle={batchExtraName(b.name)}
               fields={[

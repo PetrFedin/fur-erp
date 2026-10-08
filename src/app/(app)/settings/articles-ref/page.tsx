@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -64,16 +65,15 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Справочник артикулов</h1>
+        <h1 className="text-xl font-semibold">Справочник артикулов <InfoHint label="О справочнике" wide>
+        Один артикул — одна запись. У нас он ведётся под кодом <b>M…</b>, в системе продаж — под своим кодом и названием: впишите их рядом, чтобы
+        артикул находился по любому написанию во всех формах выбора. Сопоставлено с системой продаж: <b>{withSales}</b> из <b>{rows.length}</b>.
+      </InfoHint></h1>
         <div className="flex gap-3 text-sm">
           <Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link>
           <Link href="/articles" className="text-neutral-500 hover:underline">Изделия (себестоимость, склад)</Link>
         </div>
       </div>
-      <p className="max-w-3xl text-sm text-neutral-600">
-        Один артикул — одна запись. У нас он ведётся под кодом <b>M…</b>, в системе продаж — под своим кодом и названием: впишите их рядом, чтобы
-        артикул находился по любому написанию во всех формах выбора. Сопоставлено с системой продаж: <b>{withSales}</b> из <b>{rows.length}</b>.
-      </p>
       <ArticlesRefTable rows={rows} canEdit={canEdit} categories={categories} canCreateCategory={hasRole(session.user.role, ACCESS.categories)} initial={{ q: f.q, noSales: f.sales === "none", onlyActive: f.status.includes("active") }} />
       {canEdit && <ImportPanel />}
     </div>

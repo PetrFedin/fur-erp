@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { InfoHint } from "@/components/info-hint";
 import { Card } from "@/components/ui/card";
 import { computeDocCoverage } from "@/lib/doc-coverage";
 import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/lib/attention";
@@ -61,10 +62,14 @@ export default async function DocumentAnalysisPage() {
       <ControlTabs active="analysis" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Анализ документов</h1>
-          <p className="mt-1 max-w-3xl text-sm text-neutral-500">
-            Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» этим не перегружена. Очередь дел — вкладка «Задачи».
-          </p>
+          <h1 className="text-xl font-semibold">
+            Анализ документов
+            <span className="ml-2 align-middle text-sm font-normal">
+              <InfoHint wide label="О странице">
+                <p>Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
+              </InfoHint>
+            </span>
+          </h1>
         </div>
         <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">{yearLabel(year)}</span>
       </div>
@@ -73,13 +78,13 @@ export default async function DocumentAnalysisPage() {
         <Card className="p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Google Drive · «Мех»</div>
           <div className="mt-2 text-2xl font-semibold">{driveSyncSnapshot.meaningfulCoveragePct}%</div>
-          <div className="mt-1 text-xs text-neutral-500">{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано</div>
+          <div className="mt-1 text-xs text-neutral-500">файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></div>
           <div className={"mt-2 text-xs font-medium " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Покрытие обязательной первичкой</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Документы на месте</div>
           <div className="mt-2 text-2xl font-semibold">{coverage.total.percent == null ? "—" : `${coverage.total.percent}%`}</div>
-          <div className="mt-1 text-xs text-neutral-500">есть {coverage.total.have} из {coverage.total.required} обязательных доказательств</div>
+          <div className="mt-1 text-xs text-neutral-500">документы есть<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p></InfoHint></div>
           <div className="mt-2 text-xs font-medium text-amber-700">Записей с пробелами: {coverage.total.rowsWithGaps}</div>
         </Card>
         <Card className="p-4">
@@ -91,14 +96,13 @@ export default async function DocumentAnalysisPage() {
         <Card className="p-4">
           <Link href="/attention" className="text-xs font-semibold uppercase tracking-wide text-neutral-500 hover:underline">Задачи →</Link>
           <div className="mt-2 text-2xl font-semibold">{attention.main}</div>
-          <div className="mt-1 text-xs text-neutral-500">срочных блоков: {attention.red} · справочно: {attention.info}</div>
+          <div className="mt-1 text-xs text-neutral-500">срочных: {attention.red}<InfoHint label="Подробности"><p>Срочных блоков {attention.red} · справочно {attention.info}.</p></InfoHint></div>
           <Link href="/verify" className="mt-2 inline-block text-xs underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
         </Card>
       </section>
 
       <section className="space-y-2">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Покрытие по процессам</div>
           <h2 className="mt-1 text-base font-semibold">Где именно не хватает документа</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -118,7 +122,6 @@ export default async function DocumentAnalysisPage() {
 
       <section className="space-y-2">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Проверка спорного долга</div>
           <h2 className="mt-1 text-base font-semibold">Почему отдельные партии выглядят неоплаченными</h2>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
@@ -132,14 +135,21 @@ export default async function DocumentAnalysisPage() {
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">ручная проверка</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-700">{c.conclusion}</p>
-                {first ? (
-                  <div className="mt-3 rounded-lg bg-neutral-50 p-3 text-xs leading-relaxed text-neutral-600">
-                    <div className="font-medium text-neutral-900">{first.what}</div>
-                    {first.doc ? <div className="mt-1">Документ: {first.doc}</div> : null}
-                    {first.db ? <div>ERP: {first.db}</div> : null}
+                {(first || next) && (
+                  <div className="mt-2 text-xs">
+                    <InfoHint wide label={`Подробности: ${c.title}`}>
+                      {first ? (
+                        <>
+                          <p className="font-medium text-neutral-900">{first.what}</p>
+                          {first.doc ? <p className="mt-1">Документ: {first.doc}</p> : null}
+                          {first.db ? <p>ERP: {first.db}</p> : null}
+                        </>
+                      ) : null}
+                      {next ? <p className="mt-2 font-medium text-amber-800">Следующее действие: {next}</p> : null}
+                    </InfoHint>
+                    <span className="ml-1 text-neutral-500">расхождение и следующий шаг</span>
                   </div>
-                ) : null}
-                {next ? <div className="mt-2 text-xs font-medium text-amber-800">Следующее действие: {next}</div> : null}
+                )}
                 <Link href="/reconciliation" className="mt-3 inline-block text-xs underline">Открыть сверку →</Link>
               </Card>
             );

@@ -1,40 +1,39 @@
 "use client";
 
 import { useVatDisplay } from "@/lib/vat-display";
+import { InfoHint } from "@/components/info-hint";
 
-/** Что именно показано в блоке: «Показано: все годы · с НДС · с 4% · фильтры: …». Цифры берут режимы шапки; где режим цифру не меняет — так и написано. */
+/** Режимы страницы: год, активные фильтры. НДС и 4% берутся из переключателей шапки. */
 export type ModeInfo = {
   year: string;
   /** Текст активных фильтров («мех ×1, НДС ×1») либо null, если фильтров нет. */
   filters: string | null;
 };
 
-export function ModeLine({ info, c4, vat = "switch", filters = "apply", className = "" }: {
-  info: ModeInfo;
-  /** "on" | "off" — режим 4% меняет цифры блока; "na" — не меняет. */
-  c4: "on" | "off" | "na";
-  /** "switch" — следует за «С НДС / Без НДС»; "incl" — всегда с НДС. */
-  vat?: "switch" | "incl";
-  /** "apply" — фильтры сужают блок; "ignore" — не зависит от фильтров. */
-  filters?: "apply" | "ignore";
-  className?: string;
-}) {
+/**
+ * Единственная строка режимов на странице — в заголовке: «все годы · с НДС · с 4%».
+ * Подробности (что от чего зависит) — в «i», в блоках повторять не нужно.
+ */
+export function PageModes({ info, c4 }: { info: ModeInfo; c4: "on" | "off" }) {
   const { mode } = useVatDisplay();
-  const parts: React.ReactNode[] = [info.year];
-  parts.push(vat === "incl" ? "всегда с НДС" : mode === "incl" ? "с НДС" : "без НДС");
-  parts.push(c4 === "na" ? "4% не влияет" : c4 === "on" ? "с 4%" : "без 4%");
-  if (filters === "ignore") parts.push("не зависит от фильтров Сводки");
-  else if (info.filters) parts.push(<b key="f" className="font-medium text-amber-700">фильтры: {info.filters}</b>);
   return (
-    <span className={"text-xs text-neutral-500 " + className} data-testid="mode-line">
-      Показано: {parts.map((p, i) => <span key={i}>{i > 0 ? " · " : ""}{p}</span>)}
+    <span className="ml-2 inline-flex flex-wrap items-center gap-x-1.5 text-sm font-normal text-neutral-500" data-testid="mode-line">
+      <span>· {info.year} · {mode === "incl" ? "с НДС" : "без НДС"} · {c4 === "on" ? "с 4%" : "без 4%"}</span>
+      {info.filters ? <b className="font-medium text-amber-700">· фильтры: {info.filters}</b> : null}
+      <InfoHint label="Какие режимы действуют" wide>
+        <p><b>Год</b>, <b>цены (с НДС / без НДС)</b> и <b>4% к сырью</b> переключаются в шапке сайта и действуют на всю страницу.</p>
+        <p className="mt-1">Блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков» зависят от фильтров ниже. Долг и оплаты поставщику (всегда с НДС) и «Задачи» — не зависят от фильтров и от 4%.</p>
+        <p className="mt-1">«Таблица по годам» не зависит от года шапки: показывает все годы.</p>
+      </InfoHint>
     </span>
   );
 }
 
-/** Компактная заметка с «≠» / «=» под блоком. */
-export function Note({ children, tone = "info" }: { children: React.ReactNode; tone?: "info" | "warn" }) {
+/** Пояснение «как сходятся цифры» — теперь в значке «i» рядом с заголовком блока, а не абзацем в потоке страницы. */
+export function BridgeHint({ label, children, warn = false }: { label: string; children: React.ReactNode; warn?: boolean }) {
   return (
-    <p className={"rounded-md border px-3 py-1.5 text-[11px] leading-4 " + (tone === "warn" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-neutral-200 bg-neutral-50 text-neutral-600")}>{children}</p>
+    <InfoHint label={label} wide className={warn ? "[&>button]:border-amber-500 [&>button]:text-amber-700" : undefined}>
+      {children}
+    </InfoHint>
   );
 }

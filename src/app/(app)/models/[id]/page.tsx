@@ -61,6 +61,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
+      <Link href="/articles" className="text-sm text-neutral-500 hover:underline">← Изделия</Link>
       <Card>
         <CardHeader>
           <CardTitle>Модель: <ArticleName model={model} /></CardTitle>
@@ -72,7 +73,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
               href={`/articles?q=${encodeURIComponent(model.name)}#price-${model.id}`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Изменить цену в «Изделиях»
+              Изменить цену
             </Link>
           </div>
           <ModelForm
@@ -144,11 +145,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Примерки этой модели</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={fittings.length > 0}>
+        <summary className="cursor-pointer text-sm font-medium">Примерки этой модели ({fittings.length})</summary>
+        <div className="mt-2">
           {fittings.length === 0 ? (
             <p className="text-sm text-neutral-400">Примерок по этой модели пока нет</p>
           ) : (
@@ -168,8 +167,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
               })}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
       <RecordHistory model="ProductModel" recordId={model.id} />
       <RecordComments entityType="ProductModel" entityId={model.id} />
     </div>

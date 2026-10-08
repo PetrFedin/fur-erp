@@ -94,14 +94,13 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
             </div>
           </InfoHint>
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">Что сопоставлено — подтверждено; что под вопросом — ждёт вашей проверки по каждой строке.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, cls: "border-emerald-200 bg-emerald-50 text-emerald-900" },
           { label: "Ждёт проверки", v: total.waiting, sub: null, cls: "border-amber-300 bg-amber-50 text-amber-900" },
-          { label: "Готово к подтверждению", v: total.ready, sub: "без блокеров", cls: "border-blue-200 bg-blue-50 text-blue-900" },
+          { label: "Готово к подтверждению", v: total.ready, sub: null, cls: "border-blue-200 bg-blue-50 text-blue-900" },
           { label: "Всего строк", v: total.total, sub: null, cls: "border-neutral-200 bg-white text-neutral-900" },
         ].map((c) => (
           <div key={c.label} className={cn("rounded-lg border px-3 py-2", c.cls)}>

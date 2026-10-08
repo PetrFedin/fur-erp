@@ -78,11 +78,13 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             </InfoHint>
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Открыто задач: <b className="text-neutral-900">{counts.tasks}</b>
-            <> (по данным {totals.main} · документы {counts.docTasks} · решения {counts.decisions})</>
-            {counts.urgent > 0 && <> , из них срочных: <b className="text-red-600">{counts.urgent}</b></>}
-            {totals.info > 0 && <> · справочно: {totals.info}</>}
+            Открыто: <b className="text-neutral-900">{counts.tasks}</b>
+            {counts.urgent > 0 && <> · срочно: <b className="text-red-600">{counts.urgent}</b></>}
             {year !== "all" && <> · {yearLabel(year)}</>}
+            <InfoHint wide label="Из чего складывается число">
+              <p>По данным {totals.main} · документы {counts.docTasks} · решения {counts.decisions}{totals.info > 0 && <> · справочно (в число не входит) {totals.info}</>}.</p>
+              <p className="mt-2">Цвет точки: <span className="text-red-600">красный</span> — срочно, жёлтый — проверить, серый — справочно.</p>
+            </InfoHint>
           </p>
         </div>
         <Link href={showAll ? "/attention" : "/attention?all=1"} className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
@@ -110,7 +112,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
       )}
 
       {!showAll && decisions.length + infos.length > 0 && (
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">По данным: группы пробелов</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Пробелы в данных</h2>
       )}
 
       {all.length === 0 ? (
@@ -125,21 +127,18 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             ))}
           </div>
           {infos.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Справочно — в число не входит</h2>
-              {infos.map((b) => (
-                <BlockCard key={b.id} b={b} />
-              ))}
-            </section>
+            <details className="rounded-lg border border-neutral-200 bg-white">
+              <summary className="cursor-pointer list-none p-3 text-sm font-medium text-neutral-600 hover:bg-neutral-50">Справочно ({infos.length}) — в число не входит</summary>
+              <div className="flex flex-col gap-2 border-t border-neutral-100 p-2">
+                {infos.map((b) => (
+                  <BlockCard key={b.id} b={b} />
+                ))}
+              </div>
+            </details>
           )}
         </>
       )}
 
-      <p className="text-xs text-neutral-400">
-        <span className="mr-3"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" />срочно</span>
-        <span className="mr-3"><span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" />проверить</span>
-        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-neutral-300" />справочно</span>
-      </p>
     </div>
   );
 }

@@ -16,7 +16,7 @@ import { ProductionBlock } from "./production-block";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
-import { ModeLine, type ModeInfo } from "./mode-line";
+import { PageModes, BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
 export const metadata = { title: "Сводка" };
@@ -34,6 +34,12 @@ const PRINT_CSS = `
   table { min-width: 0 !important; }
   section { break-inside: avoid-page; }
 }`;
+
+/** Срок «дд.мм.гггг» уже прошёл (конец дня). */
+function isPastRu(date: string): boolean {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(date);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59).getTime() < Date.now() : false;
+}
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
@@ -66,7 +72,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <IntegrityBanner />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">
-          Сводка<span className="ml-2 text-sm font-normal text-neutral-500">· {yl} · {c4Mode === "on" ? "с 4%" : "без 4%"}</span>
+          Сводка<PageModes info={info} c4={c4Mode} />
         </h1>
         <PrintButton />
       </div>
@@ -89,14 +95,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая", hint: "Ставка НДС лота" },
           ]}
           footer={
-            <p className="mt-2 flex flex-wrap items-center gap-1 text-[11px] leading-4 text-neutral-500">
-              Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}); фильтры применяются сразу.
-              {filtersOn
-                ? " Сужают: блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков»; не зависят от них: долг и оплаты поставщику, задачи."
-                : " Фильтры сужают блоки «Сырьё» и «Производство», таблицы динамики и «Долг заказчиков»."}
+            <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
+              Фильтры применяются сразу
               <InfoHint label="Что фильтруется на Сводке" wide>
-                <p>Партия закупки, вид меха, цвет, признак меха и ставка НДС отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот. Статус и партия производства отбирают ТЗ (и «использовано» — только по ним).</p>
-                <p className="mt-1">Долг и оплаты поставщику (по закупкам и оплатам года) и «Задачи» (как в «Контроле») от фильтров не зависят.</p>
+                <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).</p>
+                <p className="mt-1">Партия закупки, вид меха, цвет, признак меха и ставка НДС отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот. Статус и партия производства отбирают ТЗ (и «использовано» — только по ним).</p>
+                <p className="mt-1">Сужают блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков». Долг и оплаты поставщику (по закупкам и оплатам года) и «Задачи» (как в «Контроле») от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </p>
           }
@@ -115,14 +119,19 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <section aria-labelledby="dash-pay" className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="dash-pay" className="text-base font-semibold">Оплаты, долги, задачи</h2>
-          <ModeLine info={info} c4="na" vat="incl" filters="ignore" />
         </div>
         <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
           <div className={TILE_BOX}>
             <TileHead><InclVatOnlyLabel base="Долг поставщику" /></TileHead>
-            <div className="absolute right-3 top-3"><SupplierDebtHint debt={debt} year={year} align="right" /></div>
+            <div className="absolute right-3 top-3 flex items-center gap-1" data-testid="debt-bridge">
+              <BridgeHint label="Как сходится долг">
+                <p>Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> (это «Куплено» в «Сырьё») + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
+                <p className="mt-1">Части в плитке (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
+              </BridgeHint>
+              <SupplierDebtHint debt={debt} year={year} align="right" />
+            </div>
             <TileValue className={debt.debt.greaterThan(0) ? "text-amber-700" : ""}>{formatMoney(debt.debt.toFixed(2))}</TileValue>
-            <TileCaption>всего к оплате по закупкам: части ниже в сумме дают этот долг</TileCaption>
+            <TileCaption>всего к оплате</TileCaption>
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-neutral-600">К оплате по УПД и счетам</dt><dd className="font-medium tabular-nums">{formatMoney(debt.receivedNet.toFixed(2))}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-neutral-600">Счёт выставлен, не оплачен</dt><dd className="font-medium tabular-nums">{formatMoney(debt.invoiced.toFixed(2))}</dd></div>
@@ -131,12 +140,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {d.invoiceDeadlines.length > 0 ? (
               <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
                 <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>
-                {d.invoiceDeadlines.map((x) => <div key={x.auction + x.date}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b></div>)}
+                {d.invoiceDeadlines.map((x) => {
+                  const late = isPastRu(x.date);
+                  return <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</div>;
+                })}
               </div>
             ) : null}
-            <div className="mt-2 border-t border-neutral-100 pt-2 text-[11px] leading-4 text-neutral-500" data-testid="debt-bridge">
-              Закупки всего <b className="tabular-nums text-neutral-700">{mln(debt.total.toNumber())}</b> = мех получен <b className="tabular-nums text-neutral-700">{mln(d.bridge.purchases.received)}</b> (это «Куплено» в «Сырьё») + ещё не получен <b className="tabular-nums text-neutral-700">{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b className="tabular-nums text-neutral-700">{mln(d.supplierCashPaid)}</b> = долг <b className="tabular-nums text-neutral-700">{mln(debt.debt.toNumber())}</b>.
-            </div>
             <Link href="/payments" className="mt-2 inline-block text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>
           </div>
 
@@ -148,30 +157,28 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 <>подтверждено <b className="tabular-nums">{formatMoney(pv.verified.toFixed(0))}</b> · <span className={pv.waiting.greaterThan(0) ? "text-amber-700" : undefined}>не подтверждено <b className="tabular-nums">{formatMoney(pv.waiting.toFixed(0))}</b></span></>
               ) : null}
             </TileCaption>
-            <div className="mt-1 text-xs text-neutral-500">по закупкам и аукционам {formatMoney(debt.paid.toFixed(0))} · авансы без привязки {formatMoney(debt.unlinkedAdvances.toFixed(0))}</div>
+            <div className="absolute right-3 top-3">
+              <InfoHint label="Из чего состоит оплачено" align="right">
+                <p>По закупкам и аукционам {formatMoney(debt.paid.toFixed(0))} + авансы без привязки к закупке {formatMoney(debt.unlinkedAdvances.toFixed(0))}. Всегда с НДС; от фильтров и 4% не зависит.</p>
+              </InfoHint>
+            </div>
             <div className="mt-4 border-t border-neutral-100 pt-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг заказчиков" /></div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500"><InclVatOnlyLabel base="Долг заказчиков" />
+                <InfoHint label="Что в долге заказчиков" align="right" wide>
+                  <p>Из оплаченного: разнесено по ТЗ {formatMoney(d.clientDebtInfo.allocated.toFixed(0))}
+                    {d.clientDebtInfo.unallocatedApplied ? <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocated.toFixed(0))}</> : d.clientDebtInfo.unallocatedAll > 0.005 ? <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocatedAll.toFixed(0))} в остаток при фильтре по ТЗ не входят</> : null}.</p>
+                  <p className="mt-1">Меньше «Работы» в «Производстве» ({mln(d.prod.done.workSum + d.prod.work.workSum)}) на {mln(d.bridge.clientWork.noClient)}: ТЗ без заказчика сюда не входят. Работы заказчика = завершённые {mln(d.bridge.clientWork.done)} + в работе по плану {mln(d.bridge.clientWork.work)}. Зависит от года и фильтров.</p>
+                </InfoHint>
+</div>
               <div className={"mt-1 text-xl font-semibold tabular-nums " + (clientTotal > 0 ? "text-amber-700" : "")}>{formatMoney(clientTotal.toFixed(2))}</div>
               <div className="text-xs text-neutral-500">работы {formatMoney(clientBillable.toFixed(0))} · оплачено {formatMoney(clientPaid.toFixed(0))}</div>
-              <div className="text-xs text-neutral-500">
-                из оплаченного: разнесено по ТЗ {formatMoney(d.clientDebtInfo.allocated.toFixed(0))}
-                {d.clientDebtInfo.unallocatedApplied ? (
-                  <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocated.toFixed(0))}</>
-                ) : d.clientDebtInfo.unallocatedAll > 0.005 ? (
-                  <> · <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline">неразнесённые авансы</Link> {formatMoney(d.clientDebtInfo.unallocatedAll.toFixed(0))} в остаток при фильтре по ТЗ не входят</>
-                ) : null}
-              </div>
-              <div className="mt-1 text-[11px] leading-4 text-neutral-500">
-                ≠ «Работа» в «Производстве» ({mln(d.prod.done.workSum + d.prod.work.workSum)}) больше на {mln(d.bridge.clientWork.noClient)}: ТЗ без заказчика сюда не входят. Работы заказчика = завершённые {mln(d.bridge.clientWork.done)} + в работе по плану {mln(d.bridge.clientWork.work)}.
-                {" "}Зависит от года и фильтров.
-              </div>
             </div>
           </div>
 
           <div className={TILE_BOX}>
             <TileHead>
               Задачи
-              <InfoHint label="Задачи и фильтры" align="right">Число задач — как в «Контроле»; от фильтров Сводки не зависит.</InfoHint>
+              <span className="absolute right-3 top-3"><InfoHint label="Задачи и фильтры" align="right">Число задач — как в «Контроле»; от фильтров Сводки не зависит.</InfoHint></span>
             </TileHead>
             {ctl ? (
               <>
@@ -199,7 +206,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <details className="rounded-lg border border-neutral-200 bg-white" id="client-debt">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium hover:bg-neutral-50">
               <span><InclVatOnlyLabel base="Остаток к оплате по заказчикам" /></span>
-              <span className="text-xs font-normal text-neutral-500">{d.clientDebts.length} заказчиков · развернуть</span>
+              <span className="text-xs font-normal text-neutral-500">{d.clientDebts.length} · развернуть</span>
             </summary>
             <div className="overflow-x-auto border-t border-neutral-100">
               <table className="w-full text-sm">
