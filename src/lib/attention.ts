@@ -395,7 +395,9 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
         flagPayment(mainAdvance, { text: `аукцион ${a.name}: ${text}; возможно, этот аванс — за него`, href, priority: "red", group: "advance-unlinked" });
       else attach({ text, priority: draftOnly ? "gray" : "red", group: draftOnly ? "awaiting" : "auction-unpaid" });
     }
-    if (a.remaining.lessThan(PAY_EPS.neg()))
+    // Переплата, зачтённая документом (расчёт AME по счёту №253), — не вопрос: те же правила в integrity/known.ts.
+    const settledByDocs = /^(SAGA 03[-.]26|Подкладка 05[-.]26)$/i.test(a.name);
+    if (a.remaining.lessThan(PAY_EPS.neg()) && !settledByDocs)
       attach({ text: `оплачено больше стоимости аукциона на ${formatMoney(a.remaining.neg().toString())}`, priority: "yellow", group: "overpaid" });
   }
   // Закупки без аукциона: переплата считается по самой закупке.
@@ -497,7 +499,8 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     if (o.status === "COMPLETED" && (!o.endDate || isImportDay(o.endDate)))
       flagTz(o, { text: o.endDate ? `дата выпуска ${formatDate(o.endDate)} — дата импорта` : "даты выпуска нет", priority: "yellow", group: "tz-end-date" });
     // Реквизиты
-    if (!o.batchId) flagTz(o, { text: "партия не указана", priority: "yellow", group: "tz-requisites" });
+    // ТЗ 116/117 вне партий — документально (письмо Коношенко 10.07.2026, пометка в заметках ТЗ).
+    if (!o.batchId && !(o.notes ?? "").includes("[письма backup 2026-10-08, ТЗ 116/117]")) flagTz(o, { text: "партия не указана", priority: "yellow", group: "tz-requisites" });
     if (!o.clientId) flagTz(o, { text: "заказчик не указан", priority: "yellow", group: "tz-requisites" });
     else if (!o.contractNumber?.trim()) flagTz(o, { text: "номер договора не указан", priority: "gray", group: "dict" });
     // Запланированные с нулевым остатком сырья
