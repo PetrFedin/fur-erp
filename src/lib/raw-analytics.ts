@@ -1,4 +1,4 @@
-import { producedUnits } from "@/lib/production-totals";
+import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -423,8 +423,8 @@ export const pctText = (p: number | null) => (p == null ? "—" : `${p.toFixed(1
 // ───────────── списания по изделиям и ТЗ ─────────────
 
 const K4 = new Decimal(COMMISSION_RATE);
-/** Произведено по ТЗ — только завершённые (production-totals.ts); у ТЗ в работе 0, их план показывается отдельно. */
-const producedDec = (o: { status: string; producedQuantity: Decimal; plannedQuantity: Decimal }) => new Decimal(producedUnits(o).toFixed(3));
+/** Произведено по ТЗ — все ТЗ без отменённых (production-totals.ts), как на Главной: выпуск завершённого, план ТЗ в работе. */
+const producedDec = (o: { status: string; producedQuantity: Decimal; plannedQuantity: Decimal }) => new Decimal(orderUnits(o).toFixed(3));
 
 type OrderBrief = {
   id: string;

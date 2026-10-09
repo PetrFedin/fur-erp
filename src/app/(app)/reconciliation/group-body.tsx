@@ -52,8 +52,8 @@ function closeActions(g: Group, remaining: number, proofMissing: number) {
     const text = `${d.why ?? ""}`.trim();
     if (/нужн|подтверд|плат[её]жк|выписк|уточн|исправ|найти|решени/i.test(text)) out.push(text);
   }
-  if (remaining > TOL && proofMissing > 0) out.unshift("Загрузить банковское подтверждение оплаты или оставить счёт в статусе «не подтверждено». ");
-  if (out.length === 0 && g.status !== "ok" && g.status !== "docs") out.push("Проверить отмеченные расхождения и приложить первичный документ, который закрывает разницу.");
+  if (remaining > TOL && proofMissing > 0) out.unshift("Получить банковское подтверждение оплаты или оставить счёт в статусе «не подтверждено». ");
+  if (out.length === 0 && g.status !== "ok" && g.status !== "docs") out.push("Проверить отмеченные расхождения и найти первичный документ, который закрывает разницу.");
   return [...new Set(out)].slice(0, 4);
 }
 

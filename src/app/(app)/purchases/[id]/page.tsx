@@ -23,7 +23,6 @@ import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { ItemRowShared, PurchaseItemRow } from "./item-row";
-import { DocumentsForm } from "./documents-form";
 import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { countLabel } from "@/lib/drive-docs-group";
@@ -805,25 +804,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-
-      {canEditRole && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Документы закупки</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DocumentsForm
-              purchaseId={id}
-              hasBatch={!!batchName}
-              paymentTargets={
-                hasRole(session.user.role, ["OWNER", "ADMIN"])
-                  ? purchase.payments.map((p) => ({ id: p.id, label: `${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}` }))
-                  : undefined
-              }
-            />
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardHeader>

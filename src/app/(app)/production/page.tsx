@@ -9,7 +9,6 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Money } from "@/components/money";
-import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -237,7 +236,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   };
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
   const vflags = await loadVerifyFlags(prisma, orgId);
-  const tzDocs = await docCounts(orgId, "order", rawOrders.map((o) => o.id));
   const orders = rawOrders.filter((o) => {
     // Цвет: подходит ЛЮБОЙ из цветов ТЗ (составной ТЗ — под каждый свой цвет); «без цвета» — цвет в документах не указан.
     if (f.color.length) {
@@ -420,7 +418,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th className="text-right">
               <VatLabel base={`Итоговая себестоимость${c4}`} />
             </Th>
-            <Th></Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -446,7 +443,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
                   { label: "Заказчик", value: o.client?.name },
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
-                  { label: "Документы", value: <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} /> },
                 ]}
               />,
             );
@@ -487,11 +483,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   <Link href={href} className={link}>
                     {full.incl.isZero() ? "—" : <Money incl={full.incl} excl={full.excl} />}
                   </Link>
-                </Td>
-                <Td className={`${cell} w-12 text-right`}>
-                  <span className="block px-2">
-                    <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} />
-                  </span>
                 </Td>
               </Tr>
             );

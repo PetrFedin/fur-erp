@@ -270,8 +270,8 @@ function ResultView({ r }: { r: ImportResult }) {
         </div>
       )}
       <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
-        <p className="font-medium">Задача: загрузить недостающие документы</p>
-        <p className="text-xs">У созданных ТЗ приложение с исходным файлом прикреплено, если он был загружен. Остальное (счёт на работу, оплаты) — на карточке ТЗ в блоке «Документы и оплата» и в <Link className="underline" href="/verify">Контроле → Задачи</Link>. Цифры «Сводки» обновились: <Link className="underline" href="/dashboard">открыть Сводку</Link>.</p>
+        <p className="font-medium">Что дальше</p>
+        <p className="text-xs">Счёт на работу и оплаты — на карточке ТЗ в блоке «Документы и оплата» и в <Link className="underline" href="/verify">Контроле → Задачи</Link>. Цифры «Сводки» обновились: <Link className="underline" href="/dashboard">открыть Сводку</Link>.</p>
       </div>
       <div className="flex gap-2">
         <Link className="text-sm text-blue-600 hover:underline" href="/production">К списку ТЗ</Link>

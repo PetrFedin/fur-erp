@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { DriveDocuments } from "@/components/drive-documents";
-import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
@@ -94,7 +93,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     .reduce<Decimal | null>((s, v) => (v ? (s ? s.add(v) : v) : s), null);
 
   const orderIds = orders.map((o) => o.id);
-  const payDocCnt = await docCounts(orgId, "productionPayment", payments.map((x) => x.p.id));
   const driveRows = await prisma.driveDocument.findMany({
     where: {
       organizationId: orgId,
@@ -156,7 +154,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="ТЗ" value={String(t.orders)} />
         <Stat label="Произведено" value={formatQty(t.producedUnits.toString())} />
-        {t.inWorkOrders > 0 && <Stat label="В работе" value={formatQty(t.inWorkUnits.toString())} />}
         <Stat label={`Себестоимость${t.c4Applies ? c4Suffix(c4Mode) : ""}`} value={formatMoney(t.cost.toString())} />
         <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
         <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />
@@ -272,7 +269,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th className="hidden sm:table-cell" title="Часть платежа, отнесённая на ТЗ этой партии">На ТЗ партии</Th>
                 <Th className="hidden sm:table-cell">Документ</Th>
                 <Th className="hidden sm:table-cell">ТЗ</Th>
-                <Th>Документы</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -288,7 +284,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   <Td className="hidden whitespace-nowrap sm:table-cell">{shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—"}</Td>
                   <Td className="hidden sm:table-cell">{p.docRef ?? "—"}</Td>
                   <Td className="hidden sm:table-cell">{tz.join(", ")}</Td>
-                  <Td><DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                 </Tr>
               ))}
               {payments.length === 0 && (

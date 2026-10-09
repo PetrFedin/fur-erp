@@ -1,7 +1,6 @@
 import { OrderDocsPay } from "../docs-pay";
 import { AllocationEditButton, type AllocOrderOpt } from "@/components/allocation-editor";
 import { IntegrityBanner } from "@/components/integrity-banner";
-import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VerifyBlock } from "../../verify/verify-block";
 import { notFound } from "next/navigation";
@@ -169,7 +168,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     },
     orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
   });
-  const payDocCnt = await docCounts(session.user.organizationId, "productionPayment", payments.map((p) => p.id));
   const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null, session.user.role));
 
   // All ТЗ of this client (incl. the current one) for the payment form:
@@ -940,7 +938,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Th>Тип</Th>
                   <Th>Сумма платежа</Th>
                   <Th>На это ТЗ</Th>
-                  <Th>Документы</Th>
                   <Th></Th>
                 </Tr>
               </Thead>
@@ -952,7 +949,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
                       <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
                       <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-500">не разнесено</span>}</Td>
-                      <Td><DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                       <Td>
                         {canEdit && (
                           <div className="flex items-center gap-1">
@@ -984,7 +980,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     subtitle={`${formatDate(p.paidAt)} · ${PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}`}
                     fields={[
                       { label: "На это ТЗ", value: shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : "не разнесено" },
-                      { label: "Документы", value: <DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /> },
                     ]}
                     extra={
                       canEdit && (

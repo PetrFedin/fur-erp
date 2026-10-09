@@ -21,7 +21,6 @@ import { DocsPayBadge } from "@/components/docs-pay-badge";
 import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { payShort } from "@/lib/doc-panel";
-import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 
 export const metadata = { title: "Партии пошива" };
@@ -159,7 +158,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th>ТЗ</Th>
             <Th>
               Произведено, шт.
-              <InfoHint label="Что значит произведено">Выпуск завершённых ТЗ партии. ТЗ в работе и запланированные показаны отдельно («в работе»).</InfoHint>
+              <InfoHint label="Что значит произведено">Все ТЗ партии без отменённых и без ремонта: завершённые и в работе (как на Главной).</InfoHint>
             </Th>
             <Th className="hidden md:table-cell">
               Себестоимость
@@ -171,7 +170,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th>Остаток</Th>
             <Th className="hidden lg:table-cell">
               Документы и оплата
-              <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки. Число у значка документов — файлы самой партии, её ТЗ и оплат; нажмите, чтобы открыть или загрузить.</InfoHint>
+              <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки.</InfoHint>
             </Th>
           </Tr>
         </Thead>
@@ -192,7 +191,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               </Td>
               <Td>
                 {formatQty(t.producedUnits.toString())}
-                {t.inWorkOrders > 0 && <span className="block text-xs text-neutral-500">в работе {formatQty(t.inWorkUnits.toString())}</span>}
                 {b.plannedUnits != null && <span className="block text-xs text-neutral-500">план {b.plannedUnits}</span>}
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.cost.isZero() ? "—" : formatMoney(t.cost.toString())}
@@ -220,7 +218,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                       proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
                     />
                   </Link>
-                  <DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} />
                   </span>
                 ) : (
                   "—"
@@ -255,13 +252,12 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
                 { label: "ТЗ", value: <Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link> },
-                { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${t.inWorkOrders > 0 ? ` · в работе ${formatQty(t.inWorkUnits.toString())}` : ""}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
+                { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
               ]}
               details={[
                 { label: `Себестоимость${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
-                { label: "Документы", value: <DocBadge entity="batch" id={b.id} count={docs} title={`Партия ${b.number}`} /> },
                 { label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> },
                 {
                   label: "Документы и оплата",

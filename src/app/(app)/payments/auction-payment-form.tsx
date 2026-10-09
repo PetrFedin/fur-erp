@@ -254,17 +254,6 @@ export function AuctionPaymentForm({
         <label htmlFor={fid("notes")} className={lab}>Заметка</label>
         <Input id={fid("notes")} name="notes" defaultValue={initial?.notes ?? ""} maxLength={1000} autoComplete="off" />
       </div>
-      <div className="sm:col-span-2">
-        <label htmlFor={fid("file")} className={lab}>
-          {initial?.docName ? `Заменить платёжку (сейчас: ${initial.docName})` : "Платёжный документ (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ)"}
-        </label>
-        <input id={fid("file")} type="file" name="file" accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="w-full text-sm" />
-        {initial?.docName && (
-          <label className="mt-1 flex items-center gap-2 text-xs text-neutral-600">
-            <input type="checkbox" name="removeDocument" value="1" /> Убрать документ без замены
-          </label>
-        )}
-      </div>
 
       {error && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2 lg:col-span-4">

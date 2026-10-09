@@ -4,7 +4,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { extraInclOnly } from "@/lib/commission4";
 import { DEFAULT_COMMISSION4_MODE, type Commission4Mode } from "@/lib/commission4-mode";
-import { inWorkUnits, isInWorkStatus, isProducedStatus, orderUnits, producedUnits } from "@/lib/production-totals";
+import { orderUnits } from "@/lib/production-totals";
+import { classifyProduct } from "@/lib/product-category";
 
 /** Количество изделий ТЗ (production-totals.ts): выпуск у завершённого, план у ТЗ в работе. */
 export const orderUnitsDec = (o: { status: string; plannedQuantity: Decimal; producedQuantity: Decimal }) => new Decimal(orderUnits(o).toFixed(3));
@@ -31,7 +32,7 @@ export function contractorHidesFromNotes(notes: string | null | undefined): Deci
 
 /** ТЗ с данными для сводки по партии (себестоимость, работа, оплаты). */
 export const batchOrderInclude = {
-  productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
+  productModel: { select: { name: true, category: true, categoryRef: { select: { name: true } }, salesCode: true, salesName: true } },
   client: { select: { name: true } },
   // quantity и lot — для разбивки по ставкам НДС лотов (lib/tz-vat.ts): в одном ТЗ ставки бывают 20% и 22%.
   materialUsages: {
@@ -49,6 +50,11 @@ export const batchOrderInclude = {
   // Разнесение оплат по ТЗ (PaymentAllocation): «оплачено по ТЗ» считается из него, не из валовой суммы платежей.
   payShares: { select: { amount: true, productionPaymentId: true, productionPayment: { select: { status: true } } } },
 } satisfies Prisma.ProductionOrderInclude;
+
+/** Ремонт определяется той же классификацией, что и на Главной (справочник категорий, затем название/описание), а не только полем модели. */
+export function isRepairOrder(o: { materialDescription?: string | null; productModel: { name: string; category: string | null; categoryRef?: { name: string } | null } }): boolean {
+  return classifyProduct({ refName: o.productModel.categoryRef?.name, modelCategory: o.productModel.category, orderDescription: o.materialDescription, modelName: o.productModel.name }).category === "Ремонт";
+}
 
 export type BatchOrder = Prisma.ProductionOrderGetPayload<{ include: typeof batchOrderInclude }>;
 
@@ -93,7 +99,8 @@ export type BatchTotals = {
 
 export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): BatchTotals {
   const live = orders.filter((o) => o.status !== "CANCELLED");
-  let pUnits = 0, wUnits = 0, pOrders = 0, wOrders = 0;
+  let pUnits = 0, pOrders = 0;
+  const wUnits = 0, wOrders = 0; // «в работе» отдельно не показываем: произведено = все ТЗ без отменённых и ремонта
   let cost = new Decimal(0);
   let work = new Decimal(0);
   const pay = new Map<string, Decimal>();
@@ -103,7 +110,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
   for (const o of live) {
     const s = orderStat(o, mode);
     // Всё, что в ТЗ, производится и учитывается (как на Главной): завершённые + в работе + запланированные; ремонт — не изделия.
-    if (o.productModel.category !== "Ремонт") { pOrders += 1; pUnits += orderUnits(o); }
+    if (!isRepairOrder(o)) { pOrders += 1; pUnits += orderUnits(o); }
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {

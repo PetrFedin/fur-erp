@@ -9,7 +9,6 @@ import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-total
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
-import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -130,7 +129,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     (pageAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, pageAuctionNames) : []).map((a) => [a.name, a]),
   );
 
-  const docCnt = await docCounts(session.user.organizationId, "purchase", purchases.map((p) => p.id));
 
   const opts = await getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur"]);
 
@@ -245,7 +243,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               </InfoHint>
             </Th>
             <Th className="text-right">Остаток</Th>
-            <Th></Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -286,9 +283,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 </Td>
                 <Td className={"whitespace-nowrap text-right tabular-nums " + (!cancelled && rest.greaterThan(PAY_EPS) ? "text-amber-700" : rest.lessThan(0) ? "text-emerald-700" : "")} title={rest.lessThan(-PAY_EPS) ? "Оплачено больше стоимости закупки (переплата)" : undefined}>
                   {cancelled || rest.abs().lessThanOrEqualTo(PAY_EPS) ? "—" : rest.lessThan(0) ? `+${formatMoney(rest.abs().toFixed(2))}` : formatMoney(rest.toFixed(2))}
-                </Td>
-                <Td className="w-12 text-right">
-                  <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} />
                 </Td>
               </Tr>
             );

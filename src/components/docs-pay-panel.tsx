@@ -1,25 +1,18 @@
 "use client";
 
 import { tidyDocRef } from "@/lib/pay-ref";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/info-hint";
-import { formatMb } from "@/lib/format-mb";
 import { cn } from "@/lib/utils";
-import type { MarkTarget, Panel, PanelItem, PanelPayment, UploadTarget, PanelMention, PanelDoc } from "@/lib/doc-panel";
-import { uploadPurchaseDocuments, replacePurchaseDocument } from "@/app/(app)/purchases/doc-actions";
-import { addDriveDocument, uploadDriveDocument, uploadDriveDocumentFile } from "@/app/(app)/drive-actions";
-import { attachSupplierPaymentProof } from "@/app/(app)/payments/mark-actions";
+import type { MarkTarget, Panel, PanelItem, PanelPayment, PanelMention } from "@/lib/doc-panel";
+import { addDriveDocument } from "@/app/(app)/drive-actions";
 import { deleteAuctionPayment } from "@/app/(app)/payments/actions";
 import { removePurchasePayment } from "@/app/(app)/purchases/actions";
-import { attachProductionPaymentProof } from "@/app/(app)/production/mark-actions";
 import { removeProductionPayment } from "@/app/(app)/production/actions";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
 import { PaymentFormButton, type PaymentPreset } from "@/components/payment-form";
-
-const MAX = 25 * 1024 * 1024;
-const ACCEPT = ".pdf,.xlsx,.docx,.jpg,.jpeg,.png";
 
 type Res = { error?: string; ok?: boolean; confirm?: string } | void | undefined;
 
@@ -55,13 +48,6 @@ function useRun() {
   return { pending, msg, setMsg, run };
 }
 
-function checkFile(f: File | undefined): string | null {
-  if (!f) return "Файл не выбран";
-  if (f.size === 0) return "Файл пустой (0 байт)";
-  if (f.size > MAX) return `Файл больше 25 МБ (${formatMb(f.size)} МБ)`;
-  return null;
-}
-
 function Msg({ msg, pending }: { msg: { error?: string; ok?: string }; pending?: boolean }) {
   return (
     <>
@@ -69,86 +55,6 @@ function Msg({ msg, pending }: { msg: { error?: string; ok?: string }; pending?:
       {msg.error && <span role="alert" className="w-full text-xs text-red-600">{msg.error}</span>}
       {msg.ok && <span className="text-xs text-emerald-700">{msg.ok}</span>}
     </>
-  );
-}
-
-/** Кнопка с выбором файла: после выбора файл сразу уходит на сервер. */
-function FileButton({ label, variant = "outline", onFile, disabled, small = true }: { label: string; variant?: "outline" | "default" | "ghost"; onFile: (f: File) => void; disabled?: boolean; small?: boolean }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <input
-        ref={ref}
-        type="file"
-        accept={ACCEPT}
-        className="hidden"
-        aria-label={label}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (f) onFile(f);
-        }}
-      />
-      <Button type="button" variant={variant} size={small ? "sm" : "default"} disabled={disabled} onClick={() => ref.current?.click()} className="max-md:h-9">
-        {label}
-      </Button>
-    </>
-  );
-}
-
-export function UploadButton({ t, variant = "outline" }: { t: UploadTarget; variant?: "outline" | "default" }) {
-  const { pending, msg, setMsg, run } = useRun();
-  return (
-    <span className="inline-flex flex-col gap-1">
-      <FileButton
-        label={t.label}
-        variant={variant}
-        disabled={pending}
-        onFile={(f) => {
-          const err = checkFile(f);
-          if (err) return setMsg({ error: err });
-          const fd = new FormData();
-          if (t.action === "purchaseDoc") {
-            fd.append("files", f);
-            fd.set("kind", t.kind);
-            fd.set("scope", t.scope);
-            run(() => uploadPurchaseDocuments(t.purchaseId, {}, fd), "Загружено");
-          } else if (t.action === "driveDoc") {
-            fd.set("file", f);
-            fd.set("docType", t.docType);
-            run(() => uploadDriveDocument(t.entity, t.id, fd), "Загружено");
-          } else {
-            fd.set("file", f);
-            run(() => (t.target === "supplier" ? attachSupplierPaymentProof(t.paymentId, fd) : attachProductionPaymentProof(t.paymentId, fd)), "Платёжка приложена");
-          }
-        }}
-      />
-      <Msg msg={msg} pending={pending} />
-    </span>
-  );
-}
-
-function ReplaceButton({ doc }: { doc: PanelDoc }) {
-  const { pending, msg, setMsg, run } = useRun();
-  if (!doc.replace) return null;
-  const r = doc.replace;
-  return (
-    <span className="inline-flex flex-col gap-1">
-      <FileButton
-        label={doc.href ? "Заменить" : "Загрузить файл"}
-        variant="ghost"
-        disabled={pending}
-        onFile={(f) => {
-          const err = checkFile(f);
-          if (err) return setMsg({ error: err });
-          if (doc.href && !window.confirm(`Заменить файл документа «${doc.title}» на «${f.name}»? Старый файл будет удалён.`)) return;
-          const fd = new FormData();
-          fd.set("file", f);
-          run(() => (r.action === "purchaseDoc" ? replacePurchaseDocument(r.id, fd) : uploadDriveDocumentFile(r.id, fd)), doc.href ? "Файл заменён" : "Файл загружен");
-        }}
-      />
-      <Msg msg={msg} pending={pending} />
-    </span>
   );
 }
 
@@ -164,7 +70,7 @@ function AttachMention({ m }: { m: PanelMention }) {
           size="sm"
           variant="outline"
           disabled={pending}
-          title="Привязать этот документ к карточке: сопоставление делаете вы; сам файл затем загрузите кнопкой «Загрузить файл»"
+          title="Привязать этот документ к карточке: сопоставление делаете вы"
           onClick={() => {
             const fd = new FormData();
             fd.set("link", a.fileId);
@@ -189,7 +95,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   const markCls = it.ok ? "text-emerald-700" : it.need === "required" ? "text-red-600" : "text-neutral-500";
   const shownDocs = it.docs.slice(0, 3);
   if (it.ok && it.mentions.length === 0) {
-    // Документ есть — одна строка; файлы и «Заменить» — внутрь.
+    // Документ есть — одна строка; файлы — внутрь.
     return (
       <li className={cn("rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm", it.need === "na" && "opacity-60")}>
         <details>
@@ -211,15 +117,9 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
                     <a href={`${d.href}${d.href.includes("?") ? "&" : "?"}download=1`} className="text-blue-600 hover:underline">Скачать</a>
                   </>
                 )}
-                {canUpload && <ReplaceButton doc={d} />}
               </li>
             ))}
           </ul>
-          {canUpload && it.uploads.length > 0 && it.need !== "na" && (
-            <div className="mt-2 flex flex-wrap items-start gap-2">
-              {it.uploads.slice(0, 2).map((u, i) => <UploadButton key={i} t={u} />)}
-            </div>
-          )}
         </details>
       </li>
     );
@@ -252,7 +152,6 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
                   </a>
                 </>
               )}
-              {canUpload && <ReplaceButton doc={d} />}
             </li>
           ))}
           {it.docs.length > shownDocs.length && (
@@ -285,19 +184,11 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
           </ul>
         </div>
       )}
-      {canUpload && it.uploads.length > 0 && it.need !== "na" && (
-        <div className="flex flex-wrap items-start gap-2">
-          {it.uploads.slice(0, bad ? 12 : 2).map((u, i) => (
-            <UploadButton key={i} t={u} variant={bad && i === 0 ? "default" : "outline"} />
-          ))}
-          {it.uploads.length > 12 && bad && <span className="text-xs text-neutral-500">…и ещё {it.uploads.length - 12}</span>}
-        </div>
-      )}
     </li>
   );
 }
 
-function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment; canUpload: boolean; canMark: boolean; v?: VerifyView; canVerify?: boolean }) {
+function PaymentLine({ p, canMark, v, canVerify }: { p: PanelPayment; canMark: boolean; v?: VerifyView; canVerify?: boolean }) {
   const { pending, msg, run } = useRun();
   const rb = p.rollback;
   return (
@@ -327,7 +218,6 @@ function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment;
         )}
       </div>
       <div className="flex flex-wrap items-start gap-2">
-        {canUpload && p.attachProof && <UploadButton t={{ action: "paymentProof", target: p.attachProof, paymentId: p.id, label: "Приложить платёжку" }} />}
         {canMark && rb && (
           <Button
             type="button"
@@ -440,7 +330,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
         {panel.payments.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {panel.payments.map((x) => (
-              <PaymentLine key={x.id} p={x} canUpload={panel.canUpload} canMark={panel.canMark} v={verify?.[x.id]} canVerify={canVerify} />
+              <PaymentLine key={x.id} p={x} canMark={panel.canMark} v={verify?.[x.id]} canVerify={canVerify} />
             ))}
           </ul>
         ) : (
@@ -459,7 +349,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
       </div>
 
       {panel.markBlocked && <p className="text-xs text-neutral-500">Отметить оплату здесь нельзя: {panel.markBlocked}.</p>}
-      {!panel.canMark && !panel.canUpload && <p className="text-xs text-neutral-500">Загрузка документов и отметка оплаты доступны ролям, которые ведут закупки и производство.</p>}
+      {!panel.canMark && !panel.canUpload && <p className="text-xs text-neutral-500">Отметка оплаты доступна ролям, которые ведут закупки и производство.</p>}
     </section>
   );
 }

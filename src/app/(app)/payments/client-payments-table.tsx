@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { DocBadge } from "@/components/doc-viewer";
 import { InfoHint } from "@/components/info-hint";
 import { YearGroup } from "./year-group";
 import { formatMoney } from "@/lib/utils";
@@ -145,7 +144,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
             <th className="px-3 py-2 text-right font-medium">Оплачено</th>
             <th className="px-3 py-2 text-right font-medium">Остаток</th>
             <th className="px-3 py-2 font-medium">Подтверждение</th>
-            <th className="px-3 py-2 font-medium">Файлы</th>
+            <th className="px-3 py-2 font-medium">Счёт</th>
           </tr>
         </thead>
         <tbody>
@@ -206,12 +205,9 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                       </td>
                       <td className="px-3 py-2">
                         {(() => {
-                          const docs = g.rows.reduce((a2, x) => a2 + x.docCount, 0);
                           const links = g.rows.flatMap((x) => x.invoiceDocs ?? []);
                           const linkEls = links.map((d) => <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="mr-1 text-xs text-blue-700 hover:underline">{d.title} ↗</a>);
-                          if (many) return docs > 0 ? <span className="text-xs text-neutral-600">📎 {docs}</span> : links.length ? <>{linkEls}</> : null;
-                          if (r.docCount === 0 && links.length) return <>{linkEls}</>;
-                          return <DocBadge entity="productionPayment" id={r.id} count={r.docCount} title={r.docTitle} />;
+                          return links.length ? <>{linkEls}</> : <span className="text-neutral-400">—</span>;
                         })()}
                       </td>
                     </tr>

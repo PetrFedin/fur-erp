@@ -14,7 +14,7 @@ import { formatDate, formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
-import { AuctionDocUpload, DocEditControls, ToggleAllPurchases } from "./auction-controls";
+import { DocEditControls, ToggleAllPurchases } from "./auction-controls";
 import { buildAuctionRows } from "./auction-rows";
 import { docCounts } from "@/lib/doc-links";
 import { LotsProvider } from "./lots-state";
@@ -666,14 +666,6 @@ export async function AuctionView({
               }))}
             />
           </div>
-          {canEdit && (
-            <AuctionDocUpload
-              purchases={purchasesRaw.map((p) => ({
-                id: p.id,
-                label: `${p.invoiceNumber ? `Счёт ${p.invoiceNumber} · ` : ""}${p.number}`,
-              }))}
-            />
-          )}
         </CardContent>
       </Card>
     </div>

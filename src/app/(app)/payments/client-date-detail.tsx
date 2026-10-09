@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { DocBadge } from "@/components/doc-viewer";
 import { formatMoney } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Goods, SplitLine, type ClientPayRow, type PaidGood } from "./client-payments-table";
@@ -57,7 +56,6 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
                 </div>
                 {noTz && what ? <p className="mt-1 text-sm text-neutral-700">{what}</p> : null}
               </div>
-              <DocBadge entity="productionPayment" id={r.id} count={r.docCount} title={r.docTitle} />
             </header>
 
             {noTz ? null : (

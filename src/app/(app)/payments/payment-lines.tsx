@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { DocBadge } from "@/components/doc-viewer";
 import { formatMoney } from "@/lib/utils";
 
 /** Одна оплата в упрощённом виде: что, когда, сколько, подтверждена ли и есть ли файлы. */
@@ -24,7 +23,6 @@ export type PayLine = {
 };
 
 /** Какие файлы к оплате нужны — подсказка под таблицей и у оплаты без файлов. */
-export const FILE_HINT = "К оплате прикладывают: платёжку (п/п) — она подтверждает оплату; счёт на оплату; письмо-согласование. Нажмите «нет документов» или 📎 у нужной оплаты.";
 
 export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; emptyText: string }) {
   const hasComment = lines.some((l) => Boolean(l.comment));
@@ -41,7 +39,6 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
             {hasComment ? <th className="px-2 py-1.5 font-medium">Комментарий</th> : null}
             <th className="px-2 py-1.5 font-medium">П/п</th>
             <th className="px-2 py-1.5 font-medium">Подтверждение</th>
-            <th className="px-2 py-1.5 font-medium">Файлы</th>
             <th className="px-2 py-1.5" />
           </tr>
         </thead>
@@ -63,10 +60,6 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
               <td className="px-2 py-2">
                 {l.status !== "COMPLETED" ? <span className="text-neutral-400">—</span> : l.confirmed ? <Badge variant="success">подтверждена</Badge> : <Badge variant="warning">ждёт платёжку</Badge>}
               </td>
-              <td className="px-2 py-2">
-                <DocBadge entity="payment" id={l.id} count={l.docCount} title="Оплата" />
-                {l.docCount === 0 && l.status === "COMPLETED" && !l.confirmed ? <span className="block text-[11px] text-amber-700">нужна платёжка (п/п)</span> : null}
-              </td>
               <td className="px-2 py-2 text-right">
                 {l.controls ? (
                   <details className="relative inline-block text-left">
@@ -79,7 +72,6 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-neutral-500">{FILE_HINT}</p>
     </div>
   );
 }

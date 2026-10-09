@@ -8,14 +8,11 @@ import {
   removeDriveDocument,
   isDriveFileShared,
   removeDriveDocumentFile,
-  uploadDriveDocument,
-  uploadDriveDocumentFile,
   updateDriveDocument,
-  type DriveDocState,
 } from "@/app/(app)/drive-actions";
 import { EditDialog, Field } from "@/components/edit-dialog";
 import { DocFileButtons } from "@/components/doc-preview";
-import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, guessDocType, type DriveDocView } from "@/lib/drive-docs";
+import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, type DriveDocView } from "@/lib/drive-docs";
 import { stripServiceTags } from "@/lib/note-tags";
 import { copiesLabel, countLabel, docGroupKey, groupBy } from "@/lib/drive-docs-group";
 
@@ -27,14 +24,10 @@ function fmtDate(iso: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("ru-RU", { timeZone: "UTC" });
 }
 
-/** Список документов (+ форма загрузки файла, если canEdit). entity/entityId — к чему привязывать. */
+/** Список документов. */
 export function DriveDocuments({
   docs,
-  entity,
-  entityId,
   canEdit,
-  options,
-  extraTargets,
   title = "Документы",
 }: {
   docs: DriveDocView[];
@@ -58,12 +51,11 @@ export function DriveDocuments({
       ) : (
         <p className="text-sm text-neutral-500">Документов пока нет</p>
       )}
-      {canEdit && <UploadDocument entity={entity} entityId={entityId} options={options} extraTargets={extraTargets} />}
     </section>
   );
 }
 
-/** Список документов без формы добавления. canEdit включает «Загрузить файл» / «Убрать» (если у документа canRemove не false). */
+/** Список документов без формы добавления. canEdit включает «Убрать» (если у документа canRemove не false). */
 export function DriveDocList({ docs, canEdit = false }: { docs: DriveDocView[]; canEdit?: boolean }) {
   if (docs.length === 0) return <p className="text-sm text-neutral-500">Документов нет</p>;
   return <GroupedItems groups={groupDocs(docs)} canEdit={canEdit} />;
@@ -102,45 +94,6 @@ export function clientFileError(file: File): string | null {
 const smallBtn =
   "inline-flex h-8 cursor-pointer items-center rounded-md px-2 text-sm text-neutral-600 hover:bg-neutral-100";
 
-/** «Загрузить файл» / «Заменить файл»: скрытый input type=file, после выбора файл сразу уходит на сервер. */
-function FilePicker({ d, label, onError, primary = false }: { d: DriveDocView; label: string; onError: (m: string | null) => void; primary?: boolean }) {
-  const [pending, start] = useTransition();
-  return (
-    <label className={`relative overflow-hidden ${primary ? "inline-flex h-8 cursor-pointer items-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700" : smallBtn} ${pending ? "opacity-50" : ""}`}>
-      {pending ? "Загружаем…" : label}
-      <input
-        type="file"
-        accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
-        className="sr-only"
-        disabled={pending}
-        onChange={(e) => {
-          const input = e.currentTarget;
-          const file = input.files?.[0];
-          if (!file) return;
-          const bad = clientFileError(file);
-          if (bad) {
-            onError(bad);
-            input.value = "";
-            return;
-          }
-          const fd = new FormData();
-          fd.set("file", file);
-          onError(null);
-          start(async () => {
-            try {
-              const res = await uploadDriveDocumentFile(d.id, fd);
-              onError(res?.error ?? null);
-            } catch {
-              onError("Не удалось загрузить файл: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь.");
-            }
-            input.value = "";
-          });
-        }}
-      />
-    </label>
-  );
-}
-
 function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; copies?: DriveDocView[] }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -156,7 +109,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium break-words" title={d.drivePath ? `Исходная папка: ${d.drivePath}` : undefined}>{stripServiceTags(d.title)}</span>
           <Badge>{DRIVE_DOC_TYPE_LABELS[d.docType]}</Badge>
-          {d.hasFile ? <Badge variant="success">Файл в приложении</Badge> : <Badge variant="warning">Файл не загружен</Badge>}
+          {d.hasFile ? <Badge variant="success">Файл в приложении</Badge> : <Badge variant="warning">Файл не приложен</Badge>}
           {date && <span className="text-xs text-neutral-500">{date}</span>}
           {d.docNumber && <span className="text-xs text-neutral-500">№ {d.docNumber}</span>}
           {d.scope && !copies && <span className="text-xs text-neutral-500">· {d.scope}</span>}
@@ -188,14 +141,13 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
         {d.hasFile ? (
           <>
             <DocFileButtons href={fileHref} mime={d.storedMime} title={d.title} />
-            {editable && <FilePicker d={d} label="Заменить файл" onError={setErr} />}
             {editable && keepsRecord && (
               <button
                 type="button"
                 className={smallBtn}
                 disabled={pending}
                 onClick={() => {
-                  if (!window.confirm(`Удалить загруженный файл «${stripServiceTags(d.title)}»? Запись документа останется, файл можно загрузить заново.`)) return;
+                  if (!window.confirm(`Удалить загруженный файл «${stripServiceTags(d.title)}»? Запись документа останется.`)) return;
                   start(async () => {
                     const res = await removeDriveDocumentFile(d.id);
                     setErr(res?.error ?? null);
@@ -207,13 +159,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
             )}
           </>
         ) : (
-          <>
-            {editable ? (
-              <FilePicker d={d} label="Загрузить файл" onError={setErr} primary />
-            ) : (
-              <span className="text-xs text-neutral-500">Файл не загружен — загрузить может сотрудник с правом правки</span>
-            )}
-          </>
+          <span className="text-xs text-neutral-500">Файл не приложен</span>
         )}
         {canEdit && d.canRemove === false && (
           <span className="text-xs text-neutral-500">Управляют владелец и администратор</span>
@@ -225,7 +171,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
             className="h-8 px-2"
             action={(fd) => updateDriveDocument(d.id, fd)}
             version={d.version}
-            hint="Название, тип, номер, дата и примечание. Сам файл заменяется кнопкой «Заменить файл». Подтверждение записи, к которой привязан документ, сбросится."
+            hint="Название, тип, номер, дата и примечание. Подтверждение записи, к которой привязан документ, сбросится."
           >
             <Field label="Название" wide>
               <input name="title" defaultValue={d.title} maxLength={200} required className={field} />
@@ -275,143 +221,5 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
         )}
       </div>
     </li>
-  );
-}
-
-type UploadEntity = "purchase" | "order" | "batch" | "payment" | "productionPayment";
-
-/** «Загрузить документ»: файл + название + тип. */
-export function UploadDocument({
-  entity,
-  entityId,
-  options,
-  extraTargets,
-  compact = false,
-}: {
-  entity: UploadEntity;
-  entityId: string;
-  /** Для режима «Аукцион»: на какую закупку вешать документ. */
-  options?: { id: string; label: string }[];
-  /** Другие объекты, к которым можно привязать документ (оплаты). */
-  extraTargets?: { entity: UploadEntity; id: string; label: string }[];
-  compact?: boolean;
-}) {
-  const [state, setState] = useState<DriveDocState>({});
-  const [pending, start] = useTransition();
-  const targets: { key: string; entity: UploadEntity; id: string; label: string }[] = [
-    ...(options && options.length > 1
-      ? options.map((o) => ({ key: `${entity}:${o.id}`, entity, id: o.id, label: o.label }))
-      : [{ key: `${entity}:${entityId}`, entity, id: entityId, label: entity === "purchase" ? "Эта закупка" : entity === "order" ? "Это ТЗ" : entity === "batch" ? "Эта партия" : "Эта оплата" }]),
-    ...(extraTargets ?? []).map((t) => ({ key: `${t.entity}:${t.id}`, ...t })),
-  ];
-  const [targetKey, setTargetKey] = useState(`${entity}:${entityId}`);
-  const [docType, setDocType] = useState<string>("OTHER");
-  const [typeTouched, setTypeTouched] = useState(false);
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-    const files = fd.getAll("file").filter((f): f is File => f instanceof File && f.name !== "");
-    if (files.length === 0) {
-      setState({ error: "Выберите файл" });
-      return;
-    }
-    if (files.length > 10) {
-      setState({ error: `За один раз можно загрузить не больше 10 файлов (выбрано ${files.length})` });
-      return;
-    }
-    for (const f of files) {
-      const bad = clientFileError(f);
-      if (bad) {
-        setState({ error: bad });
-        return;
-      }
-    }
-    const title = String(fd.get("title") ?? "");
-    setState({});
-    start(async () => {
-      const t = targets.find((x) => x.key === targetKey) ?? targets[0];
-      const failed: string[] = [];
-      let okCount = 0;
-      for (const f of files) {
-        const one = new FormData();
-        one.set("file", f);
-        // Название — только для одного файла; тип: выбранный вручную, иначе по имени файла.
-        if (files.length === 1 && title) one.set("title", title);
-        const type = typeTouched || docType !== "OTHER" ? docType : (guessDocType(f.name) ?? "OTHER");
-        one.set("docType", type);
-        try {
-          const res = await uploadDriveDocument(t.entity, t.id, one);
-          if (res?.ok) okCount++;
-          else failed.push(`${f.name}: ${res?.error ?? "не загружен"}`);
-        } catch {
-          failed.push(`${f.name}: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь`);
-        }
-      }
-      if (failed.length === 0) {
-        form.reset();
-        setDocType("OTHER");
-        setTypeTouched(false);
-        setState({ ok: true, ...(okCount > 1 ? { count: okCount } : {}) } as DriveDocState);
-      } else {
-        setState({ error: `${okCount > 0 ? `Загружено ${okCount}, не загружено ${failed.length}: ` : ""}${failed.join("; ")}` });
-      }
-    });
-  }
-  return (
-    <details className="rounded-md border border-dashed border-neutral-300 bg-neutral-50">
-      <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">{compact ? "+ Загрузить документ" : "+ Загрузить документ (файл)"}</summary>
-      <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2 border-t border-neutral-200 p-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
-          Файлы (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ каждый, до 10 за раз)
-          <input
-            type="file"
-            name="file"
-            multiple
-            required
-            accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
-            className="text-sm"
-            onChange={(e) => {
-              const fs = Array.from(e.currentTarget.files ?? []);
-              if (fs.length === 1 && !typeTouched) setDocType(guessDocType(fs[0].name) ?? "OTHER");
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Название (необязательно — возьмём имя файла)
-          <input name="title" maxLength={200} className={field} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          Тип
-          <select name="docType" value={docType} onChange={(e) => { setDocType(e.target.value); setTypeTouched(true); }} className={field}>
-            {DRIVE_DOC_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {DRIVE_DOC_TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
-          <span className="text-[11px] text-neutral-500">Определяется по имени файла; для нескольких файлов — у каждого свой, если не выбран вручную</span>
-        </label>
-        {targets.length > 1 && (
-          <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2">
-            Привязать к
-            <select value={targetKey} onChange={(e) => setTargetKey(e.target.value)} className={field}>
-              {targets.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <div className="flex items-center gap-3 sm:col-span-2">
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? "Загружаем…" : "Загрузить"}
-          </Button>
-          {state.error && <span className="text-sm text-red-600">{state.error}</span>}
-          {state.ok && <span className="text-sm text-emerald-700">{(state as { count?: number }).count ? `Загружено файлов: ${(state as { count?: number }).count}` : "Загружено"}</span>}
-        </div>
-      </form>
-    </details>
   );
 }

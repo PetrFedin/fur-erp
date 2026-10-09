@@ -6,6 +6,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { ArticlesRefTable, type ArticleRow } from "./articles-table";
 import { ImportPanel } from "./import-panel";
 import { getCategoryOptions } from "@/lib/categories";
+import { orderUnits } from "@/lib/production-totals";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 
 const ARTICLE_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active"] } }), sales: { kind: "single", label: "Код продаж", allowed: ["none"] } });
@@ -26,10 +27,9 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
       where: { organizationId: orgId, status: { not: "CANCELLED" } },
       _count: { _all: true },
     }),
-    prisma.productionOrder.groupBy({
-      by: ["productModelId"],
-      where: { organizationId: orgId, status: "COMPLETED" },
-      _sum: { producedQuantity: true },
+    prisma.productionOrder.findMany({
+      where: { organizationId: orgId, status: { not: "CANCELLED" } },
+      select: { productModelId: true, status: true, plannedQuantity: true, producedQuantity: true },
     }),
     prisma.productionOrder.findMany({
       where: { organizationId: orgId, status: { not: "CANCELLED" }, seasonId: { not: null } },
@@ -38,8 +38,9 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
     }),
   ]);
   const stat = new Map(grouped.map((g) => [g.productModelId, g]));
-  // «Произведено» — только завершённые ТЗ (production-totals.ts).
-  const producedBy = new Map(producedGrouped.map((g) => [g.productModelId, Number(g._sum.producedQuantity ?? 0)]));
+  // «Произведено» — все ТЗ без отменённых (production-totals.ts): выпуск завершённых + план ТЗ в работе.
+  const producedBy = new Map<string, number>();
+  for (const o of producedGrouped) producedBy.set(o.productModelId, (producedBy.get(o.productModelId) ?? 0) + orderUnits(o));
   const seasons = new Map<string, string[]>();
   for (const s of seasonRows) {
     const code = s.season?.code;

@@ -20,11 +20,10 @@ import {
 import { formatMoney } from "@/lib/utils";
 import { createBatch, previewBatch } from "./actions";
 import { getCbrRate } from "../cbr-actions";
-import { DocsStep } from "./docs-step";
 import { LotsStep } from "./lots-step";
 import type { DocState, Draft, TableInfo, WizardRefs } from "./shared";
 
-const STEPS = ["Аукцион", "Лоты", "Документы", "Проверка", "Итог"];
+const STEPS = ["Аукцион", "Лоты", "Проверка", "Итог"];
 const today = () => new Date().toISOString().slice(0, 10);
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 const numOf = (s: string) => Number(s.replace(/[\s ]/g, "").replace(",", "."));
@@ -67,7 +66,7 @@ export function BatchWizard({
   const [info, setInfo] = useState<TableInfo | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({ fur: {}, color: {} });
   const [pct, setPct] = useState<Partial<Record<"fee" | "broker", boolean>>>({});
-  const [docs, setDocs] = useState<DocState[]>([]);
+  const [docs, setDocs] = useState<DocState[]>([]); // документы партии больше не прикладываются: массив всегда пуст (формат запроса не меняем)
   const [ack, setAck] = useState(false);
   const [key, setKey] = useState(() => newKey());
   const [preview, setPreview] = useState<BatchPreview | null>(null);
@@ -100,7 +99,7 @@ export function BatchWizard({
     const t = setTimeout(() => {
       try {
         if (rows.length === 0 && step === 1 && !header.auctionId && !header.newAuction) return;
-        const d: Draft = { v: 1, savedAt: Date.now(), step: Math.min(step, 4), header, rows, decisions, pct, info: info ? { fileName: info.fileName, headers: info.headers, headerIdx: info.headerIdx, mapping: info.mapping, note: info.note } : null, nextN };
+        const d: Draft = { v: 1, savedAt: Date.now(), step: Math.min(step, 3), header, rows, decisions, pct, info: info ? { fileName: info.fileName, headers: info.headers, headerIdx: info.headerIdx, mapping: info.mapping, note: info.note } : null, nextN };
         window.localStorage.setItem(draftKey, JSON.stringify(d));
       } catch {
         /* хранилище недоступно */
@@ -123,7 +122,7 @@ export function BatchWizard({
     setPct(d.pct);
     setNextN(d.nextN);
     setInfo(d.info ? { ...d.info, table: [] } : null);
-    setStep(d.step);
+    setStep(Math.min(d.step, 3) as number);
     setSaved(null);
   }
 
@@ -156,7 +155,7 @@ export function BatchWizard({
   );
   const seq = useRef(0);
   useEffect(() => {
-    if (step < 3 || step > 4) return;
+    if (step !== 3) return;
     const my = ++seq.current;
     const t = setTimeout(async () => {
       try {
@@ -225,7 +224,7 @@ export function BatchWizard({
         }
         clearDraft();
         setResult(res);
-        setStep(5);
+        setStep(4);
       } catch {
         setError("Нет ответа от сервера. Партия могла создаться: проверьте список закупок, повторное нажатие «Создать» не создаст дубль.");
       } finally {
@@ -258,7 +257,7 @@ export function BatchWizard({
       {saved && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900" data-draft-banner>
           <span>
-            Найден черновик от {new Date(saved.savedAt).toLocaleString("ru-RU")}: строк {saved.rows.length}, шаг {saved.step}. Файлы документов в черновике не хранятся — загрузите их на шаге 3 заново.
+            Найден черновик от {new Date(saved.savedAt).toLocaleString("ru-RU")}: строк {saved.rows.length}, шаг {saved.step}.
           </span>
           <span className="flex gap-2">
             <Button size="sm" onClick={() => restore(saved)}>Продолжить</Button>
@@ -289,9 +288,9 @@ export function BatchWizard({
           })}
         </ol>
         <div className="h-1 overflow-hidden rounded bg-neutral-100">
-          <div className="h-full bg-neutral-900 transition-all" style={{ width: `${((step - (step === 5 ? 0 : 1)) / 4) * 100}%` }} />
+          <div className="h-full bg-neutral-900 transition-all" style={{ width: `${((step - (step === 4 ? 0 : 1)) / 3) * 100}%` }} />
         </div>
-        <div className="text-xs text-neutral-500">Шаг {step} из 5</div>
+        <div className="text-xs text-neutral-500">Шаг {step} из 4</div>
       </div>
 
       <Card>
@@ -422,28 +421,25 @@ export function BatchWizard({
             />
           )}
 
-          {step === 3 && <DocsStep docs={docs} setDocs={setDocs} preview={preview} />}
-
-          {step === 4 && (
-            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} docsCount={docs.length} />
+          {step === 3 && (
+            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} />
           )}
 
-          {step === 5 && result && <ResultStep result={result} onRestart={restart} />}
+          {step === 4 && result && <ResultStep result={result} onRestart={restart} />}
         </CardContent>
       </Card>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
-      {step < 5 && (
+      {step < 4 && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button type="button" variant="outline" disabled={step === 1 || pending} onClick={() => setStep(step - 1)}>← Назад</Button>
           <div className="flex flex-col items-end gap-1">
             {step === 1 && headerProblems.length > 0 && <span className="text-xs text-neutral-500">{headerProblems[0]}</span>}
             {step === 2 && !canNext2 && <span className="text-xs text-neutral-500">{rows.length === 0 ? "Добавьте хотя бы один лот" : `Исправьте ошибки в таблице: ${validation.errorCount}`}</span>}
             {step === 1 && <Button type="button" disabled={headerProblems.length > 0} onClick={() => setStep(2)}>Далее: лоты →</Button>}
-            {step === 2 && <Button type="button" disabled={!canNext2} onClick={() => setStep(3)}>Далее: документы →</Button>}
-            {step === 3 && <Button type="button" onClick={() => setStep(4)}>{docs.length === 0 ? "Пропустить, документы загружу позже →" : "Далее: проверка →"}</Button>}
-            {step === 4 && (
+            {step === 2 && <Button type="button" disabled={!canNext2} onClick={() => setStep(3)}>Далее: проверка →</Button>}
+            {step === 3 && (
               <>
                 {preview && preview.blocking.length > 0 && <span className="text-xs text-red-700">{preview.blocking[0]}</span>}
                 <Button type="button" disabled={blocked || pending} onClick={submit}>{pending ? "Создаём…" : "Создать партию"}</Button>
@@ -466,9 +462,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function ReviewStep({
-  preview, previewErr, header, refs, ack, setAck, debtNow, docsCount,
+  preview, previewErr, header, refs, ack, setAck, debtNow,
 }: {
-  preview: BatchPreview | null; previewErr: string | null; header: BatchHeader; refs: WizardRefs; ack: boolean; setAck: (v: boolean) => void; debtNow: number; docsCount: number;
+  preview: BatchPreview | null; previewErr: string | null; header: BatchHeader; refs: WizardRefs; ack: boolean; setAck: (v: boolean) => void; debtNow: number;
 }) {
   if (previewErr) return <p className="text-sm text-red-700">{previewErr}</p>;
   if (!preview) return <p className="text-sm text-neutral-500">Считаем итоги…</p>;
@@ -492,7 +488,6 @@ function ReviewStep({
           <Row label="Средняя цена, ₽ за шкуру (без НДС)">{money(t.avgExclPerUnit)}</Row>
           {t.avgForeign !== null && <Row label={`Средний молоток, ${header.currency} за шкуру`}>{fmt(t.avgForeign, 2)}</Row>}
           <Row label="Приёмка на склад">{preview.receiving ? "сразу" : "нет, черновик"}</Row>
-          <Row label="Документов приложено">{docsCount}</Row>
         </div>
       </div>
       <div className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
@@ -565,7 +560,6 @@ function ResultStep({ result, onRestart }: { result: BatchResult; onRestart: () 
           <Row key={s.material} label={`Остаток: ${s.material}, шт.`}>{fmt(s.before, 0)} → {fmt(s.after, 0)}</Row>
         ))}
         {!result.receiving && <Row label="Остаток меха">не изменился: закупки не приняты</Row>}
-        <Row label="Документов приложено">{result.docsAttached}</Row>
         <p className="mt-1 text-xs text-neutral-500">Главная (Закуплено, Склад, Долг поставщику) и страница «Сырьё» уже показывают новые цифры. <Link href="/dashboard" className="underline">Открыть Сводку →</Link></p>
       </div>
 

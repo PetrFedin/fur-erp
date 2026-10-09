@@ -20,7 +20,6 @@ import { CostPlanItemEditor } from "../purchases/[id]/cost-plan-editor";
 import type { CostPlanEditorItem } from "../purchases/[id]/cost-plan-editor";
 import { AddFieldButton, CustomCell, CustomFieldHeader, MobileFieldsManager } from "./custom-field-controls";
 import { FilterPanel } from "./lots-filters";
-import { DocBadge } from "@/components/doc-viewer";
 import { InfoHint } from "@/components/info-hint";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
 
@@ -539,7 +538,6 @@ function LotRowView({
       )}
       <Td className="whitespace-nowrap">
         {r.lotNumber || "—"}
-        {r.lotId && <DocBadge entity="lot" id={r.lotId} count={r.docs ?? 0} title={`Лот ${r.lotNumber || r.material}`} className="ml-1" />}
       </Td>
       <Td className="min-w-48">
         {r.size || "—"}
@@ -650,7 +648,6 @@ function LotCardView({
       }
       fields={[
         { label: "Кол-во", value: `${formatQty(r.qty)} ${r.unit}` },
-        ...(r.lotId ? [{ label: "Документы", value: <DocBadge entity="lot" id={r.lotId} count={r.docs ?? 0} title={`Лот ${r.lotNumber || r.material}`} /> }] : []),
         { label: "Себестоимость всего", value: <Money incl={r.totalIncl} excl={r.totalExcl} />, strong: true },
         { label: "Себестоимость ед.", value: <Money incl={r.unitIncl} excl={r.unitExcl} /> },
         // Лот ещё не принят на склад: «Остатка на складе» нет вовсе, вместо повтора в каждой карточке — бейдж «не принят».

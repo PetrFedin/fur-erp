@@ -10,7 +10,7 @@ import { getIntegrityReport } from "@/lib/integrity";
 const TABS = [
   { key: "tasks", href: "/attention", label: "Задачи", hint: "Что требует действия — единый список" },
   { key: "verify", href: "/verify", label: "Подтвердить", hint: "Подтверждение оплат, закупок, ТЗ и партий" },
-  { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает и что приложить" },
+  { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает" },
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Реестр сверки: что сходится на 100%, что нет" },
   { key: "analysis", href: "/document-analysis", label: "Анализ документов", hint: "Google Drive, спорные долги, расхождения" },
   { key: "integrity", href: "/integrity", label: "Самопроверка", hint: "Что в данных не сходится: остатки, стоимости, оплаты, долг, подтверждения" },

@@ -121,7 +121,7 @@ export default async function BatchPrintPage({
               <td className={td + " font-semibold"} colSpan={3}>
                 Итого (без отменённых)
               </td>
-              <td className={tdr + " font-semibold"}>{formatQty(t.producedUnits.toString())}{t.inWorkOrders > 0 ? ` + в работе ${formatQty(t.inWorkUnits.toString())}` : ""}</td>
+              <td className={tdr + " font-semibold"}>{formatQty(t.producedUnits.toString())}</td>
               <td className={td}></td>
               <td className={tdr + " font-semibold"}>{formatMoney(t.cost.toString())}</td>
               <td className={tdr + " font-semibold"}>{formatMoney(t.work.toString())}</td>
@@ -137,12 +137,8 @@ export default async function BatchPrintPage({
               <td className={tdr}>{t.orders}</td>
             </tr>
             <tr>
-              <td className={td}>Произведено (завершённые ТЗ)</td>
+              <td className={td}>Произведено (все ТЗ без ремонта)</td>
               <td className={tdr}>{formatQty(t.producedUnits.toString())}</td>
-            </tr>
-            <tr>
-              <td className={td}>В работе (план)</td>
-              <td className={tdr}>{formatQty(t.inWorkUnits.toString())}</td>
             </tr>
             <tr>
               <td className={td}>Себестоимость{c4}</td>

@@ -5,10 +5,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { availableYears } from "@/lib/year-list";
 import { Input, Select } from "@/components/ui/input";
-import { DOC_ROLES, LETTER_HINT, PAY_KINDS, PRESET_PERCENTS, canConfirm, guessDocRole, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
+import { PAY_KINDS, PRESET_PERCENTS, canConfirm, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
 import { getPaymentTargets, quotePaymentTarget, savePayment, type Quote, type Recalc, type Spec, type TargetList } from "@/app/(app)/payments/pay-actions";
 
-const MAX = 25 * 1024 * 1024;
 const money = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽");
 const today = () => {
   const d = new Date();
@@ -96,17 +95,6 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   const noTargetAdvance = side === "supplier" && (targetMode === "advance" || customAuction);
   const fullNote = [customAuction ? `Аукцион (вписан вручную): ${auction.trim()}` : "", customKind.trim() ? `Тип: ${customKind.trim()}` : "", note.trim()].filter(Boolean).join(". ");
   const kinds = PAY_KINDS.filter((k) => !(side === "work" && k.supplierOnly) && !(noTargetAdvance && k.v !== "ADVANCE"));
-
-  function pickFiles(list: FileList | null) {
-    const add: { file: File; role: DocRole }[] = [];
-    for (const f of Array.from(list ?? [])) {
-      if (f.size === 0) return setError(`Файл «${f.name}» пустой`);
-      if (f.size > MAX) return setError(`Файл «${f.name}» больше 25 МБ`);
-      add.push({ file: f, role: guessDocRole(f.name) });
-    }
-    setError("");
-    setFiles((x) => [...x, ...add].slice(0, 10));
-  }
 
   function next(to: 2 | 3 | 4) {
     setError("");
@@ -395,27 +383,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
 
       {step === 3 && (
         <section className="flex flex-col gap-3">
-          <div>
-            <label htmlFor="pf-files" className={lab}>Документы пачкой: платёжка, счёт, письмо (PDF, XLSX, DOCX, JPEG, PNG; до 25 МБ)</label>
-            <input id="pf-files" data-testid="pf-files" type="file" multiple accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="w-full text-sm" onChange={(e) => { pickFiles(e.target.files); e.target.value = ""; }} />
-          </div>
-          {files.length > 0 && (
-            <ul className="flex flex-col gap-2">
-              {files.map((f, i) => (
-                <li key={i} className="flex flex-wrap items-center gap-2 rounded-md border border-neutral-200 p-2 text-sm">
-                  <span className="min-w-0 break-all">{f.file.name}</span>
-                  <Select aria-label={`Тип файла ${f.file.name}`} className="w-auto" value={f.role} onChange={(e) => setFiles((x) => x.map((y, j) => (j === i ? { ...y, role: e.target.value as DocRole } : y)))}>
-                    {DOC_ROLES.map((r) => (
-                      <option key={r.v} value={r.v}>{r.label}</option>
-                    ))}
-                  </Select>
-                  <Button type="button" variant="ghost" size="sm" className="text-red-600" onClick={() => setFiles((x) => x.filter((_, j) => j !== i))}>Убрать</Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {files.some((f) => f.role === "APPROVAL_EMAIL") && <p role="note" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">{LETTER_HINT}</p>}
-          <p className="text-xs text-neutral-500">Тип по названию файла — проверьте<InfoHint label="Про документы"><p>Тип определяется по названию файла — проверьте и поправьте. Платёжку можно приложить и позже: оплата останется «не подтверждена».</p></InfoHint></p>
+          <p className="text-sm text-neutral-600">Документы к оплате (платёжка, счёт, письмо-согласование) пока не прикладываются. Без платёжки оплата остаётся «не подтверждена», пока не указан № п/п с датой и суммой.</p>
         </section>
       )}
 
@@ -424,7 +392,6 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
             <p><b>{quote?.label ?? (noTargetAdvance ? "Аванс без привязки" : "")}</b></p>
             <p>{PAY_KINDS.find((k) => k.v === kind)?.label}: <b>{money(kind === "REFUND" ? -Math.abs(amountNum) : amountNum)}</b> от {paidAt}{ppNo ? `, п/п № ${ppNo}` : ""}</p>
-            <p>Документов: {files.length}{hasProofFile ? " (есть платёжка)" : ""}</p>
           </div>
           <label className="flex items-start gap-2">
             <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1" />

@@ -213,7 +213,7 @@ function DocTaskRow({ v }: { v: DocTaskView }) {
           {v.amount != null && <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums", BADGE[v.priority])}>{money(v.amount)}</span>}
           {v.overdueDays != null && <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">просрочено {v.overdueDays} дн.</span>}
           {t.later && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">после поставки</span>}
-          <Link href={v.uploadHref} className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Загрузить →</Link>
+          <Link href={v.uploadHref} className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть →</Link>
         </div>
       </div>
     </li>

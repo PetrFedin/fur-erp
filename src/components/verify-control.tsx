@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { UploadButton } from "@/components/docs-pay-panel";
 import { cn } from "@/lib/utils";
 import type { Blocker } from "@/lib/verification";
 import { unverifyPurchases, unverifyRow, verifyPurchases, verifyRow, type VerifyState } from "@/app/(app)/verify/actions";
@@ -122,7 +121,6 @@ export function VerifyControl({
                   открыть
                 </Link>
               )}
-              {canEdit && b.upload && <UploadButton t={b.upload} />}
             </li>
           ))}
         </ul>
