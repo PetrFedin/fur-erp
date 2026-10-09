@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
-import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 import {
   autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, normKey, nowPerUnit, perUnit, reapplyParams, srcInfo, varPct,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
@@ -18,6 +17,19 @@ type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
   initialStats: BudgetStat[]; furNames: string[]; catNames: string[]; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null;
 };
+
+/** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
+function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
+  if (!(per > 0) || !(sum > 0)) return null;
+  return <div className="mt-0.5 text-[10px] font-normal leading-tight text-neutral-500">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
+}
+
+/** Var мелким цветным текстом под «На 1 изделие»: красный — выше текущих цен на 15%+, жёлтый — на 5%+, зелёный — ниже на 5%+. */
+function VarTag({ v }: { v: number | null }) {
+  if (v == null || !Number.isFinite(v)) return null;
+  const tone = v >= 15 ? "text-red-700" : v >= 5 ? "text-amber-700" : v <= -5 ? "text-emerald-700" : "text-neutral-500";
+  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Var {v > 0 ? "+" : ""}{v.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%</div>;
+}
 
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
 type NumKey = "pcs" | "hides" | "hidePrice" | "meters" | "meterPrice" | "work";
@@ -270,6 +282,13 @@ export function BudgetEditor(p: Props) {
     </div>
   );
 
+  /** Замок на любом уровне (тип сырья, категория, артикул): закрытый замок — значения ручные, автоматический расчёт строку и всё внутри не трогает. */
+  const lockBtn = (n: BudgetNode) => (canEdit ? (
+    <button type="button" onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"} data-touch-ok
+      title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает (в том числе всё внутри). Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Нажмите, чтобы зафиксировать значения (и всё внутри)"}
+      className={"inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] " + (n.locked ? "bg-amber-50 text-amber-800" : "text-neutral-300 hover:text-neutral-600")}>{n.locked ? "🔒" : "🔓"}</button>
+  ) : n.locked ? <span title="Замок: ручные значения" aria-label="Замок закрыт" className="text-[11px]">🔒</span> : null);
+
   const chevron = (n: BudgetNode, hasKids: boolean, open: boolean, size = "h-7 w-6") =>
     n.kind !== "art" && (hasKids || n.kind === "fur") ? (
       <button type="button" onClick={() => toggle(n.id)} aria-expanded={open} aria-label={open ? "Свернуть" : "Развернуть"} className={`inline-flex ${size} shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900`}>
@@ -278,36 +297,34 @@ export function BudgetEditor(p: Props) {
     ) : <span className="w-6 shrink-0" />;
 
   // ---- Плитки
-  const tileStrip = "-mx-3 flex snap-x items-stretch gap-3 overflow-x-auto px-3 pb-1 md:mx-0 md:grid md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] md:overflow-visible md:px-0";
-  const tileBox = TILE_BOX + " min-w-[230px] shrink-0 snap-start shadow-sm md:min-w-0";
+  // Компактные плитки: все одного размера; лента листается вправо-влево на любой ширине.
+  const tileStrip = "-mx-3 flex snap-x snap-mandatory items-stretch gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [scrollbar-width:thin]";
+  const tile = (key: string, head: string, value: string, caption: string, items: { k: string; v: string }[]) => (
+    <div key={key} className="flex min-w-[168px] shrink-0 snap-start flex-col rounded-lg border border-neutral-200 bg-white p-2.5 shadow-sm sm:min-w-[190px]">
+      <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{head}</div>
+      <div className="mt-0.5 text-lg font-semibold leading-6 tabular-nums">{value}</div>
+      <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{caption}</div>
+      <dl className="mt-1 space-y-0.5 text-xs">
+        {items.map((it) => <div key={it.k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{it.k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{it.v}</dd></div>)}
+      </dl>
+    </div>
+  );
   const totalTiles = (
     <div className={tileStrip}>
-      {[
-        { h: "Итого бюджет", v: money(total.total), c: `${qty(total.pcs, 0)} изд. · на 1 изд. ${money(perT)}`, items: [{ k: "Сейчас на 1 изд.", v: money(nowT) }, { k: "Var к текущим ценам", v: pct(varPct(total)) }] },
-        { h: "Мех", v: money(total.mex), c: `${qty(total.hides, 0)} шкур`, items: [{ k: "Цена шкуры (средняя)", v: money(total.hides ? total.mex / total.hides : null) }, { k: "Доля", v: share(total.mex, total.total) }] },
-        { h: "Подкладка", v: money(total.lining), c: `${qty(total.meters, 1)} м`, items: [{ k: "Цена за м (средняя)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Доля", v: share(total.lining, total.total) }] },
-        { h: "Работа", v: money(total.work), c: `${qty(total.pcs, 0)} изд.`, items: [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Доля", v: share(total.work, total.total) }] },
-        { h: `Надбавка ${qty(params.c4, 1)}%`, v: money(total.c4), c: "на мех и подкладку", items: [{ k: "Доля", v: share(total.c4, total.total) }, { k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }] },
-      ].map((t) => (
-        <div key={t.h} className={tileBox}>
-          <TileHead>{t.h}</TileHead><TileValue>{t.v}</TileValue><TileCaption>{t.c}</TileCaption><TileList items={t.items} />
-        </div>
-      ))}
+      {tile("t", "Итого бюджет", money(total.total), `${qty(total.pcs, 0)} изд. · на 1 изд. ${money(perT)}`, [{ k: "Var", v: pct(varPct(total)) }])}
+      {tile("m", "Мех", money(total.mex), `${qty(total.hides, 0)} шкур`, [{ k: "Цена шкуры (ср.)", v: money(total.hides ? total.mex / total.hides : null) }, { k: "Шкур на изд. (ср.)", v: qty(total.pcs ? total.hides / total.pcs : null, 1) }, { k: "Доля", v: share(total.mex, total.total) }])}
+      {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Доля", v: share(total.lining, total.total) }])}
+      {tile("w", "Работа", money(total.work), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Доля", v: share(total.work, total.total) }])}
+      {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Доля", v: share(total.c4, total.total) }])}
     </div>
   );
   const furTiles = (
     <div className={tileStrip}>
       {furs.map((f) => {
         const a = calc.get(f.id) ?? ZERO;
-        return (
-          <div key={f.id} className={tileBox}>
-            <TileHead>{f.name}</TileHead><TileValue>{money(a.total)}</TileValue>
-            <TileCaption>{qty(a.pcs, 0)} изд. · {qty(a.hides, 0)} шкур</TileCaption>
-            <TileList items={[{ k: "На 1 изделие", v: money(perUnit(a)) }, { k: "Доля бюджета", v: share(a.total, total.total) }]} />
-          </div>
-        );
+        return tile(f.id, f.name, money(a.total), `${qty(a.pcs, 0)} изд. · ${qty(a.hides, 0)} шкур`, [{ k: "На 1 изделие", v: money(perUnit(a)) }, { k: "Доля бюджета", v: share(a.total, total.total) }]);
       })}
-      {furs.length === 0 ? <div className={TILE_BOX + " text-sm text-neutral-500"}>Добавьте тип сырья — здесь появятся его итоги.</div> : null}
+      {furs.length === 0 ? <div className="rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-500">Добавьте тип сырья — здесь появятся его итоги.</div> : null}
     </div>
   );
 
@@ -320,11 +337,11 @@ export function BudgetEditor(p: Props) {
       <tr key={key} className={`${o.bg} ${o.bold ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid`}>
         <td className={`sticky left-0 z-10 min-w-[220px] max-w-[320px] border-r border-neutral-200 px-3 py-2 text-sm print:static ${o.bg}`}>{label}</td>
         <td className={sumCell}>{qty(a.pcs, 0)}</td>
-        <td className={sumCell + " text-neutral-600"}>{qty(a.hides, 0)}</td>
-        <td className={sumCell + " " + sepL}>{money(a.mex)}</td>
-        <td className={sumCell}>{money(a.lining)}</td>
-        <td className={sumCell}>{money(a.work)}</td>
-        <td className={sumCell + " text-neutral-500"}>{money(a.c4)}</td>
+        <td className={sumCell + " text-neutral-600"}>{qty(a.hides, 0)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
+        <td className={sumCell + " " + sepL}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шкуру" /></td>
+        <td className={sumCell}>{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
+        <td className={sumCell}>{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
+        <td className={sumCell + " text-neutral-500"}>{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
         <td className={sumCell + " min-w-[150px] text-base font-semibold " + sepL}>
           {money(a.total)}
           <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-normal text-neutral-500">
@@ -332,9 +349,7 @@ export function BudgetEditor(p: Props) {
             <span className="w-9 text-right">{share(a.total, total.total)}</span>
           </div>
         </td>
-        <td className={sumCell}>{money(perUnit(a))}</td>
-        <td className={sumCell + " text-neutral-500"}>{money(nowPerUnit(a))}</td>
-        <td className={sumCell}><span className={`inline-block rounded px-1.5 py-0.5 ${varTone(v)}`}>{pct(v)}</span></td>
+        <td className={sumCell}>{money(perUnit(a))}<VarTag v={v} /></td>
       </tr>
     );
   };
@@ -347,6 +362,7 @@ export function BudgetEditor(p: Props) {
       const label = (
         <div className="flex items-center gap-1" style={{ paddingLeft: depth * 18 }}>
           {chevron(n, ch.length > 0, open)}
+          {lockBtn(n)}
           <span className={n.kind === "fur" ? "text-base" : ""}>{n.name || "Без названия"}</span>
           {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
           {dot(n)}
@@ -370,6 +386,7 @@ export function BudgetEditor(p: Props) {
     <td className={`sticky left-0 z-10 min-w-[200px] max-w-[320px] border-r border-neutral-200 px-2 py-1.5 align-middle lg:min-w-[270px] ${bg}`}>
       <div className="flex items-center gap-1" style={{ paddingLeft: depth * 18 }}>
         {chevron(n, hasKids, open)}
+        {lockBtn(n)}
         {canEdit ? (
           <input value={n.name} onChange={(e) => patch(n.id, { name: e.target.value })} aria-label={`Название (${KIND_LABEL[n.kind]})`}
             className={"min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 hover:border-neutral-300 focus-visible:border-neutral-900 focus-visible:bg-white focus-visible:outline-none " + (n.kind === "fur" ? "text-sm font-semibold" : n.kind === "cat" ? "text-sm font-medium" : "text-sm")} />
@@ -396,19 +413,17 @@ export function BudgetEditor(p: Props) {
           {nameCell(n, depth, hasKids, open, bg)}
           {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(a.pcs, 0)}</td>}
           {leaf ? numCell(n, "hides", "Шкур на изделие", "w-[80px] min-w-[80px]") : g(av.hides)}
-          <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qty(a.hides, 0)}</td>
+          <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qty(a.hides, 0)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
           {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "—" : money(av.hidePrice)}</td>}
           {leaf ? numCell(n, "meters", "Подкладка, м на изделие", "w-[84px] min-w-[84px]") : g(av.meters)}
           {leaf ? numCell(n, "meterPrice", "Цена подкладки за м", "w-[132px] min-w-[132px]", "upLining") : gm(av.meterPrice)}
           {leaf ? numCell(n, "work", "Работа на изделие", "w-[150px] min-w-[150px]", "upWork") : gm(av.work)}
-          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{money(a.mex)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.lining)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.work)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{money(a.c4)}</td>
+          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шкуру" /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
           <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{money(a.total)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perUnit(a))}</td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{money(nowPerUnit(a))}</td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{pct(varPct(a))}</td>
+          <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perUnit(a))}<VarTag v={varPct(a)} /></td>
           <td className={`border-l border-neutral-200 px-1.5 py-1 lg:sticky lg:right-0 lg:z-10 ${bg}`}>{actions(n, hasKids)}</td>
         </tr>
       );
@@ -417,19 +432,17 @@ export function BudgetEditor(p: Props) {
 
   const totalRowDetail = (
     <tr key="total" className="bg-neutral-200 font-semibold [&>td]:border-b [&>td]:border-neutral-300">
-      <td className="sticky left-0 z-10 border-r border-neutral-300 bg-neutral-200 px-3 py-2 text-sm">ВСЕГО по бюджету</td>
+      <td className="sticky left-0 z-10 border-r border-neutral-300 bg-neutral-200 px-3 py-2 text-sm">Тотал</td>
       <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}</td>
       <td />
-      <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}</td>
+      <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
       <td className={sepL} colSpan={4} />
-      <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}</td>
+      <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шкуру" /></td>
+      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
+      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
+      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(nowT)}</td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{pct(varPct(total))}</td>
+      <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}<VarTag v={varPct(total)} /></td>
       <td className="border-l border-neutral-300 bg-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
@@ -467,7 +480,7 @@ export function BudgetEditor(p: Props) {
                   {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["Сейчас на 1 изд.", money(nowPerUnit(a))], ["Var", pct(varPct(a))]].map(([k, v]) => (
+                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Var", pct(varPct(a))]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
                   ))}
                 </dl>
@@ -528,8 +541,8 @@ export function BudgetEditor(p: Props) {
         </div>
       </section>
 
+      <WidgetRow id="budget-by-fur" title="Сырьё">{furTiles}</WidgetRow>
       <WidgetRow id="budget-totals" title="Итого по бюджету">{totalTiles}</WidgetRow>
-      <WidgetRow id="budget-by-fur" title="Итоги по типам сырья">{furTiles}</WidgetRow>
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-3">
@@ -563,7 +576,7 @@ export function BudgetEditor(p: Props) {
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[220px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>
                   <th colSpan={2} className="px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
-                  <th colSpan={4} className={grp}>Результат</th>
+                  <th colSpan={2} className={grp}>Результат</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
                   <Th tip="Бюджет изделий, шт.">Изделий</Th>
@@ -573,13 +586,11 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Работа = изделия × работа на изделие">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL}>Итого</Th>
-                  <Th tip="Итого ÷ изделий">На 1 изд.</Th>
-                  <Th tip="Стоимость одного изделия по текущим ценам системы">Сейчас</Th>
-                  <Th tip="Бюджет к текущим ценам: красным выше на 15% и больше, зелёным ниже на 5% и больше">Var</Th>
+                  <Th tip="Итого ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>
-                {sumRow("total", <span className="text-base">ВСЕГО по бюджету</span>, total, { bg: "bg-neutral-200", bold: true })}
+                {sumRow("total", <span className="text-base">Тотал</span>, total, { bg: "bg-neutral-200", bold: true })}
                 {summaryRows(null, 0)}
               </tbody>
             </table>
@@ -592,7 +603,7 @@ export function BudgetEditor(p: Props) {
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[200px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:min-w-[270px]">Тип сырья · категория · артикул</th>
                   <th colSpan={3} className={grp}>Количество</th>
                   <th colSpan={4} className={grp}>Цены на 1 изделие</th>
-                  <th colSpan={8} className={grp}>Результат</th>
+                  <th colSpan={6} className={grp}>Результат</th>
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
@@ -608,9 +619,7 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Работа = бюджет × работа на изделие">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%">Итого</Th>
-                  <Th tip="Итого ÷ бюджет изделий">На 1 изд.</Th>
-                  <Th tip="Стоимость одного изделия по текущим ценам системы (без надбавок, с 4%)">Сейчас</Th>
-                  <Th tip="Бюджет к текущим ценам системы, %">Var</Th>
+                  <Th tip="Итого ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>
@@ -622,7 +631,7 @@ export function BudgetEditor(p: Props) {
           <div className={(view === "detail" ? "md:hidden " : "hidden ") + "flex flex-col gap-2 print:hidden"}>{cards(null, 0)}</div>
         </>
       )}
-      <p className="text-xs text-neutral-500 print:hidden">Как считается: изделий × (шкур × цена шкуры + подкладка м × цена за м + работа) + {qty(params.c4, 1)}% на мех и подкладку. «Сейчас» — те же количества по текущим ценам системы без надбавок; Var — бюджет к «сейчас». Если у категории есть артикулы, её итог — сумма артикулов. Точка у строки — качество данных (зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную), подробности в подсказке. Замок закрыт — строка ручная.</p>
+      <p className="text-xs text-neutral-500 print:hidden">Как считается: изделий × (шкур × цена шкуры + подкладка м × цена за м + работа) + {qty(params.c4, 1)}% на мех и подкладку. Var под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и 4% на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов. Точка у строки — качество данных (зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную), подробности в подсказке. Замок закрыт — строка ручная.</p>
 
       {adding ? (
         <AddDialog kind={adding.kind} names={adding.kind === "fur" ? p.furNames : p.catNames} articles={p.articles} taken={takenIn(adding.kind, adding.parentId)}
