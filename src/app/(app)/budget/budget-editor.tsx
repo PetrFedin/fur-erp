@@ -272,7 +272,7 @@ export function BudgetEditor(p: Props) {
       {canEdit ? (
         <>
           <button type="button" className={ICON_BTN + (n.locked ? " border-amber-300 bg-amber-50 text-amber-800" : "")} onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"}
-            title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : "🔓"}</button>
+            title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-400" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
           <button type="button" className={ICON_BTN} disabled={busy} onClick={() => runAuto(n.id)} aria-label="Автоматический расчёт для блока" title="Автоматический расчёт только для этого блока">↻</button>
           <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-emerald-300 bg-emerald-50 text-emerald-700" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
           {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"} title={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"}>＋</button> : null}
@@ -282,12 +282,15 @@ export function BudgetEditor(p: Props) {
     </div>
   );
 
-  /** Замок на любом уровне (тип сырья, категория, артикул): закрытый замок — значения ручные, автоматический расчёт строку и всё внутри не трогает. */
-  const lockBtn = (n: BudgetNode) => (canEdit ? (
-    <button type="button" onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"} data-touch-ok
-      title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает (в том числе всё внутри). Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Нажмите, чтобы зафиксировать значения (и всё внутри)"}
-      className={"inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] " + (n.locked ? "bg-amber-50 text-amber-800" : "text-neutral-300 hover:text-neutral-600")}>{n.locked ? "🔒" : "🔓"}</button>
-  ) : n.locked ? <span title="Замок: ручные значения" aria-label="Замок закрыт" className="text-[11px]">🔒</span> : null);
+  /** Замок показывается только там, где он закрыт (значения ручные, автоматический расчёт строку и всё внутри не трогает). Открыть — кнопка в «Детально»; закрыть — значок замка в колонке «Действия». */
+  const lockBtn = (n: BudgetNode, interactive = true) => {
+    if (!n.locked) return null;
+    return interactive && canEdit ? (
+      <button type="button" onClick={() => toggleLock(n.id)} aria-pressed aria-label="Замок закрыт" data-touch-ok
+        title="Замок закрыт: значения ручные, автоматический расчёт не трогает (в том числе всё внутри). Нажмите, чтобы открыть и вернуть автоматический расчёт"
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-50 text-[11px] text-amber-800">🔒</button>
+    ) : <span title="Замок: ручные значения, автоматический расчёт не трогает" aria-label="Замок закрыт" className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[11px]">🔒</span>;
+  };
 
   const chevron = (n: BudgetNode, hasKids: boolean, open: boolean, size = "h-7 w-6") =>
     n.kind !== "art" && (hasKids || n.kind === "fur") ? (
@@ -297,6 +300,11 @@ export function BudgetEditor(p: Props) {
     ) : <span className="w-6 shrink-0" />;
 
   // ---- Плитки
+  const carRef = useRef<HTMLDivElement>(null);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const onCarScroll = () => { const el = carRef.current; if (el && el.clientWidth) setSlideIdx(Math.round(el.scrollLeft / el.clientWidth)); };
+  const goSlide = (i: number) => carRef.current?.scrollTo({ left: i * carRef.current.clientWidth, behavior: "smooth" });
+
   // Компактные плитки: все одного размера; лента листается вправо-влево на любой ширине.
   const tileStrip = "-mx-3 flex snap-x snap-mandatory items-stretch gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [scrollbar-width:thin]";
   const tile = (key: string, head: string, value: string, caption: string, items: { k: string; v: string }[]) => (
@@ -318,13 +326,39 @@ export function BudgetEditor(p: Props) {
       {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Доля", v: share(total.c4, total.total) }])}
     </div>
   );
+  // Виджет «Мех»: листается от «Тотал» до каждого типа меха; точки под ним переключают слайд.
+  const slides = [
+    { id: "total", name: "Тотал", a: total, share: 1 },
+    ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO, share: total.total > 0 ? (calc.get(f.id) ?? ZERO).total / total.total : 0 })),
+  ];
   const furTiles = (
-    <div className={tileStrip}>
-      {furs.map((f) => {
-        const a = calc.get(f.id) ?? ZERO;
-        return tile(f.id, f.name, money(a.total), `${qty(a.pcs, 0)} изд. · ${qty(a.hides, 0)} шкур`, [{ k: "На 1 изделие", v: money(perUnit(a)) }, { k: "Доля бюджета", v: share(a.total, total.total) }]);
-      })}
-      {furs.length === 0 ? <div className="rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-500">Добавьте тип сырья — здесь появятся его итоги.</div> : null}
+    <div className="rounded-lg border border-neutral-200 bg-white shadow-sm">
+      <div ref={carRef} onScroll={onCarScroll} role="group" aria-roledescription="карусель" aria-label="Мех: тотал и типы меха"
+        className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {slides.map((sl, i) => (
+          <div key={sl.id} aria-hidden={i !== slideIdx} className="min-w-full snap-center p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{sl.id === "total" ? "Мех · Тотал" : `Мех · ${sl.name}`}</div>
+              <div className="text-[11px] text-neutral-500">{i + 1} / {slides.length}</div>
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums">{money(sl.a.total)}</div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+              {[
+                ["Изделий", qty(sl.a.pcs, 0)], ["Шкур", qty(sl.a.hides, 0)],
+                ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)], ["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)],
+                ["На 1 изделие", money(perUnit(sl.a))], ["Var", pct(varPct(sl.a))],
+                ["Доля бюджета", share(sl.a.total, total.total)], ["Мех", money(sl.a.mex)],
+              ].map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{v}</dd></div>)}
+            </dl>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-center gap-2 pb-2" role="tablist" aria-label="Тип меха">
+        {slides.map((sl, i) => (
+          <button key={sl.id} type="button" role="tab" aria-selected={i === slideIdx} aria-label={sl.name} title={sl.name} onClick={() => goSlide(i)} data-touch-ok
+            className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+        ))}
+      </div>
     </div>
   );
 
@@ -362,10 +396,9 @@ export function BudgetEditor(p: Props) {
       const label = (
         <div className="flex items-center gap-1" style={{ paddingLeft: depth * 18 }}>
           {chevron(n, ch.length > 0, open)}
-          {lockBtn(n)}
+          {lockBtn(n, false)}
           <span className={n.kind === "fur" ? "text-base" : ""}>{n.name || "Без названия"}</span>
           {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
-          {dot(n)}
         </div>
       );
       return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0 }), ...(open ? summaryRows(n.id, depth + 1) : [])];
@@ -541,7 +574,7 @@ export function BudgetEditor(p: Props) {
         </div>
       </section>
 
-      <WidgetRow id="budget-by-fur" title="Сырьё">{furTiles}</WidgetRow>
+      <WidgetRow id="budget-by-fur" title="Мех">{furTiles}</WidgetRow>
       <WidgetRow id="budget-totals" title="Итого по бюджету">{totalTiles}</WidgetRow>
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
