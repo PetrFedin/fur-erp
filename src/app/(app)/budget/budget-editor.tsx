@@ -320,7 +320,6 @@ export function BudgetEditor(p: Props) {
   const totalTiles = (
     <div className={tileStrip}>
       {tile("t", "Итого бюджет", money(total.total), `${qty(total.pcs, 0)} изд. · на 1 изд. ${money(perT)}`, [{ k: "Var", v: pct(varPct(total)) }])}
-      {tile("m", "Мех", money(total.mex), `${qty(total.hides, 0)} шкур`, [{ k: "Цена шкуры (ср.)", v: money(total.hides ? total.mex / total.hides : null) }, { k: "Шкур на изд. (ср.)", v: qty(total.pcs ? total.hides / total.pcs : null, 1) }, { k: "Доля", v: share(total.mex, total.total) }])}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Доля", v: share(total.lining, total.total) }])}
       {tile("w", "Работа", money(total.work), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Доля", v: share(total.work, total.total) }])}
       {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Доля", v: share(total.c4, total.total) }])}
@@ -329,6 +328,7 @@ export function BudgetEditor(p: Props) {
   // Виджет «Мех»: листается от «Тотал» до каждого типа меха; точки под ним переключают слайд.
   const slides = [
     { id: "total", name: "Тотал", a: total, share: 1 },
+    { id: "mex", name: "Мех (все типы)", a: total, share: 1 },
     ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO, share: total.total > 0 ? (calc.get(f.id) ?? ZERO).total / total.total : 0 })),
   ];
   const furTiles = (
@@ -338,17 +338,21 @@ export function BudgetEditor(p: Props) {
         {slides.map((sl, i) => (
           <div key={sl.id} aria-hidden={i !== slideIdx} className="min-w-full snap-center p-3">
             <div className="flex items-baseline justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{sl.id === "total" ? "Мех · Тотал" : `Мех · ${sl.name}`}</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{sl.id === "total" ? "Мех · Тотал" : sl.id === "mex" ? "Мех · всё сырьё меха" : `Мех · ${sl.name}`}</div>
               <div className="text-[11px] text-neutral-500">{i + 1} / {slides.length}</div>
             </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{money(sl.a.total)}</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums">{money(sl.id === "mex" ? sl.a.mex : sl.a.total)}</div>
             <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-              {[
+              {(sl.id === "mex" ? [
+                ["Шкур", qty(sl.a.hides, 0)], ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)],
+                ["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)], ["Мех на 1 изделие", money(sl.a.pcs ? sl.a.mex / sl.a.pcs : null)],
+                ["Доля бюджета", share(sl.a.mex, total.total)], ["Изделий", qty(sl.a.pcs, 0)],
+              ] : [
                 ["Изделий", qty(sl.a.pcs, 0)], ["Шкур", qty(sl.a.hides, 0)],
                 ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)], ["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)],
                 ["На 1 изделие", money(perUnit(sl.a))], ["Var", pct(varPct(sl.a))],
                 ["Доля бюджета", share(sl.a.total, total.total)], ["Мех", money(sl.a.mex)],
-              ].map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{v}</dd></div>)}
+              ]).map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{v}</dd></div>)}
             </dl>
           </div>
         ))}
@@ -609,7 +613,7 @@ export function BudgetEditor(p: Props) {
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[220px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>
                   <th colSpan={2} className="px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
-                  <th colSpan={2} className={grp}>Результат</th>
+                  <th colSpan={2} className={grp}>Прогноз</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
                   <Th tip="Бюджет изделий, шт.">Изделий</Th>
@@ -636,7 +640,7 @@ export function BudgetEditor(p: Props) {
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[200px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:min-w-[270px]">Тип сырья · категория · артикул</th>
                   <th colSpan={3} className={grp}>Количество</th>
                   <th colSpan={4} className={grp}>Цены на 1 изделие</th>
-                  <th colSpan={6} className={grp}>Результат</th>
+                  <th colSpan={6} className={grp}>Прогноз</th>
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
