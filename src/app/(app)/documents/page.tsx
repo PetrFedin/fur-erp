@@ -4,6 +4,7 @@ import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import {
   SECTION_ORDER,
@@ -33,6 +34,7 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
+import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { LazyDetails } from "../lots/lazy-details";
@@ -130,14 +132,14 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         </div>
         <a
           href={`/documents/export${exportQs.toString() ? `?${exportQs}` : ""}`}
-          className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100"
+          className={buttonVariants({ variant: "outline" })}
         >
           Скачать список недостающих (CSV)
         </a>
       </div>
 
       {/* ---------- сводка */}
-      <section aria-label="Сводка покрытия" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+      <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
         {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
@@ -175,7 +177,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- Все документы */}
       <section id="drive" className="flex scroll-mt-4 flex-col gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
             Все документы
             <span className="text-sm font-normal text-neutral-500">
               {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-700" : ""}>{unlinked}</strong>
@@ -315,10 +317,10 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
     <Link
       href={href}
       title="Показать записи этого раздела с пробелами"
-      className={cn("rounded-lg border bg-white p-3 transition-colors hover:bg-neutral-50", strong ? "border-neutral-400" : "border-neutral-200")}
+      className={cn(TILE_BOX, "shadow-sm transition hover:border-neutral-400 hover:shadow-md print:shadow-none", strong && "border-neutral-400")}
     >
-      <div className="text-xs text-neutral-500">{title}</div>
-      <div className={cn("mt-0.5 text-2xl font-semibold tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : `${stat.percent}%`}</div>
+      <TileHead>{title}</TileHead>
+      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : `${stat.percent}%`}</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>
@@ -441,7 +443,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
         summary={
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 text-sm">
             <span className="min-w-0 break-words font-medium">{g.title}</span>
-            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", gapsOf(g) > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700")}>
+            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", gapsOf(g) > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700")}>
               {gapsOf(g) > 0 ? gapsOf(g) : "✓"}
             </span>
           </summary>
@@ -457,7 +459,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
   return (
     <section className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{SECTION_TITLES[section]}</h2>
+        <h2 className="text-base font-semibold">{SECTION_TITLES[section]}</h2>
         {/* Процент — только в плитках сверху; здесь число пробелов. */}
         {(() => {
           const n = rows.filter((r) => r.gaps.length > 0).length;
@@ -482,9 +484,9 @@ const regDate = (iso: string) => formatDate(new Date(iso));
 
 function RegStatTile({ s }: { s: RegStat }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3" title={s.what}>
-      <div className="text-xs text-neutral-500">{s.label}</div>
-      <div className={cn("mt-0.5 text-xl font-semibold tabular-nums", pctTone(s.percent))}>{fmtPct(s.percent)}</div>
+    <div className={TILE_BOX + " shadow-sm print:shadow-none"} title={s.what}>
+      <TileHead>{s.label}</TileHead>
+      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(s.percent))}>{fmtPct(s.percent)}</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
         <div className={cn("h-full rounded-full", barTone(s.percent))} style={{ width: `${s.percent}%` }} />
       </div>

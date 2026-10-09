@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
+import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
@@ -465,7 +466,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     </span>
   );
 
-  const tabBtn = (active: boolean) => (active ? "rounded-md bg-neutral-900 px-3 py-1 text-white" : "rounded-md px-3 py-1 hover:bg-neutral-100");
+  const tabBtn = (active: boolean) => (active ? "rounded-md bg-neutral-900 px-3 py-1.5 text-white" : "rounded-md px-3 py-1.5 text-neutral-700 hover:bg-neutral-100");
 
   const pickerHidden = Array.from(pricingParams(p, { cols: [], all: false }).entries()) as [string, string][];
   const toggleAll = here(p.cols.length > 0 || !p.all ? { cols: [], all: !p.all || p.cols.length > 0 } : { cols: [], all: false });
@@ -514,28 +515,28 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </div>
 
       {/* Сводка */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">Моделей с завершёнными ТЗ</div>
-          <div className="text-lg font-semibold">{models.length}</div>
+      <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-4">
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Моделей с завершёнными ТЗ</TileHead>
+          <TileValue>{models.length}</TileValue>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">С ценой / без цены</div>
-          <div className="text-lg font-semibold">{pricedCount} / <span className={models.length - pricedCount > 0 ? "text-amber-700" : ""}>{models.length - pricedCount}</span></div>
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>С ценой / без цены</TileHead>
+          <TileValue>{pricedCount} / <span className={"ml-1 " + (models.length - pricedCount > 0 ? "text-amber-700" : "")}>{models.length - pricedCount}</span></TileValue>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>
             Средняя наценка
             <InfoHint label="Как посчитана" wide>Средневзвешенная по {def.count} моделям с ценой: Σ(наценка × себестоимость партии) ÷ Σ себестоимость партии. База — {baseLabel}{c4Mode === "on" ? ", с 4%" : ", без 4%"}.</InfoHint>
-          </div>
-          <div className="text-lg font-semibold">{def.pct != null ? `×${(1 + def.pct / 100).toFixed(2).replace(".", ",")}` : "—"}</div>
+          </TileHead>
+          <TileValue>{def.pct != null ? `×${(1 + def.pct / 100).toFixed(2).replace(".", ",")}` : "—"}</TileValue>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>
             Целевая наценка
             <InfoHint label="О целевой наценке">Для рекомендаций по цене. {target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")} = +${target}%. ` : ""}{typed != null ? "Введена вручную." : defRounded != null ? "По умолчанию — из данных." : "Цен ещё нет — введите вручную."} В поле ниже наценка вводится в процентах: 300 значит цена в 4 раза выше себестоимости (×4).</InfoHint>
-          </div>
-          <div className="text-lg font-semibold">{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</div>
+          </TileHead>
+          <TileValue>{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</TileValue>
         </div>
       </div>
 

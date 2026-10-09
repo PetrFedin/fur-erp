@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { InfoHint } from "@/components/info-hint";
 import { Card } from "@/components/ui/card";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { computeDocCoverage } from "@/lib/doc-coverage";
 import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/lib/attention";
 import { loadVerifyFlags } from "@/lib/verification";
@@ -71,46 +72,47 @@ export default async function DocumentAnalysisPage() {
         <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">{yearLabel(year)}</span>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Google Drive · «Мех»</div>
-          <div className="mt-2 text-2xl font-semibold">{driveSyncSnapshot.meaningfulCoveragePct}%</div>
-          <div className="mt-1 text-xs text-neutral-500">файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></div>
-          <div className={"mt-2 text-xs font-medium " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Документы на месте</div>
-          <div className="mt-2 text-2xl font-semibold">{coverage.total.percent == null ? "—" : `${coverage.total.percent}%`}</div>
-          <div className="mt-1 text-xs text-neutral-500">документы есть<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p></InfoHint></div>
-          <div className="mt-2 text-xs font-medium text-amber-700">Записей с пробелами: {coverage.total.rowsWithGaps}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Расхождения цифр</div>
-          <div className="mt-2 text-2xl font-semibold">{conflicts + reviews}</div>
-          <div className="mt-1 text-xs text-neutral-500">конфликты: {conflicts} · ручное решение: {reviews}</div>
-          <Link href="/reconciliation" className="mt-2 inline-block text-xs underline">Открыть сверку →</Link>
-        </Card>
-        <Card className="p-4">
-          <Link href="/attention" className="text-xs font-semibold uppercase tracking-wide text-neutral-500 hover:underline">Задачи →</Link>
-          <div className="mt-2 text-2xl font-semibold">{attention.main}</div>
-          <div className="mt-1 text-xs text-neutral-500">срочных: {attention.red}<InfoHint label="Подробности"><p>Срочных блоков {attention.red} · справочно {attention.info}.</p></InfoHint></div>
-          <Link href="/verify" className="mt-2 inline-block text-xs underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
-        </Card>
+      <section className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Google Drive · «Мех»</TileHead>
+          <TileValue>{driveSyncSnapshot.meaningfulCoveragePct}%</TileValue>
+          <TileCaption>файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></TileCaption>
+          <div className={"mt-2 text-xs " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
+        </div>
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Документы на месте</TileHead>
+          <TileValue>{coverage.total.percent == null ? "—" : `${coverage.total.percent}%`}</TileValue>
+          <TileCaption>документы есть<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p></InfoHint></TileCaption>
+          <div className="mt-2 text-xs text-amber-700">Записей с пробелами: {coverage.total.rowsWithGaps}</div>
+        </div>
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Расхождения цифр</TileHead>
+          <TileValue>{conflicts + reviews}</TileValue>
+          <TileCaption>конфликты: {conflicts} · ручное решение: {reviews}</TileCaption>
+          <Link href="/reconciliation" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть сверку →</Link>
+        </div>
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Задачи</TileHead>
+          <TileValue>{attention.main}</TileValue>
+          <TileCaption>срочных: {attention.red}<InfoHint label="Подробности"><p>Срочных блоков {attention.red} · справочно {attention.info}.</p></InfoHint></TileCaption>
+          <Link href="/attention" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть задачи →</Link>
+          <Link href="/verify" className="mt-1 inline-block text-xs text-blue-700 hover:underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
+        </div>
       </section>
 
       <section className="space-y-2">
         <div>
-          <h2 className="mt-1 text-base font-semibold">Где именно не хватает документа</h2>
+          <h2 className="text-base font-semibold">Где именно не хватает документа</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {tiles.map(([key, label, href]) => {
             const s = section.get(key);
             const gaps = s?.rowsWithGaps ?? 0;
             return (
-              <Link key={key} href={href} className="rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-neutral-400 hover:shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</div>
-                <div className="mt-2 text-xl font-semibold">{s?.percent == null ? "—" : `${s.percent}%`}</div>
-                <div className={"mt-1 text-xs font-medium " + (gaps ? "text-amber-700" : "text-emerald-700")}>{gaps ? `Пробелы: ${gaps}` : "Пробелов нет"}</div>
+              <Link key={key} href={href} className={TILE_BOX + " shadow-sm transition hover:border-neutral-400 hover:shadow-md print:shadow-none"}>
+                <TileHead>{label}</TileHead>
+                <TileValue>{s?.percent == null ? "—" : `${s.percent}%`}</TileValue>
+                <div className={"text-xs " + (gaps ? "text-amber-700" : "text-emerald-700")}>{gaps ? `Пробелы: ${gaps}` : "Пробелов нет"}</div>
               </Link>
             );
           })}
@@ -119,7 +121,7 @@ export default async function DocumentAnalysisPage() {
 
       <section className="space-y-2">
         <div>
-          <h2 className="mt-1 text-base font-semibold">Почему отдельные партии выглядят неоплаченными</h2>
+          <h2 className="text-base font-semibold">Почему отдельные партии выглядят неоплаченными</h2>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
           {debtCases.map((c) => {
@@ -128,7 +130,7 @@ export default async function DocumentAnalysisPage() {
             return (
               <Card key={c.key} className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="text-sm font-semibold">{c.title}</div>
+                  <div className="text-sm font-medium">{c.title}</div>
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">ручная проверка</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-700">{c.conclusion}</p>

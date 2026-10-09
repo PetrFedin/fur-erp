@@ -15,15 +15,15 @@ export type ProductionTab = (typeof TABS)[number]["key"];
 /** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки, план заказа, календарь, план поставок. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b border-neutral-200 whitespace-nowrap">
+    <nav aria-label="Разделы ТЗ" className="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">
       {TABS.map((t) => (
         <Link
           key={t.key}
           href={t.href}
+          aria-current={t.key === active ? "page" : undefined}
           className={
-            t.key === active
-              ? "-mb-px rounded-t-md border border-b-white border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium"
-              : "px-3 py-1.5 text-sm text-neutral-500 hover:text-neutral-900"
+            "inline-flex items-center rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-9 " +
+            (t.key === active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
           }
         >
           {t.label}

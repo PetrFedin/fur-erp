@@ -22,7 +22,7 @@ export function DecisionsBlock({ decisions, canDecide }: { decisions: DecisionVi
   const TOP = 5;
   return (
     <section id="owner-decisions" aria-label="Решения владельца" className="flex scroll-mt-4 flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         Решения владельца: <span className="text-neutral-900">{open.length}</span>
         <InfoHint wide label="Что это">
           <p>Вопросы из списков «Не решено» (аудит расчётов, расшифровка долга). Выберите вариант и нажмите — решение запишется с вашим именем и датой, правка видна в «Истории». Сами данные кнопка не меняет: под вариантом написано, что сделать дальше.</p>
@@ -115,7 +115,7 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
     }));
   return (
     <section id="doc-tasks" aria-label="Документы для поиска и загрузки" className="flex scroll-mt-4 flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
         Документы для поиска и загрузки: <span className="text-neutral-900">{blocks.openDocs}</span>
         {blocks.urgentDocs > 0 && <span className="text-red-600 normal-case">срочных {blocks.urgentDocs}</span>}
         <InfoHint wide label="Как это работает">

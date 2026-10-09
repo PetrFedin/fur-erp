@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { InfoHint } from "@/components/info-hint";
+import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
@@ -62,6 +63,12 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   const sDone = sumFor(applyStatus(all, "done"));
   const sWork = sumFor(applyStatus(all, "work"));
   const sAll = sumFor(all);
+  // «Произведено» как на Главной: все ТЗ без отменённых (loadOrderRows их уже исключает) и без ремонта.
+  const ownRows = all.filter((r) => r.category !== "Ремонт");
+  const sOwn = sumFor(ownRows);
+  const sOwnDone = sumFor(applyStatus(ownRows, "done"));
+  const sOwnWork = sumFor(applyStatus(ownRows, "work"));
+  const repairUnits = sAll.m.units - sOwn.m.units;
 
   // Качество данных — по всем ТЗ года.
   const undefCat = all.filter((r) => r.category === UNDEFINED_CATEGORY);
@@ -277,80 +284,78 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
       </div>
 
-      {/* Сводка по статусам */}
-      <Table>
-        <Thead>
-          <Tr>
-            <Th>Всего за {year === "all" ? "все годы" : `${year} год`}</Th>
-            <Th className="text-right">Сделано</Th>
-            <Th className="text-right">В работе и план</Th>
-            <Th className="text-right">Итого</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          <Tr>
-            <Td>ТЗ</Td>
-            <Td className="text-right tabular-nums">{sDone.m.orders}</Td>
-            <Td className="text-right tabular-nums">{sWork.m.orders}</Td>
-            <Td className="text-right font-semibold tabular-nums">{sAll.m.orders}</Td>
-          </Tr>
-          <Tr>
-            <Td>Единиц</Td>
-            <Td className="text-right tabular-nums">{formatQty(sDone.m.units)}</Td>
-            <Td className="text-right tabular-nums">{formatQty(sWork.m.units)}</Td>
-            <Td className="text-right font-semibold tabular-nums">{formatQty(sAll.m.units)}</Td>
-          </Tr>
-          <Tr>
-            <Td>Партий пошива</Td>
-            <Td className="text-right tabular-nums">{sDone.batches}</Td>
-            <Td className="text-right tabular-nums">{sWork.batches}</Td>
-            <Td className="text-right font-semibold tabular-nums">{sAll.batches}</Td>
-          </Tr>
-          <Tr>
-            <Td>Шкур</Td>
-            <Td className="text-right tabular-nums">{formatQty(sDone.m.skins)}</Td>
-            <Td className="text-right tabular-nums">{formatQty(sWork.m.skins)}</Td>
-            <Td className="text-right font-semibold tabular-nums">{formatQty(sAll.m.skins)}</Td>
-          </Tr>
-          <Tr>
-            <Td>
-              Молоток, ср. за шкуру
-              <InfoHint label="Молоток в сводке" wide>Средневзвешенно по шкурам с данными (Σ молотка ÷ Σ шкур). Остальные лоты в среднее не входят: доля шкур с данными — в скобках.</InfoHint>
-            </Td>
-            {[sDone, sWork, sAll].map((s, i) => (
-              <Td key={i} className={`text-right tabular-nums ${i === 2 ? "font-semibold" : ""}`}>
-                {s.d.hammerPerSkin ? (
-                  <>
-                    <Money incl={s.d.hammerPerSkin.incl} excl={s.d.hammerPerSkin.excl} /> <span className="text-[11px] font-normal text-neutral-500">({pct0(s.d.hammerSkinShare ?? 0)})</span>
-                  </>
-                ) : (
-                  <span className="text-neutral-500">нет данных</span>
-                )}
-              </Td>
-            ))}
-          </Tr>
-          <Tr>
-            <Td>
-              Работа
-              <InfoHint label="Что такое работа">Цена работы по ТЗ × количество (как в «Партиях»). В себестоимость системы не входит.</InfoHint>
-            </Td>
-            <Td className="text-right tabular-nums">{formatMoney(sDone.m.work.toFixed(2))}</Td>
-            <Td className="text-right tabular-nums">{formatMoney(sWork.m.work.toFixed(2))}</Td>
-            <Td className="text-right font-semibold tabular-nums">{formatMoney(sAll.m.work.toFixed(2))}</Td>
-          </Tr>
-          <Tr>
-            <Td>
-              Себестоимость{c4}
-              <InfoHint label="Что в сумме" wide>
-                Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У ТЗ «в работе» часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»).
-              </InfoHint>
-            </Td>
-            <Td className="text-right tabular-nums"><Money incl={sDone.m.costIncl} excl={sDone.m.costExcl} /></Td>
-            <Td className="text-right tabular-nums"><Money incl={sWork.m.costIncl} excl={sWork.m.costExcl} /></Td>
-            <Td className="text-right font-semibold tabular-nums"><Money incl={sAll.m.costIncl} excl={sAll.m.costExcl} /></Td>
-          </Tr>
-        </Tbody>
-      </Table>
+      {/* Сводка по статусам ТЗ: плитки в формате Главной */}
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="relative">
+          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>Произведено</TileHead>
+            <TileValue>{formatQty(sOwn.m.units)} шт.</TileValue>
+            <TileCaption>{sOwn.m.orders} ТЗ · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива{repairUnits > 0 ? ` · ремонт ${formatQty(repairUnits)} шт. отдельно` : ""}</TileCaption>
+            <TileList items={[
+              { k: "Сделано", v: `${formatQty(sOwnDone.m.units)} шт.`, share: sOwn.m.units ? sOwnDone.m.units / sOwn.m.units : null },
+              { k: "В работе", v: `${formatQty(sOwnWork.m.units)} шт.`, share: sOwn.m.units ? sOwnWork.m.units / sOwn.m.units : null },
+            ]} />
+          </div>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Что такое «произведено»" wide align="right">
+              <p><b>Произведено</b> — все ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Строки «Сделано» и «В работе» (в работе и запланированные) — разбивка по статусу ТЗ. Остальные плитки (шкуры, работа, себестоимость, молоток) считаются по всем ТЗ года, включая ремонт, как «Себестоимость» на Главной.</p>
+            </InfoHint>
+          </div>
+        </div>
+        <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+          <TileHead>Шкур</TileHead>
+          <TileValue>{formatQty(sAll.m.skins)}</TileValue>
+          <TileCaption>списано в ТЗ</TileCaption>
+          <TileList items={[
+            { k: "Сделано", v: formatQty(sDone.m.skins) },
+            { k: "В работе", v: formatQty(sWork.m.skins) },
+          ]} />
+        </div>
+        <div className="relative">
+          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>Работа</TileHead>
+            <TileValue>{formatMoney(sAll.m.work.toFixed(2))}</TileValue>
+            <TileCaption>цена работы по ТЗ × количество</TileCaption>
+            <TileList items={[
+              { k: "Сделано", v: formatMoney(sDone.m.work.toFixed(2)), share: sAll.m.work ? sDone.m.work / sAll.m.work : null },
+              { k: "В работе", v: formatMoney(sWork.m.work.toFixed(2)), share: sAll.m.work ? sWork.m.work / sAll.m.work : null },
+            ]} />
+          </div>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Что такое работа" align="right">Цена работы по ТЗ × количество (как в «Партиях» и на Главной). В себестоимость на этой странице не входит.</InfoHint>
+          </div>
+        </div>
+        <div className="relative">
+          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>Себестоимость{c4}</TileHead>
+            <TileValue><Money incl={sAll.m.costIncl} excl={sAll.m.costExcl} /></TileValue>
+            <TileCaption>сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}, без работы</TileCaption>
+            <TileList items={[
+              { k: "Сделано", v: <Money incl={sDone.m.costIncl} excl={sDone.m.costExcl} /> },
+              { k: "В работе", v: <Money incl={sWork.m.costIncl} excl={sWork.m.costExcl} /> },
+            ]} />
+          </div>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Что в сумме" wide align="right">
+              Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У ТЗ «в работе» часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»). Работа в эту плитку не входит — она отдельной плиткой рядом (на Главной «Себестоимость» считается вместе с работой).
+            </InfoHint>
+          </div>
+        </div>
+        <div className="relative">
+          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>Молоток, ср. за шкуру</TileHead>
+            <TileValue>{sAll.d.hammerPerSkin ? <Money incl={sAll.d.hammerPerSkin.incl} excl={sAll.d.hammerPerSkin.excl} /> : <span className="text-neutral-500">нет данных</span>}</TileValue>
+            <TileCaption>{sAll.d.hammerPerSkin ? `по шкурам с данными: ${pct0(sAll.d.hammerSkinShare ?? 0)}` : "у лотов нет молотка"}</TileCaption>
+            <TileList items={[
+              { k: "Сделано", v: sDone.d.hammerPerSkin ? <Money incl={sDone.d.hammerPerSkin.incl} excl={sDone.d.hammerPerSkin.excl} /> : "—" },
+              { k: "В работе", v: sWork.d.hammerPerSkin ? <Money incl={sWork.d.hammerPerSkin.incl} excl={sWork.d.hammerPerSkin.excl} /> : "—" },
+            ]} />
+          </div>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Молоток в сводке" wide align="right">Средневзвешенно по шкурам с данными (Σ молотка ÷ Σ шкур). Остальные лоты в среднее не входят: доля шкур с данными — под цифрой.</InfoHint>
+          </div>
+        </div>
+      </div>
 
       {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются) */}
       <AnalyticsFilterBar
@@ -400,7 +405,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                 </FragmentRows>
               ))}
               {nodes.length > 0 && (
-                <Tr className="bg-neutral-100 font-semibold">
+                <Tr className="border-y-2 border-neutral-200 bg-neutral-50 font-medium">
                   <Td>Итого</Td>
                   {cols.map((c) => (
                     <Td key={c} className="text-right tabular-nums">

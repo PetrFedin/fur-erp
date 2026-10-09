@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
+import { TILE_BOX } from "@/app/(app)/dashboard/tile";
 import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
@@ -145,8 +146,8 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
 
 function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: React.ReactNode }) {
   return (
-    <Card className="space-y-2 p-3">
-      <div className="flex items-center gap-1 text-sm font-semibold">
+    <div className={TILE_BOX + " gap-2 shadow-sm print:shadow-none"}>
+      <div className="flex items-center gap-1 text-sm font-medium">
         {title}
         {hint}
       </div>
@@ -159,7 +160,7 @@ function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: Reac
       ) : (
         <p className="text-sm text-neutral-500">Нет счетов за выбранный год.</p>
       )}
-    </Card>
+    </div>
   );
 }
 

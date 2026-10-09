@@ -35,11 +35,11 @@ function EvidenceStep({
     tone === "ok" ? "bg-emerald-600" : tone === "warn" ? "bg-amber-500" : tone === "bad" ? "bg-red-600" : "bg-neutral-400";
   return (
     <div className={cn("min-w-0 rounded-lg border p-2.5", cls)}>
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+      <div className="flex items-center gap-2 text-xs text-neutral-500">
         <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] text-white", dot)}>{n}</span>
         {title}
       </div>
-      <div className="mt-1.5 break-words text-sm font-semibold text-neutral-900">{value}</div>
+      <div className="mt-1.5 break-words text-sm font-medium text-neutral-900">{value}</div>
       {detail ? <div className="mt-1 break-words text-xs leading-relaxed text-neutral-600">{detail}</div> : null}
     </div>
   );
@@ -88,8 +88,8 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
           <div className="border-t border-neutral-100 bg-neutral-50/60 px-3 py-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Evidence chain</div>
-                <div className="text-sm font-semibold text-neutral-900">Что уже доказано → где разрыв → чем закрыть</div>
+                <div className="text-xs text-neutral-500">Цепочка доказательств</div>
+                <div className="text-sm font-medium text-neutral-900">Что уже доказано → где разрыв → чем закрыть</div>
               </div>
               <span className={cn(
                 "rounded-full border px-2 py-0.5 text-xs font-medium",
@@ -138,13 +138,13 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
                 n={6}
                 title="Чтобы закрыть"
                 value={actions.length ? `${actions.length} действ.` : "ничего не требуется"}
-                detail={actions[0] ?? "Evidence chain закрыт"}
+                detail={actions[0] ?? "Цепочка доказательств закрыта"}
                 tone={actions.length ? (g.status === "conflict" ? "bad" : "warn") : "ok"}
               />
             </div>
             {actions.length > 0 ? (
               <div className="mt-2 rounded-lg border border-neutral-200 bg-white p-2.5">
-                <div className="text-xs font-semibold text-neutral-900">Что сделать для закрытия статуса</div>
+                <div className="text-xs font-medium text-neutral-900">Что сделать для закрытия статуса</div>
                 <ol className="mt-1 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-neutral-700">
                   {actions.map((a, i) => <li key={i}>{a}</li>)}
                 </ol>
@@ -158,7 +158,7 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
           {db?.note ? <span className="text-neutral-500">{db.note}</span> : null}
           {g.manualReview?.length ? (
             <div className="w-full rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-950">
-              <div className="font-semibold">Ручная проверка</div>
+              <div className="font-medium">Ручная проверка</div>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 {g.manualReview.map((x, i) => <li key={i}>{x}</li>)}
               </ul>
@@ -170,7 +170,7 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
           </span>
           <InfoHint label="Проверки и расхождения" wide>
             <div className="space-y-2">
-              <div className="font-semibold text-neutral-900">Проверки</div>
+              <div className="font-medium text-neutral-900">Проверки</div>
               <ul className="space-y-0.5">
                 {g.checks.map((c) => (
                   <li key={c.label} className="flex justify-between gap-3">
@@ -188,7 +188,7 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
               {g.db.refs ? <p className="text-neutral-500">{g.db.refs}</p> : null}
               {g.diffs.length > 0 && (
                 <>
-                  <div className="font-semibold text-neutral-900">Расхождения ({g.diffs.length})</div>
+                  <div className="font-medium text-neutral-900">Расхождения ({g.diffs.length})</div>
                   <ul className="space-y-2">
                     {g.diffs.map((d, i) => (
                       <li key={i} className="rounded bg-neutral-50 p-2">
@@ -203,7 +203,7 @@ export function GroupBody({ g, ids, live, doc }: { g: Group; ids: Set<string>; l
               )}
               {g.notes.length > 0 && (
                 <>
-                  <div className="font-semibold text-neutral-900">Заметки</div>
+                  <div className="font-medium text-neutral-900">Заметки</div>
                   <ul className="list-disc space-y-1 pl-4">
                     {g.notes.map((n, i) => (
                       <li key={i}>{n}</li>

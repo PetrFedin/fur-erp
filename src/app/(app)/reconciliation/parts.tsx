@@ -43,7 +43,7 @@ export function Progress({ t, db }: { t: Totals; db?: { paid: number; pct: numbe
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <b className="tabular-nums">закрыто {pct(t.pct)}</b>
+        <b className="font-medium tabular-nums">закрыто {pct(t.pct)}</b>
         <span className="tabular-nums text-neutral-600">
           на {money(t.paid)} из {money(t.amount)}
         </span>
@@ -154,7 +154,7 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
   const shared = inv.groupIds.length > 1;
   const cell = dbCell(c, db);
   const share = inv.shares[groupId];
-  const label = (s: string) => <span className="text-[11px] uppercase tracking-wide text-neutral-500 xl:hidden">{s} </span>;
+  const label = (s: string) => <span className="text-[11px] text-neutral-500 xl:hidden">{s} </span>;
   return (
     <div
       className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-neutral-100 px-3 py-2.5 text-sm xl:grid-cols-[6.5rem_9rem_minmax(0,1fr)_minmax(0,1.5fr)_8rem_9rem_10rem] xl:items-start"
@@ -226,7 +226,7 @@ export function InvoiceRow({ c, db, groupId }: { c: InvCalc; db: InvDb | undefin
 
 export function InvoiceHeader() {
   return (
-    <div className="hidden grid-cols-[6.5rem_9rem_minmax(0,1fr)_minmax(0,1.5fr)_8rem_9rem_10rem] gap-x-3 border-t border-neutral-100 bg-neutral-50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-500 xl:grid">
+    <div className="hidden grid-cols-[6.5rem_9rem_minmax(0,1fr)_minmax(0,1.5fr)_8rem_9rem_10rem] gap-x-3 border-t border-neutral-100 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-500 xl:grid">
       <div>Счёт</div>
       <div className="order-last">Статус</div>
       <div>Сумма</div>

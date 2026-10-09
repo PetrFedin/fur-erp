@@ -44,7 +44,7 @@ export function CellView({ cell }: { cell: Cell }) {
       </span>
     );
   if (cell.need === "required")
-    return <span className="mx-auto rounded bg-red-50 px-1.5 py-0.5 text-center text-xs font-semibold text-red-700">нет</span>;
+    return <span className="mx-auto rounded bg-red-50 px-1.5 py-0.5 text-center text-xs font-medium text-red-700">нет</span>;
   return <span className="text-center text-[11px] text-neutral-500">необяз.</span>;
 }
 
@@ -57,9 +57,9 @@ export function MobileCard({ r }: { r: CovRow }) {
       subtitle={r.sub}
       badge={
         r.gaps.length > 0 ? (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">нет: {r.gaps.length}</span>
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">нет: {r.gaps.length}</span>
         ) : (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">✓</span>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓</span>
         )
       }
       fields={[
@@ -75,7 +75,7 @@ export function MobileCard({ r }: { r: CovRow }) {
 const regTone: Record<RegCell["state"], string> = {
   found: "text-emerald-700",
   partial: "text-amber-700",
-  missing: "rounded bg-red-50 px-1.5 py-0.5 font-semibold text-red-700",
+  missing: "rounded bg-red-50 px-1.5 py-0.5 font-medium text-red-700",
   later: "text-neutral-500",
   untracked: "text-neutral-500",
   none: "text-neutral-300",

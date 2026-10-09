@@ -7,6 +7,7 @@ import { InfoHint } from "@/components/info-hint";
 import { cn } from "@/lib/utils";
 import type { CheckResult } from "@/lib/integrity/types";
 import { RecheckButton } from "./recheck-button";
+import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
 export const metadata = { title: "Самопроверка" };
 export const dynamic = "force-dynamic";
@@ -54,16 +55,23 @@ export default async function IntegrityPage() {
       {!r && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">Проверка не выполнилась (подробности в логе сервера). Нажмите «Проверить сейчас».</div>}
       {r && (
         <>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <span className={cn("rounded-full px-3 py-1", r.failingErrors ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800")}>Ошибок: {r.failingErrors}</span>
-            <span className={cn("rounded-full px-3 py-1", r.failingWarns ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800")}>Предупреждений: {r.failingWarns}</span>
-            <span className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-700">Известных: {r.knownCount}</span>
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-800">Справочных: {r.failingInfo}</span>
-            <span className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-700">Проверок: {r.checksTotal}</span>
+          <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {[
+              { k: "Ошибок", v: r.failingErrors, tone: r.failingErrors ? "text-red-700" : "text-emerald-700" },
+              { k: "Предупреждений", v: r.failingWarns, tone: r.failingWarns ? "text-amber-700" : "text-emerald-700" },
+              { k: "Известных", v: r.knownCount, tone: "" },
+              { k: "Справочных", v: r.failingInfo, tone: "" },
+              { k: "Проверок", v: r.checksTotal, tone: "" },
+            ].map((c) => (
+              <div key={c.k} className={TILE_BOX + " shadow-sm print:shadow-none"}>
+                <TileHead>{c.k}</TileHead>
+                <TileValue className={c.tone}>{c.v}</TileValue>
+              </div>
+            ))}
           </div>
           {groups.map((g) => (
             <section key={g} className="space-y-1.5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{g}</h2>
+              <h2 className="text-base font-semibold">{g}</h2>
               <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
                 {attention.filter((c) => c.group === g).map((c) => {
                   const t = tone(c);

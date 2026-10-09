@@ -210,7 +210,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
   const noSales = rows.filter((r) => !r.salesCode?.trim()).length;
   const th = (label: string, key: SortKey, cls = "") => (
     <Th className={cls}>
-      <button type="button" className="uppercase hover:underline" onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }))}>
+      <button type="button" className="hover:underline" onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }))}>
         {label}
         {sort.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
       </button>

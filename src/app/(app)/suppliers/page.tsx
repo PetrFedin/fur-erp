@@ -45,6 +45,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="-mb-2 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Поставщики</h1>
         {canCreate && (

@@ -47,7 +47,7 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
   return (
     <section id="todo" aria-label="Что осталось подгрузить и отметить" className="flex scroll-mt-4 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold">Что осталось подгрузить и отметить</h2>
+        <h2 className="text-base font-semibold">Что осталось подгрузить и отметить</h2>
         <InfoHint wide label="Как читать сводку">
           <div className="flex flex-col gap-1.5">
             <p>Аукционы (закупки сырья) и партии производства, где не хватает обязательных документов, оплата не отмечена полностью или по оплате нет платёжки. Те же статусы и формулировки, что в карточках и в «Реестре сверки».</p>
@@ -63,7 +63,7 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
         </span>
       </div>
       {todo.length === 0 ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-800">Все аукционы и партии за выбранный год сопоставлены: документы есть, оплата отмечена.</p>
+        <p className="text-sm text-neutral-500">Все аукционы и партии за выбранный год сопоставлены: документы есть, оплата отмечена.</p>
       ) : (
         <ResponsiveRows
           table={
@@ -86,7 +86,7 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
               subtitle={`${r.kind}${r.year ? ` · ${r.year}` : ""}`}
               badge={<span aria-hidden className={cn("inline-block size-3 rounded-full", TONE_DOT[r.tone])} />}
               fields={[
-                { label: "Нужен документ", value: missingText(r.panel).length ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : "всё есть", strong: true },
+                { label: "Нужен документ", value: missingText(r.panel).length ? <span className="font-medium text-red-700">{missingText(r.panel).join(", ")}</span> : "всё есть", strong: true },
                 { label: "Оплата", value: r.panel.pay.label },
               ]}
               details={[
@@ -136,7 +136,7 @@ function TodoTable({ rows, missingText, mentionText }: { rows: Row[]; missingTex
                         </Link>
                       </td>
                       <td className="px-3 py-2">
-                        {missingText(r.panel).length > 0 ? <span className="font-semibold text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-500">всё есть</span>}
+                        {missingText(r.panel).length > 0 ? <span className="font-medium text-red-700">{missingText(r.panel).join(", ")}</span> : <span className="text-neutral-500">всё есть</span>}
                       </td>
                       <td className="px-3 py-2">
                         <Link href={r.href} className="hover:underline">

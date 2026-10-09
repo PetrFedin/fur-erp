@@ -77,7 +77,7 @@ export function VerifyRowCard({ row, canEdit, purchaseIds }: { row: VerifyRow; c
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5" data-verify-row={row.key}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <Link href={row.href} className="text-sm font-semibold text-blue-700 hover:underline">
+        <Link href={row.href} className="text-sm font-medium text-blue-700 hover:underline">
           {row.title}
         </Link>
         {row.amountText && row.kind !== "payment" && row.kind !== "prodPayment" && <span className="text-sm tabular-nums text-neutral-700">{row.amountText}</span>}

@@ -402,8 +402,8 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                         <Td className="text-right tabular-nums"><CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} /></Td>
                       </Tr>
                     ))}
-                    <Tr className="bg-neutral-50 font-semibold">
-                      <Td colSpan={5}>Σ Итого ({orders.length} ТЗ)</Td>
+                    <Tr className="border-y-2 border-neutral-200 bg-neutral-50 font-medium">
+                      <Td colSpan={5}>Итого ({orders.length} ТЗ)</Td>
                       <Td className="text-right tabular-nums">{formatQty(tot.produced.toString())}</Td>
                       <Td className="text-right tabular-nums">≈ {formatQty(tot.units.toFixed(1))}</Td>
                       <Td className="text-right tabular-nums">{formatQty(tot.qty.toString())}</Td>

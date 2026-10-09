@@ -34,13 +34,13 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   const T = usage.totals;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div>
+        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник меха</h1><InfoHint label="О справочнике" wide>
         Один вид меха — одна запись: русское название (его видно в аналитике и лотах), английское (из инвойсов и спецификаций — показывается в подсказке) и синонимы.
         В инвойсах мех написан латиницей («sable», «mink», «swakara»), в ТЗ — по-русски («шкура норки», «соболя»): любое из этих написаний приводится к русскому названию.
         Сопоставлено: лотов <b>{T.lotsMatched}</b> из <b>{T.lots}</b>, позиций закупок <b>{T.itemsMatched}</b> из <b>{T.items}</b>, ТЗ <b>{T.ordersMatched}</b> из <b>{T.orders}</b>.
       </InfoHint></div>
-        <Link href="/settings" className="text-sm text-neutral-500 hover:underline">← Настройки</Link>
       </div>
       <FilterBar
         title="Фильтры меха"
@@ -53,7 +53,7 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
 
       {(usage.unmatchedMaterials.length > 0 || usage.unmatchedOrders.length > 0) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
-          <h2 className="mb-2 font-medium">Не сопоставлено с видом меха — ждёт ручного решения</h2>
+          <h2 className="mb-2 text-base font-semibold">Не сопоставлено с видом меха — ждёт ручного решения</h2>
           {usage.unmatchedMaterials.length > 0 && (
             <p className="mb-2">
               Материалы (не подкладка): {usage.unmatchedMaterials.map((m) => `«${m.name}» (лотов ${m.lots}, позиций ${m.items})`).join("; ")}.

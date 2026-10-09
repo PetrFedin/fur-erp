@@ -12,6 +12,7 @@ import { classifyProduct } from "@/lib/product-category";
 import { compareSizeLabels } from "@/lib/plan-sizes";
 import { loadPlanFacts, loadOffPlan, resolveModelId, modelIndex, SET_BUCKET, type PlanFact } from "@/lib/plan-fact";
 import { SEASON_HINTS } from "@/lib/plan-season-rule";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -164,7 +165,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
       {emptyPlan && (
         <Card>
           <CardContent className="flex flex-col gap-3 py-6">
-            <p className="text-base font-medium">План заказа пока пуст</p>
+            <p className="text-sm text-neutral-500">План заказа пока пуст.</p>
             <p className="text-sm text-neutral-500">{canEdit ? "Добавьте первую позицию: артикул, цвет, вид меха и количество по размерам." : "Позиций плана пока нет."}</p>
             {canEdit && (
               <details>
@@ -208,17 +209,18 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             <p className="text-sm text-neutral-500">Позиций плана пока нет{canEdit ? " — добавьте их формой ниже" : ""}.</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 {[
-                  ["План, шт.", totals.plan],
-                  ["Произведено", totals.produced],
-                  ["В работе", totals.inWork],
-                  ["Не начато", totals.notStarted],
-                  ["Осталось произвести", Math.max(totals.plan - totals.produced, 0)],
-                ].map(([l, v]) => (
-                  <div key={l as string} className="rounded-md border border-neutral-200 p-2">
-                    <div className="text-xs text-neutral-500">{l}</div>
-                    <div className="text-lg font-semibold tabular-nums">{formatQty(v as number)}</div>
+                  ["План, шт.", totals.plan, "по позициям плана"],
+                  ["Произведено", totals.produced, "завершённые ТЗ (по статусу)"],
+                  ["В работе", totals.inWork, "ТЗ в работе"],
+                  ["Не начато", totals.notStarted, "нет ТЗ"],
+                  ["Осталось произвести", Math.max(totals.plan - totals.produced, 0), "план − завершённые"],
+                ].map(([l, v, cap]) => (
+                  <div key={l as string} className={TILE_BOX}>
+                    <TileHead>{l}</TileHead>
+                    <TileValue>{formatQty(v as number)}</TileValue>
+                    <TileCaption>{cap}</TileCaption>
                   </div>
                 ))}
               </div>

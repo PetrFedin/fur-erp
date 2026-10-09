@@ -11,6 +11,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { canVerify } from "@/lib/verify-access";
 import { BulkVerify, VerifyRowCard } from "./row";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
 export const metadata = { title: "Подтвердить" };
 export const dynamic = "force-dynamic";
@@ -93,24 +94,24 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           </InfoHint></div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
         {[
-          { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, cls: "border-emerald-200 bg-emerald-50 text-emerald-900" },
-          { label: "Ждёт проверки", v: total.waiting, sub: null, cls: "border-amber-300 bg-amber-50 text-amber-900" },
-          { label: "Готово к подтверждению", v: total.ready, sub: null, cls: "border-blue-200 bg-blue-50 text-blue-900" },
-          { label: "Всего строк", v: total.total, sub: null, cls: "border-neutral-200 bg-white text-neutral-900" },
+          { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
+          { label: "Ждёт проверки", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
+          { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
+          { label: "Всего строк", v: total.total, sub: null, tone: "" },
         ].map((c) => (
-          <div key={c.label} className={cn("rounded-lg border px-3 py-2", c.cls)}>
-            <div className="text-xs">{c.label}</div>
-            <div className="text-2xl font-semibold tabular-nums">{c.v}</div>
-            {c.sub && <div className="text-xs opacity-80">{c.sub}</div>}
+          <div key={c.label} className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>{c.label}</TileHead>
+            <TileValue className={c.tone}>{c.v}</TileValue>
+            <TileCaption>{c.sub}</TileCaption>
           </div>
         ))}
       </div>
 
       <BulkVerify items={bulkItems} canEdit />
 
-      <nav className="flex flex-wrap gap-1 border-b border-neutral-200" aria-label="Разделы очереди">
+      <nav className="flex flex-wrap gap-1" aria-label="Разделы очереди">
         {TABS.map((t) => {
           const c = countRows(tabRows(t));
           const active = t.id === tabId;
@@ -118,7 +119,8 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
             <Link
               key={t.id}
               href={href({ tab: t.id, all: "" })}
-              className={cn("flex items-center gap-2 rounded-t-md border border-b-0 px-3 py-2 text-sm", active ? "border-neutral-300 bg-white font-semibold" : "border-transparent text-neutral-600 hover:bg-neutral-100")}
+              aria-current={active ? "page" : undefined}
+              className={cn("flex items-center gap-2 rounded-md px-3 py-1.5 text-sm max-md:min-h-9", active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
             >
               {t.label}
               <span className="rounded-full bg-amber-100 px-1.5 text-xs text-amber-900" title="ждёт проверки">{c.waiting}</span>

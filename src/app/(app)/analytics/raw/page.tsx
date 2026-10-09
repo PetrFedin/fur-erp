@@ -27,6 +27,7 @@ import { MonthlyChart, type MonthPoint } from "./monthly-chart";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { figures } from "@/lib/fur-table";
 import { flowOfRawLots } from "@/lib/fur-table-server";
+import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -211,7 +212,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           <Link
             key={s}
             href={href({ scope: s === "fur" ? null : "lining", auction: null, fur: null })}
-            className={"rounded-full border px-3 py-1 text-xs max-md:min-h-8 max-md:inline-flex max-md:items-center " + (f.scope === s ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")}
+            className={"rounded-md px-3 py-1.5 text-sm max-md:inline-flex max-md:min-h-9 max-md:items-center " + (f.scope === s ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")}
           >
             {s === "fur" ? "Мех (шт.)" : "Подкладка (м)"}
           </Link>
@@ -226,7 +227,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       )}
 
       {/* Итоги */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"
           avg={{ incl: fIncl.recvAvg, excl: fExcl.recvAvg, what: "закупки" }}
@@ -241,7 +242,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           }
         />
         <Tile unit={unit} c4={c4}
-          title="Использовано в ТЗ"
+          title="Использовано"
           avg={{ incl: fIncl.usedAvg, excl: fExcl.usedAvg, what: "использованного" }}
           q={total.used}
           incl={total.usedIncl}
@@ -282,17 +283,19 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             </>
           }
         />
-        <div className="col-span-2 rounded-lg border border-neutral-200 bg-white p-3 lg:col-span-1">
-          <div className="flex items-center gap-1 text-xs text-neutral-500">
-            % использовано
-            <InfoHint label="% использовано">
+        <div className="relative col-span-2 lg:col-span-1">
+          <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>% использовано</TileHead>
+            <TileValue>{pctText(pctAll)}</TileValue>
+            <div className="mt-2 flex h-2 overflow-hidden rounded bg-neutral-100" role="img" aria-label={`Использовано ${pctText(pctAll)}`}>
+              <div className="bg-slate-500" style={{ width: `${Math.min(100, pctAll ?? 0)}%` }} />
+            </div>
+          </div>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="% использовано" align="right">
               <p>Использовано ÷ куплено × 100.</p>
               <p className="mt-1">Сейчас: {ex(total.used)} ÷ {ex(total.recv)} = {pctText(pctAll)}.</p>
             </InfoHint>
-          </div>
-          <div className="mt-1 text-xl font-semibold tabular-nums">{pctText(pctAll)}</div>
-          <div className="mt-2 flex h-2 overflow-hidden rounded bg-neutral-100" role="img" aria-label={`Использовано ${pctText(pctAll)}`}>
-            <div className="bg-slate-500" style={{ width: `${Math.min(100, pctAll ?? 0)}%` }} />
           </div>
         </div>
       </div>
@@ -364,8 +367,8 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
               ))}
               {groups.length > 0 && (
-                <div className={`grid grid-cols-2 gap-2 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold ${LOT_COLS}`}>
-                  <span className="col-span-2 md:col-span-1">Σ Итого ({lots.length} лотов)</span>
+                <div className={`grid grid-cols-2 gap-2 border-y-2 border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium ${LOT_COLS}`}>
+                  <span className="col-span-2 md:col-span-1">Итого ({lots.length} лотов)</span>
                   <Cells a={total} unit={unit} c4={c4} />
                 </div>
               )}
@@ -469,26 +472,28 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
 
 function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit: string; c4: "on" | "off"; title: string; hint: React.ReactNode; q: Decimal; incl: Decimal; excl: Decimal; extra?: { incl: Decimal; excl: Decimal } | null; sub?: React.ReactNode; avg?: { incl: number | null; excl: number | null; what: string } }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <div className="flex items-center gap-1 text-xs text-neutral-500">
-        {title}
-        <InfoHint label={title} wide>{hint}</InfoHint>
-      </div>
-      <div className="mt-1 text-xl font-semibold tabular-nums">{qty(q, unit)}</div>
-      <div className="text-sm text-neutral-700 tabular-nums">
-        <Money incl={q2(incl)} excl={q2(excl)} />
-      </div>
-      {extra && c4 === "on" && (
-        <div className="text-xs text-neutral-500">
-          с 4%: <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} />
+    <div className="relative">
+      <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+        <TileHead>{title}</TileHead>
+        <TileValue>{qty(q, unit)}</TileValue>
+        <div className="text-sm tabular-nums text-neutral-700">
+          <Money incl={q2(incl)} excl={q2(excl)} />
         </div>
-      )}
-      {avg && avg.incl != null && (
-        <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
-          ср. цена: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
-        </div>
-      )}
-      {sub}
+        {extra && c4 === "on" && (
+          <div className="text-xs text-neutral-500">
+            с 4%: <Money incl={q2(incl.add(extra.incl))} excl={q2(excl.add(extra.excl))} />
+          </div>
+        )}
+        {avg && avg.incl != null && (
+          <div className="text-xs text-neutral-500" title={`Средневзвешенная цена ${avg.what} = Σ ₽ ÷ Σ ${unit}`}>
+            ср. цена: <Money incl={q2(new Decimal(avg.incl))} excl={avg.excl != null ? q2(new Decimal(avg.excl)) : null} />/{unit}
+          </div>
+        )}
+        {sub}
+      </div>
+      <div className="absolute right-3 top-3">
+        <InfoHint label={title} wide align="right">{hint}</InfoHint>
+      </div>
     </div>
   );
 }
@@ -616,7 +621,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         <span className="inline-flex items-center gap-1">
           На 1 изделие
           <InfoHint label="На 1 изделие" wide>
-            <p>Списано ÷ произведено — средневзвешенно: Σ списано ÷ Σ произведено по всем ТЗ изделия, а не среднее из средних. Если в ТЗ идёт несколько лотов, цифра — общая по ним.</p>
+            <p>«Произведено» здесь — выпуск завершённых ТЗ (по статусу; у ТЗ в работе — 0, их план показан отдельно), а не «Произведено» с Главной. Списано ÷ произведено — средневзвешенно: Σ списано ÷ Σ произведено по всем ТЗ изделия, а не среднее из средних. Если в ТЗ идёт несколько лотов, цифра — общая по ним.</p>
           </InfoHint>
         </span>
         <span>Стоимость списания</span>
@@ -641,8 +646,8 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         />
       ))}
       {groups.length > 0 && (
-        <div className={`grid grid-cols-2 gap-2 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold ${USAGE_COLS}`}>
-          <span className="col-span-2 md:col-span-1">Σ Итого ({groups.length} · лотов в выборке: {lots})</span>
+        <div className={`grid grid-cols-2 gap-2 border-y-2 border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium ${USAGE_COLS}`}>
+          <span className="col-span-2 md:col-span-1">Итого ({groups.length} · лотов в выборке: {lots})</span>
           <span />
           <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(tot.produced.toString())} шт.</span>
           <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>

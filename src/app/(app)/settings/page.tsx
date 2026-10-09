@@ -28,7 +28,7 @@ export default async function SettingsPage() {
           Справочники и параметры. Оплаты — в разделе «Оплаты», проверка данных — в разделе «Контроль», план поставок — во вкладках «ТЗ».
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SETTINGS_LINKS.map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="h-full transition-colors hover:border-neutral-400">

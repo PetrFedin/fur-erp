@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,10 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Статьи расходов</h1>
+      <div>
+        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
+        <h1 className="text-xl font-semibold">Статьи расходов</h1>
+      </div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}

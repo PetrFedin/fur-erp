@@ -27,7 +27,7 @@ export function AssignTable({ orders, seasons, canEdit }: { orders: AssignOrder[
       )}
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
+          <thead className="bg-neutral-50 text-left text-xs font-medium text-neutral-500">
             <tr>
               {canEdit && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Выбрать все" checked={all} onChange={() => setSel(all ? new Set() : new Set(orders.map((o) => o.id)))} className="size-4" /></th>}
               <th className="px-3 py-2">ТЗ</th><th className="px-3 py-2">Модель</th><th className="px-3 py-2">Дата ТЗ</th><th className="px-3 py-2">Шт.</th><th className="px-3 py-2">Сезон</th>

@@ -150,7 +150,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const prev = view === "week" ? href({ w: addDays(weekStart, -7), m: addDays(weekStart, -7).slice(0, 7), event: "", new: "" }) : href({ m: shiftMonth(month, -1), event: "", new: "" });
   const next = view === "week" ? href({ w: addDays(weekStart, 7), m: addDays(weekStart, 7).slice(0, 7), event: "", new: "" }) : href({ m: shiftMonth(month, 1), event: "", new: "" });
   const title = view === "week" ? `${fmtRu(days[0])} — ${fmtRu(days[6])}` : monthTitle(month);
-  const pill = (a: boolean) => "rounded-md border px-3 py-1 text-sm max-md:inline-flex max-md:min-h-8 max-md:items-center " + (a ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100");
+  const pill = (a: boolean) => "rounded-md px-3 py-1.5 text-sm max-md:inline-flex max-md:min-h-9 max-md:items-center " + (a ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100");
 
   const chip = (e: Ev, dayIso: string) => {
     const def = actionDef(e.action);
@@ -208,7 +208,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {canEdit && (
         <Card id="event">
           <details open={Boolean(newDate || selected)}>
-            <summary className="cursor-pointer select-none p-4 text-sm font-semibold">{selected ? "Событие: правка" : "+ Новое событие"}</summary>
+            <summary className="cursor-pointer select-none p-4 text-sm font-medium">{selected ? "Событие: правка" : "+ Новое событие"}</summary>
             <CardContent>
               {selected && editInitial ? (
                 <div className="flex flex-col gap-3">
@@ -244,7 +244,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {/* Навигация */}
       <div className="flex flex-wrap items-center gap-2">
         <Link href={prev} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Назад">‹</Link>
-        <h2 className="min-w-44 text-center text-lg font-semibold">{title}</h2>
+        <h2 className="min-w-44 text-center text-base font-semibold">{title}</h2>
         <Link href={next} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Вперёд">›</Link>
         <Link href={href({ m: today.slice(0, 7), w: "", event: "", new: "" })} className={buttonVariants({ variant: "outline" })}>Сегодня</Link>
         <span className="ml-auto flex gap-1" role="group" aria-label="Вид">
