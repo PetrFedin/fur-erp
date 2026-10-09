@@ -88,7 +88,7 @@ export function AveragesTile({ search }: { search: Record<string, string[]> }) {
                 className="min-w-full snap-center px-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
                 <TileValue>{data ? m(a.cost) : "…"}</TileValue>
                 <TileCaption>себестоимость с работой · {formatQty(a.q)} шт. · детализация →</TileCaption>
-                <dl className="mt-2 space-y-1 text-sm">
+                <dl className="mt-1 space-y-0.5 text-xs">
                   {[
                     ["Шкур на изделие", `${n1(a.hides)} шт.`],
                     ["Средняя цена шкуры", m(a.hidePrice)],

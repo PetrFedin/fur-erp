@@ -51,6 +51,7 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
       canEdit={EDIT_ROLES.includes(session.user.role)}
       savedAt={row.updatedAt.toISOString()}
       savedBy={row.updatedBy}
+      createdAt={row.createdAt.toISOString()}
     />
   );
 }

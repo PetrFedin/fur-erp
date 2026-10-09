@@ -67,7 +67,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
             <TileHead>Произведено</TileHead>
             <TileValue>{formatQty(fact.qty)} шт.</TileValue>
             <TileCaption>{fact.orders} ТЗ · состав →{fact.repairOrders > 0 ? ` · ремонт ${fact.repairOrders} ТЗ отдельно` : ""}</TileCaption>
-            <dl className="mt-2 space-y-1 text-sm">
+            <dl className="mt-1 space-y-0.5 text-xs">
               {years.filter((y) => y.qty !== 0).map((y) => (
                 <div key={y.label} className="flex items-baseline justify-between gap-3">
                   <dt className="text-neutral-600">{y.label}</dt>
@@ -88,7 +88,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
             <TileHead>Себестоимость</TileHead>
             <TileValue>{money(total)}</TileValue>
             <TileCaption>факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа</TileCaption>
-            <dl className="mt-2 space-y-1 text-sm">
+            <dl className="mt-1 space-y-0.5 text-xs">
               {parts.map((p) => (
                 <div key={p.k} className="flex items-baseline justify-between gap-3">
                   <dt className="text-neutral-600">{p.k}</dt>
