@@ -53,17 +53,18 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
-            <li key={b.id} className={"flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"}>
+            <li key={b.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-400 hover:shadow-md">
+              <Link href={`/budget/${b.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть бюджет: ${b.name}`} />
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <Link href={`/budget/${b.id}`} className="block truncate text-base font-semibold hover:underline">{b.name}</Link>
+                <div className="pointer-events-none relative z-10 min-w-0">
+                  <span className="block truncate text-base font-semibold">{b.name}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
                     <span>{b.season}</span>
                     {b.status === "APPROVED" ? <Badge tone="ok">Утверждён</Badge> : null}
                     {b.parentName ? <span title="Получен копированием">копия «{b.parentName}»</span> : null}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="relative z-10 flex shrink-0 items-center gap-1">
                   <Link href={`/budget/${b.id}`} className={ICON} aria-label={`Открыть: ${b.name}`} title="Открыть">
                     <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4H7a1 1 0 0 0-1 1v15M14 4v16M14 4l5 1.5V19l-5 1M3 20h18" /><circle cx="11.5" cy="12" r=".6" fill="currentColor" /></svg>
                   </Link>

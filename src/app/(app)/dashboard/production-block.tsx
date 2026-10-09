@@ -61,7 +61,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
         </div>
       </div>
       <WidgetRow id="prod" title="Производство — итоги">
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 print:grid-cols-2">
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <div className="relative">
           <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
             <TileHead>Произведено</TileHead>

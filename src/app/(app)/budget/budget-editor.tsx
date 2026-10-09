@@ -9,7 +9,7 @@ import {
   autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, normKey, nowPerUnit, perUnit, reapplyParams, srcInfo, varPct,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
 } from "@/lib/budget-calc";
-import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, saveBudget, setBudgetStatus, type ImportRow } from "./actions";
+import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, setBudgetStatus, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, money, pct, qty, share } from "./ui";
 
@@ -77,6 +77,7 @@ export function BudgetEditor(p: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [status, setStatus] = useState(p.status);
   const [view, setView] = useState<"summary" | "detail">("summary");
+  const [renaming, setRenaming] = useState(false);
   const [adding, setAdding] = useState<{ kind: AddKind; parentId: string | null } | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [statFor, setStatFor] = useState<string | null>(null);
@@ -326,8 +327,7 @@ export function BudgetEditor(p: Props) {
   );
   // Виджет «Мех»: листается от «Тотал» до каждого типа меха; точки под ним переключают слайд.
   const slides = [
-    { id: "total", name: "Тотал", a: total, share: 1 },
-    { id: "mex", name: "Мех (все типы)", a: total, share: 1 },
+    { id: "mex", name: "Мех", a: total, share: 1 },
     ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO, share: total.total > 0 ? (calc.get(f.id) ?? ZERO).total / total.total : 0 })),
   ];
   // Плитка «Мех» в общем ряду виджетов: того же размера, что остальные; внутри листается (тотал → всё сырьё меха → каждый тип), точки под ней.
@@ -342,7 +342,7 @@ export function BudgetEditor(p: Props) {
             : [["На 1 изделие", money(perUnit(sl.a))], ["Var", pct(varPct(sl.a))], ["Доля бюджета", share(sl.a.total, total.total)]];
           return (
             <div key={sl.id} aria-hidden={i !== slideIdx} className="min-w-full snap-center p-2.5">
-              <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{sl.id === "total" ? "Мех · тотал" : isMex ? "Мех · всё" : `Мех · ${sl.name}`}</div>
+              <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{isMex ? "Мех" : `Мех · ${sl.name}`}</div>
               <div className="mt-0.5 text-lg font-semibold leading-6 tabular-nums">{money(isMex ? sl.a.mex : sl.a.total)}</div>
               <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{qty(sl.a.pcs, 0)} изд. · {qty(sl.a.hides, 0)} шкур</div>
               <dl className="mt-1 space-y-0.5 text-xs">
@@ -363,11 +363,11 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className={tileStrip}>
-      {tile("t", "Итого бюджет", money(total.total), `${qty(total.pcs, 0)} изд. · на 1 изд. ${money(perT)}`, [{ k: "Var", v: pct(varPct(total)) }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд. · ${qty(total.hides, 0)} шкур`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100%" }])}
       {furTile}
-      {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Доля", v: share(total.lining, total.total) }])}
-      {tile("w", "Работа", money(total.work), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Доля", v: share(total.work, total.total) }])}
-      {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Доля", v: share(total.c4, total.total) }])}
+      {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
+      {tile("w", "Работа", money(total.work), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Изделий", v: qty(total.pcs, 0) }, { k: "Доля", v: share(total.work, total.total) }])}
+      {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Ставка", v: `${qty(params.c4, 1)}%` }, { k: "Доля", v: share(total.c4, total.total) }])}
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
@@ -435,6 +435,11 @@ export function BudgetEditor(p: Props) {
         ) : <span className={"min-w-0 flex-1 truncate px-1 " + (n.kind === "fur" ? "text-sm font-semibold" : "text-sm")}>{n.name}</span>}
         {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"} title={n.modelId ? "Артикул из каталога системы" : "Плановый артикул: есть только в бюджете"}>{n.modelId ? "арт." : "план"}</Badge> : null}
         {dot(n)}
+        {canEdit && n.kind !== "art" ? (
+          <button type="button" onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} data-touch-ok
+            title={n.kind === "fur" ? "Добавить категорию в этот тип сырья" : "Добавить артикул в эту категорию: из списка системы или новый плановый"}
+            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:bg-blue-50 hover:underline">+ {n.kind === "fur" ? "категория" : "артикул"}</button>
+        ) : null}
       </div>
     </td>
   );
@@ -548,6 +553,12 @@ export function BudgetEditor(p: Props) {
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold">{p.name}</h1>
             {p.season !== p.name ? <span className="text-sm text-neutral-500">{p.season}</span> : null}
+            {canEdit ? (
+              <button type="button" onClick={() => setRenaming(true)} aria-label="Редактировать карточку бюджета" title="Редактировать карточку бюджета: название и сезон" data-touch-ok
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900">
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+              </button>
+            ) : null}
             <Badge tone={status === "APPROVED" ? "ok" : "manual"}>{status === "APPROVED" ? "Утверждён" : "Черновик"}</Badge>
           </div>
           <p className="mt-0.5 text-xs text-neutral-500" role="status">{saveText}{p.savedBy ? ` · изменял(а) ${p.savedBy}` : ""}</p>
@@ -674,8 +685,11 @@ export function BudgetEditor(p: Props) {
       )}
       <p className="text-xs text-neutral-500 print:hidden">Как считается: изделий × (шкур × цена шкуры + подкладка м × цена за м + работа) + {qty(params.c4, 1)}% на мех и подкладку. Var под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и 4% на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов. Точка у строки — качество данных (зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную), подробности в подсказке. Замок закрыт — строка ручная.</p>
 
+      {renaming ? <EditCardDialog name={p.name} season={p.season} onClose={() => setRenaming(false)} onSave={async (name, seasonV) => { const r = await renameBudget(p.id, name, seasonV); if (r.ok) { setRenaming(false); router.refresh(); } return r.ok ? null : r.error ?? "Не удалось сохранить"; }} /> : null}
       {adding ? (
         <AddDialog kind={adding.kind} names={adding.kind === "fur" ? p.furNames : p.catNames} articles={p.articles} taken={takenIn(adding.kind, adding.parentId)}
+          catName={adding.kind === "art" && adding.parentId ? (byId.get(adding.parentId)?.statCat || byId.get(adding.parentId)?.name) : undefined}
+          context={adding.kind === "art" && adding.parentId ? `Артикул добавится в «${byId.get(adding.parentId)?.name}» (${byId.get(byId.get(adding.parentId)?.parentId ?? "")?.name ?? "тип сырья"}). Выберите из списка системы или создайте новый плановый.` : undefined}
           onClose={() => setAdding(null)} onPick={(v) => addNode(adding.kind, adding.parentId, v)} />
       ) : null}
       {statFor && byId.get(statFor) ? (
@@ -743,5 +757,25 @@ export function BudgetEditor(p: Props) {
         </Modal>
       ) : null}
     </div>
+  );
+}
+
+function EditCardDialog({ name, season, onClose, onSave }: { name: string; season: string; onClose: () => void; onSave: (name: string, season: string) => Promise<string | null> }) {
+  const [n, setN] = useState(name);
+  const [se, setSe] = useState(season);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title="Карточка бюджета" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">Название<input autoFocus value={n} onChange={(e) => setN(e.target.value)} className={FIELD} maxLength={80} /></label>
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">Сезон<input value={se} onChange={(e) => setSe(e.target.value)} className={FIELD} maxLength={20} /></label>
+        {err ? <p role="alert" className="text-xs text-red-700">{err}</p> : null}
+        <div className="flex justify-end gap-2">
+          <button type="button" className={BTN} onClick={onClose}>Отмена</button>
+          <button type="button" className={BTN_PRIMARY} disabled={busy || !n.trim()} onClick={async () => { setBusy(true); setErr(await onSave(n, se)); setBusy(false); }}>Сохранить</button>
+        </div>
+      </div>
+    </Modal>
   );
 }

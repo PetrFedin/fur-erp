@@ -60,7 +60,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
 
   return (
     <WidgetRow id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
-    <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
+    <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
       <div className={TILE_BOX}>
         <TileHead>Общая стоимость</TileHead>
         <div className="absolute right-3 top-3">

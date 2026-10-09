@@ -30,6 +30,7 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
     id: m.id,
     label: articleLabel(m),
     hint: articleHint(m),
+    cat: (m.category ?? "").trim(),
     search: [m.name, m.sku, m.category, m.salesCode, m.salesName, ...m.aliases].filter(Boolean).join(" ").toLowerCase(),
   }));
   const bp: BudgetParams = { ...DEFAULT_PARAMS, ...(row.params as Partial<BudgetParams>) };
