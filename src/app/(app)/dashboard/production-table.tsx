@@ -1,0 +1,254 @@
+"use client";
+
+import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useVatDisplay } from "@/lib/vat-display";
+import { formatMoney, formatQty } from "@/lib/utils";
+import { groupRank } from "@/lib/category-groups";
+import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
+import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
+import { loadProductionDrill } from "./actions";
+
+export type Agg = {
+  key: string;
+  label: string;
+  orders: Map<string, DrillOrder>;
+  fur: number; lining: number; c4: number; other: number; work: number;
+  hides: number; hideSum: number; meters: number; liningSum: number;
+  children: Map<string, Agg>;
+};
+
+export const blank = (key: string, label: string): Agg => ({ key, label, orders: new Map(), fur: 0, lining: 0, c4: 0, other: 0, work: 0, hides: 0, hideSum: 0, meters: 0, liningSum: 0, children: new Map() });
+
+/** Добавляет ТЗ целиком (все его атомы + работа) в группу. */
+export function addOrder(g: Agg, o: DrillOrder, vat: "incl" | "excl") {
+  if (g.orders.has(o.id)) return;
+  g.orders.set(o.id, o);
+  g.work += o.work;
+  for (const a of atomsOf(o)) {
+    const v = vat === "incl" ? a.i : a.e;
+    const c = vat === "incl" ? a.ci : a.ce;
+    if (a.k === "f" || a.k === "h") g.fur += v - c;
+    else if (a.k === "l") g.lining += v - c;
+    else g.other += v;
+    if (a.k === "f" || a.k === "l") g.c4 += c;
+    if (a.k === "f") { g.hides += a.q; g.hideSum += v - c; }
+    if (a.k === "l") { g.meters += a.q; g.liningSum += v - c; }
+  }
+}
+
+export type Lvl = "grp" | "cat" | "fur" | "furl" | "year" | "batch" | "model";
+const LEVELS: Record<"cat" | "fur", Lvl[]> = { cat: ["grp", "cat", "furl"], fur: ["furl", "grp", "cat"] };
+const keyLabel = (o: DrillOrder, l: Lvl): [string, string] => {
+  switch (l) {
+    case "grp": return [o.grp, o.grp];
+    case "cat": return [o.cat, o.cat];
+    case "fur": return [o.fur, o.fur];
+    case "furl": return [o.fur, o.fur];
+    case "year": return [o.y == null ? "none" : String(o.y), o.y == null ? "Без года" : String(o.y)];
+    case "batch": return [o.bk, o.bl];
+    case "model": return [o.mid, o.ml];
+  }
+};
+export const cost = (g: Agg) => g.fur + g.lining + g.c4 + g.other + g.work;
+
+/** Дерево группировок: каждый ТЗ целиком (атомы + работа) попадает в узел на каждом уровне. */
+/** Порядок строк уровня: группы — по справочнику, годы и партии — по номеру («без» в конце), остальное — по сумме. */
+export const cmpFor = (l: Lvl) => (a: Agg, b: Agg): number => {
+  if (l === "grp") return groupRank(a.key) - groupRank(b.key);
+  if (l === "year" || l === "batch") {
+    if (a.key === "none") return 1;
+    if (b.key === "none") return -1;
+    return Number(a.key) - Number(b.key);
+  }
+  return cost(b) - cost(a);
+};
+
+/**
+ * Добавляет в узел долю ТЗ, относящуюся к виду меха fu (смешанное ТЗ «Норка + Соболь» делится по видам): шкуры вида — целиком,
+ * подкладка, работа, расходы и надбавка 4% на подкладку — пропорционально стоимости шкур этого вида в ТЗ. Σ долей по видам = ТЗ.
+ */
+export function addOrderFur(g: Agg, o: DrillOrder, vat: "incl" | "excl", fu: string, kinds: number) {
+  g.orders.set(o.id, o);
+  const val = (a: { i: number; e: number }) => (vat === "incl" ? a.i : a.e);
+  const c4 = (a: { ci: number; ce: number }) => (vat === "incl" ? a.ci : a.ce);
+  let own = 0, all = 0;
+  for (const l of o.lines) if (l.k === "f") { const v = val(l) - c4(l); all += v; if (l.fu === fu) own += v; }
+  const share = all > 0 ? own / all : 1 / Math.max(1, kinds);
+  for (const l of o.lines) {
+    if (l.k === "f" && l.fu === fu) {
+      g.fur += val(l) - c4(l); g.hides += l.q; g.hideSum += val(l) - c4(l); g.c4 += c4(l);
+    } else if (l.k === "l") {
+      g.lining += share * (val(l) - c4(l)); g.liningSum += share * (val(l) - c4(l)); g.meters += share * l.q; g.c4 += share * c4(l);
+    }
+  }
+  for (const a of atomsOf(o)) {
+    if (a.k === "h") g.fur += share * val(a);
+    else if (a.k === "e" || a.k === "r") g.other += share * val(a);
+  }
+  g.work += share * o.work;
+}
+
+/** Виды меха ТЗ по строкам списания (у смешанных ТЗ — несколько); ТЗ без списаний меха — по виду меха ТЗ. */
+const furKinds = (o: DrillOrder): string[] => {
+  const k = Array.from(new Set(o.lines.filter((l) => l.k === "f").map((l) => l.fu)));
+  return k.length ? k : [o.fur];
+};
+
+/**
+ * Дерево группировок: ТЗ целиком (атомы + работа) попадает в узлы выше уровня «furl»; на уровне «furl» и ниже —
+ * отдельно по каждому виду меха ТЗ только его шкуры (смешанное ТЗ «Норка + Соболь» попадает и в «Норка», и в «Соболь»).
+ */
+export function build(orders: DrillOrder[], vat: "incl" | "excl", levels: Lvl[]): Agg[] {
+  const root = new Map<string, Agg>();
+  const insert = (level: Map<string, Agg>, depth: number, o: DrillOrder, restrict: string | null) => {
+    if (depth >= levels.length) return;
+    const l = levels[depth];
+    const keys: Array<[string, string, string | null]> = l === "furl"
+      ? furKinds(o).map((f) => [f, f, f] as [string, string, string | null])
+      : [[...keyLabel(o, l), restrict] as [string, string, string | null]];
+    for (const [k, label, r] of keys) {
+      const g = level.get(k) ?? blank(k, label);
+      level.set(k, g);
+      if (r) addOrderFur(g, o, vat, r, furKinds(o).length); else addOrder(g, o, vat);
+      insert(g.children, depth + 1, o, r);
+    }
+  };
+  for (const o of orders) insert(root, 0, o, null);
+  return Array.from(root.values()).sort(cmpFor(levels[0]));
+}
+
+const money = (v: number) => formatMoney(Math.round(v));
+const dash = (v: number | null, f: (n: number) => string) => (v == null || !isFinite(v) ? "—" : f(v));
+
+export function ProductionTable({ search }: { search: Record<string, string[]> }) {
+  const { mode: vat } = useVatDisplay();
+  const [data, setData] = useState<DrillData | null>(null);
+  const [error, setError] = useState(false);
+  const [by, setBy] = useState<"cat" | "fur">("cat");
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let alive = true;
+    loadProductionDrill("all", search).then((d) => alive && setData(d)).catch(() => alive && setError(true));
+    return () => { alive = false; };
+  }, [search]);
+
+  // Ремонт — не выпуск изделий: в штуки и средние цены не входит, показан отдельной строкой.
+  const isRepair = (o: DrillOrder) => o.cat === REPAIR_CATEGORY;
+  const rows = useMemo(() => (data ? build(data.orders.filter((o) => !isRepair(o)), vat, LEVELS[by]) : []), [data, vat, by]);
+  const showOther = rows.some((r) => Math.abs(r.other) > 0.5);
+  const { total, repair, all } = useMemo(() => {
+    const t = blank("items", "Итого изделия"), r = blank("repair", "Ремонт"), a = blank("all", "Всего");
+    if (data) for (const o of data.orders) { addOrder(isRepair(o) ? r : t, o, vat); addOrder(a, o, vat); }
+    return { total: t, repair: r, all: a };
+  }, [data, vat]);
+
+  const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const qty = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
+  const sum = cost;
+
+  const th = "px-2 py-1.5 text-right font-medium";
+  const cells = (g: Agg, small: boolean, noQty = false, dark = false) => {
+    const q = noQty ? 0 : qty(g);
+    const cls = "whitespace-nowrap px-2 text-right tabular-nums " + (small ? "py-1 text-xs " + (dark ? "text-neutral-900" : "text-neutral-600") : "py-1.5 text-sm");
+    return (
+      <>
+        <td className={cls}>{noQty ? "—" : formatQty(q)}</td>
+        <td className={cls}>{dash(q > 0 ? sum(g) / q : null, money)}</td>
+        <td className={cls + (small ? "" : " font-medium")}>{money(sum(g))}</td>
+        <td className={cls}>{money(g.fur)}</td>
+        <td className={cls}>{money(g.lining)}</td>
+        <td className={cls}>{money(g.work)}</td>
+        <td className={cls}>{money(g.c4)}</td>
+        {showOther ? <td className={cls}>{money(g.other)}</td> : null}
+        <td className={cls}>{formatQty(g.hides)}</td>
+        <td className={cls}>{dash(g.hides > 0 ? g.hideSum / g.hides : null, money)}</td>
+        <td className={cls}>{formatQty(g.meters)}</td>
+        <td className={cls}>{dash(g.meters > 0 ? g.liningSum / g.meters : null, money)}</td>
+        <td className={cls}>{dash(q > 0 ? g.work / q : null, money)}</td>
+      </>
+    );
+  };
+
+  const depthMax = LEVELS[by].length - 1;
+  const sortKids = (m: Map<string, Agg>, depth: number) =>
+    Array.from(m.values()).sort(cmpFor(LEVELS[by][depth]));
+  const renderRows = (nodes: Agg[], depth: number, path: string): React.ReactNode =>
+    nodes.map((r) => {
+      const pk = path + "/" + r.key;
+      const canOpen = depth < depthMax && r.children.size > 0;
+      const isOpen = open.has(pk);
+      const label = canOpen ? (
+        <button type="button" onClick={() => toggle(pk)} aria-expanded={isOpen} aria-label={`Раскрыть: ${r.label}`} className="flex items-center gap-1 text-left">
+          <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (isOpen ? "rotate-90" : "")}>›</span>{r.label}
+        </button>
+      ) : <span className={depth > 0 ? "inline-block w-4" : ""}>{depth > 0 ? "" : null}{r.label}</span>;
+      return (
+        <Fragment key={pk}>
+          <tr className={"border-b border-neutral-100 " + (depth > 0 ? "bg-neutral-50/70" : "")}>
+            <td className={depth === 0 ? "py-1.5 pr-2 text-sm font-semibold" : "py-1 pr-2 text-xs " + (depth === 1 && canOpen && isOpen ? "text-neutral-900" : "text-neutral-700")} style={{ paddingLeft: depth * 16 }}>{label}</td>
+            {cells(r, depth > 0, false, depth === 1 && canOpen && isOpen)}
+          </tr>
+          {canOpen && isOpen ? renderRows(sortKids(r.children, depth + 1), depth + 1, pk) : null}
+        </Fragment>
+      );
+    });
+
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white p-3 print:break-inside-avoid">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Производство по {by === "cat" ? "группам и категориям — раскрыть по меху" : "меху — раскрыть по группам и категориям"}</h3>
+        <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
+          {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
+              className={"px-3 py-1.5 " + (by === id ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {error ? <p className="py-4 text-sm text-neutral-500">Не удалось загрузить данные таблицы.</p> : !data ? <p className="py-4 text-sm text-neutral-500">Загрузка…</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left">
+            <thead>
+              <tr className="border-b border-neutral-200 text-xs text-neutral-500">
+                <th className="py-1.5 pr-2 font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
+                <th className={th}>Изделий, шт.</th>
+                <th className={th}>Ср. цена изделия</th>
+                <th className={th}>Сумма производства</th>
+                <th className={th}>Мех</th>
+                <th className={th}>Подкладка</th>
+                <th className={th}>Работа</th>
+                <th className={th}>4%</th>
+                {showOther ? <th className={th}>Расходы и прочее</th> : null}
+                <th className={th}>Шкур, шт.</th>
+                <th className={th}>Ср. цена шкуры</th>
+                <th className={th}>Подкладки, м</th>
+                <th className={th}>Ср. цена подкладки, ₽/м</th>
+                <th className={th}>Ср. цена работы, ₽/изд.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {renderRows(rows, 0, "")}
+              <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
+                <td className="py-1.5 pr-2 text-sm">Итого изделия</td>
+                {cells(total, false)}
+              </tr>
+              {repair.orders.size > 0 ? (
+                <>
+                  <tr className="border-b border-neutral-100">
+                    <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link></td>
+                    {cells(repair, true, true)}
+                  </tr>
+                  <tr className="border-b-2 border-neutral-300 bg-neutral-50 font-semibold">
+                    <td className="py-1.5 pr-2 text-sm">Всего с ремонтом</td>
+                    {cells(all, false, true)}
+                  </tr>
+                </>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

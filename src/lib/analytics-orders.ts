@@ -69,6 +69,8 @@ export type OrderRow = {
   modelLabel: string;
   modelHint: string;
   category: string;
+  /** Группа категории из справочника («Одежда», «Аксессуары»); пусто — без группы. */
+  categoryGroup: string;
   categorySource: CategorySource;
   fur: string;
   furFromUsage: boolean;
@@ -158,7 +160,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         workOrderNumber: true,
         status: true,
         productModelId: true,
-        productModel: { select: { name: true, category: true, categoryRef: { select: { name: true } }, salesCode: true, salesName: true, sku: true, aliases: true } },
+        productModel: { select: { name: true, category: true, categoryRef: { select: { name: true, group: true } }, salesCode: true, salesName: true, sku: true, aliases: true } },
         batch: { select: { number: true, year: true } },
         season: { select: { code: true } },
         client: { select: { name: true } },
@@ -318,6 +320,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       modelLabel: articleLabel(o.productModel),
       modelHint: articleHint(o.productModel),
       category: cls.category,
+      categoryGroup: o.productModel.categoryRef?.group ?? "",
       categorySource: cls.source,
       fur,
       furFromUsage: furNames.length > 0,

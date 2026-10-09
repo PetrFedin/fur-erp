@@ -40,6 +40,8 @@ model CategoryRef {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
+  /// Группа верхнего уровня: «Одежда», «Аксессуары» (src/lib/category-groups.ts).
+  group          String?
   aliases        String[]
   sortOrder      Int          @default(0)
   confirmed      Boolean      @default(false)

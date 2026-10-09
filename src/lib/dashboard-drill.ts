@@ -12,6 +12,8 @@ export type DrillLine = {
   k: "f" | "l";
   /** Материал как в справочнике («Лиса красная»). */
   n: string;
+  /** Вид меха (канонический: «Норка», «Соболь»); у подкладки пусто. */
+  fu: string;
   lot: string;
   ln: string | null;
   /** Короткое имя партии закупки (аукциона) или «Без аукциона». */
@@ -37,6 +39,8 @@ export type DrillOrder = {
   y: number | null;
   st: "PLANNED" | "IN_PROGRESS" | "COMPLETED";
   cat: string;
+  /** Группа категории: «Одежда», «Аксессуары» или «Без группы». */
+  grp: string;
   mid: string;
   ml: string;
   fur: string;
@@ -55,22 +59,25 @@ export type DrillOrder = {
 
 export type DrillData = { c4: "on" | "off"; orders: DrillOrder[] };
 
-export type Dim = "batch" | "year" | "cat" | "model" | "fur" | "auction" | "order";
-export type RootMode = "batch" | "year" | "cat" | "fur";
+export type Dim = "batch" | "year" | "grp" | "cat" | "model" | "fur" | "furw" | "auction" | "order";
+export type RootMode = "batch" | "year" | "cat" | "fur" | "catfur";
 export const ROOT_MODES: { id: RootMode; label: string }[] = [
   { id: "batch", label: "Партии" },
   { id: "year", label: "Годы" },
   { id: "cat", label: "Категории" },
   { id: "fur", label: "Мех" },
+  { id: "catfur", label: "Категория + мех" },
 ];
 export const CHAIN: Record<RootMode, Dim[]> = {
   batch: ["batch", "order"],
   year: ["year", "batch", "order"],
-  cat: ["cat", "model", "order"],
+  cat: ["grp", "cat", "model", "order"],
   fur: ["fur", "year", "batch", "order"],
+  // Категория раскрывается на виды меха (ТЗ целиком, поэтому работа входит в столбцы), затем ТЗ и состав.
+  catfur: ["grp", "cat", "furw", "order"],
 };
 export const DIM_TITLE: Record<Dim, string> = {
-  batch: "по партиям производства", year: "по годам", cat: "по категориям", model: "по артикулам (моделям)", fur: "по виду меха",
+  batch: "по партиям производства", year: "по годам", grp: "по группам категорий", cat: "по категориям", model: "по артикулам (моделям)", fur: "по виду меха", furw: "по виду меха в категории",
   auction: "по партиям закупки (аукционам)", order: "по ТЗ",
 };
 
@@ -105,9 +112,11 @@ function keyOf(dim: Dim, a: Atom): { key: string; label: string } {
   switch (dim) {
     case "batch": return { key: o.bk, label: o.bl };
     case "year": return { key: o.y == null ? "none" : String(o.y), label: o.y == null ? "Без года" : String(o.y) };
+    case "grp": return { key: o.grp, label: o.grp };
     case "cat": return { key: o.cat, label: o.cat };
     case "model": return { key: o.mid, label: o.ml };
     case "fur": return { key: o.fur, label: o.fur };
+    case "furw": return { key: o.fur, label: o.fur };
     case "auction": return { key: a.au, label: a.au };
     case "order": return { key: o.id, label: `ТЗ ${o.number}` };
   }
@@ -156,6 +165,7 @@ function qtyTextOf(atoms: Atom[], dim: Dim): string {
     const parts = [f > 0 ? `${nf(f)} шк.` : "", l > 0 ? `${nf(l)} м` : ""].filter(Boolean);
     return parts.join(" · ") || "—";
   }
+  if (atoms.length && atoms.every((a) => a.o.cat === "Ремонт")) return `ремонт · ${new Set(atoms.map((a) => a.o.id)).size} ТЗ`;
   const seen = new Set<string>();
   let q = 0;
   for (const a of atoms) if (!seen.has(a.o.id)) { seen.add(a.o.id); q += a.o.qty; }
@@ -273,7 +283,8 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
         other: part((a) => a.k === "e" || a.k === "r", (a) => val(a, vat)),
         work: whole ? work : 0,
       },
-      qty: dim === "fur" || dim === "auction" ? undefined : Array.from(qtyOrders.values()).reduce((x, y) => x + y, 0),
+      // Ремонт — не изделия: количество и «1 изд.» не показываем.
+      qty: dim === "fur" || dim === "auction" || g.atoms.every((x) => x.o.cat === "Ремонт") ? undefined : Array.from(qtyOrders.values()).reduce((x, y) => x + y, 0),
       key, label: g.label, value: v, share: 0, qtyText: qtyTextOf(g.atoms, dim), work: whole ? work : null, drillable: true,
       sub: lastOrder ? [g.atoms[0].o.ml, g.atoms[0].o.fur].filter(Boolean).join(" · ") : undefined,
       tone: dim === "auction" && key === EXP_LABEL ? "exp" : undefined,

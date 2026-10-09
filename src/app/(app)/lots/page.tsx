@@ -2,10 +2,10 @@ import { resolveAuctionValues } from "@/lib/auction-ref";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { LiningPurchaseForm } from "./lining-purchase-form";
-import { PurchaseSummary } from "./summary-view";
+import { YearsTable, RawTable } from "../dashboard/dynamics-tables";
+import { DASH_FILTERS, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
 import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -18,6 +18,8 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { getCommission4Mode } from "@/lib/commission4-mode";
 
 export const metadata = { title: "Сырьё" };
 
@@ -124,12 +126,31 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           {tabLink("lining", "Подкладка")}
           {tabLink("summary", "Сводка по годам")}
         </div>
-        <PurchaseSummary
-          organizationId={orgId}
-          year={year}
-          filters={{ auction: f.auction, material: materialNames, pyear: f.pyear, attr: f.attr, vatmode: f.vatmode as "incl" | "excl" | "" }}
-          yearOptions={pyearOptions}
-        />
+        {await (async () => {
+          // «Сводка по годам» — те же таблицы и подписи, что на Главной: динамика по годам и по сырью (год → мех / подкладка, вид → партия).
+          const sf = parseFilters(DASH_FILTERS, sp) as unknown as DashFilters;
+          const c4 = await getCommission4Mode();
+          const d = await loadDashboard(orgId, year, sf, c4);
+          const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
+          return (
+            <>
+              <FilterBar
+                title="Фильтры сводки"
+                oneRow
+                hideChips
+                controls={[
+                  { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
+                  { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
+                  { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета" },
+                  ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки" }] : []),
+                  { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая" },
+                ]}
+              />
+              <YearsTable rows={d.years} c4={c4} info={info} />
+              <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
+            </>
+          );
+        })()}
       </div>
     );
   }
@@ -216,6 +237,11 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     extraWhere: tab === "lining" ? undefined : searchWhere,
   });
 
+  // Таблица «Мех» сходится с Главной: к лотам добавлены заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
+  const furTabLots = tab === "fur"
+    ? [...tableLots, ...(await loadDashboard(orgId, year, { auction: [], fur: [], color: [], batch: [], status: [], vat: [], attr: [], catgroup: [] } as never, await getCommission4Mode())).syntheticLots]
+    : tableLots;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -264,33 +290,26 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       </div>
 
       {tab === "fur" ? (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Мех</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FurSelectionTotal lots={tableLots} kind="fur" globalYear={year} initialQuery={sp} />
-            </CardContent>
-          </Card>
-        </>
+        <section aria-labelledby="raw-fur" className="space-y-3">
+          <h2 id="raw-fur" className="text-base font-semibold">Мех</h2>
+          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} />
+        </section>
       ) : (
-        <>
-        <Card>
-          <CardHeader>
-            <CardTitle>Подкладка</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LiningPurchaseForm
-              materials={materials
-                .filter((m) => m.unit === "M")
-                .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
-                .map((m) => ({ id: m.id, name: m.name }))}
-            />
-            <FurSelectionTotal lots={tableLots} kind="lining" globalYear={year} initialQuery={sp} />
-          </CardContent>
-        </Card>
-        </>
+        <section aria-labelledby="raw-lining" className="space-y-3">
+          <h2 id="raw-lining" className="text-base font-semibold">Подкладка</h2>
+          <details className="rounded-lg border border-neutral-200 bg-white">
+            <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">+ Закупка подкладки</summary>
+            <div className="border-t border-neutral-100 p-3">
+              <LiningPurchaseForm
+                materials={materials
+                  .filter((m) => m.unit === "M")
+                  .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
+                  .map((m) => ({ id: m.id, name: m.name }))}
+              />
+            </div>
+          </details>
+          <FurSelectionTotal lots={tableLots} kind="lining" globalYear={year} initialQuery={sp} />
+        </section>
       )}
     </div>
   );

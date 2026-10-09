@@ -112,14 +112,14 @@ export function ProductionModal({
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства · {scope === "done" ? "произведено" : scope === "all" ? "факт списания по всем ТЗ" : "в работе"}</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
-            <p className="mt-0.5 text-xs text-neutral-500">
+            <div className="mt-0.5 text-xs text-neutral-500">
               {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
                 <p><b>Столбец = себестоимость</b> ТЗ: мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ. <b>Работа</b> в себестоимость не входит и показана отдельно («стоимость = себестоимость + работа»).</p>
                 <p className="mt-1">{scope === "all" ? "Здесь все ТЗ — завершённые и в работе: учитывается фактическое списание меха и подкладки, работа и 4%, отметка о завершении ТЗ не важна." : scope === "done" ? "Здесь только ТЗ в статусе «Завершён» (выпуск)." : "Здесь только ТЗ «В работе» и «Запланировано» (план; сырьё — по списаниям на сегодня)."}</p>
                 <p className="mt-1">Сумма столбцов каждого уровня равна родительскому столбцу; на первом уровне — итогу плитки. Режимы НДС, 4% и год — те же, что в шапке.</p>
               </InfoHint>
-            </p>
+            </div>
           </div>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="Закрыть окно" className="shrink-0 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
         </div>
@@ -208,7 +208,8 @@ export function ProductionModal({
               <div className="mt-3 overflow-x-auto">
                 {(() => {
                   const rich = level.kind === "dim" && level.items.some((i) => i.parts);
-                  const showOther = level.items.some((i) => Math.abs(i.parts?.other ?? 0) > 0.005);
+                  const perUnit = level.kind === "dim" && level.items.some((i) => i.qty && !i.outside);
+                  const showOther =level.items.some((i) => Math.abs(i.parts?.other ?? 0) > 0.005);
                   const sumP = (k: "fur" | "lining" | "c4" | "other") => level.items.reduce((x, i) => x + (i.parts?.[k] ?? 0), 0);
                   return (
                     <table className={"w-full text-sm " + (rich ? "min-w-[900px]" : "min-w-[520px]")}>
@@ -216,6 +217,7 @@ export function ProductionModal({
                         <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
                           <th className="min-w-[150px] py-1.5 pr-2 font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
                           <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
+                          {perUnit ? <th className="px-2 py-1.5 text-right font-medium">1 изд.</th> : null}
                           <th className="px-2 py-1.5 text-right font-medium">Себестоимость</th>
                           {rich ? <><th className="px-2 py-1.5 text-right font-medium">Мех</th><th className="px-2 py-1.5 text-right font-medium">Подкладка</th><th className="px-2 py-1.5 text-right font-medium">4%</th>{showOther ? <th className="px-2 py-1.5 text-right font-medium">Расходы и прочее</th> : null}</> : null}
                           {level.totalWork != null ? <th className="px-2 py-1.5 text-right font-medium">в т.ч. работа</th> : null}
@@ -235,6 +237,7 @@ export function ProductionModal({
                               {it.sub ? <div className="ml-[18px] text-xs text-neutral-500">{it.sub}</div> : null}
                             </td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right text-neutral-600">{it.qtyText}</td>
+                            {perUnit ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.qty && !it.outside ? formatMoney(it.value / it.qty) : "—"}</td> : null}
                             <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{formatMoney(it.value)}</td>
                             {rich ? (
                               <>
@@ -253,6 +256,7 @@ export function ProductionModal({
                         <tr className="font-semibold">
                           <td className="py-1.5 pr-2">Итого</td>
                           <td />
+                          {perUnit ? <td /> : null}
                           <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>
                           {rich ? (
                             <>

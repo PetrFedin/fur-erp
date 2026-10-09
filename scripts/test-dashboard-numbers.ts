@@ -1,3 +1,4 @@
+// УСТАРЕЛО (09.10.2026): эталоны старой логики («произведено = только завершённые», «использовано с 4% в таблицах»). Рабочая сверка — scripts/test-reconciliation.ts.
 // Сверка чисел Сводки (/dashboard) с SQL: куплено / использовано / остаток (мех), производство, Σ столбцов гистограммы по уровням.
 //   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-dashboard-numbers.ts
 // Только чтение. Код возврата 1 — при расхождениях.
@@ -100,7 +101,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
     `select coalesce(sum("producedQuantity") filter (where status='COMPLETED'),0)::float done, count(*) filter (where status='COMPLETED')::int "doneN",
             coalesce(sum("plannedQuantity") filter (where status in ('PLANNED','IN_PROGRESS')),0)::float work, count(*) filter (where status in ('PLANNED','IN_PROGRESS'))::int "workN"
      from "ProductionOrder" where "organizationId"='${org}'`);
-  const dash = await loadDashboard(org, "all", { auction: [], fur: [], color: [], batch: [], status: [], vat: [], attr: [] }, "on");
+  const dash = await loadDashboard(org, "all", { auction: [], fur: [], color: [], batch: [], status: [], vat: [], attr: [], catgroup: [] }, "on");
   eq("произведено шт. (Сводка) = SQL завершённые", dash.prod.done.qty, pq.done);
   eq("произведено ТЗ", dash.prod.done.orders, pq.doneN, 0);
   eq("в работе шт. (Сводка) = SQL план В работе+Запланировано", dash.prod.work.qty, pq.work);
@@ -131,7 +132,7 @@ const eq = (what: string, got: number, want: number, tol = 0.02) => {
 
   // ───────── 7. ИНВАРИАНТЫ ПО РЕЖИМАМ: год (Все/2025/2026) × 4% (с/без) × фильтры Сводки; НДС проверяется в обеих ветках пар ─────────
   type Dash = Awaited<ReturnType<typeof loadDashboard>>;
-  const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[], batch: [] as string[], status: [] as string[], vat: [] as string[], attr: [] as string[] };
+  const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[], batch: [] as string[], status: [] as string[], vat: [] as string[], attr: [] as string[], catgroup: [] as string[] };
   const memo = new Map<string, Dash>();
   const dd = async (y: "all" | "2025" | "2026", f: typeof E0, c4: "on" | "off") => {
     const k = `${y}|${c4}|${JSON.stringify(f)}`;

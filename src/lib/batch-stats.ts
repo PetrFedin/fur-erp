@@ -102,8 +102,8 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
   const c4Applies = live.some((o) => o.materialUsages.some((u) => u.commission4));
   for (const o of live) {
     const s = orderStat(o, mode);
-    if (isProducedStatus(o.status)) { pOrders += 1; pUnits += producedUnits(o); }
-    else if (isInWorkStatus(o.status)) { wOrders += 1; wUnits += inWorkUnits(o); }
+    // Всё, что в ТЗ, производится и учитывается (как на Главной): завершённые + в работе + запланированные; ремонт — не изделия.
+    if (o.productModel.category !== "Ремонт") { pOrders += 1; pUnits += orderUnits(o); }
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {

@@ -30,7 +30,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, purchase: { select: { number: true, auctionSession: true } } },
+      select: { id: true, amount: true, paidAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, purchase: { select: { number: true, auctionSession: true, orderDate: true } } },
       orderBy: { paidAt: "desc" },
     }),
     prisma.productionPayment.findMany({
@@ -57,7 +57,8 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const lining = lots ? amount * share(lots) : 0;
     const au = auctionName(p.auctionSession ?? p.purchase?.auctionSession ?? null);
     out.push({
-      id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: p.paidAt.getUTCFullYear(), amount,
+      // Год сырьевой оплаты — год закупки (без аукциона: год заказа закупки): тогда по году «куплено − оплачено = долг» и все разделы сходятся.
+      id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: (!au && p.purchase?.orderDate ? p.purchase.orderDate.getUTCFullYear() : p.paidAt.getUTCFullYear()), amount,
       fur: amount - lining, lining, work: 0, hides: 0,
       label: au ?? p.purchase?.number ?? "Аванс без привязки",
       confirmed: p.confirmedAt != null,

@@ -250,6 +250,8 @@ export const FILTER_CATALOG = {
   supplier: { kind: "multi", label: "Поставщик" },
   client: { kind: "multi", label: "Заказчик" },
   category: { kind: "multi", label: "Категория", aliases: ["cat"] },
+  /** Группа категорий справочника: «Одежда», «Аксессуары»; none — без группы. */
+  catgroup: { kind: "multi", label: "Группа категорий" },
   size: { kind: "multi", label: "Размер" },
   season: { kind: "multi", label: "Сезон" },
   vat: { kind: "multi", label: "Ставка НДС", aliases: ["nds"], allowed: ["20", "22", "mixed", "mix"] },

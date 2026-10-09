@@ -27,18 +27,19 @@ const ARROW_TH = "w-6 px-0";
 export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "off"; info: ModeInfo }) {
   void info;
   const { mode: vat } = useVatDisplay();
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  // По умолчанию все годы развёрнуты на мех и подкладку; храним только свёрнутые вручную.
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setClosed((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const sum = (a: Cells, b: Cells): Cells => ({ rq: a.rq + b.rq, rv: a.rv + b.rv, ra: null, uq: a.uq + b.uq, uv: a.uv + b.uv, ua: null, mq: a.mq + b.mq, mv: a.mv + b.mv, ma: null, uo: a.uo + b.uo, uoa: null });
 
-  const sub = (label: string, c: Cells, unit: string, key: string) => (
+  const sub = (label: string, c: Cells, unit: string, key: string, m: { paid: number; debt: number }) => (
     <tr key={key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
       <td className={ARROW_TD} />
       <td className="py-1.5 pr-2 pl-0">{label}</td>
       <td className={td}>{formatQty(c.rq)} {unit}</td><td className={td}>{rub(c.rv)}</td>
       <td className={td}>{formatQty(c.uq)} {unit}</td><td className={td}>{rub(c.uv)}</td>
       <td className={td}>{formatQty(c.mq)} {unit}</td><td className={td}>{rub(c.mv)}</td>
-      <td className={td} colSpan={2}><span className="text-neutral-500">—</span></td>
+      <MoneyTds paid={m.paid} due={m.debt} />
     </tr>
   );
 
@@ -50,9 +51,9 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
           <InfoHint label="Как читать динамику по годам" wide>
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — всегда без 4% (надбавка 4% показана в виджетах «Сырьё» и «Себестоимость»).</p>
             <p className="mt-1">Штуки — только мех; подкладка (метры) — в раскрытой строке, а в рублях она учтена. </p>
-                        <p className="mt-1"><b>Оплачено</b> и <b>долг</b> (поставщику) — по закупкам этого года, как в «Оплатах». Аванс без привязки к закупке относится к году даты оплаты. Фильтры панели на эти две колонки не влияют.</p>
-            <p className="mt-1"><b>Итого</b> — сумма строк по каждой колонке (долг: долг года 1 + долг года 2 = общий долг). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
-            <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и долг — всегда с НДС, не зависят от фильтров и 4%.</p>
+                        <p className="mt-1"><b>Оплачено</b> и <b>задолженность</b> (поставщику) — по закупкам этого года, как в «Оплатах»; в раскрытой строке — отдельно по меху и подкладке. Фильтры панели действуют и на эти колонки.</p>
+            <p className="mt-1"><b>Итого</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
+            <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и задолженность — всегда с НДС, не зависят от 4%.</p>
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
           </InfoHint>
         </div>
@@ -67,7 +68,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
               <th rowSpan={2} className={th + " border-l border-neutral-100"}>Оплачено</th>
-              <th rowSpan={2} className={th}>Долг</th>
+              <th rowSpan={2} className={th}>Задолженность</th>
             </tr>
             <tr className="border-b border-neutral-200">
               {["шт.", "₽", "шт.", "₽", "шт.", "₽"].map((h, i) => <th key={i} className={th + (i % 2 === 0 ? " border-l border-neutral-100" : "")}>{h}</th>)}
@@ -77,7 +78,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             {rows.map((r) => {
               const f = r.fur[vat], l = r.lining[vat];
               const t = sum(f, l);
-              const isOpen = open.has(r.key);
+              const isOpen = !closed.has(r.key);
               const total = r.key === "all";
               return (
                 <Fragment key={r.key}>
@@ -94,8 +95,8 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                   </tr>
                   {isOpen ? (
                     <>
-                      {sub("Мех", f, "шт.", r.key + "f")}
-                      {sub("Подкладка", l, "м", r.key + "l")}
+                      {sub("Мех", f, "шт.", r.key + "f", r.money.fur)}
+                      {sub("Подкладка", l, "м", r.key + "l", r.money.lining)}
                     </>
                   ) : null}
                 </Fragment>
@@ -226,7 +227,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
               <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
               <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
               <th rowSpan={2} className={th + " border-l border-neutral-100"}>Оплачено</th>
-              <th rowSpan={2} className={th}>Долг</th>
+              <th rowSpan={2} className={th}>Задолженность</th>
             </tr>
             <tr className="border-b border-neutral-200">
               {[0, 1, 2].flatMap((g) => (avg ? ["шт.", "₽", "цена ₽/шт."] : ["шт.", "₽"]).map((h, i) => <th key={g + h} className={th + (i === 0 ? " border-l border-neutral-100" : "")}>{h}</th>))}

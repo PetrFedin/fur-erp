@@ -51,14 +51,21 @@ function Bars({ rows, tone }: { rows: BarRow[]; tone: "paid" | "debt" }) {
   );
 }
 
-function Tile({ label, value, hint, onOpen, valueClass, children }: { label: string; value: string; hint?: ReactNode; onOpen: () => void; valueClass?: string; children?: ReactNode }) {
+function Tile({ label, value, hint, onOpen, valueClass, children }: { label: string; value: string; hint?: ReactNode; onOpen?: () => void; valueClass?: string; children?: ReactNode }) {
+  const body = (
+    <>
+      <div className="text-xs text-neutral-500">{label}</div>
+      <div className={"mt-1 break-words text-base font-semibold sm:text-lg " + (valueClass ?? "")}>{value}</div>
+      {children}
+    </>
+  );
   return (
     <div className="relative">
-      <button type="button" onClick={onOpen} aria-haspopup="dialog" className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
-        <div className="text-xs text-neutral-500">{label}</div>
-        <div className={"mt-1 break-words text-base font-semibold sm:text-lg " + (valueClass ?? "")}>{value}</div>
-        {children}
-      </button>
+      {onOpen ? (
+        <button type="button" onClick={onOpen} aria-haspopup="dialog" className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">{body}</button>
+      ) : (
+        <div className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm">{body}</div>
+      )}
       {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
     </div>
   );
@@ -74,9 +81,10 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3" data-pay-tiles>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3" data-pay-tiles>
         <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} />
-        <Tile label="Остаток к оплате (долг)" value={rub(debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""}>
+        <Tile label="К оплате" value={rub(paid.total + debt.total)} />
+        <Tile label="Остаток к оплате" value={rub(debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""}>
           {deadlines}
         </Tile>
       </div>

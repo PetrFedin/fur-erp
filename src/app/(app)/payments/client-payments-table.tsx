@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { DocBadge } from "@/components/doc-viewer";
 import { InfoHint } from "@/components/info-hint";
+import { YearGroup } from "./year-group";
 import { formatMoney } from "@/lib/utils";
 
 /** Один заказ (ТЗ), за который заказчик платил: что за изделие и сколько. */
@@ -150,12 +151,26 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
         <tbody>
           {years.map((y) => {
             const list = rows.filter((r) => r.year === y);
-            const sum = list.reduce((s, r) => s + r.paid, 0);
             return (
-              <Fragment key={y}>
-                <tr className="bg-neutral-100">
-                  <td colSpan={7} className="px-3 py-1.5 text-xs font-semibold text-neutral-700">{y} · оплачено {formatMoney(sum.toFixed(2))}</td>
-                </tr>
+              <YearGroup
+                key={y}
+                label={y}
+                sub={`${groupByDate(list).length} ${groupByDate(list).length === 1 ? "дата" : "дат"}`}
+                labelSpan={2}
+                cells={(() => {
+                  const due = list.reduce((s2, r) => s2 + r.due, 0);
+                  const paid = list.reduce((s2, r) => s2 + r.paid, 0);
+                  const left = due - paid;
+                  return (
+                    <>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">+{money(-left)}</span>}</td>
+                      <td colSpan={2} />
+                    </>
+                  );
+                })()}
+              >
                 {groupByDate(list).map((g) => {
                   const r = g.rows[0];
                   const many = g.rows.length > 1;
@@ -194,7 +209,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                           const docs = g.rows.reduce((a2, x) => a2 + x.docCount, 0);
                           const links = g.rows.flatMap((x) => x.invoiceDocs ?? []);
                           const linkEls = links.map((d) => <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="mr-1 text-xs text-blue-700 hover:underline">{d.title} ↗</a>);
-                          if (many) return docs > 0 ? <span className="text-xs text-neutral-600">📎 {docs}</span> : links.length ? <>{linkEls}</> : <span className="text-xs text-neutral-500">нет документов</span>;
+                          if (many) return docs > 0 ? <span className="text-xs text-neutral-600">📎 {docs}</span> : links.length ? <>{linkEls}</> : null;
                           if (r.docCount === 0 && links.length) return <>{linkEls}</>;
                           return <DocBadge entity="productionPayment" id={r.id} count={r.docCount} title={r.docTitle} />;
                         })()}
@@ -202,7 +217,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                     </tr>
                   );
                 })}
-              </Fragment>
+              </YearGroup>
             );
           })}
           {rows.length === 0 ? (

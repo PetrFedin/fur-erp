@@ -191,8 +191,12 @@ export function LocalFilterBar({
   onReset,
   footer,
   className,
+  oneRow,
+  hideChips,
 }: {
   title?: string;
+  oneRow?: boolean;
+  hideChips?: boolean;
   controls: BarControl[];
   values: Record<string, string[]>;
   onChange: (name: string, next: string[]) => void;
@@ -212,6 +216,8 @@ export function LocalFilterBar({
       hidden={[]}
       footer={footer}
       className={className}
+      oneRow={oneRow}
+      hideChips={hideChips}
     />
   );
 }
@@ -266,7 +272,7 @@ function BarView({
   );
   const count = chips.length;
 
-  const field = "h-11 rounded-lg border bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-500 hover:border-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900";
+  const field = "h-11 rounded-lg border bg-white px-3 text-[13px] font-normal text-neutral-800 placeholder:text-neutral-500 hover:border-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900";
 
   const moreControls = controls.filter((c) => c.more);
   const mainControls = controls.filter((c) => !c.more);
@@ -382,7 +388,7 @@ function BarView({
               className="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-300 bg-white py-1 pl-2.5 pr-2 text-xs text-neutral-800 hover:border-neutral-500 max-md:min-h-8"
             >
               <span className="text-neutral-500">{c.label}:</span>
-              <span className="max-w-[220px] truncate font-medium">{labelOf(c, v)}</span>
+              <span className="max-w-[220px] truncate font-normal">{labelOf(c, v)}</span>
               <span aria-hidden className="text-neutral-500">×</span>
               <span className="sr-only">убрать</span>
             </button>

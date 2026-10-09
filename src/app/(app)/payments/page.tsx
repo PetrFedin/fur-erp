@@ -38,6 +38,7 @@ import { getFilterOptions } from "@/lib/filter-options";
 import { ClientPaymentsTable, type ClientPayRow } from "./client-payments-table";
 import { ClientDateDetail } from "./client-date-detail";
 import { PaymentTiles } from "./payment-tiles";
+import { YearGroup } from "./year-group";
 import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
 import { PaymentsOverview } from "./payments-overview";
 import { OVERPAY_NOTE } from "@/lib/overpay-notes";
@@ -81,6 +82,7 @@ const FRESH_MS = 365 * 24 * 3600 * 1000;
 // от заказчиков — заказчик, подтверждение, период. `f=rest` — старое имя «С остатком».
 const PAY_FILTERS = defineFilters({
   ptype: { kind: "multi", label: "Тип оплаты", allowed: ["ADVANCE", "PARTIAL", "FINAL"] },
+  stat: { kind: "multi", label: "Статья", allowed: ["raw", "prod"] },
   ...pick(["auction", "q", "supplier", "status", "verified", "from", "to", "tab", "batch"], {
     q: { aliases: ["dq"], label: "Название партии" },
     status: { aliases: ["f"], allowed: ["rest", "paid"], label: "Оплата" },
@@ -328,7 +330,11 @@ export default async function PaymentsPage({
           }
         >
           {fmtRemaining(a.remaining)}
-          {a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.rx.test(a.name)) ? <sup className="ml-0.5"><a href="#overpay-notes" title="Где учтена переплата" className="text-emerald-700 hover:underline">{OVERPAY_NOTE.find((n) => n.rx.test(a.name))!.mark}</a></sup> : null}
+          {a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.inline && n.rx.test(a.name)) ? (
+            <InfoHint wide label="Где учтена переплата" align="right">
+              <p>{OVERPAY_NOTE.find((n) => n.inline && n.rx.test(a.name))!.text}</p>
+            </InfoHint>
+          ) : null}
         </Td>
         <Td>
           {statusBadge(a)}
@@ -341,6 +347,8 @@ export default async function PaymentsPage({
       </Tr>
     );
   };
+  const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
+  const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
   // Сводная строка «Без аукциона»: все служебные группы + закупки без аукциона — чтобы Σ строк сходилась с «Остатком к оплате».
   const zeroD = new Decimal(0);
   const svcAll = auctions.filter((a) => isServiceAuction(a.name));
@@ -356,21 +364,36 @@ export default async function PaymentsPage({
   // «Оплачено» в шапке — без переплат (они не гасят чужой долг), а в столбце таблицы переплата видна: подписываем разницу.
   const showServiceSum = !listFiltered && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS));
   const svcPurchases = svcAll.reduce((n, a) => n + a.purchases, 0) + (debt ? debt.nonAuctionPurchases : 0);
-  const serviceSumRow = (
-    <Tr key="__service_sum">
-      <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Закупки, купленные не на аукционе: З-2026-0001, 0008–0013 (шкуры, оплаты 2025 — начало 2026) и З-2026-0059 (красная лиса, счёт №209)">
-        <Link href="/payments?noauction=1#noauction-block" scroll className="hover:underline">Закупки без аукциона</Link>
+  // «Закупки без аукциона» и «Шкуры подрядчика» — внутри года оплаты (так же, как раздел «Все»): Σ по годам = «Все» = «Главная».
+  type Extra = { label: string; href?: string; title: string; total: Decimal; paid: Decimal; rem: Decimal };
+  const extraByYear = new Map<number, Extra[]>();
+  const addExtra = (y: number, e: Extra) => extraByYear.set(y, [...(extraByYear.get(y) ?? []), e]);
+  if (showServiceSum) {
+    const noAucRows = ovRows.filter((r) => r.kind === "raw" && /^З-\d{4}-\d+$/.test(r.label));
+    const hidesRows = ovRows.filter((r) => r.hides > 0);
+    const lastYear = Math.max(...ovRows.map((r) => r.year), 2026);
+    const yearsHere = Array.from(new Set([...noAucRows.map((r) => r.year), ...hidesRows.map((r) => r.year), lastYear]));
+    for (const y of yearsHere) {
+      const paid = new Decimal(noAucRows.filter((r) => r.year === y).reduce((a, r) => a + r.amount, 0)).add(y === lastYear ? svcPaid : zeroD);
+      const rem = y === lastYear ? noAucDebt.add(svcRemaining) : zeroD;
+      if (paid.abs().greaterThan(PAY_EPS) || rem.abs().greaterThan(PAY_EPS)) {
+        addExtra(y, { label: "Закупки без аукциона", href: "/payments?noauction=1#noauction-block", title: "Закупки, купленные не на аукционе: З-2026-0001, 0008–0013 (шкуры, оплаты 2025 — начало 2026) и З-2026-0059 (красная лиса, счёт №209)", total: paid.add(rem), paid, rem });
+      }
+      const h = new Decimal(hidesRows.filter((r) => r.year === y).reduce((a, r) => a + r.hides, 0));
+      if (h.greaterThan(PAY_EPS)) addExtra(y, { label: "Шкуры подрядчика", title: "Шкуры подрядчика, оплаченные в составе счетов за пошив (мех, в ТЗ не списаны)", total: h, paid: h, rem: zeroD });
+    }
+  }
+  const extraRowEl = (y: number, e: Extra) => (
+    <Tr key={`__extra_${y}_${e.label}`}>
+      <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title={e.title}>
+        {e.href ? <Link href={e.href} scroll className="hover:underline">{e.label}</Link> : e.label}
       </Td>
-      <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
-      <Td className="whitespace-nowrap text-right">{formatMoney(sumPaid.toString())}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(e.total.toString())}</Td>
+      <Td className="whitespace-nowrap text-right">{formatMoney(e.paid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
-      <Td className={"whitespace-nowrap text-right font-semibold " + (sumRemaining.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(sumRemaining)}</Td>
-      <Td>
-        {totalsBadge(sumTotal, sumPaid)}
-      </Td>
-      <Td>
-        <Link href="/payments?noauction=1#noauction-block" scroll className={buttonVariants({ variant: "outline", size: "sm" })}>Оплаты</Link>
-      </Td>
+      <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(e.rem)}</Td>
+      <Td>{totalsBadge(e.total, e.paid)}</Td>
+      <Td>{e.href ? <Link href={e.href} scroll className={buttonVariants({ variant: "outline", size: "sm" })}>Оплаты</Link> : null}</Td>
     </Tr>
   );
   const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
@@ -420,7 +443,7 @@ export default async function PaymentsPage({
       if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
       return pa.year - pb.year || pa.month - pb.month;
     });
-  const auctionsTable = (rawList: typeof auctions, extraRow?: React.ReactNode) => {
+  const auctionsTable = (rawList: typeof auctions, withExtras = false) => {
     const list = sortByPeriod(rawList);
     const groups: { year: number | null; items: typeof auctions }[] = [];
     for (const a of list) {
@@ -445,43 +468,53 @@ export default async function PaymentsPage({
       </Thead>
       <Tbody>
         {groups.map((g) => {
-          const gt = g.items.reduce((acc, a) => acc.add(a.total), zeroD);
-          const gp = g.items.reduce((acc, a) => acc.add(a.paid), zeroD);
-          const gr = g.items.reduce((acc, a) => acc.add(a.remaining), zeroD);
+          const gt0 = g.items.reduce((acc, a) => acc.add(a.total), zeroD);
+          const gp0 = g.items.reduce((acc, a) => acc.add(a.paid), zeroD);
+          const gr0 = g.items.reduce((acc, a) => acc.add(a.remaining), zeroD);
+          // «Закупки без аукциона» и «Шкуры подрядчика» — внутри года оплаты: входят в итог года и раскрываются вместе с ним.
+          const ex = withExtras && g.year != null ? (extraByYear.get(g.year) ?? []) : [];
+          const withExtra = ex.length > 0;
+          const gt = ex.reduce((acc, e) => acc.add(e.total), gt0);
+          const gp = ex.reduce((acc, e) => acc.add(e.paid), gp0);
+          const gr = ex.reduce((acc, e) => acc.add(e.rem), gr0);
           return (
             <Fragment key={g.year ?? "none"}>
-              {!(groups.length === 1 && g.items.length === 1) && (
-              <tr className="border-y border-neutral-300 bg-neutral-100 text-sm font-semibold text-neutral-900">
-                <td className="px-3 py-2">
-                  <span className="text-base">{g.year ?? "Без года"}</span>
-                  <span className="ml-2 text-xs font-normal text-neutral-600">{g.items.length} {g.items.length === 1 ? "партия" : g.items.length < 5 ? "партии" : "партий"} · итого за год</span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{formatMoney(gt.toString())}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                  <span className="inline-flex items-baseline justify-end gap-2">
-                    <span>{formatMoney(gp.toString())}</span>
-                    <span className={"text-xs font-medium " + (gt.greaterThan(0) && gp.div(gt).mul(100).lessThan(99.95) ? "text-red-600" : "font-normal text-neutral-500")}>{gt.greaterThan(0) ? fmtPct(Number(gp.div(gt).mul(100).toString())) : "—"}</span>
-                  </span>
-                </td>
-                {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
-                <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
-                <td className="px-3 py-2">
-                  {totalsBadge(gt, gp)}
-                </td>
-                <td />
-              </tr>
+              {groups.length === 1 && g.items.length === 1 ? (
+                g.items.map(renderAuction)
+              ) : (
+                <YearGroup
+                  label={g.year ?? "Без года"}
+                  sub={`${g.items.length + ex.length} ${g.items.length + ex.length === 1 ? "партия" : g.items.length + ex.length < 5 ? "партии" : "партий"}`}
+                  defaultOpen={g.items.some((a) => a.name === selected?.name)}
+                  cells={
+                    <>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{formatMoney(gt.toString())}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                        <span className="inline-flex items-baseline justify-end gap-2">
+                          <span>{formatMoney(gp.toString())}</span>
+                          <span className={"text-xs font-medium " + (gt.greaterThan(0) && gp.div(gt).mul(100).lessThan(99.95) ? "text-red-600" : "font-normal text-neutral-500")}>{gt.greaterThan(0) ? fmtPct(Number(gp.div(gt).mul(100).toString())) : "—"}</span>
+                        </span>
+                      </td>
+                      {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
+                      <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
+                      <td className="px-3 py-2">{totalsBadge(gt, gp)}</td>
+                      <td />
+                    </>
+                  }
+                >
+                  {g.items.map(renderAuction)}
+                  {ex.map((e) => extraRowEl(g.year!, e))}
+                </YearGroup>
               )}
-              {g.items.map(renderAuction)}
             </Fragment>
           );
         })}
-        {extraRow}
       </Tbody>
     </Table>
       }
     >
       {list.map(auctionCard)}
-      {extraRow ? serviceSumCard : null}
+      {withExtras && showServiceSum ? serviceSumCard : null}
     </ResponsiveRows>
     );
   };
@@ -660,7 +693,20 @@ export default async function PaymentsPage({
       </div>
 
       {tab === "all" ? (
-        <PaymentsOverview rows={await loadPaymentsOverview(orgId)} left={await overviewLeft(orgId)} c4={Math.round((await loadOrderRows(orgId, "all", "on")).filter((o) => o.clientName).reduce((a, o) => a + o.c4PotIncl, 0) * 100) / 100} />
+        <>
+        <FilterBar
+          title="Фильтры оплат"
+          oneRow
+          hideChips
+          controls={[
+            { type: "multi", name: "stat", label: "Статья", options: [{ value: "raw", label: "За сырьё" }, { value: "prod", label: "За работу" }], allLabel: "Все" },
+            { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
+            { type: "date", name: "from", label: "Оплата с" },
+            { type: "date", name: "to", label: "Оплата по" },
+          ]}
+        />
+        <PaymentsOverview rows={(await loadPaymentsOverview(orgId)).filter((r) => (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (pf.verified.length === 0 || pf.verified.includes(r.confirmed ? "yes" : "no")) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to))} left={await overviewLeft(orgId)} c4={0} />
+        </>
       ) : tab === "clients" ? (
         <>
         <h2 className="flex items-center gap-1.5 text-base font-semibold">Оплаты заказчиков за производство
@@ -725,11 +771,12 @@ export default async function PaymentsPage({
               <PaymentTiles
                 hidesMemo={hidesMemo}
                 paid={{
-                  total: Number(debt.paid.add(debt.unlinkedAdvances).toString()),
+                  // Та же сумма, что «Оплачено → За сырьё» в разделе «Все» (мех и подкладка по оплатам, с шкурами подрядчика и зачётом переплат).
+                  total: rawPaidAll,
                   unlinked: Number(debt.unlinkedAdvances.toString()),
                   rows: (() => {
                     const rows = auctions.filter((a) => a.paid.abs().greaterThan(PAY_EPS)).map((a) => ({ name: shortAuctionName(a.name), year: auctionPeriod(a.name)?.year ?? null, month: auctionPeriod(a.name)?.month, value: Number(a.paid.toString()) }));
-                    const rest = Number(debt.paid.add(debt.unlinkedAdvances).toString()) - rows.reduce((acc, r) => acc + r.value, 0);
+                    const rest = rawPaidAll - rows.reduce((acc, r) => acc + r.value, 0);
                     return rest > 0.5 ? [...rows, { name: "Закупки без аукциона", year: null, value: rest }] : rows;
                   })(),
                 }}
@@ -775,14 +822,7 @@ export default async function PaymentsPage({
           )}
 
 
-          {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
-          {mainAuctions.some((a) => a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.rx.test(a.name))) && (
-            <ol id="overpay-notes" className="space-y-1 text-xs text-neutral-600">
-              {OVERPAY_NOTE.filter((n) => mainAuctions.some((a) => a.remaining.lessThan(-0.005) && n.rx.test(a.name))).map((n) => (
-                <li key={n.mark}><sup className="mr-1 text-emerald-700">{n.mark}</sup>{n.text}</li>
-              ))}
-            </ol>
-          )}
+          {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum)}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={listFiltered || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">

@@ -26,12 +26,12 @@ function Card({ title, children, hint, onOpen }: { title: string; children: Reac
 }
 
 /** Строка плитки: подпись, цифра, пояснение — высоты зарезервированы, чтобы строки трёх плиток стояли на одном уровне. */
-function Row({ k, v, sub, strong, onClick }: { k: string; v: React.ReactNode; sub?: React.ReactNode; strong?: boolean; onClick?: () => void }) {
+function Row({ k, v, sub, strong, onClick }: { k: React.ReactNode; v: React.ReactNode; sub?: React.ReactNode; strong?: boolean; onClick?: () => void }) {
   if (onClick) {
     return (
       <button type="button" onClick={onClick} aria-haspopup="dialog" title="Показать по видам сырья" className="mt-2 block w-full rounded text-left first:mt-1 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
         <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{k}</div>
-        <div className={(strong ? "text-xl font-semibold " : "text-base font-medium ") + "min-h-7 break-words leading-7 tabular-nums text-neutral-900 underline decoration-dotted decoration-neutral-300 underline-offset-4"}>{v}</div>
+        <div className={(strong ? "text-base font-semibold " : "text-sm font-medium ") + "min-h-6 break-words leading-6 tabular-nums text-neutral-900 underline decoration-dotted decoration-neutral-300 underline-offset-4"}>{v}</div>
         {sub ? <div className="text-[11px] leading-4 text-neutral-500">{sub}</div> : null}
       </button>
     );
@@ -39,10 +39,15 @@ function Row({ k, v, sub, strong, onClick }: { k: string; v: React.ReactNode; su
   return (
     <div className="mt-2 first:mt-1">
       <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{k}</div>
-      <div className={(strong ? "text-xl font-semibold " : "text-base font-medium ") + "min-h-7 break-words leading-7 tabular-nums text-neutral-900"}>{v}</div>
+      <div className={(strong ? "text-base font-semibold " : "text-sm font-medium ") + "min-h-6 break-words leading-6 tabular-nums text-neutral-900"}>{v}</div>
       {sub ? <div className="text-[11px] leading-4 text-neutral-500">{sub}</div> : null}
     </div>
   );
+}
+
+/** Две строки плитки рядом (штуки и деньги, цены в ₽ и в $). */
+function Duo({ children }: { children: React.ReactNode }) {
+  return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
 function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off" }) {
@@ -81,6 +86,16 @@ function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; row
   const usedQtyNow = all ? 0 : cur.usedQty;
 
   const priceUnit = unit === "м" ? "м" : "шт.";
+  // Невидимая строка высотой с «с 4%» в «Использовано»: цены во всех трёх плитках стоят на одном уровне.
+  const ghost = <span aria-hidden className="invisible">{`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`}</span>;
+  // Доля от купленного: сколько ушло в ТЗ и сколько лежит на складе.
+  const share = (part: number, whole: number) => (whole > 0 ? `${((part / whole) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : null);
+  const withShare = (part: number, whole: number, text: string) => (
+    <>
+      {whole > 0 ? <span className="mr-1 text-xs font-medium text-neutral-500">{share(part, whole)} ·</span> : null}
+      {text}
+    </>
+  );
 
   return (
     <div className="space-y-1">
@@ -97,10 +112,14 @@ function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; row
             <Row k="Сумма, ₽ (мех + подкладка)" v={rub(F.recvValue + L.recvValue)} strong />
           ) : (
             <>
-              <Row k="Количество" v={`${formatQty(cur.recvQty)} ${unit}`} strong />
-              <Row k="Сумма" v={rub(cur.recvValue)} />
-              <Row k={`Цена, ₽/${priceUnit}`} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
-              {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
+              <Duo>
+                <Row k={<>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${formatQty(cur.recvQty)} ${unit}`} strong />
+                <Row k="Сумма" v={rub(cur.recvValue)} strong sub={ghost} />
+              </Duo>
+              <Duo>
+                <Row k={`Цена, ₽/${priceUnit}`} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
+                {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
+              </Duo>
             </>
           )}
         </Card>
@@ -117,10 +136,14 @@ function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; row
             </>
           ) : (
             <>
-              <Row k="Количество" v={`${formatQty(cur.usedQty)} ${unit}`} strong />
-              <Row k="Сумма без 4%" v={rub(usedNo4)} sub={`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
-              <Row k={`Цена без 4%, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)} · надбавка ${rub((usedWith4 - usedNo4) / usedQtyNow)}` : undefined} />
-              {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
+              <Duo>
+                <Row k="Количество (доля от купленного)" v={withShare(cur.usedQty, cur.recvQty, `${formatQty(cur.usedQty)} ${unit}`)} strong />
+                <Row k="Сумма" v={withShare(usedNo4, cur.recvValue, rub(usedNo4))} strong sub={`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
+              </Duo>
+              <Duo>
+                <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
+              </Duo>
             </>
           )}
         </Card>
@@ -135,10 +158,14 @@ function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; row
             <Row k="Сумма, ₽ (мех + подкладка)" v={rub(F.remValue + L.remValue)} strong />
           ) : (
             <>
-              <Row k="Количество" v={`${formatQty(cur.remQty)} ${unit}`} strong />
-              <Row k="Сумма" v={rub(cur.remValue)} />
-              <Row k={`Цена, ₽/${priceUnit}`} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
-              {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
+              <Duo>
+                <Row k="Количество (доля от купленного)" v={withShare(cur.remQty, cur.recvQty, `${formatQty(cur.remQty)} ${unit}`)} strong />
+                <Row k="Сумма" v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={ghost} />
+              </Duo>
+              <Duo>
+                <Row k={`Цена, ₽/${priceUnit}`} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
+                {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
+              </Duo>
             </>
           )}
         </Card>
@@ -188,19 +215,22 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
   const pick = (r: RawTableRow) => {
     const c = r.cells[vat];
     const u = r.usd;
-    return col === "recv" ? { q: c.rq, v: c.rv, a: c.ra, d: u.bought } : col === "used" ? { q: c.uq, v: c.uv, a: c.ua, d: u.used } : { q: c.mq, v: c.mv, a: c.ma, d: u.rem };
+    const base = col === "recv" ? { q: c.rq, v: c.rv, a: c.ra, d: u.bought } : col === "used" ? { q: c.uq, v: c.uv, a: c.ua, d: u.used } : { q: c.mq, v: c.mv, a: c.ma, d: u.rem };
+    return { ...base, rq: c.rq };
   };
   const list = rows.map((r) => ({ r, ...pick(r) })).filter((x) => x.q > 0);
   const kinds: ("fur" | "lining")[] = ["fur", "lining"];
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  const pickYear = (c: RawTableRow["years"][number]["cells"], u: RawTableRow["usd"]) => { const x = c[vat]; return col === "recv" ? { q: x.rq, v: x.rv, a: x.ra, d: u.bought } : col === "used" ? { q: x.uq, v: x.uv, a: x.ua, d: u.used } : { q: x.mq, v: x.mv, a: x.ma, d: u.rem }; };
+  const pickYear = (c: RawTableRow["years"][number]["cells"], u: RawTableRow["usd"]) => { const x = c[vat]; const b = col === "recv" ? { q: x.rq, v: x.rv, a: x.ra, d: u.bought } : col === "used" ? { q: x.uq, v: x.uv, a: x.ua, d: u.used } : { q: x.mq, v: x.mv, a: x.ma, d: u.rem }; return { ...b, rq: x.rq }; };
   // Цена в долларах есть только у меха: в окне «Подкладка» колонки $ нет.
   const showUsd = rows.some((r) => r.kind === "fur");
-  const cols = showUsd ? 5 : 4;
+  const showShare = col !== "recv";
+  const cols = (showUsd ? 5 : 4) + (showShare ? 1 : 0);
+  const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500`}>{rq > 0 ? `${((q / rq) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</td> : null;
   // Итого по виду: количество, сумма, средневзвешенная цена ₽ и $ (как в карточке).
   const total = (f: FlowFigures | null) =>
-    !f ? null : col === "recv" ? { q: f.recvQty, v: f.recvValue, a: f.recvAvg, d: f.usdAvg } : col === "used" ? { q: f.usedQty, v: f.usedValue, a: f.usedAvg, d: f.usdUsedAvg } : { q: f.remQty, v: f.remValue, a: f.remAvg, d: f.usdRemAvg };
+    !f ? null : col === "recv" ? { q: f.recvQty, v: f.recvValue, a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: f.usedValue, a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: f.remValue, a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
       <div className="max-h-[88vh] overflow-y-auto p-4">
@@ -215,6 +245,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
           <thead>
             <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
               <th className="py-1.5 pr-2 font-medium">Вид</th>
+              {showShare ? <th className="px-2 py-1.5 text-right font-medium">Доля от купленного</th> : null}
               <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
               <th className="px-2 py-1.5 text-right font-medium">Сумма</th>
               <th className="px-2 py-1.5 text-right font-medium">Цена, ₽</th>
@@ -231,14 +262,15 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                   <tr className="bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={cols} className="px-2 py-1">{k === "fur" ? "Мех" : "Подкладка"}</td></tr>
                   {k === "lining" ? (() => {
                     // Подкладка: сначала по годам и итого, потом — по видам ткани.
-                    const byYear = new Map<number, { q: number; v: number }>();
-                    for (const x of part) for (const y of x.r.years) { const p = pickYear(y.cells, y.usd); if (p.q > 0) { const c = byYear.get(y.year) ?? { q: 0, v: 0 }; c.q += p.q; c.v += p.v; byYear.set(y.year, c); } }
+                    const byYear = new Map<number, { q: number; v: number; rq: number }>();
+                    for (const x of part) for (const y of x.r.years) { const p = pickYear(y.cells, y.usd); if (p.q > 0) { const c = byYear.get(y.year) ?? { q: 0, v: 0, rq: 0 }; c.q += p.q; c.v += p.v; c.rq += p.rq; byYear.set(y.year, c); } }
                     const t = total(lining);
                     return (
                       <>
                         {Array.from(byYear.entries()).sort((a, b) => a[0] - b[0]).map(([yr, c]) => (
                           <tr key={`y${yr}`} className="border-b border-neutral-100">
                             <td className="py-1.5 pr-2 font-medium">{yr}</td>
+                            {shareCell(c.q, c.rq)}
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(c.q)} {unit}</td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(c.v)}</td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{c.q > 0 ? rub(c.v / c.q) : "—"}</td>
@@ -247,6 +279,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                         {t ? (
                           <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
                             <td className="py-1.5 pr-2">Итого подкладка · средневзвешенная</td>
+                            {shareCell(t.q, t.rq)}
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.a != null ? rub(t.a) : "—"}</td>
@@ -260,6 +293,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     <Fragment key={x.r.key}>
                     <tr className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
                       <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{x.r.label}</td>
+                      {shareCell(x.q, x.rq)}
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(x.q)} {unit}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(x.v)}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{x.a != null ? rub(x.a) : "—"}</td>
@@ -268,6 +302,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     {open.has(x.r.key) ? x.r.years.map((y) => ({ y, p: pickYear(y.cells, y.usd) })).filter((z) => z.p.q > 0).map(({ y, p }) => (
                       <tr key={y.year} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
                         <td className="py-1 pl-7 pr-2">{y.year}</td>
+                        {shareCell(p.q, p.rq, "px-2 py-1")}
                         <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{formatQty(p.q)} {unit}</td>
                         <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{rub(p.v)}</td>
                         <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{p.a != null ? rub(p.a) : "—"}</td>
@@ -281,6 +316,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     return t ? (
                       <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
                         <td className="py-1.5 pr-2">Итого {k === "fur" ? "мех" : "подкладка"} · средневзвешенная</td>
+                        {shareCell(t.q, t.rq)}
                         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
                         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>
                         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.a != null ? rub(t.a) : "—"}</td>

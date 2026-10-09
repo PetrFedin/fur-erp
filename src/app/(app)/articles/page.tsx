@@ -26,6 +26,8 @@ import { getFilterOptions } from "@/lib/filter-options";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { ArticleDialog } from "./article-dialog";
 import { getFurIndex } from "@/lib/fur-ref-server";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { allocateHides, hidesByPayYear } from "@/lib/contractor-hides";
 import { canonicalFur } from "@/lib/fur-ref";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
@@ -89,14 +91,19 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const tzOpts = tzOptions(orderRows);
 
   const models = await prisma.productModel.findMany({
-    where: articleModelWhere(orgId, f),
+    // Ремонт — не изделия: отдельная страница «Ремонт».
+    where: { AND: [articleModelWhere(orgId, f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
     include: {
       _count: { select: { productionOrders: { where: { ...orderYearWhere(year), ...tzWhere } } } },
       productionOrders: {
         // Общий год: себестоимость модели — по завершённым ТЗ выбранного года (дата ТЗ → конец → начало → год партии).
         where: { status: "COMPLETED", ...orderYearWhere(year), ...tzWhere },
         select: {
+          id: true,
+          number: true,
+          batch: { select: { number: true } },
           unitCost: true,
+          clientWorkPricePerUnit: true,
           producedQuantity: true,
           materialUsages: {
             select: {
@@ -114,12 +121,26 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     orderBy: { name: "asc" },
   });
 
+  // Себестоимость единицы — полная: сырьё и подкладка (+4%), расходы ТЗ, работа (цена работы × выпуск) и шкуры подрядчика, отнесённые к ТЗ.
+  const hidesShare = new Map<string, { incl: number; excl: number }>();
+  {
+    const ov = await loadPaymentsOverview(orgId);
+    const flat = models.flatMap((m) => m.productionOrders.map((o) => ({ id: o.id, number: o.number, batch: o.batch?.number == null ? "none" : String(o.batch.number), qty: o.producedQuantity.toNumber() })));
+    for (const sh of allocateHides(flat, hidesByPayYear(ov), "all")) {
+      const cur = hidesShare.get(sh.id) ?? { incl: 0, excl: 0 };
+      hidesShare.set(sh.id, { incl: cur.incl + sh.incl, excl: cur.excl + sh.excl });
+    }
+  }
+
   const rows0 = models.map((m) => {
+    const workTotal = m.productionOrders.reduce((s, o) => s.add((o.clientWorkPricePerUnit ?? new Decimal(0)).mul(o.producedQuantity)), new Decimal(0));
+    const hidesIncl = new Decimal(m.productionOrders.reduce((a, o) => a + (hidesShare.get(o.id)?.incl ?? 0), 0));
+    const hidesExcl = new Decimal(m.productionOrders.reduce((a, o) => a + (hidesShare.get(o.id)?.excl ?? 0), 0));
     const totalProduced = m.productionOrders.reduce((s, o) => s.add(o.producedQuantity), new Decimal(0));
     const totalCost = m.productionOrders.reduce(
       (s, o) => s.add((o.unitCost ?? new Decimal(0)).mul(o.producedQuantity)),
       new Decimal(0)
-    );
+    ).add(workTotal).add(hidesIncl);
     // Excl-VAT counterpart of totalCost above, computed live from each
     // order's own materialUsages/expenses — same approach as
     // production/[id]'s estimatedUnitCostExclVat, since there is no stored
@@ -136,7 +157,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       extra4Incl = extra4Incl.add(mats.extraIncl);
       extra4Excl = extra4Excl.add(mats.extraExcl);
       return s.add(mats.excl.add(orderExpenseCost));
-    }, new Decimal(0));
+    }, new Decimal(0)).add(workTotal).add(hidesExcl);
     // 4% «как будто включён» — для подсказки (не зависит от переключателя).
     const extraOn = m.productionOrders.reduce((s, o) => s.add(sumUsagesWith4(o.materialUsages, "on").extraIncl), new Decimal(0));
     const avgUnitCost = totalProduced.greaterThan(0) ? totalCost.add(extra4Incl).div(totalProduced).toDecimalPlaces(2) : null;
@@ -158,6 +179,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       furCost.set(fn, (furCost.get(fn) ?? 0) + u.totalCost.toNumber());
     }
     const primaryFur = Array.from(furCost.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    // ТЗ модели в работе: сырьё списано, работа начислена — входит в стоимость модели (готовых изделий ещё нет).
+    const wip = orderRows.filter((o) => o.group === "work" && o.modelId === m.id);
+    const wipIncl = new Decimal(wip.reduce((a, o) => a + o.costIncl + o.work, 0));
+    const wipExcl = new Decimal(wip.reduce((a, o) => a + o.costExcl + o.work, 0));
 
     const modelStocks = stocks.filter((st) => st.productModelId === m.id);
     const stockQty = modelStocks.reduce((sum, st) => sum.add(st.quantity), new Decimal(0));
@@ -187,6 +213,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       stockQty,
       stockValue,
       stockValueExclVat,
+      wipCount: wip.length,
+      wipIncl,
+      wipExcl,
+      costIncl: stockValue.add(wipIncl),
+      costExcl: stockValueExclVat.add(wipExcl),
       stockBase,
       stockOn,
       stockNoC4Data,
@@ -204,6 +235,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       c4Ratio,
       c4Missing,
       sellingPrice: m.sellingPrice,
+      retailStock: m.sellingPrice ? m.sellingPrice.mul(stockQty) : null,
       markup,
       primaryFur,
     };
@@ -213,7 +245,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // При поиске по названию показываем всё найденное, чтобы нужную модель не пришлось искать по скрытым.
   // За выбранный год показываем модели, по которым в этом году были ТЗ (остаток на складе — текущий, без даты).
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются модели, у которых есть подходящие ТЗ.
-  const baseRows = year === "all" ? rows0.filter((r) => r.stockQty.greaterThan(0)) : rows0.filter((r) => r.orderCount > 0);
+  const baseRows = year === "all" ? rows0.filter((r) => r.stockQty.greaterThan(0) || r.wipCount > 0) : rows0.filter((r) => r.orderCount > 0);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
   const modelFilterOn = !!q || f.category.length > 0 || f.price.length > 0;
   const rows = (tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
@@ -221,8 +253,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const wb = b.stockQty.greaterThan(0) || b.orderCount > 0 ? 0 : 1;
     return wa - wb || compareModelNames(a.name, b.name);
   });
-  const totalStockValue = rows.reduce((s, r) => s.add(r.stockValue), new Decimal(0));
-  const totalStockValueExclVat = rows.reduce((s, r) => s.add(r.stockValueExclVat), new Decimal(0));
+  const totalStockValue = rows.reduce((s, r) => s.add(r.costIncl), new Decimal(0));
+  const totalStockValueExclVat = rows.reduce((s, r) => s.add(r.costExcl), new Decimal(0));
   // Таблица «мех × категория»: число моделей, средняя розничная цена и средняя наценка (модели с ценой и себестоимостью).
   type Agg = { n: number; price: number; markup: number };
   // Средневзвешенные по выпуску (завершённые ТЗ): цена = Σ(цена × выпуск) ÷ Σ выпуск; маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск).
@@ -361,12 +393,16 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th>Остаток, шт.</Th>
             <Th>
               Стоимость остатка
-              <InfoHint label="Как считается стоимость остатка">Остаток × средневзвешенная себестоимость единицы (по завершённым ТЗ модели), с 4% на сырьё и подкладку. Нет данных для 4% — показано без 4%.</InfoHint>
+              <InfoHint label="Как считается стоимость остатка">Остаток × средневзвешенная полная себестоимость единицы (сырьё, подкладка, 4%, расходы, работа, шкуры подрядчика) по завершённым ТЗ. Итог равен «Себестоимости» на Главной.</InfoHint>
+            </Th>
+            <Th>
+              Розничная стоимость остатка
+              <InfoHint label="Как считается розничная стоимость остатка">Розничная цена модели × остаток готовой продукции. Модели без розничной цены в сумму не входят.</InfoHint>
             </Th>
             <Th>
               Себестоимость за ед.
               <InfoHint label="Как считается себестоимость единицы" wide>
-                <p>Средневзвешенная себестоимость единицы по завершённым ТЗ модели: Σ(себестоимость ТЗ × выпуск) ÷ Σ выпуск — взвешено по количеству.</p>
+                <p>Средневзвешенная полная себестоимость единицы по завершённым ТЗ модели: (сырьё и подкладка + 4% + расходы ТЗ + работа + шкуры подрядчика) ÷ Σ выпуск — взвешено по количеству.</p>
                 <p className="mt-1">В режиме «С 4%» надбавка 4% только на сырьё и подкладку; у ТЗ без 4% (партия 6 и др.) не добавляется.</p>
                 <p className="mt-1">В раскрытии строки модели — пример: себестоимость без 4% и с 4% по этой модели.</p>
               </InfoHint>
@@ -394,7 +430,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                     </dd>
                     <dt className="text-neutral-500">Стоимость остатка</dt>
                     <dd className="tabular-nums">
-                      {r.modelStocks.length === 0 ? "—" : <Money incl={r.stockValue} excl={r.stockValueExclVat} />}
+                      {r.costIncl.greaterThan(0) ? <Money incl={r.costIncl} excl={r.costExcl} /> : "—"}
                       {r.c4Missing && <span className="ml-1 text-xs text-neutral-500" title="Нет завершённых ТЗ с разбивкой по сырью — 4% не посчитан">(без 4%)</span>}
                     </dd>
                     <dt className="text-neutral-500">Себестоимость за ед.</dt>
@@ -429,7 +465,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               </Td>
               <Td className="text-neutral-700">{r.model.category?.trim() || "—"}</Td>
               <Td>{formatQty(r.stockQty.toString())}</Td>
-              <Td>{r.stockQty.greaterThan(0) ? <Money incl={r.stockValue} excl={r.stockValueExclVat} /> : "—"}</Td>
+              <Td>{r.costIncl.greaterThan(0) ? <Money incl={r.costIncl} excl={r.costExcl} /> : "—"}</Td>
+              <Td>{r.retailStock && r.stockQty.greaterThan(0) ? formatMoney(r.retailStock.toFixed(2)) : "—"}</Td>
               <Td>
                 {r.avgUnitCost ? (
                   <abbr title="ср. взвеш.: взвешено по количеству выпущенных изделий" className="cursor-help no-underline">
@@ -465,12 +502,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td />
               <Td>{formatQty(rows.reduce((s, r) => s.add(r.stockQty), new Decimal(0)).toString())}</Td>
               <Td><Money incl={totalStockValue} excl={totalStockValueExclVat} /></Td>
+              <Td>{formatMoney(rows.reduce((s, r) => s.add(r.retailStock ?? 0), new Decimal(0)).toFixed(2))}</Td>
               <Td /><Td /><Td /><Td /><Td />
             </Tr>
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={9} className="py-8 text-center text-neutral-500">
+              <Td colSpan={10} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по моделям", "") : emptyCount > 0 ? "Нет моделей с ненулевым остатком" : "Моделей пока нет"}
               </Td>
             </Tr>
@@ -486,6 +524,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             href={`/models/${r.id}`}
             fields={[
               { label: "Остаток, шт.", value: formatQty(r.stockQty.toString()), strong: true },
+              { label: "Розничная стоимость остатка", value: r.retailStock && r.stockQty.greaterThan(0) ? formatMoney(r.retailStock.toFixed(2)) : "—" },
               { label: "Стоимость остатка", value: r.stockQty.greaterThan(0) ? <Money incl={r.stockValue} excl={r.stockValueExclVat} /> : "—" },
               { label: `Себестоимость за ед.${c4}`, value: r.avgUnitCost ? <Money incl={r.avgUnitCost} excl={r.avgUnitCostExclVat} /> : "—" },
               { label: "Наценка", value: r.markup ? `×${r.markup.toFixed(2).replace(".", ",")}` : "—" },

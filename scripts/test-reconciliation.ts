@@ -13,7 +13,7 @@ const eq = (what: string, got: number, want: number, tol = 1) => {
   checks++;
   if (Math.abs(got - want) > tol) { fails++; console.log(`  ✗ ${what}: ${got.toFixed(2)} ≠ ${want.toFixed(2)} (Δ ${(got - want).toFixed(2)})`); }
 };
-const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[], batch: [] as string[], status: [] as string[], vat: [] as string[], attr: [] as string[] };
+const E0 = { auction: [] as string[], fur: [] as string[], color: [] as string[], batch: [] as string[], status: [] as string[], vat: [] as string[], attr: [] as string[], catgroup: [] as string[] };
 
 (async () => {
   const org = (await prisma.organization.findFirst())!.id;

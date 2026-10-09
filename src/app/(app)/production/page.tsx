@@ -1,19 +1,17 @@
+import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { ProductionTabs } from "@/components/production-tabs";
-import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
 import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
-import { InfoHint } from "@/components/info-hint";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, sumUsagesWith4, base4AndExtra } from "@/lib/commission4";
 import { canEditProduction } from "@/lib/production-access";
@@ -22,6 +20,10 @@ import { activeCount, dateRange, defineFilters, filterHref, parseFilters, pick, 
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { parseOrderSizes } from "@/lib/order-sizes";
 import { NO_COLOR_LABEL, NO_SIZE_LABEL, loadOrderAttrOptions, orderColorNames } from "@/lib/order-filter-options";
+import { orderUnits } from "@/lib/production-totals";
+import { allocateHides, hidesApply, hidesByPayYear } from "@/lib/contractor-hides";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { formatMoney } from "@/lib/utils";
 import { batchLabel } from "@/lib/batch-label";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { GroupedByBatch } from "./grouped-view";
@@ -33,11 +35,9 @@ import { orderDateOf, orderYearWhere } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { C4Hint, Mode4Badge } from "@/components/c4-note";
 import { loadOrderIndicators } from "@/lib/production-doc-checklist";
-import { DocsPayBadge } from "@/components/docs-pay-badge";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
 import { searchArticles } from "@/lib/article-ref";
-import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
@@ -69,7 +69,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Ждёт проверки" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "status", "season", "batch", "model", "category", "auction", "fur", "color", "attr", "size", "docs", "vat", "verified", "from", "to", "sort", "view"], {
+  ...pick(["q", "status", "season", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "vat", "verified", "from", "to", "sort", "view"], {
     status: { allowed: STATUS_KEYS },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -155,6 +155,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         category: (v) => {
           const { none, rest } = splitNone(v);
           return { OR: [...(rest.length ? [{ productModel: { category: { in: rest } } }] : []), ...(none ? [{ productModel: { category: null } }] : [])] };
+        },
+        catgroup: (v) => {
+          const { none, rest } = splitNone(v);
+          return { OR: [...(rest.length ? [{ productModel: { categoryRef: { group: { in: rest } } } }] : []), ...(none ? [{ productModel: { OR: [{ categoryRefId: null }, { categoryRef: { group: null } }] } }] : [])] };
         },
         auction: () => ({ id: { in: lotOrderIds ?? [] } }),
         fur: () => ({ id: { in: lotOrderIds ?? [] } }),
@@ -308,6 +312,21 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     sumExcluded = sumExcluded.add(c.excluded);
     sumMatLines += o.materialUsages.length;
   }
+  // Работа (цена работы × выпуск/план) и шкуры подрядчика по списку — чтобы итог сходился с «Себестоимостью» на Главной и в «Изделиях».
+  const live = priced.filter((x) => x.o.status !== "CANCELLED");
+  const workSum = live.reduce((a, { o }) => a + (o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0), 0);
+  const hidesShares = hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: f.vat ?? [] })
+    ? allocateHides(live.map(({ o }) => ({ id: o.id, number: o.number, batch: o.batch?.number == null ? "none" : String(o.batch.number), qty: orderUnits(o) })), hidesByPayYear(await loadPaymentsOverview(orgId)), "all")
+    : [];
+  const hidesSum = hidesShares.reduce((a, x) => a + x.incl, 0);
+  const hidesSumExcl = hidesShares.reduce((a, x) => a + x.excl, 0);
+  const hidesOf = new Map(hidesShares.map((h) => [h.id, h]));
+  // Итоговая себестоимость ТЗ — как в «Изделиях» и на Главной: сырьё, подкладка, 4%, расходы + работа + шкуры подрядчика.
+  const fullOf = (o: (typeof live)[number]["o"], total: Decimal, totalExcl: Decimal) => {
+    const w = new Decimal(o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0);
+    const h = hidesOf.get(o.id);
+    return { incl: total.add(w).add(h?.incl ?? 0), excl: totalExcl.add(w).add(h?.excl ?? 0) };
+  };
   const shown = priced.slice(0, limit);
   const hiddenCount = priced.length - shown.length;
 
@@ -368,6 +387,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Модель", options: opts.model },
+          { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP, allLabel: "Все группы", more: true },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории", more: true },
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur, more: true },
@@ -391,31 +411,21 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader>
         <Thead>
           <Tr>
-            <Th>№ ТЗ</Th>
-            <Th>Модель</Th>
-            <Th className="hidden md:table-cell">Партия пошива</Th>
+            <Th>Партия</Th>
+            <Th>Год</Th>
+            <Th>ТЗ</Th>
+            <Th>Артикул</Th>
+            <Th>Категория</Th>
             {showClient && <Th className="hidden lg:table-cell">Заказчик</Th>}
-            <Th className="hidden sm:table-cell" title="Запланировано / сделано, шт.">
-              План / факт, шт.
+            <Th className="text-right">
+              <VatLabel base={`Итоговая себестоимость${c4}`} />
             </Th>
-            <Th>
-              Статус
-              <InfoHint label="Что значит проверка">Под статусом — проверка: подтверждено ли ТЗ (дата, приложение, количество, работа, материалы) или оно ждёт ручной проверки.</InfoHint>
-            </Th>
-            <Th className="hidden lg:table-cell">
-              Документы и оплата
-              <InfoHint label="Что значит документы и оплата" align="right">Каких документов не хватает и оплачена ли работа заказчиком.</InfoHint>
-            </Th>
-            <Th>
-              <VatLabel base={`Итого себестоимость${c4}`} />
-            </Th>
+            <Th></Th>
           </Tr>
         </Thead>
         <Tbody>
           {shown.map(({ o, total, totalExcl }) => {
-            const st = STATUS_LABELS[o.status];
             const href = `/production/${o.id}`;
-            const ind = indicators.get(o.id);
             const vatB = vatBreakdown(o.materialUsages, c4Mode);
             cards.push(
               <RowCard
@@ -423,12 +433,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 title={`ТЗ ${o.workOrderNumber ?? "—"}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
                 href={href}
                 subtitle={articleLabel(o.productModel)}
-                badge={<Badge variant={st.variant}>{st.label}</Badge>}
                 fields={[
-                  { label: "План / факт, шт.", value: `${formatQty(o.plannedQuantity.toString())} / ${formatQty(o.producedQuantity.toString())}` },
                   {
-                    label: <VatLabel base={`Себестоимость${c4}`} />,
-                    value: total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />,
+                    label: <VatLabel base={`Итоговая себестоимость${c4}`} />,
+                    value: fullOf(o, total, totalExcl).incl.isZero() ? "—" : <Money incl={fullOf(o, total, totalExcl).incl} excl={fullOf(o, total, totalExcl).excl} />,
                     strong: true,
                   },
                 ]}
@@ -438,81 +446,59 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Цвет", value: orderColorNames(o).join("; ") || undefined },
                   { label: "Заказчик", value: o.client?.name },
                   { label: "Ставка НДС", value: <TzVatBadge b={vatB} /> },
-                  { label: "Документы и оплата", value: ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : null },
-                  { label: "Проверка", value: <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" /> },
                   { label: "Документы", value: <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} /> },
                 ]}
               />,
             );
             const cell = "p-0";
             const link = "block px-3 py-2";
+            const full = fullOf(o, total, totalExcl);
             return (
               <Tr key={o.id} className="cursor-pointer">
                 <Td className={`${cell} font-medium`}>
-                  <Link href={href} className={`${link} hover:underline`}>
-                    {o.workOrderNumber ?? "—"}
-                    {matchOf(o)?.label && (
-                      <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>
-                    )}
-                  </Link>
-                  <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} className="ml-1" />
-                </Td>
-                <Td className={cell}>
-                  <Link href={href} className={link}>
-                    <ArticleName model={o.productModel} />
-                    {o.season && <span className="ml-2 text-xs text-neutral-500">{o.season.code}</span>}
-                    {showClient && o.client && <span className="block text-xs text-neutral-500 lg:hidden">{o.client.name}</span>}
-                    {orderColorNames(o).length > 0 && <span className="block text-xs text-neutral-500">{orderColorNames(o).join("; ")}</span>}
-                  </Link>
-                </Td>
-                <Td className={`${cell} hidden md:table-cell`}>
                   {o.batch ? (
-                    <Link href={`/production/batches/${o.batch.number}`} className={`${link} whitespace-nowrap hover:underline`}>
-                      {batchLabel(o.batch.number, o.batch.year, [o])}
-                    </Link>
+                    <Link href={`/production/batches/${o.batch.number}`} className={`${link} whitespace-nowrap hover:underline`}>{o.batch.number}</Link>
                   ) : (
                     <Link href={`${href}#card-batch`} className={link} title="Партия не указана — откройте ТЗ и выберите или введите партию">
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">без партии</span>
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-300">—</span>
                     </Link>
                   )}
                 </Td>
+                <Td className={cell}><Link href={href} className={`${link} whitespace-nowrap text-neutral-600`}>{o.batch?.year ?? "—"}</Link></Td>
+                <Td className={`${cell} font-medium`}>
+                  <Link href={href} className={`${link} whitespace-nowrap hover:underline`}>
+                    {o.workOrderNumber ?? "—"}
+                    {matchOf(o)?.label && <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>}
+                  </Link>
+                </Td>
+                <Td className={cell}>
+                  <Link href={href} className={`${link} whitespace-nowrap`}>
+                    <ArticleName model={o.productModel} compact />
+                    {orderColorNames(o).length > 0 && <span className="block text-xs text-neutral-500">{orderColorNames(o).join("; ")}</span>}
+                  </Link>
+                </Td>
+                <Td className={`${cell} text-neutral-700`}><Link href={href} className={link}>{o.productModel.category?.trim() || "—"}</Link></Td>
                 {showClient && (
                   <Td className={`${cell} hidden lg:table-cell`}>
                     <Link href={href} className={link}>{o.client?.name ?? "—"}</Link>
                   </Td>
                 )}
-                <Td className={`${cell} hidden sm:table-cell`}>
+                <Td className={`${cell} text-right`}>
                   <Link href={href} className={link}>
-                    {formatQty(o.plannedQuantity.toString())} / {formatQty(o.producedQuantity.toString())}
+                    {full.incl.isZero() ? "—" : <Money incl={full.incl} excl={full.excl} />}
                   </Link>
                 </Td>
-                <Td className={cell}>
-                  <Link href={href} className={`${link} pb-0`}>
-                    <Badge variant={st.variant}>{st.label}</Badge>
-                  </Link>
-                  <div className="px-3 pb-2">
-                    <VerifyPill flag={vflags.orderById.get(o.id)} tab="orders" />
-                  </div>
-                </Td>
-                <Td className={`${cell} hidden lg:table-cell`}>
-                  <Link href={`${href}#docpay`} className={link}>
-                    {ind ? <DocsPayBadge tone={ind.tone} missing={ind.missing.length} noDocs={ind.noDocs} payText={ind.payText} proofMissing={ind.proofMissing} /> : "—"}
-                  </Link>
-                </Td>
-                <Td className={cell}>
-                  <Link href={href} className={`${link} pb-0`}>
-                    {total.isZero() ? "—" : <Money incl={total} excl={totalExcl} />}
-                  </Link>
-                  <div className="px-3 pb-2">
-                    <TzVatBadge b={vatB} compact hint={false} />
-                  </div>
+                <Td className={`${cell} w-12 text-right`}>
+                  <span className="block px-2">
+                    <DocBadge entity="order" id={o.id} count={tzDocs.get(o.id)?.total ?? 0} title={`ТЗ ${o.workOrderNumber ?? ""}`} />
+                  </span>
                 </Td>
               </Tr>
             );
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-500">
+              <Td colSpan={8} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>
@@ -541,9 +527,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       )}
       {orders.length > 0 && (
         <div className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
-          <VatLabel base="Итого себестоимость по списку" />
+          <VatLabel base="Итоговая себестоимость по списку" />
           <Mode4Badge mode={c4Mode} />
-          <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl} excl={sumExcl} />}</span>
+          <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl.add(workSum).add(hidesSum)} excl={sumExcl.add(workSum).add(hidesSumExcl)} />}</span>
           <C4Hint
             mode={c4Mode}
             base={sumMatLines ? sumBase.toFixed(2) : null}
@@ -554,7 +540,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             align="right"
           >
             <p className="mt-1">
-              Сумма себестоимости всех ТЗ списка, кроме отменённых: сырьё и подкладка (списания) + расходы. Год: {year === "all" ? "все годы" : `${year} (по дате ТЗ)`}.
+              Сумма по всем ТЗ списка, кроме отменённых: сырьё и подкладка (списания, с 4%) + расходы + работа + шкуры подрядчика. Сходится с «Себестоимостью» на Главной и итогом в «Изделиях». Год: {year === "all" ? "все годы" : `${year} (по дате ТЗ)`}.
             </p>
             <p className="mt-1">Цифры с НДС; переключатель «Без НДС» показывает ту же сумму без НДС.</p>
           </C4Hint>

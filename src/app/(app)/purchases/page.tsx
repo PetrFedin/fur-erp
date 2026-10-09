@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
@@ -24,16 +23,11 @@ import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { PurchasesTabs } from "@/components/raw-tabs";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
   return (v ?? "").split(/\r?\n/)[0].trim();
-}
-
-function statusView(status: string): { label: string; variant: "default" | "success" | "danger" } {
-  if (status === "RECEIVED") return { label: "Принято на склад", variant: "success" };
-  if (status === "CANCELLED") return { label: "Отменено", variant: "danger" };
-  return { label: "Черновик", variant: "default" };
 }
 
 export const metadata = { title: "Закупки" };
@@ -140,13 +134,26 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   const opts = await getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur"]);
 
-  const live = purchases.filter((p) => p.status !== "CANCELLED");
-  const sumIncl = live.reduce((s, p) => s.add(purchaseTotalInclVat(p)), new Decimal(0));
-  const sumExcl = live.reduce((s, p) => s.add(purchaseTotalExclVat(p)), new Decimal(0));
+  // Итоги — по ВСЕМ закупкам выборки (а не только по показанным строкам): куплено, оплачено, остаток.
+  const allPurchases = await prisma.purchase.findMany({ where, include: { items: true, expenses: true, payments: true } });
+  const allAuctionNames = [...new Set(allPurchases.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
+  const allAuctionPays = new Map((allAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, allAuctionNames) : []).map((a) => [a.name, a]));
+  let bought = new Decimal(0), boughtExcl = new Decimal(0), paidAll = new Decimal(0);
+  for (const p of allPurchases) {
+    if (p.status === "CANCELLED") continue;
+    const t = purchaseTotalInclVat(p);
+    const ap = allAuctionPays.get(auctionName(p.auctionSession) ?? "");
+    bought = bought.add(t);
+    boughtExcl = boughtExcl.add(purchaseTotalExclVat(p));
+    paidAll = paidAll.add(ap && ap.total.greaterThan(0) ? ap.paid.mul(t).div(ap.total) : p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0)));
+  }
+  // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
+  const hidesAll = !filtersOn ? new Decimal((await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
+  const boughtTotal = bought.add(hidesAll);
+  const paidTotal = paidAll.add(hidesAll);
+  const restTotal = boughtTotal.sub(paidTotal);
 
   // Сумма аукциона одна на все его закупки: полностью — в первой строке аукциона, дальше короткая подпись.
-  const shownTable = new Set<string>();
-  const shownCards = new Set<string>();
 
   return (
     <div className="flex flex-col gap-4">
@@ -204,6 +211,22 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ]}
       />
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="purchases-totals">
+        <div className="rounded-lg border border-neutral-200 bg-white p-3">
+          <div className="text-xs text-neutral-500"><VatLabel base="Куплено" /></div>
+          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums"><Money incl={boughtTotal} excl={boughtExcl.add(hidesAll)} /></div>
+          <div className="mt-0.5 text-xs text-neutral-500">{allPurchases.filter((p) => p.status !== "CANCELLED").length} закупок{hidesAll.greaterThan(0) ? ` · с шкурами подрядчика ${formatMoney(hidesAll.toFixed(2))}` : ""}</div>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white p-3">
+          <div className="text-xs text-neutral-500">Оплачено</div>
+          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums">{formatMoney(paidTotal.toFixed(2))}</div>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-white p-3">
+          <div className="text-xs text-neutral-500">Остаток к оплате</div>
+          <div className={"mt-1 text-base font-semibold sm:text-lg tabular-nums " + (restTotal.greaterThan(PAY_EPS) ? "text-amber-700" : "")}>{formatMoney(restTotal.toFixed(2))}</div>
+        </div>
+      </div>
+
       <ResponsiveRows
         table={
       <Table anchor="table:purchases" label="Таблица закупок" stickyHeader>
@@ -214,14 +237,15 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             <Th>Партия закупки</Th>
             <Th>Счёт</Th>
             <Th>Дата</Th>
-            <Th>Статус</Th>
             <Th className="text-right">Сумма</Th>
             <Th className="text-right">
               Оплачено
               <InfoHint label="Как читать «Оплачено»" align="right">
-                Если закупка входит в партию (аукцион), оплата ведётся по партии целиком: «из» — сумма всей партии, у остальных закупок этой партии — «↑ по партии». Нажмите — откроется оплата партии.
+                Оплаты ведутся по партии закупки (аукциону) целиком. У закупки в партии показана её доля: оплачено партии × (сумма закупки ÷ сумма партии). Нажмите — откроется оплата партии.
               </InfoHint>
             </Th>
+            <Th className="text-right">Остаток</Th>
+            <Th></Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -229,17 +253,18 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             const total = purchaseTotalInclVat(p);
             const totalExclVat = purchaseTotalExclVat(p);
             const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-            const status = statusView(p.status);
+            const cancelled = p.status === "CANCELLED";
             const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
-            const repeat = ap ? shownTable.has(ap.name) : false;
-            if (ap) shownTable.add(ap.name);
+            // Доля оплаты партии, приходящаяся на закупку; без партии — её собственные оплаты.
+            const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : paid;
+            const rest = cancelled ? new Decimal(0) : total.sub(paidShare);
             return (
-              <Tr key={p.id}>
+              <Tr key={p.id} className={cancelled ? "text-neutral-400" : ""}>
                 <Td className="font-medium">
                   <Link href={`/purchases/${p.id}`} className="hover:underline">
                     {p.number}
-                  </Link>{" "}
-                  <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} />
+                  </Link>
+                  {cancelled && <span className="ml-2 text-xs font-normal">отменена</span>}
                 </Td>
                 {multiSupplier && <Td>{p.supplier.name}</Td>}
                 <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
@@ -247,38 +272,30 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                 </Td>
                 <Td className="text-neutral-500">{p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : "—"}</Td>
                 <Td>{formatDate(p.orderDate)}</Td>
-                <Td>
-                  <Badge variant={status.variant}>{status.label}</Badge>
-                </Td>
                 <Td className="text-right tabular-nums">
                   <Money incl={total} excl={totalExclVat} />
                 </Td>
                 <Td className="whitespace-nowrap text-right tabular-nums">
-                  {ap ? (
-                    <Link
-                      href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
-                      className={`hover:underline ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-700" : "text-emerald-700"}`}
-                      title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}
-                    >
-                      {repeat ? (
-                        <span className="text-xs font-normal">↑ по партии</span>
-                      ) : (
-                        <>
-                          <span className="block">{formatMoney(ap.paid.toString())}</span>
-                          <span className="block text-xs font-normal text-neutral-600">из{formatMoney(ap.total.toString())}</span>
-                        </>
-                      )}
+                  {cancelled ? "—" : ap ? (
+                    <Link href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`} className="hover:underline" title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}>
+                      {formatMoney(paidShare.toFixed(2))}
                     </Link>
                   ) : (
-                    <span className={paid.lessThan(total) ? "text-amber-700" : "text-emerald-700"}>{formatMoney(paid.toString())}</span>
+                    formatMoney(paidShare.toFixed(2))
                   )}
+                </Td>
+                <Td className={"whitespace-nowrap text-right tabular-nums " + (!cancelled && rest.greaterThan(PAY_EPS) ? "text-amber-700" : rest.lessThan(0) ? "text-emerald-700" : "")} title={rest.lessThan(-PAY_EPS) ? "Оплачено больше стоимости закупки (переплата)" : undefined}>
+                  {cancelled || rest.abs().lessThanOrEqualTo(PAY_EPS) ? "—" : rest.lessThan(0) ? `+${formatMoney(rest.abs().toFixed(2))}` : formatMoney(rest.toFixed(2))}
+                </Td>
+                <Td className="w-12 text-right">
+                  <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} />
                 </Td>
               </Tr>
             );
           })}
           {purchases.length === 0 && (
             <Tr>
-              <Td colSpan={multiSupplier ? 8 : 7} className="py-8 text-center text-neutral-600">
+              <Td colSpan={multiSupplier ? 9 : 8} className="py-8 text-center text-neutral-600">
                 {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
                 {filtersOn && (
                   <Link href="/purchases" className="ml-2 font-medium text-neutral-900 underline underline-offset-4">
@@ -296,32 +313,21 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           const total = purchaseTotalInclVat(p);
           const totalExclVat = purchaseTotalExclVat(p);
           const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-          const st = statusView(p.status);
+          const cancelled = p.status === "CANCELLED";
           const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
-          const repeat = ap ? shownCards.has(ap.name) : false;
-          if (ap) shownCards.add(ap.name);
-          const paidView = ap ? (
-            <Link
-              href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`}
-              className={`inline-block max-md:py-2 ${ap.remaining.greaterThan(PAY_EPS) ? "text-amber-700" : "text-emerald-700"}`}
-            >
-              {repeat ? "↑ по партии" : `${formatMoney(ap.paid.toString())} из ${formatMoney(ap.total.toString())}`}
-            </Link>
-          ) : (
-            <span className={paid.lessThan(total) ? "text-amber-700" : "text-emerald-700"}>{formatMoney(paid.toString())}</span>
-          );
+          const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : paid;
+          const rest = cancelled ? new Decimal(0) : total.sub(paidShare);
           return (
             <RowCard
               key={p.id}
               title={p.number}
               href={`/purchases/${p.id}`}
               subtitle={p.supplier.name}
-              badge={<Badge variant={st.variant}>{st.label}</Badge>}
               fields={[
                 { label: <VatLabel base="Сумма" />, value: <Money incl={total} excl={totalExclVat} />, strong: true },
-                { label: ap ? "По партии: оплачено" : "Оплачено", value: paidView },
+                { label: "Оплачено", value: cancelled ? "—" : formatMoney(paidShare.toFixed(2)) },
+                { label: "Остаток", value: cancelled || rest.abs().lessThanOrEqualTo(PAY_EPS) ? "—" : formatMoney(rest.toFixed(2)) },
                 { label: "Дата", value: formatDate(p.orderDate) },
-                { label: "Документы", value: <DocBadge entity="purchase" id={p.id} count={docCnt.get(p.id)?.total ?? 0} title={`Закупка ${p.number}`} /> },
               ]}
               details={[
                 { label: "Партия закупки", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },
@@ -349,19 +355,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         </div>
       )}
       <div className="flex items-center gap-1 text-xs text-neutral-600">
-        Показано закупок: {purchases.length}{hasMore ? " (есть ещё)" : ""}
-        {purchases.length > 0 && (
-          <>
-            <span aria-hidden>·</span>
-            <VatLabel base="сумма без отменённых" />:{" "}
-            <b className="text-neutral-700">
-              <Money incl={sumIncl} excl={sumExcl} />
-            </b>
-            <InfoHint label="Как считается сумма">
-              Сумма всех показанных закупок, кроме отменённых (с НДС; переключатель НДС показывает без НДС): позиции × курс + расходы закупки. Считается только по показанным строкам{hasMore ? " — нажмите «Показать ещё», чтобы добавить остальные" : ""}.
-            </InfoHint>
-          </>
-        )}
+        Показано закупок: {purchases.length}{hasMore ? " из " + allPurchases.length : ""}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@
 import { defineFilters, pick, splitNone } from "@/lib/filters";
 import { figures, flowOf, NOT_SET, type C4Kind, type Flow, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import type { OrderRow } from "@/lib/analytics-orders";
+import { NO_GROUP } from "@/lib/category-groups";
 import type { DrillOrder, DrillLine } from "@/lib/dashboard-drill";
 import type { YearFilter } from "@/lib/year-filter";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
@@ -12,17 +13,17 @@ export const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запл�
 
 // Фильтры Сводки (год — общий, из шапки).
 export const DASH_FILTERS = defineFilters({
-  ...pick(["auction", "fur", "color", "attr", "batch", "status", "vat"], {
+  ...pick(["auction", "fur", "color", "attr", "batch", "status", "vat", "catgroup"], {
     status: { allowed: Object.keys(ORDER_STATUS_LABELS) },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     vat: { allowed: ["20", "22"] },
   }),
 });
 
-export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; status: string[]; vat: string[] };
+export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; status: string[]; vat: string[]; catgroup: string[] };
 
 export const lotFiltersOn = (f: DashFilters) => Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length);
-export const orderFiltersOn = (f: DashFilters) => Boolean(f.status.length || f.batch.length);
+export const orderFiltersOn = (f: DashFilters) => Boolean(f.status.length || f.batch.length || f.catgroup?.length);
 
 // ───────────────────────────── лоты ─────────────────────────────
 
@@ -73,6 +74,10 @@ export function furLiningFlows(lots: FurLot[]) {
 /** ТЗ подходит: статус и партия производства; при фильтрах по сырью — в нём списан хотя бы один подходящий лот. */
 export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | null, furName: (raw: string) => string): boolean {
   if (f.status.length && !f.status.includes(o.status)) return false;
+  if (f.catgroup?.length) {
+    const g = splitNone(f.catgroup);
+    if (!(o.categoryGroup ? g.rest.includes(o.categoryGroup) : g.none)) return false;
+  }
   if (f.batch.length) {
     const b = splitNone(f.batch);
     const nums = b.rest.map(Number);
@@ -95,13 +100,17 @@ export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | 
   return true;
 }
 
-export type ProdTotals = { orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number; furExcl: number; liningExcl: number; c4Excl: number; expenses: number };
+/** Ремонт — не выпуск изделий: в штуках и числе ТЗ не считается, учитывается отдельно (затраты остаются в себестоимости). */
+export const REPAIR_CATEGORY = "Ремонт";
+
+export type ProdTotals = { repairOrders: number; repairQty: number; repairCostIncl: number; repairCostExcl: number; orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number; furExcl: number; liningExcl: number; c4Excl: number; expenses: number };
 
 /** Сводные числа по ТЗ: «произведено» — завершённые, «в работе» — запланированные и в работе. */
 export function prodTotals(rows: OrderRow[]): ProdTotals {
-  const t: ProdTotals = { orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0, furExcl: 0, liningExcl: 0, c4Excl: 0, expenses: 0 };
+  const t: ProdTotals = { repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0, furExcl: 0, liningExcl: 0, c4Excl: 0, expenses: 0 };
   for (const o of rows) {
-    t.orders += 1; t.qty += o.qty; t.costIncl += o.costIncl; t.costExcl += o.costExcl; t.workSum += o.work;
+    if (o.category === REPAIR_CATEGORY) { t.repairOrders += 1; t.repairQty += o.qty; t.repairCostIncl += o.costIncl; t.repairCostExcl += o.costExcl; } else { t.orders += 1; t.qty += o.qty; }
+    t.costIncl += o.costIncl; t.costExcl += o.costExcl; t.workSum += o.work;
     t.furIncl += o.furIncl; t.liningIncl += o.liningIncl; t.c4Incl += o.c4Incl;
     t.furExcl += o.furExcl; t.liningExcl += o.liningExcl; t.c4Excl += o.c4Excl; t.expenses += o.expenses;
   }
@@ -113,13 +122,13 @@ export const isDone = (o: OrderRow) => o.status === "COMPLETED";
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** Строка аналитики → ТЗ для окна «проваливания» (суммы строк в выбранном режиме 4%). */
-export function toDrillOrder(o: OrderRow, c4: "on" | "off", auctionShort: (name: string | null) => string): DrillOrder {
+export function toDrillOrder(o: OrderRow, c4: "on" | "off", auctionShort: (name: string | null) => string, furName: (raw: string) => string = (r) => r): DrillOrder {
   const k = c4 === "on" ? COMMISSION_RATE : 0;
   const lines: DrillLine[] = o.lines.map((l) => {
     const ci = l.c4 ? l.incl * k : 0;
     const ce = l.c4 ? l.excl * k : 0;
     return {
-      k: l.isLining ? "l" : "f", n: l.rawName, lot: l.lotId, ln: l.lotNumber, au: auctionShort(l.auction),
+      k: l.isLining ? "l" : "f", n: l.rawName, fu: l.isLining ? "" : furName(l.rawName), lot: l.lotId, ln: l.lotNumber, au: auctionShort(l.auction),
       pid: l.purchaseId, pn: l.purchaseNumber, q: l.qty, i: l.incl + ci, e: l.excl + ce, ci, ce,
     };
   });
@@ -127,7 +136,7 @@ export function toDrillOrder(o: OrderRow, c4: "on" | "off", auctionShort: (name:
   const sumE = lines.reduce((s, l) => s + l.e, 0);
   return {
     id: o.id, number: o.number, wo: o.workOrderNumber, bk: o.batchNumber == null ? "none" : String(o.batchNumber),
-    bl: o.batchText ?? "Без партии", y: o.year, st: o.status, cat: o.category, mid: o.modelId, ml: o.modelLabel, fur: o.fur,
+    bl: o.batchText ?? "Без партии", y: o.year, st: o.status, cat: o.category, grp: o.category === REPAIR_CATEGORY ? "Ремонт (отдельно)" : o.categoryGroup || NO_GROUP, mid: o.modelId, ml: o.modelLabel, fur: o.fur,
     qty: o.qty, work: o.work, exp: o.expenses, hI: 0, hE: 0, resI: r2(o.costIncl - sumI - o.expenses), resE: r2(o.costExcl - sumE - o.expenses), lines,
   };
 }

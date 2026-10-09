@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { categoryKey, oneLine, suggestCategoryRef } from "@/lib/category-ref";
+import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -181,6 +182,13 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                 <Label htmlFor="new-name">Название (по-русски)</Label>
                 <Input id="new-name" name="name" required placeholder="Например, «Манишка»" />
               </div>
+              <div className="min-w-40">
+                <Label htmlFor="new-group">Группа</Label>
+                <Select id="new-group" name="group" defaultValue="">
+                  <option value="">{NO_GROUP}</option>
+                  {CATEGORY_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+                </Select>
+              </div>
               <div className="min-w-48 flex-1">
                 <Label htmlFor="new-aliases">Синонимы (через запятую)</Label>
                 <Input id="new-aliases" name="aliases" placeholder="манишки, воротник" />
@@ -203,6 +211,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
       <Table>
         <Thead>
           <Tr>
+            <Th>Группа</Th>
             <Th>Категория</Th>
             <Th>Синонимы</Th>
             <Th className="text-right">Моделей</Th>
@@ -216,6 +225,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
             const note = (r.note ?? "").replace(/^Предложено, ждёт подтверждения\.?\s*/, "");
             return (
               <Tr key={r.id}>
+                <Td className="align-top text-sm text-neutral-700">{r.group ?? <span className="text-neutral-500">{NO_GROUP}</span>}</Td>
                 <Td className="align-top font-medium">
                   {r.name} {!r.confirmed && <Badge variant="warning">ждёт подтверждения</Badge>}
                   {note && <InfoHint label="Примечание" wide>{note}</InfoHint>}
@@ -239,6 +249,13 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
                           <div>
                             <Label htmlFor={`n-${r.id}`}>Название</Label>
                             <Input id={`n-${r.id}`} name="name" defaultValue={r.name} required />
+                          </div>
+                          <div>
+                            <Label htmlFor={`g-${r.id}`}>Группа</Label>
+                            <Select id={`g-${r.id}`} name="group" defaultValue={r.group ?? ""}>
+                              <option value="">{NO_GROUP}</option>
+                              {CATEGORY_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
+                            </Select>
                           </div>
                           <div>
                             <Label htmlFor={`a-${r.id}`}>Синонимы (через запятую или с новой строки)</Label>
@@ -278,7 +295,7 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
           })}
           {shown.length === 0 && (
             <Tr>
-              <Td colSpan={5} className="py-8 text-center text-neutral-500">
+              <Td colSpan={6} className="py-8 text-center text-neutral-500">
                 {refs.length > 0 ? "Ничего не найдено" : "Категорий пока нет"}
               </Td>
             </Tr>

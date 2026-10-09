@@ -8,9 +8,16 @@ import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { capitalizeCategory, categoryKey, oneLine } from "@/lib/category-ref";
 import { ensureCategoryRef } from "@/lib/categories";
+import { CATEGORY_GROUPS } from "@/lib/category-groups";
 
 const ROLES = ACCESS.categories;
 const nameSchema = z.string().trim().min(2, "Укажите название категории").max(100, "Название слишком длинное");
+
+/** Группа из формы: только из списка справочника групп, иначе пусто («Без группы»). */
+function groupFromForm(fd: FormData): string | null {
+  const g = String(fd.get("group") ?? "").trim();
+  return (CATEGORY_GROUPS as readonly string[]).includes(g) ? g : null;
+}
 
 function back(msg?: string, ok?: string): never {
   const q = msg ? `?error=${encodeURIComponent(msg)}` : ok ? `?ok=${encodeURIComponent(ok)}` : "";
@@ -55,7 +62,7 @@ export async function createCategory(formData: FormData) {
   const taken = await nameTaken(orgId, name, aliases);
   if (taken) back(taken);
   const max = (await prisma.categoryRef.aggregate({ where: { organizationId: orgId }, _max: { sortOrder: true } }))._max.sortOrder ?? 0;
-  await prisma.categoryRef.create({ data: { organizationId: orgId, name, aliases, confirmed: true, sortOrder: max + 10 } });
+  await prisma.categoryRef.create({ data: { organizationId: orgId, name, aliases, confirmed: true, sortOrder: max + 10, group: groupFromForm(formData) } });
   touch();
   back(undefined, `Категория «${name}» добавлена`);
 }
@@ -70,6 +77,7 @@ export async function updateCategory(formData: FormData) {
   const name = capitalizeCategory(p.data);
   const aliases = parseAliases(String(formData.get("aliases") ?? ""), name);
   const note = String(formData.get("note") ?? "").trim() || null;
+  const group = groupFromForm(formData);
   const ref = await prisma.categoryRef.findFirst({ where: { id, organizationId: orgId } });
   if (!ref) back("Категория не найдена");
   const taken = await nameTaken(orgId, name, aliases, id);
@@ -77,7 +85,7 @@ export async function updateCategory(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     // Прежнее название остаётся синонимом: так старые написания по-прежнему находят эту категорию.
     const keepOld = categoryKey(ref.name) !== categoryKey(name) && !aliases.some((a) => categoryKey(a) === categoryKey(ref.name));
-    await tx.categoryRef.update({ where: { id }, data: { name, aliases: keepOld ? [...aliases, ref.name] : aliases, note } });
+    await tx.categoryRef.update({ where: { id }, data: { name, aliases: keepOld ? [...aliases, ref.name] : aliases, note, group } });
     if (ref.name !== name) await tx.productModel.updateMany({ where: { organizationId: orgId, categoryRefId: id }, data: { category: name } });
   });
   touch();

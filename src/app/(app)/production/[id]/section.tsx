@@ -12,11 +12,17 @@ export function Section({
   id,
   title,
   defaultOpenMobile = false,
+  collapsed = false,
+  summary,
   children,
 }: {
   id: string;
   title: string;
   defaultOpenMobile?: boolean;
+  /** Свёрнута по умолчанию на любом экране: заголовок виден всегда, содержимое — по клику (или по якорю #id). */
+  collapsed?: boolean;
+  /** Короткая подпись справа от заголовка свёрнутого блока. */
+  summary?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -31,6 +37,17 @@ export function Section({
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, [id, defaultOpenMobile]);
+  if (collapsed) {
+    return (
+      <details id={id} className="scroll-mt-16 rounded-lg border border-neutral-200 bg-white" open={false}>
+        <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 px-3 py-2 text-sm font-semibold text-neutral-800">
+          {title}
+          {summary ? <span className="text-xs font-normal text-neutral-500">{summary}</span> : null}
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-neutral-100 p-3">{children}</div>
+      </details>
+    );
+  }
   return (
     <details ref={ref} id={id} open className="scroll-mt-16">
       <summary className="cursor-pointer list-none rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 sm:hidden">

@@ -5,7 +5,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
-import { figures, flowOf, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
+import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import { orderUnits } from "@/lib/production-totals";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -67,6 +67,8 @@ export type YearRow = {
   prod: { qty: number; costIncl: number; costExcl: number; work: number };
   paid: number;
   debt: number;
+  /** Оплачено и задолженность года отдельно по меху и подкладке (в сумме — paid и debt). */
+  money: { fur: { paid: number; debt: number }; lining: { paid: number; debt: number } };
 };
 
 export type { ClientDebtRow };
@@ -89,6 +91,10 @@ export type DashboardData = {
   overpaid: { name: string; amount: number }[];
   /** Шкуры подрядчика (оплачены в составе пошива): входят в мех «Использовано» и в себестоимость. */
   hides: { incl: number; excl: number };
+  /** Заказано, но ещё не получено (нет лотов): шт. и сумма — входит в «Куплено» и «Остаток» меха. */
+  ordered: Ordered;
+  /** Заказанный, но не полученный мех и шкуры подрядчика как «лоты» для страницы «Сырьё»: таблица там сходится с Главной. */
+  syntheticLots: FurLot[];
   rawMoneyTotal: { paid: number; due: number; /** Оплаты и остаток по закупкам, где лотов ещё нет (мех не получен). */ unreceived: { paid: number; due: number; names: string[]; /** Тот же остаток по видам меха закупок, где лотов ещё нет (по составу заказа). */ byFur: { label: string; names: string[]; paid: number; due: number; ordered: Ordered }[] } };
   clientDebts: ClientDebtRow[];
   /** Разнесение оплат заказчиков: разнесено на ТЗ, неразнесённые авансы (по виду), учтены ли они в остатке. */
@@ -130,9 +136,9 @@ export async function loadSelectedOrders(orgId: string, year: YearFilter, f: Das
 
 /** Окно «Стоимость производства»: ТЗ выбранной группы (done — произведено, work — в работе) в режиме 4% из cookie. */
 export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode, scope: "done" | "work" | "all"): Promise<DrillOrder[]> {
-  const [{ selected }, label] = await Promise.all([loadSelectedOrders(orgId, year, f, c4), auctionLabeler(orgId)]);
+  const [{ selected, furName }, label] = await Promise.all([loadSelectedOrders(orgId, year, f, c4), auctionLabeler(orgId)]);
   const short = (name: string | null) => (name ? label(name).label : "Без аукциона");
-  const orders = selected.filter((o) => (scope === "all" ? true : scope === "done" ? isDone(o) : !isDone(o))).map((o) => toDrillOrder(o, c4, short));
+  const orders = selected.filter((o) => (scope === "all" ? true : scope === "done" ? isDone(o) : !isDone(o))).map((o) => toDrillOrder(o, c4, short, furName));
   // Шкуры подрядчика (оплачены в составе пошива, в ТЗ не списаны) — в партию и ТЗ, где использовались (см. contractor-hides.ts).
   if (scope === "all" && hidesApply(f)) {
     const ov = await loadPaymentsOverview(orgId);
@@ -312,9 +318,19 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   for (const o of ordersFiltered) if (o.year != null) yearSet.add(o.year);
   const yearList = Array.from(yearSet).sort((a, b) => a - b);
   const debtFor = (y: YearFilter) => supplierDebtFromInputs(debtInputs, y);
-  // Строка года: сырьё по году закупки лота, «произведено» — завершённые ТЗ года ТЗ, долг/оплаты — как loadSupplierDebt(год).
+  // Задолженность по подкладке по годам: остаток каждого аукциона × доля подкладки в его лотах, год — по названию аукциона.
+  const debtLiningByYear = new Map<number, number>();
+  for (const a of supplierDebtFromInputs(debtInputs, "all").byAuction) {
+    const m = /(\d{2})[-.](\d{2})\s*$/.exec(a.name.trim());
+    const y = m ? 2000 + Number(m[2]) : 2026;
+    const ls = allLots.filter((l) => l.auction === a.name);
+    const tot = ls.reduce((x, l) => x + l.recvIncl, 0);
+    const lin = tot > 0 ? ls.filter((l) => l.kind === "lining").reduce((x, l) => x + l.recvIncl, 0) / tot : 0;
+    debtLiningByYear.set(y, (debtLiningByYear.get(y) ?? 0) + a.due.toNumber() * lin);
+  }
+  // Строка года: сырьё по году закупки лота, «произведено» — факт по всем ТЗ года ТЗ (завершённые и в работе), долг/оплаты — как loadSupplierDebt(год).
   const mkYear = (key: string, label: string, lots: FurLot[], orders: OrderRow[], d: SupplierDebt): YearRow => {
-    const t = prodTotals(orders.filter(isDone));
+    const t = prodTotals(orders);
     return {
       key, label,
       fur: withHides(withOrdered(cellsPair(lots.filter((l) => l.kind === "fur"), c4k), orderedYear.get(Number(key))), hidesYear.get(Number(key))),
@@ -322,14 +338,20 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       prod: { qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum },
       paid: ovAll.filter((r) => r.year === Number(key)).reduce((a, r) => a + r.fur + r.lining, 0),
       debt: ovLeftAll.byYear.get(Number(key))?.raw ?? 0,
+      money: (() => {
+        const rowsY = ovAll.filter((r) => r.year === Number(key));
+        const debtY = ovLeftAll.byYear.get(Number(key))?.raw ?? 0;
+        const dl = debtLiningByYear.get(Number(key)) ?? 0;
+        return { fur: { paid: rowsY.reduce((a, r) => a + r.fur, 0), debt: debtY - dl }, lining: { paid: rowsY.reduce((a, r) => a + r.lining, 0), debt: dl } };
+      })(),
     };
   };
   const yearRows: YearRow[] = yearList.map((y) => mkYear(String(y), String(y), lotsAllYears.filter((l) => l.year === y), ordersFiltered.filter((o) => o.year === y), debtFor(String(y) as YearFilter)));
   const noYear = ordersFiltered.filter((o) => o.year == null);
-  if (noYear.some((o) => isDone(o) && (o.qty !== 0 || o.costIncl !== 0))) {
-    const t = prodTotals(noYear.filter(isDone));
+  if (noYear.some((o) => o.qty !== 0 || o.costIncl !== 0)) {
+    const t = prodTotals(noYear);
     const empty = cellsPair([], c4k);
-    yearRows.push({ key: "none", label: "Без даты", fur: empty, lining: empty, prod: { qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum }, paid: 0, debt: 0 });
+    yearRows.push({ key: "none", label: "Без даты", fur: empty, lining: empty, prod: { qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum }, paid: 0, debt: 0, money: { fur: { paid: 0, debt: 0 }, lining: { paid: 0, debt: 0 } } });
   }
   // «Итого» = сумма строк по каждой аддитивной колонке (куплено, использовано, остаток, произведено, оплачено, долг).
   // Средневзвешенные цены в итоговой строке считаются от сумм, а не складываются.
@@ -352,6 +374,10 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       prod: yearRows.reduce((a, r) => ({ qty: a.qty + r.prod.qty, costIncl: a.costIncl + r.prod.costIncl, costExcl: a.costExcl + r.prod.costExcl, work: a.work + r.prod.work }), { qty: 0, costIncl: 0, costExcl: 0, work: 0 }),
       paid: yearRows.reduce((a, r) => a + r.paid, 0),
       debt: yearRows.reduce((a, r) => a + r.debt, 0),
+      money: {
+        fur: { paid: yearRows.reduce((a, r) => a + r.money.fur.paid, 0), debt: yearRows.reduce((a, r) => a + r.money.fur.debt, 0) },
+        lining: { paid: yearRows.reduce((a, r) => a + r.money.lining.paid, 0), debt: yearRows.reduce((a, r) => a + r.money.lining.debt, 0) },
+      },
     };
     return [...shownRows, totalRow];
   };
@@ -460,6 +486,19 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const rawTableTotalAll = withHides(withOrdered(rawTableTotal, orderedAll), hidesTotal);
   const addHidesFig = (f: FlowFigures, v: number): FlowFigures => ({ ...f, recvValue: f.recvValue + v, recvAvg: f.recvQty > 0 ? Math.round(((f.recvValue + v) / f.recvQty) * 100) / 100 : null, usedValue: f.usedValue + v, usedValueOther: f.usedValueOther + v, usedAvg: f.usedQty > 0 ? Math.round(((f.usedValue + v) / f.usedQty) * 100) / 100 : null });
   const furPairAll = { incl: addHidesFig(bumpFigures(furPair.incl, orderedAll.qty, orderedAll.incl), hidesTotal.incl), excl: addHidesFig(bumpFigures(furPair.excl, orderedAll.qty, orderedAll.excl), hidesTotal.excl) };
+  const synth = (id: string, item: string, auction: string, year0: number, o: { qty: number; incl: number; excl: number }, used: { incl: number; excl: number } | null): FurLot => ({
+    id, kind: "fur", item, materialName: item, color: NOT_SET, size: NOT_SET, sizes: [], attrs: [], auction, auctionLabel: labeler(auction).label || auction, year: year0,
+    lotNumber: used ? "шкуры подрядчика" : "заказано, не получено", grade: "", purchaseId: null, purchaseNumber: null, supplier: null,
+    recv: o.qty, used: 0, rem: o.qty, recvIncl: o.incl, recvExcl: o.excl,
+    usedIncl: used?.incl ?? 0, usedExcl: used?.excl ?? 0, usedExtraIncl: 0, usedExtraExcl: 0,
+    remIncl: used ? 0 : o.incl, remExcl: used ? 0 : o.excl,
+    vatRate: 22, usdPrice: null, usdSource: "none", usdQty: 0, usdSubtotal: 0, usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
+    usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0, usages: [],
+  });
+  const syntheticLots: FurLot[] = [
+    ...unreceived.byFur.map((g) => synth(`ordered:${g.label}`, g.label, g.names[0] ?? "Заказано", 2026, g.ordered, null)),
+    ...(hidesTotal.incl > 0.5 ? [synth("hides", "Свакара", "Шкуры подрядчика", 2026, { qty: 0, incl: hidesTotal.incl, excl: hidesTotal.excl }, { incl: hidesTotal.incl, excl: hidesTotal.excl })] : []),
+  ];
   const unreceivedLeft = { paid: unreceived.paid - unreceived.byFur.reduce((a, g) => a + g.paid, 0), due: unreceived.due - unreceived.byFur.reduce((a, g) => a + g.due, 0), names: unreceived.names, byFur: [] as typeof unreceived.byFur };
 
   // Фильтры панели: деньги по сырью — сумма строк таблицы (они уже по выбранным лотам), «Работа» — по выбранным ТЗ.
@@ -485,12 +524,18 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     // Годы: оплата и долг строки делятся по годам закупки лотов пропорционально их стоимости; строки без лотов (заказано, шкуры) — в последний год.
     const lastY = yearList[yearList.length - 1];
     const pY = new Map<number, number>(), dY = new Map<number, number>();
+    const kind = { fur: { p: new Map<number, number>(), d: new Map<number, number>() }, lining: { p: new Map<number, number>(), d: new Map<number, number>() } };
+    const add = (m: Map<number, number>, y: number, v: number) => m.set(y, (m.get(y) ?? 0) + v);
     for (const r of rawTable) {
       const totalV = r.years.reduce((a, y) => a + y.cells.incl.rv, 0);
-      if (totalV > 0) for (const y of r.years) { const sh = y.cells.incl.rv / totalV; pY.set(y.year, (pY.get(y.year) ?? 0) + r.paid * sh); dY.set(y.year, (dY.get(y.year) ?? 0) + r.due * sh); }
-      else { pY.set(lastY, (pY.get(lastY) ?? 0) + r.paid); dY.set(lastY, (dY.get(lastY) ?? 0) + r.due); }
+      const parts = totalV > 0 ? r.years.map((y) => ({ year: y.year, sh: y.cells.incl.rv / totalV })) : [{ year: lastY, sh: 1 }];
+      for (const { year: y, sh } of parts) { add(pY, y, r.paid * sh); add(dY, y, r.due * sh); add(kind[r.kind].p, y, r.paid * sh); add(kind[r.kind].d, y, r.due * sh); }
     }
-    for (const yr of yearRows) if (/^\d{4}$/.test(yr.key)) { yr.paid = pY.get(Number(yr.key)) ?? 0; yr.debt = dY.get(Number(yr.key)) ?? 0; }
+    for (const yr of yearRows) if (/^\d{4}$/.test(yr.key)) {
+      const y = Number(yr.key);
+      yr.paid = pY.get(y) ?? 0; yr.debt = dY.get(y) ?? 0;
+      yr.money = { fur: { paid: kind.fur.p.get(y) ?? 0, debt: kind.fur.d.get(y) ?? 0 }, lining: { paid: kind.lining.p.get(y) ?? 0, debt: kind.lining.d.get(y) ?? 0 } };
+    }
     years = buildYears();
   }
   const unreceivedOut = moneyFromRows ? { paid: 0, due: 0, names: [] as string[], byFur: [] as typeof unreceived.byFur } : unreceivedLeft;
@@ -501,6 +546,8 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     left: leftOut,
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
     hides: hidesTotal,
+    ordered: orderedAll,
+    syntheticLots,
     rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
     raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))) },

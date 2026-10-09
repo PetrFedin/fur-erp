@@ -18,23 +18,24 @@ export function PaymentsOverview({ rows, c4, left }: { rows: OverviewRow[]; c4: 
   const head = (label: string, className = "") => <th className={"px-3 py-2 font-medium " + className}>{label}</th>;
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-        <Link href="/payments?tab=suppliers" className="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition hover:border-neutral-400 hover:shadow-md">
-          <div className="text-xs text-neutral-500">За сырьё →</div>
-          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums">{formatMoney((sum(rows, "fur") + sum(rows, "lining")).toFixed(2))}</div>
-          <div className="mt-0.5 text-xs text-neutral-500">ещё оплатить <b className="tabular-nums text-amber-700">{formatMoney(left.raw.toFixed(2))}</b></div>
-        </Link>
-        <Link href="/payments?tab=clients" className="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm transition hover:border-neutral-400 hover:shadow-md">
-          <div className="text-xs text-neutral-500">За производство →</div>
-          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums">{formatMoney(sum(rows, "work").toFixed(2))}</div>
-          <div className="mt-0.5 text-xs text-neutral-500">ещё оплатить <b className="tabular-nums text-amber-700">{formatMoney(left.prod.toFixed(2))}</b></div>
-        </Link>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm">
-          <div className="text-xs text-neutral-500">Всего оплачено</div>
-          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums">{formatMoney(sum(rows, "amount").toFixed(2))}</div>
-          <div className="mt-0.5 text-xs text-neutral-500">ещё оплатить <b className="tabular-nums text-amber-700">{formatMoney((left.raw + left.prod).toFixed(2))}</b></div>
-        </div>
-      </div>
+      {(() => {
+        const rawPaid = sum(rows, "fur") + sum(rows, "lining");
+        const workPaid = sum(rows, "work");
+        const card = (label: string, value: number, rawV: number, workV: number, warn?: boolean) => (
+          <div className="rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm">
+            <div className="text-xs text-neutral-500">{label}</div>
+            <div className={"mt-1 break-words text-base font-semibold tabular-nums sm:text-lg " + (warn && value > 0.5 ? "text-amber-700" : "")}>{formatMoney(value.toFixed(2))}</div>
+            <div className="mt-0.5 text-xs text-neutral-500">сырьё <span className="tabular-nums">{formatMoney(rawV.toFixed(2))}</span> · работа <span className="tabular-nums">{formatMoney(workV.toFixed(2))}</span></div>
+          </div>
+        );
+        return (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+            {card("К оплате", rawPaid + workPaid + left.raw + left.prod, rawPaid + left.raw, workPaid + left.prod)}
+            {card("Оплачено", rawPaid + workPaid, rawPaid, workPaid)}
+            {card("Остаток к оплате", left.raw + left.prod, left.raw, left.prod, true)}
+          </div>
+        );
+      })()}
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[1100px] text-sm">
@@ -98,14 +99,6 @@ export function PaymentsOverview({ rows, c4, left }: { rows: OverviewRow[]; c4: 
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-amber-700">{rub(left.prod)}</td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-amber-700">{rub(left.raw + left.prod)}</td>
             </tr>
-            {c4 > 0.5 ? (
-              <tr className="border-t border-neutral-200 bg-white text-neutral-700">
-                <td className="px-3 py-2">в т.ч. 4% на мех и подкладку, использованные в ТЗ <span className="text-xs text-neutral-500">(справка: уже включены в оплаты, не добавляются)</span></td>
-                <td /><td /><td />
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{formatMoney(c4.toFixed(2))}</td>
-                <td /><td /><td />
-              </tr>
-            ) : null}
           </tfoot>
         </table>
       </div>

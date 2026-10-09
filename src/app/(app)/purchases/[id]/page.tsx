@@ -6,8 +6,6 @@ import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { RecordHistory } from "@/components/record-history";
-import { RecordComments } from "@/components/comments/record-comments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
@@ -20,9 +18,7 @@ import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
-import { PurchasePaymentForm } from "./payment-form";
 import { PaymentFormButton } from "@/components/payment-form";
-import { PaymentDeleteButton } from "./payment-delete-button";
 import { PurchaseActions } from "./purchase-actions";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
@@ -41,7 +37,6 @@ import { auctionKey } from "@/lib/auction-key";
 import { getColorOptions } from "@/lib/colors";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
-import { VerifyBlock } from "../../verify/verify-block";
 import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
@@ -498,26 +493,22 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}
           <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
+            <Badge variant={status.variant}>{status.label}</Badge>
             <InfoHint label="О закупке" wide>
-              <p>Позиции сырья и подкладки, расходы закупки, расчёт себестоимости, оплаты и документы.</p>
-              <p className="mt-1">Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года (2025 / 2026) на страницах «Закупки» и «Сырьё».</p>
-              <p className="mt-1">Переключатель «С 4%» эту страницу не меняет: 4% — наценка посредника на сырьё и подкладку при списании в ТЗ; закупка, оплаты и долг поставщику остаются как есть.</p>
+              <p>Позиции сырья и подкладки, расходы закупки, оплаты и документы. Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года.</p>
             </InfoHint>
           </div>
           <p className="text-sm text-neutral-500">
-            {purchase.supplier.name} · склад «{purchase.warehouse.name}» · {formatDate(purchase.orderDate)}
-            {isForeignCurrency && ` · валюта позиций: ${purchase.currency}`}
+            {[
+              purchase.supplier.name,
+              `склад «${purchase.warehouse.name}»`,
+              formatDate(purchase.orderDate),
+              purchase.auctionSession ? `партия ${purchase.auctionSession}` : null,
+              purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,
+              purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
+              isForeignCurrency ? `валюта позиций ${purchase.currency}` : null,
+            ].filter(Boolean).join(" · ")}
           </p>
-          {(purchase.auctionSession || purchase.invoiceNumber || purchase.transferDocument) && (
-            <p className="text-sm text-neutral-500">
-              {purchase.auctionSession && `Аукцион: ${purchase.auctionSession}`}
-              {purchase.invoiceNumber && ` · Счёт № ${purchase.invoiceNumber}`}
-              {purchase.transferDocument && ` · УПД ${purchase.transferDocument}`}
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            <Badge variant={status.variant}>{status.label}</Badge>
-          </div>
           {headerEditable && (
             <div className="mt-2 max-w-md">
               <PurchaseEditForm
@@ -543,6 +534,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             </div>
           )}
         </div>
+        <div className="flex flex-wrap items-start justify-end gap-2">
+        {canEditRole && purchase.status !== "CANCELLED" && <PaymentFormButton label="+ Оплата" preset={{ side: "supplier", purchaseId: id }} />}
         <PurchaseActions
           purchaseId={id}
           status={purchase.status}
@@ -550,6 +543,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           canCancel={canEditRole}
           hasCostPlan={planItems.length > 0}
         />
+        </div>
       </div>
 
       {isForeignCurrency && editable && planItems.length === 0 && (
@@ -571,54 +565,44 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-        <SummaryCard
-          label={isForeignCurrency ? `Сырьё, без НДС (${formatCurrency(itemsTotal.toString(), purchase.currency)})` : "Сырьё, без НДС"}
-          value={formatMoney(goodsExclVatRub.toString())}
-        />
-        <SummaryCard
-          label="Доп. расходы, без НДС"
-          value={formatMoney(extraExclVat.toString())}
-          note={purchase.expenses.length === 0 && extraExclVat.greaterThan(0) ? "в т.ч. сборы аукциона, выделка (из расчёта лотов)" : undefined}
-        />
-        <SummaryCard label="НДС" value={formatMoney(vatTotal.toString())} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SummaryCard
           label={<VatLabel base="Итого, RUB" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
+          note={`сырьё ${formatMoney(goodsExclVatRub.toString())} · расходы ${formatMoney(extraExclVat.toString())} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
         />
         {auctionPay ? (
-          <SummaryCard
-            label={
-              <Link
-                href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`}
-                className="inline-block text-blue-600 hover:underline max-md:py-2"
-                title={`Оплаты ведутся по аукциону «${auctionPay.name}» целиком`}
-              >
-                Оплачено по аукциону
-              </Link>
-            }
-            value={
-              <>
-                {auctionPay.paid.greaterThan(0.005)
-                  ? `${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}`
-                  : "оплат нет"}
-                <span className="mt-0.5 block text-xs font-normal text-neutral-500">
-                  остаток по аукциону {formatMoney(auctionPay.remaining.toString())}
-                  {auctionPay.planned.greaterThan(0) && ` · запланировано ${formatMoney(auctionPay.planned.toString())}`}
-                </span>
-              </>
-            }
-            warn={auctionPay.remaining.greaterThan(0)}
-          />
+          <>
+            <SummaryCard
+              label={
+                <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="inline-block text-blue-600 hover:underline max-md:py-2" title={`Оплаты ведутся по партии «${auctionPay.name}» целиком`}>
+                  Оплачено по партии
+                </Link>
+              }
+              value={auctionPay.paid.greaterThan(0.005) ? `${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}` : "оплат нет"}
+            />
+            <SummaryCard
+              label="Остаток по партии"
+              value={auctionPay.remaining.lessThan(-0.005) ? `переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.toString())}
+              note={auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
+              warn={auctionPay.remaining.greaterThan(0)}
+            />
+          </>
         ) : (
-          <SummaryCard label="Остаток к оплате" value={formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+          <>
+            <SummaryCard label="Оплачено" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
+            <SummaryCard label="Остаток к оплате" value={formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+          </>
         )}
       </div>
 
-      <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
-
-      <VerifyBlock kind="purchase" id={id} title="Подтверждение закупки" collapsed />
+      <details className="rounded-lg border border-neutral-200 bg-white">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>
+        <div className="border-t border-neutral-100 p-3">
+          <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
+        </div>
+      </details>
 
       <Card>
         <CardHeader>
@@ -704,6 +688,69 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       </Card>
 
 
+      {(() => {
+        // Как образовалась цена единицы: расчётный лист лота (цена, курс, сборы, выделка, перевозка, комиссия, НДС) и итог в рублях.
+        type BItem = { label: string; value: number };
+        const breakdownOf = (item: (typeof purchase.items)[number]): BItem[] => {
+          const raw = (item.lot?.costBreakdown ?? (item.costPlan as { costBreakdown?: unknown } | null)?.costBreakdown) as { items?: BItem[] } | null | undefined;
+          return Array.isArray(raw?.items) ? raw!.items! : [];
+        };
+        const rows = purchase.items
+          .map((item) => {
+            const plan = item.costPlan as { unitCostInclVat?: string } | null;
+            const unit = item.lot ? item.lot.unitCost : plan?.unitCostInclVat != null ? new Decimal(plan.unitCostInclVat) : null;
+            return { item, unit, qty: item.lot ? item.lot.quantityReceived : item.quantity, items: breakdownOf(item) };
+          })
+          .filter((r) => r.unit != null);
+        if (rows.length === 0) return null;
+        const num = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(v);
+        const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Из чего сложилась цена единицы</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-1">
+              <div className="hidden grid-cols-[1fr_6rem_9rem_9rem] gap-2 px-2 pb-1 text-xs text-neutral-500 sm:grid">
+                <span>Лот</span><span className="text-right">Кол-во</span><span className="text-right">Цена за ед., ₽ с НДС</span><span className="text-right">Всего, ₽</span>
+              </div>
+              {rows.map(({ item, unit, qty, items }) => (
+                <details key={item.id} className="rounded-md border border-neutral-200">
+                  <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
+                    <span className="col-span-2 sm:col-span-1">
+                      <span className="font-medium">{item.rawMaterial.name}</span>
+                      <span className="ml-2 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
+                    </span>
+                    <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
+                    <span className="text-right font-medium tabular-nums">{formatMoney(unit!.toFixed(2))}</span>
+                    <span className="col-span-2 text-right tabular-nums sm:col-span-1">{formatMoney(unit!.mul(qty).toFixed(2))}</span>
+                  </summary>
+                  <div className="border-t border-neutral-100 px-2 py-2 text-sm">
+                    {items.length === 0 ? (
+                      <p className="text-neutral-500">Расчётного листа по лоту нет: цена внесена как есть — {formatMoney(item.unitPrice.toFixed(2))} за ед. без НДС, НДС {item.vatRate.toString()}%.</p>
+                    ) : (
+                      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 sm:max-w-xl">
+                        {items.map((b, i) => (
+                          <div key={i} className="contents">
+                            <dt className="text-neutral-600">{b.label}</dt>
+                            <dd className="text-right tabular-nums">{num(b.value)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    <p className="mt-2 text-xs text-neutral-500">Итоговая цена за единицу в рублях с НДС: <b className="text-neutral-800">{formatMoney(unit!.toFixed(2))}</b> × {formatQty(qty.toString())} = {formatMoney(unit!.mul(qty).toFixed(2))}</p>
+                  </div>
+                </details>
+              ))}
+              <div className="mt-1 flex justify-between border-t border-neutral-200 px-2 pt-2 text-sm font-semibold">
+                <span>Итого по лотам</span>
+                <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {planItems.length > 0 && (
         <Card>
           <CardHeader>
@@ -759,36 +806,24 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       )}
 
 
-      <Card>
-       <details>
-        <summary className="cursor-pointer list-none p-4 text-base font-semibold hover:bg-neutral-50">
-          Все файлы закупки ({countLabel(docGroupCount, docRecords)})
-          <span className="ml-2 text-xs font-normal text-blue-700">показать ›</span>
-        </summary>
-        <CardContent className="flex flex-col gap-3">
-          <PurchaseDocumentsList
-            purchaseId={id}
-            files={docFiles}
-            drives={docDrives}
-            batchName={batchName}
-            canEdit={canEditRole}
-          />
-          {canEditRole && (
-            <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
-              <DocumentsForm
-                purchaseId={id}
-                hasBatch={!!batchName}
-                paymentTargets={
-                  hasRole(session.user.role, ["OWNER", "ADMIN"])
-                    ? purchase.payments.map((p) => ({ id: p.id, label: `${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}` }))
-                    : undefined
-                }
-              />
-            </div>
-          )}
-        </CardContent>
-       </details>
-      </Card>
+      {canEditRole && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Документы закупки</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DocumentsForm
+              purchaseId={id}
+              hasBatch={!!batchName}
+              paymentTargets={
+                hasRole(session.user.role, ["OWNER", "ADMIN"])
+                  ? purchase.payments.map((p) => ({ id: p.id, label: `${formatDate(p.paidAt)} · ${formatMoney(p.amount.toString())}` }))
+                  : undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -891,101 +926,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Оплаты</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {purchase.status === "CANCELLED" ? (
-            <p className="text-sm text-neutral-500">Закупка отменена — оплаты добавлять нельзя.</p>
-          ) : !canEditRole ? null : (
-            <div className="flex flex-col gap-3">
-              <div><PaymentFormButton label="Внести оплату (аванс, % от суммы, документы)" preset={{ side: "supplier", purchaseId: id }} /></div>
-              <PurchasePaymentForm purchaseId={id} balanceDue={balanceDue.toFixed(2)} />
-            </div>
-          )}
-          <ResponsiveRows
-            table={
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Дата</Th>
-                <Th>Способ</Th>
-                <Th>Сумма</Th>
-                <Th>П/п, заметка</Th>
-                {canEditRole && <Th></Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {purchase.payments.map((p) => (
-                <Tr key={p.id}>
-                  <Td>{formatDate(p.paidAt)}</Td>
-                  <Td>{METHOD_LABELS[p.method] ?? p.method}</Td>
-                  <Td>
-                    {formatMoney(p.amount.toString())}
-                    {p.status === "PENDING" && <span className="block text-xs text-amber-700">запланирована</span>}
-                  </Td>
-                  <Td>{[p.docRef ? (/^п\/п/i.test(p.docRef) ? p.docRef : `п/п ${p.docRef}`) : null, cleanNote(p.notes)].filter(Boolean).join(" · ") || "—"}</Td>
-                  {canEditRole && (
-                    <Td>
-                      <div className="flex items-center gap-1">
-                        {payEdit(p)}
-                        <PaymentDeleteButton
-                          amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                          action={async () => {
-                            "use server";
-                            await boundRemovePayment(p.id);
-                          }}
-                        />
-                      </div>
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-              {purchase.payments.length === 0 && (
-                <Tr>
-                  <Td colSpan={canEditRole ? 5 : 4} className="py-6 text-center text-neutral-500">
-                    Оплат пока нет
-                  </Td>
-                </Tr>
-              )}
-            </Tbody>
-          </Table>
-            }
-          >
-            {purchase.payments.map((p) => (
-              <RowCard
-                key={p.id}
-                title={formatMoney(p.amount.toString())}
-                subtitle={formatDate(p.paidAt)}
-                badge={p.status === "PENDING" ? <span className="text-xs text-amber-700">запланирована</span> : undefined}
-                fields={[
-                  { label: "Способ", value: METHOD_LABELS[p.method] ?? p.method },
-                  ...(p.docRef ? [{ label: "П/п, счёт", value: p.docRef }] : []),
-                  ...(cleanNote(p.notes) ? [{ label: "Заметка", value: cleanNote(p.notes) }] : []),
-                ]}
-                extra={
-                  canEditRole && (
-                    <div className="flex items-center gap-2">
-                      {payEdit(p)}
-                      <PaymentDeleteButton
-                        amountLabel={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                        action={async () => {
-                          "use server";
-                          await boundRemovePayment(p.id);
-                        }}
-                      />
-                    </div>
-                  )
-                }
-              />
-            ))}
-            {purchase.payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">Оплат пока нет</p>}
-          </ResponsiveRows>
-        </CardContent>
-      </Card>
-      <RecordHistory model="Purchase" recordId={purchase.id} />
-      <RecordComments entityType="Purchase" entityId={purchase.id} />
     </div>
     </ItemRowShared>
   );

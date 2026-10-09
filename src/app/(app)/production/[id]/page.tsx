@@ -15,7 +15,6 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
-import { VatLabel } from "@/components/vat-label";
 import { canEditProduction } from "@/lib/production-access";
 import { RemovePaymentButton } from "./remove-payment-button";
 import { OrderColorsEditButton, ProductionPaymentEditButton } from "./edit-buttons";
@@ -385,7 +384,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const markup =
     order.retailPrice && estimatedUnitCost.greaterThan(0) ? order.retailPrice.div(estimatedUnitCost) : null;
 
-  const marginHint = <InfoHint label="Что такое «Работа минус себестоимость»" wide>{MARGIN_HINT}</InfoHint>;
   const c4Info = (
     <>
       <Mode4Badge mode={c4Mode} />
@@ -528,12 +526,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     ));
 
   const furCost = furSum.incl;
+  const sumQty = (us: typeof furUsages) => us.reduce((a, u) => a.add(u.quantity), new Decimal(0));
+  const furQty = sumQty(furUsages);
+  const liningQty = sumQty(liningUsages);
+  const perUnit = (v: Decimal, q: Decimal) => (q.isZero() ? new Decimal(0) : v.div(q));
   const furCostExcl = furSum.excl;
   const liningCost = liningSum.incl;
   const liningCostExcl = liningSum.excl;
-  const margin = clientRevenue ? clientRevenue.sub(projectedTotal) : null;
   // Excl-VAT margin: same work revenue minus the excl-VAT cost, matching the toggle.
-  const marginExcl = clientRevenue ? clientRevenue.sub(projectedTotalExclVat) : null;
   const cancelBlockedReason =
     order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
   const qtyLabel =
@@ -547,23 +547,24 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     <Link key="model" href={`/models/${order.productModelId}`} className="font-medium text-neutral-800 underline underline-offset-2" title="Карточка изделия: состав, цена">
       <ArticleName model={order.productModel} />
     </Link>,
+    orderColors(order).length > 0 && `цвет: ${formatOrderColors(orderColors(order))}`,
+    clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
+    qtyLabel,
+    order.client && <span key="client" className="font-medium text-neutral-700">{order.client.name}</span>,
+    order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
+  ].filter((x) => Boolean(x)) as React.ReactNode[];
+  // Остальное о ТЗ — под «Подробнее»: сезон, договор, материал, подкладка, признаки меха.
+  const moreParts = [
     order.season && (
       <Link key="season" href={`/plan?season=${order.season.id}`} className="underline underline-offset-2" title="План и факт сезона">
         сезон {order.season.code}
       </Link>
     ),
-    orderColors(order).length > 0 && `цвет: ${formatOrderColors(orderColors(order))}`,
-    clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
-    qtyLabel,
-    order.startDate && `с ${formatDate(order.startDate)}`,
-    order.client && <span key="client" className="font-medium text-neutral-700">{order.client.name}</span>,
+    order.startDate && `начало ${formatDate(order.startDate)}`,
     order.client && clean(order.contractNumber) && contractLabel(clean(order.contractNumber)),
-    order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
     clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
-    furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.map((a) => (
-      <span key={a} className="ml-1 rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>
-    ))}</span>,
     clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
+    furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.join(", ")}</span>,
   ].filter((x) => Boolean(x)) as React.ReactNode[];
 
   return (
@@ -657,6 +658,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </span>
           ))}
         </p>
+        {moreParts.length > 0 && (
+          <details className="mt-1 text-sm text-neutral-500">
+            <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Подробнее о ТЗ</summary>
+            <p className="mt-1">
+              {moreParts.map((part, i) => (
+                <span key={i}>
+                  {i > 0 && " · "}
+                  {part}
+                </span>
+              ))}
+            </p>
+          </details>
+        )}
       </div>
 
       {canEdit ? (
@@ -676,32 +690,42 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 ring-1 ring-amber-300">Партия не указана</p>
       )}
 
-      <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4" aria-label="Главное по ТЗ">
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <dt className="text-xs text-neutral-500">Выпуск, шт.</dt>
-          <dd className="font-semibold">
-            {order.status === "COMPLETED" ? `${formatQty(order.producedQuantity.toString())} из ${formatQty(order.plannedQuantity.toString())}` : `план ${formatQty(order.plannedQuantity.toString())}`}
-          </dd>
+      {/* Из чего состоит ТЗ: материалы, расходы, работа — и итог; детали списания по лотам — в блоке ниже. */}
+      <section aria-label="Из чего состоит ТЗ" className="rounded-lg border border-neutral-200 bg-white p-3">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-neutral-800">Из чего состоит ТЗ</h2>
+          <span className="text-xs text-neutral-500">
+            {order.status === "COMPLETED" ? `выпуск ${formatQty(order.producedQuantity.toString())} из ${formatQty(order.plannedQuantity.toString())} шт.` : `план ${formatQty(order.plannedQuantity.toString())} шт.`}
+          </span>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <dt className="text-xs text-neutral-500">
-            Себестоимость{c4}
-            <InfoHint label="Что в себестоимости">Мех, подкладка и расходы ТЗ. Подробный расчёт ниже, в блоке «Расчёт и списание».</InfoHint>
-          </dt>
-          <dd className="font-semibold">{projectedTotal.isZero() ? "—" : <Money incl={projectedTotal} excl={projectedTotalExclVat} />}</dd>
-        </div>
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <dt className="text-xs text-neutral-500">Работа заказчику</dt>
-          <dd className="font-semibold">{clientRevenue ? formatMoney(clientRevenue.toString()) : "не указана"}</dd>
-        </div>
-        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
-          <dt className="text-xs text-neutral-500">Оплачено</dt>
-          <dd className="font-semibold">
-            {order.client ? formatMoney(paidTotal.toString()) : "—"}
-            {balanceDue && balanceDue.greaterThan(0.005) && <span className="block text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span>}
-          </dd>
-        </div>
-      </dl>
+        <dl className="divide-y divide-neutral-100 text-sm">
+          <SummaryLine
+            label={<>{`Мех${c4}`}<span className="ml-2 text-xs font-normal text-neutral-500">{formatQty(furQty.toString())} шт. · ср. <Money incl={perUnit(furCost, furQty)} excl={perUnit(furCostExcl, furQty)} /> за шт.</span></>}
+            value={<Money incl={furCost} excl={furCostExcl} />}
+          />
+          {showLining && (
+            <SummaryLine
+              label={<>{`Подкладка${c4}`}<span className="ml-2 text-xs font-normal text-neutral-500">{formatQty(liningQty.toString())} м · ср. <Money incl={perUnit(liningCost, liningQty)} excl={perUnit(liningCostExcl, liningQty)} /> за м</span></>}
+              value={<Money incl={liningCost} excl={liningCostExcl} />}
+            />
+          )}
+          <SummaryLine label="Расходы" value={formatMoney(expenseCost.toString())} />
+          {clientRevenue ? <SummaryLine label="Итого сырьё и расходы" value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />} /> : null}
+          {clientRevenue ? <SummaryLine label={`Работа: ${formatMoney(order.clientWorkPricePerUnit!.toString())} × ${formatQty(producedOrPlanned.toString())} шт.`} value={formatMoney(clientRevenue.toString())} /> : <SummaryLine label="Работа" value="не указана" />}
+          <SummaryLine
+            label={<>{`Всего себестоимость${c4}`}{c4Info}</>}
+            value={<Money incl={projectedTotal.add(clientRevenue ?? 0)} excl={projectedTotalExclVat.add(clientRevenue ?? 0)} />}
+            strong
+          />
+          <SummaryLine label={"На 1 изделие" + c4} value={<Money incl={estimatedUnitCost.add(producedOrPlanned.isZero() ? 0 : (clientRevenue ?? new Decimal(0)).div(producedOrPlanned))} excl={estimatedUnitCostExclVat.add(producedOrPlanned.isZero() ? 0 : (clientRevenue ?? new Decimal(0)).div(producedOrPlanned))} />} />
+          {order.client ? (
+            <SummaryLine
+              label="Оплачено заказчиком"
+              value={<>{formatMoney(paidTotal.toString())}{balanceDue && balanceDue.greaterThan(0.005) ? <span className="ml-2 text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span> : null}</>}
+            />
+          ) : null}
+        </dl>
+      </section>
 
       <Section id="calc" title="Расчёт и списание" defaultOpenMobile>
       <Card>
@@ -709,31 +733,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <CardTitle>Расчёт и списание</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white text-sm lg:hidden">
-            <SummaryLine label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
-            {showLining && <SummaryLine label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />}
-            <SummaryLine label="Итого расходы" value={formatMoney(expenseCost.toString())} />
-            <SummaryLine
-              label={<>{`Итого себестоимость${c4}`}{c4Info}</>}
-              value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
-              strong
-            />
-            <SummaryLine
-              label={(order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)") + c4}
-              value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
-              strong
-            />
-            {clientRevenue && margin && (
-              <>
-                <SummaryLine label="Работа для заказчика" value={formatMoney(clientRevenue.toString())} />
-                <SummaryLine
-                  label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
-                  value={<Money incl={margin} excl={marginExcl} />}
-                  className={margin.lessThan(0) ? "text-amber-700" : undefined}
-                />
-              </>
-            )}
-          </dl>
           <ResponsiveRows
             table={
           <Table>
@@ -762,7 +761,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <SectionRow>Мех</SectionRow>
               {usageRows(furUsages, allFurLots)}
               {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
-              <TotalRow label={`Итого мех${c4}`} value={<Money incl={furCost} excl={furCostExcl} />} />
+              <TotalRow label={`Итого мех${c4} · ${formatQty(furQty.toString())} шт.`} value={<Money incl={furCost} excl={furCostExcl} />} />
 
               {showLining && (
                 <>
@@ -779,7 +778,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       )}
                     </EmptyRow>
                   )}
-                  <TotalRow label={`Итого подкладка${c4}`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+                  <TotalRow label={`Итого подкладка${c4} · ${formatQty(liningQty.toString())} м`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
                 </>
               )}
 
@@ -787,32 +786,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               {expenseRows("row")}
               <TotalRow label="Итого расходы" value={formatMoney(expenseCost.toString())} />
 
-              <TotalRow
-                label={<>{`Итого себестоимость${c4}`}{c4Info}</>}
-                value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />}
-                strong
-              />
-              <TotalRow
-                label={(order.unitCost ? "Себестоимость за единицу" : "Себестоимость за единицу (оценка)") + c4}
-                value={<Money incl={estimatedUnitCost} excl={estimatedUnitCostExclVat} />}
-                strong
-              />
-              <SectionRow>Работа для заказчика</SectionRow>
-              {clientRevenue && margin ? (
-                <>
-                  <TotalRow
-                    label={`Работы: ${formatMoney(order.clientWorkPricePerUnit!.toString())} × ${formatQty(producedOrPlanned.toString())} шт. =`}
-                    value={formatMoney(clientRevenue.toString())}
-                  />
-                  <TotalRow
-                    label={<><VatLabel base={`Работа минус себестоимость${c4}`} />{marginHint}</>}
-                    value={<Money incl={margin} excl={marginExcl} />}
-                    className={margin.lessThan(0) ? "text-amber-700" : undefined}
-                  />
-                </>
-              ) : (
-                <EmptyRow>Цена работы для заказчика не указана</EmptyRow>
-              )}
             </Tbody>
           </Table>
             }
@@ -899,11 +872,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </Card>
       </Section>
 
-      <Section id="verify" title="Подтверждение ТЗ" defaultOpenMobile>
+      <Section id="verify" title="Подтверждение ТЗ" collapsed>
         <VerifyBlock kind="order" id={id} title="Подтверждение ТЗ" />
       </Section>
 
-      <Section id="docpay" title="Документы и оплата" defaultOpenMobile>
+      <Section id="docpay" title="Документы и оплата" collapsed>
         <OrderDocsPay orderId={id} />
       </Section>
 
@@ -1039,7 +1012,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         </Section>
       )}
 
-      <Section id="ship" title="Отгрузки и примерки">
+      <Section id="ship" title="Отгрузки и примерки" collapsed>
         {shipmentCount === 0 && fittingCount === 0 ? (
           <p className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
             <span>Отгрузки (0) · Примерки (0)</span>
@@ -1063,7 +1036,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         )}
       </Section>
 
-      <Section id="drive" title="Документы">
+      <Section id="drive" title="Документы" collapsed>
         <Card>
           <CardContent className="pt-4">
             <DriveDocuments
@@ -1086,7 +1059,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         </Card>
       </Section>
 
-      <Section id="finish" title="Завершение и цена" defaultOpenMobile>
+      <Section id="finish" title="Завершение и розничная цена" collapsed>
       {canEdit && order.status === "COMPLETED" && (
         <div className="rounded-lg border border-neutral-200 bg-white p-3">
           <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />

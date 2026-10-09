@@ -31,6 +31,8 @@ function fmtDate(iso: string | null): string {
 export function DocBadge({ entity, id, count, title, className = "" }: { entity: DocEntity; id: string; count: number; title?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const none = count === 0;
+  // Нет документов — ничего не показываем (загрузка — внутри карточки); есть — компактная иконка с числом.
+  if (none && !open) return null;
   return (
     <>
       <button

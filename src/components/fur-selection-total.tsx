@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatMoney, formatQty, cn } from "@/lib/utils";
-import { useCommission4Display } from "@/lib/commission4-display";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
@@ -48,7 +47,8 @@ export function FurSelectionTotal({
   const router = useRouter();
   const unit = kind === "lining" ? "м" : "шт.";
   const unitWord = kind === "lining" ? "метр" : "шкуру";
-  const { mode: c4 } = useCommission4Display();
+  // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
+  const c4 = "off" as "on" | "off";
   const { mode: vat } = useVatDisplay();
   const mode = useMemo(() => ({ vat, c4 }), [vat, c4]);
 
@@ -132,14 +132,11 @@ export function FurSelectionTotal({
     { key: "used", title: "Использовано", what: "использования", extra: "4% начисляется только на строки списания, где оно разрешено.", qty: (f: FlowFigures) => f.usedQty, val: (f: FlowFigures) => f.usedValue, avg: (f: FlowFigures) => f.usedAvg },
     { key: "rem", title: "Остаток", what: "остатка", extra: "4% к остатку не применяется (оно начисляется при списании в ТЗ).", qty: (f: FlowFigures) => f.remQty, val: (f: FlowFigures) => f.remValue, avg: (f: FlowFigures) => f.remAvg },
   ] as const;
-  const perGroup = (showQty ? 1 : 0) + (showMoney ? 2 : 0);
+  const perGroup = (showQty ? 1 : 0) + (showMoney ? 1 : 0);
   const groupHead = (
     <tr>
       <th rowSpan={2} className="sticky left-0 z-10 bg-neutral-50 px-3 py-2 text-left align-bottom font-medium">
-        <label className="flex items-center gap-2">
-          <input ref={headRef} type="checkbox" checked={allChecked} onChange={() => setSelected(allChecked ? [] : allVisible)} aria-label="Выбрать все строки" className="size-4 accent-neutral-900" />
-          <span>{kind === "lining" ? "Подкладка" : "Мех"}</span>
-        </label>
+        <span>{kind === "lining" ? "Подкладка" : "Мех"}</span>
       </th>
       {GROUPS.map((g) => (
         <th key={g.key} colSpan={perGroup} className="border-l border-neutral-200 px-3 pb-1 pt-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{g.title}</th>
@@ -152,7 +149,6 @@ export function FurSelectionTotal({
         <Fragment key={g.key}>
           {showQty && <Th first>{g.title}, {unit}</Th>}
           {showMoney && <Th first={!showQty}>{g.title}, ₽</Th>}
-          {showMoney && <Th>Ср. цена, ₽/{unit}{avgHint(g.what, g.extra)}</Th>}
         </Fragment>
       ))}
     </>
@@ -172,14 +168,13 @@ export function FurSelectionTotal({
               <Num first={!showQty} strong={o.strong} small={o.small}>{R(g.val(f))}</Num>
             )
           )}
-          {showMoney && <Num strong={o.strong} small={o.small} muted>{R(g.avg(f))}</Num>}
         </Fragment>
       ))}
     </>
   );
   const nCols = 1 + 3 * perGroup;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
-  const widthClass = view === "qty" ? "min-w-[520px]" : view === "money" ? "min-w-[990px]" : "min-w-[1290px]";
+  const widthClass = "min-w-[860px]";
 
   // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
   // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
@@ -222,14 +217,6 @@ export function FurSelectionTotal({
         >
           <td className={cn("sticky left-0 z-10 px-3 py-2", isSel ? "bg-amber-50" : "bg-white")}>
             <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={isSel}
-                onClick={(e) => e.stopPropagation()}
-                onChange={() => toggleSel(row.key)}
-                aria-label={`Выбрать для тотала: ${row.label}`}
-                className="mt-1 size-4 shrink-0 accent-neutral-900"
-              />
               <button type="button" aria-expanded={open} className="min-w-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(gk); }}>
                 <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
                 <span className="font-medium">{row.label}</span>
@@ -319,6 +306,8 @@ export function FurSelectionTotal({
   return (
     <div className="space-y-3">
       <LocalFilterBar
+        oneRow
+        hideChips
         title={kind === "lining" ? "Фильтры подкладки" : "Фильтры меха"}
         controls={controls}
         values={{ ...filters, q: q ? [q] : [] }}
@@ -335,18 +324,6 @@ export function FurSelectionTotal({
           else setFilter(name as FilterKey, v);
         }}
         onReset={() => { setFilters(emptyFilters()); setQ(""); }}
-        footer={
-          <>
-            <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
-              Число у пункта — лотов
-              <InfoHint label="О фильтрах" align="left">
-                {options.year.length > 1 || filters.year.length > 0
-                  ? `«Год закупки» — дополнительный фильтр внутри общего года из шапки (сейчас: ${globalYear === "all" ? "все годы" : `${globalYear} год`}). Число у пункта — лотов.`
-                  : "Число у пункта — лотов. Фильтры, у которых в данных одно значение, не показываются."}
-              </InfoHint>
-            </p>
-          </>
-        }
       />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
@@ -358,29 +335,6 @@ export function FurSelectionTotal({
         )}
         {usdNote && <span className="inline-flex items-center gap-1">Цена в $: <b className="text-neutral-900">{usdNote}</b>/{unit}
           <InfoHint label="Как считается цена в $" align="left">Средняя по {t.usdQty.toLocaleString("ru-RU")} из {t.recvQty.toLocaleString("ru-RU")} шт. — только лоты с ценой в USD: в долларах в расчёте, евро × курс из расчёта, молоток ₽ ÷ курс USD/RUB из расчёта.</InfoHint></span>}
-        <span className="ml-auto flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            {([["all", "Все"], ["sel", "Только выбранные"]] as const).map(([key, label]) => {
-              const active = (key === "sel") === onlySelected;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={key === "sel" && selectedHere === 0}
-                  onClick={() => setOnlySelected(key === "sel")}
-                  className={cn("rounded-md px-3 py-1.5 disabled:opacity-40", active ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50")}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </span>
-          <span className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5">
-            {([["qty", `${unit}`], ["money", "₽"], ["all", "Все"]] as const).map(([key, label]) => (
-              <button key={key} type="button" onClick={() => setView(key)} className={cn("rounded-md px-3 py-1.5", view === key ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50")}>{label}</button>
-            ))}
-          </span>
-        </span>
       </div>
 
       {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75% высоты экрана. */}
@@ -401,37 +355,12 @@ export function FurSelectionTotal({
             <tr>{colsHead}</tr>
           </thead>
           <tbody>
-            <tr data-total className="border-t border-neutral-200 bg-neutral-100/70 text-[15px] font-semibold">
-              <td className="sticky left-0 z-10 bg-neutral-100 px-3 py-2.5 text-left font-semibold">
-                {table.totalOf === "selected" ? `Итого выбранное (${selectedHere} из ${allVisible.length})` : `Итого (${table.rows.length} ${kind === "lining" ? "ткан." : "вид."})`}
-                <div className="text-[11px] font-normal text-neutral-500">{table.total.lots} лот.{hasFilters(filters) || needle ? " · по фильтрам" : ""} · {vatWord}</div>
-              </td>
-              {cells(t, { strong: true, altUsed: true })}
-            </tr>
-            {mainRows.map((r) => renderRow(r))}
+            {table.rows.map((r) => renderRow(r))}
             {table.rows.length > 0 && (
-              <>
-                <tr data-block="with-tz" className="border-t-2 border-neutral-300 bg-neutral-50/70 text-[13px] font-medium">
-                  <td className="sticky left-0 z-10 bg-neutral-50 px-3 py-2">
-                    Лоты с ТЗ<span className="ml-1.5 text-xs font-normal text-neutral-500">{mainTotal.lots} лот.</span>
-                  </td>
-                  {cells(mainTotal, { small: true })}
-                </tr>
-                <tr data-block="no-tz" onClick={() => toggleExp("z:block")} className="cursor-pointer border-t border-neutral-200 bg-amber-50/50 text-[13px] font-medium hover:bg-amber-50">
-                  <td className="sticky left-0 z-10 bg-amber-50 px-3 py-2">
-                    <button type="button" aria-expanded={noTzOpen} className="text-left" onClick={(e) => { e.stopPropagation(); toggleExp("z:block"); }}>
-                      <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", noTzOpen && "rotate-90")}>›</span>
-                      Лоты без ТЗ — не использованы
-                      <span className="ml-1.5 text-xs font-normal text-neutral-500">{noTzLots} лот.</span>
-                    </button>
-                  </td>
-                  {cells(noTzTotal, { small: true })}
-                </tr>
-                {noTzOpen && noTzRows.map((r) => renderRow(r, "z:"))}
-                {noTzOpen && noTzRows.length === 0 && (
-                  <tr><td colSpan={nCols} className="px-3 py-3 pl-9 text-xs text-neutral-500">Все лоты использованы в ТЗ</td></tr>
-                )}
-              </>
+              <tr data-total className="border-t-2 border-neutral-300 bg-neutral-100/70 text-[14px] font-semibold">
+                <td className="sticky left-0 z-10 bg-neutral-100 px-3 py-2.5 text-left font-semibold">Всего</td>
+                {cells(t, { strong: true, altUsed: true })}
+              </tr>
             )}
             {table.rows.length === 0 && (
               <tr><td colSpan={nCols} className="px-3 py-6 text-center text-neutral-500">{lots.length === 0 ? "Закупок за выбранный период нет" : "Нет данных по выбранным фильтрам"}</td></tr>
@@ -439,13 +368,6 @@ export function FurSelectionTotal({
           </tbody>
         </table>
       </div>
-      <p className="flex items-center gap-1 px-1 text-[11px] leading-4 text-neutral-500">
-        Как читать таблицу
-        <InfoHint label="Как читать таблицу" wide>
-          {unitWord === "шкуру" ? "Цены — за шкуру, " : "Цены — за метр, "}
-          ₽ показаны {vatWord}; «использовано» — {c4Word} (4% — только строки списания в ТЗ, где оно разрешено; в другой базе: переключатель «4% к сырью» в шапке); остаток = куплено − использовано (шт. и ₽ без 4%).
-        </InfoHint>
-      </p>
     </div>
   );
 }
