@@ -343,7 +343,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
       </div>
 
-      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" />
+      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" />
 
       <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Вид списка">
         <span className="text-xs text-neutral-500">Вид:</span>

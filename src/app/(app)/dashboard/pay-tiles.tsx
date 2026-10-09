@@ -3,6 +3,7 @@ import type { YearFilter } from "@/lib/year-filter";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import type { DashboardData } from "@/lib/dashboard-data";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
 import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -17,7 +18,7 @@ function isPastRu(date: string): boolean {
  * Три плитки оплат: «Общая стоимость», «Оплачено», «К оплате» — одни и те же цифры на Главной и в «Оплаты → Все».
  * Всегда с НДС; 4% отдельной суммой не добавляются (оплачены в составе оплат ТЗ).
  */
-export function PayTiles({ d, c4Mode, year, only }: { d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
+export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты" }: { /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
   const { debt } = d;
   const mln = (v: number) => formatCompactMoney(v);
   const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
@@ -58,6 +59,7 @@ export function PayTiles({ d, c4Mode, year, only }: { d: DashboardData; c4Mode: 
   ];
 
   return (
+    <WidgetRow id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
     <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
       <div className={TILE_BOX}>
         <TileHead>Общая стоимость</TileHead>
@@ -101,5 +103,6 @@ export function PayTiles({ d, c4Mode, year, only }: { d: DashboardData; c4Mode: 
         ) : null}
       </div>
     </div>
+    </WidgetRow>
   );
 }

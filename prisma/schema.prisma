@@ -1459,8 +1459,8 @@ model ProductionOrderAttr {
 }
 
 
-/// Бюджет сезона (раздел «Бюджет»): прикидка расхода шкур, подкладки и работы по бюджету изделий.
-/// Параметры (настраиваемые надбавки в %) и строки хранятся одним JSON — см. src/lib/budget-calc.ts.
+/// Версия бюджета (раздел «Бюджет»): прикидка расхода шкур, подкладки и работы по бюджету изделий.
+/// Версий на сезон может быть несколько. Параметры (надбавки в %) и дерево «тип сырья → категория → артикул» хранятся JSON — см. src/lib/budget-calc.ts.
 model BudgetScenario {
   id             String       @id @default(cuid())
   organizationId String
@@ -1468,11 +1468,17 @@ model BudgetScenario {
   /// Сезон: «FW27»
   season         String
   name           String
+  /// DRAFT — черновик (редактируется), APPROVED — утверждён (только просмотр)
+  status         String       @default("DRAFT")
+  comment        String?
+  /// Версия, из которой эта получена копированием
+  parentId       String?
   params         Json
   lines          Json
   updatedAt      DateTime     @updatedAt
   createdAt      DateTime     @default(now())
+  createdBy      String?
   updatedBy      String?
 
-  @@unique([organizationId, season])
+  @@index([organizationId, season])
 }

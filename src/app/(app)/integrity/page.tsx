@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
 import { requireSession } from "@/lib/session";
 import { getIntegrityReport } from "@/lib/integrity";
@@ -55,6 +56,7 @@ export default async function IntegrityPage() {
       {!r && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">Проверка не выполнилась (подробности в логе сервера). Нажмите «Проверить сейчас».</div>}
       {r && (
         <>
+          <WidgetRow id="integrity" title="Самопроверка — итоги">
           <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {[
               { k: "Ошибок", v: r.failingErrors, tone: r.failingErrors ? "text-red-700" : "text-emerald-700" },
@@ -69,6 +71,7 @@ export default async function IntegrityPage() {
               </div>
             ))}
           </div>
+          </WidgetRow>
           {groups.map((g) => (
             <section key={g} className="space-y-1.5">
               <h2 className="text-base font-semibold">{g}</h2>

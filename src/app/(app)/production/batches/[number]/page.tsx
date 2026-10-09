@@ -167,6 +167,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         orders={drill}
         c4={c4Mode}
         treeId="batch-tree"
+        id="batch"
+        title="Партия — итоги"
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>

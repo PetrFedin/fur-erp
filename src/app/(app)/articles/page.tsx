@@ -351,6 +351,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         orders={drill}
         c4={c4Mode}
         treeId="orders-tree"
+        id="articles"
+        title="Изделия — итоги"
         extraCount={2}
         extra={
           <>

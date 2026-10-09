@@ -1,33 +1,28 @@
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { loadBudgetStats } from "@/lib/budget-stats";
-import { DEFAULT_PARAMS, autoCalc, defaultLines, type BudgetLine, type BudgetParams } from "@/lib/budget-calc";
-import { BudgetEditor } from "./budget-editor";
+import { DEFAULT_PARAMS, grandTotal, nowPerUnit, parseNodes, perUnit, varPct, type BudgetParams } from "@/lib/budget-calc";
+import { BudgetList, type BudgetSummary } from "./budget-list";
 
 export const metadata = { title: "Бюджет" };
 
-const SEASON = "FW27";
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
 
-export default async function BudgetPage() {
+export default async function BudgetListPage() {
   const session = await requireSession();
-  const orgId = session.user.organizationId;
-  const [saved, stats] = await Promise.all([
-    prisma.budgetScenario.findUnique({ where: { organizationId_season: { organizationId: orgId, season: SEASON } } }),
-    loadBudgetStats(orgId),
-  ]);
-  const params: BudgetParams = saved ? { ...DEFAULT_PARAMS, ...(saved.params as Partial<BudgetParams>) } : DEFAULT_PARAMS;
-  // Первый заход: строки по бюджету, всё кроме рыси заполнено автоматически из данных системы; рысь — вручную.
-  const lines: BudgetLine[] = saved ? (saved.lines as unknown as BudgetLine[]) : autoCalc(defaultLines(), stats, params);
-  return (
-    <BudgetEditor
-      season={SEASON}
-      initialParams={params}
-      initialLines={lines}
-      initialStats={stats}
-      canEdit={EDIT_ROLES.includes(session.user.role)}
-      savedAt={saved?.updatedAt.toISOString() ?? null}
-      savedBy={saved?.updatedBy ?? null}
-    />
-  );
+  const rows = await prisma.budgetScenario.findMany({
+    where: { organizationId: session.user.organizationId },
+    orderBy: { updatedAt: "desc" },
+  });
+  const names = new Map(rows.map((r) => [r.id, r.name]));
+  const items: BudgetSummary[] = rows.map((r) => {
+    const params: BudgetParams = { ...DEFAULT_PARAMS, ...(r.params as Partial<BudgetParams>) };
+    const t = grandTotal(parseNodes(r.lines), params);
+    return {
+      id: r.id, name: r.name, season: r.season, status: r.status === "APPROVED" ? "APPROVED" : "DRAFT", comment: r.comment,
+      parentName: r.parentId ? (names.get(r.parentId) ?? null) : null,
+      total: t.total, pcs: t.pcs, perUnit: perUnit(t), nowPerUnit: nowPerUnit(t), varPct: varPct(t),
+      updatedAt: r.updatedAt.toISOString(), updatedBy: r.updatedBy,
+    };
+  });
+  return <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />;
 }

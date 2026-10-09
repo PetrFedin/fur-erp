@@ -128,6 +128,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         orders={drill}
         c4={c4Mode}
         treeId="orders-tree"
+        id="batches"
+        title="Партии — итоги"
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>

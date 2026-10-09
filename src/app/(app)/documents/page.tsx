@@ -1,4 +1,5 @@
 import { auctionLabeler } from "@/lib/filter-options";
+import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
@@ -139,12 +140,14 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       </div>
 
       {/* ---------- сводка */}
+      <WidgetRow id="docs-coverage" title="Покрытие документами">
       <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
         {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
         ))}
       </section>
+      </WidgetRow>
 
       <TodoSummary organizationId={orgId} year={yf} />
 

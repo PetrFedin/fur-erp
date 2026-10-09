@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -72,6 +73,7 @@ export default async function DocumentAnalysisPage() {
         <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600">{yearLabel(year)}</span>
       </div>
 
+      <WidgetRow id="docs-summary" title="Анализ документов — итоги">
       <section className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Google Drive · «Мех»</TileHead>
@@ -99,11 +101,13 @@ export default async function DocumentAnalysisPage() {
           <Link href="/verify" className="mt-1 inline-block text-xs text-blue-700 hover:underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
         </div>
       </section>
+      </WidgetRow>
 
       <section className="space-y-2">
         <div>
           <h2 className="text-base font-semibold">Где именно не хватает документа</h2>
         </div>
+        <WidgetRow id="docs-gaps" title="Где не хватает документа">
         <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {tiles.map(([key, label, href]) => {
             const s = section.get(key);
@@ -117,6 +121,7 @@ export default async function DocumentAnalysisPage() {
             );
           })}
         </div>
+        </WidgetRow>
       </section>
 
       <section className="space-y-2">

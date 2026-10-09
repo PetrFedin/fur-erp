@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -94,6 +95,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           </InfoHint></div>
       </div>
 
+      <WidgetRow id="verify" title="Очередь проверки — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
         {[
           { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
@@ -108,6 +110,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           </div>
         ))}
       </div>
+      </WidgetRow>
 
       <BulkVerify items={bulkItems} canEdit />
 

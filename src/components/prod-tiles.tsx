@@ -6,6 +6,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "@/app/(app)/dashboard/tile";
 
 const money = (v: number) => formatMoney(v.toFixed(2));
@@ -15,7 +16,7 @@ const money = (v: number) => formatMoney(v.toFixed(2));
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
  * `extra` — дополнительные плитки страницы (оплаты партий, склад и т. п.).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0 }: { orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство" }: { id?: string; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
@@ -26,6 +27,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const share = (v: number, t: number) => (t ? v / t : null);
   const link = (href: string) => ({ href, className: TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none" });
   return (
+    <WidgetRow id={id} title={title}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
       <div className="relative">
         <a {...link(`#${treeId}`)} aria-label="Произведено — перейти к составу">
@@ -81,5 +83,6 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       </div>
       {extra}
     </div>
+    </WidgetRow>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getYearFilter } from "@/lib/year-filter";
@@ -515,6 +516,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       </div>
 
       {/* Сводка */}
+      <WidgetRow id="pricing" title="Цены и наценка — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-4">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Моделей с завершёнными ТЗ</TileHead>
@@ -539,6 +541,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           <TileValue>{target != null ? `×${(1 + target / 100).toFixed(2).replace(".", ",")}` : "не задана"}</TileValue>
         </div>
       </div>
+      </WidgetRow>
 
       {/* Параметры и фильтры */}
       <AnalyticsFilterBar

@@ -5,6 +5,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 
 const money = (v: number) => formatMoney(v.toFixed(2));
@@ -16,6 +17,7 @@ export function RepairTiles({ orders, c4 }: { orders: DrillOrder[]; c4: "on" | "
   const total = sumTotal(s);
   const share = (v: number) => (total ? v / total : null);
   return (
+    <WidgetRow id="repair" title="Ремонт">
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <div className={TILE_BOX + " relative shadow-sm print:shadow-none"}>
         <TileHead>Ремонт</TileHead>
@@ -46,5 +48,6 @@ export function RepairTiles({ orders, c4 }: { orders: DrillOrder[]; c4: "on" | "
         </div>
       </div>
     </div>
+    </WidgetRow>
   );
 }

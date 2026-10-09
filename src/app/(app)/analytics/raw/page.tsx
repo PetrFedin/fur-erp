@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { Decimal } from "@prisma/client/runtime/library";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
@@ -227,6 +228,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       )}
 
       {/* Итоги */}
+      <WidgetRow id="raw" title="Аналитика сырья — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"
@@ -299,6 +301,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           </div>
         </div>
       </div>
+      </WidgetRow>
 
       {/* Фильтры */}
       <FilterBar

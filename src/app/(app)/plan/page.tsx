@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -209,6 +210,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             <p className="text-sm text-neutral-500">Позиций плана пока нет{canEdit ? " — добавьте их формой ниже" : ""}.</p>
           ) : (
             <>
+              <WidgetRow id="plan" title="План — выполнение">
               <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 {[
                   ["План, шт.", totals.plan, "по позициям плана"],
@@ -224,6 +226,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   </div>
                 ))}
               </div>
+              </WidgetRow>
               <div className="h-2 overflow-hidden rounded-full bg-neutral-100" title={`${pct(totals.produced, totals.plan)}%`}>
                 <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, pct(totals.produced, totals.plan))}%` }} />
               </div>

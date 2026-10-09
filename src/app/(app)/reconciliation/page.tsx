@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
 import { requireSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
@@ -231,13 +232,17 @@ export default async function ReconciliationPage() {
       ) : null}
 
       <section className="space-y-2" aria-label="Итоги">
-        <SummaryCard title="Итого по всему реестру" t={totalAll} />
-        <div className="grid gap-2 md:grid-cols-2">
-          {sections.map((sec) => {
-            const t = totalsOf(calcAll.filter((c) => c.inv.section === sec.key));
-            return <SummaryCard key={sec.key} title={sec.title} t={t} />;
-          })}
-        </div>
+        <WidgetRow id="recon" title="Сверка — итоги">
+          <div className="space-y-2">
+            <SummaryCard title="Итого по всему реестру" t={totalAll} />
+            <div className="grid gap-2 md:grid-cols-2">
+              {sections.map((sec) => {
+                const t = totalsOf(calcAll.filter((c) => c.inv.section === sec.key));
+                return <SummaryCard key={sec.key} title={sec.title} t={t} />;
+              })}
+            </div>
+          </div>
+        </WidgetRow>
         <Card className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
           <span>
             Есть в документах, нет в базе: <b className="tabular-nums">{money(missingRub)}</b> по {missingInDb.length} счетам

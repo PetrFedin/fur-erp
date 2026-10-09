@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "../dashboard/tile";
 
 export type BarRow = { name: string; year: number | null; month?: number; value: number };
@@ -94,6 +95,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
 
   return (
     <>
+      <WidgetRow id="payments" title="Оплаты — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-pay-tiles>
         <Tile label="Общая стоимость" value={rub(paid.total + debt.total)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={split ? stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining) : undefined} />
         <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />
@@ -101,6 +103,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
           {deadlines}
         </Tile>
       </div>
+      </WidgetRow>
       {open && (
         <dialog ref={ref} onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">

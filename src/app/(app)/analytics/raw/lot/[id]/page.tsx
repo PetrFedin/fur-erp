@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { cleanNote } from "@/lib/note-tags";
 import { notFound } from "next/navigation";
@@ -177,6 +178,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       </Card>
 
       {/* Итоги движения: те же плитки и подписи, что на Главной (Куплено = Использовано + Остаток) */}
+      <WidgetRow id="lot" title="Лот — движение">
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div className={TILE_BOX}>
           <TileHead>Куплено</TileHead>
@@ -210,6 +212,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           <div className="mt-3 text-xs text-neutral-500">корректировки, потери — не через ТЗ</div>
         </div>
       </div>
+      </WidgetRow>
 
       {/* Из чего состоит цена лота */}
       {(() => {

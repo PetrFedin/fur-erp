@@ -247,7 +247,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
   const tiles = (
     <div className="space-y-3" data-raw-tiles>
-      <RawCards view={tab === "lining" ? "lining" : "fur"} rows={dash.rawTable} fur={dash.raw.fur} lining={dash.raw.lining} c4={c4Mode} hideLabel />
+      <RawCards view={tab === "lining" ? "lining" : "fur"} rows={dash.rawTable} fur={dash.raw.fur} lining={dash.raw.lining} c4={c4Mode} />
       <PayTiles d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />
     </div>
   );

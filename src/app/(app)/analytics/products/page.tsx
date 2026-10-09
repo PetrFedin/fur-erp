@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -285,6 +286,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       </div>
 
       {/* Сводка по статусам ТЗ: плитки в формате Главной */}
+      <WidgetRow id="products" title="Аналитика изделий — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
@@ -356,6 +358,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           </div>
         </div>
       </div>
+      </WidgetRow>
 
       {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются) */}
       <AnalyticsFilterBar

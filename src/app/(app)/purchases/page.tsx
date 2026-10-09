@@ -1,4 +1,5 @@
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
+import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -250,6 +251,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ]}
       />
 
+      <WidgetRow id="purchases" title="Закупки — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-testid="purchases-totals">
         <div className={TILE_BOX}>
           <TileHead><VatLabel base="Куплено" /></TileHead>
@@ -272,6 +274,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           <TileCaption>{boughtTotal.greaterThan(0) ? `${restTotal.div(boughtTotal).mul(100).toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
         </div>
       </div>
+      </WidgetRow>
 
       <div role="tablist" aria-label="Вид таблицы закупок" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
         <span>Вид:</span>

@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "../dashboard/tile";
 
 /** ТЗ с неоплаченной работой: что именно не оплачено. */
@@ -111,11 +112,13 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   }, [open]);
   return (
     <>
+      <WidgetRow id="goods" title="Оплата работы — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-goods-tiles>
         <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(total), share: total > 0.5 ? 1 : null }]} />
         <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(paid), share: total > 0.5 ? paid / total : null }]} />
         <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} items={[{ k: "Работа", v: rub(balance), share: total > 0.5 ? balance / total : null, tone: balance > 0.5 ? "text-amber-700" : undefined }]} />
       </div>
+      </WidgetRow>
       {open && (
         <dialog ref={ref} onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-4xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">

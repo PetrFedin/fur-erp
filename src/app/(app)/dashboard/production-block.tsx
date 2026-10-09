@@ -8,6 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ProductionModal } from "./production-modal";
 import { ProductionTable } from "./production-table";
 import { AveragesTile } from "./averages";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
@@ -59,6 +60,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
         </div>
       </div>
+      <WidgetRow id="prod" title="Производство — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3 print:grid-cols-2">
         <div className="relative">
           <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
@@ -107,6 +109,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
         </div>
         <AveragesTile search={search} />
       </div>
+      </WidgetRow>
       <ProductionTable search={search} />
       {open ? (
         <ProductionModal

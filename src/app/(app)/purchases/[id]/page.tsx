@@ -1,4 +1,5 @@
 
+import { WidgetRow } from "@/components/widget-row";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import Link from "next/link";
 import { cleanNote } from "@/lib/note-tags";
@@ -565,6 +566,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
+      <WidgetRow id="purchase" title="Закупка — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
         <SummaryCard
           label={<VatLabel base="Итого, RUB" />}
@@ -596,6 +598,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           </>
         )}
       </div>
+      </WidgetRow>
 
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>

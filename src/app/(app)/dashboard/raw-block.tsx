@@ -7,6 +7,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
 import type { RawTableRow } from "@/lib/dashboard-data";
+import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 
@@ -51,7 +52,7 @@ function Duo({ children }: { children: React.ReactNode }) {
 }
 
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»). */
-export function RawCards({ view, rows, fur, lining, c4, hideLabel = false }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; hideLabel?: boolean }) {
+export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
   const F = fur[vat];
@@ -99,8 +100,7 @@ export function RawCards({ view, rows, fur, lining, c4, hideLabel = false }: { v
   );
 
   return (
-    <div className="space-y-1">
-      {hideLabel ? null : <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{view === "fur" ? "Мех" : "Подкладка"}</div>}
+    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <Card title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
           <InfoHint label="О «Куплено»" align="right">
@@ -172,7 +172,7 @@ export function RawCards({ view, rows, fur, lining, c4, hideLabel = false }: { v
         </Card>
       </div>
       {priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : F} lining={view === "fur" ? null : L} onClose={() => setPriceCol(null)} /> : null}
-    </div>
+    </WidgetRow>
   );
 }
 
