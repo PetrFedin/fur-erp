@@ -3,22 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { WidgetRow } from "@/components/widget-row";
-import { TILE_BOX, TileCaption, TileHead, TileValue } from "../dashboard/tile";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
-import { createBudget, deleteBudget, duplicateBudget, renameBudget, setBudgetStatus } from "./actions";
+import { createBudget, deleteBudget, duplicateBudget, renameBudget } from "./actions";
 
 export type BudgetSummary = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; comment: string | null; parentName: string | null;
-  total: number; pcs: number; perUnit: number | null; nowPerUnit: number | null; varPct: number | null; updatedAt: string; updatedBy: string | null;
+  total: number; pcs: number; hides: number; perUnit: number | null; nowPerUnit: number | null; varPct: number | null; updatedAt: string; updatedBy: string | null;
 };
+
+const ICON = "inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7";
 
 type Dialog = { kind: "new" } | { kind: "rename"; b: BudgetSummary } | { kind: "delete"; b: BudgetSummary } | null;
 
 export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit: boolean }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
 
@@ -33,10 +32,6 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       } catch { setError("Не удалось выполнить действие. Попробуйте ещё раз."); }
     });
 
-  const togglePick = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 2 ? [p[1], id] : [...p, id]));
-  const approved = items.filter((b) => b.status === "APPROVED");
-  const main = approved[0] ?? items[0] ?? null;
-  const last = items[0] ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,31 +41,10 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
           <p className="mt-0.5 text-xs text-neutral-500">Версии бюджета расходов по меху: тип сырья → категория → артикул, расчёт идёт сам. Сделайте копию, чтобы сравнить варианты.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {picked.length === 2 ? <Link href={`/budget/compare?a=${picked[0]}&b=${picked[1]}`} className={BTN_PRIMARY}>Сравнить выбранные</Link> : <span className="text-xs text-neutral-500">Отметьте две версии, чтобы сравнить</span>}
           {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый бюджет</button> : null}
         </div>
       </div>
       {error ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
-
-      <WidgetRow id="budget-list" title="Сводка по версиям">
-        <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-1 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
-          <div className={TILE_BOX + " min-w-[240px] shrink-0 snap-start shadow-sm md:min-w-0"}>
-            <TileHead>Версий бюджета</TileHead>
-            <TileValue>{items.length}</TileValue>
-            <TileCaption>утверждено {approved.length}, черновиков {items.length - approved.length}</TileCaption>
-          </div>
-          <div className={TILE_BOX + " min-w-[240px] shrink-0 snap-start shadow-sm md:min-w-0"}>
-            <TileHead>{approved.length ? "Утверждённый бюджет" : "Главный бюджет"}</TileHead>
-            <TileValue className="whitespace-nowrap">{main ? money(main.total) : "—"}</TileValue>
-            <TileCaption>{main ? `${main.name} · ${qty(main.pcs, 0)} изд. · на 1 изд. ${money(main.perUnit)}` : "Пока нет ни одной версии"}</TileCaption>
-          </div>
-          <div className={TILE_BOX + " min-w-[240px] shrink-0 snap-start shadow-sm md:min-w-0"}>
-            <TileHead>Последнее изменение</TileHead>
-            <TileValue className="text-lg">{last ? last.name : "—"}</TileValue>
-            <TileCaption>{last ? `${dateRu(last.updatedAt)}${last.updatedBy ? ` · ${last.updatedBy}` : ""}` : ""}</TileCaption>
-          </div>
-        </div>
-      </WidgetRow>
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500">
@@ -79,40 +53,43 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
-            <li key={b.id} className={"flex flex-col rounded-lg border bg-white p-4 shadow-sm " + (picked.includes(b.id) ? "border-neutral-900" : "border-neutral-200")}>
+            <li key={b.id} className={"flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <Link href={`/budget/${b.id}`} className="block truncate text-base font-semibold hover:underline">{b.name}</Link>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
                     <span>{b.season}</span>
-                    <Badge tone={b.status === "APPROVED" ? "ok" : "manual"}>{b.status === "APPROVED" ? "Утверждён" : "Черновик"}</Badge>
+                    {b.status === "APPROVED" ? <Badge tone="ok">Утверждён</Badge> : null}
                     {b.parentName ? <span title="Получен копированием">копия «{b.parentName}»</span> : null}
                   </div>
                 </div>
-                <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 text-xs text-neutral-500 md:min-h-0">
-                  <input type="checkbox" checked={picked.includes(b.id)} onChange={() => togglePick(b.id)} className="h-4 w-4 accent-neutral-900" aria-label={`Сравнить: ${b.name}`} />
-                  сравнить
-                </label>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Link href={`/budget/${b.id}`} className={ICON} aria-label={`Открыть: ${b.name}`} title="Открыть">
+                    <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4H7a1 1 0 0 0-1 1v15M14 4v16M14 4l5 1.5V19l-5 1M3 20h18" /><circle cx="11.5" cy="12" r=".6" fill="currentColor" /></svg>
+                  </Link>
+                  {canEdit ? (
+                    <>
+                      <button type="button" className={ICON} onClick={() => setDialog({ kind: "rename", b })} aria-label={`Переименовать: ${b.name}`} title="Переименовать">
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+                      </button>
+                      <button type="button" className={ICON} disabled={busy} onClick={() => run(() => duplicateBudget(b.id))} aria-label={`Копия: ${b.name}`} title="Сделать копию">
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>
+                      </button>
+                      <button type="button" className={ICON + " hover:text-red-700"} onClick={() => setDialog({ kind: "delete", b })} aria-label={`Удалить: ${b.name}`} title="Удалить">
+                        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
+                      </button>
+                    </>
+                  ) : null}
+                </div>
               </div>
-              <div className="mt-3 text-2xl font-semibold tabular-nums">{money(b.total)}</div>
-              <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+              <dl className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
                 <div><dt className="text-neutral-500">Изделий</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.pcs, 0)}</dd></div>
-                <div><dt className="text-neutral-500">На 1 изделие</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{money(b.perUnit)}</dd></div>
+                <div><dt className="text-neutral-500">Шкур</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.hides, 0)}</dd></div>
                 <div><dt className="text-neutral-500">К текущим ценам</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{pct(b.varPct)}</dd></div>
+                <div className="col-span-3"><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums">{money(b.total)}</dd></div>
               </dl>
               {b.comment ? <p className="mt-2 line-clamp-2 text-xs text-neutral-500">{b.comment}</p> : null}
               <p className="mt-2 text-[11px] text-neutral-400">Изменён {dateRu(b.updatedAt)}{b.updatedBy ? ` · ${b.updatedBy}` : ""}</p>
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-neutral-100 pt-3">
-                <Link href={`/budget/${b.id}`} className={BTN_PRIMARY}>Открыть</Link>
-                {canEdit ? (
-                  <>
-                    <button type="button" className={BTN} disabled={busy} onClick={() => run(() => duplicateBudget(b.id))}>Копия</button>
-                    <button type="button" className={BTN} onClick={() => setDialog({ kind: "rename", b })}>Переименовать</button>
-                    <button type="button" className={BTN} disabled={busy} onClick={() => run(() => setBudgetStatus(b.id, b.status === "APPROVED" ? "DRAFT" : "APPROVED"))}>{b.status === "APPROVED" ? "В черновик" : "Утвердить"}</button>
-                    <button type="button" className={BTN + " text-red-700"} onClick={() => setDialog({ kind: "delete", b })}>Удалить</button>
-                  </>
-                ) : null}
-              </div>
             </li>
           ))}
         </ul>
@@ -125,7 +102,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
           <p className="text-sm text-neutral-700">Бюджет «{dialog.b.name}» ({dialog.b.season}) будет удалён вместе со всеми строками. Это нельзя отменить.</p>
           <div className="mt-4 flex justify-end gap-2">
             <button type="button" className={BTN} onClick={() => setDialog(null)}>Отмена</button>
-            <button type="button" disabled={busy} className="inline-flex min-h-10 items-center rounded-lg bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 md:min-h-8" onClick={() => run(() => deleteBudget(dialog.b.id), () => { setPicked((p) => p.filter((x) => x !== dialog.b.id)); router.refresh(); })}>Удалить</button>
+            <button type="button" disabled={busy} className="inline-flex min-h-10 items-center rounded-lg bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 md:min-h-8" onClick={() => run(() => deleteBudget(dialog.b.id), () => router.refresh())}>Удалить</button>
           </div>
         </Modal>
       ) : null}

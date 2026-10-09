@@ -9,6 +9,7 @@ import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } 
 import { orderUnits } from "@/lib/production-totals";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
+import { lotUsdPrice } from "@/lib/lot-hammer";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionLabeler, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { loadClientDebt, type ClientDebt, type ClientDebtRow } from "@/lib/payment-alloc";
@@ -213,8 +214,17 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   // Заказанное, но не полученное (нет лотов): фильтры «вид меха» и «аукцион» действуют, фильтры по цвету, признаку и НДС лотов — исключают.
   const orderedOk = (label: string, aucName: string) =>
     !(f.color.length || f.attr.length || f.vat.length) && (!f.fur.length || f.fur.includes(label)) && (!f.auction.length || f.auction.some((x) => auctionName(x) === aucName || x === aucName));
+  /** Цена шкуры в $ из расчёта позиции закупки (лота ещё нет): «цена за ед., $» либо материал без НДС ÷ зафиксированный курс. */
+  const planUsd = (plan: unknown, purchaseNumber: string | null, lotNumber: string | null, vatRate: number): number | null => {
+    const direct = lotUsdPrice(null, [plan], { vatRate, purchaseNumber, lotNumber });
+    if (direct.usd != null && direct.usd > 0) return direct.usd;
+    const pl = plan as { materialExclVat?: unknown; costBreakdown?: { items?: { label?: string; value?: number }[] } } | null;
+    const fix = pl?.costBreakdown?.items?.find((x) => x.label === "Курс ЦБ (фиксация)")?.value;
+    const mat = Number(pl?.materialExclVat);
+    return fix && fix > 0 && Number.isFinite(mat) && mat > 0 ? mat / fix : null;
+  };
   const orderedYear = new Map<number, Ordered>();
-  const unreceived = { paid: 0, due: 0, names: [] as string[], byFur: [] as { label: string; names: string[]; paid: number; due: number; ordered: Ordered }[] };
+  const unreceived = { paid: 0, due: 0, names: [] as string[], byFur: [] as { label: string; names: string[]; paid: number; due: number; ordered: Ordered; years: Map<number, Ordered>; usd: { q: number; s: number } }[] };
   const matName = new Map((await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } })).map((m) => [m.id, m.name]));
   // Оплаты закупок без аукциона (З-2026-…): если у закупки есть лоты, это оплата конкретных видов меха, а не «мех не получен».
   const purchaseNo = new Map(debtInputs.allPurchases.map((p) => [p.number, p.id]));
@@ -233,17 +243,25 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     if (!/^З-\d{4}-\d+$/.test(name)) unreceived.names.push(name);
     // Состав заказа (ещё без лотов): делим деньги по видам меха пропорционально стоимости позиций.
     const byFurVal = new Map<string, Ordered>();
+    const byFurYear = new Map<string, Map<number, Ordered>>();
+    const byFurUsd = new Map<string, { q: number; s: number }>();
     for (const p of debtInputs.allPurchases) {
       if (p.status === "CANCELLED" || auctionName(p.auctionSession) !== name || !inYear(p.orderDate, year)) continue;
       for (const it of p.items) {
         const nm = matName.get((it as { rawMaterialId?: string }).rawMaterialId ?? "");
         if (!nm) continue;
         const k = furName(nm);
+        const q = it.quantity?.toNumber() ?? 0, incl = it.subtotal.mul(it.vatRate.div(100).add(1)).toNumber(), excl = it.subtotal.toNumber();
         const cur = byFurVal.get(k) ?? { qty: 0, incl: 0, excl: 0 };
-        cur.qty += it.quantity?.toNumber() ?? 0;
-        cur.incl += it.subtotal.mul(it.vatRate.div(100).add(1)).toNumber();
-        cur.excl += it.subtotal.toNumber();
+        cur.qty += q; cur.incl += incl; cur.excl += excl;
         byFurVal.set(k, cur);
+        // По годам закупки и цена в $ (из расчёта позиции): нужны окнам «Цена по видам сырья» для вида без лотов (рысь).
+        const yr = p.orderDate ? p.orderDate.getFullYear() : 2026;
+        const ym = byFurYear.get(k) ?? new Map<number, Ordered>();
+        const yc = ym.get(yr) ?? { qty: 0, incl: 0, excl: 0 };
+        yc.qty += q; yc.incl += incl; yc.excl += excl; ym.set(yr, yc); byFurYear.set(k, ym);
+        const usd = planUsd((it as { costPlan?: unknown }).costPlan, p.number, (it as { lotNumber?: string | null }).lotNumber ?? null, it.vatRate.toNumber());
+        if (usd != null && q > 0) { const u = byFurUsd.get(k) ?? { q: 0, s: 0 }; u.q += q; u.s += q * usd; byFurUsd.set(k, u); }
       }
     }
     const totV = Array.from(byFurVal.values()).reduce((a, v) => a + v.incl, 0);
@@ -252,9 +270,14 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     const scale = totV > 0 ? aucTotal / totV : 1;
     if (totV > 0) for (const [label, v] of byFurVal) {
       if (!orderedOk(label, name)) continue;
-      const g = unreceived.byFur.find((x) => x.label === label) ?? (unreceived.byFur.push({ label, names: [], paid: 0, due: 0, ordered: { qty: 0, incl: 0, excl: 0 } }), unreceived.byFur[unreceived.byFur.length - 1]);
+      const g = unreceived.byFur.find((x) => x.label === label) ?? (unreceived.byFur.push({ label, names: [], paid: 0, due: 0, ordered: { qty: 0, incl: 0, excl: 0 }, years: new Map(), usd: { q: 0, s: 0 } }), unreceived.byFur[unreceived.byFur.length - 1]);
       g.paid += m.paid * (v.incl / totV); g.due += m.due * (v.incl / totV); if (!g.names.includes(name)) g.names.push(name);
       g.ordered.qty += v.qty; g.ordered.incl += v.incl * scale; g.ordered.excl += v.excl * scale;
+      for (const [yr, yv] of byFurYear.get(label) ?? []) {
+        const yc = g.years.get(yr) ?? { qty: 0, incl: 0, excl: 0 };
+        yc.qty += yv.qty; yc.incl += yv.incl * scale; yc.excl += yv.excl * scale; g.years.set(yr, yc);
+      }
+      const uv = byFurUsd.get(label); if (uv) { g.usd.q += uv.q; g.usd.s += uv.s; }
     }
     // По годам закупки (для «Динамики по годам»).
     for (const p of debtInputs.allPurchases) {
@@ -479,6 +502,19 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     }
     r.paid += g.paid; r.due += g.due;
     r.cells = withOrdered(r.cells, g.ordered);
+    // По годам закупки (окна цен): заказанное, но не полученное, раскрывается по году закупки, как обычные лоты.
+    for (const [yr, yv] of g.years) {
+      const ex = r.years.find((y) => y.year === yr);
+      if (ex) ex.cells = withOrdered(ex.cells, yv);
+      else r.years.push({ year: yr, cells: withOrdered(cellsPair([], c4k), yv), usd: { bought: null, used: null, rem: null } });
+    }
+    r.years.sort((a, b) => a.year - b.year);
+    // Цена в $ у вида без лотов (рысь): по расчёту позиций закупки; у вида с лотами остаётся цена по лотам.
+    if (g.usd.q > 0 && r.usd.bought == null) {
+      const avg = g.usd.s / g.usd.q;
+      r.usd = { bought: avg, used: r.usd.used, rem: avg };
+      for (const y of r.years) if (y.usd.bought == null) y.usd = { bought: avg, used: null, rem: avg };
+    }
     r.auctions.push({ key: `unrecv|${g.names.join(",")}`, label: `${g.names.join(", ")}`, cells: withOrdered(cellsPair([], c4k), g.ordered), paid: g.paid, due: g.due });
   }
   rawTable.sort((a, b) => Number(a.kind === "lining") - Number(b.kind === "lining") || b.cells.incl.rv - a.cells.incl.rv || b.paid - a.paid);

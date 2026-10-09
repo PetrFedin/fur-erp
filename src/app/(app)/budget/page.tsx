@@ -20,7 +20,7 @@ export default async function BudgetListPage() {
     return {
       id: r.id, name: r.name, season: r.season, status: r.status === "APPROVED" ? "APPROVED" : "DRAFT", comment: r.comment,
       parentName: r.parentId ? (names.get(r.parentId) ?? null) : null,
-      total: t.total, pcs: t.pcs, perUnit: perUnit(t), nowPerUnit: nowPerUnit(t), varPct: varPct(t),
+      total: t.total, pcs: t.pcs, hides: t.hides, perUnit: perUnit(t), nowPerUnit: nowPerUnit(t), varPct: varPct(t),
       updatedAt: r.updatedAt.toISOString(), updatedBy: r.updatedBy,
     };
   });

@@ -338,7 +338,7 @@ export function BudgetEditor(p: Props) {
         <td className={`sticky left-0 z-10 min-w-[220px] max-w-[320px] border-r border-neutral-200 px-3 py-2 text-sm print:static ${o.bg}`}>{label}</td>
         <td className={sumCell}>{qty(a.pcs, 0)}</td>
         <td className={sumCell + " text-neutral-600"}>{qty(a.hides, 0)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
-        <td className={sumCell + " " + sepL}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шкуру" /></td>
+        <td className={sumCell + " " + sepL}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
         <td className={sumCell}>{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
         <td className={sumCell}>{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
         <td className={sumCell + " text-neutral-500"}>{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
@@ -418,7 +418,7 @@ export function BudgetEditor(p: Props) {
           {leaf ? numCell(n, "meters", "Подкладка, м на изделие", "w-[84px] min-w-[84px]") : g(av.meters)}
           {leaf ? numCell(n, "meterPrice", "Цена подкладки за м", "w-[132px] min-w-[132px]", "upLining") : gm(av.meterPrice)}
           {leaf ? numCell(n, "work", "Работа на изделие", "w-[150px] min-w-[150px]", "upWork") : gm(av.work)}
-          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шкуру" /></td>
+          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
@@ -437,7 +437,7 @@ export function BudgetEditor(p: Props) {
       <td />
       <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
       <td className={sepL} colSpan={4} />
-      <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шкуру" /></td>
+      <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шт." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
