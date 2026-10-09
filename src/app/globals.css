@@ -72,3 +72,36 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
     min-height: 40px;
   }
 }
+
+
+/* Телефон: ряд плиток — одна горизонтальная лента (листается вправо-влево), плитки компактнее.
+   Относится к рядам, где плитка (.tile-box) лежит прямо в сетке или в обёртке .relative (как на Главной). */
+@media (max-width: 639px) {
+  .grid:has(> .tile-box),
+  .grid:has(> .relative > .tile-box) {
+    display: flex;
+    gap: 0.5rem;
+    margin-inline: -0.75rem;
+    padding-inline: 0.75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.75rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .grid:has(> .tile-box)::-webkit-scrollbar,
+  .grid:has(> .relative > .tile-box)::-webkit-scrollbar { display: none; }
+  .grid:has(> .tile-box) > *,
+  .grid:has(> .relative > .tile-box) > * {
+    flex: 0 0 74%;
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+  .tile-box { padding: 0.75rem; }
+  .tile-box [data-comment-title] { min-height: 1.5rem; font-size: 0.6875rem; }
+}
+
+/* Планшет: плитки в две колонки, чтобы не растягиваться на всю ширину. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .tile-box { padding: 0.875rem; }
+}

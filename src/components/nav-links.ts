@@ -1,4 +1,4 @@
-// Основное меню (7 пунктов). `also` — вложенные и переехавшие разделы: на них
+// Основное меню (8 пунктов). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: [] },
@@ -7,6 +7,7 @@ export const NAV_LINKS = [
   { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/calendar", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/analytics/products", "/analytics/pricing"] },
   { href: "/payments", label: "Оплаты", also: [] },
+  { href: "/budget", label: "Бюджет", also: [] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · Анализ документов · История.
   // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history"] },

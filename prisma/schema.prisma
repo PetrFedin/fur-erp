@@ -225,6 +225,7 @@ model Organization {
   driveDocuments         DriveDocument[]
   systemStates           SystemState[]
   comments               Comment[]
+  budgetScenarios        BudgetScenario[]
   furAttrRefs            FurAttrRef[]
   commentReplies         CommentReply[]
   paymentAllocations     PaymentAllocation[]
@@ -1455,4 +1456,23 @@ model ProductionOrderAttr {
 
   @@id([orderId, attrId])
   @@index([attrId])
+}
+
+
+/// Бюджет сезона (раздел «Бюджет»): прикидка расхода шкур, подкладки и работы по бюджету изделий.
+/// Параметры (настраиваемые надбавки в %) и строки хранятся одним JSON — см. src/lib/budget-calc.ts.
+model BudgetScenario {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Сезон: «FW27»
+  season         String
+  name           String
+  params         Json
+  lines          Json
+  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedBy      String?
+
+  @@unique([organizationId, season])
 }
