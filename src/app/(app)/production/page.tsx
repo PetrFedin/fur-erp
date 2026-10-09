@@ -25,10 +25,11 @@ import { loadPaymentsOverview } from "@/lib/payments-overview";
 import { formatMoney } from "@/lib/utils";
 import { batchLabel } from "@/lib/batch-label";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
-import { GroupedByBatch } from "./grouped-view";
+import { OrdersTree } from "@/components/orders-tree";
+import { ProdTiles } from "@/components/prod-tiles";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { batchOrderInclude } from "@/lib/batch-stats";
 import { getYearFilter } from "@/lib/year-filter";
 import { orderDateOf, orderYearWhere } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
@@ -37,7 +38,6 @@ import { loadOrderIndicators } from "@/lib/production-doc-checklist";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
 import { searchArticles } from "@/lib/article-ref";
-import { loadVerifyFlags } from "@/lib/verification";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
 
@@ -176,7 +176,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   };
   const period = dateRange(f.from, f.to);
 
-  const [rawOrders, filterModel, , batchList, groupedOrders] = await Promise.all([
+  const [rawOrders, filterModel] = await Promise.all([
     prisma.productionOrder.findMany({
       where,
       include: {
@@ -198,15 +198,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       orderBy: { createdAt: "desc" },
     }),
     f.model.length === 1 ? prisma.productModel.findFirst({ where: { id: f.model[0], organizationId: orgId } }) : null,
-    Promise.resolve(null),
-    prisma.productionBatch.findMany({
-      where: { organizationId: orgId },
-      select: { id: true, number: true, name: true, year: true },
-      orderBy: { number: "asc" },
-    }),
-    grouped
-      ? prisma.productionOrder.findMany({ where, include: batchOrderInclude, orderBy: { createdAt: "asc" } })
-      : Promise.resolve([]),
   ]);
 
   const canEdit = canEditProduction(session.user.role);
@@ -235,7 +226,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return Number.isNaN(n) ? null : n;
   };
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
-  const vflags = await loadVerifyFlags(prisma, orgId);
   const orders = rawOrders.filter((o) => {
     // Цвет: подходит ЛЮБОЙ из цветов ТЗ (составной ТЗ — под каждый свой цвет); «без цвета» — цвет в документах не указан.
     if (f.color.length) {
@@ -325,6 +315,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const h = hidesOf.get(o.id);
     return { incl: total.add(w).add(h?.incl ?? 0), excl: totalExcl.add(w).add(h?.excl ?? 0) };
   };
+  // Плитки и дерево — из тех же ТЗ, что окно «Стоимость производства» на Главной, но только из списка страницы (фильтры применены).
+  const drill = await loadOrdersDrill(orgId, year, c4Mode, { ids: new Set(orders.map((o) => o.id)), hides: hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: f.vat ?? [] }) });
   const shown = priced.slice(0, limit);
   const hiddenCount = priced.length - shown.length;
 
@@ -350,6 +342,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           )}
         </div>
       </div>
+
+      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" />
 
       <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Вид списка">
         <span className="text-xs text-neutral-500">Вид:</span>
@@ -402,7 +396,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       />
 
       {grouped ? (
-        <GroupedByBatch orders={groupedOrders.filter((o) => orders.some((x) => x.id === o.id))} batches={batchList} c4Mode={c4Mode} filtered={hasFilters} year={year} indicators={indicators} verified={vflags.orderById} />
+        <OrdersTree
+          orders={drill}
+          c4={c4Mode}
+          title="ТЗ по партиям пошива"
+          hint={<p><b>Партия пошива → ТЗ → состав.</b> Те же ТЗ и суммы, что в плитках выше и в блоке «Производство» на Главной. Другие разрезы — вкладки справа.</p>}
+          modes={[
+            { id: "batch", label: "Партии", dims: ["batch", "order"] },
+            { id: "year", label: "Годы → партии", dims: ["year", "batch", "order"] },
+            { id: "article", label: "Артикулы", dims: ["article", "order"] },
+            { id: "cat", label: "Категории", dims: ["category", "article", "order"] },
+          ]}
+          empty={hasFilters ? "Ничего не найдено" : emptyForYear(year, "партий с ТЗ", "Партий с ТЗ пока нет.")}
+        />
       ) : (
       <>
       <ResponsiveRows table={

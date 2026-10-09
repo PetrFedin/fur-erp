@@ -22,6 +22,10 @@ import { VerifyPill } from "@/components/verify-control";
 import { loadVerifyFlags } from "@/lib/verification";
 import { payShort } from "@/lib/doc-panel";
 import { docCounts } from "@/lib/doc-links";
+import { OrdersTree } from "@/components/orders-tree";
+import { ProdTiles } from "@/components/prod-tiles";
+import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../dashboard/tile";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 
 export const metadata = { title: "Партии пошива" };
 
@@ -67,6 +71,21 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     if (v) qs.set("need", v);
     return `/production/batches${qs.size ? `?${qs}` : ""}`;
   };
+  // Дерево и плитки — из тех же ТЗ, что на Главной; оплаты — по партиям/ТЗ из разнесения оплат (как в таблице).
+  const shownNums = new Set(rows.map((r) => r.b.number));
+  const drillAll = await loadOrdersDrill(orgId, year, c4Mode);
+  // Без фильтра по документам/оплате — все ТЗ (как на Главной, включая ТЗ без партии); с фильтром — только показанные партии.
+  const drill = need ? drillAll.filter((o) => o.bk !== "none" && shownNums.has(Number(o.bk))) : drillAll;
+  const payBy: Record<string, number> = {};
+  let payPaid = 0, payWork = 0, payOver = 0;
+  for (const r of rows) {
+    payBy[`batch:${r.b.number}`] = Number(r.t.paid);
+    payPaid += Number(r.t.paid); payWork += Number(r.t.work);
+    if (r.t.remaining.lessThan(-0.005)) payOver += -Number(r.t.remaining);
+    for (const o of r.b.orders) payBy[`order:${o.id}`] = o.payShares.reduce((a, x) => (x.productionPayment.status === "CANCELLED" ? a : a + Number(x.amount)), 0);
+  }
+  const payRest = payWork - payPaid;
+  const money = (v: number) => formatMoney(v.toFixed(2));
   const anyC4 = rows.some((r) => r.t.c4Applies);
   // Расшифровка 4% по всем показанным партиям: сырьё и подкладка × 4%.
   let c4Base = 0;
@@ -105,6 +124,31 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             </p>
           </InfoHint></div>
       </div>
+      <ProdTiles
+        orders={drill}
+        c4={c4Mode}
+        treeId="orders-tree"
+        extra={
+          <div className="relative">
+            <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+              <TileHead>Оплата работы</TileHead>
+              <TileValue className={payRest > 0.5 ? "text-amber-700" : ""}>{money(Math.max(payRest, 0))}</TileValue>
+              <TileCaption>задолженность: работа − оплачено</TileCaption>
+              <TileList items={[
+                { k: "Работа", v: money(payWork) },
+                { k: "Оплачено", v: money(payPaid), share: payWork ? payPaid / payWork : null },
+                ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
+              ]} />
+            </div>
+            <div className="absolute right-3 top-3">
+              <InfoHint label="Как считается оплата работы" wide align="right">
+                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>Задолженность</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
+              </InfoHint>
+            </div>
+          </div>
+        }
+      />
+
       {emptyCount > 0 && (
         <p className="text-sm text-neutral-500">
           {showEmpty ? (
@@ -280,6 +324,15 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         )}
       </ResponsiveRows>
 
+      <OrdersTree
+        orders={drill}
+        c4={c4Mode}
+        title="Партии → ТЗ → состав"
+        payBy={payBy}
+        modes={[{ id: "batch", label: "Партии", dims: ["batch", "order"] }]}
+        hint={<p>Те же ТЗ и суммы, что в плитках выше и в блоке «Производство» на Главной. «Оплачено» — оплаты заказчика, разнесённые на партию и ТЗ; «К оплате по работе» = работа − оплачено (сверх — оплачено больше работы).</p>}
+        empty={emptyForYear(year, "партий", "Партий пока нет.")}
+      />
     </div>
   );
 }

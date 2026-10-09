@@ -54,6 +54,8 @@ import { toDriveView } from "@/lib/drive-docs-server";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getColorOptions } from "@/lib/colors";
 import { rowVersion, ORDER_V } from "@/lib/concurrency";
+import { OrdersTree } from "@/components/orders-tree";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
 import {
@@ -565,6 +567,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.join(", ")}</span>,
   ].filter((x) => Boolean(x)) as React.ReactNode[];
 
+  // Состав себестоимости этого ТЗ — те же строки и суммы, что в окне «Стоимость производства» на Главной (отменённое ТЗ в Главную не входит).
+  const compositionOrders = order.status === "CANCELLED" ? [] : await loadOrdersDrill(session.user.organizationId, "all", c4Mode, { ids: new Set([order.id]) });
+
   return (
     <div className="flex flex-col gap-4">
       <IntegrityBanner kind="order" id={order.id} />
@@ -724,6 +729,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           ) : null}
         </dl>
       </section>
+
+      {compositionOrders.length > 0 ? (
+        <OrdersTree
+          orders={compositionOrders}
+          c4={c4Mode}
+          id="tz-composition"
+          title="Состав себестоимости по лотам"
+          defaultOpenDepth={1}
+          modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
+          hint={<><p><b>Мех и подкладка:</b> лот (ссылка на карточку лота), закупка (ссылка), количество, цена за единицу без 4%, НДС, 4% отдельно. «Всего» по строке = сумма без 4% + 4%.</p><p className="mt-1"><b>Шкуры подрядчика, расходы и работа</b> — отдельными строками; работа = цена работы заказчику × количество. Итог равен «Всего себестоимость» выше.</p></>}
+        />
+      ) : null}
 
       <Section id="calc" title="Расчёт и списание" defaultOpenMobile>
       <Card>

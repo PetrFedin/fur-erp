@@ -26,6 +26,10 @@ import { BatchDocsPay } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
 import { BatchEditButton } from "../../[id]/edit-buttons";
 import { rowVersion, BATCH_V } from "@/lib/concurrency";
+import { OrdersTree } from "@/components/orders-tree";
+import { ProdTiles } from "@/components/prod-tiles";
+import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../../dashboard/tile";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 
 const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -117,6 +121,14 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     ),
   );
 
+  // Плитки и состав — те же данные, что на Главной (по всем годам): ТЗ партии со списаниями.
+  const drill = await loadOrdersDrill(orgId, "all", c4Mode, { ids: new Set(batch.orders.map((o) => o.id)) });
+  const payBy: Record<string, number> = { [`batch:${batch.number}`]: Number(t.paid) };
+  for (const [id, v] of paidByOrder) payBy[`order:${id}`] = Number(v);
+  const mny = (v: number) => formatMoney(v.toFixed(2));
+  const workN = Number(t.work);
+  const paidN = Number(t.paid);
+
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="batches" />
@@ -151,18 +163,29 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 rounded-lg border border-neutral-200 bg-white p-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="ТЗ" value={String(t.orders)} />
-        <Stat label="Произведено" value={formatQty(t.producedUnits.toString())} />
-        <Stat label={`Себестоимость${t.c4Applies ? c4Suffix(c4Mode) : ""}`} value={formatMoney(t.cost.toString())} />
-        <Stat label="Работа заказчику" value={formatMoney(t.work.toString())} />
-        <Stat label="Оплачено" value={formatMoney(t.paid.toString())} />
-        <Stat
-          label={overpaid ? "Переплата" : "Остаток"}
-          value={formatMoney(t.remaining.abs().toString())}
-          warn={t.remaining.greaterThan(0.005)}
-        />
-      </dl>
+      <ProdTiles
+        orders={drill}
+        c4={c4Mode}
+        treeId="batch-tree"
+        extra={
+          <div className="relative">
+            <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+              <TileHead>Оплата работы</TileHead>
+              <TileValue className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{mny(Math.abs(Number(t.remaining)))}</TileValue>
+              <TileCaption>{overpaid ? "оплачено сверх работы" : "задолженность: работа − оплачено"}</TileCaption>
+              <TileList items={[
+                { k: "Работа заказчику", v: mny(workN) },
+                { k: "Оплачено", v: mny(paidN), share: workN ? paidN / workN : null },
+              ]} />
+            </div>
+            <div className="absolute right-3 top-3">
+              <InfoHint label="Как считается оплата" wide align="right">
+                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>Остаток</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
+              </InfoHint>
+            </div>
+          </div>
+        }
+      />
       {(batchVat.kind !== "none" || t.unallocated.greaterThan(0.005) || overpaid) && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-neutral-600">
           {batchVat.kind !== "none" && <TzVatBadge b={batchVat} />}
@@ -251,6 +274,17 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </CardContent>
       </Card>
 
+      <OrdersTree
+        orders={drill}
+        c4={c4Mode}
+        id="batch-tree"
+        title="Состав партии: ТЗ и списания"
+        payBy={payBy}
+        defaultOpenDepth={0}
+        modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
+        hint={<p>Каждое ТЗ партии раскрывается до строк списания по лотам (со ссылкой на лот и закупку), шкур подрядчика, расходов и работы. Итог равен плиткам выше.</p>}
+      />
+
       <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" />
 
       <BatchDocsPay batchNumber={batch.number} />
@@ -320,15 +354,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       </Card>
       <RecordHistory model="ProductionBatch" recordId={batch.id} />
       <RecordComments entityType="ProductionBatch" entityId={batch.id} />
-    </div>
-  );
-}
-
-function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div>
-      <dt className="text-xs text-neutral-500">{label}</dt>
-      <dd className={"text-base font-semibold " + (warn ? "text-amber-700" : "")}>{value}</dd>
     </div>
   );
 }

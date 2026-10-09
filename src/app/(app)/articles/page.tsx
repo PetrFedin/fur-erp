@@ -31,6 +31,10 @@ import { allocateHides, hidesByPayYear } from "@/lib/contractor-hides";
 import { canonicalFur } from "@/lib/fur-ref";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
+import { OrdersTree } from "@/components/orders-tree";
+import { ProdTiles } from "@/components/prod-tiles";
+import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 
 export const metadata = { title: "Изделия" };
 
@@ -282,6 +286,13 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const markupTotal = aggOf(rows);
   const fmtX = (v: number) => `×${v.toFixed(2).replace(".", ",")}`;
 
+  // Плитки и дерево «артикул → ТЗ → состав» — из тех же ТЗ, что на Главной («Произведено» без ремонта), по артикулам и ТЗ списка.
+  const listedModelIds = new Set(rows.map((r) => r.id));
+  const drill = (await loadOrdersDrill(orgId, year, c4Mode)).filter((o) => listedModelIds.has(o.mid) && (!matchedIds || matchedIds.includes(o.id)));
+  const stockQtyAll = rows.reduce((s, r) => s.add(r.stockQty), new Decimal(0));
+  const retailAll = rows.reduce((s, r) => s.add(r.retailStock ?? 0), new Decimal(0));
+  const mny = (v: number | string) => formatMoney(Number(v).toFixed(2));
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -334,6 +345,49 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "price", label: "Цена", options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
         ]}
+      />
+
+      <ProdTiles
+        orders={drill}
+        c4={c4Mode}
+        treeId="orders-tree"
+        extraCount={2}
+        extra={
+          <>
+            <div className="relative">
+              <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+                <TileHead>Остаток на складе</TileHead>
+                <TileValue>{formatQty(stockQtyAll.toString())} шт.</TileValue>
+                <TileCaption>готовая продукция по списку (без года)</TileCaption>
+                <TileList items={[
+                  { k: "Стоимость остатка", v: <Money incl={totalStockValue} excl={totalStockValueExclVat} /> },
+                  { k: "В розничных ценах", v: retailAll.greaterThan(0) ? mny(retailAll.toString()) : "—" },
+                ]} />
+              </div>
+              <div className="absolute right-3 top-3">
+                <InfoHint label="Как считается остаток" wide align="right">
+                  <p>Остаток × средневзвешенная полная себестоимость единицы (плюс ТЗ в работе); розничная стоимость — остаток × розничная цена модели. Остаток текущий, от года не зависит.</p>
+                </InfoHint>
+              </div>
+            </div>
+            <div className="relative">
+              <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+                <TileHead>Розница и маркап</TileHead>
+                <TileValue>{markupTotal ? fmtX(markupTotal.markup) : "—"}</TileValue>
+                <TileCaption>средневзвешенный маркап по моделям с ценой</TileCaption>
+                <TileList items={[
+                  { k: "Ср. розничная цена", v: markupTotal ? formatMoney(markupTotal.price.toFixed(0)) : "—" },
+                  { k: "Моделей с ценой", v: markupTotal ? String(markupTotal.n) : "—" },
+                ]} />
+              </div>
+              <div className="absolute right-3 top-3">
+                <InfoHint label="Как считается маркап" wide align="right">
+                  <p>Σ(цена × выпуск) ÷ Σ(себестоимость единицы × выпуск) по завершённым ТЗ моделей с розничной ценой. Подробно — в таблице «мех × категория» ниже.</p>
+                </InfoHint>
+              </div>
+            </div>
+          </>
+        }
       />
 
       {markupTotal ? (
@@ -574,6 +628,17 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           </p>
         )}
       </ResponsiveRows>
+      <OrdersTree
+        orders={drill}
+        c4={c4Mode}
+        title="Выпуск по артикулам: ТЗ и состав"
+        modes={[
+          { id: "article", label: "Артикулы", dims: ["article", "order"] },
+          { id: "cat", label: "Категории", dims: ["category", "article", "order"] },
+        ]}
+        hint={<p>Артикул → ТЗ → состав (мех и подкладка по лотам, 4%, расходы, работа). Количество — «Произведено» как на Главной (все ТЗ без отменённых и без ремонта). Остаток и розничные цены — в таблице выше; ремонт здесь не показывается — см. «Ремонт».</p>}
+        empty="ТЗ по выбранным изделиям нет."
+      />
     </div>
   );
 }
