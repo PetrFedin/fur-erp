@@ -3,6 +3,7 @@
 import { InfoHint } from "@/components/info-hint";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { availableYears } from "@/lib/year-list";
 import { Input, Select } from "@/components/ui/input";
 import { DOC_ROLES, LETTER_HINT, PAY_KINDS, PRESET_PERCENTS, canConfirm, guessDocRole, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
 import { getPaymentTargets, quotePaymentTarget, savePayment, type Quote, type Recalc, type Spec, type TargetList } from "@/app/(app)/payments/pay-actions";
@@ -25,7 +26,7 @@ export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId"
  * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид и сумма» → 3 «Документы» → 4 «Подтвердить и сохранить» → экран «Что пересчиталось».
  * preset фиксирует цель (карточка закупки, панель «Документы и оплата», карточка ТЗ) — тогда шаг 1 только показывает сумму/оплачено/остаток.
  */
-export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone?: () => void }) {
+export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentPreset; onDone?: () => void; /** Обязательный выбор года, к которому относится оплата (общая кнопка «Внести оплату»). */ requireYear?: boolean }) {
   const [targets, setTargets] = useState<TargetList | null>(null);
   const [side, setSide] = useState<"supplier" | "work">(preset?.side ?? "supplier");
   const [auction, setAuction] = useState(preset?.auction ?? "");
@@ -46,6 +47,8 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
   const [ppNo, setPpNo] = useState("");
   const [method, setMethod] = useState("BANK_TRANSFER");
   const [note, setNote] = useState("");
+  const [customKind, setCustomKind] = useState("");
+  const [payYear, setPayYear] = useState("");
   const [allocateLater, setAllocateLater] = useState(false);
   const [files, setFiles] = useState<{ file: File; role: DocRole }[]>([]);
   const [markConfirmed, setMarkConfirmed] = useState(false);
@@ -59,15 +62,19 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
     getPaymentTargets().then(setTargets).catch(() => setError("Не удалось загрузить справочники"));
   }, []);
 
+  // Аукцион можно выбрать из справочника или вписать своё название: вписанное, которого нет в справочнике, записывается как аванс
+  // без привязки с пометкой «Аукцион (вписан вручную): …» — разнести его потом можно в разделе «Оплаты».
+  const auctionKnown = !!targets?.auctions.some((a) => a.name === auction.trim());
+  const customAuction = side === "supplier" && targetMode === "auction" && auction.trim() !== "" && !auctionKnown && !!targets;
   const spec: Spec =
     side === "supplier"
-      ? { side, auction: targetMode === "auction" ? auction || undefined : undefined, purchaseId: targetMode === "purchase" ? purchaseId || undefined : preset?.purchaseId, supplierId: supplierId || undefined }
+      ? { side, auction: targetMode === "auction" && auctionKnown ? auction.trim() : undefined, purchaseId: targetMode === "purchase" ? purchaseId || undefined : preset?.purchaseId, supplierId: supplierId || undefined }
       : { side, batchId: workMode === "batch" ? batchId || undefined : undefined, orderIds: workMode === "orders" ? orderIds : [] };
-  const hasTarget = side === "supplier" ? !!(spec.auction || spec.purchaseId || (targetMode === "advance" && supplierId)) : !!(spec.batchId || spec.orderIds?.length);
+  const hasTarget = side === "supplier" ? !!(spec.auction || spec.purchaseId || ((targetMode === "advance" || customAuction) && supplierId)) : !!(spec.batchId || spec.orderIds?.length);
   const specKey = JSON.stringify(spec);
 
   useEffect(() => {
-    if (!hasTarget || (side === "supplier" && targetMode === "advance")) {
+    if (!hasTarget || (side === "supplier" && (targetMode === "advance" || customAuction))) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuote(null);
       return;
@@ -86,7 +93,8 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
   const afterRemaining = quote?.remaining != null && Number.isFinite(amountNum) ? quote.remaining - (kind === "REFUND" ? -Math.abs(amountNum) : amountNum) : null;
   const hasProofFile = files.some((f) => f.role === "PAYMENT_PROOF");
   const confirmOk = canConfirm({ hasProofFile, ppNo, paidAt, amount: amountNum });
-  const noTargetAdvance = side === "supplier" && targetMode === "advance";
+  const noTargetAdvance = side === "supplier" && (targetMode === "advance" || customAuction);
+  const fullNote = [customAuction ? `Аукцион (вписан вручную): ${auction.trim()}` : "", customKind.trim() ? `Тип: ${customKind.trim()}` : "", note.trim()].filter(Boolean).join(". ");
   const kinds = PAY_KINDS.filter((k) => !(side === "work" && k.supplierOnly) && !(noTargetAdvance && k.v !== "ADVANCE"));
 
   function pickFiles(list: FileList | null) {
@@ -102,10 +110,12 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
 
   function next(to: 2 | 3 | 4) {
     setError("");
+    if (to === 2 && requireYear && !payYear) return setError("Выберите год, к которому относится оплата");
     if (to === 2 && !hasTarget) return setError("Выберите, что оплачиваем");
     if (to === 3) {
+      if (requireYear && paidAt.slice(0, 4) !== payYear) return setError(`Дата оплаты должна быть в ${payYear} году — измените дату или год`);
       if (mode === "amount" && !(Math.abs(amountNum) > 0)) return setError("Укажите сумму или нажмите 30% / 50% / 70% / остаток");
-      if ((kind === "OTHER" || kind === "REFUND") && note.trim().length < 3) return setError("Для «Другое» и «Возврат / зачёт» напишите пометку");
+      if ((kind === "OTHER" || kind === "REFUND") && fullNote.length < 3) return setError("Для «Другое» и «Возврат / зачёт» напишите пометку");
     }
     setStep(to);
   }
@@ -128,7 +138,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
     fd.set("paidAt", paidAt);
     fd.set("ppNo", ppNo);
     fd.set("method", method);
-    fd.set("note", note);
+    fd.set("note", fullNote);
     if (allocateLater) fd.set("allocateLater", "1");
     if (markConfirmed && confirmOk) fd.set("markConfirmed", "1"); // убрали платёжку после галочки — не отправляем «подтверждено»
     if (confirmed) fd.set("confirmOverpay", "1");
@@ -175,6 +185,23 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
 
       {step === 1 && (
         <section className="flex flex-col gap-3">
+          {requireYear && (
+            <div>
+              <label htmlFor="pf-year" className={lab}>Год, к которому относится оплата (обязательно)</label>
+              <Select
+                id="pf-year"
+                value={payYear}
+                onChange={(e) => {
+                  const y = e.target.value;
+                  setPayYear(y);
+                  if (y && paidAt.slice(0, 4) !== y) setPaidAt(`${y}-01-01`);
+                }}
+              >
+                <option value="">— выберите год —</option>
+                {availableYears().map((y) => <option key={y} value={y}>{y}</option>)}
+              </Select>
+            </div>
+          )}
           {!locked && (
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Кому платим">
               {tgt?.canSupplier !== false && (
@@ -200,14 +227,27 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
                 ))}
               </div>
               {targetMode === "auction" && (
-                <div>
-                  <label htmlFor="pf-auction" className={lab}>Аукцион</label>
-                  <Select id="pf-auction" value={auction} onChange={(e) => setAuction(e.target.value)}>
-                    <option value="">— выберите —</option>
-                    {tgt?.auctions.map((a) => (
-                      <option key={a.name} value={a.name}>{a.name} · остаток {money(a.remaining)}</option>
-                    ))}
-                  </Select>
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <label htmlFor="pf-auction" className={lab}>Аукцион — выберите из списка или впишите своё название</label>
+                    <Input id="pf-auction" list="pf-auction-list" value={auction} onChange={(e) => setAuction(e.target.value)} autoComplete="off" placeholder="напр. СП 09.26" />
+                    <datalist id="pf-auction-list">
+                      {tgt?.auctions.map((a) => (
+                        <option key={a.name} value={a.name}>остаток {money(a.remaining)}</option>
+                      ))}
+                    </datalist>
+                  </div>
+                  {customAuction && (
+                    <div>
+                      <label htmlFor="pf-supplier-c" className={lab}>Такого аукциона нет в справочнике — платёж запишется авансом без привязки. Поставщик</label>
+                      <Select id="pf-supplier-c" value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setKind("ADVANCE"); }}>
+                        <option value="">— выберите —</option>
+                        {tgt?.suppliers.map((x) => (
+                          <option key={x.id} value={x.id}>{x.name}</option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
               {targetMode === "purchase" && (
@@ -285,11 +325,21 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
           <fieldset className="flex flex-wrap gap-2">
             <legend className={lab}>Вид оплаты</legend>
             {kinds.map((k) => (
-              <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+              <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); setCustomKind(""); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
                 {k.label}
               </button>
             ))}
           </fieldset>
+          <div>
+            <label htmlFor="pf-kind-custom" className={lab}>Или впишите свой тип платежа</label>
+            <Input id="pf-kind-custom" list="pf-kind-list" value={customKind} maxLength={80} autoComplete="off" placeholder="напр. оплата по акту, зачёт переплаты"
+              onChange={(e) => {
+                const t = e.target.value;
+                const hit = kinds.find((k) => k.label.toLowerCase() === t.trim().toLowerCase());
+                if (hit) { setKind(hit.v); setCustomKind(""); } else { setCustomKind(t); if (t.trim()) setKind("OTHER"); }
+              }} />
+            <datalist id="pf-kind-list">{kinds.map((k) => <option key={k.v} value={k.label} />)}</datalist>
+          </div>
           <p className="text-xs text-neutral-500">Что это значит<InfoHint label="Пояснение к виду оплаты"><p>{PAY_KINDS.find((k) => k.v === kind)?.hint}</p></InfoHint></p>
           {quote && !quote.error && quote.total != null && quote.total > 0 && (
             <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
@@ -310,7 +360,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
             </div>
             <div>
               <label htmlFor="pf-date" className={lab}>Дата оплаты</label>
-              <Input id="pf-date" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+              <Input id="pf-date" type="date" value={paidAt} min={requireYear && payYear ? `${payYear}-01-01` : undefined} max={requireYear && payYear ? `${payYear}-12-31` : undefined} onChange={(e) => setPaidAt(e.target.value)} />
             </div>
             <div>
               <label htmlFor="pf-pp" className={lab}>№ п/п (платёжки)</label>
@@ -326,7 +376,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <label htmlFor="pf-note" className={lab}>{kind === "OTHER" || kind === "REFUND" ? "Пометка (обязательно): что это за платёж" : "Пометка"}</label>
+              <label htmlFor="pf-note" className={lab}>{(kind === "OTHER" || kind === "REFUND") && !customKind.trim() ? "Пометка (обязательно): что это за платёж" : "Пометка"}</label>
               <Input id="pf-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={600} autoComplete="off" />
             </div>
           </div>
@@ -424,7 +474,7 @@ export function PaymentForm({ preset, onDone }: { preset?: PaymentPreset; onDone
 }
 
 /** Кнопка, открывающая единую форму оплаты в окне (карточки закупки, ТЗ, панель «Документы и оплата»). */
-export function PaymentFormButton({ label = "Внести оплату", preset, variant = "outline", size = "sm" }: { label?: string; preset?: PaymentPreset; variant?: "outline" | "default"; size?: "sm" | "default" }) {
+export function PaymentFormButton({ label = "Внести оплату", preset, variant = "outline", size = "sm", requireYear }: { label?: string; preset?: PaymentPreset; variant?: "outline" | "default"; size?: "sm" | "default"; requireYear?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -438,7 +488,7 @@ export function PaymentFormButton({ label = "Внести оплату", preset,
         <dialog ref={ref} onClose={() => { setOpen(false); }} className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <h2 className="mb-3 text-base font-semibold">Внести оплату</h2>
-            <PaymentForm preset={preset} onDone={() => { ref.current?.close(); window.location.reload(); }} />
+            <PaymentForm preset={preset} requireYear={requireYear} onDone={() => { ref.current?.close(); window.location.reload(); }} />
           </div>
         </dialog>
       )}

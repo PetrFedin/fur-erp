@@ -10,39 +10,40 @@ import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
-export type ProdNums = { orders: number; qty: number; costIncl: number; costExcl: number; work: number; matIncl: number; matExcl: number; c4Incl: number; c4Excl: number };
+export type ProdNums = { orders: number; qty: number; costIncl: number; costExcl: number; work: number; furIncl: number; furExcl: number; liningIncl: number; liningExcl: number; matIncl: number; matExcl: number; c4Incl: number; c4Excl: number };
 export type ProdBridge = { usedBase: { incl: number; excl: number }; comparable: boolean; lotFilters: boolean; yearOnly: boolean };
 
-const Tile = ({ label, hint, onClick, aria, value, caption, valueClass }: { label: string; hint?: React.ReactNode; onClick?: () => void; aria?: string; value: React.ReactNode; caption?: React.ReactNode; valueClass?: string }) => {
-  const body = (
-    <>
-      <TileHead>{label}</TileHead>
-      <TileValue className={valueClass}>{value}</TileValue>
-      <TileCaption>{caption}</TileCaption>
-    </>
-  );
-  return (
-    <div className="relative">
-      {onClick ? (
-        <button type="button" onClick={onClick} aria-label={aria} aria-haspopup="dialog" className={TILE_BOX + " w-full shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>{body}</button>
-      ) : (
-        <div className={TILE_BOX}>{body}</div>
-      )}
-      {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
-    </div>
-  );
-};
+const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ orders: a.orders + b.orders, qty: a.qty + b.qty, costIncl: a.costIncl + b.costIncl, costExcl: a.costExcl + b.costExcl, work: a.work + b.work, furIncl: a.furIncl + b.furIncl, furExcl: a.furExcl + b.furExcl, liningIncl: a.liningIncl + b.liningIncl, liningExcl: a.liningExcl + b.liningExcl, matIncl: a.matIncl + b.matIncl, matExcl: a.matExcl + b.matExcl, c4Incl: a.c4Incl + b.c4Incl, c4Excl: a.c4Excl + b.c4Excl });
 
-export function ProductionBlock({ done, work, c4, search, info, bridge }: { done: ProdNums; work: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+type VatPair = { incl: number; excl: number };
+
+export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search, info, bridge }: { hides: VatPair; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
-  const [open, setOpen] = useState<null | "done" | "work">(null);
+  const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
+  // Отметка «завершён» не ведётся строго, поэтому себестоимость — факт списания по всем ТЗ (завершённые + в работе).
+  const fact = addNums(done, work);
   const cost = (n: ProdNums) => (vat === "incl" ? n.costIncl : n.costExcl);
-  const avg = done.qty > 0 ? cost(done) / done.qty : null;
+  const avg = fact.qty > 0 ? cost(fact) / fact.qty : null;
+  const D = vat === "incl"
+    ? { fur: fact.furIncl + hides.incl, lining: fact.liningIncl, c4: fact.c4Incl }
+    : { fur: fact.furExcl + hides.excl, lining: fact.liningExcl, c4: fact.c4Excl };
+  // Шкуры подрядчика входят в мех (оплачены в составе пошива), поэтому и в себестоимость.
+  const costAll = cost(fact) + (vat === "incl" ? hides.incl : hides.excl);
+  const otherRaw = costAll - D.fur - D.lining - (c4 === "on" ? D.c4 : 0);
+  const other = Math.abs(otherRaw) < 0.5 ? 0 : otherRaw;
+  const total = costAll + fact.work;
+  const parts = [
+    { k: "Мех", v: D.fur, with4: D.fur + c4Parts.fur[vat] },
+    { k: "Подкладка", v: D.lining, with4: D.lining + c4Parts.lining[vat] },
+    ...(c4 === "on" ? [{ k: "Надбавка 4%", v: D.c4, with4: undefined as number | undefined }] : []),
+    ...(other !== 0 ? [{ k: "Расходы ТЗ и прочее", v: other, with4: undefined as number | undefined }] : []),
+    { k: "Работа", v: fact.work, with4: undefined as number | undefined },
+  ];
   void info;
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
   const c4W = c4 === "on" ? "с 4%" : "без 4%";
   const money = (v: number) => formatMoney(v.toFixed(2));
-  const active = open === "work" ? work : done;
+  const active = open === "work" ? work : open === "all" ? fact : done;
 
   return (
     <section aria-labelledby="dash-prod" className="space-y-2">
@@ -55,58 +56,60 @@ export function ProductionBlock({ done, work, c4, search, info, bridge }: { done
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
         </div>
       </div>
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
-        <Tile
-          label="Произведено"
-          onClick={() => setOpen("done")}
-          aria="Произведено изделий — открыть состав стоимости производства"
-          hint={
-            <InfoHint label="Что такое «произведено» и «в работе»" wide align="right">
-              <p><b>Произведено</b> — выпуск ТЗ в статусе «Завершён».</p>
-              <p className="mt-1"><b>В работе</b> — план ТЗ «В работе» и «Запланировано»; сырьё — по списаниям на сегодня. В «Произведено» они не входят и с ним не складываются.</p>
-              <p className="mt-1">Те же правила — в «ТЗ», «Партиях», «Изделиях», аналитике, печати и окне состава.</p>
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 print:grid-cols-2">
+        <div className="relative">
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
+            <TileHead>Произведено</TileHead>
+            <TileValue>{formatQty(done.qty)} шт.</TileValue>
+            <TileCaption>{done.orders} ТЗ · состав →</TileCaption>
+            <dl className="mt-2 space-y-1 text-sm">
+              {years.filter((y) => y.qty !== 0).map((y) => (
+                <div key={y.label} className="flex items-baseline justify-between gap-3">
+                  <dt className="text-neutral-600">{y.label}</dt>
+                  <dd className="whitespace-nowrap font-medium tabular-nums">{formatQty(y.qty)} шт.<span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{done.qty ? `${((y.qty / done.qty) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</span></dd>
+                </div>
+              ))}
+            </dl>
+          </button>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Что такое «произведено»" wide align="right">
+              <p><b>Произведено</b> — выпуск ТЗ в статусе «Завершён». ТЗ «В работе» и «Запланировано» сюда не входят.</p>
+              <p className="mt-1">Те же правила — в «ТЗ», «Партиях», «Изделиях», аналитике и окне состава.</p>
             </InfoHint>
-          }
-          value={<>{formatQty(done.qty)} шт.</>}
-          caption={<>{done.orders} ТЗ · состав →</>}
-        />
-        <Tile
-          label="Себестоимость"
-          onClick={() => setOpen("done")}
-          aria="Себестоимость произведённого — открыть гистограмму по партиям, годам, категориям и меху"
-          hint={
+          </div>
+        </div>
+        <div className="relative">
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
+            <TileHead>Себестоимость</TileHead>
+            <TileValue>{money(total)}</TileValue>
+            <TileCaption>факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа</TileCaption>
+            <dl className="mt-2 space-y-1 text-sm">
+              {parts.map((p) => (
+                <div key={p.k} className="flex items-baseline justify-between gap-3">
+                  <dt className="text-neutral-600">{p.k}</dt>
+                  <dd className="text-right font-medium tabular-nums">
+                    {money(p.v)}
+                    <span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? `${((p.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </button>
+          <div className="absolute right-3 top-3">
             <InfoHint label="Что такое себестоимость" wide align="right">
-              <p><b>Себестоимость</b> = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ — как в «ТЗ», «Партиях» и аналитике. <b>Работа</b> сюда не входит.</p>
-              <p className="mt-1"><b>Сырьё + работа</b> = себестоимость + цена работы × количество.</p>
+              <p>Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость» без работы: <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
+              <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
             </InfoHint>
-          }
-          value={money(cost(done))}
-          caption={<>+ работа <b className="tabular-nums text-neutral-700">{money(done.work)}</b><br />всего <b className="tabular-nums text-neutral-700">{money(cost(done) + done.work)}</b></>}
-        />
-        <Tile
-          label="На 1 изделие"
-          hint={
-            <InfoHint label="Как считается средняя себестоимость" wide align="right">
-              <p><b>Средневзвешенная</b> = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ). Режимы: {vatW}, {c4W}.</p>
-            </InfoHint>
-          }
-          value={avg != null ? money(avg) : "—"}
-          caption={<>без работы{avg != null && done.work > 0 ? <><br />с работой {money(avg + done.work / done.qty)}</> : null}</>}
-        />
-        <Tile
-          label="В работе"
-          onClick={() => setOpen("work")}
-          aria="В работе — открыть состав стоимости"
-          value={<>{formatQty(work.qty)} шт.</>}
-          caption={<>{work.orders} ТЗ · списано <b className="tabular-nums text-neutral-700">{money(cost(work))}</b></>}
-        />
+          </div>
+        </div>
       </div>
       {open ? (
         <ProductionModal
           scope={open}
+          workTotal={active.work}
           search={search}
-          totals={{ costIncl: active.costIncl, costExcl: active.costExcl, qty: active.qty, orders: active.orders }}
-          title={open === "done" ? `Произведено ${formatQty(done.qty)} шт. на ${money(cost(done))}` : `В работе ${formatQty(work.qty)} шт., списано ${money(cost(work))}`}
+          totals={{ costIncl: active.costIncl + (open === "all" ? hides.incl : 0), costExcl: active.costExcl + (open === "all" ? hides.excl : 0), qty: active.qty, orders: active.orders }}
+          title={open === "done" ? `Произведено ${formatQty(done.qty)} шт. на ${money(cost(done))}` : open === "all" ? `Произведено ${formatQty(done.qty)} шт. · себестоимость ${money(total)}` : `В работе ${formatQty(work.qty)} шт., списано ${money(cost(work))}`}
           onClose={() => setOpen(null)}
         />
       ) : null}

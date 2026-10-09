@@ -6,9 +6,9 @@ import type { YearFilter } from "@/lib/year-filter";
 
 const HINT = "Год: закупки по дате заказа, оплаты по дате платежа, ТЗ по дате ТЗ. Действует на всех страницах.";
 
-/** Переключатель «Все | 2025 | 2026» в шапке. */
+/** Переключатель «Все | 2025 | 2026 | …» в шапке: новые годы появляются сами. */
 export function YearToggle() {
-  const { year, setYear, pending } = useYearDisplay();
+  const { year, setYear, pending, years } = useYearDisplay();
   const btn = (y: YearFilter, text: string) => (
     <button
       key={y}
@@ -26,8 +26,7 @@ export function YearToggle() {
   return (
     <div title={HINT} className={cn("flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs", pending && "opacity-70")}>
       {btn("all", "Все")}
-      {btn("2025", "2025")}
-      {btn("2026", "2026")}
+      {years.map((y) => btn(y as YearFilter, y))}
     </div>
   );
 }

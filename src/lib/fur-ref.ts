@@ -28,9 +28,9 @@ export const SEED_FURS: ReadonlyArray<FurRefLite & { nameEn: string }> = [
     aliases: ["норки", "норку", "норке", "норкой", "норок", "mink", "american mink"],
   },
   {
-    name: "Каракуль (свакара)",
+    name: "Свакара",
     nameEn: "Karakul (Swakara)",
-    aliases: ["каракуль", "каракуля", "каракулю", "каракулем", "каракульча", "каракульчи", "каракульчу", "свакара", "свакары", "свакаре", "свакару", "swakara", "karakul", "karakulcha", "karakul broadtail", "broadtail"],
+    aliases: ["каракуль (свакара)", "каракуль", "каракуля", "каракулю", "каракулем", "каракульча", "каракульчи", "каракульчу", "свакара", "свакары", "свакаре", "свакару", "swakara", "karakul", "karakulcha", "karakul broadtail", "broadtail"],
   },
   {
     name: "Лиса",

@@ -50,9 +50,15 @@ export function FilterBar({
   dropOnChange = [],
   footer,
   className,
+  oneRow,
+  hideChips,
 }: {
   title?: string;
   controls: BarControl[];
+  /** Не показывать чипы выбранных значений (выбор и так виден в самих полях); остаётся только «Сбросить всё». */
+  hideChips?: boolean;
+  /** Фильтры сеткой с минимальной шириной поля 8,25 rem: на широком экране — одна строка, на узком — аккуратный перенос, поля не накладываются. */
+  oneRow?: boolean;
   /** Дополнительные элементы в той же строке (например, переключатель «С остатком»). */
   children?: ReactNode;
   /** Ещё параметры, которые стирает «Сбросить всё» (если ими управляет children). */
@@ -164,6 +170,8 @@ export function FilterBar({
       action={pathname}
       footer={footer}
       className={className}
+      oneRow={oneRow}
+      hideChips={hideChips}
     >
       {children}
     </BarView>
@@ -224,8 +232,12 @@ function BarView({
   action,
   footer,
   className,
+  oneRow,
+  hideChips,
   children,
 }: {
+  oneRow?: boolean;
+  hideChips?: boolean;
   title: string;
   controls: BarControl[];
   vals: Record<string, string[]>;
@@ -337,7 +349,7 @@ function BarView({
         method="get"
         action={action}
         onSubmit={(e) => e.preventDefault()}
-        className={cn("flex flex-wrap items-end gap-2", !mobileOpen && "max-sm:hidden")}
+        className={cn(oneRow ? "grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] items-end gap-2" : "flex flex-wrap items-end gap-2", !mobileOpen && "max-sm:hidden")}
       >
         {hidden.map(([k, v], i) => (
           <input key={`${k}-${i}`} type="hidden" name={k} value={v} />
@@ -361,7 +373,7 @@ function BarView({
       </form>
       {chips.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Активные фильтры">
-          {chips.map(({ c, v }) => (
+          {(hideChips ? [] : chips).map(({ c, v }) => (
             <button
               key={`${c.name}:${v}`}
               type="button"

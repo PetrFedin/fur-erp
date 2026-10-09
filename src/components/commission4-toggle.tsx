@@ -8,6 +8,11 @@ const HINT =
 
 /** Переключатель «Без 4% | С 4%» в шапке, рядом с «С НДС / Без НДС». */
 export function Commission4Toggle() {
+  // Переключатель убран: 4% всегда показаны отдельно (в виджетах «Сырьё» и «Себестоимость»).
+  return null;
+}
+
+export function Commission4ToggleLegacy() {
   const { mode, setMode, pending } = useCommission4Display();
   const btn = (m: "off" | "on", text: string) => (
     <button

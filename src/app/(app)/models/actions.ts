@@ -93,9 +93,14 @@ export async function updateModel(
 // production/actions.ts's updateRetailPrice.
 export async function updateSellingPrice(modelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
-  const parsed = parsePrice(formData.get("sellingPrice"));
-  if ("error" in parsed) return { error: parsed.error };
-  const price = parsed.value;
+  // Пустое поле — цену убрать (модель без розничной цены); иначе число больше 0.
+  const rawPrice = String(formData.get("sellingPrice") ?? "").replace(/[\s\u00a0\u202f]/g, "");
+  let price: number | null = null;
+  if (rawPrice !== "") {
+    const parsed = parsePrice(formData.get("sellingPrice"));
+    if ("error" in parsed) return { error: parsed.error };
+    price = parsed.value;
+  }
 
   const model = await prisma.productModel.findFirst({
     where: { id: modelId, organizationId: session.user.organizationId },
@@ -112,6 +117,8 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
 
   revalidatePath("/articles");
   revalidatePath("/production");
+  revalidatePath(`/models/${modelId}`);
+  revalidatePath("/analytics/products");
   return {};
 }
 

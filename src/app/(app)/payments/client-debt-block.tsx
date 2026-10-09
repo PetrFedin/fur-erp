@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { AllocationEditButton } from "@/components/allocation-editor";
 import { loadAllocEditorData, loadClientDebt } from "@/lib/payment-alloc";
 import { canEditProduction } from "@/lib/production-access";
 import { PAYMENT_TYPE_LABELS_RU } from "@/lib/payment-alloc-labels";
+import { InfoHint } from "@/components/info-hint";
 
 const KIND_LABEL = { advance: "аванс без разнесения", excess: "сверх работы ТЗ" } as const;
 
@@ -26,7 +26,10 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4" aria-label="Долг заказчиков">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">Долг заказчиков <span className="font-normal text-neutral-500">· с НДС</span></h2>
+        <h2 className="text-sm font-semibold"><span className="inline-flex items-center gap-1.5">Долг заказчиков <span className="font-normal text-neutral-500">· с НДС</span>
+          <InfoHint label="Как считается долг" wide>
+            <p>Остаток = работа − оплачено. «Неразнесённые авансы» — части платежей, не отнесённые ни к одному ТЗ: аванс без разнесения {formatMoney(rest.advance.toFixed(2))}{rest.excess > 0.005 ? <>, платежи сверх работы ТЗ (например, шкуры подрядчика) {formatMoney(rest.excess.toFixed(2))}</> : null}. Итог долга от разнесения не зависит.</p>
+          </InfoHint></span></h2>
         <span className={"text-xl font-semibold tabular-nums " + (debt.balance > 0 ? "text-amber-700" : "")}>{formatMoney(debt.balance.toFixed(2))}</span>
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -35,12 +38,8 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
         <div><dt className="text-xs text-neutral-500">Неразнесённые авансы</dt><dd className="tabular-nums">{formatMoney(debt.unallocated.toFixed(2))}</dd></div>
         <div><dt className="text-xs text-neutral-500">Оплачено всего</dt><dd className="tabular-nums">{formatMoney(debt.paid.toFixed(2))}</dd></div>
       </dl>
-      <p className="text-xs text-neutral-500">
-        Остаток = работа − оплачено. «Неразнесённые авансы» — части платежей, которые не отнесены ни к одному ТЗ: аванс без разнесения {formatMoney(rest.advance.toFixed(2))}
-        {rest.excess > 0.005 ? <>, платежи сверх работы ТЗ (например, шкуры подрядчика) {formatMoney(rest.excess.toFixed(2))}</> : null}. Итог долга от разнесения не зависит.
-      </p>
       <div id="unallocated" className="scroll-mt-20">
-        <h3 className="mb-1 text-sm font-medium">Неразнесённые авансы ({pays.length})</h3>
+        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium">Неразнесённые авансы ({pays.length})<InfoHint label="Про разнесение"><p>Платёж разносится по ТЗ автоматически при создании; здесь — то, что не удалось разнести. Подробнее: Контроль → Задачи.</p></InfoHint></h3>
         {pays.length === 0 ? (
           <p className="text-sm text-neutral-500">Все платежи отнесены к ТЗ.</p>
         ) : (
@@ -52,14 +51,16 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
                     <span className="font-medium tabular-nums">{formatMoney(p.rest.toFixed(2))}</span>
                     <span className="text-neutral-500"> из {formatMoney(p.amount.toFixed(2))} · {formatDate(p.paidAt)} · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · {KIND_LABEL[p.kind]}</span>
                   </div>
-                  <div className="text-xs text-neutral-500">{p.clientName ?? "без заказчика"}{p.docRef ? ` · ${/^п\/п/i.test(p.docRef) ? p.docRef : `п/п ${p.docRef}`}` : ""}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</div>
+                  <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                    <span>{p.clientName ?? "без заказчика"}{/п\/п\s*№?\s*\d+/i.exec(p.docRef ?? "") ? ` · ${/п\/п\s*№?\s*\d+/i.exec(p.docRef ?? "")![0]}` : ""}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</span>
+                    {p.docRef ? <InfoHint label="Основание платежа"><p>{p.docRef}</p></InfoHint> : null}
+                  </div>
                 </div>
                 {edit.get(p.id) && <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={edit.get(p.id)!.orders} initial={edit.get(p.id)!.initial} label="Разнести" />}
               </li>
             ))}
           </ul>
         )}
-        <p className="mt-1 text-xs text-neutral-500">Платёж разносится по ТЗ автоматически при создании; здесь — то, что не удалось разнести. <Link href="/attention" className="text-blue-600 hover:underline">Контроль → Задачи</Link></p>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@ import "server-only";
 // Загрузка данных Сводки (/dashboard): всё, что нужно блокам, одним набором параллельных запросов.
 // Расчёты — в dashboard-calc.ts (чистые функции), сырьё — fur-table.ts, ТЗ — analytics-orders.ts, долг — supplier-debt.ts.
 import { Decimal } from "@prisma/client/runtime/library";
+import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { figures, flowOf, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
@@ -11,10 +12,13 @@ import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionLabeler, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { loadClientDebt, type ClientDebt, type ClientDebtRow } from "@/lib/payment-alloc";
+import { auctionName } from "@/lib/auction-names";
+import { overpayTarget } from "@/lib/overpay-notes";
+import { allocateHides, hidesApply, hidesByPayYear } from "@/lib/contractor-hides";
 import { loadDebtInputs, supplierDebtFromInputs, type SupplierDebt } from "@/lib/supplier-debt";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
-import { YEARS, inYear, type YearFilter } from "@/lib/year-filter";
+import { availableYears, inYear, type YearFilter } from "@/lib/year-filter";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import {
   figuresPair, furLiningFlows, isDone, orderMatches, prodTotals, restrictUsage, selectLots, toDrillOrder, orderFiltersOn, lotFiltersOn,
@@ -30,12 +34,31 @@ export type Cells = {
 };
 const cellsOf = (f: FlowFigures): Cells => ({ rq: f.recvQty, rv: f.recvValue, ra: f.recvAvg, uq: f.usedQty, uv: f.usedValue, ua: f.usedAvg, mq: f.remQty, mv: f.remValue, ma: f.remAvg, uo: f.usedValueOther, uoa: f.usedQty > 0 ? Math.round((f.usedValueOther / f.usedQty) * 100) / 100 : null });
 export type CellsPair = Pair<Cells>;
-const cellsPair = (lots: FurLot[], c4: C4Kind): CellsPair => {
+/** Заказанное, но ещё не полученное считаем купленным и лежащим в остатке (использовано — 0): прибавляем к «Куплено» и «Остаток». */
+const bumpCells = (c: Cells, q: number, v: number): Cells => {
+  const rq = c.rq + q, rv = c.rv + v, mq = c.mq + q, mv = c.mv + v;
+  return { ...c, rq, rv, ra: rq > 0 ? Math.round((rv / rq) * 100) / 100 : null, mq, mv, ma: mq > 0 ? Math.round((mv / mq) * 100) / 100 : null };
+};
+/** Шкуры подрядчика (оплачены в составе пошива, лотов нет): купленное и сразу израсходованное, остаток 0. */
+const withHides = (p: CellsPair, v: { incl: number; excl: number } | undefined): CellsPair => {
+  if (!v) return p;
+  const f = (c: Cells, x: number): Cells => ({ ...c, rv: c.rv + x, uv: c.uv + x, uo: c.uo + x, ra: c.rq > 0 ? Math.round(((c.rv + x) / c.rq) * 100) / 100 : null, ua: c.uq > 0 ? Math.round(((c.uv + x) / c.uq) * 100) / 100 : null });
+  return { incl: f(p.incl, v.incl), excl: f(p.excl, v.excl) };
+};
+const withOrdered = (p: CellsPair, o: Ordered | undefined): CellsPair => (o ? { incl: bumpCells(p.incl, o.qty, o.incl), excl: bumpCells(p.excl, o.qty, o.excl) } : p);
+const bumpFigures = (f: FlowFigures, q: number, v: number): FlowFigures => {
+  const recvQty = f.recvQty + q, recvValue = f.recvValue + v, remQty = f.remQty + q, remValue = f.remValue + v;
+  return { ...f, recvQty, recvValue, recvAvg: recvQty > 0 ? Math.round((recvValue / recvQty) * 100) / 100 : null, remQty, remValue, remAvg: remQty > 0 ? Math.round((remValue / remQty) * 100) / 100 : null };
+};
+// Таблицы «Динамика по годам» и «по сырью» показывают «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
+const cellsPair = (lots: FurLot[], _c4: C4Kind): CellsPair => {
   const fl = flowOf(lots);
-  return { incl: cellsOf(figures(fl, { vat: "incl", c4 })), excl: cellsOf(figures(fl, { vat: "excl", c4 })) };
+  return { incl: cellsOf(figures(fl, { vat: "incl", c4: "off" })), excl: cellsOf(figures(fl, { vat: "excl", c4: "off" })) };
 };
 
-export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; auctions: { key: string; label: string; cells: CellsPair }[]; lots: number };
+/** Заказано, но ещё не получено (состав закупки): шт. и сумма с НДС / без НДС. */
+export type Ordered = { qty: number; incl: number; excl: number };
+export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; /** Оплачено и долг по виду: оплаты и остаток аукционов делятся по доле вида в стоимости лотов аукциона. */ paid: number; due: number; /** Средняя цена в долларах (куплено / использовано / остаток); у подкладки нет. */ usd: { bought: number | null; used: number | null; rem: number | null }; auctions: { key: string; label: string; cells: CellsPair; paid: number; due: number }[]; /** Те же цифры по годам закупки лота (для окон цен). */ years: { year: number; cells: CellsPair; usd: { bought: number | null; used: number | null; rem: number | null } }[]; lots: number };
 export type YearRow = {
   key: string;
   label: string;
@@ -57,6 +80,16 @@ export type DashboardData = {
   years: YearRow[];
   debt: SupplierDebt;
   supplierCashPaid: number;
+  /** Оплачено по статьям: сырьё (мех / подкладка), работа подрядчику, расчётная надбавка 4%. */
+  paidByItem: { fur: number; lining: number; work: number };
+  /** Осталось оплатить: сырьё (долг поставщику) и производство (долг заказчика) — те же числа, что в «Оплаты → Все». */
+  left: { raw: number; fur: number; lining: number; prod: number };
+  /** Оплачено и долг по сырью — итог строки «Всего» в «Динамике по сырью» (те же числа, что в «Оплатах»). */
+  /** Аукционы с переплатой: учтены в долге по сырью (зачтены поставщиком). */
+  overpaid: { name: string; amount: number }[];
+  /** Шкуры подрядчика (оплачены в составе пошива): входят в мех «Использовано» и в себестоимость. */
+  hides: { incl: number; excl: number };
+  rawMoneyTotal: { paid: number; due: number; /** Оплаты и остаток по закупкам, где лотов ещё нет (мех не получен). */ unreceived: { paid: number; due: number; names: string[]; /** Тот же остаток по видам меха закупок, где лотов ещё нет (по составу заказа). */ byFur: { label: string; names: string[]; paid: number; due: number; ordered: Ordered }[] } };
   clientDebts: ClientDebtRow[];
   /** Разнесение оплат заказчиков: разнесено на ТЗ, неразнесённые авансы (по виду), учтены ли они в остатке. */
   clientDebtInfo: Pick<ClientDebt, "allocated" | "unallocated" | "unallocatedAll" | "unallocatedApplied" | "unallocatedByKind">;
@@ -96,10 +129,17 @@ export async function loadSelectedOrders(orgId: string, year: YearFilter, f: Das
 }
 
 /** Окно «Стоимость производства»: ТЗ выбранной группы (done — произведено, work — в работе) в режиме 4% из cookie. */
-export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode, scope: "done" | "work"): Promise<DrillOrder[]> {
+export async function loadDrillOrders(orgId: string, year: YearFilter, f: DashFilters, c4: Commission4Mode, scope: "done" | "work" | "all"): Promise<DrillOrder[]> {
   const [{ selected }, label] = await Promise.all([loadSelectedOrders(orgId, year, f, c4), auctionLabeler(orgId)]);
   const short = (name: string | null) => (name ? label(name).label : "Без аукциона");
-  return selected.filter((o) => (scope === "done" ? isDone(o) : !isDone(o))).map((o) => toDrillOrder(o, c4, short));
+  const orders = selected.filter((o) => (scope === "all" ? true : scope === "done" ? isDone(o) : !isDone(o))).map((o) => toDrillOrder(o, c4, short));
+  // Шкуры подрядчика (оплачены в составе пошива, в ТЗ не списаны) — в партию и ТЗ, где использовались (см. contractor-hides.ts).
+  if (scope === "all" && hidesApply(f)) {
+    const ov = await loadPaymentsOverview(orgId);
+    const shares = allocateHides(orders.map((o) => ({ id: o.id, number: o.number, batch: o.bk, qty: o.qty })), hidesByPayYear(ov), year);
+    for (const sh of shares) { const o = orders.find((x) => x.id === sh.id); if (o) { o.hI += sh.incl; o.hE += sh.excl; } }
+  }
+  return orders;
 }
 
 const DEADLINE_RE = /срок\s+(\d{2})\.(\d{2})\.(\d{4})/i;
@@ -137,6 +177,113 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     const k = `${l.kind}|${l.item}`;
     groups.set(k, [...(groups.get(k) ?? []), l]);
   }
+  // Оплачено и долг по видам: оплаты и остаток каждого аукциона делятся по доле вида в стоимости лотов этого аукциона.
+  const debtRaw = supplierDebtFromInputs(debtInputs, year);
+  // Оплачено по аукциону — из общего списка оплат (в долге есть только аукционы с остатком); долг — из расчёта долга.
+  const [ovAll, ovLeftAll] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId)]);
+  // Шкуры подрядчика, оплаченные в составе пошива: по выбранным ТЗ (партии 7 и 8), по году оплаты. Фильтры панели действуют.
+  const hidesYear = new Map<number, { incl: number; excl: number }>();
+  if (hidesApply(f)) {
+    const shares = allocateHides(ordersFiltered.map((o) => ({ id: o.id, number: o.number, batch: o.batchNumber == null ? "none" : String(o.batchNumber), qty: o.qty })), hidesByPayYear(ovAll), year);
+    for (const sh of shares) { const cur = hidesYear.get(sh.payYear) ?? { incl: 0, excl: 0 }; cur.incl += sh.incl; cur.excl += sh.excl; hidesYear.set(sh.payYear, cur); }
+  }
+  const hidesTotal = Array.from(hidesYear.values()).reduce((a, v) => ({ incl: a.incl + v.incl, excl: a.excl + v.excl }), { incl: 0, excl: 0 });
+  const aucMoney = new Map<string, { paid: number; due: number }>();
+  for (const r of ovAll) if (r.kind === "raw" && (year === "all" || r.year === Number(year))) aucMoney.set(r.label, { paid: (aucMoney.get(r.label)?.paid ?? 0) + r.fur + r.lining, due: 0 });
+  for (const a of debtRaw.byAuction) aucMoney.set(a.name, { paid: aucMoney.get(a.name)?.paid ?? 0, due: a.due.toNumber() });
+  // Переплата аукциона зачтена в счёте другого аукциона (AME): оплата переносится туда, долг цели уменьшается — минусов в строках нет.
+  for (const o of debtRaw.overpaid) {
+    const amt = o.amount.toNumber();
+    const to = overpayTarget(o.name);
+    const tgt = to ? aucMoney.get(to) : undefined;
+    if (to && tgt) {
+      const src = aucMoney.get(o.name) ?? { paid: 0, due: 0 };
+      aucMoney.set(o.name, { paid: src.paid - amt, due: 0 });
+      aucMoney.set(to, { paid: tgt.paid + amt, due: tgt.due - amt });
+    } else aucMoney.set(o.name, { paid: aucMoney.get(o.name)?.paid ?? 0, due: -amt });
+  }
+  const aucTotalValue = new Map<string, number>();
+  for (const l of allLots) aucTotalValue.set(l.auction, (aucTotalValue.get(l.auction) ?? 0) + l.recvIncl);
+  // Заказанное, но не полученное (нет лотов): фильтры «вид меха» и «аукцион» действуют, фильтры по цвету, признаку и НДС лотов — исключают.
+  const orderedOk = (label: string, aucName: string) =>
+    !(f.color.length || f.attr.length || f.vat.length) && (!f.fur.length || f.fur.includes(label)) && (!f.auction.length || f.auction.some((x) => auctionName(x) === aucName || x === aucName));
+  const orderedYear = new Map<number, Ordered>();
+  const unreceived = { paid: 0, due: 0, names: [] as string[], byFur: [] as { label: string; names: string[]; paid: number; due: number; ordered: Ordered }[] };
+  const matName = new Map((await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } })).map((m) => [m.id, m.name]));
+  // Оплаты закупок без аукциона (З-2026-…): если у закупки есть лоты, это оплата конкретных видов меха, а не «мех не получен».
+  const purchaseNo = new Map(debtInputs.allPurchases.map((p) => [p.number, p.id]));
+  const purchasePaid: { id: string; paid: number }[] = [];
+  for (const [name, m] of aucMoney) {
+    const pid = purchaseNo.get(name);
+    if (pid && allLots.some((l) => l.purchaseId === pid)) {
+      const all = allLots.filter((l) => l.purchaseId === pid).reduce((a, l) => a + l.recvIncl, 0);
+      const sel = lotsAllYears.filter((l) => l.purchaseId === pid).reduce((a, l) => a + l.recvIncl, 0);
+      purchasePaid.push({ id: pid, paid: all > 0 ? m.paid * (sel / all) : 0 });
+      aucMoney.delete(name);
+      continue;
+    }
+    if ((aucTotalValue.get(name) ?? 0) > 0 || (Math.abs(m.paid) < 0.5 && Math.abs(m.due) < 0.5)) continue;
+    unreceived.paid += m.paid; unreceived.due += m.due;
+    if (!/^З-\d{4}-\d+$/.test(name)) unreceived.names.push(name);
+    // Состав заказа (ещё без лотов): делим деньги по видам меха пропорционально стоимости позиций.
+    const byFurVal = new Map<string, Ordered>();
+    for (const p of debtInputs.allPurchases) {
+      if (p.status === "CANCELLED" || auctionName(p.auctionSession) !== name || !inYear(p.orderDate, year)) continue;
+      for (const it of p.items) {
+        const nm = matName.get((it as { rawMaterialId?: string }).rawMaterialId ?? "");
+        if (!nm) continue;
+        const k = furName(nm);
+        const cur = byFurVal.get(k) ?? { qty: 0, incl: 0, excl: 0 };
+        cur.qty += it.quantity?.toNumber() ?? 0;
+        cur.incl += it.subtotal.mul(it.vatRate.div(100).add(1)).toNumber();
+        cur.excl += it.subtotal.toNumber();
+        byFurVal.set(k, cur);
+      }
+    }
+    const totV = Array.from(byFurVal.values()).reduce((a, v) => a + v.incl, 0);
+    // Позиции закупки иногда внесены без цены (СП 09.26): общую сумму берём из расчёта закупки, а по видам делим по позициям.
+    const aucTotal = debtRaw.byAuction.find((x) => x.name === name)?.total.toNumber() ?? totV;
+    const scale = totV > 0 ? aucTotal / totV : 1;
+    if (totV > 0) for (const [label, v] of byFurVal) {
+      if (!orderedOk(label, name)) continue;
+      const g = unreceived.byFur.find((x) => x.label === label) ?? (unreceived.byFur.push({ label, names: [], paid: 0, due: 0, ordered: { qty: 0, incl: 0, excl: 0 } }), unreceived.byFur[unreceived.byFur.length - 1]);
+      g.paid += m.paid * (v.incl / totV); g.due += m.due * (v.incl / totV); if (!g.names.includes(name)) g.names.push(name);
+      g.ordered.qty += v.qty; g.ordered.incl += v.incl * scale; g.ordered.excl += v.excl * scale;
+    }
+    // По годам закупки (для «Динамики по годам»).
+    for (const p of debtInputs.allPurchases) {
+      if (p.status === "CANCELLED" || auctionName(p.auctionSession) !== name || !inYear(p.orderDate, year) || !p.orderDate) continue;
+      const y = p.orderDate.getFullYear();
+      const cur = orderedYear.get(y) ?? { qty: 0, incl: 0, excl: 0 };
+      for (const it of p.items) {
+        const nm = matName.get((it as { rawMaterialId?: string }).rawMaterialId ?? "");
+        if (!nm || !orderedOk(furName(nm), name)) continue;
+        cur.qty += it.quantity?.toNumber() ?? 0; cur.incl += it.subtotal.mul(it.vatRate.div(100).add(1)).toNumber() * scale; cur.excl += it.subtotal.toNumber() * scale;
+      }
+      orderedYear.set(y, cur);
+    }
+  }
+  // Подкладка: лоты разных поставок записаны вперемешку (поставка 05.26 частично лежит в лотах 07.25), поэтому оплату и долг
+  // делим по доле стоимости между ВСЕМИ лотами подкладки, а не внутри «своего» аукциона — иначе у отдельной ткани «оплачено» выходит больше «куплено».
+  // В пул идут аукционы подкладки, по которым в выбранном году есть оплаты или долг (лоты — все лоты этих аукционов).
+  const liningAucs = new Set(allLots.filter((l) => l.kind === "lining" && (Math.abs(aucMoney.get(l.auction)?.paid ?? 0) >= 0.5 || Math.abs(aucMoney.get(l.auction)?.due ?? 0) >= 0.5)).map((l) => l.auction));
+  const liningPool = { paid: 0, due: 0, value: allLots.filter((l) => l.kind === "lining" && liningAucs.has(l.auction)).reduce((a, l) => a + l.recvIncl, 0) };
+  for (const au of liningAucs) {
+    const tot = aucTotalValue.get(au) ?? 0;
+    const lin = allLots.filter((l) => l.auction === au && l.kind === "lining").reduce((a, l) => a + l.recvIncl, 0);
+    const m = aucMoney.get(au);
+    if (m && tot > 0) { liningPool.paid += m.paid * (lin / tot); liningPool.due += m.due * (lin / tot); }
+  }
+  const moneyOf = (auction: string, lots: FurLot[]) => {
+    if (lots.length > 0 && lots.every((l) => l.kind === "lining")) {
+      const share = liningPool.value > 0 ? lots.reduce((a, l) => a + l.recvIncl, 0) / liningPool.value : 0;
+      return { paid: liningPool.paid * share, due: liningPool.due * share };
+    }
+    const tot = aucTotalValue.get(auction) ?? 0;
+    const share = tot > 0 ? lots.reduce((a, l) => a + l.recvIncl, 0) / tot : 0;
+    const m = aucMoney.get(auction);
+    return { paid: (m?.paid ?? 0) * share, due: (m?.due ?? 0) * share };
+  };
   for (const [k, ls] of groups) {
     const byAuc = new Map<string, { label: string; lots: FurLot[] }>();
     for (const l of ls) {
@@ -146,14 +293,21 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     }
     rawTable.push({
       key: k, label: ls[0].item, kind: ls[0].kind, cells: cellsPair(ls, c4k), lots: ls.length,
-      auctions: Array.from(byAuc, ([key, g]) => ({ key, label: g.label, cells: cellsPair(g.lots, c4k) })).sort((a, b) => b.cells.incl.rv - a.cells.incl.rv),
+      ...((): { paid: number; due: number } => { let paid = 0, due = 0; for (const [au, g] of byAuc) { const m = moneyOf(au, g.lots); paid += m.paid; due += m.due; } return { paid, due }; })(),
+      usd: (() => { const f = figures(flowOf(ls), { vat: "incl", c4: c4k }); return { bought: f.usdAvg, used: f.usdUsedAvg, rem: f.usdRemAvg }; })(),
+      years: Array.from(new Set(ls.map((l) => l.year))).sort((a, b) => a - b).map((y) => {
+        const yl = ls.filter((l) => l.year === y);
+        const f = figures(flowOf(yl), { vat: "incl", c4: c4k });
+        return { year: y, cells: cellsPair(yl, c4k), usd: { bought: f.usdAvg, used: f.usdUsedAvg, rem: f.usdRemAvg } };
+      }),
+      auctions: Array.from(byAuc, ([key, g]) => ({ key, label: g.label, cells: cellsPair(g.lots, c4k), ...moneyOf(key, g.lots) })).sort((a, b) => b.cells.incl.rv - a.cells.incl.rv),
     });
   }
   rawTable.sort((a, b) => Number(a.kind === "lining") - Number(b.kind === "lining") || b.cells.incl.rv - a.cells.incl.rv);
   const rawTableTotal = cellsPair(lotsYear, c4k);
 
   // «Динамика по годам»: годы шапки не влияют — показаны все; фильтры панели действуют (кроме долга и оплат).
-  const yearSet = new Set<number>(YEARS.map(Number));
+  const yearSet = new Set<number>(availableYears().map(Number));
   for (const l of lotsAllYears) yearSet.add(l.year);
   for (const o of ordersFiltered) if (o.year != null) yearSet.add(o.year);
   const yearList = Array.from(yearSet).sort((a, b) => a - b);
@@ -163,11 +317,11 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     const t = prodTotals(orders.filter(isDone));
     return {
       key, label,
-      fur: cellsPair(lots.filter((l) => l.kind === "fur"), c4k),
+      fur: withHides(withOrdered(cellsPair(lots.filter((l) => l.kind === "fur"), c4k), orderedYear.get(Number(key))), hidesYear.get(Number(key))),
       lining: cellsPair(lots.filter((l) => l.kind === "lining"), c4k),
       prod: { qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum },
-      paid: d.paid.add(d.unlinkedAdvances).toNumber(),
-      debt: d.debt.toNumber(),
+      paid: ovAll.filter((r) => r.year === Number(key)).reduce((a, r) => a + r.fur + r.lining, 0),
+      debt: ovLeftAll.byYear.get(Number(key))?.raw ?? 0,
     };
   };
   const yearRows: YearRow[] = yearList.map((y) => mkYear(String(y), String(y), lotsAllYears.filter((l) => l.year === y), ordersFiltered.filter((o) => o.year === y), debtFor(String(y) as YearFilter)));
@@ -189,16 +343,19 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const sumPair = (list: CellsPair[]): CellsPair => ({ incl: sumCells(list.map((c) => c.incl)), excl: sumCells(list.map((c) => c.excl)) });
   // Строки, где нет ни одной ненулевой цифры, не показываем (в сумму они ничего не вносят).
   const hasData = (r: YearRow) => [r.fur.incl, r.lining.incl].some((c) => c.rq !== 0 || c.uq !== 0 || c.mq !== 0 || c.rv !== 0) || r.prod.qty !== 0 || r.prod.costIncl !== 0 || r.paid !== 0 || r.debt !== 0;
-  const shownRows = yearRows.filter(hasData);
-  const totalRow: YearRow = {
-    key: "all", label: "Итого",
-    fur: sumPair(yearRows.map((r) => r.fur)),
-    lining: sumPair(yearRows.map((r) => r.lining)),
-    prod: yearRows.reduce((a, r) => ({ qty: a.qty + r.prod.qty, costIncl: a.costIncl + r.prod.costIncl, costExcl: a.costExcl + r.prod.costExcl, work: a.work + r.prod.work }), { qty: 0, costIncl: 0, costExcl: 0, work: 0 }),
-    paid: yearRows.reduce((a, r) => a + r.paid, 0),
-    debt: yearRows.reduce((a, r) => a + r.debt, 0),
+  const buildYears = (): YearRow[] => {
+    const shownRows = yearRows.filter(hasData);
+    const totalRow: YearRow = {
+      key: "all", label: "Итого",
+      fur: sumPair(yearRows.map((r) => r.fur)),
+      lining: sumPair(yearRows.map((r) => r.lining)),
+      prod: yearRows.reduce((a, r) => ({ qty: a.qty + r.prod.qty, costIncl: a.costIncl + r.prod.costIncl, costExcl: a.costExcl + r.prod.costExcl, work: a.work + r.prod.work }), { qty: 0, costIncl: 0, costExcl: 0, work: 0 }),
+      paid: yearRows.reduce((a, r) => a + r.paid, 0),
+      debt: yearRows.reduce((a, r) => a + r.debt, 0),
+    };
+    return [...shownRows, totalRow];
   };
-  const years: YearRow[] = [...shownRows, totalRow];
+  let years: YearRow[] = buildYears();
 
   const debt = supplierDebtFromInputs(debtInputs, year);
   const invoiceDeadlines = debt.byAuction
@@ -223,12 +380,132 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const sumPurch = (pred: (st: string) => boolean) => purchasesYear.filter((p) => pred(p.status)).reduce((a, p) => a.add(purchaseTotalInclVat(p)), new Decimal(0)).toNumber();
   const workOf = (pred: (o: OrderRow) => boolean) => ordersYear.filter(pred).reduce((a, o) => a + o.work, 0);
 
+  // Оплачено по статьям — те же числа, что в «Оплаты → Все»: мех (с шкурами подрядчика), подкладка, работа. 4% отдельной суммой не добавляется (учтены в оплатах).
+  const supplierCashPaid = debt.paid.add(debt.unlinkedAdvances).toNumber();
+  const ovLeft = ovLeftAll;
+  const ovYear = ovAll.filter((r) => year === "all" || r.year === Number(year));
+  const sumOv = (k: "fur" | "lining" | "work") => ovYear.reduce((a, r) => a + r[k], 0);
+  const paidByItem = { fur: sumOv("fur"), lining: sumOv("lining"), work: sumOv("work") };
+  const leftYears = Array.from(ovLeft.byYear.entries()).filter(([y]) => year === "all" || y === Number(year));
+  const leftRaw = leftYears.reduce((a, [, v]) => a + v.raw, 0);
+  // Остаток по сырью делим на мех и подкладку по доле подкладки в лотах каждого аукциона; прочее (закупки без аукциона, зачёты) — мех.
+  const auctionLots = new Map<string, FurLot[]>();
+  for (const l of allLots) auctionLots.set(l.auction, [...(auctionLots.get(l.auction) ?? []), l]);
+  const liningShare = (name: string) => {
+    const ls = auctionLots.get(name) ?? [];
+    const tot = ls.reduce((a, l) => a + l.recvIncl, 0);
+    return tot > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.recvIncl, 0) / tot : 0;
+  };
+  const leftLining = debt.byAuction.reduce((a, x) => a + x.due.toNumber() * liningShare(x.name), 0) ;
+  const left = { raw: leftRaw, fur: leftRaw - leftLining, lining: leftLining, prod: leftYears.reduce((a, [, v]) => a + v.prod, 0) };
+
+  // «Прочее» (закупки без аукциона, шкуры подрядчика, поправки) — это конкретные виды меха: переносим в их строки.
+  // Долг — по лотам своей закупки; оплаты (шкуры подрядчика) — по доле лотов без аукциона.
+  {
+    const restPaid = hidesTotal.incl; // шкуры подрядчика (по выбранным ТЗ)
+    const rowOf = (item: string, kind: "fur" | "lining" = "fur") => {
+      let r = rawTable.find((x) => x.label === item && x.kind === kind);
+      if (!r) { // вид, лоты которого лежат в другом году (оплата 2026 за лоты 2025): строка без лотов в этом году
+        r = { key: `${kind}|${item}`, label: item, kind, cells: cellsPair([], c4k), paid: 0, due: 0, usd: { bought: null, used: null, rem: null }, auctions: [], years: [], lots: 0 };
+        rawTable.push(r);
+      }
+      return r;
+    };
+    for (const x of purchasePaid) {
+      const ls = lotsAllYears.filter((l) => l.purchaseId === x.id);
+      const tot = ls.reduce((a, l) => a + l.recvIncl, 0);
+      const byKey = new Map<string, { item: string; kind: "fur" | "lining"; v: number }>();
+      for (const l of ls) { const k = `${l.kind}|${l.item}`; byKey.set(k, { item: l.item, kind: l.kind, v: (byKey.get(k)?.v ?? 0) + l.recvIncl }); }
+      if (tot > 0) for (const g of byKey.values()) { const r = rowOf(g.item, g.kind); if (r) { const add = x.paid * (g.v / tot); r.paid += add; const a = r.auctions.find((y) => y.key === "__none"); if (a) a.paid += add; else r.auctions.push({ key: "__none", label: "Без аукциона", cells: cellsPair([], c4k), paid: add, due: 0 }); } }
+    }
+    const addTo = (r: RawTableRow, paid: number, due: number) => {
+      r.paid += paid; r.due += due;
+      const g = r.auctions.find((x) => x.key === "__none");
+      if (g) { g.paid += paid; g.due += due; }
+    };
+    // Остаток оплат — шкуры подрядчика (свакара, фондю), оплаченные в составе счетов за пошив: относим к свакаре.
+    if (Math.abs(restPaid) >= 0.5) {
+      const r = rowOf("Свакара");
+      if (r) {
+        r.paid += restPaid; r.cells = withHides(r.cells, hidesTotal);
+        r.auctions.push({ key: "hides", label: "Шкуры подрядчика", cells: withHides(cellsPair([], c4k), hidesTotal), paid: restPaid, due: 0 });
+      }
+    }
+    for (const p of purchasesYear) {
+      if (p.auctionSession && auctionName(p.auctionSession)) continue;
+      const due = purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0))).toNumber();
+      if (due < 0.5) continue;
+      const ls = lotsYear.filter((l) => l.kind === "fur" && l.purchaseId === p.id);
+      const tot = ls.reduce((a, l) => a + l.recvIncl, 0);
+      if (tot <= 0) continue;
+      const byItem = new Map<string, number>();
+      for (const l of ls) byItem.set(l.item, (byItem.get(l.item) ?? 0) + l.recvIncl);
+      for (const [item, v] of byItem) { const r = rowOf(item); if (r) addTo(r, 0, due * (v / tot)); }
+    }
+  }
+
+  // Деньги по закупкам, где лотов ещё нет (FH 06.26, СП 09.26), — внутрь строк своего вида меха (подстрока «ещё не получен»); для вида без лотов (рысь) строка создаётся.
+  for (const g of unreceived.byFur) {
+    let r = rawTable.find((x) => x.kind === "fur" && x.label === g.label);
+    if (!r) {
+      r = { key: `fur|${g.label}`, label: g.label, kind: "fur", cells: cellsPair([], c4k), paid: 0, due: 0, usd: { bought: null, used: null, rem: null }, auctions: [], years: [], lots: 0 };
+      rawTable.push(r);
+    }
+    r.paid += g.paid; r.due += g.due;
+    r.cells = withOrdered(r.cells, g.ordered);
+    r.auctions.push({ key: `unrecv|${g.names.join(",")}`, label: `${g.names.join(", ")}`, cells: withOrdered(cellsPair([], c4k), g.ordered), paid: g.paid, due: g.due });
+  }
+  rawTable.sort((a, b) => Number(a.kind === "lining") - Number(b.kind === "lining") || b.cells.incl.rv - a.cells.incl.rv || b.paid - a.paid);
+  const orderedAll = unreceived.byFur.reduce((a, g) => ({ qty: a.qty + g.ordered.qty, incl: a.incl + g.ordered.incl, excl: a.excl + g.ordered.excl }), { qty: 0, incl: 0, excl: 0 });
+  const rawTableTotalAll = withHides(withOrdered(rawTableTotal, orderedAll), hidesTotal);
+  const addHidesFig = (f: FlowFigures, v: number): FlowFigures => ({ ...f, recvValue: f.recvValue + v, recvAvg: f.recvQty > 0 ? Math.round(((f.recvValue + v) / f.recvQty) * 100) / 100 : null, usedValue: f.usedValue + v, usedValueOther: f.usedValueOther + v, usedAvg: f.usedQty > 0 ? Math.round(((f.usedValue + v) / f.usedQty) * 100) / 100 : null });
+  const furPairAll = { incl: addHidesFig(bumpFigures(furPair.incl, orderedAll.qty, orderedAll.incl), hidesTotal.incl), excl: addHidesFig(bumpFigures(furPair.excl, orderedAll.qty, orderedAll.excl), hidesTotal.excl) };
+  const unreceivedLeft = { paid: unreceived.paid - unreceived.byFur.reduce((a, g) => a + g.paid, 0), due: unreceived.due - unreceived.byFur.reduce((a, g) => a + g.due, 0), names: unreceived.names, byFur: [] as typeof unreceived.byFur };
+
+  // Фильтры панели: деньги по сырью — сумма строк таблицы (они уже по выбранным лотам), «Работа» — по выбранным ТЗ.
+  const moneyFromRows = lotFiltersOn(f) || orderFiltersOn(f);
+  const sumRows = (kind: "fur" | "lining", k: "paid" | "due") => rawTable.filter((r) => r.kind === kind).reduce((a, r) => a + r[k], 0);
+  let paidOut = paidByItem, leftOut = left;
+  if (moneyFromRows) {
+    paidOut = { ...paidByItem, fur: sumRows("fur", "paid"), lining: sumRows("lining", "paid") };
+    leftOut = { ...left, fur: sumRows("fur", "due"), lining: sumRows("lining", "due"), raw: sumRows("fur", "due") + sumRows("lining", "due") };
+  }
+  if (moneyFromRows) {
+    const alloc = new Map((await prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId, productionPayment: { status: "COMPLETED" } }, _sum: { amount: true } })).map((x) => [x.productionOrderId, x._sum.amount?.toNumber() ?? 0]));
+    let wPaid = 0, wLeft = 0;
+    for (const o of ordersYear) {
+      if (!o.clientName) continue;
+      const a = alloc.get(o.id) ?? 0;
+      wPaid += Math.min(a, o.work); wLeft += Math.max(o.work - a, 0);
+    }
+    paidOut = { ...paidOut, work: wPaid };
+    leftOut = { ...leftOut, prod: wLeft };
+  }
+  if (moneyFromRows) {
+    // Годы: оплата и долг строки делятся по годам закупки лотов пропорционально их стоимости; строки без лотов (заказано, шкуры) — в последний год.
+    const lastY = yearList[yearList.length - 1];
+    const pY = new Map<number, number>(), dY = new Map<number, number>();
+    for (const r of rawTable) {
+      const totalV = r.years.reduce((a, y) => a + y.cells.incl.rv, 0);
+      if (totalV > 0) for (const y of r.years) { const sh = y.cells.incl.rv / totalV; pY.set(y.year, (pY.get(y.year) ?? 0) + r.paid * sh); dY.set(y.year, (dY.get(y.year) ?? 0) + r.due * sh); }
+      else { pY.set(lastY, (pY.get(lastY) ?? 0) + r.paid); dY.set(lastY, (dY.get(lastY) ?? 0) + r.due); }
+    }
+    for (const yr of yearRows) if (/^\d{4}$/.test(yr.key)) { yr.paid = pY.get(Number(yr.key)) ?? 0; yr.debt = dY.get(Number(yr.key)) ?? 0; }
+    years = buildYears();
+  }
+  const unreceivedOut = moneyFromRows ? { paid: 0, due: 0, names: [] as string[], byFur: [] as typeof unreceived.byFur } : unreceivedLeft;
+
   return {
     c4,
-    raw: { fur: furPair, lining: liningPair, lots: lotsYear.length },
+    paidByItem: paidOut,
+    left: leftOut,
+    overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
+    hides: hidesTotal,
+    rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
+    raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))) },
-    rawTable, rawTableTotal, years, debt,
-    supplierCashPaid: debt.paid.add(debt.unlinkedAdvances).toNumber(),
+    rawTable, rawTableTotal: rawTableTotalAll, years, debt,
+    supplierCashPaid,
     clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options, noColorLots,
     orderIds: ordersYear.map((o) => o.id),
     furTotalLots: lotsYear.length,

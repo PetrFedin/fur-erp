@@ -1,7 +1,6 @@
 import { OrderDocsPay } from "../docs-pay";
 import { AllocationEditButton, type AllocOrderOpt } from "@/components/allocation-editor";
 import { IntegrityBanner } from "@/components/integrity-banner";
-import { cleanNote } from "@/lib/note-tags";
 import { DocBadge } from "@/components/doc-viewer";
 import { docCounts } from "@/lib/doc-links";
 import { VerifyBlock } from "../../verify/verify-block";
@@ -47,7 +46,7 @@ import { OrderEditForm } from "./order-edit-form";
 import { ShipmentsBlock } from "./shipments-block";
 import { FittingsBlock } from "./fittings-block";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { Section, SectionNav } from "./section";
+import { Section } from "./section";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { compareModelNames } from "@/lib/model-code";
 import { batchOrderInclude, batchTotals, orderUnitsDec } from "@/lib/batch-stats";
@@ -82,13 +81,6 @@ const UNIT_LABELS: Record<string, string> = {
   M2: "м²",
   M: "м",
   SET: "компл.",
-};
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  BANK_TRANSFER: "Банк. перевод",
-  CASH: "Наличные",
-  CARD: "Карта",
-  OTHER: "Другое",
 };
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
@@ -573,13 +565,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     ))}</span>,
     clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
   ].filter((x) => Boolean(x)) as React.ReactNode[];
-  const navItems = [
-    { id: "calc", label: "К расчёту" },
-    ...(order.client ? [{ id: "pay", label: "К оплатам" }] : []),
-    { id: "ship", label: "К отгрузкам" },
-    { id: "drive", label: "К документам" },
-    { id: "finish", label: "К цене и завершению" },
-  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -598,17 +583,22 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>
-          <a href={`/api/production/${id}/docx`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
-            Скачать .docx
-          </a>
-          {canEdit && (
-            <OrderColorsEditButton
-              key={order.colors.map((c) => `${c.colorRefId}:${c.quantity ?? ""}:${c.sizes ?? ""}`).join("|")}
-              orderId={id}
-              colors={colorOptions.map((c) => ({ id: c.id, name: c.name }))}
-              rows={order.colors.map((c) => ({ colorRefId: c.colorRefId, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" }))}
-            />
-          )}
+          <details className="relative">
+            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: Word, цвета">⋯</summary>
+            <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
+              <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
+                Скачать .docx
+              </a>
+              {canEdit && (
+                <OrderColorsEditButton
+                  key={order.colors.map((c) => `${c.colorRefId}:${c.quantity ?? ""}:${c.sizes ?? ""}`).join("|")}
+                  orderId={id}
+                  colors={colorOptions.map((c) => ({ id: c.id, name: c.name }))}
+                  rows={order.colors.map((c) => ({ colorRefId: c.colorRefId, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" }))}
+                />
+              )}
+            </div>
+          </details>
           {canEdit && <OrderEditForm
             action={boundUpdateOrder}
             models={modelOptions.map((m) => ({ id: m.id, name: articleLabel(m) }))}
@@ -712,8 +702,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </dd>
         </div>
       </dl>
-
-      <SectionNav items={navItems} />
 
       <Section id="calc" title="Расчёт и списание" defaultOpenMobile>
       <Card>
@@ -979,27 +967,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                   <Th>Тип</Th>
                   <Th>Сумма платежа</Th>
                   <Th>На это ТЗ</Th>
-                  <Th>Способ</Th>
-                  <Th>Также покрывает</Th>
-                  <Th>Заметка</Th>
                   <Th>Документы</Th>
                   <Th></Th>
                 </Tr>
               </Thead>
               <Tbody>
                 {payments.map((p) => {
-                  const otherOrders = p.orders
-                    .map((a) => a.productionOrder)
-                    .filter((o) => o.id !== id);
                   return (
                     <Tr key={p.id}>
                       <Td>{formatDate(p.paidAt)}</Td>
                       <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
                       <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
                       <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-500">не разнесено</span>}</Td>
-                      <Td>{PAYMENT_METHOD_LABELS[p.method] ?? p.method}</Td>
-                      <Td>{otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—"}</Td>
-                      <Td>{cleanNote(p.notes) ?? "—"}</Td>
                       <Td><DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
                       <Td>
                         {canEdit && (
@@ -1019,13 +998,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     </Tr>
                   );
                 })}
-                {payments.length === 0 && <EmptyRow cols={9}>Оплат пока нет</EmptyRow>}
+                {payments.length === 0 && <EmptyRow cols={6}>Оплат пока нет</EmptyRow>}
               </Tbody>
             </Table>
               }
             >
               {payments.map((p) => {
-                const otherOrders = p.orders.map((a) => a.productionOrder).filter((o) => o.id !== id);
                 return (
                   <RowCard
                     key={p.id}
@@ -1033,9 +1011,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     subtitle={`${formatDate(p.paidAt)} · ${PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}`}
                     fields={[
                       { label: "На это ТЗ", value: shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : "не разнесено" },
-                      { label: "Способ", value: PAYMENT_METHOD_LABELS[p.method] ?? p.method },
-                      { label: "Также покрывает", value: otherOrders.length > 0 ? otherOrders.map((o) => o.number).join(", ") : "—" },
-                      ...(cleanNote(p.notes) ? [{ label: "Заметка", value: cleanNote(p.notes) }] : []),
                       { label: "Документы", value: <DocBadge entity="productionPayment" id={p.id} count={payDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /> },
                     ]}
                     extra={
@@ -1143,8 +1118,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
       </Section>
 
-      <RecordHistory model="ProductionOrder" recordId={order.id} />
-      <RecordComments entityType="ProductionOrder" entityId={order.id} />
+      <details className="rounded-lg border border-neutral-200 bg-white">
+        <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-600">История и комментарии</summary>
+        <div className="flex flex-col gap-3 border-t border-neutral-100 p-3">
+          <RecordHistory model="ProductionOrder" recordId={order.id} />
+          <RecordComments entityType="ProductionOrder" entityId={order.id} />
+        </div>
+      </details>
     </div>
   );
 }

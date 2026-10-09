@@ -16,12 +16,28 @@ const TONE: Record<string, string> = {
 const BAR = "#2a78d6";
 const BAR_ACTIVE = "#184f95";
 
+const sharePct = (part: number, whole: number) => (whole ? `${((part / whole) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—");
+
+/** Ячейка состава: сумма и рядом аккуратная доля от себестоимости строки. */
+function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean }) {
+  if (hide) return <td className="px-2 py-1.5 text-right text-neutral-400">—</td>;
+  return (
+    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+      {v === 0 ? <span className="text-neutral-400">—</span> : <>{formatMoney(v)}<span className="ml-1 text-[11px] text-neutral-500">{sharePct(v, whole)}</span></>}
+    </td>
+  );
+}
+
 const pct = (v: number) => `${(v * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`;
 
 export function ProductionModal({
-  scope, search, totals, onClose, title,
+  scope, search, totals, onClose, title, hides, workTotal,
 }: {
-  scope: "done" | "work";
+  /** Работа по всем ТЗ окна: входит в себестоимость столбцов (кроме группировки «Мех», где её не к чему отнести). */
+  workTotal: number;
+  /** Шкуры подрядчика (в ТЗ не списаны): добавляются к итогу на верхнем уровне окна «все ТЗ». */
+  hides?: number;
+  scope: "done" | "work" | "all";
   search: Record<string, string[]>;
   /** Итог плитки (то, с чем должна сходиться сумма столбцов). */
   totals: { costIncl: number; costExcl: number; qty: number; orders: number };
@@ -68,7 +84,8 @@ export function ProductionModal({
 
   const level = useMemo(() => (data ? levelFor(data.orders, mode, path, vat) : null), [data, mode, path, vat]);
   const tileTotal = vat === "incl" ? totals.costIncl : totals.costExcl;
-  const matches = level && path.length === 0 ? Math.abs(level.total - tileTotal) < 0.02 : null;
+  const expectTotal = tileTotal + (mode === "fur" ? 0 : workTotal);
+  const matches = level && path.length === 0 ? Math.abs(level.total - expectTotal) < 0.02 : null;
 
   const pick = useCallback((it: Item) => {
     if (!level || !it.drillable || it.outside) return;
@@ -88,18 +105,18 @@ export function ProductionModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="prod-modal-title"
-        className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4">
           <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства · {scope === "done" ? "произведено" : "в работе"}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Стоимость производства · {scope === "done" ? "произведено" : scope === "all" ? "факт списания по всем ТЗ" : "в работе"}</div>
             <h2 id="prod-modal-title" className="mt-0.5 text-lg font-semibold">{title}</h2>
             <p className="mt-0.5 text-xs text-neutral-500">
-              {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · без работы
+              {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
                 <p><b>Столбец = себестоимость</b> ТЗ: мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ. <b>Работа</b> в себестоимость не входит и показана отдельно («стоимость = себестоимость + работа»).</p>
-                <p className="mt-1">{scope === "done" ? "Здесь только ТЗ в статусе «Завершён» (выпуск)." : "Здесь только ТЗ «В работе» и «Запланировано» (план; сырьё — по списаниям на сегодня)."} Произведено и в работе не смешиваются.</p>
+                <p className="mt-1">{scope === "all" ? "Здесь все ТЗ — завершённые и в работе: учитывается фактическое списание меха и подкладки, работа и 4%, отметка о завершении ТЗ не важна." : scope === "done" ? "Здесь только ТЗ в статусе «Завершён» (выпуск)." : "Здесь только ТЗ «В работе» и «Запланировано» (план; сырьё — по списаниям на сегодня)."}</p>
                 <p className="mt-1">Сумма столбцов каждого уровня равна родительскому столбцу; на первом уровне — итогу плитки. Режимы НДС, 4% и год — те же, что в шапке.</p>
               </InfoHint>
             </p>
@@ -141,9 +158,9 @@ export function ProductionModal({
                   <span className="text-xl font-semibold tabular-nums">{formatMoney(level.total)}</span>
                   <span className="ml-2 text-xs text-neutral-500">{level.title} · {level.orders} ТЗ</span>
                 </div>
-                {level.totalWork != null && level.totalWork !== 0 ? (
-                  <div className="text-xs text-neutral-600">+ работа <b className="tabular-nums">{formatMoney(level.totalWork)}</b> · всего <b className="tabular-nums">{formatMoney(level.total + level.totalWork)}</b></div>
-                ) : null}
+                <div className="text-xs text-neutral-600">
+                  {level.totalWork != null && level.totalWork !== 0 ? <>в том числе работа <b className="tabular-nums">{formatMoney(level.totalWork)}</b></> : null}
+                </div>
               </div>
 
               {/* Гистограмма */}
@@ -187,47 +204,71 @@ export function ProductionModal({
                 </div>
               </div>
 
-              {/* Таблица тех же данных: точные суммы, доли, ссылки */}
+              {/* Таблица тех же данных: изделия, себестоимость и из чего она состоит (с долями), работа */}
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[520px] text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                      <th className="py-1.5 pr-2 font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Себестоимость</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Доля</th>
-                      {level.totalWork != null ? <th className="px-2 py-1.5 text-right font-medium">Работа</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {level.items.map((it) => (
-                      <tr key={it.key} className="border-b border-neutral-100 hover:bg-neutral-50" onMouseEnter={() => setHover(it)} onMouseLeave={() => setHover(null)}>
-                        <td className="py-1.5 pr-2">
-                          <span className="mr-2 inline-block size-2.5 rounded-sm align-middle" style={{ background: it.outside ? "#e87ba4" : it.tone ? TONE[it.tone] : BAR }} aria-hidden />
-                          {it.drillable && !it.outside ? (
-                            <button type="button" onClick={() => pick(it)} className="text-left text-blue-700 underline-offset-2 hover:underline">{it.label} ›</button>
-                          ) : it.href ? (
-                            <Link href={it.href} className="text-blue-700 underline-offset-2 hover:underline">{it.label}</Link>
-                          ) : <span>{it.label}</span>}
-                          {it.sub ? <div className="ml-[18px] text-xs text-neutral-500">{it.sub}</div> : null}
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right text-neutral-600">{it.qtyText}</td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{formatMoney(it.value)}</td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">{it.outside ? "—" : pct(it.share)}</td>
-                        {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">{it.work ? formatMoney(it.work) : "—"}</td> : null}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="font-semibold">
-                      <td className="py-1.5 pr-2">Итого</td>
-                      <td />
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>
-                      <td className="px-2 py-1.5 text-right">100%</td>
-                      {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.totalWork)}</td> : null}
-                    </tr>
-                  </tfoot>
-                </table>
+                {(() => {
+                  const rich = level.kind === "dim" && level.items.some((i) => i.parts);
+                  const showOther = level.items.some((i) => Math.abs(i.parts?.other ?? 0) > 0.005);
+                  const sumP = (k: "fur" | "lining" | "c4" | "other") => level.items.reduce((x, i) => x + (i.parts?.[k] ?? 0), 0);
+                  return (
+                    <table className={"w-full text-sm " + (rich ? "min-w-[900px]" : "min-w-[520px]")}>
+                      <thead>
+                        <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
+                          <th className="min-w-[150px] py-1.5 pr-2 font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
+                          <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
+                          <th className="px-2 py-1.5 text-right font-medium">Себестоимость</th>
+                          {rich ? <><th className="px-2 py-1.5 text-right font-medium">Мех</th><th className="px-2 py-1.5 text-right font-medium">Подкладка</th><th className="px-2 py-1.5 text-right font-medium">4%</th>{showOther ? <th className="px-2 py-1.5 text-right font-medium">Расходы и прочее</th> : null}</> : null}
+                          {level.totalWork != null ? <th className="px-2 py-1.5 text-right font-medium">в т.ч. работа</th> : null}
+                          <th className="px-2 py-1.5 text-right font-medium">Доля уровня</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {level.items.map((it) => (
+                          <tr key={it.key} className="border-b border-neutral-100 hover:bg-neutral-50" onMouseEnter={() => setHover(it)} onMouseLeave={() => setHover(null)}>
+                            <td className="min-w-[150px] py-1.5 pr-2">
+                              <span className="mr-2 inline-block size-2.5 rounded-sm align-middle" style={{ background: it.outside ? "#e87ba4" : it.tone ? TONE[it.tone] : BAR }} aria-hidden />
+                              {it.drillable && !it.outside ? (
+                                <button type="button" onClick={() => pick(it)} className="text-left text-blue-700 underline-offset-2 hover:underline">{it.label} ›</button>
+                              ) : it.href ? (
+                                <Link href={it.href} className="text-blue-700 underline-offset-2 hover:underline">{it.label}</Link>
+                              ) : <span>{it.label}</span>}
+                              {it.sub ? <div className="ml-[18px] text-xs text-neutral-500">{it.sub}</div> : null}
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-right text-neutral-600">{it.qtyText}</td>
+                            <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{formatMoney(it.value)}</td>
+                            {rich ? (
+                              <>
+                                <PartCell v={it.parts?.fur ?? 0} whole={it.value} hide={!it.parts} />
+                                <PartCell v={it.parts?.lining ?? 0} whole={it.value} hide={!it.parts} />
+                                <PartCell v={it.parts?.c4 ?? 0} whole={it.value} hide={!it.parts} />
+                                {showOther ? <PartCell v={it.parts?.other ?? 0} whole={it.value} hide={!it.parts} /> : null}
+                              </>
+                            ) : null}
+                            {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.work ? formatMoney(it.work) : "—"}</td> : null}
+                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">{it.outside ? "—" : pct(it.share)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="font-semibold">
+                          <td className="py-1.5 pr-2">Итого</td>
+                          <td />
+                          <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>
+                          {rich ? (
+                            <>
+                              <PartCell v={sumP("fur")} whole={level.total} />
+                              <PartCell v={sumP("lining")} whole={level.total} />
+                              <PartCell v={sumP("c4")} whole={level.total} />
+                              {showOther ? <PartCell v={sumP("other")} whole={level.total} /> : null}
+                            </>
+                          ) : null}
+                          {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.totalWork)}</td> : null}
+                          <td className="px-2 py-1.5 text-right">100%</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  );
+                })()}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">

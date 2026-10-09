@@ -9,19 +9,29 @@ import { parseVatModeCookie } from "@/lib/vat-mode";
 import { Commission4DisplayProvider } from "@/lib/commission4-display";
 import { parseCommission4Cookie } from "@/lib/commission4-mode";
 import { YearDisplayProvider } from "@/lib/year-display";
-import { parseYearCookie } from "@/lib/year-filter";
+import { availableYears, parseYearCookie } from "@/lib/year-filter";
+import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   const cookieStore = await cookies();
-  const vatMode = parseVatModeCookie(cookieStore.get("vatDisplay")?.value);
+  const vatMode = parseVatModeCookie("incl");
   const yearFilter = parseYearCookie(cookieStore.get("yearFilter")?.value);
+  // Год из данных: если есть закупки/оплаты позже 2026, переключатель и блоки получают этот год сами.
+  const orgId = session.user.organizationId;
+  const [pu, pa, pp] = await Promise.all([
+    prisma.purchase.aggregate({ where: { organizationId: orgId }, _max: { orderDate: true } }),
+    prisma.payment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
+    prisma.productionPayment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
+  ]);
+  const dataMaxYear = Math.max(0, ...[pu._max.orderDate, pa._max.paidAt, pp._max.paidAt].map((d) => (d ? d.getUTCFullYear() : 0)));
+  const years = availableYears(dataMaxYear);
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
 
   return (
     <VatDisplayProvider initialMode={vatMode}>
       <Commission4DisplayProvider initialMode={c4Mode}>
-      <YearDisplayProvider initialYear={yearFilter}>
+      <YearDisplayProvider initialYear={yearFilter} years={years}>
       <div className="flex h-screen w-full overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col print:block">

@@ -504,7 +504,7 @@ const CHECKS: CheckDef[] = [
         const t = ps.filter((p) => p.status !== "CANCELLED").reduce((s, p) => s + h.purchaseTotal(p), 0);
         const pd = ps.reduce((s, p) => s + p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a + x.amount, 0), 0) + (lump.get(name) ?? 0);
         paid += pd;
-        overpay += Math.max(pd - t, 0);
+        // Переплата аукциона зачитывается в общий долг (см. computeSupplierDebt) — в пересчёт не добавляется.
       }
       for (const p of live) {
         if (auctionName(p.auctionSession)) continue;

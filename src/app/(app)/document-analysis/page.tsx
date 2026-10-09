@@ -64,7 +64,7 @@ export default async function DocumentAnalysisPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Анализ документов</h1><span className="ml-2 align-middle text-sm font-normal">
               <InfoHint wide label="О странице">
-                <p>Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Сводка» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
+                <p>Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Главная» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
               </InfoHint>
             </span></div>
         </div>

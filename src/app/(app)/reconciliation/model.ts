@@ -149,7 +149,7 @@ export function totalsOf(list: InvCalc[]): Totals {
   return t;
 }
 
-export type YearSel = "all" | "2025" | "2026";
+export type YearSel = "all" | `${number}`;
 export const inYearSel = (y: number | null, sel: YearSel) => sel === "all" || (y != null && String(y) === sel);
 
 /**

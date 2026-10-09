@@ -178,7 +178,14 @@ export type ClientDebtRow = {
 
 export type ClientDebt = {
   rows: ClientDebtRow[];
+  /** К оплате заказчиком = работа по ТЗ + надбавка 4% за мех и подкладку (если передана в scope.surcharge). */
   billable: number;
+  /** Работа по ТЗ. */
+  work: number;
+  /** Надбавка 4% за мех и подкладку, использованные в ТЗ (входит в billable). */
+  surcharge: number;
+  /** Шкуры подрядчика, пришедшие в платежах сверх работы ТЗ: это сырьё, из «К оплате» и «Оплачено» за товар исключены. */
+  hides: number;
   allocated: number;
   /** Неразнесённые авансы, вошедшие в «оплачено» (0, если включён фильтр по ТЗ — тогда они не относятся к выбранным ТЗ). */
   unallocated: number;
@@ -199,6 +206,8 @@ export type ClientDebtScope = {
   orderIds?: string[];
   /** Включены ли фильтры по составу ТЗ (сырьё, цвет, НДС, статус, партия): тогда неразнесённые авансы в остаток не входят. */
   orderFiltersActive?: boolean;
+  /** Надбавка 4% за мех и подкладку по ТЗ (id → ₽ с НДС): добавляется к «К оплате» заказчика. */
+  surcharge?: Map<string, number>;
 };
 
 const n2 = (d: Decimal) => Math.round(d.toNumber() * 100) / 100;
@@ -224,11 +233,14 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
     }
     return e;
   };
+  let surchargeSum = 0;
   const orderClient = new Map<string, string>();
   for (const o of orders) {
     const e = ensure(o.clientId, o.client.name);
     orderClient.set(o.id, o.clientId);
     e.orders += 1;
+    const sur = scope.surcharge?.get(o.id) ?? 0;
+    if (sur) { e.billable = e.billable.add(sur); surchargeSum += sur; }
     if (o.clientWorkPricePerUnit) e.billable = e.billable.add(new Decimal(o.clientWorkPricePerUnit.toString()).mul(new Decimal(orderUnits({ status: o.status, plannedQuantity: o.plannedQuantity.toString(), producedQuantity: o.producedQuantity.toString() }).toFixed(3))));
     else e.unpricedOrders += 1;
   }
@@ -251,12 +263,17 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
   const yearPayments = payments.filter((p) => inYear(p.paidAt));
   let unallocatedAll = 0;
   const byKind = { advance: 0, excess: 0 };
+  let hidesTotal = 0;
   for (const p of yearPayments) {
     unallocatedAll += p.rest.toNumber();
     byKind[p.kind] += p.rest.toNumber();
     if (!filtersActive && p.clientId) {
       const e = rows.get(p.clientId);
-      if (e) e.unallocated = e.unallocated.add(p.rest);
+      if (e) {
+        // Остаток платежа, названный в основании «шкурами подрядчика», — сырьё, а не оплата работы: в «За производство» его не учитываем.
+        if (/шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) && p.rest.greaterThan(1)) hidesTotal += p.rest.toNumber();
+        else e.unallocated = e.unallocated.add(p.rest);
+      }
     }
   }
 
@@ -270,9 +287,13 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
     })
     .sort((a, b) => b.balance - a.balance);
   const sum = (f: (r: ClientDebtRow) => number) => Math.round(list.reduce((s, r) => s + f(r), 0) * 100) / 100;
+  const hides = Math.round(hidesTotal * 100) / 100;
   return {
     rows: list,
     billable: sum((r) => r.billable),
+    work: Math.round((sum((r) => r.billable) - surchargeSum) * 100) / 100,
+    surcharge: Math.round(surchargeSum * 100) / 100,
+    hides,
     allocated: sum((r) => r.allocated),
     unallocated: sum((r) => r.unallocated),
     unallocatedAll: Math.round(unallocatedAll * 100) / 100,

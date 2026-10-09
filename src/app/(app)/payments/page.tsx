@@ -1,10 +1,9 @@
+import { Fragment } from "react";
 import Link from "next/link";
-import { cleanNote } from "@/lib/note-tags";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { RecordHistory } from "@/components/record-history";
 import {
   Card,
   CardContent,
@@ -19,14 +18,15 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { resolveAuctionValues } from "@/lib/auction-ref";
-import { auctionName, loadAuctionSummaries, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
+import { auctionName, loadAuctionSummaries, payStatus, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
-import { AuctionPaymentForm, PaymentRowControls, CloseRemainderButton } from "./auction-payment-form";
-import { PaymentForm } from "@/components/payment-form";
-import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
-import { DriveDocList, UploadDocument } from "@/components/drive-documents";
+import { PaymentRowControls } from "./auction-payment-form";
+import { PaymentFormButton } from "@/components/payment-form";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
-import { toDriveView } from "@/lib/drive-docs-server";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { tidyDocRef } from "@/lib/pay-ref";
+import { cleanNote } from "@/lib/note-tags";
+import { loadOrderRows } from "@/lib/analytics-orders";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, inYear, yearLabel, yearRange } from "@/lib/year-filter";
@@ -35,9 +35,21 @@ import { loadPaymentVerify } from "../verify/verify-block";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NONE, activeCount, dateRange, defineFilters, filterHref, parseFilters, pick } from "@/lib/filters";
 import { getFilterOptions } from "@/lib/filter-options";
-import { DocBadge } from "@/components/doc-viewer";
-import { ClientDebtBlock } from "./client-debt-block";
+import { ClientPaymentsTable, type ClientPayRow } from "./client-payments-table";
+import { ClientDateDetail } from "./client-date-detail";
+import { PaymentTiles } from "./payment-tiles";
+import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
+import { PaymentsOverview } from "./payments-overview";
+import { OVERPAY_NOTE } from "@/lib/overpay-notes";
+import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
+
+async function overviewLeft(orgId: string) {
+  const l = await loadPaymentsLeft(orgId);
+  return { byYear: Object.fromEntries(l.byYear), raw: l.raw, prod: l.prod };
+}
+import { loadClientDebt } from "@/lib/payment-alloc";
 import { RawTab } from "@/components/raw-tabs";
+import { PaymentLinesTable, PurchaseLinesTable, type PayLine, type PurchaseLine } from "./payment-lines";
 import { docCounts } from "@/lib/doc-links";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
@@ -60,7 +72,7 @@ function isPastRu(date: string): boolean {
 }
 
 function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
-  return r.lessThan(-0.005) ? `переплата ${formatMoney(r.neg().toString())}` : formatMoney(r.toString());
+  return r.lessThan(-0.005) ? `+${formatMoney(r.neg().toString())}` : formatMoney(r.toString());
 }
 
 const FRESH_MS = 365 * 24 * 3600 * 1000;
@@ -68,7 +80,8 @@ const FRESH_MS = 365 * 24 * 3600 * 1000;
 // Фильтры вкладок: поставщикам — партия закупки (мультивыбор), поиск по названию, поставщик, остаток, подтверждение, период оплат;
 // от заказчиков — заказчик, подтверждение, период. `f=rest` — старое имя «С остатком».
 const PAY_FILTERS = defineFilters({
-  ...pick(["auction", "q", "supplier", "status", "verified", "from", "to", "tab"], {
+  ptype: { kind: "multi", label: "Тип оплаты", allowed: ["ADVANCE", "PARTIAL", "FINAL"] },
+  ...pick(["auction", "q", "supplier", "status", "verified", "from", "to", "tab", "batch"], {
     q: { aliases: ["dq"], label: "Название партии" },
     status: { aliases: ["f"], allowed: ["rest", "paid"], label: "Оплата" },
     verified: { allowed: ["yes", "no"], label: "Подтверждение" },
@@ -85,13 +98,6 @@ const PAY_VERIFIED_OPTIONS = [
   { value: "no", label: "Ждёт проверки (нет платёжки)" },
 ];
 
-const METHOD_LABELS: Record<string, string> = {
-  CASH: "Наличные",
-  BANK_TRANSFER: "Банк. перевод",
-  CARD: "Карта",
-  OTHER: "Другое",
-};
-
 const KIND_LABELS: Record<string, string> = {
   ADVANCE: "Аванс",
   PARTIAL: "Доплата",
@@ -103,11 +109,19 @@ const STATUS_VARIANT: Record<AuctionPayStatus, "danger" | "warning" | "success" 
   UNPAID: "danger",
   PARTIAL: "warning",
   PAID: "success",
-  OVERPAID: "info",
+  OVERPAID: "success",
 };
 
 /** Допуск округления: остаток меньше 50 ₽ — партия считается оплаченной («Оплачен ≈»). */
 const ROUND_TOL = 50;
+/** Статус по сумме и оплате — тот же, что у строки партии (остаток меньше 50 ₽ — «Оплачен ≈»), для итоговых строк. */
+function totalsBadge(total: Decimal, paid: Decimal) {
+  const st = payStatus(total, paid);
+  const rem = total.sub(paid);
+  if (st === "PARTIAL" && rem.greaterThan(PAY_EPS) && rem.lessThan(ROUND_TOL)) return <Badge variant="success" title={`Остаток ${rem.toFixed(2)} ₽ — копейки округления`}>Оплачен ≈</Badge>;
+  return <Badge variant={STATUS_VARIANT[st]}>{st === "OVERPAID" ? "Оплачен" : AUCTION_PAY_STATUS_LABELS[st]}</Badge>;
+}
+
 function statusBadge(a: AuctionPay) {
   const nearly = a.status === "PARTIAL" && a.remaining.greaterThan(PAY_EPS) && a.remaining.lessThan(ROUND_TOL);
   return nearly ? (
@@ -115,7 +129,7 @@ function statusBadge(a: AuctionPay) {
       Оплачен ≈
     </Badge>
   ) : (
-    <Badge variant={STATUS_VARIANT[a.status]}>{AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
+    <Badge variant={STATUS_VARIANT[a.status]}>{a.status === "OVERPAID" ? "Оплачен" : AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
   );
 }
 
@@ -125,6 +139,24 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   FINAL: "Оплата",
 };
 
+const INVOICE_RX = /сч[её]т[^№;·]*№\s*([^\s;·]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
+
+/** Счёт оплаты: «№103 от 03.07.2025» (слово «счёт» — в заголовке колонки). Берём из основания платежа, иначе из закупки. */
+function payInvoice(docRef: string | null, purchase?: { id: string; number: string; invoiceNumber: string | null } | null): { text: string; href?: string } | undefined {
+  const m = INVOICE_RX.exec(docRef ?? "");
+  const text = m ? `№${m[1]}${m[2] ? ` от ${m[2]}` : ""}` : purchase?.invoiceNumber ? `№${purchase.invoiceNumber.replace(/^сч[её]т\s*/i, "")}` : "";
+  if (!text) return undefined;
+  return { text, href: purchase ? `/purchases/${purchase.id}` : undefined };
+}
+
+/** Комментарий к оплате: основание без п/п (своя колонка), без счёта (своя колонка) и без повтора даты платежа. */
+function payComment(docRef: string | null, dateText: string): string {
+  return tidyDocRef(docRef, dateText)
+    .split(" · ")
+    .filter((x) => !/^п\/п\s*№?\s*\d+/i.test(x) && !INVOICE_RX.test(x))
+    .join(" · ");
+}
+
 export default async function PaymentsPage({
   searchParams,
 }: PageProps<"/payments">) {
@@ -132,8 +164,10 @@ export default async function PaymentsPage({
   const sp = await searchParams;
   const canPay = hasRole(session.user.role, ACCESS.supplierPayments);
   const flashError = typeof sp.error === "string" ? (FLASH_ERRORS[sp.error] ?? "") : "";
-  const tab: "suppliers" | "clients" =
-    sp.tab === "clients" ? "clients" : "suppliers";
+  // Раздел: «Все» (по умолчанию), «За сырьё» (suppliers) или «За производство» (clients). Ссылки с параметрами аукциона ведут в «За сырьё».
+  const supplierParams = ["auction", "auc", "q", "dq", "supplier", "f", "noauction"].some((k) => sp[k] !== undefined);
+  const tab: "all" | "suppliers" | "clients" =
+    sp.tab === "clients" ? "clients" : sp.tab === "suppliers" ? "suppliers" : sp.tab === "all" ? "all" : supplierParams ? "suppliers" : "all";
   const orgId = session.user.organizationId;
   const year = await getYearFilter();
   // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «Заказчики».
@@ -151,7 +185,7 @@ export default async function PaymentsPage({
   const payOpts = await getFilterOptions(orgId, year, ["auction", "supplier"]);
   // Если выбрана ровно одна партия — под списком открывается её карточка с оплатами.
   const auctionQ = fAuction.length === 1 && fAuction[0] !== NONE ? (await resolveAuctionValues(orgId, fAuction))[0] : "";
-  const [payments, suppliers, clientPayments, summariesAll, auctionPurchases, plainPurchases, debt] = await Promise.all([
+  const [payments, clientPayments, summariesAll, auctionPurchases, debt] = await Promise.all([
     prisma.payment.findMany({
       where: { organizationId: orgId },
       include: {
@@ -162,10 +196,6 @@ export default async function PaymentsPage({
       },
       orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
     }),
-    prisma.supplier.findMany({
-      where: { organizationId: session.user.organizationId, isActive: true },
-      orderBy: { name: "asc" },
-    }),
     tab === "clients"
       ? prisma.productionPayment.findMany({
           where: {
@@ -173,10 +203,13 @@ export default async function PaymentsPage({
             ...(yearRange(year) ? { paidAt: yearRange(year) } : {}),
             ...(period ? { AND: [{ paidAt: period }] } : {}),
             ...(fVerified.length === 1 ? { confirmed: fVerified[0] === "yes" } : {}),
+            ...(clientsTab && pf.ptype.length ? { paymentType: { in: pf.ptype as ("ADVANCE" | "PARTIAL" | "FINAL")[] } } : {}),
+            ...(clientsTab && pf.batch.length ? { orders: { some: { productionOrder: { batch: { number: { in: pf.batch.map(Number) } } } } } } : {}),
           },
           include: {
             client: true,
-            orders: { include: { productionOrder: { include: { batch: { select: { number: true } } } } } },
+            allocations: { select: { productionOrderId: true, amount: true, productionOrder: { include: { batch: { select: { number: true } }, productModel: { select: { name: true, salesName: true } } } } } },
+            orders: { include: { productionOrder: { include: { batch: { select: { number: true } }, productModel: { select: { name: true, salesName: true } } } } } },
           },
           orderBy: { paidAt: "desc" },
         })
@@ -186,13 +219,6 @@ export default async function PaymentsPage({
       ? prisma.purchase.findMany({
           where: { organizationId: orgId, auctionSession: { not: null } },
           select: { id: true, number: true, invoiceNumber: true, auctionSession: true },
-        })
-      : Promise.resolve([]),
-    tab === "suppliers"
-      ? prisma.purchase.findMany({
-          where: { organizationId: orgId, auctionSession: null, status: { not: "CANCELLED" } },
-          select: { id: true, number: true, invoiceNumber: true, supplierId: true },
-          orderBy: { orderDate: "desc" },
         })
       : Promise.resolve([]),
     tab === "suppliers" ? loadSupplierDebt(prisma, orgId, year) : Promise.resolve(null),
@@ -209,7 +235,9 @@ export default async function PaymentsPage({
         ? 0
         : 2
       : 1;
-  const auctions = [...summaries].sort(
+  const auctions = summaries
+    .filter((x) => !(x.purchases === 0 && x.total.abs().lessThan(PAY_EPS) && x.paid.abs().lessThan(PAY_EPS) && x.planned.abs().lessThan(PAY_EPS)))
+    .sort(
     (a, b) =>
       rank(a) - rank(b) ||
       (b.lastPurchaseAt?.getTime() ?? 0) - (a.lastPurchaseAt?.getTime() ?? 0) ||
@@ -254,16 +282,6 @@ export default async function PaymentsPage({
   const auctionHref = (name: string) => filterHref(PAY_FILTERS, "/payments", pf, { auction: [name] });
   const selected = auctionQ ? auctions.find((a) => a.name === auctionQ) ?? null : null;
   const auctionPurchaseMap = new Map(auctionPurchases.map((p) => [p.id, p]));
-  const inAuction = (p: (typeof payments)[number]) =>
-    Boolean(p.auctionSession) || (p.purchase ? Boolean(auctionName(p.purchase.auctionSession)) : false);
-  const outside = payments.filter(
-    (p) =>
-      !inAuction(p) &&
-      inYear(p.paidAt, year) &&
-      (!period || ((!period.gte || p.paidAt >= period.gte) && (!period.lte || p.paidAt <= period.lte))) &&
-      (fSupplier.length === 0 || fSupplier.includes(p.supplierId)) &&
-      (fVerified.length !== 1 || (fVerified[0] === "yes") === (p.confirmed && !!p.confirmedAt)),
-  );
   const sum = (f: (a: AuctionPay) => { toString(): string }) => auctions.reduce((acc, a) => acc + Number(f(a).toString()), 0);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -274,55 +292,8 @@ export default async function PaymentsPage({
     return names.length <= 4 ? names.join(", ") : `${names.slice(0, 4).join(", ")} и ещё ${names.length - 4}`;
   };
   const intermediaries = supplierNamesOf(auctions);
-  // Поставщики для формы аванса: активные плюс те, на кого уже записаны авансы (даже неактивные).
-  const advSuppliers = suppliers.map((x) => ({ id: x.id, name: x.name }));
-  for (const p of payments) {
-    if (!p.purchaseId && !p.auctionSession && !advSuppliers.some((x) => x.id === p.supplierId)) advSuppliers.push({ id: p.supplierId, name: p.supplier.name });
-  }
-
-  // Цели для «Привязать к аукциону»: аукционы (с поставщиками) и закупки без аукциона.
-  const allocTargets: AllocTarget[] = [
-    ...auctions.map((a) => ({ value: `a:${a.name}`, label: `Партия закупки: ${shortAuctionName(a.name, 60)}`, supplierIds: a.suppliers.map((x) => x.id) })),
-    ...plainPurchases.map((p) => ({
-      value: `p:${p.id}`,
-      label: `Закупка ${p.invoiceNumber ? `счёт ${p.invoiceNumber} · ` : ""}${p.number}`,
-      supplierIds: [p.supplierId],
-    })),
-  ];
   const ppDocCnt = await docCounts(orgId, "productionPayment", clientPayments.map((p) => p.id));
-  const payDocs = (p: (typeof payments)[number]) => p.driveDocuments.map((d) => toDriveView(d, "оплата", session.user.role));
-  const canDocs = hasRole(session.user.role, ["OWNER", "ADMIN"]);
-  const docBlock = (p: (typeof payments)[number]) => {
-    const docs = payDocs(p);
-    return docs.length > 0 || canDocs ? (
-      <div className="mt-2 flex flex-col gap-1">
-        {docs.length > 0 && (
-          <>
-            <div className="text-xs text-neutral-500">Документы ({docs.length})</div>
-            <DriveDocList docs={docs} canEdit={canDocs} />
-          </>
-        )}
-        {canDocs && <UploadDocument entity="payment" entityId={p.id} compact />}
-      </div>
-    ) : null;
-  };
-  const payFlags = (p: (typeof payments)[number]) => (
-    <>
-      {p.docRef && <span className="block text-xs text-neutral-500">п/п / счёт: {p.docRef}</span>}
-      {!p.confirmed && (
-        <span className="mt-0.5 block">
-          <Badge variant="warning">без платёжки / не подтверждён</Badge>
-        </span>
-      )}
-      {pv.verify[p.id] && p.status === "COMPLETED" && (
-        <span className="mt-1 block">
-          <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />
-        </span>
-      )}
-    </>
-  );
-
-  // Ближайшие сроки счетов (из документов Drive «срок дд.мм.гггг»), как на Сводке.
+  // Ближайшие сроки счетов (из документов Drive «срок дд.мм.гггг»), как на Главной.
   const deadlines = (debt?.byAuction ?? [])
     .filter((a) => a.dueInvoiced.greaterThan(0) && a.invoiceDocs)
     .map((a) => {
@@ -342,20 +313,22 @@ export default async function PaymentsPage({
             {shortAuctionName(a.name)}
           </Link>
         </Td>
-        <Td className="text-right">{a.purchases}</Td>
         <Td className="whitespace-nowrap text-right">{formatMoney(a.total.toString())}</Td>
         <Td className="whitespace-nowrap text-right">
-          {formatMoney(a.paid.toString())}
-          <span className="block text-xs text-neutral-500">{fmtPct(a.percentPaid)}</span>
+          <span className="inline-flex items-baseline justify-end gap-2">
+            <span>{formatMoney(a.paid.toString())}</span>
+            <span className={"text-xs font-medium " + (a.percentPaid < 99.95 ? "text-red-600" : "font-normal text-neutral-500")}>{fmtPct(a.percentPaid)}</span>
+          </span>
         </Td>
         {anyPlanned && <Td className="whitespace-nowrap text-right">{a.planned.greaterThan(PAY_EPS) ? formatMoney(a.planned.toString()) : "—"}</Td>}
         <Td
           className={
             "whitespace-nowrap text-right font-semibold " +
-            (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-blue-600" : "")
+            (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-emerald-700" : "")
           }
         >
           {fmtRemaining(a.remaining)}
+          {a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.rx.test(a.name)) ? <sup className="ml-0.5"><a href="#overpay-notes" title="Где учтена переплата" className="text-emerald-700 hover:underline">{OVERPAY_NOTE.find((n) => n.rx.test(a.name))!.mark}</a></sup> : null}
         </Td>
         <Td>
           {statusBadge(a)}
@@ -381,25 +354,26 @@ export default async function PaymentsPage({
   const sumPaid = svcPaid.add(noAucPaid);
   const sumRemaining = svcRemaining.add(noAucDebt);
   // «Оплачено» в шапке — без переплат (они не гасят чужой долг), а в столбце таблицы переплата видна: подписываем разницу.
-  const overpaidList = auctions.filter((a) => a.remaining.lessThan(PAY_EPS.neg()));
-  const overpaidSum = overpaidList.reduce((acc, a) => acc.add(a.remaining.neg()), zeroD);
   const showServiceSum = !listFiltered && (svcAll.length > 0 || noAucTotal.abs().greaterThan(PAY_EPS));
   const svcPurchases = svcAll.reduce((n, a) => n + a.purchases, 0) + (debt ? debt.nonAuctionPurchases : 0);
   const serviceSumRow = (
     <Tr key="__service_sum">
-      <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Служебные записи импорта и закупки без аукциона, все вместе">
-        Служебные записи и закупки без партии закупки
+      <Td className="min-w-[10rem] max-w-[18rem] font-medium text-neutral-600" title="Закупки, купленные не на аукционе: З-2026-0001, 0008–0013 (шкуры, оплаты 2025 — начало 2026) и З-2026-0059 (красная лиса, счёт №209)">
+        <Link href="/payments?noauction=1#noauction-block" scroll className="hover:underline">Закупки без аукциона</Link>
       </Td>
-      <Td className="text-right">{svcPurchases}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumTotal.toString())}</Td>
       <Td className="whitespace-nowrap text-right">{formatMoney(sumPaid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
       <Td className={"whitespace-nowrap text-right font-semibold " + (sumRemaining.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(sumRemaining)}</Td>
-      <Td></Td>
-      <Td></Td>
+      <Td>
+        {totalsBadge(sumTotal, sumPaid)}
+      </Td>
+      <Td>
+        <Link href="/payments?noauction=1#noauction-block" scroll className={buttonVariants({ variant: "outline", size: "sm" })}>Оплаты</Link>
+      </Td>
     </Tr>
   );
-  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-blue-600" : "");
+  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
   const auctionCard = (a: (typeof auctions)[number]) => {
     const href = `${auctionHref(a.name)}#auction-block`;
     return (
@@ -426,7 +400,7 @@ export default async function PaymentsPage({
   const serviceSumCard = (
     <RowCard
       key="__service_sum"
-      title="Служебные записи и закупки без партии закупки"
+      title="Закупки без аукциона"
       fields={[
         { label: "Остаток", value: <span className={remClass(sumRemaining)}>{fmtRemaining(sumRemaining)}</span>, strong: true },
         { label: "Стоимость", value: formatMoney(sumTotal.toString()) },
@@ -435,48 +409,33 @@ export default async function PaymentsPage({
       details={[{ label: "Закупок", value: svcPurchases }]}
     />
   );
-  // «Расшифровка»: итоги по строкам таблицы и как они сходятся с «Остатком к оплате» в шапке (второй остаток и второе «оплачено» — только здесь).
-  const showRecon = mainAuctions.length > 0 || showServiceSum;
-  const rTotal = mainAuctions.reduce((acc, a) => acc.add(a.total), zeroD).add(showServiceSum ? sumTotal : zeroD);
-  const rPaid = mainAuctions.reduce((acc, a) => acc.add(a.paid), zeroD).add(showServiceSum ? sumPaid : zeroD);
-  const rPlanned = mainAuctions.reduce((acc, a) => acc.add(a.planned), zeroD);
-  const rRem = mainAuctions.reduce((acc, a) => acc.add(a.remaining), zeroD).add(showServiceSum ? sumRemaining : zeroD);
-  const rCount = mainAuctions.reduce((n, a) => n + a.purchases, 0) + (showServiceSum ? svcPurchases : 0);
-  const reconcilable = Boolean(debt) && !listFiltered;
-  const reconRow = (label: string, value: string, strong?: boolean) => (
-    <div className={"flex justify-between gap-4 py-0.5" + (strong ? " border-t border-neutral-200 pt-1 font-semibold" : "")}>
-      <dt className="text-neutral-600">{label}</dt>
-      <dd className="whitespace-nowrap text-right">{value}</dd>
-    </div>
-  );
-  const reconBlock = showRecon ? (
-    <details className="rounded-md border border-neutral-200 bg-white" data-payments-total>
-      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">Расшифровка</summary>
-      <dl className="flex max-w-xl flex-col gap-0 border-t border-neutral-100 px-3 py-2 text-sm">
-        {reconRow(`Закупок в строках`, String(rCount))}
-        {reconRow("Стоимость по строкам", formatMoney(rTotal.toString()))}
-        {reconRow("Оплачено по строкам (с учётом переплат)", formatMoney(rPaid.toString()))}
-        {rPlanned.greaterThan(PAY_EPS) && reconRow("Запланировано", formatMoney(rPlanned.toString()))}
-        {reconRow("Остаток по строкам", fmtRemaining(rRem), true)}
-        {reconcilable && debt && (
-          <>
-            {reconRow("− авансы без привязки", formatMoney(debt.unlinkedAdvances.toString()))}
-            {overpaidSum.greaterThan(0) && reconRow(`+ переплата ${overpaidList.map((a) => shortAuctionName(a.name)).join(", ")}`, formatMoney(overpaidSum.toString()))}
-            {reconRow("= Остаток к оплате (как в шапке)", formatMoney(debt.debt.toString()), true)}
-          </>
-        )}
-      </dl>
-    </details>
-  ) : null;
-  const auctionsTable = (list: typeof auctions, extraRow?: React.ReactNode) => (
+  // Год и месяц партии закупки — из названия («СП 09.26» → 2026-09); без года — в конце.
+  const auctionPeriod = (name: string) => {
+    const m = /(\d{2})[-.](\d{2})\s*$/.exec(name.trim());
+    return m ? { year: 2000 + Number(m[2]), month: Number(m[1]) } : null;
+  };
+  const sortByPeriod = (list: typeof auctions) =>
+    [...list].sort((a, b) => {
+      const pa = auctionPeriod(a.name), pb = auctionPeriod(b.name);
+      if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
+      return pa.year - pb.year || pa.month - pb.month;
+    });
+  const auctionsTable = (rawList: typeof auctions, extraRow?: React.ReactNode) => {
+    const list = sortByPeriod(rawList);
+    const groups: { year: number | null; items: typeof auctions }[] = [];
+    for (const a of list) {
+      const y = auctionPeriod(a.name)?.year ?? null;
+      const g = groups.find((x) => x.year === y);
+      if (g) g.items.push(a); else groups.push({ year: y, items: [a] });
+    }
+    return (
     <ResponsiveRows
       table={
     <Table>
       <Thead>
         <Tr>
-          <Th>Партия закупки</Th>
-          <Th className="text-right">Закупок</Th>
-          <Th className="text-right">Стоимость</Th>
+          <Th>Аукцион</Th>
+          <Th className="text-right">К оплате</Th>
           <Th className="text-right">Оплачено</Th>
           {anyPlanned && <Th className="text-right">Запланировано</Th>}
           <Th className="text-right">Остаток</Th>
@@ -484,13 +443,191 @@ export default async function PaymentsPage({
           <Th></Th>
         </Tr>
       </Thead>
-      <Tbody>{list.map(renderAuction)}{extraRow}</Tbody>
+      <Tbody>
+        {groups.map((g) => {
+          const gt = g.items.reduce((acc, a) => acc.add(a.total), zeroD);
+          const gp = g.items.reduce((acc, a) => acc.add(a.paid), zeroD);
+          const gr = g.items.reduce((acc, a) => acc.add(a.remaining), zeroD);
+          return (
+            <Fragment key={g.year ?? "none"}>
+              {!(groups.length === 1 && g.items.length === 1) && (
+              <tr className="border-y border-neutral-300 bg-neutral-100 text-sm font-semibold text-neutral-900">
+                <td className="px-3 py-2">
+                  <span className="text-base">{g.year ?? "Без года"}</span>
+                  <span className="ml-2 text-xs font-normal text-neutral-600">{g.items.length} {g.items.length === 1 ? "партия" : g.items.length < 5 ? "партии" : "партий"} · итого за год</span>
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{formatMoney(gt.toString())}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                  <span className="inline-flex items-baseline justify-end gap-2">
+                    <span>{formatMoney(gp.toString())}</span>
+                    <span className={"text-xs font-medium " + (gt.greaterThan(0) && gp.div(gt).mul(100).lessThan(99.95) ? "text-red-600" : "font-normal text-neutral-500")}>{gt.greaterThan(0) ? fmtPct(Number(gp.div(gt).mul(100).toString())) : "—"}</span>
+                  </span>
+                </td>
+                {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
+                <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
+                <td className="px-3 py-2">
+                  {totalsBadge(gt, gp)}
+                </td>
+                <td />
+              </tr>
+              )}
+              {g.items.map(renderAuction)}
+            </Fragment>
+          );
+        })}
+        {extraRow}
+      </Tbody>
     </Table>
       }
     >
       {list.map(auctionCard)}
       {extraRow ? serviceSumCard : null}
     </ResponsiveRows>
+    );
+  };
+
+  const pdate = clientsTab && typeof sp.pdate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.pdate) ? sp.pdate : "";
+  const orderInfo = clientsTab ? new Map((await loadOrderRows(orgId, "all", "on")).map((o) => [o.id, o])) : new Map<string, Awaited<ReturnType<typeof loadOrderRows>>[number]>();
+  // Всего оплачено по каждому ТЗ (все платежи) — для расхождений внутри даты.
+  const allocTotals = new Map<string, number>();
+  if (clientsTab) {
+    const sums = await prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId, productionPayment: { status: "COMPLETED" } }, _sum: { amount: true } });
+    for (const x of sums) allocTotals.set(x.productionOrderId, x._sum.amount?.toNumber() ?? 0);
+  }
+  const owedWorkTotal = Array.from(orderInfo.values()).filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year))).reduce((a, o) => a + (o.work - (allocTotals.get(o.id) ?? 0)), 0);
+  const advancesTotal = clientPayments.filter((p) => p.allocations.length === 0 && /сч[её]т/i.test(p.docRef ?? "") && !p.amount.isZero()).reduce((a, p) => a + p.amount.toNumber(), 0);
+  // Счета на оплату из Drive: у оплаты нет файлов напрямую, но счёт, названный в основании («Счёт №65»), лежит в Drive — показываем ссылку на него.
+  const invoiceDocs = clientsTab
+    ? await prisma.driveDocument.findMany({
+        where: { organizationId: orgId, docType: "PAYMENT_INVOICE", viewUrl: { not: null }, docDate: { gte: new Date("2026-01-01T00:00:00Z") } },
+        select: { title: true, viewUrl: true, docDate: true },
+      })
+    : [];
+  const invoiceLinkFor = (docRef: string | null, paidAt: Date) => {
+    const m = INVOICE_RX.exec(docRef ?? "");
+    if (!m) return [];
+    const num = m[1].replace(/\D/g, "");
+    if (!num) return [];
+    const seen = new Set<string>();
+    return invoiceDocs
+      .filter((d) => new RegExp(`№\\s*${num}(?!\\d)`).test(d.title) && d.docDate && d.docDate <= paidAt)
+      .filter((d) => (seen.has(d.viewUrl!) ? false : (seen.add(d.viewUrl!), true)))
+      .slice(0, 2)
+      .map((d) => ({ title: `счёт №${num}`, url: d.viewUrl! }));
+  };
+  const clientVerify: Record<string, React.ReactNode> = {};
+  for (const p of clientPayments) if (pv.verify[p.id]) clientVerify[p.id] = <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />;
+  // Нулевые оплаты (сумма целиком вынесена в оплату закупки) в списке не нужны — деньги видны в «За сырьё».
+  const clientRows: ClientPayRow[] = clientPayments.filter((p) => !p.amount.isZero()).map((p) => ({
+    id: p.id,
+    date: formatDate(p.paidAt),
+    iso: p.paidAt.toISOString().slice(0, 10),
+    year: p.paidAt.getUTCFullYear(),
+    amount: Number(p.amount.toString()),
+    type: PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType,
+    client: p.client?.name ?? "—",
+    // ТЗ оплаты: связанные с платежом и те, на которые есть разнесение (запись разнесения без связи — тоже ТЗ этой оплаты).
+    goods: (() => {
+      const byId = new Map<string, (typeof p.orders)[number]["productionOrder"]>();
+      for (const o of p.orders) byId.set(o.productionOrderId, o.productionOrder);
+      for (const x of p.allocations) if (!byId.has(x.productionOrderId)) byId.set(x.productionOrderId, x.productionOrder);
+      return Array.from(byId, ([oid, po]) => ({
+        id: oid,
+        number: po.number,
+        label: po.workOrderNumber || po.number,
+        model: po.productModel?.salesName || po.productModel?.name || "—",
+        qty: Number(po.plannedQuantity.toString()),
+        batch: po.batch?.number ?? null,
+        article: orderInfo.get(oid)?.modelName ?? po.productModel?.name ?? null,
+        fur: orderInfo.get(oid)?.fur ?? null,
+        cost: orderInfo.get(oid)?.costIncl ?? null,
+        work: orderInfo.get(oid)?.work ?? null,
+        paidTotal: allocTotals.get(oid) ?? null,
+        paid: p.allocations.find((x) => x.productionOrderId === oid)?.amount.toNumber() ?? null,
+      })).sort((x, y) => (x.batch ?? 0) - (y.batch ?? 0) || x.number.localeCompare(y.number, "ru", { numeric: true }));
+    })(),
+    // К оплате по дате: работа каждого ТЗ делится между его платежами пропорционально разнесению (сумма по датам = работа ТЗ, без повторов);
+    // шкуры подрядчика из остатка платежа — в «К оплате» и «Оплачено»; аванс без ТЗ — только «Оплачено» (оплачено вперёд).
+    due: (() => {
+      const amount = p.amount.toNumber();
+      let d = 0;
+      for (const x of p.allocations) {
+        const w = orderInfo.get(x.productionOrderId)?.work ?? 0;
+        const tot = allocTotals.get(x.productionOrderId) ?? 0;
+        if (w > 0 && tot > 0) d += (w * x.amount.toNumber()) / tot;
+      }
+      // Аванс по выставленному счёту, ТЗ ещё не назначены: к оплате — сумма счёта (оплачен целиком).
+      if (p.allocations.length === 0 && /сч[её]т/i.test(p.docRef ?? "") && advancesTotal > 0) {
+        // Аванс без ТЗ: к оплате — неоплаченная работа ТЗ, под которую он внесён (доля аванса от всех таких авансов); сходится с виджетом «Остаток».
+        d = owedWorkTotal * (amount / advancesTotal);
+      }
+      return Math.round(d * 100) / 100;
+    })(),
+    basis: tidyDocRef(p.docRef, formatDate(p.paidAt)),
+    note: cleanNote(p.notes) ?? undefined,
+    invoiceDocs: invoiceLinkFor(p.docRef, p.paidAt),
+    paid: Math.round((p.amount.toNumber() - (/шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) ? Math.max(0, p.amount.toNumber() - p.allocations.reduce((a, x) => a + x.amount.toNumber(), 0)) : 0)) * 100) / 100,
+    allocated: p.allocations.reduce((acc, x) => acc + x.amount.toNumber(), 0),
+    hidesNote: /шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`),
+    movedTo: /закупки\s+(З-[\d-]+)/.exec(p.docRef ?? "")?.[1] ?? null,
+    docCount: ppDocCnt.get(p.id)?.total ?? 0,
+    confirmed: p.confirmedAt != null,
+    docTitle: `Оплата ${formatDate(p.paidAt)}`,
+    verify: clientVerify[p.id],
+  }));
+  // ТЗ с неоплаченной работой (в том числе совсем без оплат) — расшифровка остатка в виджете.
+  const owedOrders: OwedOrder[] = Array.from(orderInfo.values())
+      .filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year)))
+    .map((o) => ({ id: o.id, label: o.workOrderNumber || o.number, article: o.modelName, fur: o.fur, batch: o.batchNumber, year: o.year, qty: o.qty, work: o.work, paid: allocTotals.get(o.id) ?? 0 }));
+  // «За производство»: общие виджеты — работа, оплачено, долг заказчиков и разбивка по партиям.
+  let goodsTotals: { work: number; hides: number; surcharge: number; total: number; paid: number; balance: number; unallocated: number; rows: BatchRow[] } | null = null;
+  if (clientsTab) {
+    const [cd, allAlloc] = await Promise.all([
+      loadClientDebt(prisma, orgId, { year }),
+      prisma.paymentAllocation.groupBy({ by: ["productionOrderId"], where: { organizationId: orgId }, _sum: { amount: true } }),
+    ]);
+    const allocBy = new Map(allAlloc.map((x) => [x.productionOrderId, x._sum.amount?.toNumber() ?? 0]));
+    const byBatch = new Map<string, BatchRow>();
+    for (const o of orderInfo.values()) {
+      if (!o.clientName || (year !== "all" && o.year !== Number(year))) continue;
+      const key = o.batchNumber != null ? String(o.batchNumber) : "—";
+      const cur = byBatch.get(key) ?? { key, label: o.batchNumber != null ? `Партия ${o.batchNumber}` : "Без партии", year: o.year, work: 0, paid: 0 };
+      cur.work += o.work;
+      cur.paid += allocBy.get(o.id) ?? 0;
+      byBatch.set(key, cur);
+    }
+    goodsTotals = { work: cd.work, hides: cd.hides, surcharge: Math.round(Array.from(orderInfo.values()).filter((o) => o.clientName && (year === "all" || o.year === Number(year))).reduce((a, o) => a + o.c4PotIncl, 0) * 100) / 100, total: cd.billable, paid: cd.paid, balance: cd.balance, unallocated: cd.unallocated, rows: Array.from(byBatch.values()).filter((r) => r.work > 0 || r.paid > 0) };
+  }
+  const hidesMemo = tab === "suppliers" ? (await loadClientDebt(prisma, orgId, { year })).hides : 0;
+  const clientBatchOptions = clientsTab ? (await getFilterOptions(orgId, year, ["batch"])).batch : [];
+  // «Закупки без аукциона»: что куплено, что и когда оплачено, чего нет — по каждой закупке (открывается по клику на строку таблицы).
+  const showNoAuction = tab === "suppliers" && sp.noauction === "1";
+  const noAuc = showNoAuction
+    ? (await prisma.purchase.findMany({
+        where: { organizationId: orgId, status: { not: "CANCELLED" } },
+        include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, include: { driveDocuments: { select: { driveFileId: true } }, document: { select: { id: true } } }, orderBy: { paidAt: "asc" } } },
+        orderBy: { number: "asc" },
+      })).filter((p) => !p.auctionSession || isServiceAuction(p.auctionSession))
+    : [];
+  const noAucLines: PurchaseLine[] = noAuc.map((p) => {
+    const total = purchaseTotalInclVat(p);
+    const paid = p.payments.reduce((acc, x) => acc.add(x.amount), new Decimal(0));
+    const note = /fix-drive:fox-209/.test(p.notes ?? "") ? "красная лиса, УПД №209" : /master-0|шкуры подрядчика/i.test(p.notes ?? "") ? "шкуры подрядчика" : null;
+    return { id: p.id, number: p.number, invoice: p.invoiceNumber ?? null, note, total: total.toString(), paid: paid.toString(), due: total.sub(paid).toString(), received: p.status === "RECEIVED" };
+  });
+  const noAucPayLines: PayLine[] = noAuc.flatMap((p) =>
+    p.payments.map((x) => ({
+      id: x.id,
+      date: formatDate(x.paidAt),
+      amount: x.amount.toString(),
+      what: "Оплата закупки",
+      invoice: payInvoice(x.docRef, p) ?? { text: p.number, href: `/purchases/${p.id}` },
+      comment: payComment(x.docRef, formatDate(x.paidAt)) || undefined,
+      ppNo: /п\/п\s*№?\s*(\d+)/.exec(x.docRef ?? "")?.[1] ?? null,
+      confirmed: x.confirmedAt != null,
+      status: "COMPLETED" as const,
+      docCount: new Set(x.driveDocuments.map((d) => d.driveFileId)).size + (x.document ? 1 : 0),
+    })),
   );
 
   return (
@@ -504,226 +641,70 @@ export default async function PaymentsPage({
           <p className="mt-2">Год (переключатель в шапке): партия закупки — по дате заказа, оплата без партии и от заказчиков — по дате оплаты. Оплаты внутри выбранной партии показываются все.</p>
           <p className="mt-2">Переключатель «С 4%» оплаты и долг поставщику не меняет.</p>
         </InfoHint>
+        {canPay && <span className="ml-auto"><PaymentFormButton label="+ Внести оплату" variant="default" size="default" requireYear /></span>}
       </div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
 
       <div role="navigation" aria-label="Разделы оплат" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
-        <RawTab href="/payments" active={tab === "suppliers"}>
-          Поставщикам
+        <RawTab href="/payments?tab=all" active={tab === "all"}>
+          Все
+        </RawTab>
+        <RawTab href="/payments?tab=suppliers" active={tab === "suppliers"}>
+          За сырьё
         </RawTab>
         <RawTab href="/payments?tab=clients" active={tab === "clients"}>
-          От заказчиков
+          За производство
         </RawTab>
       </div>
 
-      {tab === "clients" ? (
+      {tab === "all" ? (
+        <PaymentsOverview rows={await loadPaymentsOverview(orgId)} left={await overviewLeft(orgId)} c4={Math.round((await loadOrderRows(orgId, "all", "on")).filter((o) => o.clientName).reduce((a, o) => a + o.c4PotIncl, 0) * 100) / 100} />
+      ) : tab === "clients" ? (
         <>
-        <p className="text-sm text-neutral-600">
-          Ввести оплату — на карточке ТЗ: откройте нужное ТЗ в разделе{" "}
-          <Link href="/production" className="underline hover:no-underline">
-            ТЗ
-          </Link>
-          . Здесь оплаты заказчиков только собраны списком.
-        </p>
-        <ClientDebtBlock orgId={orgId} year={year} role={session.user.role} />
+        <h2 className="flex items-center gap-1.5 text-base font-semibold">Оплаты заказчиков за производство
+          <InfoHint label="Как внести оплату" wide>
+            <p>Ввести оплату — на карточке ТЗ: откройте нужное ТЗ в разделе «ТЗ». Здесь оплаты только собраны списком: по годам, с указанием, за какой товар (ТЗ, изделие, количество) они пришли.</p>
+          </InfoHint>
+        </h2>
+        {pdate ? (
+          <ClientDateDetail
+            date={formatDate(new Date(`${pdate}T00:00:00Z`))}
+            back="/payments?tab=clients"
+            rows={clientRows.filter((r) => r.iso === pdate).map((r) => ({ ...r, verifySlot: clientVerify[r.id] }))}
+            owedGoods={owedOrders.map((o) => ({ id: o.id, number: o.label, label: o.label, model: o.article, qty: o.qty, batch: o.batch, article: o.article, fur: o.fur, work: o.work, paidTotal: owedWorkTotal > 0 ? (o.work * advancesTotal) / owedWorkTotal : 0, paid: null }))}
+            owedNote={{ orders: owedOrders.length, batches: Array.from(new Set(owedOrders.map((o) => o.batch).filter((b): b is number => b != null))).sort((x, y) => x - y).join(", ") }}
+          />
+        ) : (
+          <>
         <FilterBar
           title="Фильтры оплат"
+          oneRow
+          hideChips
           controls={[
+            { type: "multi", name: "batch", label: "Партия", options: clientBatchOptions, allLabel: "Все партии" },
+            { type: "multi", name: "ptype", label: "Тип оплаты", options: [{ value: "ADVANCE", label: "Аванс" }, { value: "PARTIAL", label: "Доплата" }, { value: "FINAL", label: "Оплата" }], allLabel: "Любой" },
             { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
           ]}
         />
-        <ResponsiveRows table={
-        <Table anchor="table:payments" label="Таблица оплат" stickyHeader>
-          <Thead>
-            <Tr>
-              <Th>Дата</Th>
-              <Th>Заказчик</Th>
-              <Th>ТЗ</Th>
-              <Th>Тип</Th>
-              <Th>Сумма</Th>
-              <Th>Документы</Th>
-              <Th></Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {clientPayments.map((p) => (
-              <Tr key={p.id}>
-                <Td>{formatDate(p.paidAt)}</Td>
-                <Td>{p.client?.name ?? "—"}</Td>
-                <Td>
-                  {p.orders.length === 0 ? (
-                    <span className="text-neutral-500">без ТЗ</span>
-                  ) : p.orders.length <= 3 ? (
-                    p.orders.map((o, i) => (
-                      <span key={o.id}>
-                        {i > 0 && ", "}
-                        <Link href={`/production/${o.productionOrderId}`} className="hover:underline">
-                          {o.productionOrder.number}
-                        </Link>
-                      </span>
-                    ))
-                  ) : (
-                    <details>
-                      <summary className="cursor-pointer whitespace-nowrap">
-                        {p.orders.length} ТЗ{batchLabel(p.orders)}
-                      </summary>
-                      <div className="mt-1 flex max-w-xs flex-wrap gap-x-2 gap-y-0.5 text-xs">
-                        {p.orders.map((o) => (
-                          <Link key={o.id} href={`/production/${o.productionOrderId}`} className="hover:underline">
-                            {o.productionOrder.number}
-                          </Link>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </Td>
-                <Td>{PAYMENT_TYPE_LABELS[p.paymentType]}</Td>
-                <Td>{formatMoney(p.amount.toString())}</Td>
-                <Td><DocBadge entity="productionPayment" id={p.id} count={ppDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /></Td>
-                <Td>
-                  {p.orders[0] ? (
-                    <Link href={`/production/${p.orders[0].productionOrderId}`} className="text-sm hover:underline">
-                      К ТЗ
-                    </Link>
-                  ) : (
-                    <span className="text-neutral-500">—</span>
-                  )}
-                  {pv.verify[p.id] && (
-                    <div className="mt-1">
-                      <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact />
-                    </div>
-                  )}
-                </Td>
-              </Tr>
-            ))}
-            {clientPayments.length === 0 && (
-              <Tr>
-                <Td colSpan={7} className="py-8 text-center text-neutral-500">
-                  Оплат от заказчиков пока нет
-                </Td>
-              </Tr>
-            )}
-          </Tbody>
-        </Table>
-        }>
-          {clientPayments.map((p) => (
-            <RowCard
-              key={p.id}
-              title={p.client?.name ?? "—"}
-              subtitle={PAYMENT_TYPE_LABELS[p.paymentType]}
-              fields={[
-                { label: "Сумма", value: formatMoney(p.amount.toString()), strong: true },
-                { label: "Дата", value: formatDate(p.paidAt) },
-                { label: "Документы", value: <DocBadge entity="productionPayment" id={p.id} count={ppDocCnt.get(p.id)?.total ?? 0} title={`Оплата ${formatDate(p.paidAt)}`} /> },
-                ...(pv.verify[p.id] ? [{ label: "Подтверждение", value: <VerifyControl v={pv.verify[p.id]} canEdit={pv.canVerify} compact /> }] : []),
-                {
-                  label: "ТЗ",
-                  value:
-                    p.orders.length === 0 ? (
-                      "без ТЗ"
-                    ) : p.orders.length <= 3 ? (
-                      p.orders.map((o, i) => (
-                        <span key={o.id}>
-                          {i > 0 && ", "}
-                          <Link href={`/production/${o.productionOrderId}`} className="underline">
-                            {o.productionOrder.number}
-                          </Link>
-                        </span>
-                      ))
-                    ) : (
-                      `${p.orders.length} ТЗ${batchLabel(p.orders)}`
-                    ),
-                },
-              ]}
-              details={p.orders.length > 3 ? [{ label: "Все ТЗ", value: p.orders.map((o, i) => (
-                <span key={o.id}>{i > 0 && ", "}<Link href={`/production/${o.productionOrderId}`} className="underline">{o.productionOrder.number}</Link></span>
-              )) }] : []}
-            />
-          ))}
-          {clientPayments.length === 0 && <p className="py-6 text-center text-neutral-500">Оплат от заказчиков пока нет</p>}
-        </ResponsiveRows>
+        {goodsTotals && !pdate && <GoodsTiles {...goodsTotals} owed={owedOrders} />}
+                <ClientPaymentsTable rows={clientRows} />
+          </>
+        )}
         </>
       ) : (
         <>
-          {debt && (
-            <>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4" data-pay-tiles>
-                <Stat
-                  label="Остаток к оплате (долг)"
-                  value={formatMoney(debt.debt.toString())}
-                  hint={<SupplierDebtHint debt={debt} year={year} />}
-                  warn={debt.debt.greaterThan(PAY_EPS)}
-                />
-                <Stat
-                  label="Платить в первую очередь"
-                  value={formatMoney(debt.receivedNet.toString())}
-                  hint={<InfoHint wide label="Платить в первую очередь"><p>«К оплате по УПД и счетам»: мех получен, УПД есть, а оплаты не хватает. Авансы без привязки ({formatMoney(debt.unlinkedAdvances.toString())}) уже вычтены. Это часть общего долга слева.</p></InfoHint>}
-                  warn={debt.receivedNet.greaterThan(PAY_EPS)}
-                  note={deadlines.length > 0 ? undefined : "сроков по счетам нет"}
-                  extra={
-                    deadlines.length > 0 ? (
-                      <div className="mt-1 text-xs text-neutral-600">
-                        {deadlines.map((x) => {
-                          const late = isPastRu(x.date);
-                          return (
-                            <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>
-                              срок {x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>
-                              {late ? " · просрочен" : ""}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null
-                  }
-                />
-                <Stat
-                  label="Оплачено"
-                  value={formatMoney(debt.paid.add(debt.unlinkedAdvances).toString())}
-                  hint={
-                    <InfoHint wide label="Из чего состоит «Оплачено»">
-                      <p>Та же цифра, что «Оплачено поставщику» на Сводке (с НДС, от фильтров и 4% не зависит).</p>
-                      <dl className="mt-2 flex flex-col gap-1">
-                        <div className="flex justify-between gap-4"><dt>По закупкам и аукционам</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.paid.toString())}</dd></div>
-                        <div className="flex justify-between gap-4"><dt>+ авансы без привязки</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.unlinkedAdvances.toString())}</dd></div>
-                        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>= Оплачено</dt><dd className="whitespace-nowrap tabular-nums">{formatMoney(debt.paid.add(debt.unlinkedAdvances).toString())}</dd></div>
-                      </dl>
-                    </InfoHint>
-                  }
-                />
-                <Stat
-                  label="Неразнесённые авансы"
-                  value={formatMoney(debt.unlinkedAdvances.toString())}
-                  hint={<InfoHint wide label="Неразнесённые авансы"><p>Деньги отправлены поставщику, но не привязаны ни к закупке, ни к партии. Они уже входят в «Оплачено» и вычтены из долга; привяжите их к партии кнопкой «Привязать» в списке оплат.</p></InfoHint>}
-                  note={debt.unlinkedAdvances.greaterThan(PAY_EPS) ? undefined : "всё разнесено"}
-                />
-              </div>
-              <details className="rounded-md border border-neutral-200 bg-white" data-pay-more>
-                <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">Подробнее: из чего состоит долг</summary>
-                <dl className="grid max-w-xl gap-0 border-t border-neutral-100 px-3 py-2 text-sm">
-                  {[
-                    ["Стоимость закупок, с НДС", debt.total],
-                    ...(anyPlanned ? [["Запланировано", new Decimal(sum((a) => a.planned))] as [string, Decimal]] : []),
-                    ["К оплате по УПД и счетам", debt.receivedNet],
-                    ["Счёт выставлен, не оплачен (мех не получен)", debt.invoiced],
-                    ["Ожидаемые закупки (счёта ещё нет)", debt.expected],
-                  ].map(([l, v]) => (
-                    <div key={String(l)} className="flex justify-between gap-4 py-0.5"><dt className="text-neutral-600">{String(l)}</dt><dd className="whitespace-nowrap text-right tabular-nums">{formatMoney((v as Decimal).toString())}</dd></div>
-                  ))}
-                </dl>
-              </details>
-            </>
-          )}
-
           {auctions.length > 0 && (
             <>
             <FilterBar
               title="Фильтры оплат"
+          oneRow
+          hideChips
               controls={[
-                { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
+                { type: "multi", name: "auction", label: "Аукцион", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
                 { type: "text", name: "q", label: "Название партии", aliases: ["dq"], placeholder: "часть названия" },
                 { type: "multi", name: "supplier", label: "Поставщик", options: payOpts.supplier },
                 { type: "multi", name: "status", label: "Оплата", aliases: ["f"], options: PAY_STATUS_OPTIONS, allLabel: "Любая" },
@@ -738,9 +719,70 @@ export default async function PaymentsPage({
             </p>
             </>
           )}
+          {debt && (
+            <>
+              {!selected && !showNoAuction && (
+              <PaymentTiles
+                hidesMemo={hidesMemo}
+                paid={{
+                  total: Number(debt.paid.add(debt.unlinkedAdvances).toString()),
+                  unlinked: Number(debt.unlinkedAdvances.toString()),
+                  rows: (() => {
+                    const rows = auctions.filter((a) => a.paid.abs().greaterThan(PAY_EPS)).map((a) => ({ name: shortAuctionName(a.name), year: auctionPeriod(a.name)?.year ?? null, month: auctionPeriod(a.name)?.month, value: Number(a.paid.toString()) }));
+                    const rest = Number(debt.paid.add(debt.unlinkedAdvances).toString()) - rows.reduce((acc, r) => acc + r.value, 0);
+                    return rest > 0.5 ? [...rows, { name: "Закупки без аукциона", year: null, value: rest }] : rows;
+                  })(),
+                }}
+                debt={{
+                  total: Number(debt.debt.toString()),
+                  parts: [
+                    { label: "Стоимость закупок, с НДС", value: Number(debt.total.toString()) },
+                    ...(anyPlanned ? [{ label: "Запланировано", value: sum((a) => a.planned) }] : []),
+                    { label: "К оплате по УПД и счетам", value: Number(debt.receivedNet.toString()) },
+                    { label: "Счёт выставлен, не оплачен (мех не получен)", value: Number(debt.invoiced.toString()) },
+                    { label: "Ожидаемые закупки (счёта ещё нет)", value: Number(debt.expected.toString()) },
+                  ],
+                  rows: [
+                    ...debt.byAuction.filter((a) => a.due.greaterThan(PAY_EPS)).map((a) => ({ name: shortAuctionName(a.name), year: auctionPeriod(a.name)?.year ?? null, month: auctionPeriod(a.name)?.month, value: Number(a.due.toString()) })),
+                    ...(debt.nonAuctionDebt.greaterThan(PAY_EPS) ? [{ name: "Закупки без аукциона", year: null, value: Number(debt.nonAuctionDebt.toString()) }] : []),
+                  ],
+                }}
+                paidHint={
+                  <InfoHint wide label="Из чего состоит «Оплачено»" align="right">
+                    <p>Та же цифра, что «Оплачено поставщику» на Главной (с НДС, от фильтров и 4% не зависит): по закупкам и аукционам {formatMoney(debt.paid.toString())} + авансы без привязки {formatMoney(debt.unlinkedAdvances.toString())}.</p>
+                  </InfoHint>
+                }
+                debtHint={<SupplierDebtHint debt={debt} year={year} align="right" />}
+                debtWarn={debt.debt.greaterThan(PAY_EPS)}
+                deadlines={
+                  deadlines.length > 0 ? (
+                    <div className="mt-1 text-xs text-neutral-600">
+                      {deadlines.map((x) => {
+                        const late = isPastRu(x.date);
+                        return (
+                          <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>
+                            срок {x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>
+                            {late ? " · просрочен" : ""}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null
+                }
+              />
+              )}
+            </>
+          )}
+
 
           {(mainAuctions.length > 0 || showServiceSum) && auctionsTable(mainAuctions, showServiceSum ? serviceSumRow : undefined)}
-          {reconBlock}
+          {mainAuctions.some((a) => a.remaining.lessThan(-0.005) && OVERPAY_NOTE.some((n) => n.rx.test(a.name))) && (
+            <ol id="overpay-notes" className="space-y-1 text-xs text-neutral-600">
+              {OVERPAY_NOTE.filter((n) => mainAuctions.some((a) => a.remaining.lessThan(-0.005) && n.rx.test(a.name))).map((n) => (
+                <li key={n.mark}><sup className="mr-1 text-emerald-700">{n.mark}</sup>{n.text}</li>
+              ))}
+            </ol>
+          )}
           {serviceAuctions.length > 0 && (
             <details className="rounded-md border border-neutral-200 bg-white" open={listFiltered || serviceAuctions.some((a) => a.name === selected?.name)}>
               <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">
@@ -758,6 +800,26 @@ export default async function PaymentsPage({
             <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этим фильтрам партий закупки нет.</p>
           )}
 
+          <div id="noauction-block" className="scroll-mt-4" />
+          {showNoAuction && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Закупки без аукциона</CardTitle>
+                <CardDescription>Куплено не на аукционе: мех подрядчика и отдельные закупки. Ниже видно, за что оплачено и за что нет.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                <section>
+                  <h3 className="mb-2 text-sm font-semibold">За что платим ({noAucLines.length})</h3>
+                  <PurchaseLinesTable lines={noAucLines} withPaid />
+                </section>
+                <section>
+                  <h3 className="mb-2 text-sm font-semibold">Оплаты ({noAucPayLines.length})</h3>
+                  <PaymentLinesTable lines={noAucPayLines} emptyText="Оплат по этим закупкам нет" />
+                </section>
+                <p className="text-xs text-neutral-500">Добавить оплату закупки: откройте закупку (ссылка в таблице) → «Внести оплату», либо общая форма «+ Внести оплату» ниже.</p>
+              </CardContent>
+            </Card>
+          )}
           <div id="auction-block" className="scroll-mt-4" />
           {auctionQ && !selected && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -768,306 +830,70 @@ export default async function PaymentsPage({
             const ids = new Set(auctionPurchases.filter((p) => auctionName(p.auctionSession) === selected.name).map((p) => p.id));
             const rows = payments.filter((p) => (p.auctionSession === selected.name && !p.purchaseId) || (p.purchaseId && ids.has(p.purchaseId)));
             const total = Number(selected.total.toString());
+            const lines: PayLine[] = rows.map((p) => {
+              const own = Boolean(p.auctionSession) && !p.purchaseId;
+              const closing = own && p.notes === CLOSING_NOTE;
+              const pu = p.purchaseId ? auctionPurchaseMap.get(p.purchaseId) : null;
+              return {
+                id: p.id,
+                date: formatDate(p.paidAt),
+                amount: p.amount.toString(),
+                what: closing ? "Закрытие остатка" : own ? KIND_LABELS[p.kind] ?? p.kind : "Оплата закупки",
+                invoice: payInvoice(p.docRef, pu),
+                comment: payComment(p.docRef, formatDate(p.paidAt)) || undefined,
+                ppNo: /п\/п\s*№?\s*(\d+)/.exec(p.docRef ?? "")?.[1] ?? null,
+                confirmed: p.confirmedAt != null,
+                status: p.status === "PENDING" ? "PENDING" : p.status === "COMPLETED" ? "COMPLETED" : "CANCELLED",
+                overdue: p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today,
+                docCount: new Set(p.driveDocuments.map((d) => d.driveFileId)).size + (p.document ? 1 : 0),
+                controls: own && canPay ? (
+                  <PaymentRowControls
+                    auction={selected.name}
+                    total={total}
+                    paid={Number(selected.paid.sub(p.status === "COMPLETED" ? p.amount : 0).toString())}
+                    planned={Number(selected.planned.sub(p.status === "PENDING" ? p.amount : 0).toString())}
+                    suppliers={selected.suppliers}
+                    initial={{
+                      id: p.id,
+                      kind: p.kind,
+                      status: p.status === "PENDING" ? "PENDING" : "COMPLETED",
+                      paidAt: p.paidAt.toISOString().slice(0, 10),
+                      amount: p.amount.toString(),
+                      percent: p.percent ? p.percent.toString() : null,
+                      method: p.method,
+                      notes: p.notes ?? "",
+                      docName: p.document ? p.document.originalName : null,
+                      closing,
+                      version: rowVersion(p, PAYMENT_V),
+                    }}
+                  />
+                ) : undefined,
+              };
+            });
             return (
               <Card>
                 <CardHeader>
-                  <CardTitle>Партия закупки: {selected.name}</CardTitle>
+                  <CardTitle>{selected.name}</CardTitle>
                   <CardDescription className="flex flex-wrap gap-x-4 gap-y-1">
-                    <span>
-                      Закупок: {selected.purchases}
-                      {selected.purchasesAll > selected.purchases ? ` (+${selected.purchasesAll - selected.purchases} отменено)` : ""}
-                    </span>
-                    <Link href={`/lots?auction=${encodeURIComponent(selected.name)}`} className="hover:underline">
-                      Лоты и себестоимость партии →
-                    </Link>
-                    {selected.perPurchase.map((pp) => {
-                      const pu = auctionPurchaseMap.get(pp.id);
-                      return pu ? (
-                        <Link key={pp.id} href={`/purchases/${pp.id}`} className="hover:underline">
-                          {pu.invoiceNumber ? `Счёт ${pu.invoiceNumber}` : pu.number}
-                        </Link>
-                      ) : null;
-                    })}
+                    <span>Закупок: {selected.purchases}{selected.purchasesAll > selected.purchases ? ` (+${selected.purchasesAll - selected.purchases} отменено)` : ""}</span>
+                    <Link href={`/lots?auction=${encodeURIComponent(selected.name)}`} className="hover:underline">Лоты и себестоимость →</Link>
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
-                    <Stat label="Полная стоимость, с НДС" value={formatMoney(selected.total.toString())} />
-                    <Stat label="Оплачено" value={formatMoney(selected.paid.toString())} note={fmtPct(selected.percentPaid)} />
-                    {selected.planned.greaterThan(PAY_EPS) && <Stat label="Запланировано" value={formatMoney(selected.planned.toString())} />}
-                    <Stat label="ОСТАТОК" value={fmtRemaining(selected.remaining)} warn={selected.remaining.greaterThan(0.005)} />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <ProgressBar percent={selected.percentPaid} status={selected.status} />
-                    </div>
-                    {statusBadge(selected)}
-                  </div>
-                  {selected.status === "OVERPAID" && (
-                    <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                      Оплачено больше полной стоимости на {formatMoney(selected.remaining.neg().toString())}. Проверьте оплаты ниже.
-                    </p>
-                  )}
-                  {selected.purchases > 0 && selected.paidByPurchases.greaterThan(0) && (
-                    <p className="text-xs text-neutral-500">
-                      В «Оплачено» входят и оплаты, внесённые прямо в закупки этой партии: {formatMoney(selected.paidByPurchases.toString())}.
-                    </p>
-                  )}
+                <CardContent className="flex flex-col gap-5">
+                  <section>
+                    <h3 className="mb-2 text-sm font-semibold">Оплаты ({lines.length})</h3>
+                    <PaymentLinesTable lines={lines} emptyText={`По этой партии оплат поставщику${supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет`} />
+                  </section>
 
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold">История оплат ({rows.length})</h3>
-                    <div className="flex flex-col gap-2">
-                      {rows.map((p) => {
-                        const amountN = Number(p.amount.toString());
-                        const own = Boolean(p.auctionSession) && !p.purchaseId;
-                        const closing = own && p.notes === CLOSING_NOTE;
-                        const overdue = p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today;
-                        const pu = p.purchaseId ? auctionPurchaseMap.get(p.purchaseId) : null;
-                        return (
-                          <div
-                            key={p.id}
-                            className={"rounded-lg border bg-white p-3 " + (p.status === "PENDING" ? "border-dashed border-amber-300" : "border-neutral-200")}
-                          >
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm md:grid-cols-6">
-                              <Cell label="Дата">
-                                {formatDate(p.paidAt)}
-                                <span className="block"><DocBadge entity="payment" id={p.id} count={new Set(p.driveDocuments.map((d) => d.driveFileId)).size} title="Оплата" /></span>
-                              </Cell>
-                              <Cell label="Тип">
-                                {own ? KIND_LABELS[p.kind] ?? p.kind : <span className="text-neutral-500">Оплата закупки</span>}
-                                {closing && (
-                                  <span className="mt-0.5 block">
-                                    <Badge variant="info">закрытие остатка</Badge>
-                                  </span>
-                                )}
-                                {pu && (
-                                  <Link href={`/purchases/${pu.id}`} className="block text-xs hover:underline">
-                                    {pu.invoiceNumber ? `Счёт ${pu.invoiceNumber}` : pu.number}
-                                  </Link>
-                                )}
-                              </Cell>
-                              <Cell label="Сумма">
-                                <span className="font-semibold">{formatMoney(p.amount.toString())}</span>
-                                <span className="block text-xs text-neutral-500">
-                                  {total > 0 ? `${fmtPct((amountN / total) * 100)} от стоимости` : "—"}
-                                </span>
-                              </Cell>
-                              <Cell label="Способ">{METHOD_LABELS[p.method] ?? p.method}</Cell>
-                              <Cell label="Статус">
-                                {p.status === "COMPLETED" ? (
-                                  <Badge variant="success">Оплачено</Badge>
-                                ) : p.status === "PENDING" ? (
-                                  <Badge variant={overdue ? "danger" : "warning"}>{overdue ? "Запланирована, просрочена" : "Запланирована"}</Badge>
-                                ) : (
-                                  <Badge>Отменена</Badge>
-                                )}
-                              </Cell>
-                              <Cell label="Платёжный документ">
-                                {p.document ? (
-                                  <span className="flex flex-col gap-1">
-                                    <span className="break-all text-xs text-neutral-500">{p.document.originalName}</span>
-                                    <span className="flex gap-1">
-                                      <a
-                                        href={`/api/purchase-docs/${p.document.id}?download=1&v=${encodeURIComponent(p.document.storagePath.split(/[\\/]/).pop() ?? "")}`}
-                                        className={buttonVariants({ variant: "outline", size: "sm" })}
-                                      >
-                                        Скачать
-                                      </a>
-                                      <a
-                                        href={`/api/purchase-docs/${p.document.id}?v=${encodeURIComponent(p.document.storagePath.split(/[\\/]/).pop() ?? "")}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className={buttonVariants({ variant: "ghost", size: "sm" })}
-                                      >
-                                        Открыть
-                                      </a>
-                                    </span>
-                                  </span>
-                                ) : (
-                                  <span className="text-neutral-500">нет</span>
-                                )}
-                              </Cell>
-                            </div>
-                            <div className="mt-2 text-sm">{payFlags(p)}</div>
-                            {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
-                            {docBlock(p)}
-                            {own && canPay && (
-                              <div className="mt-2 border-t border-neutral-100 pt-2">
-                                <PaymentRowControls
-                                  auction={selected.name}
-                                  total={total}
-                                  paid={Number(selected.paid.sub(p.status === "COMPLETED" ? p.amount : 0).toString())}
-                                  planned={Number(selected.planned.sub(p.status === "PENDING" ? p.amount : 0).toString())}
-                                  suppliers={selected.suppliers}
-                                  initial={{
-                                    id: p.id,
-                                    kind: p.kind,
-                                    status: p.status === "PENDING" ? "PENDING" : "COMPLETED",
-                                    paidAt: p.paidAt.toISOString().slice(0, 10),
-                                    amount: p.amount.toString(),
-                                    percent: p.percent ? p.percent.toString() : null,
-                                    method: p.method,
-                                    notes: p.notes ?? "",
-                                    docName: p.document ? p.document.originalName : null,
-                                    closing,
-                                    version: rowVersion(p, PAYMENT_V),
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {rows.length === 0 && (
-                        <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">По этой партии закупки оплат поставщику{supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {canPay && selected.purchases > 0 && selected.remaining.greaterThan(PAY_EPS) && (
-                    <div className="flex flex-col gap-1">
-                      <CloseRemainderButton auction={selected.name} remaining={formatMoney(selected.remaining.toString())} />
-                      <p className="text-xs text-neutral-500">
-                        Для старых партий закупки, которые уже оплачены, но подтверждение ещё не занесено в систему. Ничего не закрывается автоматически — только по вашему подтверждению.
-                      </p>
-                    </div>
-                  )}
-
-                  {canPay && selected.purchases > 0 ? (
-                    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                      <h3 className="mb-2 text-sm font-semibold">Добавить оплату</h3>
-                      <AuctionPaymentForm
-                        auction={selected.name}
-                        total={total}
-                        paid={Number(selected.paid.toString())}
-                        planned={Number(selected.planned.toString())}
-                        suppliers={selected.suppliers}
-                      />
-                    </div>
-                  ) : !canPay ? (
-                    <p className="text-xs text-neutral-500">Добавлять оплаты могут владелец, администратор, закупщик и бухгалтер.</p>
-                  ) : null}
                 </CardContent>
               </Card>
             );
           })()}
 
-          <h2 className="mt-2 flex items-center gap-2 text-base font-semibold">
-            Авансы и оплаты без партии
-            <InfoHint wide label="Что здесь">
-              <p>Оплаты, не привязанные к партии закупки (авансы). Здесь же можно внести новую оплату — по аукциону, закупке, авансом или по работе.</p>
-            </InfoHint>
-          </h2>
-          {canPay && (
-          <details className="max-w-2xl rounded-lg border border-neutral-200 bg-white" open={!selected}>
-            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-neutral-700">+ Внести оплату: аукцион, закупка, аванс или оплата по работе (мастер)</summary>
-            <div className="border-t border-neutral-100 p-3">
-              <PaymentForm />
-            </div>
-          </details>
-          )}
-
-          <div className="flex flex-col gap-2">
-            {outside.map((p) => (
-              <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-4">
-                <Cell label="Дата">{formatDate(p.paidAt)}</Cell>
-                <Cell label="Поставщик">{p.supplier.name}</Cell>
-                <Cell label="Закупка">
-                  {p.purchase ? (
-                    <Link href={`/purchases/${p.purchase.id}`} className="hover:underline">
-                      {p.purchase.number}
-                    </Link>
-                  ) : (
-                    <span className="text-neutral-500">Аванс</span>
-                  )}
-                </Cell>
-                <Cell label="Сумма">
-                  <span className="font-semibold">{formatMoney(p.amount.toString())}</span>
-                  {p.status === "PENDING" && <span className="block text-xs text-amber-700">запланирована</span>}
-                </Cell>
-              </div>
-              <details className="mt-2 text-xs">
-                <summary className="cursor-pointer list-none text-neutral-500 hover:text-neutral-800">
-                  {!p.confirmed ? <span className="text-amber-700">без платёжки</span> : "платёжка есть"} · {METHOD_LABELS[p.method]} · подробнее ›
-                </summary>
-                <div className="mt-2 text-sm">{payFlags(p)}</div>
-                {cleanNote(p.notes) && <p className="mt-2 text-xs text-neutral-600">Заметка: {cleanNote(p.notes)}</p>}
-                {docBlock(p)}
-              </details>
-              {canPay && !p.purchaseId && !p.auctionSession && (
-                <div className="mt-2 flex flex-col gap-2 border-t border-neutral-100 pt-2">
-                  {p.status !== "CANCELLED" && (
-                    <AllocateAdvanceControls
-                      paymentId={p.id}
-                      supplierId={p.supplierId}
-                      amount={p.amount.toString()}
-                      targets={allocTargets}
-                    />
-                  )}
-                  <AdvanceRowControls
-                    suppliers={advSuppliers}
-                    initial={{
-                      id: p.id,
-                      supplierId: p.supplierId,
-                      amount: p.amount.toString(),
-                      method: p.method,
-                      paidAt: p.paidAt.toISOString().slice(0, 10),
-                      notes: p.notes ?? "",
-                      version: rowVersion(p, PAYMENT_V),
-                    }}
-                  />
-                </div>
-              )}
-              </div>
-            ))}
-            {outside.length === 0 && (
-              <p className="rounded-md bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">Оплат без партии закупки нет</p>
-            )}
-          </div>
         </>
       )}
-      <RecordHistory model="Payment" panelModels={["Payment", "ProductionPayment"]} />
     </div>
   );
 }
 
-/** « (партия 1)» — если все ТЗ платежа из одной партии; иначе пусто. */
-function batchLabel(orders: { productionOrder: { batch: { number: number } | null } }[]): string {
-  const nums = new Set(orders.map((o) => o.productionOrder.batch?.number ?? null));
-  if (nums.size !== 1) return "";
-  const n = [...nums][0];
-  return n == null ? "" : ` (партия ${n})`;
-}
 
-function Stat({ label, value, note, warn, hint, extra }: { label: string; value: string; note?: string; warn?: boolean; hint?: React.ReactNode; extra?: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <div className="flex items-center gap-1.5 text-xs text-neutral-500">{label}{hint}</div>
-      <div className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-700" : ""}`}>{value}</div>
-      {note && <div className="text-xs text-neutral-500">{note}</div>}
-      {extra}
-    </div>
-  );
-}
-
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function ProgressBar({ percent, status }: { percent: number; status: AuctionPayStatus }) {
-  const color = status === "PAID" ? "bg-emerald-500" : status === "OVERPAID" ? "bg-blue-500" : status === "PARTIAL" ? "bg-amber-500" : "bg-neutral-300";
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100" role="progressbar" aria-valuenow={Math.min(percent, 100)} aria-valuemin={0} aria-valuemax={100}>
-        <div className={`h-full ${color}`} style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
-      </div>
-      <span className="w-16 text-right text-xs text-neutral-500">{fmtPct(percent)}</span>
-    </div>
-  );
-}

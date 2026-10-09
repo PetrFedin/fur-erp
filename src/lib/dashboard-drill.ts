@@ -44,6 +44,9 @@ export type DrillOrder = {
   work: number;
   /** Расходы ТЗ (одинаково с НДС и без). */
   exp: number;
+  /** Шкуры подрядчика, отнесённые к ТЗ (с НДС / без НДС): оплачены в составе пошива, в ТЗ не списаны. */
+  hI: number;
+  hE: number;
   /** Прочее: снимок totalCost ТЗ − (строки + расходы), с НДС / без НДС. Обычно 0. */
   resI: number;
   resE: number;
@@ -53,20 +56,18 @@ export type DrillOrder = {
 export type DrillData = { c4: "on" | "off"; orders: DrillOrder[] };
 
 export type Dim = "batch" | "year" | "cat" | "model" | "fur" | "auction" | "order";
-export type RootMode = "batch" | "year" | "cat" | "fur" | "auction";
+export type RootMode = "batch" | "year" | "cat" | "fur";
 export const ROOT_MODES: { id: RootMode; label: string }[] = [
   { id: "batch", label: "Партии" },
   { id: "year", label: "Годы" },
   { id: "cat", label: "Категории" },
   { id: "fur", label: "Мех" },
-  { id: "auction", label: "Аукционы" },
 ];
 export const CHAIN: Record<RootMode, Dim[]> = {
   batch: ["batch", "order"],
   year: ["year", "batch", "order"],
   cat: ["cat", "model", "order"],
-  fur: ["fur", "auction", "order"],
-  auction: ["auction", "order"],
+  fur: ["fur", "year", "batch", "order"],
 };
 export const DIM_TITLE: Record<Dim, string> = {
   batch: "по партиям производства", year: "по годам", cat: "по категориям", model: "по артикулам (моделям)", fur: "по виду меха",
@@ -75,15 +76,19 @@ export const DIM_TITLE: Record<Dim, string> = {
 
 export type PathStep = { dim: Dim | "part" | "lines"; key: string; label: string };
 
-export type Atom = { o: DrillOrder; k: "f" | "l" | "e" | "r"; line?: DrillLine; au: string; i: number; e: number; ci: number; ce: number; q: number };
+export type Atom = { o: DrillOrder; k: "f" | "l" | "e" | "r" | "h"; line?: DrillLine; au: string; i: number; e: number; ci: number; ce: number; q: number };
 
 export const EXP_LABEL = "Расходы ТЗ и прочее";
 export const NO_AUC = "Без аукциона";
+export const HIDES_LABEL = "Шкуры подрядчика";
 
 export function atomsOf(o: DrillOrder): Atom[] {
   const out: Atom[] = o.lines.map((l) => ({ o, k: l.k, line: l, au: l.au, i: l.i, e: l.e, ci: l.ci, ce: l.ce, q: l.q }));
+  if (o.hI !== 0) out.push({ o, k: "h", au: HIDES_LABEL, i: o.hI, e: o.hE, ci: 0, ce: 0, q: 0 });
   if (o.exp !== 0) out.push({ o, k: "e", au: EXP_LABEL, i: o.exp, e: o.exp, ci: 0, ce: 0, q: 0 });
   if (Math.abs(o.resI) > 0.005 || Math.abs(o.resE) > 0.005) out.push({ o, k: "r", au: EXP_LABEL, i: o.resI, e: o.resE, ci: 0, ce: 0, q: 0 });
+  // ТЗ без списаний сырья и расходов всё равно учитывается (работа по нему входит в итог): нулевой атом.
+  if (out.length === 0) out.push({ o, k: "r", au: EXP_LABEL, i: 0, e: 0, ci: 0, ce: 0, q: 0 });
   return out;
 }
 
@@ -120,6 +125,10 @@ export type Item = {
   drillable: boolean;
   href?: string;
   sub?: string;
+  /** Состав себестоимости столбца: мех, подкладка, 4%, расходы ТЗ и прочее (Σ = value). */
+  parts?: { fur: number; lining: number; c4: number; other: number; work: number };
+  /** Количество изделий (для строки таблицы). */
+  qty?: number;
   /** Столбец «Работа» — вне суммы. */
   outside?: boolean;
   tone?: "fur" | "lining" | "c4" | "exp" | "res" | "work";
@@ -172,7 +181,8 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
   const dimSteps = path.filter((s) => s.dim !== "part" && s.dim !== "lines");
   const part = path.find((s) => s.dim === "part");
   const atoms = atomsFor(orders, dimSteps);
-  const auctionLocked = dimSteps.some((s) => s.dim === "auction");
+  // Мех — срез части ТЗ: работу целого ТЗ к нему не относим (как и к аукциону).
+  const auctionLocked = dimSteps.some((s) => s.dim === "auction" || s.dim === "fur");
 
   // Состав выбранного ТЗ / «лоты» выбранной части состава
   if (dimSteps.length >= chain.length) {
@@ -217,19 +227,21 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
     const c4V = sum((a) => c4val(a, vat), (a) => a.k === "f" || a.k === "l");
     const expV = sum((a) => val(a, vat), (a) => a.k === "e");
     const resV = sum((a) => val(a, vat), (a) => a.k === "r");
+    const hidesV = sum((a) => val(a, vat), (a) => a.k === "h");
     const items: Item[] = [
       mk("fur", "Мех", "fur", furV, true, "по лотам"),
       mk("lining", "Подкладка", "lining", linV, true, "по лотам"),
+      mk("hides", HIDES_LABEL, "fur", hidesV, false, "оплачены в составе пошива, в ТЗ не списаны"),
       mk("c4", "Надбавка 4%", "c4", c4V, c4V !== 0, c4V !== 0 ? "по лотам" : "режим «Без 4%» или не применяется"),
       mk("exp", "Расходы ТЗ", "exp", expV, false),
       mk("res", "Прочее (снимок ТЗ ≠ строки)", "res", resV, false, "разница между итогом ТЗ и суммой строк"),
     ].filter((i) => i.value !== 0 || i.key === "fur");
+    const work = auctionLocked || !o ? null : o.work;
+    if (work != null && work !== 0) items.push({ key: "work", label: "Работа", value: work, share: 0, qtyText: "", work: null, drillable: false, tone: "work", sub: "цена работы × кол-во" });
     const total = items.reduce((s, i) => s + i.value, 0);
     items.forEach((i) => (i.share = total ? i.value / total : 0));
-    const work = auctionLocked || !o ? null : o.work;
-    if (work != null && work !== 0) items.push({ key: "work", label: "Работа (вне себестоимости)", value: work, share: 0, qtyText: "", work: null, drillable: false, outside: true, tone: "work", sub: "цена работы × кол-во; в сумму не входит" });
     return {
-      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.number}` : "Состав", items, total, totalWork: work, orders: orderCount,
+      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.number} (с работой)` : "Состав", items, total, totalWork: work, orders: orderCount,
       links: o ? [{ label: `Открыть ТЗ ${o.number}`, href: `/production/${o.id}` }] : [],
     };
   }
@@ -244,12 +256,24 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
   }
   const lastOrder = dim === "order";
   const items: Item[] = Array.from(groups, ([key, g]) => {
-    const v = g.atoms.reduce((s, a) => s + val(a, vat), 0);
-    const whole = !(auctionLocked || dim === "auction");
+    const whole = !(auctionLocked || dim === "auction" || dim === "fur");
     const seen = new Set<string>();
     let work = 0;
     for (const a of g.atoms) if (!seen.has(a.o.id)) { seen.add(a.o.id); work += a.o.work; }
+    // Себестоимость столбца — вместе с работой (когда столбец состоит из целых ТЗ).
+    const v = g.atoms.reduce((s, a) => s + val(a, vat), 0) + (whole ? work : 0);
+    const part = (pred: (a: Atom) => boolean, f: (a: Atom) => number) => g.atoms.filter(pred).reduce((x, a) => x + f(a), 0);
+    const qtyOrders = new Map<string, number>();
+    for (const a of g.atoms) qtyOrders.set(a.o.id, a.o.qty);
     return {
+      parts: {
+        fur: part((a) => a.k === "f" || a.k === "h", (a) => val(a, vat) - c4val(a, vat)),
+        lining: part((a) => a.k === "l", (a) => val(a, vat) - c4val(a, vat)),
+        c4: part((a) => a.k === "f" || a.k === "l", (a) => c4val(a, vat)),
+        other: part((a) => a.k === "e" || a.k === "r", (a) => val(a, vat)),
+        work: whole ? work : 0,
+      },
+      qty: dim === "fur" || dim === "auction" ? undefined : Array.from(qtyOrders.values()).reduce((x, y) => x + y, 0),
       key, label: g.label, value: v, share: 0, qtyText: qtyTextOf(g.atoms, dim), work: whole ? work : null, drillable: true,
       sub: lastOrder ? [g.atoms[0].o.ml, g.atoms[0].o.fur].filter(Boolean).join(" · ") : undefined,
       tone: dim === "auction" && key === EXP_LABEL ? "exp" : undefined,
@@ -266,14 +290,15 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
   const total = items.reduce((s, i) => s + i.value, 0);
   items.forEach((i) => (i.share = total ? i.value / total : 0));
   const seenO = new Set(atoms.map((a) => a.o.id));
-  const totalWork = auctionLocked || dim === "auction" ? null : Array.from(seenO).reduce((s, id) => s + (atoms.find((a) => a.o.id === id)?.o.work ?? 0), 0);
+  const totalWork = auctionLocked || dim === "auction" || dim === "fur" ? null : Array.from(seenO).reduce((s, id) => s + (atoms.find((a) => a.o.id === id)?.o.work ?? 0), 0);
+  void totalWork;
   return { kind: "dim", dim, title: DIM_TITLE[dim], items, total, totalWork, orders: seenO.size, links: [] };
 }
 
 /** Итог по всем ТЗ окна — то, что должна показывать плитка. */
 export function drillTotals(orders: DrillOrder[], vat: VatSel) {
   return {
-    cost: orders.reduce((s, o) => s + orderCost(o, vat), 0),
+    cost: orders.reduce((s, o) => s + orderCost(o, vat) + o.work, 0),
     work: orders.reduce((s, o) => s + o.work, 0),
     qty: orders.reduce((s, o) => s + o.qty, 0),
     orders: orders.length,

@@ -15,7 +15,7 @@ function groupDigits(raw: string): string {
 /** Проверка до отправки: то же, что parsePrice на сервере (сообщение показываем рядом с полем). */
 function checkPrice(raw: string): string | null {
   const t = raw.replace(/[\s  ]/g, "").replace(",", ".");
-  if (t === "") return "Введите цену";
+  if (t === "") return null; // пусто — цена убирается
   if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return "Цена: укажите число";
   const n = Number(t);
   if (n < 0) return "Цена не может быть отрицательной";
@@ -67,7 +67,7 @@ export function ArticlePriceForm({
         const res = await bound(formData);
         setPending(false);
         if (res?.error) setError(res.error);
-        else setSaved(value);
+        else setSaved(value.trim());
       }}
       className="flex flex-wrap items-center gap-1"
     >

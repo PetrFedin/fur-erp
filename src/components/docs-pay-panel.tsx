@@ -1,5 +1,6 @@
 "use client";
 
+import { tidyDocRef } from "@/lib/pay-ref";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -310,7 +311,7 @@ function PaymentLine({ p, canUpload, canMark, v, canVerify }: { p: PanelPayment;
         {p.manual && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">отмечено вручную</span>}
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-        {p.docRef && <span className="text-neutral-600">п/п / документ: {p.docRef}</span>}
+        {p.docRef && <span className="text-neutral-600">{tidyDocRef(p.docRef, p.dateText)}</span>}
         {p.hasProof ? (
           <span className="text-emerald-700">
             {/сч[её]т|invoice|УПД/i.test(p.proofTitle ?? "") ? "основание: счёт (платёжки нет)" : "платёжка есть"}

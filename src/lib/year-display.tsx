@@ -8,9 +8,9 @@ import type { YearFilter } from "./year-filter";
 
 const COOKIE_NAME = "yearFilter";
 
-const Ctx = createContext<{ year: YearFilter; setYear: (y: YearFilter) => void; pending: boolean } | null>(null);
+const Ctx = createContext<{ year: YearFilter; setYear: (y: YearFilter) => void; pending: boolean; years: string[] } | null>(null);
 
-export function YearDisplayProvider({ initialYear, children }: { initialYear: YearFilter; children: ReactNode }) {
+export function YearDisplayProvider({ initialYear, years, children }: { initialYear: YearFilter; years: string[]; children: ReactNode }) {
   const [year, setYearState] = useState<YearFilter>(initialYear);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -24,7 +24,7 @@ export function YearDisplayProvider({ initialYear, children }: { initialYear: Ye
     [router],
   );
 
-  return <Ctx.Provider value={{ year, setYear, pending }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ year, setYear, pending, years }}>{children}</Ctx.Provider>;
 }
 
 export function useYearDisplay() {

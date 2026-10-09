@@ -91,6 +91,8 @@ export type SupplierDebt = {
   expected: Decimal;
   /** Аукционы с остатком, по убыванию. */
   byAuction: SupplierDebtAuction[];
+  /** Аукционы, оплаченные сверх стоимости (переплата): она зачитывается в общий долг, поэтому «куплено = оплачено + долг» сходится. */
+  overpaid: { name: string; amount: Decimal }[];
   /** Долг по закупкам вне аукционов (до вычета авансов). */
   nonAuctionDebt: Decimal;
   /** Сколько закупок (без отменённых) вне аукционов. */
@@ -142,10 +144,14 @@ export function computeSupplierDebt(
   }
 
   const byAuction: SupplierDebtAuction[] = [];
+  const overpaid: { name: string; amount: Decimal }[] = [];
   for (const a of buildAuctionSummaries(purchases, auctionPayments)) {
     total = total.add(a.total);
     const due = Decimal.max(a.remaining, zero());
-    if (!due.greaterThan(EPS)) continue;
+    if (!due.greaterThan(EPS)) {
+      if (a.remaining.lessThan(EPS.neg())) overpaid.push({ name: a.name, amount: a.remaining.neg() });
+      continue;
+    }
     dueSum = dueSum.add(due);
     // Доля неполученных закупок в остатке аукциона — пропорционально остаткам закупок.
     const weights = a.perPurchase.map((pp) => ({ pp, w: Decimal.max(pp.total.sub(pp.paid), zero()) }));
@@ -187,6 +193,8 @@ export function computeSupplierDebt(
     left = left.sub(d);
     return v.sub(d);
   };
+  // Переплаты аукционов зачитываются в общий долг (по решению владельца): после авансов, в том же порядке.
+  left = left.add(overpaid.reduce((x, o) => x.add(o.amount), zero()));
   const receivedNet = take(receivedGross);
   const invoiced = take(invoicedGross);
   const expected = take(expectedGross);
@@ -201,6 +209,7 @@ export function computeSupplierDebt(
     invoiced,
     expected,
     byAuction,
+    overpaid,
     nonAuctionDebt,
     nonAuctionPurchases,
     draftDebt: invoicedGross.add(expectedGross),

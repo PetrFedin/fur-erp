@@ -16,10 +16,10 @@ const cache = new Map<string, { at: number; value: Promise<DrillData> }>();
  * Данные окна «Стоимость производства» Сводки: ТЗ с составом списаний (лениво, только при открытии окна).
  * Организация, год и режим 4% берутся из сессии и cookie, фильтры — из параметров Сводки (значения проверяет parseFilters).
  */
-export async function loadProductionDrill(scope: "done" | "work", search: Record<string, string[]>): Promise<DrillData> {
+export async function loadProductionDrill(scope: "done" | "work" | "all", search: Record<string, string[]>): Promise<DrillData> {
   const session = await requireSession();
   const orgId = session.user.organizationId;
-  const sc = scope === "work" ? "work" : "done";
+  const sc = scope === "work" ? "work" : scope === "all" ? "all" : "done";
   const safe: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(search ?? {})) if (Array.isArray(v)) safe[String(k).slice(0, 20)] = v.slice(0, 60).map((s) => String(s).slice(0, 300));
   const f = parseFilters(DASH_FILTERS, safe) as unknown as DashFilters;

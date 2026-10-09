@@ -560,13 +560,13 @@ function ResultStep({ result, onRestart }: { result: BatchResult; onRestart: () 
           {result.debt.before !== null ? `${money(result.debt.before)} → ` : ""}{money(result.debt.after)}
           {delta(result.debt.before, result.debt.after) !== null && <span className="ml-2 text-xs text-neutral-500">(+{money(delta(result.debt.before, result.debt.after)!)})</span>}
         </Row>
-        <Row label="Закуплено (Сводка, с НДС)">{result.purchased.before !== null ? `${money(result.purchased.before)} → ` : ""}{money(result.purchased.after)}</Row>
+        <Row label="Закуплено (Главная, с НДС)">{result.purchased.before !== null ? `${money(result.purchased.before)} → ` : ""}{money(result.purchased.after)}</Row>
         {result.stock.map((s) => (
           <Row key={s.material} label={`Остаток: ${s.material}, шт.`}>{fmt(s.before, 0)} → {fmt(s.after, 0)}</Row>
         ))}
         {!result.receiving && <Row label="Остаток меха">не изменился: закупки не приняты</Row>}
         <Row label="Документов приложено">{result.docsAttached}</Row>
-        <p className="mt-1 text-xs text-neutral-500">Сводка (Закуплено, Склад, Долг поставщику) и страница «Сырьё» уже показывают новые цифры. <Link href="/dashboard" className="underline">Открыть Сводку →</Link></p>
+        <p className="mt-1 text-xs text-neutral-500">Главная (Закуплено, Склад, Долг поставщику) и страница «Сырьё» уже показывают новые цифры. <Link href="/dashboard" className="underline">Открыть Сводку →</Link></p>
       </div>
 
       <div>
