@@ -52,6 +52,10 @@ export type BudgetNode = {
   /** Изделий в основе статистики. */
   sample: number;
   src: NodeSrc;
+  /** Переопределение надбавок на этом уровне, %; пусто (undefined/null) — наследуется от уровня выше, в конце — от версии. */
+  upFur?: number | null;
+  upLining?: number | null;
+  upWork?: number | null;
 };
 
 /** Статистика системы: пара «мех|категория» (key = "мех|категория") или артикул ("m:<id>|мех", есть modelId). */
@@ -150,6 +154,21 @@ function pathOf(n: BudgetNode, byId: Map<string, BudgetNode>): BudgetNode[] {
   return out;
 }
 
+export type EffUp = { fur: number; lining: number; work: number; ownFur: boolean; ownLining: boolean; ownWork: boolean; anyFur: boolean; anyLining: boolean; anyWork: boolean };
+
+/** Эффективные надбавки узла: берутся с ближайшего уровня (узел → родители → версия), где заданы. own — задано на самом узле, any — задано выше версии. */
+export function effUp(n: BudgetNode, byId: Map<string, BudgetNode>, p: BudgetParams): EffUp {
+  const path = pathOf(n, byId).reverse();
+  const pick = (k: "upFur" | "upLining" | "upWork") => {
+    for (let i = 0; i < path.length; i++) { const v = path[i][k]; if (typeof v === "number" && Number.isFinite(v)) return { v, own: i === 0, any: true }; }
+    return { v: p[k], own: false, any: false };
+  };
+  const f = pick("upFur"), l = pick("upLining"), w = pick("upWork");
+  return { fur: f.v, lining: l.v, work: w.v, ownFur: f.own, ownLining: l.own, ownWork: w.own, anyFur: f.any, anyLining: l.any, anyWork: w.any };
+}
+
+const withUp = (p: BudgetParams, e: EffUp): BudgetParams => ({ ...p, upFur: e.fur, upLining: e.lining, upWork: e.work });
+
 /** Замок узла или любого его родителя. */
 export function effLocked(n: BudgetNode, byId: Map<string, BudgetNode>): boolean {
   return pathOf(n, byId).some((x) => x.locked);
@@ -198,7 +217,7 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
     }
     if (!st) return { ...n, base: null, sample: 0, src: "none" as NodeSrc };
     const base = toBase(st);
-    return { ...n, base, sample: st.qty, src, ...fromBase(base, p) };
+    return { ...n, base, sample: st.qty, src, ...fromBase(base, withUp(p, effUp(n, byId, p))) };
   });
 }
 
@@ -206,7 +225,7 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
 export function reapplyParams(nodes: BudgetNode[], p: BudgetParams): BudgetNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const hasKids = new Set(nodes.map((n) => n.parentId));
-  return nodes.map((n) => (n.kind === "fur" || hasKids.has(n.id) || !n.base || effLocked(n, byId) ? n : { ...n, ...fromBase(n.base, p) }));
+  return nodes.map((n) => (n.kind === "fur" || hasKids.has(n.id) || !n.base || effLocked(n, byId) ? n : { ...n, ...fromBase(n.base, withUp(p, effUp(n, byId, p))) }));
 }
 
 /** Бейдж качества данных для листа. */
