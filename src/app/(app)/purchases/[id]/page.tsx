@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
@@ -414,7 +415,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       }}
                     >
                       <Td>{item.rawMaterial.name}</Td>
-                      <Td>{item.lotNumber ?? "—"}</Td>
+                      <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "—")}</Td>
                       {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
                       <Td>
                         {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
@@ -564,7 +565,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
         <SummaryCard
           label={<VatLabel base="Итого, RUB" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
@@ -925,14 +926,10 @@ function SummaryCard({
   note?: string;
 }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div
-        className={`mt-1 break-words text-base font-semibold sm:text-lg ${warn ? "text-amber-700" : emphasis ? "text-neutral-900" : "text-neutral-700"}`}
-      >
-        {value}
-      </div>
-      {note && <div className="mt-0.5 text-xs text-neutral-500">{note}</div>}
+    <div className={TILE_BOX}>
+      <TileHead>{label}</TileHead>
+      <TileValue className={"text-xl " + (warn ? "text-amber-700" : emphasis ? "text-neutral-900" : "text-neutral-700")}>{value}</TileValue>
+      {note ? <TileCaption>{note}</TileCaption> : null}
     </div>
   );
 }

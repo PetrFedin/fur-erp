@@ -16,6 +16,11 @@ function planUnit(i: Item): { incl: Prisma.Decimal; excl: Prisma.Decimal } | nul
 }
 type Expense = { amount: Prisma.Decimal; vatRate: Prisma.Decimal };
 
+/** Стоимость одной позиции закупки в рублях с НДС (та же формула, что в purchaseTotalInclVat). */
+export function itemTotalInclVat(i: Item, exchangeRate: Prisma.Decimal) {
+  return planUnit(i)?.incl ?? grossUp(i.subtotal.mul(exchangeRate), i.vatRate);
+}
+
 export function grossUp(base: Prisma.Decimal, vatRate: Prisma.Decimal) {
   return base.add(base.mul(vatRate).div(100));
 }

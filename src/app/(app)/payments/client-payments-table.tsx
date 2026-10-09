@@ -87,9 +87,9 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
             <th className="px-2 py-1.5 font-medium">Мех</th>
             <th className="px-2 py-1.5 font-medium">Партия</th>
             <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
-            <th className="px-2 py-1.5 text-right font-medium">К оплате</th>
+            <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
             <th className="px-2 py-1.5 text-right font-medium">Оплачено</th>
-            <th className="px-2 py-1.5 text-right font-medium">Остаток</th>
+            <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
           </tr>
         </thead>
         <tbody>
@@ -140,9 +140,9 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1 whitespace-nowrap">Дата<InfoHint label="Что внутри даты"><p>Нажмите на дату оплаты — откроется страница этой даты: все оплаты за день и за какой товар они пришли (ТЗ, изделие, количество, партия).</p></InfoHint></span></th>
             <th className="px-3 py-2 font-medium">Тип</th>
-            <th className="px-3 py-2 text-right font-medium">К оплате</th>
+            <th className="px-3 py-2 text-right font-medium">Стоимость</th>
             <th className="px-3 py-2 text-right font-medium">Оплачено</th>
-            <th className="px-3 py-2 text-right font-medium">Остаток</th>
+            <th className="px-3 py-2 text-right font-medium">Задолженность</th>
             <th className="px-3 py-2 font-medium">Подтверждение</th>
             <th className="px-3 py-2 font-medium">Счёт</th>
           </tr>

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionName } from "@/lib/auction-payments";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+
+/** Куда разнесена оплата: закупка, ТЗ или «без привязки». Σ частей = сумма оплаты. */
+export type OverviewPart = { label: string; href?: string; amount: number; note?: string };
 
 /** Одна оплата в общем списке «Все»: куда ушла (сырьё / производство), по каким статьям и куда вести по клику. */
 export type OverviewRow = {
@@ -20,25 +24,43 @@ export type OverviewRow = {
   label: string;
   confirmed: boolean;
   href: string;
+  /** Основание платежа как записано в документе (п/п, счёт) либо null. */
+  doc: string | null;
+  /** Вид платежа: «Аванс», «Доплата», «Оплата». */
+  what: string;
+  /** Распределение оплаты: по закупкам (сырьё) или по ТЗ (производство). */
+  parts: OverviewPart[];
 };
 
 /** Все проведённые оплаты (поставщику за сырьё и по производству) с разбивкой по статьям. */
 export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]> {
   const furIdx = await getFurIndex(orgId);
-  const [lotsFur, lotsLining, pays, prod] = await Promise.all([
+  const [lotsFur, lotsLining, pays, prod, auctionPurchases] = await Promise.all([
     loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
     prisma.payment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, purchase: { select: { number: true, auctionSession: true, orderDate: true } } },
+      select: { id: true, amount: true, paidAt: true, purchaseId: true, auctionSession: true, confirmedAt: true, kind: true, docRef: true, purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true } } },
       orderBy: { paidAt: "desc" },
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, paymentType: true, docRef: true, notes: true, confirmedAt: true, allocations: { select: { amount: true } }, orders: { select: { productionOrderId: true } } },
+      select: { id: true, amount: true, paidAt: true, paymentType: true, docRef: true, notes: true, confirmedAt: true, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true } } } }, orders: { select: { productionOrderId: true } } },
       orderBy: { paidAt: "desc" },
     }),
+    // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
+    prisma.purchase.findMany({
+      where: { organizationId: orgId, status: { not: "CANCELLED" }, auctionSession: { not: null } },
+      select: { id: true, number: true, auctionSession: true, exchangeRate: true, items: true, expenses: true },
+    }),
   ]);
+  const purchasesOfAuction = new Map<string, { id: string; number: string; total: number }[]>();
+  for (const pu of auctionPurchases) {
+    const name = auctionName(pu.auctionSession);
+    if (!name) continue;
+    const total = purchaseTotalInclVat(pu).toNumber();
+    purchasesOfAuction.set(name, [...(purchasesOfAuction.get(name) ?? []), { id: pu.id, number: pu.number, total }]);
+  }
   const all = [...lotsFur, ...lotsLining];
   const share = (lots: typeof all) => {
     const tot = lots.reduce((a, l) => a + l.recvIncl, 0);
@@ -56,12 +78,22 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const lots = p.purchaseId ? byPurchase.get(p.purchaseId) : p.auctionSession ? byAuction.get(p.auctionSession) : undefined;
     const lining = lots ? amount * share(lots) : 0;
     const au = auctionName(p.auctionSession ?? p.purchase?.auctionSession ?? null);
+    const group = au ? purchasesOfAuction.get(au) ?? [] : [];
+    const groupTotal = group.reduce((a, x) => a + x.total, 0);
+    const parts: OverviewPart[] = p.purchase && p.purchaseId
+      ? [{ label: `Закупка ${p.purchase.number}`, href: `/purchases/${p.purchase.id}`, amount }]
+      : groupTotal > 0
+        ? group.map((x) => ({ label: `Закупка ${x.number}`, href: `/purchases/${x.id}`, amount: (amount * x.total) / groupTotal, note: "доля в сумме партии" }))
+        : [{ label: au ?? "Аванс без привязки к закупке", amount }];
     out.push({
       // Год сырьевой оплаты — год закупки (без аукциона: год заказа закупки): тогда по году «куплено − оплачено = долг» и все разделы сходятся.
       id: p.id, kind: "raw", iso: p.paidAt.toISOString().slice(0, 10), year: (!au && p.purchase?.orderDate ? p.purchase.orderDate.getUTCFullYear() : p.paidAt.getUTCFullYear()), amount,
       fur: amount - lining, lining, work: 0, hides: 0,
       label: au ?? p.purchase?.number ?? "Аванс без привязки",
       confirmed: p.confirmedAt != null,
+      doc: p.docRef?.trim() || null,
+      what: p.kind === "ADVANCE" ? "Аванс" : p.kind === "PARTIAL" ? "Доплата" : "Оплата",
+      parts,
       href: au ? `/payments?tab=suppliers&auction=${encodeURIComponent(au)}#auction-block` : "/payments?tab=suppliers&noauction=1#noauction-block",
     });
   }
@@ -84,11 +116,18 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const rest = amount - alloc;
     const hides = rest > 1 && /шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) ? rest : 0;
     const iso = p.paidAt.toISOString().slice(0, 10);
+    const parts: OverviewPart[] = p.allocations
+      .filter((x) => x.amount.toNumber() !== 0)
+      .map((x) => ({ label: `ТЗ ${x.productionOrder.number}`, href: `/production/${x.productionOrder.id}`, amount: x.amount.toNumber() }));
+    if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Шкуры подрядчика в составе счёта за пошив" : "Аванс без привязки к ТЗ", amount: rest });
     out.push({
       id: p.id, kind: "prod", iso, year: p.paidAt.getUTCFullYear(), amount,
       fur: hides, lining: 0, work: amount - hides, hides,
       label: p.paymentType === "ADVANCE" ? "Аванс за пошив" : p.paymentType === "PARTIAL" ? "Доплата за пошив" : "Оплата за пошив",
       confirmed: p.confirmedAt != null,
+      doc: p.docRef?.trim() || null,
+      what: p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата",
+      parts,
       href: `/payments?tab=clients&pdate=${iso}`,
     });
   }

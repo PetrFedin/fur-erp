@@ -50,7 +50,8 @@ function Duo({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
-function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off" }) {
+/** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»). */
+export function RawCards({ view, rows, fur, lining, c4, hideLabel = false }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
   const F = fur[vat];
@@ -99,7 +100,7 @@ function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; row
 
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{view === "fur" ? "Мех" : "Подкладка"}</div>
+      {hideLabel ? null : <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{view === "fur" ? "Мех" : "Подкладка"}</div>}
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <Card title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
           <InfoHint label="О «Куплено»" align="right">

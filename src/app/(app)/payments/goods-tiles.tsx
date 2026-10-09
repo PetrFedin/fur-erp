@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
+import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "../dashboard/tile";
 
 /** ТЗ с неоплаченной работой: что именно не оплачено. */
 export type OwedOrder = { id: string; label: string; article: string; fur: string; batch: number | null; year: number | null; qty: number; work: number; work4?: number; paid: number };
@@ -36,9 +37,9 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
         <thead>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Партия</th>
-            <th className="px-2 py-1.5 text-right font-medium">К оплате</th>
+            <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
             <th className="px-2 py-1.5 text-right font-medium">Оплачено</th>
-            <th className="px-2 py-1.5 text-right font-medium">Остаток</th>
+            <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
           </tr>
         </thead>
         <tbody>
@@ -82,17 +83,21 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
   );
 }
 
-function Tile({ label, value, onOpen, valueClass, hint, sub }: { label: string; value: string; onOpen: () => void; valueClass?: string; hint?: ReactNode; sub?: [string, number][] }) {
+function Tile({ label, value, onOpen, valueClass, hint, items }: { label: string; value: string; onOpen?: () => void; valueClass?: string; hint?: ReactNode; items?: TileItem[] }) {
   return (
-    <div className="relative">
-      <button type="button" onClick={onOpen} aria-haspopup="dialog" className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
-        <div className="text-xs text-neutral-500">{label}</div>
-        <div className={"mt-1 break-words text-base font-semibold sm:text-lg " + (valueClass ?? "")}>{value}</div>
-        {sub?.map(([k, v]) => (
-          <div key={k} className="mt-0.5 flex justify-between gap-3 text-xs text-neutral-600"><span>{k}</span><span className="tabular-nums">{rub(v)}</span></div>
-        ))}
-      </button>
-      {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
+    <div
+      className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")}
+      onClick={onOpen}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      aria-haspopup={onOpen ? "dialog" : undefined}
+      title={onOpen ? "Показать расшифровку по партиям и ТЗ" : undefined}
+    >
+      <TileHead>{label}</TileHead>
+      {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
+      <TileValue className={valueClass}>{value}</TileValue>
+      {items ? <TileList items={items} /> : null}
     </div>
   );
 }
@@ -106,18 +111,18 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   }, [open]);
   return (
     <>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3" data-goods-tiles>
-        <Tile label="К оплате" value={rub(total)} onOpen={() => setOpen("bars")} />
-        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} />
-        <Tile label="Остаток к оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} />
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-goods-tiles>
+        <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(total), share: total > 0.5 ? 1 : null }]} />
+        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(paid), share: total > 0.5 ? paid / total : null }]} />
+        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} items={[{ k: "Работа", v: rub(balance), share: total > 0.5 ? balance / total : null, tone: balance > 0.5 ? "text-amber-700" : undefined }]} />
       </div>
       {open && (
         <dialog ref={ref} onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-4xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "debt" ? "Остаток к оплате — за что не оплатили" : "К оплате и оплачено — по партиям"}</div>
-                {open === "debt" ? <div className="text-sm text-neutral-700">Остаток <b className="text-amber-700">{rub(balance)}</b></div> : null}
+                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</div>
+                {open === "debt" ? <div className="text-sm text-neutral-700">К оплате <span className="font-medium text-amber-700">{rub(balance)}</span></div> : null}
               </div>
               <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
             </div>
@@ -148,9 +153,9 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
               <th className="px-2 py-1.5 font-medium">Артикул</th>
               <th className="px-2 py-1.5 font-medium">Мех</th>
               <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
-              <th className="px-2 py-1.5 text-right font-medium">К оплате</th>
+              <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
               <th className="px-2 py-1.5 text-right font-medium">Оплачено</th>
-              <th className="px-2 py-1.5 text-right font-medium">Не оплачено</th>
+              <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
             </tr>
           </thead>
           <tbody>
@@ -187,7 +192,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
       <dl className="grid max-w-md gap-1 text-sm">
         <div className="flex justify-between gap-4"><dt className="text-neutral-600">Не оплачено по ТЗ ({owed.length})</dt><dd className="tabular-nums">{rub(total)}</dd></div>
         {advances > 0.5 ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Минус авансы без привязки к ТЗ</dt><dd className="tabular-nums text-emerald-700">−{rub(advances)}</dd></div> : null}
-        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>Остаток к оплате</dt><dd className="tabular-nums text-amber-700">{rub(balance)}</dd></div>
+        <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>К оплате</dt><dd className="tabular-nums text-amber-700">{rub(balance)}</dd></div>
       </dl>
     </div>
   );

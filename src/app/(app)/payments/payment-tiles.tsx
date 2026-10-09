@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
+import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "../dashboard/tile";
 
 export type BarRow = { name: string; year: number | null; month?: number; value: number };
 type Props = {
@@ -13,9 +15,20 @@ type Props = {
   debtHint?: ReactNode;
   deadlines?: ReactNode;
   debtWarn?: boolean;
+  /** Мех / подкладка: оплачено и к оплате (те же числа, что на Главной). */
+  split?: { paid: { fur: number; lining: number }; debt: { fur: number; lining: number } };
 };
 
 const rub = (v: number) => formatMoney(v.toFixed(2));
+
+/** Мех и подкладка с долей от суммы плитки. */
+function stat(_value: number, whole: number, fur: number, lining: number, warn = false): TileItem[] {
+  const part = (v: number) => (whole > 0.5 ? v / whole : null);
+  return [
+    { k: "Мех", v: rub(fur), share: part(fur), tone: warn && fur > 0 ? "text-amber-700" : undefined },
+    { k: "Подкладка", v: rub(lining), share: part(lining), tone: warn && lining > 0 ? "text-amber-700" : undefined },
+  ];
+}
 
 /** Столбики по партиям закупки, сгруппированные по годам; длина — доля от максимума. */
 function Bars({ rows, tone }: { rows: BarRow[]; tone: "paid" | "debt" }) {
@@ -29,7 +42,7 @@ function Bars({ rows, tone }: { rows: BarRow[]; tone: "paid" | "debt" }) {
         const sum = list.reduce((s, r) => s + r.value, 0);
         return (
           <section key={y ?? "none"}>
-            <div className="mb-1 flex items-baseline justify-between text-sm font-semibold">
+            <div className="mb-1 flex items-baseline justify-between text-sm font-medium">
               <span>{y ?? "Прочее"}</span>
               <span className="tabular-nums">{rub(sum)}</span>
             </div>
@@ -51,27 +64,27 @@ function Bars({ rows, tone }: { rows: BarRow[]; tone: "paid" | "debt" }) {
   );
 }
 
-function Tile({ label, value, hint, onOpen, valueClass, children }: { label: string; value: string; hint?: ReactNode; onOpen?: () => void; valueClass?: string; children?: ReactNode }) {
-  const body = (
-    <>
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={"mt-1 break-words text-base font-semibold sm:text-lg " + (valueClass ?? "")}>{value}</div>
-      {children}
-    </>
-  );
+function Tile({ label, value, hint, onOpen, valueClass, items, children }: { label: string; value: string; hint?: ReactNode; onOpen?: () => void; valueClass?: string; items?: TileItem[]; children?: ReactNode }) {
   return (
-    <div className="relative">
-      {onOpen ? (
-        <button type="button" onClick={onOpen} aria-haspopup="dialog" className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">{body}</button>
-      ) : (
-        <div className="w-full rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm">{body}</div>
-      )}
-      {hint ? <div className="absolute right-3 top-3">{hint}</div> : null}
+    <div
+      className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")}
+      onClick={onOpen}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined}
+      aria-haspopup={onOpen ? "dialog" : undefined}
+      title={onOpen ? "Показать детализацию по партиям закупки" : undefined}
+    >
+      <TileHead>{label}</TileHead>
+      {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
+      <TileValue className={valueClass}>{value}</TileValue>
+      {items ? <TileList items={items} /> : null}
+      {children}
     </div>
   );
 }
 
-export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWarn, hidesMemo }: Props) {
+export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWarn, hidesMemo, split }: Props) {
   const [open, setOpen] = useState<null | "paid" | "debt">(null);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -81,10 +94,10 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3" data-pay-tiles>
-        <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} />
-        <Tile label="К оплате" value={rub(paid.total + debt.total)} />
-        <Tile label="Остаток к оплате" value={rub(debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""}>
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-pay-tiles>
+        <Tile label="Общая стоимость" value={rub(paid.total + debt.total)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={split ? stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining) : undefined} />
+        <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />
+        <Tile label="К оплате" value={rub(debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true) : undefined}>
           {deadlines}
         </Tile>
       </div>
@@ -93,7 +106,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "paid" ? "Оплачено" : "Остаток к оплате"}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "paid" ? "Оплачено" : "К оплате"}</div>
                 <div className="text-xl font-semibold tabular-nums">{rub(open === "paid" ? paid.total : debt.total)}</div>
               </div>
               <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
@@ -114,7 +127,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
                     </div>
                   ))}
                 </dl>
-                <h3 className="mb-2 text-sm font-semibold">Остаток по партиям закупки</h3>
+                <h3 className="mb-2 text-sm font-medium">К оплате по партиям закупки</h3>
                 <Bars rows={debt.rows} tone="debt" />
               </>
             )}

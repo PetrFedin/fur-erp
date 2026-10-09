@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { requireSession } from "@/lib/session";
-import { formatMoney } from "@/lib/utils";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { InfoHint } from "@/components/info-hint";
-import { SupplierDebtHint } from "@/components/supplier-debt-hint";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { parseFilters } from "@/lib/filters";
@@ -12,12 +10,11 @@ import { loadDashboard } from "@/lib/dashboard-data";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { DASH_FILTERS, ORDER_STATUS_LABELS, lotFiltersOn, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
 import { RawBlock } from "./raw-block";
+import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
-import { TILE_BOX, TileHead, TileValue } from "./tile";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
-import { PageModes, BridgeHint, type ModeInfo } from "./mode-line";
-import { formatCompactMoney } from "./compact";
+import { PageModes, type ModeInfo } from "./mode-line";
 
 export const metadata = { title: "Главная" };
 
@@ -38,12 +35,6 @@ const PRINT_CSS = `
   [data-print-date] { display: block !important; }
 }`;
 
-/** Срок «дд.мм.гггг» уже прошёл (конец дня). */
-function isPastRu(date: string): boolean {
-  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(date);
-  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59).getTime() < Date.now() : false;
-}
-
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
@@ -55,14 +46,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const filtersOn = lotFiltersOn(f) || orderFiltersOn(f);
 
   const d = await loadDashboard(organizationId, year, f, c4Mode);
-  const { debt } = d;
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, status: f.status, vat: f.vat, catgroup: f.catgroup };
   const prodNums = (t: typeof d.prod.done) => ({ repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
   const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["vat", "НДС"], ["status", "статус ТЗ"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"]];
   const activeFilters = FILTER_NAMES.filter(([k]) => f[k].length > 0).map(([k, n]) => `${n} ×${f[k].length}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
-  const mln = (v: number) => formatCompactMoney(v);
 
   return (
     <div className="flex flex-col gap-5">
@@ -127,99 +116,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <h2 id="dash-pay" className="text-base font-semibold">Оплаты</h2>
           <Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>
         </div>
-        {(() => {
-          const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
-          const prodPaid = d.paidByItem.work;
-          const row = (k: string, v: number, sub?: boolean, tone?: string) => (
-            <div className={"flex justify-between gap-3" + (sub ? " pl-3 text-xs" : "")}>
-              <dt className={sub ? "text-neutral-500" : "font-medium text-neutral-700"}>{k}</dt>
-              <dd className={"tabular-nums " + (sub ? "text-neutral-600 " : "font-medium ") + (tone ?? "")}>{formatMoney(v.toFixed(2))}</dd>
-            </div>
-          );
-          // Детализация меха и подкладки: остаток на складе, использовано (без 4%) и надбавка 4% (оплачена в составе оплат ТЗ, доплаты нет).
-          const detail = (x: typeof d.raw.fur.incl) => ({ stock: x.remValue, used: c4Mode === "on" ? x.usedValueOther : x.usedValue, c4: Math.abs(x.usedValue - x.usedValueOther) });
-          const furD = detail(d.raw.fur.incl), linD = detail(d.raw.lining.incl);
-          // Оплачено и к оплате делятся на «за использованное» и «за остаток (сток)» пропорционально их стоимости; 4% оплачены в составе оплат ТЗ (доплаты нет).
-          const split = (D: ReturnType<typeof detail>, amount: number) => {
-            const base = D.used + D.stock;
-            const u = base > 0 ? D.used / base : 0;
-            return { used: amount * u, stock: amount * (1 - u) };
-          };
-          const furPaidD = split(furD, d.paidByItem.fur), linPaidD = split(linD, d.paidByItem.lining);
-          const furLeftD = split(furD, d.left.fur), linLeftD = split(linD, d.left.lining);
-          return (
-            <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3">
-              <div className={TILE_BOX}>
-                <TileHead>Общая стоимость</TileHead>
-                <div className="absolute right-3 top-3">
-                  <InfoHint label="Что такое общая стоимость" align="right">
-                    <p>Оплачено плюс осталось оплатить: сырьё (мех с шкурами подрядчика, подкладка) и работа по ТЗ. Всегда с НДС; 4% отдельно не добавляются.</p>
-                  </InfoHint>
-                </div>
-                <TileValue>{formatMoney((rawPaid + prodPaid + d.left.raw + d.left.prod).toFixed(2))}</TileValue>
-                <dl className="mt-3 space-y-1 text-sm">
-                  {row("Мех", d.paidByItem.fur + d.left.fur)}
-                  {row("остаток (сток)", furD.stock, true)}
-                  {row("использовано", furD.used, true)}
-                  {row("4%", furD.c4, true)}
-                  {row("Подкладка", d.paidByItem.lining + d.left.lining)}
-                  {row("остаток (сток)", linD.stock, true)}
-                  {row("использовано", linD.used, true)}
-                  {row("4%", linD.c4, true)}
-                  {row("Работа", prodPaid + d.left.prod)}
-                </dl>
-              </div>
-
-              <div className={TILE_BOX}>
-                <TileHead>Оплачено</TileHead>
-                <TileValue>{formatMoney((rawPaid + prodPaid).toFixed(2))}</TileValue>
-                <dl className="mt-3 space-y-1 text-sm" data-testid="paid-by-item">
-                  {row("Мех", d.paidByItem.fur)}
-                  {row("остаток (сток)", furPaidD.stock, true)}
-                  {row("использовано", furPaidD.used, true)}
-                  {row("4%", furD.c4, true)}
-                  {row("Подкладка", d.paidByItem.lining)}
-                  {row("остаток (сток)", linPaidD.stock, true)}
-                  {row("использовано", linPaidD.used, true)}
-                  {row("4%", linD.c4, true)}
-                  {row("Работа", prodPaid)}
-                </dl>
-              </div>
-
-              <div className={TILE_BOX} data-testid="debt-bridge">
-                <TileHead>К оплате</TileHead>
-                <div className="absolute right-3 top-3 flex items-center gap-1">
-                  <BridgeHint label="Как сходится долг поставщику">
-                    <p>Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
-                    <p className="mt-1">Части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
-                  </BridgeHint>
-                  <SupplierDebtHint debt={debt} year={year} align="right" />
-                </div>
-                <TileValue className={d.left.raw + d.left.prod > 0 ? "text-amber-700" : ""}>{formatMoney((d.left.raw + d.left.prod).toFixed(2))}</TileValue>
-                <dl className="mt-3 space-y-1 text-sm">
-                  {row("Мех", d.left.fur, false, d.left.fur > 0 ? "text-amber-700" : "")}
-                  {row("остаток (сток)", furLeftD.stock, true)}
-                  {row("использовано", furLeftD.used, true)}
-                  {row("4%", 0, true)}
-                  {row("Подкладка", d.left.lining, false, d.left.lining > 0 ? "text-amber-700" : "")}
-                  {row("остаток (сток)", linLeftD.stock, true)}
-                  {row("использовано", linLeftD.used, true)}
-                  {row("4%", 0, true)}
-                  {row("Работа", d.left.prod, false, d.left.prod > 0 ? "text-amber-700" : "")}
-                </dl>
-                {d.invoiceDeadlines.length > 0 ? (
-                  <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
-                    <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>
-                    {d.invoiceDeadlines.map((x) => {
-                      const late = isPastRu(x.date);
-                      return <div key={x.auction + x.date} className={late ? "text-red-700" : undefined}>{x.date} · {x.auction} · <b className="tabular-nums">{formatMoney(x.amount.toFixed(0))}</b>{late ? " · просрочен" : ""}</div>;
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })()}
+        <PayTiles d={d} c4Mode={c4Mode} year={year} />
       </section>
     </div>
   );

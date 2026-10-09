@@ -20,6 +20,8 @@ import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { getCommission4Mode } from "@/lib/commission4-mode";
+import { RawCards } from "../dashboard/raw-block";
+import { PayTiles } from "../dashboard/pay-tiles";
 
 export const metadata = { title: "Сырьё" };
 
@@ -237,10 +239,18 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     extraWhere: tab === "lining" ? undefined : searchWhere,
   });
 
-  // Таблица «Мех» сходится с Главной: к лотам добавлены заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
-  const furTabLots = tab === "fur"
-    ? [...tableLots, ...(await loadDashboard(orgId, year, { auction: [], fur: [], color: [], batch: [], status: [], vat: [], attr: [], catgroup: [] } as never, await getCommission4Mode())).syntheticLots]
-    : tableLots;
+  // Плитки и таблица «Мех» сходятся с Главной: считаются той же функцией (с общим годом и без фильтров панели); к лотам добавлены
+  // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
+  const c4Mode = await getCommission4Mode();
+  const dash = await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, c4Mode);
+  const furTabLots = tab === "fur" ? [...tableLots, ...dash.syntheticLots] : tableLots;
+  const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
+  const tiles = (
+    <div className="space-y-3" data-raw-tiles>
+      <RawCards view={tab === "lining" ? "lining" : "fur"} rows={dash.rawTable} fur={dash.raw.fur} lining={dash.raw.lining} c4={c4Mode} hideLabel />
+      <PayTiles d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -291,12 +301,24 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
       {tab === "fur" ? (
         <section aria-labelledby="raw-fur" className="space-y-3">
-          <h2 id="raw-fur" className="text-base font-semibold">Мех</h2>
+          <div className="flex items-center gap-2">
+            <h2 id="raw-fur" className="text-base font-semibold">{kindTitle}</h2>
+            <InfoHint label="Как читать плитки сырья" wide>
+              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Ниже: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
+            </InfoHint>
+          </div>
+          {tiles}
           <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">
-          <h2 id="raw-lining" className="text-base font-semibold">Подкладка</h2>
+          <div className="flex items-center gap-2">
+            <h2 id="raw-lining" className="text-base font-semibold">{kindTitle}</h2>
+            <InfoHint label="Как читать плитки подкладки" wide>
+              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (в метрах и в ₽, без 4%). 4% начисляется только при списании в ТЗ. Ниже: Оплачено и К оплате по подкладке (с НДС).</p>
+            </InfoHint>
+          </div>
+          {tiles}
           <details className="rounded-lg border border-neutral-200 bg-white">
             <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">+ Закупка подкладки</summary>
             <div className="border-t border-neutral-100 p-3">

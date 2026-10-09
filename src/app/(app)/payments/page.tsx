@@ -41,6 +41,10 @@ import { PaymentTiles } from "./payment-tiles";
 import { YearGroup } from "./year-group";
 import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
 import { PaymentsOverview } from "./payments-overview";
+import { PayTiles } from "../dashboard/pay-tiles";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
+import { getCommission4Mode } from "@/lib/commission4-mode";
 import { OVERPAY_NOTE } from "@/lib/overpay-notes";
 import { loadPaymentsOverview, loadPaymentsLeft } from "@/lib/payments-overview";
 
@@ -349,6 +353,8 @@ export default async function PaymentsPage({
   };
   const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
   const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
+  // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
+  const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, await getCommission4Mode()) : null;
   // Сводная строка «Без аукциона»: все служебные группы + закупки без аукциона — чтобы Σ строк сходилась с «Остатком к оплате».
   const zeroD = new Decimal(0);
   const svcAll = auctions.filter((a) => isServiceAuction(a.name));
@@ -458,10 +464,10 @@ export default async function PaymentsPage({
       <Thead>
         <Tr>
           <Th>Аукцион</Th>
-          <Th className="text-right">К оплате</Th>
+          <Th className="text-right">Стоимость</Th>
           <Th className="text-right">Оплачено</Th>
           {anyPlanned && <Th className="text-right">Запланировано</Th>}
-          <Th className="text-right">Остаток</Th>
+          <Th className="text-right">Задолженность</Th>
           <Th>Статус</Th>
           <Th></Th>
         </Tr>
@@ -705,7 +711,15 @@ export default async function PaymentsPage({
             { type: "date", name: "to", label: "Оплата по" },
           ]}
         />
-        <PaymentsOverview rows={(await loadPaymentsOverview(orgId)).filter((r) => (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (pf.verified.length === 0 || pf.verified.includes(r.confirmed ? "yes" : "no")) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to))} left={await overviewLeft(orgId)} c4={0} />
+        {await (async () => {
+          // Плитки — те же, что на Главной (одна и та же функция): Общая стоимость / Оплачено / К оплате. Год — из шапки.
+          const dash = await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, await getCommission4Mode());
+          const lf = await overviewLeft(orgId);
+          const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
+          const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0) };
+          const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (pf.verified.length === 0 || pf.verified.includes(r.confirmed ? "yes" : "no")) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
+          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} />} rows={rows} left={left} c4={0} />;
+        })()}
         </>
       ) : tab === "clients" ? (
         <>
@@ -769,6 +783,7 @@ export default async function PaymentsPage({
             <>
               {!selected && !showNoAuction && (
               <PaymentTiles
+                split={supDash ? { paid: { fur: supDash.paidByItem.fur, lining: supDash.paidByItem.lining }, debt: { fur: supDash.left.fur, lining: supDash.left.lining } } : undefined}
                 hidesMemo={hidesMemo}
                 paid={{
                   // Та же сумма, что «Оплачено → За сырьё» в разделе «Все» (мех и подкладка по оплатам, с шкурами подрядчика и зачётом переплат).

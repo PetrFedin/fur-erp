@@ -62,6 +62,8 @@ export function FurSelectionTotal({
   const [onlySelected, setOnlySelected] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<ViewMode>("all");
+  // «Строки по»: вид меха (ткань) либо год закупки — год раскрывается в вид → партию → лот → ТЗ.
+  const [group, setGroup] = useState<"item" | "year">("item");
 
   // Состояние фильтров — в адресной строке (повтор параметров: fur=a&fur=b), без перезагрузки страницы.
   const first = useRef(true);
@@ -136,7 +138,7 @@ export function FurSelectionTotal({
   const groupHead = (
     <tr>
       <th rowSpan={2} className="sticky left-0 z-10 bg-neutral-50 px-3 py-2 text-left align-bottom font-medium">
-        <span>{kind === "lining" ? "Подкладка" : "Мех"}</span>
+        <span>{group === "year" ? "Год закупки" : kind === "lining" ? "Подкладка" : "Мех"}</span>
       </th>
       {GROUPS.map((g) => (
         <th key={g.key} colSpan={perGroup} className="border-l border-neutral-200 px-3 pb-1 pt-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{g.title}</th>
@@ -174,7 +176,7 @@ export function FurSelectionTotal({
   );
   const nCols = 1 + 3 * perGroup;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
-  const widthClass = "min-w-[860px]";
+  const widthClass = "min-w-[1000px]";
 
   // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
   // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
@@ -203,87 +205,110 @@ export function FurSelectionTotal({
   const noTzTotal = useMemo(() => figures(flowOf(noTzRows.flatMap((r) => r.lots)), mode), [noTzRows, mode]);
   const noTzOpen = expanded.has("z:block");
 
-  const renderRow = (row: TableRow, pfx = "g:") => {
-    const isSel = table.selectedKeys.includes(row.key);
-    const gk = pfx + row.key;
-    const open = expanded.has(gk);
-    const auctions = open ? rowsBy(row.lots, mode, (l) => l.auction, (l) => l.auctionLabel) : [];
+  // Строки таблицы раскрываются вглубь: [год →] вид → партия закупки → лот → ТЗ, где лот списан. Уровни зависят от «Строки по».
+  type Level = "year" | "item" | "auction";
+  const levels: Level[] = group === "year" ? ["year", "item", "auction"] : ["item", "auction"];
+  const rowsFor = (list: FurLot[], level: Level): TableRow[] =>
+    level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
+  const topRows: TableRow[] = group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), "year");
+  const pad = (depth: number) => ({ paddingLeft: 12 + depth * 20 });
+  const lotWord = (n: number) => `${n} лот.`;
+
+  /** Строка ТЗ: сколько лота ушло в это ТЗ, на какую сумму (без 4%), цена за единицу и надбавка 4%. */
+  const renderUsage = (l: FurLot, u: FurLot["usages"][number], depth: number) => {
+    const sumU = vat === "incl" ? u.incl : u.excl;
+    const extra = vat === "incl" ? u.extraIncl : u.extraExcl;
     return (
-      <Fragment key={row.key}>
-        <tr
-          data-row={pfx === "g:" ? row.key : pfx + row.key}
-          onClick={() => toggleExp(gk)}
-          className={cn("cursor-pointer border-t border-neutral-100 hover:bg-neutral-50", isSel && "bg-amber-50/60 hover:bg-amber-50")}
-        >
-          <td className={cn("sticky left-0 z-10 px-3 py-2", isSel ? "bg-amber-50" : "bg-white")}>
-            <div className="flex items-start gap-2">
-              <button type="button" aria-expanded={open} className="min-w-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(gk); }}>
-                <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
-                <span className="font-medium">{row.label}</span>
-                <span className="ml-1.5 text-xs text-neutral-500">{row.lots.length} лот.</span>
-              </button>
+      <tr key={`u:${l.id}:${u.orderId}`} data-sub="usage" className="border-t border-neutral-100 bg-neutral-50/70 text-xs text-neutral-600">
+        <td className="sticky left-0 z-10 bg-neutral-50 py-1.5 pr-3" style={pad(depth)}>
+          <Link href={`/production/${u.orderId}`} className="text-blue-700 hover:underline">ТЗ {u.number}</Link>
+          <span className="ml-1.5 text-neutral-500">{u.qty > 0 ? `${formatMoney(sumU / u.qty)}/${kind === "lining" ? "м" : "шт."}` : ""}</span>
+        </td>
+        {GROUPS.map((g) => (
+          <Fragment key={g.key}>
+            {showQty && <Num first small muted>{g.key === "used" ? Q(u.qty) : <span className="text-neutral-300">—</span>}</Num>}
+            {showMoney && (
+              <Num first={!showQty} small muted>
+                {g.key === "used" ? <><div>{R(sumU)}</div>{extra > 0.005 ? <div className="text-[11px] text-neutral-500">4%: {R(extra)}</div> : null}</> : <span className="text-neutral-300">—</span>}
+              </Num>
+            )}
+          </Fragment>
+        ))}
+      </tr>
+    );
+  };
+
+  const renderLot = (l: FurLot, depth: number, path: string, parentLabel: string) => {
+    const lk = `${path}/l:${l.id}`;
+    const lOpen = expanded.has(lk);
+    const canOpen = l.usages.length > 0;
+    return (
+      <Fragment key={lk}>
+        <tr data-sub="lot" onClick={canOpen ? () => toggleExp(lk) : undefined} className={cn("border-t border-neutral-100 bg-white text-[13px]", canOpen && "cursor-pointer hover:bg-neutral-50", lOpen && "text-neutral-900")}>
+          <td className="sticky left-0 z-10 bg-white py-1.5 pr-3 align-top" style={pad(depth)}>
+            <div className="flex items-start gap-1">
+              <span aria-hidden className={cn("inline-block w-4 shrink-0 text-neutral-500 transition-transform", lOpen && "rotate-90", !canOpen && "invisible")}>›</span>
+              <div className="min-w-0">
+                <div>
+                  {canOpen ? <button type="button" aria-expanded={lOpen} aria-label={`Раскрыть ТЗ лота ${l.lotNumber}`} onClick={(e) => { e.stopPropagation(); toggleExp(lk); }} className="text-left">№ {l.lotNumber}</button> : <>№ {l.lotNumber}</>}
+                  <Link href={`/analytics/raw/lot/${l.id}`} onClick={(e) => e.stopPropagation()} className="ml-2 text-xs text-blue-700 hover:underline" title="Карточка лота">карточка ›</Link>
+                </div>
+                <div className="text-xs text-neutral-500">
+                  {[l.materialName !== parentLabel ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year)].filter(Boolean).join(" · ")}
+                </div>
+                {l.attrs.length > 0 && (
+                  <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
+                    {l.attrs.map((a) => (
+                      <span key={a} title="Признак меха" className="rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>
+                    ))}
+                  </div>
+                )}
+                {l.purchaseId && (
+                  <div className="mt-0.5 text-xs text-neutral-500">
+                    <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline" onClick={(e) => e.stopPropagation()}>
+                      {l.supplier ? `${l.supplier} (${l.purchaseNumber})` : l.purchaseNumber}
+                    </Link>
+                    {l.usages.length > 0 ? <span> · ТЗ: {l.usages.length}</span> : <span> · в ТЗ не использован</span>}
+                  </div>
+                )}
+              </div>
             </div>
           </td>
-          {cells(row.figures)}
+          {cells(figures(flowOf([l]), mode), { small: true })}
         </tr>
-        {open && auctions.map((a) => {
-          const ak = `a:${pfx}${row.key}:${a.key}`;
-          const aOpen = expanded.has(ak);
-          return (
-            <Fragment key={ak}>
-              <tr data-sub="auction" onClick={() => toggleExp(ak)} className="cursor-pointer border-t border-neutral-100 bg-neutral-50/80 text-[13px] hover:bg-neutral-100/70">
-                <td className="sticky left-0 z-10 bg-neutral-50 py-1.5 pl-9 pr-3">
-                  <button type="button" aria-expanded={aOpen} className="text-left" onClick={(e) => { e.stopPropagation(); toggleExp(ak); }}>
-                    <span aria-hidden className={cn("mr-1 inline-block text-neutral-500 transition-transform", aOpen && "rotate-90")}>›</span>
-                    {a.label}
-                    <span className="ml-1.5 text-xs text-neutral-500">{a.lots.length} лот.</span>
-                  </button>
-                </td>
-                {cells(a.figures, { small: true })}
-              </tr>
-              {aOpen && a.lots.map((l) => (
-                <tr key={l.id} data-sub="lot" className="border-t border-neutral-100 bg-white text-[13px]">
-                  <td className="sticky left-0 z-10 bg-white py-1.5 pl-14 pr-3 align-top">
-                    <div className="font-medium">№ {l.lotNumber}</div>
-                    <div className="text-xs text-neutral-500">
-                      {[l.materialName !== row.label ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year)].filter(Boolean).join(" · ")}
-                    </div>
-                    {l.attrs.length > 0 && (
-                      <div className="mt-0.5 flex flex-wrap gap-1" data-lot-attrs>
-                        {l.attrs.map((a) => (
-                          <span key={a} title="Признак меха" className="rounded-full bg-amber-50 px-1.5 text-[11px] leading-4 text-amber-800 ring-1 ring-amber-200">{a}</span>
-                        ))}
-                      </div>
-                    )}
-                    {(l.purchaseId || l.usages.length > 0) && (
-                      <div className="mt-0.5 text-xs text-neutral-500">
-                        {l.purchaseId && (
-                          <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline" onClick={(e) => e.stopPropagation()}>
-                            {l.supplier ? `${l.supplier} (${l.purchaseNumber})` : l.purchaseNumber}
-                          </Link>
-                        )}
-                        {l.usages.length > 0 && (
-                          <span>
-                            {l.purchaseId ? " · " : ""}ТЗ:{" "}
-                            {l.usages.slice(0, 4).map((u, i) => (
-                              <Fragment key={u.orderId}>
-                                {i > 0 && ", "}
-                                <Link href={`/production/${u.orderId}`} className="text-blue-700 hover:underline" onClick={(e) => e.stopPropagation()}>{u.number}</Link>
-                                {` (${formatQty(u.qty)})`}
-                              </Fragment>
-                            ))}
-                            {l.usages.length > 4 && ` +${l.usages.length - 4}`}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  {cells(figures(flowOf([l]), mode), { small: true })}
-                </tr>
-              ))}
-            </Fragment>
-          );
-        })}
+        {lOpen ? l.usages.map((u) => renderUsage(l, u, depth + 1)) : null}
+      </Fragment>
+    );
+  };
+
+  const renderNode = (row: TableRow, depth: number, path: string): ReactNode => {
+    const level = levels[depth];
+    const key = `${path}/${level}:${row.key}`;
+    const open = expanded.has(key);
+    const isSel = depth === 0 && group === "item" && table.selectedKeys.includes(row.key);
+    const inner = open
+      ? depth + 1 < levels.length
+        ? rowsFor(row.lots, levels[depth + 1]).map((c) => renderNode(c, depth + 1, key))
+        : row.lots.map((l) => renderLot(l, depth + 1, key, row.label))
+      : null;
+    return (
+      <Fragment key={key}>
+        <tr
+          data-row={depth === 0 && group === "item" ? row.key : undefined}
+          data-sub={level === "auction" ? "auction" : undefined}
+          onClick={() => toggleExp(key)}
+          className={cn("cursor-pointer border-t border-neutral-100", depth === 0 ? "hover:bg-neutral-50" : "bg-neutral-50/70 text-[13px] hover:bg-neutral-100/70", isSel && "bg-amber-50/60 hover:bg-amber-50", open && depth > 0 && "text-neutral-900")}
+        >
+          <td className={cn("sticky left-0 z-10 py-2 pr-3", depth === 0 ? (isSel ? "bg-amber-50" : "bg-white") : "bg-neutral-50 py-1.5")} style={pad(depth)}>
+            <button type="button" aria-expanded={open} className="min-w-0 text-left" onClick={(e) => { e.stopPropagation(); toggleExp(key); }}>
+              <span aria-hidden className={cn("mr-1 inline-block w-3 text-neutral-500 transition-transform", open && "rotate-90")}>›</span>
+              <span className={depth === 0 ? "font-medium" : undefined}>{row.label}</span>
+              <span className="ml-1.5 text-xs text-neutral-500">{lotWord(row.lots.length)}</span>
+            </button>
+          </td>
+          {cells(row.figures, depth === 0 ? {} : { small: true })}
+        </tr>
+        {inner}
       </Fragment>
     );
   };
@@ -327,6 +352,13 @@ export function FurSelectionTotal({
       />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
+        <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
+          <span>Строки по:</span>
+          {([["item", kind === "lining" ? "Ткани" : "Виду меха"], ["year", "Году закупки"]] as const).map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(new Set()); }}
+              className={"rounded-lg border px-3 py-1.5 text-xs " + (group === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
+          ))}
+        </div>
         {selectedHere > 0 && (
           <span>
             Выбрано: <b className="text-neutral-900">{selectedHere}</b> из {allVisible.length}
@@ -341,7 +373,7 @@ export function FurSelectionTotal({
       <div className="scroll-hint max-h-[75vh] overflow-auto rounded-xl border border-neutral-200 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20">
         <table className={cn("w-full table-fixed text-sm tabular-nums", widthClass)}>
           <colgroup>
-            <col className="w-[150px] md:w-[210px]" />
+            <col className="w-[190px] md:w-[330px]" />
             {[0, 1, 2].map((i) => (
               <Fragment key={i}>
                 {showQty && <col style={{ width: 100 }} />}
@@ -355,7 +387,7 @@ export function FurSelectionTotal({
             <tr>{colsHead}</tr>
           </thead>
           <tbody>
-            {table.rows.map((r) => renderRow(r))}
+            {topRows.map((r) => renderNode(r, 0, "g"))}
             {table.rows.length > 0 && (
               <tr data-total className="border-t-2 border-neutral-300 bg-neutral-100/70 text-[14px] font-semibold">
                 <td className="sticky left-0 z-10 bg-neutral-100 px-3 py-2.5 text-left font-semibold">Всего</td>
@@ -368,6 +400,10 @@ export function FurSelectionTotal({
           </tbody>
         </table>
       </div>
+      <p className="px-1 text-xs text-neutral-500">
+        Как считается: нажмите ›, чтобы раскрыть строку вглубь — {group === "year" ? "год → вид → партия закупки" : "вид → партия закупки"} → лот → ТЗ, где лот списан (количество, сумма без 4% и цена за единицу; надбавка 4% — отдельной строкой).
+        Куплено = Использовано + Остаток; сумма ТЗ лота = «Использовано» лота. Цены и суммы — в режиме {vatWord}.
+      </p>
     </div>
   );
 }

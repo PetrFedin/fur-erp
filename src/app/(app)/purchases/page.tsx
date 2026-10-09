@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatDate } from "@/lib/utils";
-import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
+import { formatMoney, formatDate, formatQty } from "@/lib/utils";
+import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
@@ -23,6 +23,8 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { PurchasesTabs } from "@/components/raw-tabs";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { TILE_BOX, TileHead, TileValue, TileCaption } from "../dashboard/tile";
+import { PurchasesTree, type TreeBatch, type TreeYear } from "./purchases-tree";
 
 // Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
@@ -32,7 +34,8 @@ function firstLine(v: string | null) {
 export const metadata = { title: "Закупки" };
 
 const PURCHASE_FILTERS = defineFilters({
-  ...pick(["auction", "status", "supplier", "fur", "verified", "vat", "pyear", "q", "from", "to"], {
+  ...pick(["auction", "status", "supplier", "fur", "verified", "vat", "pyear", "q", "from", "to", "view"], {
+    view: { allowed: ["tree", "list"] },
     status: { allowed: ["DRAFT", "RECEIVED", "CANCELLED"] },
     verified: { allowed: ["yes", "no"], label: "Подтверждение" },
     vat: { label: "НДС" },
@@ -61,8 +64,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const orgId = session.user.organizationId;
   const f = parseFilters(PURCHASE_FILTERS, sp);
   const PAGE = 50;
+  // Вид: «По годам и партиям» (дерево, по умолчанию) или «Списком» (плоская таблица с постраничным «Показать ещё»).
+  const tree = f.view !== "list";
   const limitRaw = Number(f.limit || PAGE);
-  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
+  const limit = tree ? 2000 : Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
   const filtersOn = activeCount(PURCHASE_FILTERS, f) > 0;
 
   // Партия закупки: точное название (как в списке) либо — для старых ссылок — вхождение в название; none — «Без аукциона».
@@ -110,7 +115,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     include: {
       supplier: true,
       items: { include: { rawMaterial: true } },
-      expenses: true,
+      expenses: { include: { category: true } },
       payments: true,
     },
     // Numbers are З-YYYY-NNNN (zero-padded), so a string sort is numeric.
@@ -150,6 +155,42 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const boughtTotal = bought.add(hidesAll);
   const paidTotal = paidAll.add(hidesAll);
   const restTotal = boughtTotal.sub(paidTotal);
+
+  // Дерево «год → партия → закупка → позиции / расходы / оплаты»: те же суммы, что в списке.
+  const treeYears: TreeYear[] = [];
+  if (tree) {
+    const byYear = new Map<number, Map<string, TreeBatch & { first: number }>>();
+    for (const p of purchases) {
+      const total = purchaseTotalInclVat(p);
+      const own = p.payments.filter((x) => x.status === "COMPLETED");
+      const ownSum = own.reduce((a, x) => a.add(x.amount), new Decimal(0));
+      const cancelled = p.status === "CANCELLED";
+      const an = auctionName(p.auctionSession);
+      const ap = auctionPays.get(an ?? "");
+      const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : ownSum;
+      const y = p.orderDate.getUTCFullYear();
+      const bk = an ?? "none";
+      const batches = byYear.get(y) ?? new Map();
+      const b = batches.get(bk) ?? { key: bk, label: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", title: an ?? undefined, href: ap ? `/payments?auction=${encodeURIComponent(ap.name)}#auction-block` : undefined, purchases: [], first: p.orderDate.getTime() };
+      b.first = Math.min(b.first, p.orderDate.getTime());
+      b.purchases.push({
+        id: p.id, number: p.number, date: formatDate(p.orderDate), supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null,
+        cancelled, received: p.status === "RECEIVED",
+        total: total.toNumber(), paid: paidShare.toNumber(), rest: cancelled ? 0 : total.sub(paidShare).toNumber(),
+        paidBatch: paidShare.sub(own.length > 0 ? ownSum : 0).toNumber(),
+        items: p.items.map((i) => ({ id: i.id, lotId: i.lotId, label: i.rawMaterial.name, lot: i.lotNumber, qty: `${formatQty(i.quantity.toString())} ${i.rawMaterial.unit === "M" ? "м" : "шт."}`, sum: itemTotalInclVat(i, p.exchangeRate).toNumber() })),
+        expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: grossUp(e.amount, e.vatRate).toNumber() })),
+        pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: x.amount.toNumber(), doc: x.docRef?.trim() || null })),
+      });
+      batches.set(bk, b);
+      byYear.set(y, batches);
+    }
+    for (const [year, batches] of [...byYear].sort((a, b) => a[0] - b[0])) {
+      const list = [...batches.values()].sort((a, b) => Number(a.key === "none") - Number(b.key === "none") || a.first - b.first || a.label.localeCompare(b.label, "ru", { numeric: true }));
+      for (const b of list) b.purchases.sort((x, y2) => x.number.localeCompare(y2.number, "ru", { numeric: true }));
+      treeYears.push({ year, batches: list.map(({ first: _f, ...rest }) => rest) });
+    }
+  }
 
   // Сумма аукциона одна на все его закупки: полностью — в первой строке аукциона, дальше короткая подпись.
 
@@ -209,22 +250,38 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ]}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="purchases-totals">
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500"><VatLabel base="Куплено" /></div>
-          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums"><Money incl={boughtTotal} excl={boughtExcl.add(hidesAll)} /></div>
-          <div className="mt-0.5 text-xs text-neutral-500">{allPurchases.filter((p) => p.status !== "CANCELLED").length} закупок{hidesAll.greaterThan(0) ? ` · с шкурами подрядчика ${formatMoney(hidesAll.toFixed(2))}` : ""}</div>
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-testid="purchases-totals">
+        <div className={TILE_BOX}>
+          <TileHead><VatLabel base="Куплено" /></TileHead>
+          <div className="absolute right-3 top-3">
+            <InfoHint label="О «Куплено»" align="right">
+              <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
+            </InfoHint>
+          </div>
+          <TileValue><Money incl={boughtTotal} excl={boughtExcl.add(hidesAll)} /></TileValue>
+          <TileCaption>{allPurchases.filter((p) => p.status !== "CANCELLED").length} закупок{hidesAll.greaterThan(0) ? ` · с шкурами подрядчика ${formatMoney(hidesAll.toFixed(2))}` : ""}</TileCaption>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">Оплачено</div>
-          <div className="mt-1 text-base font-semibold sm:text-lg tabular-nums">{formatMoney(paidTotal.toFixed(2))}</div>
+        <div className={TILE_BOX}>
+          <TileHead>Оплачено</TileHead>
+          <TileValue>{formatMoney(paidTotal.toFixed(2))}</TileValue>
+          <TileCaption>{boughtTotal.greaterThan(0) ? `${paidTotal.div(boughtTotal).mul(100).toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% от куплено · всегда с НДС` : "всегда с НДС"}</TileCaption>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="text-xs text-neutral-500">Остаток к оплате</div>
-          <div className={"mt-1 text-base font-semibold sm:text-lg tabular-nums " + (restTotal.greaterThan(PAY_EPS) ? "text-amber-700" : "")}>{formatMoney(restTotal.toFixed(2))}</div>
+        <div className={TILE_BOX}>
+          <TileHead>К оплате</TileHead>
+          <TileValue className={restTotal.greaterThan(PAY_EPS) ? "text-amber-700" : ""}>{formatMoney(restTotal.toFixed(2))}</TileValue>
+          <TileCaption>{boughtTotal.greaterThan(0) ? `${restTotal.div(boughtTotal).mul(100).toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
         </div>
       </div>
 
+      <div role="tablist" aria-label="Вид таблицы закупок" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+        <span>Вид:</span>
+        {([["tree", "По годам и партиям"], ["list", "Списком"]] as const).map(([id, label]) => (
+          <Link key={id} role="tab" aria-selected={(tree ? "tree" : "list") === id} href={filterHref(PURCHASE_FILTERS, "/purchases", f, { view: id === "tree" ? "" : "list", limit: "" })}
+            className={"rounded-lg border px-3 py-1.5 text-xs " + ((tree ? "tree" : "list") === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
+        ))}
+      </div>
+
+      {tree ? <PurchasesTree years={treeYears} hides={hidesAll.toNumber()} /> : (
       <ResponsiveRows
         table={
       <Table anchor="table:purchases" label="Таблица закупок" stickyHeader>
@@ -341,14 +398,15 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </p>
         )}
       </ResponsiveRows>
-      {hasMore && (
+      )}
+      {!tree && hasMore && (
         <div className="flex justify-center">
           <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
             Показать ещё {PAGE}
           </Link>
         </div>
       )}
-      <div className="flex items-center gap-1 text-xs text-neutral-600">
+      <div className={"flex items-center gap-1 text-xs text-neutral-600" + (tree ? " hidden" : "")}>
         Показано закупок: {purchases.length}{hasMore ? " из " + allPurchases.length : ""}
       </div>
     </div>
