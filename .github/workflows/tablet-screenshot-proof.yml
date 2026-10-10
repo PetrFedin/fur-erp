@@ -96,12 +96,8 @@ jobs:
           await page.waitForURL(/\/dashboard/,{timeout:15000});
           await page.waitForLoadState('networkidle');
           await page.screenshot({path:'artifacts/tablet-proof/fur-production-dashboard-tablet.png',fullPage:false});
-          const stockLink=page.getByRole('link',{name:/Сырьё|Склад|Материал/i}).first();
-          if(await stockLink.isVisible().catch(()=>false)){
-            await stockLink.click();
-            await page.waitForLoadState('networkidle');
-            await page.screenshot({path:'artifacts/tablet-proof/fur-production-stock-tablet.png',fullPage:false});
-          }
+          await page.goto('http://127.0.0.1:3202/raw-materials',{waitUntil:'networkidle'});
+          await page.screenshot({path:'artifacts/tablet-proof/fur-production-stock-tablet.png',fullPage:false});
           await browser.close();
           NODE
       - uses: actions/upload-artifact@v4
