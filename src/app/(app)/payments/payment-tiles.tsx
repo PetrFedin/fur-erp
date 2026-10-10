@@ -96,7 +96,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
   return (
     <>
       <WidgetRow id="payments" title="Оплаты — итоги">
-      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-pay-tiles>
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-pay-tiles>
         <Tile label="Общая стоимость" value={rub(paid.total + debt.total)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={split ? stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining) : undefined} />
         <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />
         <Tile label="К оплате" value={rub(debt.total)} hint={debtHint} onOpen={() => setOpen("debt")} valueClass={debtWarn ? "text-amber-700" : ""} items={split ? stat(debt.total, debt.total, split.debt.fur, split.debt.lining, true) : undefined}>

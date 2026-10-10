@@ -245,7 +245,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         } else {
           rowsC = [
             mk("Материал: цена лота без НДС", material.mul(l.recv), { note: p.itemPrice && p.currency && p.currency !== "RUB" ? `в закупке ${formatCurrency(p.itemPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}` : undefined }),
-            mk("Расходы закупки (доля): аукционный сбор, выделка, перевозка, комиссия", expenses.mul(l.recv), { note: noSplit ? "расходы по лоту отдельно не записаны — вся цена показана как материал" : undefined }),
+            ...(expenses.isZero() ? [] : [mk("Расходы закупки (доля): аукционный сбор, выделка, перевозка, комиссия", expenses.mul(l.recv))]),
             mk(`НДС ${formatQty(p.vatRate.toString())}%`, vat.mul(l.recv)),
             mk("Цена лота за единицу, с НДС", lotTotal, { strong: true, share: false }),
           ];
@@ -257,7 +257,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
               <CardTitle className="flex flex-wrap items-center gap-2">
                 Из чего состоит цена лота
                 <InfoHint label="Из чего состоит цена лота" wide>
-                  <p>Цена за единицу на момент прихода: материал (цена лота без НДС) плюс доля расходов закупки (аукционный сбор, выделка, перевозка, комиссия), плюс НДС. Расходы закупки распределяются по лотам пропорционально их стоимости.</p>
+                  <p>Цена за единицу на момент прихода: материал (цена лота без НДС) плюс доля расходов закупки (аукционный сбор, выделка, перевозка, комиссия), плюс НДС. Расходы закупки распределяются по лотам пропорционально их стоимости. Сумма лота = цена × куплено; «Куплено» на Главной и в «Сырьё» — Σ таких сумм по лотам, всегда без 4%.</p>
                   <p className="mt-1">4% сюда не входит: оно начисляется только при списании в ТЗ — {formatMoney(q2(l.unitIncl.mul(k4)))} на единицу, по лоту уже начислено {formatMoney(q2(l.usedExtraIncl))} (с НДС).</p>
                 </InfoHint>
               </CardTitle>
@@ -304,7 +304,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                   </dl>
                 </details>
               ) : null}
-              <p className="text-xs text-neutral-500">Как считается: цена лота за единицу = «итого за готовое сырьё» ÷ количество; сумма лота = цена × куплено. «Куплено» на Главной и в «Сырьё» — Σ таких сумм по лотам, всегда без 4%.</p>
             </CardContent>
           </Card>
         );

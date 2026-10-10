@@ -27,6 +27,13 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+const ORDER_STATUS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
+  PLANNED: { label: "Запланирован", variant: "default" },
+  IN_PROGRESS: { label: "В работе", variant: "warning" },
+  COMPLETED: { label: "Завершён", variant: "success" },
+  CANCELLED: { label: "Отменён", variant: "danger" },
+};
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireSession();
@@ -37,7 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
   const { id } = await params;
   const session = await requireSession();
-  const [model, materials, fittings, categoryOptions] = await Promise.all([
+  const [model, materials, fittings, categoryOptions, orders] = await Promise.all([
     prisma.productModel.findFirst({
       where: { id, organizationId: session.user.organizationId },
       include: { materials: { include: { rawMaterial: true }, orderBy: { id: "asc" } } },
@@ -54,6 +61,11 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       take: 10,
     }),
     getCategoryOptions(session.user.organizationId),
+    prisma.productionOrder.findMany({
+      where: { organizationId: session.user.organizationId, productModelId: id },
+      select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, batch: { select: { number: true, year: true } } },
+      orderBy: [{ createdAt: "desc" }],
+    }),
   ]);
   if (!model) notFound();
 
@@ -144,6 +156,27 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           <BomAddForm productModelId={id} materials={materials} />
         </CardContent>
       </Card>
+
+      {orders.length > 0 && (
+        <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open>
+          <summary className="cursor-pointer text-sm font-medium">ТЗ этой модели ({orders.length})</summary>
+          <ul className="mt-2 flex flex-col divide-y divide-neutral-100">
+            {orders.map((o) => {
+              const done = o.status === "COMPLETED";
+              return (
+                <li key={o.id}>
+                  <Link href={`/production/${o.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-neutral-50">
+                    <span className="whitespace-nowrap font-medium">{orderLabel(o)}</span>
+                    <span className="whitespace-nowrap text-neutral-600">{o.batch ? `Партия ${o.batch.number}${o.batch.year ? ` · ${o.batch.year}` : ""}` : "без партии"}</span>
+                    <Badge variant={ORDER_STATUS[o.status].variant}>{ORDER_STATUS[o.status].label}</Badge>
+                    <span className="ml-auto whitespace-nowrap tabular-nums">{formatQty((done ? o.producedQuantity : o.plannedQuantity).toString())} шт.</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
 
       <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={fittings.length > 0}>
         <summary className="cursor-pointer text-sm font-medium">Примерки этой модели ({fittings.length})</summary>

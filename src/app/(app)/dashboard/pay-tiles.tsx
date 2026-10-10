@@ -24,6 +24,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
   const prodPaid = d.paidByItem.work;
   const money = (v: number) => formatMoney(v.toFixed(2));
+  const dash = (v: number) => (Math.abs(v) < 0.5 ? "—" : money(v));
   // Детализация меха и подкладки: остаток на складе, использовано (без 4%) и надбавка 4% (оплачена в составе оплат ТЗ, доплаты нет).
   const detail = (x: typeof d.raw.fur.incl) => ({ stock: x.remValue, used: c4Mode === "on" ? x.usedValueOther : x.usedValue, c4: Math.abs(x.usedValue - x.usedValueOther) });
   const furD = detail(d.raw.fur.incl), linD = detail(d.raw.lining.incl);
@@ -44,16 +45,16 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
   const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean): TileItem[] => [
     ...(inFur ? [
-      { k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined },
-      { k: "остаток (сток)", v: money(furSplit.stock), sub: true },
-      { k: "использовано", v: money(furSplit.used), sub: true },
-      { k: "4%", v: money(furC4), sub: true },
+      ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
+      { k: "остаток (сток)", v: dash(furSplit.stock), sub: !only },
+      { k: "использовано", v: dash(furSplit.used), sub: !only },
+      { k: "4%", v: dash(furC4), sub: !only },
     ] : []),
     ...(inLin ? [
-      { k: "Подкладка", v: money(lin), share: part(lin, whole), tone: warn && lin > 0 ? "text-amber-700" : undefined },
-      { k: "остаток (сток)", v: money(linSplit.stock), sub: true },
-      { k: "использовано", v: money(linSplit.used), sub: true },
-      { k: "4%", v: money(linC4), sub: true },
+      ...(only ? [] : [{ k: "Подкладка", v: money(lin), share: part(lin, whole), tone: warn && lin > 0 ? "text-amber-700" : undefined }]),
+      { k: "остаток (сток)", v: dash(linSplit.stock), sub: !only },
+      { k: "использовано", v: dash(linSplit.used), sub: !only },
+      { k: "4%", v: dash(linC4), sub: !only },
     ] : []),
     ...(inWork ? [{ k: "Работа", v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];

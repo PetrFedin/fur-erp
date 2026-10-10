@@ -24,8 +24,8 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   rest: { kind: { fur: "Остаток", lining: "Остаток" }, all: "Любой" },
 };
 
-const Q = (n: number | null) => (n == null ? "—" : formatQty(n));
-const R = (n: number | null) => (n == null ? "—" : formatMoney(n));
+const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "—" : formatQty(n));
+const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "—" : formatMoney(n));
 
 /**
  * Таблица «куплено → использовано → остаток» по меху или подкладке (расчёт — src/lib/fur-table.ts, одна функция на
@@ -400,10 +400,6 @@ export function FurSelectionTotal({
           </tbody>
         </table>
       </div>
-      <p className="px-1 text-xs text-neutral-500">
-        Как считается: нажмите ›, чтобы раскрыть строку вглубь — {group === "year" ? "год → вид → партия закупки" : "вид → партия закупки"} → лот → ТЗ, где лот списан (количество, сумма без 4% и цена за единицу; надбавка 4% — отдельной строкой).
-        Куплено = Использовано + Остаток; сумма ТЗ лота = «Использовано» лота. Цены и суммы — в режиме {vatWord}.
-      </p>
     </div>
   );
 }

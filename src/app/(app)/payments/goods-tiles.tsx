@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
-import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "../dashboard/tile";
+import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "../dashboard/tile";
 
 /** ТЗ с неоплаченной работой: что именно не оплачено. */
 export type OwedOrder = { id: string; label: string; article: string; fur: string; batch: number | null; year: number | null; qty: number; work: number; work4?: number; paid: number };
@@ -84,7 +84,7 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
   );
 }
 
-function Tile({ label, value, onOpen, valueClass, hint, items }: { label: string; value: string; onOpen?: () => void; valueClass?: string; hint?: ReactNode; items?: TileItem[] }) {
+function Tile({ label, value, onOpen, valueClass, hint, items, note }: { label: string; value: string; onOpen?: () => void; valueClass?: string; hint?: ReactNode; items?: TileItem[]; note?: string }) {
   return (
     <div
       className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")}
@@ -98,6 +98,7 @@ function Tile({ label, value, onOpen, valueClass, hint, items }: { label: string
       <TileHead>{label}</TileHead>
       {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
       <TileValue className={valueClass}>{value}</TileValue>
+      {note ? <TileCaption>{note}</TileCaption> : null}
       {items ? <TileList items={items} /> : null}
     </div>
   );
@@ -113,10 +114,10 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   return (
     <>
       <WidgetRow id="goods" title="Оплата работы — итоги">
-      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-goods-tiles>
-        <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(total), share: total > 0.5 ? 1 : null }]} />
-        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} items={[{ k: "Работа", v: rub(paid), share: total > 0.5 ? paid / total : null }]} />
-        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} items={[{ k: "Работа", v: rub(balance), share: total > 0.5 ? balance / total : null, tone: balance > 0.5 ? "text-amber-700" : undefined }]} />
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
+        <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} note="работа по ТЗ" />
+        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${Math.round((paid / total) * 1000) / 10} % от стоимости`.replace(".", ",") : undefined} />
+        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} note={total > 0.5 ? `${Math.round((balance / total) * 1000) / 10} % от стоимости`.replace(".", ",") : undefined} />
       </div>
       </WidgetRow>
       {open && (

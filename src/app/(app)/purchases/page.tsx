@@ -252,7 +252,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       />
 
       <WidgetRow id="purchases" title="Закупки — итоги">
-      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3 print:grid-cols-3" data-testid="purchases-totals">
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-testid="purchases-totals">
         <div className={TILE_BOX}>
           <TileHead><VatLabel base="Куплено" /></TileHead>
           <div className="absolute right-3 top-3">

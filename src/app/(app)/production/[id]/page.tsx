@@ -712,11 +712,11 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               value={<Money incl={liningCost} excl={liningCostExcl} />}
             />
           )}
-          <SummaryLine label="Расходы" value={formatMoney(expenseCost.toString())} />
+          <SummaryLine label="Расходы" value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
           {clientRevenue ? <SummaryLine label="Итого сырьё и расходы" value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />} /> : null}
           {clientRevenue ? <SummaryLine label={`Работа: ${formatMoney(order.clientWorkPricePerUnit!.toString())} × ${formatQty(producedOrPlanned.toString())} шт.`} value={formatMoney(clientRevenue.toString())} /> : <SummaryLine label="Работа" value="не указана" />}
           <SummaryLine
-            label={<>{`Всего себестоимость${c4}`}{c4Info}</>}
+            label={<>Всего себестоимость{c4Info}</>}
             value={<Money incl={projectedTotal.add(clientRevenue ?? 0)} excl={projectedTotalExclVat.add(clientRevenue ?? 0)} />}
             strong
           />
@@ -724,7 +724,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           {order.client ? (
             <SummaryLine
               label="Оплачено заказчиком"
-              value={<>{formatMoney(paidTotal.toString())}{balanceDue && balanceDue.greaterThan(0.005) ? <span className="ml-2 text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span> : null}</>}
+              value={<>{paidTotal.isZero() ? "—" : formatMoney(paidTotal.toString())}{balanceDue && balanceDue.greaterThan(0.005) ? <span className="ml-2 text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span> : null}</>}
             />
           ) : null}
         </dl>

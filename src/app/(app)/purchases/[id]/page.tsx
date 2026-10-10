@@ -567,11 +567,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       )}
 
       <WidgetRow id="purchase" title="Закупка — итоги">
-      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         <SummaryCard
           label={<VatLabel base="Итого, RUB" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
-          note={`сырьё ${formatMoney(goodsExclVatRub.toString())} · расходы ${formatMoney(extraExclVat.toString())} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
+          note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
         />
         {auctionPay ? (
@@ -582,7 +582,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   Оплачено по партии
                 </Link>
               }
-              value={auctionPay.paid.greaterThan(0.005) ? `${formatMoney(auctionPay.paid.toString())} из ${formatMoney(auctionPay.total.toString())}` : "оплат нет"}
+              value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "—"}
+              note={`из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
               label="Остаток по партии"
