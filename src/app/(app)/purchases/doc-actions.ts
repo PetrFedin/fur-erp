@@ -1,7 +1,7 @@
 "use server";
 
+import { revalidateAll } from "@/lib/revalidate-all";
 import path from "node:path";
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { removeStoredFiles } from "@/lib/fitting-files";
@@ -55,8 +55,7 @@ export async function uploadPurchaseDocuments(
     throw e;
   }
   await resetByPurchaseDoc(orgId, { purchaseId: scope === "batch" ? null : purchase.id, batch: scope === "batch" ? batch : null });
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/lots");
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -72,13 +71,11 @@ export async function deletePurchaseDocument(purchaseId: string, documentId: str
   const stillUsed = await prisma.purchaseDocument.count({ where: { storagePath: doc.storagePath } });
   if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
   await resetByPurchaseDoc(session.user.organizationId, { purchaseId: doc.purchaseId, batch: doc.batch });
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/lots");
+  revalidateAll();
 }
 
-function revalidateDocPages(purchaseId: string | null | undefined) {
-  if (purchaseId) revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/lots");
+function revalidateDocPages() {
+  revalidateAll();
 }
 
 /**
@@ -119,7 +116,7 @@ export async function replacePurchaseDocument(documentId: string, formData: Form
     if (stillUsed === 0) await removeStoredFiles([doc.storagePath]);
   }
   await resetByPurchaseDoc(orgId, { purchaseId: doc.purchaseId, batch: doc.batch });
-  revalidateDocPages(doc.purchaseId);
+  revalidateDocPages();
   return { ok: true };
 }
 
@@ -137,6 +134,6 @@ export async function updatePurchaseDocument(documentId: string, formData: FormD
   if (!(KINDS as readonly string[]).includes(kindRaw)) return { error: "Неизвестный тип документа" };
   await prisma.purchaseDocument.update({ where: { id: doc.id }, data: { title, kind: kindRaw as Kind } });
   await resetByPurchaseDoc(session.user.organizationId, { purchaseId: doc.purchaseId, batch: doc.batch });
-  revalidateDocPages(doc.purchaseId);
+  revalidateDocPages();
   return { ok: true };
 }

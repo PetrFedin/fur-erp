@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -9,7 +10,7 @@ import { loadPaymentVerify } from "../verify/verify-block";
  * Блок «Документы и оплата» для аукциона (по одному на каждое подходящее название) или для одной закупки.
  * names — режим «Аукцион» в «Сырьё»; purchaseId — карточка закупки (её аукцион либо сама закупка вне аукциона).
  */
-export async function AuctionDocsPay({ organizationId, names, purchaseId }: { organizationId: string; names?: string[]; purchaseId?: string }) {
+export async function AuctionDocsPay({ organizationId, names, purchaseId, paymentActions }: { organizationId: string; names?: string[]; purchaseId?: string; paymentActions?: Record<string, ReactNode> }) {
   const session = await requireSession();
   const panels = await loadAuctionPanels(prisma, organizationId, {
     names,
@@ -22,7 +23,7 @@ export async function AuctionDocsPay({ organizationId, names, purchaseId }: { or
   return (
     <>
       {panels.map((p) => (
-        <DocsPayPanel key={p.panel.id} panel={p.panel} compact={panels.length > 1} verify={verify} canVerify={canVerify} />
+        <DocsPayPanel key={p.panel.id} panel={p.panel} compact={panels.length > 1} verify={verify} canVerify={canVerify} paymentActions={paymentActions} />
       ))}
     </>
   );

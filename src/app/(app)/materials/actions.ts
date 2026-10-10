@@ -1,7 +1,7 @@
 "use server";
 
+import { revalidateAll } from "@/lib/revalidate-all";
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -53,7 +53,7 @@ export async function createMaterial(
     throw e;
   }
 
-  revalidatePath("/materials");
+  revalidateAll();
   redirect("/materials");
 }
 
@@ -81,7 +81,7 @@ export async function updateMaterial(
   }
   if (result.count === 0) return { error: "Материал не найден" };
 
-  revalidatePath("/materials");
+  revalidateAll();
   redirect("/materials");
 }
 
@@ -95,6 +95,5 @@ export async function createCategory(formData: FormData) {
     create: { organizationId: session.user.organizationId, name },
     update: {},
   });
-  revalidatePath("/materials");
-  revalidatePath("/materials/new");
+  revalidateAll();
 }

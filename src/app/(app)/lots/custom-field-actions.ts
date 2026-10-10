@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -20,10 +20,6 @@ const EDIT_ROLES = ["OWNER", "ADMIN", "PURCHASER"] as const;
 
 export type FieldResult = { ok: true; id?: string } | { ok?: false; error: string };
 
-function revalidateAll() {
-  revalidatePath("/lots");
-  revalidatePath("/purchases/[id]", "page");
-}
 
 const idSchema = z.string().min(1).max(100);
 const BAD_ARGS = "Некорректные параметры запроса — обновите страницу";
@@ -202,6 +198,6 @@ export async function setCustomValue(
   if (outcome === "no-field") return { error: "Столбец не найден (возможно, удалён) — обновите страницу" };
   if (outcome === "no-item") return { error: "Лот не найден" };
   // Только значения справочные — страницу не перерисовываем целиком, чтобы не сбивать ввод в соседних ячейках.
-  revalidatePath(`/purchases/${item.purchaseId}`);
+  revalidateAll(orgId);
   return { ok: true, value };
 }

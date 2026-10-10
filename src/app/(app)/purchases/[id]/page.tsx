@@ -41,6 +41,7 @@ import { AuctionDocsPay } from "../../lots/auction-docs-pay";
 import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
+import { PaymentDeleteButton } from "./payment-delete-button";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 // Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
@@ -252,7 +253,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const boundRemoveItem = removePurchaseItem.bind(null, id);
   const boundUpdateItem = updatePurchaseItem.bind(null, id);
   const boundRemoveExpense = removePurchaseExpense.bind(null, id);
-  const boundRemovePayment = removePurchasePayment.bind(null, id);
   // Item rows can be edited even after receipt (cosmetic fields always; qty/
   // price/VAT only while the resulting lot hasn't been consumed yet) — see
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
@@ -604,7 +604,27 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>
         <div className="border-t border-neutral-100 p-3">
-          <AuctionDocsPay organizationId={session.user.organizationId} purchaseId={id} />
+          <AuctionDocsPay
+            organizationId={session.user.organizationId}
+            purchaseId={id}
+            paymentActions={Object.fromEntries(
+              purchase.payments.map((p) => [
+                p.id,
+                canEditRole ? (
+                  <div key={p.id} className="flex flex-wrap gap-2">
+                    {payEdit(p)}
+                    <PaymentDeleteButton
+                      amountLabel={formatMoney(p.amount.toString())}
+                      action={async () => {
+                        "use server";
+                        await removePurchasePayment(id, p.id);
+                      }}
+                    />
+                  </div>
+                ) : null,
+              ]),
+            )}
+          />
         </div>
       </details>
 

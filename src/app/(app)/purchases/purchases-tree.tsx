@@ -201,7 +201,6 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-500">Как считается: Сумма = позиции с НДС + расходы; Оплачено = оплаты закупки + доля оплат партии; Задолженность = Сумма − Оплачено. Годы — по дате заказа.</p>
     </section>
   );
 }

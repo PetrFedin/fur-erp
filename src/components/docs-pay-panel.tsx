@@ -1,7 +1,7 @@
 "use client";
 
 import { tidyDocRef } from "@/lib/pay-ref";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/info-hint";
@@ -188,7 +188,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
   );
 }
 
-function PaymentLine({ p, canMark, v, canVerify }: { p: PanelPayment; canMark: boolean; v?: VerifyView; canVerify?: boolean }) {
+function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; canMark: boolean; v?: VerifyView; canVerify?: boolean; actions?: ReactNode }) {
   const { pending, msg, run } = useRun();
   const rb = p.rollback;
   return (
@@ -236,6 +236,7 @@ function PaymentLine({ p, canMark, v, canVerify }: { p: PanelPayment; canMark: b
             Откатить
           </Button>
         )}
+        {actions}
         <Msg msg={msg} pending={pending} />
       </div>
       {v && !p.planned && (
@@ -263,7 +264,7 @@ function presetOf(m: MarkTarget): PaymentPreset {
  * кнопка «Отметить оплату». Данные готовят src/lib/auction-doc-checklist.ts и src/lib/production-doc-checklist.ts.
  * Чтение — всем; загрузка и отметка — по правам (panel.canUpload / panel.canMark).
  */
-export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { panel: Panel; compact?: boolean; verify?: Record<string, VerifyView>; canVerify?: boolean }) {
+export function DocsPayPanel({ panel, compact = false, verify, canVerify, paymentActions }: { panel: Panel; compact?: boolean; verify?: Record<string, VerifyView>; canVerify?: boolean; paymentActions?: Record<string, ReactNode> }) {
   const p = panel.pay;
   const canRemain = p.state !== "PAID" && p.state !== "OVERPAID" && p.state !== "NOBASE";
   const bar = Math.max(0, Math.min(100, p.percent));
@@ -330,7 +331,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify }: { pa
         {panel.payments.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {panel.payments.map((x) => (
-              <PaymentLine key={x.id} p={x} canMark={panel.canMark} v={verify?.[x.id]} canVerify={canVerify} />
+              <PaymentLine key={x.id} p={x} canMark={panel.canMark} v={verify?.[x.id]} canVerify={canVerify} actions={paymentActions?.[x.id]} />
             ))}
           </ul>
         ) : (

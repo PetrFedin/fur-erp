@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -401,7 +401,7 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
     return duplicateResult(orgId, outcome.duplicate);
   }
 
-  revalidatePath("/", "layout");
+  revalidateAll(orgId);
 
   // что пересчиталось
   const debtAfter = await loadSupplierDebt(prisma, orgId);

@@ -1,7 +1,7 @@
 "use server";
 
+import { revalidateAll } from "@/lib/revalidate-all";
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -174,7 +174,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     return { error: "Не удалось сохранить закупку: проверьте числа в позициях (слишком большие значения). Введённые данные сохранены в форме.", issues };
   }
 
-  revalidatePath("/purchases");
+  revalidateAll(orgId);
   redirect(`/purchases/${purchase.id}`);
 }
 
@@ -233,17 +233,14 @@ export async function updatePurchaseExchangeRate(purchaseId: string, formData: F
     data: { exchangeRate: rate.data as number },
   });
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
   return {};
 }
 
 const NOT_DRAFT = "Закупка уже принята на склад или отменена — расчёт лота менять нельзя";
 
-function revalidateCostPlan(purchaseId: string) {
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/purchases");
-  revalidatePath("/lots");
-  revalidatePath("/dashboard");
+function revalidateCostPlan() {
+  revalidateAll();
 }
 
 const costPlanItemSchema = z.object({
@@ -317,7 +314,7 @@ export async function updateCostPlanItem(purchaseId: string, itemId: string, for
   }, { timeout: 30000 });
   if (res.error) return { error: res.error };
   await resetByPurchase(purchaseId);
-  revalidateCostPlan(purchaseId);
+  revalidateCostPlan();
   return {};
 }
 
@@ -371,7 +368,7 @@ export async function updateCostPlanRate(purchaseId: string, formData: FormData)
   }, { timeout: 30000 });
   if (res.error) return { error: res.error };
   await resetByPurchase(purchaseId);
-  revalidateCostPlan(purchaseId);
+  revalidateCostPlan();
   return {};
 }
 
@@ -456,7 +453,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   });
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
   return {};
 }
 
@@ -502,7 +499,7 @@ async function updateReceivedPurchaseHeader(
     },
   });
   await resetVerification(prisma, orgId, { purchaseIds: [purchase.id], auctions: [oldAuction, newAuction] });
-  for (const path of [`/purchases/${purchase.id}`, "/purchases", "/lots", "/payments", "/dashboard", "/documents", "/verify"]) revalidatePath(path);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -520,7 +517,7 @@ export async function setPurchaseStatus(
     data: { status },
   });
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
 }
 
 // ---------- Line items ----------
@@ -573,7 +570,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData): P
   });
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
   return {};
 }
 
@@ -611,7 +608,7 @@ export async function addPurchaseItemsBulk(
   }
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll(orgId);
   return { created: result.rows.length, issues: issues.length ? issues : undefined };
 }
 
@@ -712,7 +709,7 @@ export async function updatePurchaseItem(
       },
     });
     await resetByPurchase(purchaseId);
-    revalidatePath(`/purchases/${purchaseId}`);
+    revalidateAll();
     return {};
   }
 
@@ -735,8 +732,7 @@ export async function updatePurchaseItem(
       ...(lot ? [prisma.rawMaterialLot.update({ where: { id: lot.id }, data: lotCosmetic })] : []),
     ]);
     await resetByPurchase(purchaseId);
-    revalidatePath(`/purchases/${purchaseId}`);
-    revalidatePath("/lots");
+    revalidateAll();
     return {};
   }
 
@@ -845,8 +841,7 @@ export async function updatePurchaseItem(
   ]);
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/lots");
+  revalidateAll();
   return {};
 }
 
@@ -858,7 +853,7 @@ export async function removePurchaseItem(purchaseId: string, itemId: string) {
   // deleteMany + фильтр по закупке этой организации: чужую позицию не удалить.
   await prisma.purchaseItem.deleteMany({ where: { id: itemId, purchaseId: purchase.id } });
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
 }
 
 // ---------- Expenses ----------
@@ -890,7 +885,7 @@ export async function addPurchaseExpense(purchaseId: string, formData: FormData)
   });
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
   return {};
 }
 
@@ -901,7 +896,7 @@ export async function removePurchaseExpense(purchaseId: string, expenseId: strin
 
   await prisma.purchaseExpense.deleteMany({ where: { id: expenseId, purchaseId: purchase.id } });
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
+  revalidateAll();
 }
 
 export async function updatePurchaseExpense(purchaseId: string, expenseId: string, formData: FormData): Promise<FormState> {
@@ -934,10 +929,7 @@ export async function updatePurchaseExpense(purchaseId: string, expenseId: strin
     },
   });
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/purchases");
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1019,9 +1011,7 @@ export async function addPurchasePayment(purchaseId: string, formData: FormData)
   if (result.error || result.confirm) return result;
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1044,9 +1034,7 @@ export async function removePurchasePayment(purchaseId: string, paymentId: strin
   if (deleted === 0) return { error: "Оплата не найдена (возможно, уже удалена)" };
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1151,7 +1139,7 @@ export async function updatePurchasePayment(purchaseId: string, paymentId: strin
     purchaseIds: [purchaseId, target.id],
     auctions: [oldAuction, auction],
   });
-  for (const path of [`/purchases/${purchaseId}`, `/purchases/${target.id}`, "/payments", "/dashboard", "/verify", "/documents"]) revalidatePath(path);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1198,8 +1186,7 @@ export async function updateLotMeta(lotId: string, formData: FormData): Promise<
   ]);
   if (lot.purchaseId) await resetByPurchase(lot.purchaseId);
   invalidateFilterOptions(orgId);
-  for (const path of ["/lots", "/analytics/raw", "/production", "/dashboard", ...(lot.purchaseId ? [`/purchases/${lot.purchaseId}`] : [])]) revalidatePath(path);
-  revalidatePath(`/analytics/raw/lot/${lotId}`);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1242,9 +1229,7 @@ export async function receivePurchase(purchaseId: string): Promise<FormState> {
   }
 
   await resetByPurchase(purchaseId);
-  revalidatePath(`/purchases/${purchaseId}`);
-  revalidatePath("/lots");
-  revalidatePath("/purchases");
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1389,7 +1374,6 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
     return { error: `Закупка не оформлена: ${e instanceof Error ? e.message : "неизвестная ошибка"}` };
   }
 
-  revalidatePath("/lots");
-  revalidatePath("/purchases");
+  revalidateAll(orgId);
   return { ok: `Добавлено: ${materialName} — ${String(d.meters).replace(".", ",")} м` };
 }
