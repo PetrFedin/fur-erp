@@ -1,0 +1,112 @@
+name: Real tablet screenshot proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tablet-screenshot-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app
+      NEXTAUTH_URL: http://127.0.0.1:3202
+      AUTH_TRUST_HOST: 'true'
+      DEMO_LOGIN_EMAIL: proof@example.test
+      DEMO_LOGIN_PASSWORD: DemoProof123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Generate ephemeral auth secret
+        run: |
+          SECRET="$(openssl rand -hex 32)"
+          echo "AUTH_SECRET=$SECRET" >> "$GITHUB_ENV"
+          echo "NEXTAUTH_SECRET=$SECRET" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx prisma migrate deploy
+      - run: npx prisma generate
+      - name: Seed anonymous screenshot dataset
+        run: |
+          npx tsx <<'TS'
+          import { PrismaClient } from '@prisma/client';
+          import bcrypt from 'bcryptjs';
+          const prisma=new PrismaClient();
+          const org=await prisma.organization.create({data:{name:'Demo Production',slug:'demo-production'}});
+          const passwordHash=await bcrypt.hash('DemoProof123!',10);
+          const user=await prisma.user.create({data:{organizationId:org.id,email:'proof@example.test',passwordHash,name:'Demo Owner',role:'OWNER'}});
+          const warehouse=await prisma.warehouse.create({data:{organizationId:org.id,name:'Основной склад',isDefault:true}});
+          const category=await prisma.rawMaterialCategory.create({data:{organizationId:org.id,name:'Натуральное сырьё'}});
+          const material=await prisma.rawMaterial.create({data:{organizationId:org.id,categoryId:category.id,name:'Демо материал',sku:'DEMO-001',unit:'PIECE',minStockLevel:10}});
+          const supplier=await prisma.supplier.create({data:{organizationId:org.id,name:'Демо поставщик'}});
+          const purchase=await prisma.purchase.create({data:{organizationId:org.id,number:'DEMO-P-001',supplierId:supplier.id,warehouseId:warehouse.id,status:'RECEIVED',currency:'RUB',exchangeRate:1,auctionSession:'Demo Session',invoiceNumber:'DEMO-INV',createdById:user.id}});
+          const item=await prisma.purchaseItem.create({data:{purchaseId:purchase.id,rawMaterialId:material.id,quantity:24,unitPrice:12500,subtotal:300000,vatRate:20,lotNumber:'DEMO-LOT-24',grade:'XL',color:'Natural'}});
+          const lot=await prisma.rawMaterialLot.create({data:{organizationId:org.id,rawMaterialId:material.id,warehouseId:warehouse.id,lotNumber:'DEMO-LOT-24',grade:'XL',color:'Natural',purchaseId:purchase.id,quantityReceived:24,quantityRemaining:18,unitCost:15000,totalCost:360000,vatRate:20,materialCostExclVat:12500,materialVatAmount:2500,expenseCostExclVat:0,expenseVatAmount:0}});
+          await prisma.purchaseItem.update({where:{id:item.id},data:{lotId:lot.id}});
+          await prisma.stockMovement.create({data:{organizationId:org.id,warehouseId:warehouse.id,rawMaterialId:material.id,lotId:lot.id,type:'PURCHASE',quantity:24,unitCost:15000,totalCost:360000,purchaseId:purchase.id,notes:'Demo receipt'}});
+          await prisma.$disconnect();
+          TS
+      - run: npm run build
+      - name: Start actual FUR Production OS
+        run: |
+          npm start -- -p 3202 > /tmp/fur-tablet.log 2>&1 &
+          echo $! > /tmp/fur-tablet.pid
+          for i in {1..90}; do
+            curl -fsS http://127.0.0.1:3202/login >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/fur-tablet.log
+          exit 1
+      - name: Capture real iPad viewport after real login
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs/promises';
+          await fs.mkdir('artifacts/tablet-proof',{recursive:true});
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:834,height:1112},deviceScaleFactor:1,locale:'ru-RU'});
+          const page=await context.newPage();
+          await page.goto('http://127.0.0.1:3202/login',{waitUntil:'networkidle'});
+          await page.getByLabel('Email').fill('proof@example.test');
+          await page.getByLabel('Пароль').fill('DemoProof123!');
+          await page.getByRole('button',{name:'Войти'}).click();
+          await page.waitForURL(/\/dashboard/,{timeout:15000});
+          await page.waitForLoadState('networkidle');
+          await page.screenshot({path:'artifacts/tablet-proof/fur-production-dashboard-tablet.png',fullPage:false});
+          const stockLink=page.getByRole('link',{name:/Сырьё|Склад|Материал/i}).first();
+          if(await stockLink.isVisible().catch(()=>false)){
+            await stockLink.click();
+            await page.waitForLoadState('networkidle');
+            await page.screenshot({path:'artifacts/tablet-proof/fur-production-stock-tablet.png',fullPage:false});
+          }
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fur-production-real-tablet-${{ github.sha }}
+          path: artifacts/tablet-proof/*.png
+          if-no-files-found: error
+          retention-days: 14
