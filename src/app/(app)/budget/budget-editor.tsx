@@ -331,7 +331,7 @@ export function BudgetEditor(p: Props) {
           const isMex = sl.id === "mex";
           const rows: [string, string][] = isMex
             ? [["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)], ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)], ["Доля", share(sl.a.mex, total.total)]]
-            : [["На 1 изделие", money(perUnit(sl.a))], ["Var", pct(varPct(sl.a))], ["Доля бюджета", share(sl.a.total, total.total)]];
+            : [["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)], ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)]];
           return (
             <div key={sl.id} aria-hidden={i !== slideIdx} className="min-w-full snap-center p-2.5">
               <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{isMex ? "Мех" : `Мех · ${sl.name}`}</div>
@@ -355,7 +355,7 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className={tileStrip}>
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд. · ${qty(total.hides, 0)} шкур`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100%" }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100%" }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
       {tile("w", "Работа", money(total.work), "пошив по бюджету изделий", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: `${qty(params.upWork, 1)}%` }, { k: "Доля", v: share(total.work, total.total) }])}
@@ -568,27 +568,27 @@ export function BudgetEditor(p: Props) {
       <h1 className="hidden text-xl font-semibold print:block">{p.name} · {p.season}</h1>
       {msg ? <p className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-700 print:hidden" role="status">{msg}</p> : null}
 
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
           <WidgetRow id="budget-totals" title="Итого по бюджету">{totalTiles}</WidgetRow>
         </div>
-        <aside aria-label="Надбавки" className="flex flex-wrap items-end gap-x-3 gap-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 print:hidden xl:w-[236px] xl:shrink-0 xl:flex-col xl:items-stretch xl:p-3">
-          <div className="flex items-center gap-1 self-center text-sm font-medium xl:mb-0 xl:self-auto">Надбавки, %
+        <aside aria-label="Надбавки" className="flex flex-wrap items-end gap-x-3 gap-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 print:hidden">
+          <div className="flex items-center gap-1 self-center text-sm font-medium">Надбавки, %
             <InfoHint label="Что такое надбавки" wide>
               <p>Автоматический расчёт берёт из системы средневзвешенные цены и увеличивает на заданный процент: цену шкуры, цену подкладки и стоимость работы. Любой процент, в том числе 0.</p>
               <p className="mt-1">Здесь — общие надбавки версии. Свои надбавки можно задать на типе меха и на категории внутри него: кнопка «Надбавки по типам и категориям» ниже или «%» у строки. Пусто — берётся с уровня выше.</p>
             </InfoHint>
           </div>
-          <div className="flex gap-2 xl:grid xl:grid-cols-2 xl:gap-y-1.5">
+          <div className="flex gap-2">
             {([["upFur", "Шкура"], ["upLining", "Подкладка"], ["upWork", "Работа"], ["c4", "4% на сырьё"]] as const).map(([k, label]) => (
-              <label key={k} className="flex w-[74px] flex-col gap-0.5 text-[11px] text-neutral-500 xl:w-auto">{label}
+              <label key={k} className="flex w-[74px] flex-col gap-0.5 text-[11px] text-neutral-500">{label}
                 <NumInput value={params[k]} ariaLabel={`${label}, %`} disabled={!canEdit} onChange={(v) => setParam(k, v)} className="!py-0.5 !text-sm" />
               </label>
             ))}
           </div>
           <input value={comment} onChange={(e) => setComment(e.target.value)} disabled={!canEdit} maxLength={500} aria-label="Комментарий к версии" placeholder="Комментарий к версии"
-            className="h-7 min-w-[170px] flex-1 rounded-md border border-neutral-300 bg-white px-2 text-xs focus-visible:border-neutral-900 focus-visible:outline-none disabled:border-transparent disabled:bg-transparent xl:flex-none" />
-          {canEdit ? <button type="button" onClick={() => setUpAll(true)} className="self-center text-left text-xs text-blue-700 hover:underline xl:self-auto">Надбавки по типам меха и категориям…</button> : null}
+            className="h-7 min-w-[170px] flex-1 rounded-md border border-neutral-300 bg-white px-2 text-xs focus-visible:border-neutral-900 focus-visible:outline-none disabled:border-transparent disabled:bg-transparent" />
+          {canEdit ? <button type="button" onClick={() => setUpAll(true)} className="self-center text-left text-xs text-blue-700 hover:underline">Надбавки по типам меха и категориям…</button> : null}
         </aside>
       </div>
 

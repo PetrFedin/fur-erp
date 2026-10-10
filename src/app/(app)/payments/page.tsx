@@ -53,7 +53,6 @@ async function overviewLeft(orgId: string) {
   return { byYear: Object.fromEntries(l.byYear), raw: l.raw, prod: l.prod };
 }
 import { loadClientDebt } from "@/lib/payment-alloc";
-import { RawTab } from "@/components/raw-tabs";
 import { PaymentLinesTable, PurchaseLinesTable, type PayLine, type PurchaseLine } from "./payment-lines";
 import { docCounts } from "@/lib/doc-links";
 
@@ -686,17 +685,12 @@ export default async function PaymentsPage({
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
 
-      <div role="navigation" aria-label="Разделы оплат" className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
-        <RawTab href="/payments?tab=all" active={tab === "all"}>
-          Все
-        </RawTab>
-        <RawTab href="/payments?tab=suppliers" active={tab === "suppliers"}>
-          За сырьё
-        </RawTab>
-        <RawTab href="/payments?tab=clients" active={tab === "clients"}>
-          За производство
-        </RawTab>
-      </div>
+      <nav aria-label="Разделы оплат" className="inline-flex self-start rounded-lg border border-neutral-300 bg-white p-0.5 text-sm">
+        {([["all", "Все"], ["suppliers", "За сырьё"], ["clients", "За производство"]] as const).map(([k, label]) => (
+          <Link key={k} href={`/payments?tab=${k}`} aria-current={tab === k ? "page" : undefined}
+            className={"inline-flex min-h-10 items-center rounded-md px-3 md:min-h-7 md:py-0.5 " + (tab === k ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900")}>{label}</Link>
+        ))}
+      </nav>
 
       {tab === "all" ? (
         <>
