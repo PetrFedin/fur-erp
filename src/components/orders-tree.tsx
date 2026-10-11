@@ -9,7 +9,7 @@ import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
 
-export type TreeDim = "year" | "batch" | "article" | "category" | "order";
+export type TreeDim = "year" | "batch" | "article" | "category" | "group" | "fur" | "order";
 export type TreeMode = { id: string; label: string; dims: TreeDim[] };
 
 const STATUS_TEXT: Record<string, string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "" };
@@ -21,6 +21,8 @@ function keyLabel(dim: TreeDim, o: DrillOrder): [string, string] {
     case "batch": return [o.bk, o.bl];
     case "article": return [o.mid, o.ml];
     case "category": return [o.cat, o.cat];
+    case "group": return [o.grp, o.grp];
+    case "fur": return [o.fur || "none", o.fur || "Мех не указан"];
     case "order": return [o.id, `ТЗ ${o.wo ?? o.number}`];
   }
 }

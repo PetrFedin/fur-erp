@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
-import { ProductionTabs } from "@/components/production-tabs";
 import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
 import { toggleDone, deleteEvent } from "./actions";
@@ -192,7 +191,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <div className="flex flex-col gap-4">
-      <ProductionTabs active="calendar" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Производственный календарь</h1><YearNote year={year} />{" "}
           <InfoHint wide>

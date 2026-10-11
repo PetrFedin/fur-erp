@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { getYearFilter } from "@/lib/year-filter";
 import { YearNote } from "@/components/year-note";
+import { InfoHint } from "@/components/info-hint";
 import { OrdersTree } from "@/components/orders-tree";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { RepairTiles } from "./repair-tiles";
@@ -22,13 +23,15 @@ export default async function RepairPage() {
         <div className="flex flex-wrap items-center">
           <h1 className="text-xl font-semibold">Ремонт</h1>
           <YearNote year={year} />
+          <span className="ml-2 inline-flex">
+            <InfoHint label="О странице «Ремонт»">Отдельно от производства: ТЗ на ремонт не входят в «Произведено» и в средние цены изделий. Затраты ремонта остаются в общей себестоимости на Главной («из них ремонт»).</InfoHint>
+          </span>
         </div>
         <div className="flex gap-3 text-sm">
           <Link href="/production/new" className="rounded-lg border border-neutral-300 px-3 py-1.5 hover:bg-neutral-50">+ Новое ТЗ на ремонт</Link>
-          <Link href="/dashboard" className="px-1 py-1.5 text-blue-700 hover:underline">← Главная</Link>
+          <Link href="/articles" className="px-1 py-1.5 text-blue-700 hover:underline">← Изделия</Link>
         </div>
       </div>
-      <p className="text-sm text-neutral-500">Отдельно от производства: ТЗ на ремонт не входят в «Произведено» и в средние цены изделий. Затраты ремонта остаются в общей себестоимости на Главной.</p>
       <RepairTiles orders={orders} c4={c4} />
       <OrdersTree
         orders={orders}

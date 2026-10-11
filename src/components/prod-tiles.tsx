@@ -46,18 +46,22 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         <a {...link(`#${treeId}`)} aria-label="Себестоимость — перейти к составу">
           <TileHead>Себестоимость</TileHead>
           <TileValue>{money(total)}</TileValue>
-          <TileCaption>сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа{all.repairOrders > 0 ? ` · без ремонта ${money(totalOwn)}` : ""}</TileCaption>
+          <TileCaption>сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа{all.repairOrders > 0 ? " · с ремонтом, как на Главной" : ""}</TileCaption>
           <TileList items={[
             { k: "Мех", v: money(all.fur), share: share(all.fur, total) },
             { k: "Подкладка", v: money(all.lining), share: share(all.lining, total) },
             ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(all.c4), share: share(all.c4, total) }] : []),
             ...(Math.abs(all.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(all.other), share: share(all.other, total) }] : []),
             { k: "Работа", v: money(all.work), share: share(all.work, total) },
+            ...(all.repairOrders > 0 ? [
+              { k: "из них изделия", v: money(totalOwn), sub: true },
+              { k: "из них ремонт", v: money(total - totalOwn), sub: true },
+            ] : []),
           ]} />
         </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое себестоимость" wide align="right">
-            <p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. Это та же «Себестоимость», что в блоке «Производство» на Главной; в неё входит ремонт. Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4%" : "без 4%"}.</p>
+            <p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. Это та же «Себестоимость», что в блоке «Производство» на Главной; в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4%" : "без 4%"}.</p>
           </InfoHint>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { writeOffFinishedGoodsStock } from "@/lib/stock";
@@ -53,7 +53,6 @@ export async function writeOffFinishedGoods(
     return { error: e instanceof Error ? e.message : "Не удалось списать продукцию" };
   }
 
-  revalidatePath("/finished-stock");
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   return {};
 }

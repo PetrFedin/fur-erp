@@ -1,9 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
@@ -52,7 +52,7 @@ export async function createModel(
     throw e;
   }
 
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   redirect(`/models/${model.id}`);
 }
 
@@ -84,8 +84,7 @@ export async function updateModel(
   }
   if (result.count === 0) return { error: "Модель не найдена" };
 
-  revalidatePath("/articles");
-  revalidatePath(`/models/${id}`);
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -115,10 +114,7 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
     }),
   ]);
 
-  revalidatePath("/articles");
-  revalidatePath("/production");
-  revalidatePath(`/models/${modelId}`);
-  revalidatePath("/analytics/products");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -154,7 +150,7 @@ export async function addBomLine(productModelId: string, formData: FormData): Pr
     update: { quantityPerUnit: parsed.data.quantityPerUnit },
   });
 
-  revalidatePath(`/models/${productModelId}`);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -167,5 +163,5 @@ export async function removeBomLine(productModelId: string, lineId: string) {
 
   // Строка удаляется только если она принадлежит этой (своей) модели.
   await prisma.productModelMaterial.deleteMany({ where: { id: lineId, productModelId: model.id } });
-  revalidatePath(`/models/${productModelId}`);
+  revalidateAll(session.user.organizationId);
 }

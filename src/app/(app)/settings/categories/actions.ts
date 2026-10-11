@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +26,7 @@ function back(msg?: string, ok?: string): never {
 
 function touch() {
   // Категория показывается в моделях, артикулах, ТЗ и аналитике — сбрасываем кэш всех страниц.
-  revalidatePath("/", "layout");
+  revalidateAll();
 }
 
 /** «a, b; c» или по строкам → список без пустых и повторов (по ключу сравнения), без совпадающих с названием. */
@@ -194,6 +194,6 @@ export async function createCategoryInline(rawName: string): Promise<{ ok: true;
   const p = nameSchema.safeParse(rawName);
   if (!p.success) return { ok: false, error: p.error.issues[0].message };
   const ref = await ensureCategoryRef(prisma, session.user.organizationId, p.data);
-  revalidatePath("/settings/categories");
+  revalidateAll(session.user.organizationId);
   return { ok: true, id: ref.id, name: ref.name };
 }

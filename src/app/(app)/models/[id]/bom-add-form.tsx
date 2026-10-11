@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addBomLine } from "../actions";
@@ -25,6 +25,7 @@ export function BomAddForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const boundAction = addBomLine.bind(null, productModelId);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <form
@@ -32,12 +33,13 @@ export function BomAddForm({
       action={async (formData) => {
         const res = await boundAction(formData);
         if (res?.error) {
-          window.alert(res.error);
+          setError(res.error);
           return;
         }
+        setError(null);
         formRef.current?.reset();
       }}
-      className="flex items-end gap-2"
+      className="flex flex-wrap items-end gap-2"
     >
       <div className="flex-1">
         <label className="mb-1 block text-xs text-neutral-500">Материал</label>
@@ -59,6 +61,7 @@ export function BomAddForm({
       <Button type="submit" variant="outline">
         Добавить
       </Button>
+      {error ? <p role="alert" className="w-full text-xs text-red-600">{error}</p> : null}
     </form>
   );
 }

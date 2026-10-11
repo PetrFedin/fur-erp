@@ -6,13 +6,12 @@ const TABS = [
   { key: "shipments", href: "/shipments", label: "Отгрузки" },
   { key: "fittings", href: "/fittings", label: "Примерки" },
   { key: "plan", href: "/plan", label: "План заказа" },
-  { key: "calendar", href: "/calendar", label: "Календарь" },
   { key: "supply", href: "/supply-plan", label: "План поставок" },
 ] as const;
 
 export type ProductionTab = (typeof TABS)[number]["key"];
 
-/** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки, план заказа, календарь, план поставок. */
+/** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки, план заказа, план поставок. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
     <nav aria-label="Разделы ТЗ" className="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">

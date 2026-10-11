@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
@@ -100,8 +100,7 @@ export async function saveArticle(id: string | null, input: ArticleInput): Promi
     if (isUniqueViolation(e)) return { error: "Артикул с таким кодом или SKU уже есть" };
     throw e;
   }
-  revalidatePath("/settings/articles-ref");
-  revalidatePath("/articles");
+  revalidateAll(orgId);
   return { ok: true, id: id! };
 }
 
@@ -119,8 +118,7 @@ export async function createArticleQuick(code: string, title?: string): Promise<
       data: { organizationId: orgId, name, category: t(title, 300) || null },
       select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true, isActive: true },
     });
-    revalidatePath("/settings/articles-ref");
-    revalidatePath("/articles");
+    revalidateAll(orgId);
     return { ok: true, id: m.id, article: m };
   } catch (e) {
     if (isUniqueViolation(e)) return { error: "Артикул с таким кодом уже есть" };
@@ -193,9 +191,7 @@ export async function mergeArticles(sourceId: string, targetId: string): Promise
     if (e instanceof Error && e.message === "Артикул не найден") return { error: e.message };
     throw e;
   }
-  revalidatePath("/settings/articles-ref");
-  revalidatePath("/articles");
-  revalidatePath("/production");
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -345,6 +341,6 @@ export async function applyArticleImport(items: ImportApplyRow[]): Promise<Res &
       updated++;
     }
   });
-  revalidatePath("/settings/articles-ref");
+  revalidateAll(orgId);
   return { ok: true, updated, skipped };
 }
