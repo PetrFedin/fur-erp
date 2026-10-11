@@ -22,7 +22,7 @@ const lab = "mb-1 block text-xs text-neutral-500";
 export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind };
 
 /**
- * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид и сумма» → 3 «Документы» → 4 «Подтвердить и сохранить» → экран «Что пересчиталось».
+ * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид, сумма, дата, основание» → 3 «Проверить и сохранить» → экран «Что пересчиталось».
  * preset фиксирует цель (карточка закупки, панель «Документы и оплата», карточка ТЗ) — тогда шаг 1 только показывает сумму/оплачено/остаток.
  */
 export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentPreset; onDone?: () => void; /** Обязательный выбор года, к которому относится оплата (общая кнопка «Внести оплату»). */ requireYear?: boolean }) {
@@ -36,7 +36,9 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   const [batchId, setBatchId] = useState(preset?.batchId ?? "");
   const [orderIds, setOrderIds] = useState<string[]>(preset?.orderIds ?? []);
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  // Подтверждение переплаты / даты в будущем — диалогом приложения (не window.confirm).
+  const [askConfirm, setAskConfirm] = useState("");
 
   const [kind, setKind] = useState<PayKind>(preset?.kind ?? "INVOICE");
   const [mode, setMode] = useState<"amount" | "percent" | "rest">("amount");
@@ -96,13 +98,15 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   const fullNote = [customAuction ? `Аукцион (вписан вручную): ${auction.trim()}` : "", customKind.trim() ? `Тип: ${customKind.trim()}` : "", note.trim()].filter(Boolean).join(". ");
   const kinds = PAY_KINDS.filter((k) => !(side === "work" && k.supplierOnly) && !(noTargetAdvance && k.v !== "ADVANCE"));
 
-  function next(to: 2 | 3 | 4) {
+  function next(to: 2 | 3) {
     setError("");
     if (to === 2 && requireYear && !payYear) return setError("Выберите год, к которому относится оплата");
     if (to === 2 && !hasTarget) return setError("Выберите, что оплачиваем");
     if (to === 3) {
+      if (!paidAt || Number.isNaN(Date.parse(paidAt))) return setError("Укажите дату оплаты");
       if (requireYear && paidAt.slice(0, 4) !== payYear) return setError(`Дата оплаты должна быть в ${payYear} году — измените дату или год`);
       if (mode === "amount" && !(Math.abs(amountNum) > 0)) return setError("Укажите сумму или нажмите 30% / 50% / 70% / остаток");
+      if (mode === "amount" && kind !== "REFUND" && amountNum < 0.01) return setError("Сумма должна быть больше нуля");
       if ((kind === "OTHER" || kind === "REFUND") && fullNote.length < 3) return setError("Для «Другое» и «Возврат / зачёт» напишите пометку");
     }
     setStep(to);
@@ -140,7 +144,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
         if (r.confirm) {
           sending.current = false;
           // sending уже сброшен выше: иначе повторный вызов save(true) упирался в защиту от двойной отправки и «ОК» ничего не делал
-          if (window.confirm(r.confirm)) save(true);
+          setAskConfirm(r.confirm);
           return;
         }
         if (r.error) {
@@ -148,7 +152,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           return;
         }
         setRecalc(r.recalc ?? null);
-        setStep(5);
+        setStep(4);
       } catch {
         setError("Не удалось сохранить: сервер отклонил запрос (возможно, файл слишком большой) или пропала связь. Проверьте список оплат — возможно, платёж уже записан.");
       } finally {
@@ -157,11 +161,11 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
     });
   }
 
-  const stepNames = ["Что оплачиваем", "Вид и сумма", "Документы", "Подтвердить"];
+  const stepNames = ["Что оплачиваем", "Вид и сумма", "Сохранить"];
   const tgt = targets;
   return (
     <div className="flex flex-col gap-4" data-payment-form>
-      {step < 5 && (
+      {step < 4 && (
         <ol className="flex flex-wrap gap-2 text-xs" aria-label="Шаги оплаты">
           {stepNames.map((s, i) => (
             <li key={s} className={`rounded-full border px-3 py-1 ${step === i + 1 ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-600"}`}>
@@ -258,7 +262,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </Select>
-                  <p className="mt-1 text-xs text-neutral-500">Аванс без привязки<InfoHint label="Про аванс без разнесения"><p>Аванс без разнесения допустим: он получит пометку «разнести позже» и появится в задачах.</p></InfoHint></p>
+                  
                 </div>
               )}
             </>
@@ -328,7 +332,6 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
               }} />
             <datalist id="pf-kind-list">{kinds.map((k) => <option key={k.v} value={k.label} />)}</datalist>
           </div>
-          <p className="text-xs text-neutral-500">Что это значит<InfoHint label="Пояснение к виду оплаты"><p>{PAY_KINDS.find((k) => k.v === kind)?.hint}</p></InfoHint></p>
           {quote && !quote.error && quote.total != null && quote.total > 0 && (
             <div className="flex flex-wrap gap-2" aria-label="Быстрая сумма">
               {PRESET_PERCENTS.map((p) => (
@@ -382,12 +385,6 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
       )}
 
       {step === 3 && (
-        <section className="flex flex-col gap-3">
-          <p className="text-sm text-neutral-600">Документы к оплате (платёжка, счёт, письмо-согласование) пока не прикладываются. Без платёжки оплата остаётся «не подтверждена», пока не указан № п/п с датой и суммой.</p>
-        </section>
-      )}
-
-      {step === 4 && (
         <section className="flex flex-col gap-3 text-sm">
           <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
             <p><b>{quote?.label ?? (noTargetAdvance ? "Аванс без привязки" : "")}</b></p>
@@ -395,12 +392,12 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           </div>
           <label className="flex items-start gap-2">
             <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1" />
-            <span>Отметить «подтверждено»{!confirmOk && <InfoHint label="Когда можно отметить"><p>Доступно, если приложена платёжка или указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</p></InfoHint>}</span>
+            <span>Отметить «подтверждено»{!confirmOk && <InfoHint label="Когда можно отметить"><p>Доступно, если указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</p></InfoHint>}</span>
           </label>
         </section>
       )}
 
-      {step === 5 && recalc && (
+      {step === 4 && recalc && (
         <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-white p-3 text-sm" data-testid="pf-result">
           <h3 className="text-base font-semibold">Оплата записана — что пересчиталось</h3>
           <p className="font-medium">{recalc.title}</p>
@@ -409,10 +406,6 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           )}
           {recalc.debtAfter != null && <p>Долг поставщику: {money(recalc.debtBefore)} → <b>{money(recalc.debtAfter)}</b></p>}
           <p>Подтверждение: <b>{recalc.confirmation}</b></p>
-          <div>
-            <p className="font-medium">На что ещё влияет</p>
-            <ul className="list-disc pl-5 text-neutral-700">{recalc.affects.map((a) => <li key={a}>{a}</li>)}</ul>
-          </div>
           {recalc.tasks.length > 0 && (
             <div className="rounded-md bg-amber-50 p-2 text-amber-900">
               <p className="font-medium">Что осталось сделать</p>
@@ -426,13 +419,21 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
       )}
 
       {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {step < 5 && (
+      {askConfirm && (
+        <div role="alertdialog" aria-label="Подтвердите запись" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p>{askConfirm}</p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={() => { setAskConfirm(""); save(true); }} disabled={pending}>Всё равно записать</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setAskConfirm("")}>Исправить</Button>
+          </div>
+        </div>
+      )}
+      {step < 4 && !askConfirm && (
         <div className="flex flex-wrap gap-2">
-          {step > 1 && <Button type="button" variant="outline" onClick={() => setStep((step - 1) as 1 | 2 | 3)} disabled={pending}>← Назад</Button>}
+          {step > 1 && <Button type="button" variant="outline" onClick={() => setStep((step - 1) as 1 | 2)} disabled={pending}>← Назад</Button>}
           {step === 1 && <Button type="button" onClick={() => next(2)} disabled={!hasTarget || !!quote?.error}>Далее</Button>}
           {step === 2 && <Button type="button" onClick={() => next(3)}>Далее</Button>}
-          {step === 3 && <Button type="button" onClick={() => next(4)}>Далее</Button>}
-          {step === 4 && <Button type="button" onClick={() => save()} disabled={pending}>{pending ? "Сохраняем…" : "Сохранить оплату"}</Button>}
+          {step === 3 && <Button type="button" onClick={() => save()} disabled={pending}>{pending ? "Сохраняем…" : "Сохранить оплату"}</Button>}
           {onDone && <Button type="button" variant="ghost" onClick={onDone} disabled={pending}>Отмена</Button>}
         </div>
       )}

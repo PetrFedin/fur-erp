@@ -17,7 +17,7 @@ type Left = { byYear: Record<number, { raw: number; prod: number }>; raw: number
  * Раздел «Все»: всё, что оплачено — за сырьё и за производство. Год → вид (сырьё / производство) → оплата → распределение
  * (по закупкам партии или по ТЗ). Плитки сверху — те же, что на Главной (передаются готовыми).
  */
-export function PaymentsOverview({ tiles, rows, c4, left }: { tiles: ReactNode; rows: OverviewRow[]; c4: number; left: Left }) {
+export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: ReactNode; rows: OverviewRow[]; left: Left; controls: Record<string, ReactNode> }) {
   const years = Array.from(new Set([...rows.map((r) => r.year), ...Object.keys(left.byYear).map(Number)])).sort((a, b) => a - b);
   // Годы развёрнуты до вида (сырьё / производство); оплаты и распределение раскрываются по клику.
   const [closed, setClosed] = useState<Set<string>>(new Set());
@@ -74,17 +74,38 @@ export function PaymentsOverview({ tiles, rows, c4, left }: { tiles: ReactNode; 
                 return (
                   <Fragment key={pk}>
                     <tr className={rowTone(2, pOpen)}>
-                      <td className={ARROW_TD}>{r.parts.length > 0 ? arrow(pOpen, () => toggle(pk), `оплата ${fmtDate(r.iso)}`) : null}</td>
+                      <td className={ARROW_TD}>{arrow(pOpen, () => toggle(pk), `оплата ${fmtDate(r.iso)}`)}</td>
                       <td className={`py-1.5 pr-2 text-left ${INDENT[1]}`}>
                         <span className="tabular-nums">{fmtDate(r.iso)}</span>
                         <span className="ml-2">{r.what}</span>
                         <span className="ml-2 text-neutral-500">{r.label}</span>
                         {!r.confirmed ? <span className="ml-2 text-amber-700" title="Нет платёжки: оплата не подтверждена">ждёт проверки</span> : null}
-                        <Link href={r.href} className="ml-2 text-blue-700 hover:underline" title={r.kind === "raw" ? "Открыть в разделе «За сырьё»" : "Открыть в разделе «За производство»"}>→ в раздел</Link>
-                        {r.doc ? <div className="mt-0.5 max-w-[34rem] truncate text-neutral-500" title={r.doc}>{r.doc}</div> : null}
+                        <Link href={r.links[0]?.href ?? r.href} className="ml-2 text-blue-700 hover:underline">→ {r.links[0]?.label ?? (r.kind === "raw" ? "За сырьё" : "За производство")}</Link>
+                        {r.doc ? <div className="mt-0.5 max-w-[34rem] truncate text-xs text-neutral-500" title={r.doc}>{r.doc}</div> : null}
                       </td>
                       {figures({ fur: r.fur, lining: r.lining, work: r.work, paid: r.amount, debt: null })}
                     </tr>
+                    {pOpen ? (
+                      <tr className={rowTone(3)}>
+                        <td className={ARROW_TD} />
+                        <td colSpan={6} className={`py-2 pr-3 text-left text-xs ${INDENT[2]}`}>
+                          <dl className="grid max-w-3xl grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-[max-content_1fr]">
+                            {r.fields.map(([k, v]) => (
+                              <Fragment key={k}>
+                                <dt className="text-neutral-500">{k}</dt>
+                                <dd className="break-words tabular-nums text-neutral-800">{v}</dd>
+                              </Fragment>
+                            ))}
+                          </dl>
+                          {r.links.length > 0 ? (
+                            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                              {r.links.map((l) => <Link key={l.href} href={l.href} className="text-blue-700 hover:underline">{l.label} →</Link>)}
+                            </div>
+                          ) : null}
+                          {controls[r.id] ? <div className="mt-2">{controls[r.id]}</div> : null}
+                        </td>
+                      </tr>
+                    ) : null}
                     {pOpen ? r.parts.map((x, i) => (
                       <tr key={`${pk}:${i}`} className={rowTone(3)}>
                         <td className={ARROW_TD} />
@@ -146,11 +167,6 @@ export function PaymentsOverview({ tiles, rows, c4, left }: { tiles: ReactNode; 
             </tbody>
           </table>
         </div>
-        {c4 > 0.5 ? (
-          <p className="text-xs text-neutral-500">
-            Мех включает шкуры подрядчика, оплаченные в составе счетов за пошив. 4% за мех и подкладку, использованные в ТЗ ({formatMoney(c4.toFixed(2))}), уже учтены в этих оплатах и отдельной суммой не добавляются.
-          </p>
-        ) : null}
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { resetVerification } from "@/lib/verification";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -60,8 +60,7 @@ export async function createAdvancePayment(formData: FormData): Promise<PayState
     },
   });
 
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(session.user.organizationId);
   return { ok: true };
 }
 
@@ -89,8 +88,7 @@ export async function updateAdvancePayment(paymentId: string, formData: FormData
   });
   if (res.count === 0) return { error: "Аванс не найден (возможно, уже удалён)" };
   await resetVerification(prisma, orgId, { paymentIds: [paymentId] });
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -100,8 +98,7 @@ export async function deleteAdvancePayment(paymentId: string): Promise<PayState>
     where: { id: paymentId, organizationId: session.user.organizationId, purchaseId: null, auctionSession: null },
   });
   if (res.count === 0) return { error: "Аванс не найден (возможно, уже удалён)" };
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
+  revalidateAll(session.user.organizationId);
   return { ok: true };
 }
 
@@ -237,7 +234,7 @@ export async function allocateAdvance(paymentId: string, parts: AllocPart[], con
       auctions: parts.filter((x) => x.target.startsWith("a:")).map((x) => x.target.slice(2)),
       purchaseIds: parts.filter((x) => x.target.startsWith("p:")).map((x) => x.target.slice(2)),
     });
-    revalidateAll();
+    revalidateAll(orgId);
   }
   return result;
 }
@@ -258,13 +255,6 @@ const auctionPaySchema = z.object({
     .refine((s) => parseDateInput(s) !== null, "Некорректная дата оплаты"),
   notes: z.string().trim().max(1000, "Заметка слишком длинная (до 1000 символов)").optional(),
 });
-
-function revalidateAll() {
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
-  revalidatePath("/lots");
-  revalidatePath("/purchases/[id]", "page");
-}
 
 /**
  * Сумма из формы. Сохранённая сумма — источник истины: при правке режим "keep" (или та же сумма)
@@ -392,7 +382,7 @@ export async function createAuctionPayment(auction: string, formData: FormData):
   if (!result.ok) await removeStoredFiles(stored.map((x) => x.storagePath));
   else {
     await resetVerification(prisma, orgId, { auctions: [auction] });
-    revalidateAll();
+    revalidateAll(orgId);
   }
   return result;
 }
@@ -482,7 +472,7 @@ export async function updateAuctionPayment(paymentId: string, formData: FormData
   // Старую платёжку убираем, только когда она заменена/снята и на неё больше никто не ссылается.
   if (existing.document && (stored[0] || removeDoc)) await dropUnusedDocument(existing.document);
   await resetVerification(prisma, orgId, { auctions: [existing.auctionSession], purchaseIds: [existing.purchaseId], paymentIds: [paymentId] });
-  revalidateAll();
+  revalidateAll(orgId);
   return result;
 }
 
@@ -500,7 +490,7 @@ export async function deleteAuctionPayment(paymentId: string): Promise<PayState>
   });
   if (existing.document && existing.document.kind === "PAYMENT_PROOF") await dropUnusedDocument(existing.document);
   await resetVerification(prisma, orgId, { auctions: [existing.auctionSession] });
-  revalidateAll();
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -555,7 +545,7 @@ export async function closeAuctionRemainder(auction: string, paidAtRaw: string, 
   });
   if (result.ok) {
     await resetVerification(prisma, orgId, { auctions: [auction] });
-    revalidateAll();
+    revalidateAll(orgId);
   }
   return result;
 }

@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 import { Input, Select } from "@/components/ui/input";
 import { addPurchasePayment } from "../actions";
 
@@ -11,23 +12,25 @@ export function PurchasePaymentForm({ purchaseId }: { purchaseId: string; balanc
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const bound = addPurchasePayment.bind(null, purchaseId);
+  const { ask, node: confirmNode } = useConfirm();
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
     // Подтверждение даты в будущем — здесь; переплату (по закупке или по аукциону целиком) проверяет сервер.
     // Форма не сбрасывается при отказе и ошибке: введённое сохраняется, очистка — только после успеха.
     const paidAt = String(formData.get("paidAt") ?? "");
-    if (paidAt > today && !window.confirm(`Дата оплаты (${paidAt}) в будущем. Всё равно записать?`)) return;
+    if (!paidAt) { setError("Укажите дату оплаты"); return; }
+    if (paidAt > today && !(await ask(`Дата оплаты (${paidAt}) в будущем. Всё равно записать?`, { ok: "Записать" }))) return;
     setError("");
     startTransition(async () => {
       try {
         let res = await bound(formData);
         if (res?.confirm) {
-          if (!window.confirm(res.confirm)) return;
+          if (!(await ask(res.confirm, { ok: "Всё равно записать" }))) return;
           formData.set("confirmOverpay", "1");
           res = await bound(formData);
         }
@@ -47,6 +50,7 @@ export function PurchasePaymentForm({ purchaseId }: { purchaseId: string; balanc
       onSubmit={submit}
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2"
     >
+      {confirmNode}
       <div>
         <label htmlFor={`${uid}-amount`} className="mb-1 block text-xs text-neutral-500">Сумма, ₽</label>
         <Input id={`${uid}-amount`} name="amount" inputMode="decimal" autoComplete="off" required />

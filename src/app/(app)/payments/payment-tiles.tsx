@@ -116,9 +116,9 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
             </div>
             {open === "paid" ? (
               <>
-                <p className="mb-3 text-xs text-neutral-500">Оплачено по партиям закупки (с НДС). Авансы без привязки к партии: {rub(paid.unlinked)}.</p>
+                {paid.unlinked > 0.5 ? <p className="mb-3 text-xs text-neutral-500">Авансы без привязки к партии: {rub(paid.unlinked)}</p> : null}
                 <Bars rows={paid.rows} tone="paid" />
-                {hidesMemo && hidesMemo > 0.5 ? <p className="mt-4 rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">Шкуры подрядчика, оплаченные в составе счетов за пошив: <b className="tabular-nums">{rub(hidesMemo)}</b> (п/п 22618 — 189 966,22 ₽ и аванс 27.11.2025 — 32 918,56 ₽). Это сырьё, поэтому на вкладке «За производство» они не учитываются; в сумму «Оплачено» выше не входят.</p> : null}
+                {hidesMemo && hidesMemo > 0.5 ? <p className="mt-4 text-xs text-neutral-500">В «Мех» входят шкуры подрядчика, оплаченные в составе счетов за пошив: <b className="tabular-nums">{rub(hidesMemo)}</b>.</p> : null}
               </>
             ) : (
               <>

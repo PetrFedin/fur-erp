@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -18,13 +18,6 @@ export type VerifyState = { error?: string; ok?: boolean; message?: string };
 
 const isKind = (k: string): k is VerifyKind => (VERIFY_KINDS as string[]).includes(k);
 
-function revalidateAll() {
-  for (const p of ["/verify", "/payments", "/dashboard", "/lots", "/documents", "/reconciliation", "/attention", "/purchases", "/production", "/production/batches"]) revalidatePath(p);
-  revalidatePath("/purchases/[id]", "page");
-  revalidatePath("/production/[id]", "page");
-  revalidatePath("/production/batches/[number]", "page");
-}
-
 async function ctxOf(kind: VerifyKind) {
   const session = await requireSession();
   if (!canVerify(session.user.role, kind)) return { error: "Недостаточно прав для подтверждения этой строки" as const };
@@ -41,7 +34,7 @@ export async function verifyRow(kind: string, id: string, note?: string): Promis
   if (row.verified) return { ok: true, message: "Уже подтверждено" };
   const err = await applyVerify(prisma, c.orgId, kind, id, c.userId, { ready: row.ready, blockers: row.blockers }, note ?? null);
   if (err) return { error: err };
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Подтверждено" };
 }
 
@@ -54,7 +47,7 @@ export async function unverifyRow(kind: string, id: string): Promise<VerifyState
   // партия опирается на ТЗ, аукцион — на закупки: снятие у ТЗ снимает и партию
   if (kind === "order") await resetVerification(prisma, c.orgId, { orderIds: [id] });
   if (kind === "purchase") await resetVerification(prisma, c.orgId, { purchaseIds: [id] });
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Подтверждение снято" };
 }
 
@@ -63,7 +56,7 @@ export async function unverifyPurchases(ids: string[]): Promise<VerifyState> {
   const c = await ctxOf("purchase");
   if ("error" in c) return { error: c.error };
   for (const id of ids) await applyUnverify(prisma, c.orgId, "purchase", id);
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Подтверждение снято" };
 }
 
@@ -81,7 +74,7 @@ export async function verifyPurchases(ids: string[], note?: string): Promise<Ver
     if (err) blocked++;
     else done++;
   }
-  revalidateAll();
+  revalidateAll(c.orgId);
   if (done === 0 && blocked > 0) return { error: `Есть замечания у ${blocked} закупок: подтвердить можно только с примечанием.` };
   return { ok: true, message: `Подтверждено закупок: ${done}${blocked ? `; не подтверждено из-за замечаний: ${blocked}` : ""}` };
 }
@@ -111,7 +104,7 @@ export async function bulkVerifyReady(keys: string[]): Promise<VerifyState> {
       }
     }
   }
-  revalidateAll();
+  revalidateAll(orgId);
   return { ok: true, message: `Подтверждено строк: ${done}` };
 }
 
@@ -152,7 +145,7 @@ export async function patchPaymentRow(kind: string, id: string, formData: FormDa
     return false;
   });
   if (missing) return { error: "Оплата не найдена" };
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }
 
@@ -173,7 +166,7 @@ export async function patchPurchaseRow(id: string, formData: FormData): Promise<
     return true;
   });
   if (!found) return { error: "Закупка не найдена" };
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }
 
@@ -194,6 +187,6 @@ export async function patchOrderRow(id: string, formData: FormData): Promise<Ver
     return true;
   });
   if (!found) return { error: "ТЗ не найдено" };
-  revalidateAll();
+  revalidateAll(c.orgId);
   return { ok: true, message: "Сохранено, подтверждение сброшено" };
 }

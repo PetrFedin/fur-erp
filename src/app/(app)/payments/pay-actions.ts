@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -224,7 +224,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
   if (mode === "amount" && (!Number.isFinite(amountIn) || amountIn === 0 || (kind !== "REFUND" && amountIn < 0.01))) return { error: "Сумма: укажите положительное число" };
   if (mode === "percent" && !(percentIn > 0 && percentIn <= 100)) return { error: "Процент: от 0 до 100" };
   if (markConfirmed && !canConfirm({ hasProofFile, ppNo, paidAt: paidIso, amount: mode === "amount" ? amountIn : 1 })) {
-    return { error: "«Подтверждено» можно отметить, только если приложена платёжка или указан № п/п (с датой и суммой). Письмо-согласование оплатой не считается." };
+    return { error: "«Подтверждено» можно отметить, только если указан № п/п (с датой и суммой). Письмо-согласование оплатой не считается." };
   }
 
   const spec: Spec = {
@@ -456,8 +456,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
             ? ["Долг поставщику (Главная, Оплаты)", auctionForLink ? `Остаток аукциона «${auctionForLink}»` : purchaseForLink ? "Остаток к оплате по закупке" : "Аванс без привязки уменьшает общий долг", "Подтверждение оплат (Контроль → Подтвердить)"]
             : ["Остаток к оплате по партии / ТЗ", "Долг заказчика на Главной", "Подтверждение ТЗ и партии сброшено — подтвердите заново"];
         const tasks: string[] = [];
-        if (!hasProofFile && !markConfirmed) tasks.push("Приложить платёжку (п/п) — оплата пока не подтверждена");
-        if (docs.some((d) => d.role === "APPROVAL_EMAIL") && !hasProofFile && !ppNo) tasks.push("Есть только письмо-согласование: это «согласовано», а не «оплачено» — нужна платёжка");
+        if (!hasProofFile && !markConfirmed) tasks.push("Укажите № п/п (с датой и суммой) — оплата пока не подтверждена");
+        if (docs.some((d) => d.role === "APPROVAL_EMAIL") && !hasProofFile && !ppNo) tasks.push("Есть только письмо-согласование: это «согласовано», а не «оплачено» — нужен № п/п");
         if (allocateLater && !spec.auction && !spec.purchaseId && side === "supplier") tasks.push("Разнести аванс по аукциону / закупке (раздел «Оплаты» → «Привязать»)");
         return {
           ok: true,
@@ -471,7 +471,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
             total: total ? n(total) : null,
             debtBefore: null,
             debtAfter: null,
-            confirmation: markConfirmed ? "Подтверждено вами" : proofs.length ? "Платёжка приложена, ждёт подтверждения" : "Не подтверждено: нет платёжки",
+            confirmation: markConfirmed ? "Подтверждено вами" : proofs.length ? "Платёжка приложена, ждёт подтверждения" : "Не подтверждено: нет № п/п",
             affects,
             tasks,
           },
@@ -492,10 +492,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
     result.recalc.debtBefore = debtBefore ? n(debtBefore) : null;
     result.recalc.debtAfter = n(after);
   }
-  for (const p of ["/payments", "/dashboard", "/lots", "/documents", "/reconciliation", "/attention", "/verify", "/production", "/production/batches"]) revalidatePath(p);
-  revalidatePath("/purchases/[id]", "page");
-  revalidatePath("/production/[id]", "page");
-  revalidatePath("/production/batches/[number]", "page");
+  revalidateAll(orgId);
   return result;
 }
 

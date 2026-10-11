@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 import { Input, Select } from "@/components/ui/input";
 import { createAdvancePayment, updateAdvancePayment, deleteAdvancePayment, allocateAdvance } from "./actions";
 
@@ -43,13 +44,15 @@ export function AdvanceForm({
   const [error, setError] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [pending, startTransition] = useTransition();
+  const { ask, node: confirmNode } = useConfirm();
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
     const paidAt = String(fd.get("paidAt") ?? "");
-    if (paidAt > localToday() && !window.confirm(`Дата оплаты (${paidAt}) в будущем. Всё равно записать как оплаченный аванс?`)) return;
+    if (!(paidAt && !Number.isNaN(Date.parse(paidAt)))) { setError("Укажите дату оплаты"); return; }
+    if (paidAt > localToday() && !(await ask(`Дата оплаты (${paidAt}) в будущем. Всё равно записать как оплаченный аванс?`, { ok: "Записать" }))) return;
     setError("");
     setOkMsg("");
     startTransition(async () => {
@@ -73,6 +76,7 @@ export function AdvanceForm({
   const lab = "mb-1 block text-xs text-neutral-500";
   return (
     <form onSubmit={submit} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {confirmNode}
       {initial?.version && <input type="hidden" name="_v" value={initial.version} />}
       <div>
         <label htmlFor={fid("supplierId")} className={lab}>
@@ -148,9 +152,10 @@ export function AdvanceRowControls({ suppliers, initial }: { suppliers: { id: st
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const { ask, node: confirmNode } = useConfirm();
 
-  function remove() {
-    if (!window.confirm("Удалить этот аванс? Долг поставщику вырастет на его сумму; прикреплённые к нему документы тоже будут удалены. Действие нельзя отменить.")) return;
+  async function remove() {
+    if (!(await ask("Удалить этот аванс? Долг поставщику вырастет на его сумму. Действие нельзя отменить.", { ok: "Удалить", danger: true }))) return;
     setError("");
     startTransition(async () => {
       try {
@@ -164,6 +169,7 @@ export function AdvanceRowControls({ suppliers, initial }: { suppliers: { id: st
 
   return (
     <div className="flex flex-col gap-2">
+      {confirmNode}
       <div className="flex flex-wrap gap-1">
         <Button type="button" variant="outline" size="sm" onClick={() => setEditing((v) => !v)} disabled={pending}>
           {editing ? "Закрыть" : "Править"}
@@ -200,6 +206,7 @@ export function AllocateAdvanceControls({
   const [rows, setRows] = useState<{ target: string; amount: string }[]>([{ target: "", amount: amount.replace(".", ",") }]);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  const { ask, node: confirmNode } = useConfirm();
   const mine = targets.filter((t) => t.supplierIds.includes(supplierId));
   const total = Number(amount);
   const num = (v: string) => Number(v.replace(/\s/g, "").replace(",", ".")) || 0;
@@ -212,7 +219,7 @@ export function AllocateAdvanceControls({
       try {
         const res = await allocateAdvance(paymentId, rows, confirmOverpay);
         if (res.confirm) {
-          if (window.confirm(res.confirm)) send(true);
+          if (await ask(res.confirm, { ok: "Всё равно привязать" })) send(true);
           return;
         }
         if (res.error) setError(res.error);
@@ -232,6 +239,7 @@ export function AllocateAdvanceControls({
   }
   return (
     <div className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-left">
+      {confirmNode}
       <p className="text-xs text-neutral-600">
         Аванс {amount.replace(".", ",")} ₽. Можно разнести на несколько аукционов: сумма частей не больше суммы аванса, остаток
         останется авансом без привязки. Исходный платёж станет первой строкой, в заметке будет «разнесён из п/п …».

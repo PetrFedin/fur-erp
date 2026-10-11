@@ -15,12 +15,12 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { ACCESS, hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { resolveAuctionValues } from "@/lib/auction-ref";
 import { auctionName, loadAuctionSummaries, payStatus, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { PaymentRowControls } from "./auction-payment-form";
+import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
 import { PaymentFormButton } from "@/components/payment-form";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
@@ -219,7 +219,7 @@ export default async function PaymentsPage({
           orderBy: { paidAt: "desc" },
         })
       : Promise.resolve([]),
-    tab === "suppliers" ? loadAuctionSummaries(prisma, orgId) : Promise.resolve([] as AuctionPay[]),
+    tab !== "clients" ? loadAuctionSummaries(prisma, orgId) : Promise.resolve([] as AuctionPay[]),
     tab === "suppliers"
       ? prisma.purchase.findMany({
           where: { organizationId: orgId, auctionSession: { not: null } },
@@ -342,14 +342,32 @@ export default async function PaymentsPage({
         <Td>
           {statusBadge(a)}
         </Td>
-        <Td>
-          <Link href={href} scroll className={buttonVariants({ variant: active ? "default" : "outline", size: "sm" })}>
-            Оплаты
-          </Link>
-        </Td>
       </Tr>
     );
   };
+  // Кнопки «Править / Удалить» оплаты партии (общей на все закупки партии) — одни и те же в списке партии и в разделе «Все».
+  const auctionPayControls = (p: (typeof payments)[number], a: AuctionPay) => (
+    <PaymentRowControls
+      auction={a.name}
+      total={Number(a.total.toString())}
+      paid={Number(a.paid.sub(p.status === "COMPLETED" ? p.amount : 0).toString())}
+      planned={Number(a.planned.sub(p.status === "PENDING" ? p.amount : 0).toString())}
+      suppliers={a.suppliers}
+      initial={{
+        id: p.id,
+        kind: p.kind,
+        status: p.status === "PENDING" ? "PENDING" : "COMPLETED",
+        paidAt: p.paidAt.toISOString().slice(0, 10),
+        amount: p.amount.toString(),
+        percent: p.percent ? p.percent.toString() : null,
+        method: p.method,
+        notes: p.notes ?? "",
+        docName: p.document ? p.document.originalName : null,
+        closing: p.notes === CLOSING_NOTE,
+        version: rowVersion(p, PAYMENT_V),
+      }}
+    />
+  );
   const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
   const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
   // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
@@ -398,7 +416,6 @@ export default async function PaymentsPage({
       {anyPlanned && <Td className="text-right">—</Td>}
       <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(e.rem)}</Td>
       <Td>{totalsBadge(e.total, e.paid)}</Td>
-      <Td>{e.href ? <Link href={e.href} scroll className={buttonVariants({ variant: "outline", size: "sm" })}>Оплаты</Link> : null}</Td>
     </Tr>
   );
   const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
@@ -417,11 +434,6 @@ export default async function PaymentsPage({
           ...(a.planned.greaterThan(PAY_EPS) ? [{ label: "Запланировано", value: formatMoney(a.planned.toString()) }] : []),
         ]}
         details={[{ label: "Закупок", value: a.purchases }]}
-        extra={
-          <Link href={href} scroll className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Оплаты
-          </Link>
-        }
       />
     );
   };
@@ -468,7 +480,6 @@ export default async function PaymentsPage({
           {anyPlanned && <Th className="text-right">Запланировано</Th>}
           <Th className="text-right">Задолженность</Th>
           <Th>Статус</Th>
-          <Th></Th>
         </Tr>
       </Thead>
       <Tbody>
@@ -503,7 +514,6 @@ export default async function PaymentsPage({
                       {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
                       <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
                       <td className="px-3 py-2">{totalsBadge(gt, gp)}</td>
-                      <td />
                     </>
                   }
                 >
@@ -675,9 +685,7 @@ export default async function PaymentsPage({
         <h1 className="text-xl font-semibold">Оплаты</h1>
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Платим посреднику{intermediaries ? ` (${intermediaries})` : ""}; оплаты связываем с партиями закупки. Суммы — с НДС, это наш долг поставщику.</p>
-          <p className="mt-2">Год (переключатель в шапке): партия закупки — по дате заказа, оплата без партии и от заказчиков — по дате оплаты. Оплаты внутри выбранной партии показываются все.</p>
-          <p className="mt-2">Переключатель «С 4%» оплаты и долг поставщику не меняет.</p>
+          <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.{intermediaries ? ` Посредники: ${intermediaries}.` : ""}</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentFormButton label="+ Внести оплату" variant="default" size="default" requireYear /></span>}
       </div>
@@ -712,16 +720,43 @@ export default async function PaymentsPage({
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
           const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0) };
           const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (pf.verified.length === 0 || pf.verified.includes(r.confirmed ? "yes" : "no")) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
-          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} />} rows={rows} left={left} c4={0} />;
+          // Кнопки правки и удаления в описании платежа: оплата партии / аванс — на месте; оплата закупки и производства — переход в карточку.
+          const controls: Record<string, React.ReactNode> = {};
+          const advTargets: AllocTarget[] = [];
+          let allSuppliers: { id: string; name: string }[] = [];
+          if (canPay && rows.some((r) => r.edit === "advance")) {
+            allSuppliers = await prisma.supplier.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+            for (const a of summariesAll) if (a.purchases > 0) advTargets.push({ value: `a:${a.name}`, label: `Аукцион «${shortAuctionName(a.name)}», остаток ${formatMoney(a.remaining.toString())}`, supplierIds: a.suppliers.map((x) => x.id) });
+            const loose = await prisma.purchase.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" }, auctionSession: null }, select: { id: true, number: true, supplierId: true }, orderBy: { number: "asc" } });
+            for (const pu of loose) advTargets.push({ value: `p:${pu.id}`, label: `Закупка ${pu.number}`, supplierIds: [pu.supplierId] });
+          }
+          const payById = new Map(payments.map((p) => [p.id, p]));
+          for (const r of rows) {
+            if (r.kind === "prod") {
+              if (r.links[0]) controls[r.id] = <Link href={r.links[0].href} className="text-blue-700 hover:underline">Править в карточке ТЗ →</Link>;
+              continue;
+            }
+            const p = payById.get(r.id);
+            if (!p) continue;
+            if (r.edit === "purchase" && p.purchase) controls[r.id] = <Link href={`/purchases/${p.purchase.id}`} className="text-blue-700 hover:underline">Править в карточке закупки →</Link>;
+            else if (!canPay) continue;
+            else if (r.edit === "auction") {
+              const a = summariesAll.find((x) => x.name === auctionName(p.auctionSession));
+              if (a) controls[r.id] = auctionPayControls(p, a);
+            } else if (r.edit === "advance") {
+              controls[r.id] = (
+                <div className="flex flex-wrap items-start gap-3">
+                  <AdvanceRowControls suppliers={allSuppliers} initial={{ id: p.id, supplierId: p.supplierId, amount: p.amount.toString(), method: p.method, paidAt: p.paidAt.toISOString().slice(0, 10), notes: p.notes ?? "", version: rowVersion(p, PAYMENT_V) }} />
+                  <AllocateAdvanceControls paymentId={p.id} supplierId={p.supplierId} amount={p.amount.toString()} targets={advTargets} />
+                </div>
+              );
+            }
+          }
+          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} />} rows={rows} left={left} controls={controls} />;
         })()}
         </>
       ) : tab === "clients" ? (
         <>
-        <h2 className="flex items-center gap-1.5 text-base font-semibold">Оплаты заказчиков за производство
-          <InfoHint label="Как внести оплату" wide>
-            <p>Ввести оплату — на карточке ТЗ: откройте нужное ТЗ в разделе «ТЗ». Здесь оплаты только собраны списком: по годам, с указанием, за какой товар (ТЗ, изделие, количество) они пришли.</p>
-          </InfoHint>
-        </h2>
         {pdate ? (
           <ClientDateDetail
             date={formatDate(new Date(`${pdate}T00:00:00Z`))}
@@ -767,10 +802,6 @@ export default async function PaymentsPage({
                 { type: "date", name: "to", label: "Оплата по" },
               ]}
             />
-            <p className="-mt-2 text-xs text-neutral-500">
-              Показано {visibleAuctions.length} из {auctions.length} партий
-              {fAuction.length === 1 && fAuction[0] !== NONE ? " · карточка выбранной партии — под списком" : fAuction.length > 1 ? " · чтобы увидеть оплаты партии, выберите одну" : ""}
-            </p>
             </>
           )}
           {debt && (
@@ -854,7 +885,6 @@ export default async function PaymentsPage({
             <Card>
               <CardHeader>
                 <CardTitle>Закупки без аукциона</CardTitle>
-                <CardDescription>Куплено не на аукционе: мех подрядчика и отдельные закупки. Ниже видно, за что оплачено и за что нет.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-5">
                 <section>
@@ -865,7 +895,6 @@ export default async function PaymentsPage({
                   <h3 className="mb-2 text-sm font-semibold">Оплаты ({noAucPayLines.length})</h3>
                   <PaymentLinesTable lines={noAucPayLines} emptyText="Оплат по этим закупкам нет" />
                 </section>
-                <p className="text-xs text-neutral-500">Добавить оплату закупки: откройте закупку (ссылка в таблице) → «Внести оплату», либо общая форма «+ Внести оплату» ниже.</p>
               </CardContent>
             </Card>
           )}
@@ -878,7 +907,6 @@ export default async function PaymentsPage({
           {selected && (() => {
             const ids = new Set(auctionPurchases.filter((p) => auctionName(p.auctionSession) === selected.name).map((p) => p.id));
             const rows = payments.filter((p) => (p.auctionSession === selected.name && !p.purchaseId) || (p.purchaseId && ids.has(p.purchaseId)));
-            const total = Number(selected.total.toString());
             const lines: PayLine[] = rows.map((p) => {
               const own = Boolean(p.auctionSession) && !p.purchaseId;
               const closing = own && p.notes === CLOSING_NOTE;
@@ -895,28 +923,7 @@ export default async function PaymentsPage({
                 status: p.status === "PENDING" ? "PENDING" : p.status === "COMPLETED" ? "COMPLETED" : "CANCELLED",
                 overdue: p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today,
                 docCount: new Set(p.driveDocuments.map((d) => d.driveFileId)).size + (p.document ? 1 : 0),
-                controls: own && canPay ? (
-                  <PaymentRowControls
-                    auction={selected.name}
-                    total={total}
-                    paid={Number(selected.paid.sub(p.status === "COMPLETED" ? p.amount : 0).toString())}
-                    planned={Number(selected.planned.sub(p.status === "PENDING" ? p.amount : 0).toString())}
-                    suppliers={selected.suppliers}
-                    initial={{
-                      id: p.id,
-                      kind: p.kind,
-                      status: p.status === "PENDING" ? "PENDING" : "COMPLETED",
-                      paidAt: p.paidAt.toISOString().slice(0, 10),
-                      amount: p.amount.toString(),
-                      percent: p.percent ? p.percent.toString() : null,
-                      method: p.method,
-                      notes: p.notes ?? "",
-                      docName: p.document ? p.document.originalName : null,
-                      closing,
-                      version: rowVersion(p, PAYMENT_V),
-                    }}
-                  />
-                ) : undefined,
+                controls: own ? (canPay ? auctionPayControls(p, selected) : undefined) : p.purchaseId ? <Link href={`/purchases/${p.purchaseId}`} className="text-sm text-blue-700 hover:underline">Править в карточке закупки →</Link> : undefined,
               };
             });
             return (

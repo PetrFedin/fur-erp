@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 import { formatMb } from "@/lib/format-mb";
 import { Input, Select } from "@/components/ui/input";
 import { createAuctionPayment, updateAuctionPayment, deleteAuctionPayment, closeAuctionRemainder, type PayState } from "./actions";
@@ -84,6 +85,7 @@ export function AuctionPaymentForm({
   const uid = useId();
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  const { ask, node: confirmNode } = useConfirm();
 
   const amountNum = num(amount);
   const validAmount = Number.isFinite(amountNum) && amountNum > 0;
@@ -109,7 +111,7 @@ export function AuctionPaymentForm({
     setPercent(total > 0 ? toInputPct((rest / total) * 100) : "");
   }
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
@@ -125,13 +127,14 @@ export function AuctionPaymentForm({
       return;
     }
     const paidAt = String(fd.get("paidAt") ?? "");
-    if (status === "COMPLETED" && paidAt > localToday() && !window.confirm(`Дата оплаты (${paidAt}) в будущем. Всё равно записать как «Оплачено»?`)) return;
+    if (!(paidAt && !Number.isNaN(Date.parse(paidAt)))) { setError("Укажите дату оплаты"); return; }
+    if (status === "COMPLETED" && paidAt > localToday() && !(await ask(`Дата оплаты (${paidAt}) в будущем. Всё равно записать как «Оплачено»?`, { ok: "Записать" }))) return;
     setError("");
     startTransition(async () => {
       try {
         let res: PayState = initial ? await updateAuctionPayment(initial.id, fd) : await createAuctionPayment(auction, fd);
         if (res.confirm) {
-          if (!window.confirm(res.confirm)) return;
+          if (!(await ask(res.confirm, { ok: "Всё равно записать" }))) return;
           fd.set("confirmOverpay", "1");
           res = initial ? await updateAuctionPayment(initial.id, fd) : await createAuctionPayment(auction, fd);
         }
@@ -158,6 +161,7 @@ export function AuctionPaymentForm({
   const fid = (n: string) => `${uid}-${n}`;
   return (
     <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {confirmNode}
       <div>
         <label htmlFor={fid("kind")} className={lab}>Тип оплаты</label>
         <Select id={fid("kind")} name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -294,12 +298,13 @@ export function PaymentRowControls({
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  const { ask, node: confirmNode } = useConfirm();
 
-  function remove() {
+  async function remove() {
     const text = initial.closing
       ? "Удалить закрытие остатка? Остаток аукциона снова станет долгом. Действие нельзя отменить (закрыть остаток можно заново)."
       : "Удалить эту оплату? Платёжный документ, прикреплённый к ней, тоже будет удалён. Действие нельзя отменить.";
-    if (!window.confirm(text)) return;
+    if (!(await ask(text, { ok: "Удалить", danger: true }))) return;
     setError("");
     startTransition(async () => {
       try {
@@ -313,6 +318,7 @@ export function PaymentRowControls({
 
   return (
     <div className="flex flex-col gap-2">
+      {confirmNode}
       <div className="flex flex-wrap gap-1">
         <Button type="button" variant="outline" size="sm" onClick={() => setEditing((v) => !v)} disabled={pending}>
           {editing ? "Закрыть" : "Править"}
@@ -349,6 +355,7 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const uid = useId();
+  const { ask, node: confirmNode } = useConfirm();
 
   function confirmClose() {
     setError("");
@@ -356,7 +363,7 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
       try {
         let res = await closeAuctionRemainder(auction, date);
         if (res.confirm) {
-          if (!window.confirm(res.confirm)) return;
+          if (!(await ask(res.confirm, { ok: "Закрыть остаток" }))) return;
           res = await closeAuctionRemainder(auction, date, true);
         }
         if (res.error) {
@@ -379,6 +386,7 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
   }
   return (
     <div role="dialog" aria-label="Подтверждение закрытия остатка" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+      {confirmNode}
       <p>
         Будет создана оплата «Оплачено» на весь текущий остаток аукциона «{auction}» — <span className="font-semibold">{remaining}</span>, с пометкой «закрытие
         остатка». Используйте только если аукцион реально оплачен до начала учёта в системе. Отменить можно удалением этой оплаты в списке.

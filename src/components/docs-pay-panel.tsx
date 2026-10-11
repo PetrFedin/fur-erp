@@ -13,6 +13,7 @@ import { removePurchasePayment } from "@/app/(app)/purchases/actions";
 import { removeProductionPayment } from "@/app/(app)/production/actions";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
 import { PaymentFormButton, type PaymentPreset } from "@/components/payment-form";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Res = { error?: string; ok?: boolean; confirm?: string } | void | undefined;
 
@@ -190,6 +191,7 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
 
 function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; canMark: boolean; v?: VerifyView; canVerify?: boolean; actions?: ReactNode }) {
   const { pending, msg, run } = useRun();
+  const { ask, node: confirmNode } = useConfirm();
   const rb = p.rollback;
   return (
     <li className={cn("flex flex-col gap-1 rounded-md border px-3 py-2 text-sm", p.hasProof ? "border-neutral-200" : "border-amber-300 bg-amber-50")}>
@@ -218,6 +220,7 @@ function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; c
         )}
       </div>
       <div className="flex flex-wrap items-start gap-2">
+        {confirmNode}
         {canMark && rb && (
           <Button
             type="button"
@@ -225,8 +228,8 @@ function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; c
             variant="ghost"
             disabled={pending}
             className="text-red-700 max-md:h-9"
-            onClick={() => {
-              if (!window.confirm(`Откатить отметку об оплате ${p.amountText} от ${p.dateText}? Запись будет удалена, остаток и долг пересчитаются.`)) return;
+            onClick={async () => {
+              if (!(await ask(`Откатить отметку об оплате ${p.amountText} от ${p.dateText}? Запись будет удалена, остаток и долг пересчитаются.`, { ok: "Откатить", danger: true }))) return;
               run(
                 () => (rb.action === "auction" ? deleteAuctionPayment(rb.id) : rb.action === "purchase" ? removePurchasePayment(rb.ownerId ?? "", rb.id) : removeProductionPayment(rb.ownerId ?? "", rb.id)),
                 "Откатено",

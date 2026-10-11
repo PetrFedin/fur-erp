@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
@@ -25,17 +25,6 @@ async function readProof(formData: FormData): Promise<{ error: string } | { file
   const read = await readDocumentFiles(entries);
   if ("error" in read) return read;
   return { file: read.files[0] };
-}
-
-function revalidateAll(purchaseId?: string | null) {
-  revalidatePath("/payments");
-  revalidatePath("/dashboard");
-  revalidatePath("/lots");
-  revalidatePath("/documents");
-  revalidatePath("/reconciliation");
-  revalidatePath("/attention");
-  revalidatePath("/purchases/[id]", "page");
-  if (purchaseId) revalidatePath(`/purchases/${purchaseId}`);
 }
 
 /** Приложить платёжку к существующей оплате: файл сохраняется, оплата становится «подтверждена». */
@@ -71,6 +60,6 @@ export async function attachSupplierPaymentProof(paymentId: string, formData: Fo
     throw e;
   }
   await resetVerification(prisma, orgId, { paymentIds: [pay.id], purchaseIds: [pay.purchaseId], auctions: [pay.auctionSession] });
-  revalidateAll(pay.purchaseId);
+  revalidateAll(orgId);
   return { ok: true };
 }
