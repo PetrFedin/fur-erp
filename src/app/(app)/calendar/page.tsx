@@ -20,8 +20,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
 import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
-import { toggleDone, deleteEvent } from "./actions";
-import { ConfirmButton } from "../plan/confirm-button";
+import { DayEventActions, DayKeys } from "./day-panel";
 import { articleLabel } from "@/lib/article-label";
 
 export const metadata = { title: "Производственный календарь" };
@@ -72,7 +71,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const articleF = cf.q;
   const layersOn = cf.layers !== "0";
   const eventId = cleanSearch(sp.event, 40);
-  const newDate = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.new, 10)) ? cleanSearch(sp.new, 10) : "";
+  // ?day=ГГГГ-ММ-ДД — раскрытый день (старая ссылка ?new= открывает тот же день).
+  const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(parseYmd(v).getTime());
+  const dayParam = [cleanSearch(sp.day, 10), cleanSearch(sp.new, 10)].find(isYmd) ?? "";
 
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)) : monthGridDays(month);
   const from = days[0];
@@ -161,7 +162,32 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const editInitial: EventInitial | null = selected
     ? { id: selected.id, articleCode: selected.articleCode, modelId: models.find((m) => m.name === selected.articleCode)?.id ?? null, articleName: selected.articleName ?? "", quantity: String(selected.quantity), date: ymd(selected.date), endDate: selected.endDate ? ymd(selected.endDate) : "", action: selected.action, seasonId: selected.seasonId ?? "", planId: selected.planId ?? "", orderId: selected.orderId ?? "", notes: selected.notes ?? "", done: !!selected.doneAt }
     : null;
-  const newInitial: EventInitial = { articleCode: "", modelId: null, articleName: "", quantity: "", date: newDate || (today.startsWith(month) ? today : `${month}-01`), endDate: "", action: CALENDAR_ACTIONS[0].label, seasonId: soleSeasonId, planId: "", orderId: "", notes: "", done: false };
+  const newInitial: EventInitial = { articleCode: "", modelId: null, articleName: "", quantity: "", date: dayParam || (today.startsWith(month) ? today : `${month}-01`), endDate: "", action: CALENDAR_ACTIONS[0].label, seasonId: soleSeasonId, planId: "", orderId: "", notes: "", done: false };
+
+  const planLabel = (p: (typeof plans)[number]) => `${p.articleCode}${p.color ? ` · ${p.color}` : ""}${p.season ? ` · ${p.season.code}` : ""}`;
+  // Раскрытый день: все события и факты этого дня (без фильтров сетки), ТЗ для привязки.
+  const panelDay = mode === "detail" ? dayParam || (selected ? ymd(selected.date) : "") : "";
+  const dayEvents = panelDay
+    ? await prisma.calendarEvent.findMany({
+        where: { organizationId: orgId, date: { lte: parseYmd(panelDay) }, OR: [{ endDate: { gte: parseYmd(panelDay) } }, { endDate: null, date: parseYmd(panelDay) }] },
+        include: { season: { select: { code: true } } },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const dayFacts: FactItem[] = panelDay
+    ? [
+        ...(await loadFactLayer(orgId, panelDay, panelDay, { month: panelDay.slice(0, 7) })).items,
+        ...pipe
+          .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date === panelDay)
+          .map((p) => ({ id: `ex-${p.id}`, kind: "order" as const, date: panelDay, title: p.articleLabel, qty: p.qty, label: `Ожидаем ${pipeTitle(p)}`, href: `/production/${p.id}`, orderId: p.id })),
+      ]
+    : [];
+  const formOrders = orderOptions.map((o) => {
+    const pi = pipeBy.get(o.id);
+    return { id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, fur: pi?.fur ?? null, articleCode: o.productModel.name };
+  });
+  const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
+  const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
 
   const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell };
   const href = (patch: Record<string, string | string[]>) => {
@@ -185,7 +211,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     const p = e.orderId ? pipeBy.get(e.orderId) : undefined;
     const fur = p?.fur ?? furOfArticle(e.articleCode);
     return (
-      <Link key={e.id + dayIso} href={evHref(e.id)} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
+      <Link key={e.id + dayIso} href={href({ day: dayIso, event: e.id })} scroll={false} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
         className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${def.chip} ${e.done ? "opacity-60" : ""} ${e.overdue ? "ring-1 ring-red-500" : ""} ${selected?.id === e.id ? "outline outline-2 outline-neutral-900" : ""}`}>
         <span className={`block truncate ${e.done ? "line-through" : ""}`}>{cont ? "↳ " : ""}{e.articleCode} ×{e.quantity}{fur ? ` · ${fur}` : ""}</span>
         <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
@@ -221,7 +247,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     return (
       <>
         {items.slice(0, lim).map((it) => (it.k === "e" ? chip(it.e, d) : factChip(it.f)))}
-        {items.length > lim && <Link href={href({ view: "list" })} className="block text-xs text-neutral-500 hover:underline">+ ещё {items.length - lim}</Link>}
+        {items.length > lim && <Link href={href({ day: d, event: "" })} scroll={false} className="block text-xs text-neutral-500 hover:underline">+ ещё {items.length - lim}</Link>}
       </>
     );
   };
@@ -233,7 +259,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   const furOptions = [...new Set(pipe.map((p) => p.fur))].sort((x, y) => x.localeCompare(y, "ru"));
   const tableFilters = { grp: cf.grp, fur: cf.fur, stage: cf.stage };
-  const planLabel = (p: (typeof plans)[number]) => `${p.articleCode}${p.color ? ` · ${p.color}` : ""}${p.season ? ` · ${p.season.code}` : ""}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -261,42 +286,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       )}
 
       {mode === "detail" && canEdit && (
-        <Card id="event">
-          <details open={Boolean(newDate || selected)}>
-            <summary className="cursor-pointer select-none p-4 text-sm font-medium">{selected ? "Событие: правка" : "+ Новое событие"}</summary>
-            <CardContent>
-              {selected && editInitial ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <Badge className={actionDef(selected.action).chip}>{selected.action}</Badge>
-                    {selected.doneAt ? <Badge variant="success">выполнено</Badge> : ymd(selected.endDate ?? selected.date) < today ? <Badge variant="danger">просрочено</Badge> : <Badge variant="info">в плане</Badge>}
-                    {selected.season && <Badge>{selected.season.code}</Badge>}
-                    {selected.orderId && <Link href={`/production/${selected.orderId}`} className="text-blue-600 hover:underline">ТЗ</Link>}
-                    {selected.plan && <Link href={`/plan?season=${selected.seasonId ?? ""}`} className="text-blue-600 hover:underline">позиция плана {selected.plan.articleCode}</Link>}
-                    <form action={toggleDone}><input type="hidden" name="id" value={selected.id} /><button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>{selected.doneAt ? "Вернуть в план" : "Отметить выполненным"}</button></form>
-                    <form action={deleteEvent}><input type="hidden" name="id" value={selected.id} /><ConfirmButton message="Удалить событие?" className={buttonVariants({ variant: "outline", size: "sm", className: "text-red-600" })}>Удалить</ConfirmButton></form>
-                    <Link href={href({ event: "" })} className="text-neutral-500 hover:underline">Закрыть</Link>
-                  </div>
-                  <EventForm key={selected.id} initial={editInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
-                </div>
-              ) : (
-                <EventForm key={`new-${newInitial.date}`} initial={newInitial} models={models} seasons={seasons.map((s) => ({ id: s.id, code: s.code }))} plans={plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }))} orders={orderOptions.map((o) => ({ id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}` }))} canCreateArticle={hasRole(session.user.role, ACCESS.models)} />
-              )}
-            </CardContent>
-          </details>
-        </Card>
-      )}
-      {mode === "detail" && selected?.orderId && pipeBy.get(selected.orderId) && !cardItem && (
-        <PipeCard p={pipeBy.get(selected.orderId)!} closeHref={href({ event: "" })} />
-      )}
-      {mode === "detail" && !canEdit && selected && (
-        <Card>
-          <CardHeader><CardTitle>{selected.articleCode} × {selected.quantity} — {selected.action}</CardTitle></CardHeader>
-          <CardContent className="text-sm text-neutral-600">
-            {fmtRu(ymd(selected.date))}{selected.endDate ? ` — ${fmtRu(ymd(selected.endDate))}` : ""} · {selected.doneAt ? "выполнено" : "в плане"}{selected.notes ? ` · ${selected.notes}` : ""}{" "}
-            <Link href={href({ event: "" })} className="text-neutral-500 hover:underline">Закрыть</Link>
-          </CardContent>
-        </Card>
+        <div>
+          <Link href={href({ day: today.startsWith(month) ? today : `${month}-01`, event: "" })} scroll={false} className={buttonVariants({})}>+ Добавить событие</Link>
+          <span className="ml-3 text-xs text-neutral-500">или нажмите на любой день в календаре</span>
+        </div>
       )}
 
       {/* Навигация */}
@@ -333,7 +326,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           {mode === "months"
             ? <MonthsView items={pipe} filters={tableFilters} allYears={year === "all"} year={year} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />
             : <StagesView items={pipe} filters={tableFilters} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />}
-          <p className="text-xs text-neutral-500">Источник: ТЗ без отменённых{year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.</p>
+          <p className="text-xs text-neutral-500">Источник данных <InfoHint wide>{`ТЗ без отменённых${year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.`}</InfoHint></p>
         </>
       )}
       {mode === "detail" && layersOn && (seasonPicked || actionVals.length > 0) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}
@@ -373,10 +366,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {(view === "list" ? listDays : (view === "week" ? days : days.filter((d) => d.startsWith(month) && ((evByDay.get(d)?.length ?? 0) + (factsByDay.get(d)?.length ?? 0) > 0 || d === today)))).map((d) => (
           <div key={d} className={`rounded-lg border bg-white p-2 ${d === today ? "border-neutral-900" : "border-neutral-200"}`}>
             <div className="mb-1 flex items-center justify-between text-sm">
-              <span className="font-medium">{dayLabel(d)}, {WEEKDAYS[(parseYmd(d).getUTCDay() + 6) % 7]}{d === today ? " · сегодня" : ""}</span>
+              <Link href={href({ day: d, event: "" })} scroll={false} className="font-medium hover:underline">{dayLabel(d)}, {WEEKDAYS[(parseYmd(d).getUTCDay() + 6) % 7]}{d === today ? " · сегодня" : ""}</Link>
               <span className="flex items-center gap-2 text-xs text-neutral-500">
                 {dayTotal(d) > 0 && <span>Σ {formatQty(dayTotal(d))} шт.</span>}
-                {canEdit && <Link href={href({ new: d, event: "" }) + "#event"} className="rounded border border-neutral-300 px-2 py-1 hover:bg-neutral-100" aria-label={`Добавить событие на ${dayLabel(d)}`}>+</Link>}
+                <Link href={href({ day: d, event: "" })} scroll={false} className="rounded border border-neutral-300 px-2 py-1 hover:bg-neutral-100" aria-label={`${canEdit ? "Открыть день и добавить событие" : "Открыть день"}: ${dayLabel(d)}`}>{canEdit ? "+" : "›"}</Link>
               </span>
             </div>
             <div className="flex flex-col gap-1">{dayBlock(d, false)}</div>
@@ -394,6 +387,89 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         </Card>
       )}
       </>}
+
+      {/* Раскрытый день: события и факты, быстрая форма «Добавить в этот день» */}
+      {panelDay && (() => {
+        const closeHref = href({ event: "" });
+        const dayHref = href({ day: panelDay, event: "" });
+        const wd = WEEKDAYS[(parseYmd(panelDay).getUTCDay() + 6) % 7];
+        const editing = canEdit && selected && editInitial ? selected : null;
+        return (
+          <>
+            <Link href={closeHref} scroll={false} aria-label="Закрыть день" className="fixed inset-0 z-40 bg-black/30" />
+            <DayKeys closeHref={closeHref} />
+            <aside role="dialog" aria-label={`День ${fmtRu(panelDay)}`} className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl md:w-[30rem]">
+              <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold">{fmtRu(panelDay)}, {wd}{panelDay === today ? " · сегодня" : ""}</h2>
+                  <p className="text-xs text-neutral-500">{dayEvents.length} {dayEvents.length === 1 ? "событие" : "событий"} · {dayFacts.length} {dayFacts.length === 1 ? "факт" : "фактов"}</p>
+                </div>
+                <Link href={href({ day: addDays(panelDay, -1), m: addDays(panelDay, -1).slice(0, 7), event: "" })} scroll={false} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Предыдущий день">‹</Link>
+                <Link href={href({ day: addDays(panelDay, 1), m: addDays(panelDay, 1).slice(0, 7), event: "" })} scroll={false} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Следующий день">›</Link>
+                <Link href={closeHref} scroll={false} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Закрыть">✕</Link>
+              </div>
+              <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-3">
+                <section className="flex flex-col gap-2" aria-label="События дня">
+                  <h3 className="text-sm font-medium">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
+                  {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">В этот день событий нет{canEdit ? " — добавьте ниже" : ""}.</p>}
+                  {dayEvents.map((e) => {
+                    const def = actionDef(e.action);
+                    const pi = e.orderId ? pipeBy.get(e.orderId) : undefined;
+                    const fur = pi?.fur ?? furOfArticle(e.articleCode);
+                    const done = !!e.doneAt;
+                    const over = !done && ymd(e.endDate ?? e.date) < today;
+                    return (
+                      <div key={e.id} className={`flex flex-col gap-1.5 rounded-lg border p-2 text-sm ${selected?.id === e.id ? "border-neutral-900" : "border-neutral-200"} ${over ? "ring-1 ring-red-500" : ""}`}>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge className={def.chip}>{e.action}</Badge>
+                          <b className={done ? "line-through opacity-60" : ""}>{e.articleCode}</b>
+                          <span className="tabular-nums">×{formatQty(e.quantity)}</span>
+                          {fur && <span className="text-neutral-500">{fur}</span>}
+                          {pi && <StageChip stage={pi.stage} word={pi.stageWord} />}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-600">
+                          {done ? <Badge variant="success">выполнено</Badge> : over ? <Badge variant="danger">просрочено</Badge> : <Badge variant="info">в плане</Badge>}
+                          {e.endDate && ymd(e.endDate) !== ymd(e.date) && <span className="tabular-nums">{fmtRu(ymd(e.date))} — {fmtRu(ymd(e.endDate))}</span>}
+                          {e.season && <span>сезон {e.season.code}</span>}
+                          {e.orderId && <Link href={`/production/${e.orderId}`} className="text-blue-700 hover:underline">{pi ? pipeTitle(pi) : "карточка ТЗ"} →</Link>}
+                          {pi?.expected && <span className="text-neutral-500">ждём {fmtRu(pi.expected.date)} ({pi.expected.source})</span>}
+                        </div>
+                        {e.notes && <p className="whitespace-pre-wrap break-words text-xs text-neutral-700">{e.notes}</p>}
+                        {canEdit && <DayEventActions id={e.id} done={done} editHref={href({ day: panelDay, event: e.id })} label={`${e.articleCode} × ${e.quantity} — ${e.action}`} />}
+                      </div>
+                    );
+                  })}
+                </section>
+
+                {canEdit && (
+                  <section className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3" aria-label={editing ? "Правка события" : "Добавить в этот день"} id="event">
+                    <h3 className="flex items-center gap-2 text-sm font-medium">
+                      {editing ? `Правка: ${editing.articleCode} × ${editing.quantity}` : `Добавить в этот день · ${fmtRu(panelDay)}`}
+                      {editing && <Link href={dayHref} scroll={false} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Отмена</Link>}
+                    </h3>
+                    <EventForm key={editing ? editing.id : `new-${panelDay}`} initial={editing && editInitial ? editInitial : { ...newInitial, date: panelDay }} models={models} seasons={formSeasons} plans={formPlans} orders={formOrders} canCreateArticle={hasRole(session.user.role, ACCESS.models)} stay doneHref={dayHref} />
+                  </section>
+                )}
+
+                <section className="flex flex-col gap-2" aria-label="Факты дня">
+                  <h3 className="text-sm font-medium">Факты дня <InfoHint>Из других разделов: окончание ТЗ, поставки, отгрузки, примерки. Нажмите — откроется карточка.</InfoHint></h3>
+                  {dayFacts.length === 0 && <p className="text-xs text-neutral-500">В этот день фактов нет.</p>}
+                  {dayFacts.map((f) => {
+                    const st = LAYER_STYLES[f.kind];
+                    const pi = f.orderId ? pipeBy.get(f.orderId) : undefined;
+                    return (
+                      <Link key={f.id} href={f.href} className={`block rounded-lg border px-2 py-1.5 text-sm ${st.chip}`}>
+                        <span className="block break-words font-medium">{f.title}{f.qty != null ? ` ×${formatQty(f.qty)}` : ""}{pi ? ` · ${pi.fur}` : ""}</span>
+                        <span className="flex flex-wrap items-center gap-x-1.5 text-xs opacity-90">{st.label} · {f.label}{pi && f.kind === "order" && <StageChip stage={pi.stage} word={pi.stageWord} />}{pi?.expected && f.kind === "order" && <span className="opacity-70">{pi.expected.source}</span>}</span>
+                      </Link>
+                    );
+                  })}
+                </section>
+              </div>
+            </aside>
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -416,13 +492,14 @@ function WeekRow({ wk, month, view, today, dayBlock, dayTotal, evByDay, canEdit,
         return (
           <div key={d} className={`${view === "week" ? "min-h-48" : "min-h-28"} flex flex-col gap-1 p-1 ${outside ? "bg-neutral-50 text-neutral-500" : "bg-white"} ${d === today ? "ring-2 ring-inset ring-neutral-900" : ""}`}>
             <div className="flex items-center justify-between text-xs">
-              <span className={d === today ? "font-bold" : "font-medium"}>{Number(d.slice(8))}</span>
+              <Link href={href({ day: d, event: "" })} scroll={false} title="Открыть день" className={`rounded px-1 hover:bg-neutral-100 ${d === today ? "font-bold" : "font-medium"}`}>{Number(d.slice(8))}</Link>
               <span className="flex items-center gap-1">
                 {dayTotal(d) > 0 && <span className="rounded bg-neutral-100 px-1 text-[11px] text-neutral-700" title="Единиц за день">Σ {dayTotal(d)}</span>}
-                {canEdit && <Link href={href({ new: d, event: "" }) + "#event"} className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" aria-label={`Добавить событие на ${d}`}>+</Link>}
+                {canEdit && <Link href={href({ day: d, event: "" })} scroll={false} className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="Добавить в этот день" aria-label={`Добавить событие на ${d}`}>+</Link>}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">{dayBlock(d, view !== "week")}</div>
+            <Link href={href({ day: d, event: "" })} scroll={false} aria-label={`Открыть день ${d}`} title="Открыть день" className="min-h-3 flex-1 rounded hover:bg-neutral-100/70" />
           </div>
         );
       })}

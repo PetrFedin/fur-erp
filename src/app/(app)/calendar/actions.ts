@@ -1,16 +1,17 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { cleanSearch, parseDateInput, zNum } from "@/lib/input";
+import { revalidateAll } from "@/lib/revalidate-all";
 
 const EDIT = ACCESS.planning;
-export type EventFormState = { error?: string };
+// ok — запись сохранена без перехода (форма в раскрытом дне: страница остаётся на месте и обновляется).
+export type EventFormState = { error?: string; ok?: boolean };
 
 const schema = z.object({
   articleCode: z.string().trim().min(1, "Укажите артикул").max(100, "Артикул слишком длинный"),
@@ -72,7 +73,8 @@ export async function createEvent(_prev: EventFormState, formData: FormData): Pr
   await prisma.calendarEvent.create({
     data: { ...data, organizationId: session.user.organizationId, createdById: session.user.id, doneAt: done ? new Date() : null },
   });
-  revalidatePath("/calendar");
+  revalidateAll(session.user.organizationId);
+  if (formData.get("stay") === "1") return { ok: true };
   redirect(`/calendar?m=${monthOf(data.date)}`);
 }
 
@@ -86,7 +88,8 @@ export async function updateEvent(_prev: EventFormState, formData: FormData): Pr
   if ("error" in r) return { error: r.error };
   const { done, ...data } = r.data;
   await prisma.calendarEvent.update({ where: { id }, data: { ...data, doneAt: done ? (own.doneAt ?? new Date()) : null } });
-  revalidatePath("/calendar");
+  revalidateAll(orgId);
+  if (formData.get("stay") === "1") return { ok: true };
   redirect(`/calendar?m=${monthOf(data.date)}`);
 }
 
@@ -96,7 +99,7 @@ export async function toggleDone(formData: FormData) {
   const own = await prisma.calendarEvent.findFirst({ where: { id, organizationId: session.user.organizationId } });
   if (!own) redirect("/calendar");
   await prisma.calendarEvent.update({ where: { id }, data: { doneAt: own.doneAt ? null : new Date() } });
-  revalidatePath("/calendar");
+  revalidateAll(session.user.organizationId);
   redirect(`/calendar?m=${monthOf(own.date)}`);
 }
 
@@ -105,6 +108,28 @@ export async function deleteEvent(formData: FormData) {
   const id = cleanSearch(formData.get("id"), 40);
   const own = await prisma.calendarEvent.findFirst({ where: { id, organizationId: session.user.organizationId } });
   if (own) await prisma.calendarEvent.delete({ where: { id } });
-  revalidatePath("/calendar");
+  revalidateAll(session.user.organizationId);
   redirect(`/calendar?m=${own ? monthOf(own.date) : ""}`);
+}
+
+/** Из раскрытого дня: отметить выполненным / вернуть в план — без перехода со страницы. */
+export async function setEventDone(id: string, done: boolean): Promise<EventFormState> {
+  const session = await requireRole(...EDIT);
+  const orgId = session.user.organizationId;
+  const own = await prisma.calendarEvent.findFirst({ where: { id: cleanSearch(id, 40), organizationId: orgId } });
+  if (!own) return { error: "Событие не найдено" };
+  await prisma.calendarEvent.update({ where: { id: own.id }, data: { doneAt: done ? (own.doneAt ?? new Date()) : null } });
+  revalidateAll(orgId);
+  return { ok: true };
+}
+
+/** Из раскрытого дня: удалить событие (подтверждение — на клиенте, useConfirm). */
+export async function removeEvent(id: string): Promise<EventFormState> {
+  const session = await requireRole(...EDIT);
+  const orgId = session.user.organizationId;
+  const own = await prisma.calendarEvent.findFirst({ where: { id: cleanSearch(id, 40), organizationId: orgId } });
+  if (!own) return { error: "Событие уже удалено" };
+  await prisma.calendarEvent.delete({ where: { id: own.id } });
+  revalidateAll(orgId);
+  return { ok: true };
 }
