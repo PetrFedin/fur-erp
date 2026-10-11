@@ -7,14 +7,17 @@ import { getYearFilter, yearRange } from "@/lib/year-filter";
 import { YearNote } from "@/components/year-note";
 import { formatQty } from "@/lib/utils";
 import { modelCodeVariants, compareModelNames } from "@/lib/model-code";
-import { actionDef, CALENDAR_ACTIONS, LAYER_STYLES } from "@/lib/calendar-actions";
+import { actionDef, CALENDAR_ACTIONS, LAYER_STYLES, STAGE_ORDER, STAGE_STYLES } from "@/lib/calendar-actions";
 import { addDays, dayLabel, fmtRu, monthGridDays, monthTitle, parseMonth, parseYmd, shiftMonth, startOfWeek, todayYmd, WEEKDAYS, ymd } from "@/lib/calendar-grid";
 import { loadFactLayer, type FactItem } from "@/lib/calendar-layers";
+import { loadPipeline, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
+import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
+import { MonthsView, PipeCard, StageChip, StageLegend, StagesView } from "./pipe-views";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { FilterBar } from "@/components/filters/filter-bar";
-import { defineFilters, parseFilters, pick } from "@/lib/filters";
+import { defineFilters, parseFilters, pick, stateParam } from "@/lib/filters";
 import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
 import { toggleDone, deleteEvent } from "./actions";
@@ -28,6 +31,12 @@ const CAL_FILTERS = defineFilters({
   ...pick(["season", "q"], { q: { label: "Артикул", aliases: ["article"], maxLen: 100 } }),
   action: { kind: "multi", label: "Действие" },
   layers: { kind: "single", label: "Факты", role: "state", allowed: ["0", "1"] },
+  // Режимы «По месяцам» / «Стадии»: группа, вид меха, статус (стадия); cell — раскрытая ячейка, ord — открытая карточка ТЗ.
+  grp: { kind: "multi", label: "Группа", maxLen: 40 },
+  fur: { kind: "multi", label: "Вид меха", maxLen: 120 },
+  stage: { kind: "multi", label: "Статус", allowed: STAGE_ORDER },
+  cell: stateParam("Ячейка", { maxLen: 160 }),
+  ord: stateParam("ТЗ", { maxLen: 40 }),
 });
 
 type Ev = {
@@ -40,6 +49,7 @@ type Ev = {
   done: boolean;
   overdue: boolean;
   seasonCode: string | null;
+  orderId: string | null;
 };
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
@@ -50,7 +60,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const sp = await searchParams;
   const today = todayYmd();
 
-  const view = ["month", "week", "list"].includes(cleanSearch(sp.view, 8)) ? cleanSearch(sp.view, 8) : "month";
+  // ?view=: month | week | list — «Детально» (сетка / неделя / список), months — «По месяцам», stages — «Стадии».
+  const rawView = cleanSearch(sp.view, 8);
+  const mode: "detail" | "months" | "stages" = rawView === "months" || rawView === "stages" ? rawView : "detail";
+  const view = ["month", "week", "list"].includes(rawView) ? rawView : "month";
   let month = parseMonth(cleanSearch(sp.m, 7)) ?? today.slice(0, 7);
   if (!parseMonth(cleanSearch(sp.m, 7)) && year !== "all" && month.slice(0, 4) !== year) month = `${year}-01`;
   const weekStartParam = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.w, 10)) ? cleanSearch(sp.w, 10) : "";
@@ -104,15 +117,30 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     done: !!e.doneAt,
     overdue: !e.doneAt && (e.endDate ? ymd(e.endDate) : ymd(e.date)) < today,
     seasonCode: e.season?.code ?? null,
+    orderId: e.orderId,
   }));
 
   // Слой фактов — только когда нет фильтров по сезону/действию (у фактов их нет).
-  const factsHidden = !layersOn || seasonPicked || actionVals.length > 0;
+  const factsHidden = mode !== "detail" || !layersOn || seasonPicked || actionVals.length > 0;
   const layer = factsHidden
     ? { items: [] as FactItem[], monthLevel: [] }
     : await loadFactLayer(orgId, from, to, { article: articleF, month });
+  // «Конвейер» ТЗ: стадия, мех, ожидаемая дата — для подписей событий и фактов, карточек и режимов «По месяцам» / «Стадии».
+  const pipe = await loadPipeline(orgId, year, today);
+  const pipeBy = new Map<string, PipeItem>(pipe.map((p) => [p.id, p]));
+  const cardItem: PipeItem | null = cf.ord ? (pipeBy.get(cf.ord) ?? (await loadPipeline(orgId, "all", today)).find((p) => p.id === cf.ord) ?? null) : null;
+  // Мех артикула, если он однозначен по ТЗ (для событий без привязки к ТЗ).
+  const fursByArticle = new Map<string, Set<string>>();
+  for (const p of pipe) fursByArticle.set(p.articleCode.toLowerCase(), (fursByArticle.get(p.articleCode.toLowerCase()) ?? new Set()).add(p.fur));
+  const furOfArticle = (code: string) => { const f = fursByArticle.get(code.toLowerCase()); return f && f.size === 1 ? [...f][0] : null; };
+  // Ожидаемые ТЗ без даты окончания: срок по лоту / закупке / плану поставок (событие календаря и так видно в сетке).
+  const EXPECT_SRC = ["по поставке лота", "по сроку закупки", "по плану поставок"];
+  const artRe = articleF ? modelCodeVariants(articleF).map((v) => v.toLowerCase()) : [];
+  const expFacts: FactItem[] = factsHidden ? [] : pipe
+    .filter((p) => p.status !== "COMPLETED" && p.stage !== "repair" && !p.endDate && p.expected && EXPECT_SRC.includes(p.expected.source) && p.expected.date >= from && p.expected.date <= to && (artRe.length === 0 || artRe.some((v) => p.articleCode.toLowerCase().includes(v))))
+    .map((p) => ({ id: `ex-${p.id}`, kind: "order" as const, date: p.expected!.date, title: p.articleLabel, qty: p.qty, label: `Ожидаем ${pipeTitle(p)}`, href: `/production/${p.id}`, orderId: p.id }));
   const factsByDay = new Map<string, FactItem[]>();
-  for (const f of layer.items) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
+  for (const f of [...layer.items, ...expFacts]) factsByDay.set(f.date, [...(factsByDay.get(f.date) ?? []), f]);
 
   const evByDay = new Map<string, Ev[]>();
   for (const e of evs) {
@@ -135,7 +163,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     : null;
   const newInitial: EventInitial = { articleCode: "", modelId: null, articleName: "", quantity: "", date: newDate || (today.startsWith(month) ? today : `${month}-01`), endDate: "", action: CALENDAR_ACTIONS[0].label, seasonId: soleSeasonId, planId: "", orderId: "", notes: "", done: false };
 
-  const params: Record<string, string | string[]> = { view, m: month, w: view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0" };
+  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell };
   const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...params, ...patch })) {
@@ -154,18 +182,34 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const chip = (e: Ev, dayIso: string) => {
     const def = actionDef(e.action);
     const cont = e.date !== dayIso;
+    const p = e.orderId ? pipeBy.get(e.orderId) : undefined;
+    const fur = p?.fur ?? furOfArticle(e.articleCode);
     return (
-      <Link key={e.id + dayIso} href={evHref(e.id)} title={`${e.articleCode} × ${e.quantity} — ${e.action}${e.done ? " (выполнено)" : ""}`}
-        className={`block truncate rounded border px-1.5 py-0.5 text-xs leading-tight ${def.chip} ${e.done ? "opacity-60 line-through" : ""} ${e.overdue ? "ring-1 ring-red-500" : ""} ${selected?.id === e.id ? "outline outline-2 outline-neutral-900" : ""}`}>
-        {cont ? "↳ " : ""}{e.articleCode} ×{e.quantity} · {e.action}
+      <Link key={e.id + dayIso} href={evHref(e.id)} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
+        className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${def.chip} ${e.done ? "opacity-60" : ""} ${e.overdue ? "ring-1 ring-red-500" : ""} ${selected?.id === e.id ? "outline outline-2 outline-neutral-900" : ""}`}>
+        <span className={`block truncate ${e.done ? "line-through" : ""}`}>{cont ? "↳ " : ""}{e.articleCode} ×{e.quantity}{fur ? ` · ${fur}` : ""}</span>
+        <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
+          {e.action}
+          {p && <StageChip stage={p.stage} word={p.stageWord} />}
+          {e.endDate && e.endDate !== e.date ? <span className="tabular-nums">до {fmtRu(e.endDate).slice(0, 5)}</span> : null}
+        </span>
       </Link>
     );
   };
   const factChip = (f: FactItem) => {
     const st = LAYER_STYLES[f.kind];
+    const p = f.orderId ? pipeBy.get(f.orderId) : undefined;
+    const fur = p?.fur;
+    const href2 = f.orderId && f.kind === "order" ? href({ ord: f.orderId, event: "" }) + "#card" : f.href;
     return (
-      <Link key={f.id} href={f.href} title={`${st.label}: ${f.title}${f.qty != null ? ` × ${f.qty}` : ""} — ${f.label}`} className={`block truncate rounded border px-1.5 py-0.5 text-xs leading-tight ${st.chip}`}>
-        {f.title}{f.qty != null ? ` ×${f.qty}` : ""} · {f.label}
+      <Link key={f.id} href={href2} title={`${st.label}: ${f.title}${f.qty != null ? ` × ${f.qty}` : ""}${fur ? ` · ${fur}` : ""} — ${f.label}${p?.expected ? ` · ${p.status === "COMPLETED" ? "дата" : "ждём"} ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}`}
+        className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${st.chip} ${p?.overdue && f.kind === "order" ? "ring-1 ring-red-500" : ""}`}>
+        <span className="block truncate">{f.title}{f.qty != null ? ` ×${f.qty}` : ""}{fur ? ` · ${fur}` : ""}</span>
+        <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
+          {f.label}
+          {p && f.kind === "order" && <StageChip stage={p.stage} word={p.stageWord} />}
+          {p?.expected && f.kind === "order" && <span className="text-[10px] opacity-70">{p.expected.source}</span>}
+        </span>
       </Link>
     );
   };
@@ -187,6 +231,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const weeks: string[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
+  const furOptions = [...new Set(pipe.map((p) => p.fur))].sort((x, y) => x.localeCompare(y, "ru"));
+  const tableFilters = { grp: cf.grp, fur: cf.fur, stage: cf.stage };
   const planLabel = (p: (typeof plans)[number]) => `${p.articleCode}${p.color ? ` · ${p.color}` : ""}${p.season ? ` · ${p.season.code}` : ""}`;
 
   return (
@@ -195,7 +241,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Производственный календарь</h1><YearNote year={year} />{" "}
           <InfoHint wide>
             Здесь ваши события: артикул × количество, дата и действие (раскрой, пошив, сдача скорняку…). Серые пунктирные ярлыки — факты из других разделов (план поставок, отгрузки, примерки, окончание ТЗ); они только для просмотра, клик ведёт в свою карточку.
-            Красная рамка — дата прошла, а событие не отмечено выполненным. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.
+            Красная рамка — дата прошла, а событие (или ТЗ) не выполнено. Итоги считаются по событиям один раз, в день начала. Общий год из шапки скрывает события других годов.
+            Режимы: «Детально» — сетка с подписями (артикул, мех, количество, стадия, ожидаемая дата; клик по ТЗ открывает карточку), «По месяцам» — таблица видов меха по месяцам и стадиям, «Стадии» — путь изделия от плана до отгрузки со сроками.
           </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/plan" className={buttonVariants({ variant: "outline" })}>План заказа</Link>
@@ -203,7 +250,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         </div>
       </div>
 
-      {canEdit && (
+      <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Режим календаря">
+        {([["detail", "Детально", view], ["months", "По месяцам", "months"], ["stages", "Стадии", "stages"]] as const).map(([m, t, v]) => (
+          <Link key={m} href={href({ view: v, w: v === "week" ? weekStart : "", event: "", new: "", cell: "", ord: "" })} className={pill(mode === m)} aria-current={mode === m ? "page" : undefined}>{t}</Link>
+        ))}
+      </div>
+
+      {cardItem && (
+        <div id="card"><PipeCard p={cardItem} closeHref={href({ ord: "" })} eventHref={canEdit ? evHref : undefined} /></div>
+      )}
+
+      {mode === "detail" && canEdit && (
         <Card id="event">
           <details open={Boolean(newDate || selected)}>
             <summary className="cursor-pointer select-none p-4 text-sm font-medium">{selected ? "Событие: правка" : "+ Новое событие"}</summary>
@@ -229,7 +286,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           </details>
         </Card>
       )}
-      {!canEdit && selected && (
+      {mode === "detail" && selected?.orderId && pipeBy.get(selected.orderId) && !cardItem && (
+        <PipeCard p={pipeBy.get(selected.orderId)!} closeHref={href({ event: "" })} />
+      )}
+      {mode === "detail" && !canEdit && selected && (
         <Card>
           <CardHeader><CardTitle>{selected.articleCode} × {selected.quantity} — {selected.action}</CardTitle></CardHeader>
           <CardContent className="text-sm text-neutral-600">
@@ -240,6 +300,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       )}
 
       {/* Навигация */}
+      {mode === "detail" && (
       <div className="flex flex-wrap items-center gap-2">
         <Link href={prev} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Назад">‹</Link>
         <h2 className="min-w-44 text-center text-base font-semibold">{title}</h2>
@@ -251,20 +312,34 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           ))}
         </span>
       </div>
+      )}
 
       <FilterBar
         title="Фильтры календаря"
-        controls={[
+        controls={mode !== "detail" ? [
+          { type: "multi", name: "grp", label: "Группа", options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g, label: g })), allLabel: "Все группы" },
+          { type: "multi", name: "fur", label: "Вид меха", options: furOptions.map((f) => ({ value: f, label: f })), allLabel: "Все виды меха" },
+          { type: "multi", name: "stage", label: "Статус", options: STAGE_ORDER.map((k) => ({ value: k, label: STAGE_STYLES[k].label })), allLabel: "Все статусы" },
+        ] : [
           { type: "multi", name: "season", label: "Сезон", options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
           { type: "multi", name: "action", label: "Действие", options: CALENDAR_ACTIONS.map((a) => ({ value: a.label, label: a.label })), allLabel: "Все действия" },
           { type: "text", name: "q", label: "Артикул", aliases: ["article"], placeholder: "Артикул" },
           { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Показывать факты из ТЗ, отгрузок, примерок", options: [{ value: "0", label: "Только мои события" }], className: "sm:w-72" },
         ]}
-        dropOnChange={["event", "new"]}
+        dropOnChange={["event", "new", "cell", "ord"]}
       />
-      {layersOn && (seasonPicked || actionVals.length > 0) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}
+      {mode !== "detail" && (
+        <>
+          {mode === "months"
+            ? <MonthsView items={pipe} filters={tableFilters} allYears={year === "all"} year={year} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />
+            : <StagesView items={pipe} filters={tableFilters} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />}
+          <p className="text-xs text-neutral-500">Источник: ТЗ без отменённых{year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.</p>
+        </>
+      )}
+      {mode === "detail" && layersOn && (seasonPicked || actionVals.length > 0) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}
 
       {/* Итоги */}
+      {mode === "detail" && <>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-medium text-neutral-700">Итого за {view === "week" ? "неделю" : "месяц"}: {formatQty(periodTotal)} шт.</span>
         {[...byAction.entries()].map(([a, q]) => (
@@ -276,10 +351,12 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
         {layersOn && !factsHidden && <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-dashed border-neutral-500" />пунктир — факты (только чтение)</span>}
+        <span className="text-neutral-300">|</span>
+        <StageLegend only={["plan", "raw", "work", "ready", "shipped"]} />
       </div>
 
       {/* Сетка (≥ md): месяц и неделя */}
-      {view !== "list" && (
+      {mode === "detail" && view !== "list" && (
         <div className="hidden md:block">
           <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_5rem] gap-px rounded-lg border border-neutral-200 bg-neutral-200 text-sm">
             {WEEKDAYS.map((w) => <div key={w} className="bg-neutral-50 px-2 py-1 text-xs font-medium text-neutral-500">{w}</div>)}
@@ -316,6 +393,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           </CardContent>
         </Card>
       )}
+      </>}
     </div>
   );
 }

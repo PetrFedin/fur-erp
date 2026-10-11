@@ -10,7 +10,7 @@ import { articleLabel } from "@/lib/article-label";
 // Слой «факты» производственного календаря: только чтение, ничего не копируется в CalendarEvent.
 // Источники: SupplyPlanEntry (дата этапа), Shipment.plannedDate, Fitting.fittingDate, ProductionOrder.endDate.
 
-export type FactItem = { id: string; kind: LayerKind; date: string; title: string; qty: number | null; label: string; href: string };
+export type FactItem = { id: string; kind: LayerKind; date: string; title: string; qty: number | null; label: string; href: string; /** ТЗ, к которому относится факт (карточка в календаре). */ orderId?: string };
 export type MonthLevelItem = { id: string; title: string; qty: number; label: string };
 
 export async function loadFactLayer(organizationId: string, from: string, to: string, opts: { article?: string; month: string }) {
@@ -61,10 +61,10 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
   }
   for (const f of fittings) {
     const o = f.productionOrder;
-    items.push({ id: `ft-${f.id}`, kind: "fitting", date: ymd(f.fittingDate), title: articleLabel(o.productModel), qty: null, label: `Примерка${f.size ? ` (${f.size})` : ""} · ${o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : o.number}`, href: `/fittings/${f.id}` });
+    items.push({ id: `ft-${f.id}`, kind: "fitting", date: ymd(f.fittingDate), title: articleLabel(o.productModel), qty: null, label: `Примерка${f.size ? ` (${f.size})` : ""} · ${o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : o.number}`, href: `/fittings/${f.id}`, orderId: o.id });
   }
   for (const o of orders) {
-    items.push({ id: `or-${o.id}`, kind: "order", date: ymd(o.endDate!), title: articleLabel(o.productModel), qty: Number(o.plannedQuantity), label: `Окончание ${o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : o.number}`, href: `/production/${o.id}` });
+    items.push({ id: `or-${o.id}`, kind: "order", date: ymd(o.endDate!), title: articleLabel(o.productModel), qty: Number(o.plannedQuantity), label: `Окончание ${o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : o.number}`, href: `/production/${o.id}`, orderId: o.id });
   }
   return { items, monthLevel };
 }

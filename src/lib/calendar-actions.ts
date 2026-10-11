@@ -32,3 +32,15 @@ export const LAYER_STYLES = {
   order: { label: "Окончание ТЗ", chip: "bg-white text-emerald-700 border-dashed border-emerald-300", dot: "bg-emerald-300" },
 } as const;
 export type LayerKind = keyof typeof LAYER_STYLES;
+
+/** Стадии изделий (по ТЗ) для режимов «По месяцам» и «Стадии»; цвета едины во всех режимах календаря. */
+export const STAGE_ORDER = ["plan", "raw", "work", "ready", "shipped", "repair"] as const;
+export type Stage = (typeof STAGE_ORDER)[number];
+export const STAGE_STYLES: Record<Stage, { label: string; short: string; hint: string; chip: string; dot: string; text: string }> = {
+  plan: { label: "План", short: "план", hint: "ТЗ запланировано, сырьё в ТЗ ещё не списано", chip: "bg-slate-100 text-slate-700 border-slate-300", dot: "bg-slate-400", text: "text-slate-600" },
+  raw: { label: "Сырьё", short: "сырьё", hint: "ТЗ запланировано, мех уже закуплен и списан в ТЗ", chip: "bg-teal-100 text-teal-800 border-teal-200", dot: "bg-teal-500", text: "text-teal-700" },
+  work: { label: "В работе", short: "в работе", hint: "ТЗ в работе: раскрой / пошив", chip: "bg-amber-100 text-amber-800 border-amber-200", dot: "bg-amber-500", text: "text-amber-700" },
+  ready: { label: "Готово", short: "готово", hint: "ТЗ завершено, изделия на складе (ещё не отгружены)", chip: "bg-emerald-100 text-emerald-800 border-emerald-200", dot: "bg-emerald-500", text: "text-emerald-700" },
+  shipped: { label: "Отгружено", short: "отгружено", hint: "Отгружено по проведённым отгрузкам", chip: "bg-indigo-100 text-indigo-800 border-indigo-200", dot: "bg-indigo-500", text: "text-indigo-700" },
+  repair: { label: "Ремонт", short: "ремонт", hint: "Ремонт — считается отдельно и в «Произведено» не входит", chip: "bg-rose-100 text-rose-800 border-rose-200", dot: "bg-rose-500", text: "text-rose-700" },
+};
