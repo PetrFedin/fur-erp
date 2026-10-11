@@ -4,6 +4,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { canonicalFur, type FurIndex } from "./fur-ref";
 import { lotUnitCostExclVat } from "./purchase-totals";
+import { usageExclVat } from "./commission4";
 import { lotUsdPrice } from "./lot-hammer";
 import { lotYear } from "./year-scope";
 import { COMMISSION_RATE } from "./commission4-const";
@@ -39,7 +40,7 @@ const LOT_SELECT = {
   purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
   usages: {
     where: { productionOrder: { status: { not: "CANCELLED" as const } } },
-    select: { quantity: true, totalCost: true, commission4: true, productionOrder: { select: { id: true, number: true } } },
+    select: { quantity: true, totalCost: true, commission4: true, vatRate: true, productionOrder: { select: { id: true, number: true } } },
     orderBy: { date: "asc" as const },
   },
 } satisfies Prisma.RawMaterialLotSelect;
@@ -63,7 +64,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
   for (const u of l.usages) {
     used = used.add(u.quantity);
     usedIncl = usedIncl.add(u.totalCost);
-    const ex = u.quantity.mul(unitExcl);
+    const ex = usageExclVat(u, unitExcl);
     usedExcl = usedExcl.add(ex);
     if (u.commission4) {
       extraIncl = extraIncl.add(u.totalCost.mul(k));

@@ -990,6 +990,10 @@ model ProductionMaterialUsage {
   // Применять ли к строке надбавку 4% (см. src/lib/commission4.ts): сырьё и
   // подкладка — да; лоскут, фондю, бобр, отдельные партии — нет.
   commission4       Boolean         @default(true)
+  // Ставка НДС строки списания, % (правится в карточке ТЗ). NULL = «как в лоте»:
+  // эффективная ставка = vatRate ?? lot.vatRate. Сумма с НДС (totalCost) не меняется,
+  // от ставки зависит только разбивка «без НДС / НДС».
+  vatRate           Decimal?        @db.Decimal(5, 2)
 
   @@index([productionOrderId])
   @@index([lotId])

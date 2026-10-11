@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, type ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
@@ -120,10 +121,10 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
           )}
         </Row>
         <Row label="Категория · группа" hint="Берутся из карточки артикула.">
-          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.category}{d.group && d.group !== "Без группы" ? ` · ${d.group}` : ""}</span>
+          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.category}{d.group && d.group !== "Без группы" ? ` · ${d.group}` : ""}<Link href={`/models/${d.productModelId}`} className="ml-2 inline-block text-xs text-blue-700 hover:underline" title="Открыть карточку артикула, чтобы изменить">✎ изменить у артикула</Link></span>
         </Row>
         <Row label="Вид меха" hint="Определяется по списанным лотам; если списаний нет — не определён.">
-          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.furType || <span className="text-neutral-300">—</span>}</span>
+          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.furType || <span className="text-neutral-300">—</span>}<Link href={`/models/${d.productModelId}`} className="ml-2 inline-block text-xs text-blue-700 hover:underline" title="Открыть карточку артикула, чтобы изменить">✎ изменить у артикула</Link></span>
         </Row>
         <Row label="Материал (из ТЗ)" hint="Описание материала так, как оно записано в ТЗ.">
           <TextCell value={d.materialDescription} onSave={save("materialDescription")} readOnly={ro} label="Материал продукции" />

@@ -4,7 +4,7 @@
 // Суммы считаются построчно (количество × цена лота с её ставкой), а не умножением итога
 // на одну общую ставку: Σ с НДС = Σ totalCost строк, Σ без НДС = Σ количество × цена лота без НДС.
 import { Decimal } from "@prisma/client/runtime/library";
-import { lineWith4, usageInput } from "./commission4";
+import { effectiveUsageVat, lineWith4, usageInput } from "./commission4";
 import type { Commission4Mode } from "./commission4-mode";
 
 export type VatKind = "none" | "20" | "22" | "mixed" | "other";
@@ -30,7 +30,7 @@ export type VatBreakdown = {
 export function vatBreakdown(usages: UsageForVat[], mode: Commission4Mode): VatBreakdown {
   const map = new Map<number, VatRateRow>();
   for (const u of usages) {
-    const rate = Number(new Decimal(u.lot.vatRate).toFixed(2));
+    const rate = effectiveUsageVat(u);
     const l = lineWith4(usageInput(u), mode);
     const row = map.get(rate) ?? { rate, lines: 0, incl: new Decimal(0), excl: new Decimal(0) };
     row.lines += 1;

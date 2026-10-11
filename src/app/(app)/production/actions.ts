@@ -906,6 +906,36 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
   revalidateAll(session.user.organizationId);
 }
 
+/**
+ * Ставка НДС строки списания (по месту в карточке ТЗ). Пусто или равно ставке лота — NULL («как в лоте»).
+ * Сумма с НДС (totalCost) не меняется: от ставки зависит только разбивка «без НДС / НДС».
+ */
+export async function updateUsageVat(orderId: string, usageId: string, formData: FormData): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const order = await getEditableOrder(session.user.organizationId, orderId);
+  if (!order) return { error: "ТЗ не найдено" };
+  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
+
+  const usage = await prisma.productionMaterialUsage.findFirst({
+    where: { id: usageId, productionOrderId: orderId },
+    select: { id: true, lot: { select: { vatRate: true } } },
+  });
+  if (!usage) return { error: "Списание не найдено" };
+
+  const raw = String(formData.get("vatRate") ?? "").trim().replace(",", ".");
+  let vatRate: Decimal | null = null;
+  if (raw !== "") {
+    if (!/^\d+(\.\d{1,2})?$/.test(raw)) return { error: "НДС: число от 0 до 100, например 20 или 22" };
+    const v = new Decimal(raw);
+    if (v.gt(100)) return { error: "НДС не может быть больше 100%" };
+    vatRate = v.eq(usage.lot.vatRate) ? null : v;
+  }
+  await prisma.productionMaterialUsage.update({ where: { id: usageId }, data: { vatRate } });
+  await resetByOrder(orderId);
+  revalidateAll(session.user.organizationId);
+  return {};
+}
+
 // Editing an already-entered usage line — same underlying fix as
 // updatePurchaseItem, but the safety story is different: unlike a
 // received purchase item (where consumption into production is

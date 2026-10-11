@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { orderYearOf, orderYearWhere } from "@/lib/year-scope";
 import type { YearFilter } from "@/lib/year-filter";
 import { buildFurIndex, canonicalFur } from "@/lib/fur-ref";
-import { sumUsagesWith4 } from "@/lib/commission4";
+import { sumUsagesWith4, usageExclVat } from "@/lib/commission4";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import { lotHammer } from "@/lib/lot-hammer";
 import {
@@ -183,6 +183,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
             quantity: true,
             totalCost: true,
             commission4: true,
+            vatRate: true,
             rawMaterial: { select: { name: true, unit: true } },
             lot: {
               select: {
@@ -289,9 +290,9 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         color: u.lot.color,
         qty: quantity,
         incl: Number(u.totalCost),
-        excl: quantity * unitExcl,
+        excl: u.vatRate != null ? Number(usageExclVat(u, 0)) : quantity * unitExcl,
         c4: u.commission4,
-        vat: n(u.lot.vatRate),
+        vat: u.vatRate != null ? n(u.vatRate) : n(u.lot.vatRate),
         lotColor,
         lotAttrs: isLining ? [] : (info?.attrs ?? []),
         hammerExcl: h?.excl ?? null,

@@ -89,14 +89,32 @@ type UsageForSum = {
   totalCost: Decimal.Value;
   quantity: Decimal.Value;
   commission4: boolean;
+  /** Ставка НДС строки (ProductionMaterialUsage.vatRate); null — «как в лоте». */
+  vatRate: Decimal.Value | null;
   lot: Parameters<typeof lotUnitCostExclVat>[0];
 };
 
+/** Сумма списания без НДС: при своей ставке строки — totalCost/(1+ставка), иначе количество × цена лота без НДС. */
+export function usageExclVat(u: { quantity: Decimal.Value; totalCost: Decimal.Value; vatRate?: Decimal.Value | null }, lotUnitExcl: Decimal.Value): Decimal {
+  if (u.vatRate != null) return new Decimal(u.totalCost).div(new Decimal(1).add(new Decimal(u.vatRate).div(100)));
+  return new Decimal(u.quantity).mul(lotUnitExcl);
+}
+
+/** Эффективная ставка НДС строки списания: своя, иначе ставка лота, иначе 22. */
+export function effectiveUsageVat(u: { vatRate: Decimal.Value | null; lot: { vatRate?: Decimal.Value | null } }): number {
+  const r = u.vatRate ?? u.lot.vatRate ?? 22;
+  return Number(new Decimal(r).toFixed(2));
+}
+
 /** Приведение строки списания из БД к Usage4Input (incl — totalCost, excl — по лоту). */
 export function usageInput(u: UsageForSum): Usage4Input {
+  // Своя ставка строки: сумма с НДС фиксирована (totalCost), «без НДС» = с НДС / (1 + ставка).
+  const own = u.vatRate != null;
   return {
     incl: u.totalCost,
-    excl: new Decimal(u.quantity).mul(lotUnitCostExclVat(u.lot)),
+    excl: own
+      ? new Decimal(u.totalCost).div(new Decimal(1).add(new Decimal(u.vatRate as Decimal.Value).div(100)))
+      : new Decimal(u.quantity).mul(lotUnitCostExclVat(u.lot)),
     commission4: u.commission4,
   };
 }

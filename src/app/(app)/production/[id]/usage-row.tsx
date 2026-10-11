@@ -40,6 +40,10 @@ export type UsageRowData = {
   unitExcl: string;
   lotCostExclVat: string;
   lotVatRate: string;
+  /** Эффективная ставка строки (своя, иначе лота). */
+  vatRate: string;
+  /** Ставка задана на строке (отличается от лота). */
+  vatOwn: boolean;
   c4Mode: "off" | "on";
   commission4: boolean;
   totalCost: string;
@@ -57,12 +61,14 @@ export function UsageRow({
   usage,
   lots,
   updateAction,
+  vatAction,
   removeAction,
   readOnly = false,
 }: {
   usage: UsageRowData;
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
+  vatAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
   readOnly?: boolean;
 }) {
@@ -114,14 +120,24 @@ export function UsageRow({
         <TextCell value={usage.quantity} type="number" step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} onDraft={setQty} onSave={(v) => updateAction(build({ quantity: v }))} />
       </Td>
       <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">—</span>}</Td>
-      <Td className="whitespace-nowrap text-right tabular-nums">
-        {usage.purchaseId ? (
-          <Link href={`/purchases/${usage.purchaseId}`} className="text-blue-700 hover:underline" title={`Ставка НДС лота. Меняется в закупке ${usage.purchaseNumber ?? ""}`}>
-            {Number(usage.lotVatRate)}%
-          </Link>
-        ) : (
-          <span>{Number(usage.lotVatRate)}%</span>
-        )}
+      <Td className="min-w-[5.5rem]">
+        <TextCell
+          value={String(Number(usage.vatRate))}
+          type="number"
+          step="0.01"
+          min="0"
+          align="right"
+          label={`НДС, %. В лоте ${Number(usage.lotVatRate)}%${usage.purchaseNumber ? ` (закупка ${usage.purchaseNumber})` : ""}. Пусто — как в лоте`}
+          suffix="%"
+          readOnly={readOnly}
+          className={usage.vatOwn ? "font-semibold text-amber-700" : undefined}
+          onSave={(v) => {
+            const fd = new FormData();
+            fd.set("vatRate", v);
+            return vatAction(fd);
+          }}
+        />
+        {usage.vatOwn ? <span className="block text-right text-[11px] text-amber-700" title={`В лоте ${Number(usage.lotVatRate)}%`}>изм. (лот {Number(usage.lotVatRate)}%)</span> : null}
       </Td>
       <Td className="text-center">
         <input

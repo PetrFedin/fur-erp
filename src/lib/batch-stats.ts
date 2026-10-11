@@ -39,6 +39,7 @@ export const batchOrderInclude = {
     select: {
       totalCost: true,
       commission4: true,
+      vatRate: true,
       quantity: true,
       lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
     },

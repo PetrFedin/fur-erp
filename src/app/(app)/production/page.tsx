@@ -190,6 +190,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             totalCost: true,
             quantity: true,
             commission4: true,
+            vatRate: true,
             lot: { select: { materialCostExclVat: true, expenseCostExclVat: true, unitCost: true, vatRate: true } },
           },
         },

@@ -10,6 +10,7 @@ import { getFurIndex } from "@/lib/fur-ref-server";
 import { auctionName } from "@/lib/auction-payments";
 import { isServiceAuction, shortAuctionName, NO_AUCTION_LABEL } from "@/lib/auction-names";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
+import { usageExclVat } from "@/lib/commission4";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { lotYear, purchaseYear } from "@/lib/year-scope";
 import type { YearFilter } from "@/lib/year-filter";
@@ -108,7 +109,7 @@ const LOT_INCLUDE = {
   purchaseItems: { select: { quantity: true } },
   usages: {
     select: {
-      id: true, quantity: true, totalCost: true, commission4: true,
+      id: true, quantity: true, totalCost: true, commission4: true, vatRate: true,
       productionOrder: { select: { id: true, number: true, productModelId: true } },
     },
     orderBy: { date: "asc" },
@@ -129,7 +130,7 @@ function buildLot(l: LotRow): RawLot {
   let extraExcl = zero();
   for (const u of l.usages) {
     usedIncl = usedIncl.add(u.totalCost);
-    const ex = u.quantity.mul(unitExcl);
+    const ex = usageExclVat(u, unitExcl);
     usedExcl = usedExcl.add(ex);
     if (u.commission4) {
       extraIncl = extraIncl.add(u.totalCost.mul(k));
@@ -470,7 +471,7 @@ export type UsageRow = {
 };
 
 const usageRowOf = (u: {
-  id: string; lotId: string; quantity: Decimal; totalCost: Decimal; commission4: boolean;
+  id: string; lotId: string; quantity: Decimal; totalCost: Decimal; commission4: boolean; vatRate: Decimal | null;
   lot: Parameters<typeof lotUnitCostExclVat>[0] & { rawMaterial: { unit: string } };
   productionOrder: OrderBrief;
 }): UsageRow => ({
@@ -488,12 +489,12 @@ const usageRowOf = (u: {
   unit: u.lot.rawMaterial.unit,
   qty: u.quantity,
   incl: u.totalCost,
-  excl: u.quantity.mul(lotUnitCostExclVat(u.lot)),
+  excl: usageExclVat(u, lotUnitCostExclVat(u.lot)),
   c4: u.commission4,
 });
 
 const USAGE_SELECT = {
-  id: true, lotId: true, quantity: true, totalCost: true, commission4: true,
+  id: true, lotId: true, quantity: true, totalCost: true, commission4: true, vatRate: true,
   lot: { select: { unitCost: true, vatRate: true, materialCostExclVat: true, expenseCostExclVat: true, rawMaterial: { select: { unit: true } } } },
   productionOrder: { select: ORDER_BRIEF },
 } satisfies Prisma.ProductionMaterialUsageSelect;
@@ -673,7 +674,7 @@ export async function loadLotUsage(lotId: string, organizationId?: string): Prom
 
   const lines = await prisma.productionMaterialUsage.findMany({
     where: { lotId, productionOrder: { organizationId: orgId } },
-    select: { id: true, quantity: true, totalCost: true, commission4: true, date: true, productionOrder: { select: ORDER_BRIEF } },
+    select: { id: true, quantity: true, totalCost: true, commission4: true, vatRate: true, date: true, productionOrder: { select: ORDER_BRIEF } },
     orderBy: { date: "asc" },
   });
   const orderIds = Array.from(new Set(lines.map((u) => u.productionOrder.id)));
@@ -699,7 +700,7 @@ export async function loadLotUsage(lotId: string, organizationId?: string): Prom
       };
       byOrder.set(o.id, r);
     }
-    const ex = u.quantity.mul(lot.unitExcl);
+    const ex = usageExclVat(u, lot.unitExcl);
     r.qty = r.qty.add(u.quantity);
     r.incl = r.incl.add(u.totalCost);
     r.excl = r.excl.add(ex);

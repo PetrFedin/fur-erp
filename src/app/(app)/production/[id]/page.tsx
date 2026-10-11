@@ -11,7 +11,7 @@ import { Money } from "@/components/money";
 import { canEditProduction } from "@/lib/production-access";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
+import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
 import { InfoHint } from "@/components/info-hint";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
@@ -37,7 +37,7 @@ import { orderUnitsDec } from "@/lib/batch-stats";
 import { getColorOptions } from "@/lib/colors";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
-import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense } from "../actions";
+import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -186,11 +186,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
   const boundUpdateUsage = updateMaterialUsage.bind(null, id);
+  const boundUpdateUsageVat = updateUsageVat.bind(null, id);
   const boundUpdateExpense = updateProductionExpense.bind(null, id);
   const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
   const vatRateByLot: Record<string, number> = {};
-  for (const u of order.materialUsages) vatRateByLot[u.lotId] = Number(u.lot.vatRate.toString());
+  for (const u of order.materialUsages) vatRateByLot[u.lotId] = effectiveUsageVat(u);
 
   const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[]) =>
     list.map((u) => {
@@ -214,6 +215,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             c4Mode,
             commission4: u.commission4,
             lotVatRate: u.lot.vatRate.toString(),
+            vatRate: String(effectiveUsageVat(u)),
+            vatOwn: u.vatRate != null,
             totalCost: line.incl.toString(),
             totalCostExclVat: line.excl.toString(),
             costBreakdown: u.lot.costBreakdown,
@@ -223,6 +226,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           lots={lots}
           readOnly={!canEdit}
           updateAction={boundUpdateUsage.bind(null, u.id)}
+          vatAction={boundUpdateUsageVat.bind(null, u.id)}
           removeAction={async () => {
             "use server";
             await boundRemoveUsage(u.id);
@@ -374,7 +378,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <h2 className="text-base font-semibold">Расчёт</h2>
           <InfoHint label="Как читать: Расчёт" wide>
             <p>Что списано в ТЗ и как из этого складывается себестоимость. Лот, количество и «4%» в строке, статья, описание и сумма расхода, цена работы правятся по месту (Enter или уход курсора сохраняет); итоги пересчитываются.</p>
-            <p className="mt-1">Цена за единицу и ставка НДС — свойства лота из закупки (общие для всех ТЗ, где лот списан): менять их нужно в закупке, ссылка на ставке. {c4Mode === "on" ? "Режим «С 4%»: к меху и подкладке добавлено 4% (цена × 1,04); работа и расходы не облагаются." : "Режим «Без 4%»: цена лота как в закупке."}</p>
+            <p className="mt-1">Цена за единицу — свойство лота из закупки (менять в закупке). Ставка НДС по умолчанию берётся из лота (22%, у закупок 2025 г. — 20%); в этом ТЗ её можно исправить по месту (поле «НДС, %»; пусто или как в лоте — без изменения): сумма с НДС остаётся, пересчитывается разбивка «без НДС / НДС». {c4Mode === "on" ? "Режим «С 4%»: к меху и подкладке добавлено 4% (цена × 1,04); работа и расходы не облагаются." : "Режим «Без 4%»: цена лота как в закупке."}</p>
             <p className="mt-1">Режим «С НДС / Без НДС» — общий переключатель шапки.</p>
           </InfoHint>
         </div>
@@ -446,7 +450,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Th>Материал / описание</Th>
               <Th className="text-right">Кол-во</Th>
               <Th className="text-right">Цена за ед. без НДС{c4}</Th>
-              <Th className="text-right">НДС</Th>
+              <Th className="text-right">НДС, %</Th>
               <Th className="text-center">4%</Th>
               <Th className="text-right">Сумма с НДС{c4}</Th>
               <Th></Th>
