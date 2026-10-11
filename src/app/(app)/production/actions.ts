@@ -1,9 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { resetByBatch, resetByOrder } from "@/lib/verification";
-import { invalidateFilterOptions } from "@/lib/filter-options";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -259,9 +258,7 @@ export async function createProductionOrder(
     return { errors: [e instanceof Error ? e.message : "Не удалось создать ТЗ"] };
   }
 
-  revalidatePath("/production");
-  revalidatePath("/lots");
-  revalidatePath("/lining");
+  revalidateAll(organizationId);
   redirect(`/production/${orderId}`);
 }
 
@@ -456,8 +453,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
 
   await resetByOrder(orderId);
   await afterBatchChange(session.user.organizationId, orderId, batchRes);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -499,10 +495,7 @@ async function resolveBatchChange(
 async function afterBatchChange(orgId: string, orderId: string, r: BatchChange) {
   if (!r.changed) return;
   if (r.oldBatchId) await resetByBatch(orgId, r.oldBatchId);
-  invalidateFilterOptions(orgId);
-  for (const n of [r.oldNumber, r.newNumber]) if (n != null) revalidatePath(`/production/batches/${n}`);
-  for (const path of ["/production/batches", "/payments", "/dashboard", "/articles", "/plan", "/calendar", "/verify", "/attention", "/documents", "/analytics/products", "/analytics/pricing", "/analytics/raw"]) revalidatePath(path);
-  revalidatePath(`/production/${orderId}`);
+  revalidateAll(orgId);
 }
 
 /** Быстрое назначение партии прямо из карточки ТЗ (блок «Партия»): выбрать из списка или ввести новый номер; пусто — «без партии». */
@@ -521,7 +514,7 @@ export async function assignOrderBatch(orderId: string, formData: FormData): Pro
     await resetByOrder(orderId);
   }
   await afterBatchChange(session.user.organizationId, orderId, r);
-  revalidatePath("/production");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -555,9 +548,7 @@ export async function updateRetailPrice(orderId: string, formData: FormData): Pr
   ]);
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -686,8 +677,7 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
   }
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/lots");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -754,8 +744,7 @@ export async function addMaterialUsagesBulk(
   }
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/lots");
+  revalidateAll(organizationId);
   return { created: res.resolved.length };
 }
 
@@ -834,8 +823,7 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
   }
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/lots");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -860,8 +848,7 @@ export async function removeMaterialUsage(orderId: string, usageId: string) {
   });
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/lots");
+  revalidateAll(session.user.organizationId);
 }
 
 // Editing an already-entered usage line — same underlying fix as
@@ -905,8 +892,7 @@ export async function updateMaterialUsage(
     if (commission4 !== usage.commission4) {
       await prisma.productionMaterialUsage.update({ where: { id: usageId }, data: { commission4 } });
       await resetByOrder(orderId);
-      revalidatePath(`/production/${orderId}`);
-      revalidatePath("/production");
+      revalidateAll(session.user.organizationId);
     }
     return {};
   }
@@ -936,8 +922,7 @@ export async function updateMaterialUsage(
   }
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/lots");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -972,7 +957,7 @@ export async function addProductionExpense(orderId: string, formData: FormData):
   });
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -987,7 +972,7 @@ export async function removeProductionExpense(orderId: string, expenseId: string
     await syncCompletedOrderCost(tx, orderId, session.user.organizationId);
   });
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
+  revalidateAll(session.user.organizationId);
 }
 
 // Editing an already-entered expense line — wrong category/amount or a typo
@@ -1041,7 +1026,7 @@ export async function updateProductionExpense(
   });
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -1111,9 +1096,7 @@ export async function completeProductionOrder(
   if (raced) return { error: "ТЗ уже завершено" };
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -1181,9 +1164,7 @@ export async function updateProducedQuantity(
   });
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -1253,9 +1234,8 @@ export async function addProductionPayment(orderId: string, formData: FormData):
   });
 
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
+  revalidateAll(session.user.organizationId);
   for (const id of orderIds) await resetByOrder(id);
-  for (const id of orderIds) revalidatePath(`/production/${id}`);
   return {};
 }
 
@@ -1278,7 +1258,7 @@ export async function removeProductionPayment(orderId: string, paymentId: string
 
   await prisma.productionPayment.delete({ where: { id: paymentId } });
   for (const alloc of payment.orders) await resetByOrder(alloc.productionOrderId);
-  for (const alloc of payment.orders) revalidatePath(`/production/${alloc.productionOrderId}`);
+  revalidateAll(session.user.organizationId);
 }
 
 /**
@@ -1344,8 +1324,7 @@ export async function updateProductionPayment(orderId: string, paymentId: string
   });
   const all = Array.from(new Set([...oldIds, ...wanted]));
   await resetByProdPayment(orgId, paymentId, all);
-  for (const id of all) revalidatePath(`/production/${id}`);
-  for (const path of ["/production", "/production/batches", "/payments", "/dashboard", "/verify", "/documents"]) revalidatePath(path);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1397,9 +1376,7 @@ export async function updateProductionBatch(batchId: string, formData: FormData)
     throw e;
   }
   await resetByBatch(orgId, batchId);
-  invalidateFilterOptions(orgId);
-  for (const n of [batch.number, number]) revalidatePath(`/production/batches/${n}`);
-  for (const path of ["/production", "/production/batches", "/payments", "/dashboard", "/verify", "/documents", "/analytics/products", "/analytics/raw"]) revalidatePath(path);
+  revalidateAll(orgId);
   return { number };
 }
 
@@ -1444,9 +1421,7 @@ export async function setOrderColors(orderId: string, formData: FormData): Promi
     prisma.productionOrderColor.createMany({ data: rows.map((r) => ({ orderId, ...r })) }),
   ]);
   await resetByOrder(orderId);
-  invalidateFilterOptions(orgId);
-  revalidatePath(`/production/${orderId}`);
-  for (const path of ["/production", "/production/batches", "/analytics/products", "/plan"]) revalidatePath(path);
+  revalidateAll(orgId);
   return {};
 }
 
@@ -1478,7 +1453,6 @@ export async function cancelProductionOrder(orderId: string): Promise<FormState>
     return { error: "Не удалось отменить ТЗ" };
   }
   await resetByOrder(orderId);
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
+  revalidateAll(organizationId);
   return {};
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -18,17 +18,6 @@ import { checkAllocation, fromCents, toCents, type AllocLine } from "@/lib/payme
 
 export type MarkProdState = { error?: string; ok?: boolean; confirm?: string };
 
-function revalidateAll(orderIds: string[], batchNumber: number | null) {
-  revalidatePath("/production");
-  revalidatePath("/production/batches");
-  if (batchNumber != null) revalidatePath(`/production/batches/${batchNumber}`);
-  for (const id of orderIds) revalidatePath(`/production/${id}`);
-  revalidatePath("/payments");
-  revalidatePath("/documents");
-  revalidatePath("/reconciliation");
-  revalidatePath("/attention");
-  revalidatePath("/clients/[id]", "page");
-}
 
 /** Приложить платёжку к существующей оплате производства: оплата становится «подтверждена». */
 export async function attachProductionPaymentProof(paymentId: string, formData: FormData): Promise<MarkProdState> {
@@ -65,7 +54,7 @@ export async function attachProductionPaymentProof(paymentId: string, formData: 
     throw e;
   }
   await resetVerification(prisma, orgId, { prodPaymentIds: [pay.id], orderIds: pay.orders.map((o) => o.productionOrderId) });
-  revalidateAll(pay.orders.map((o) => o.productionOrderId), pay.orders[0]?.productionOrder.batch?.number ?? null);
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -122,7 +111,6 @@ export async function saveProductionPaymentAllocation(paymentId: string, formDat
       return { confirm: `Разнесено больше работы по ТЗ: ${names}${over.length > 3 ? " и др." : ""}. Остаток по этим ТЗ станет отрицательным (переплата). Сохранить?` };
     }
   }
-  const touched = Array.from(new Set([...pay.orders.map((o) => o.productionOrderId), ...pay.allocations.map((a) => a.productionOrderId), ...ids]));
   await prisma.$transaction(async (tx) => {
     await tx.paymentAllocation.deleteMany({ where: { productionPaymentId: pay.id } });
     if (lines.length) {
@@ -133,9 +121,6 @@ export async function saveProductionPaymentAllocation(paymentId: string, formDat
       await tx.productionPaymentOrder.createMany({ data: ids.map((productionOrderId) => ({ productionPaymentId: pay.id, productionOrderId })), skipDuplicates: true });
     }
   });
-  const batches = await prisma.productionBatch.findMany({ where: { organizationId: orgId, orders: { some: { id: { in: touched } } } }, select: { number: true } });
-  revalidateAll(touched, null);
-  for (const b of batches) revalidatePath(`/production/batches/${b.number}`);
-  revalidatePath("/dashboard");
+  revalidateAll(orgId);
   return { ok: true };
 }

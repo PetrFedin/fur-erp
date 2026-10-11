@@ -561,9 +561,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </Link>
     ),
     order.startDate && `начало ${formatDate(order.startDate)}`,
+    order.endDate && `окончание ${formatDate(order.endDate)}`,
     order.client && clean(order.contractNumber) && contractLabel(clean(order.contractNumber)),
     clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
     clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
+    `склад сырья: ${order.rawWarehouse.name} → готовой: ${order.finishedWarehouse.name}`,
+    clean(order.notes) && `Примечание: ${clean(order.notes)}`,
     furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.join(", ")}</span>,
   ].filter((x) => Boolean(x)) as React.ReactNode[];
 

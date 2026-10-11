@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
@@ -81,7 +81,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
           </InfoHint>
         </div>
       </div>
-      {extra}
+      {extra ? <Fragment key="extra">{extra}</Fragment> : null}
     </div>
     </WidgetRow>
   );

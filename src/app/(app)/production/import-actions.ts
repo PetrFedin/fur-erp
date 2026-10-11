@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -10,7 +10,6 @@ import { nextDocumentNumber } from "@/lib/numbering";
 import { consumeFromLot } from "@/lib/stock";
 import { capitalizeColor, PROPOSED_MARK } from "@/lib/color-ref";
 import { formatOrderColors } from "@/lib/order-colors";
-import { invalidateFilterOptions } from "@/lib/filter-options";
 import { resetVerification } from "@/lib/verification";
 import { isPickedFile, readDocumentFiles } from "@/lib/purchase-files";
 import { writeDriveFile } from "@/lib/drive-files";
@@ -292,7 +291,6 @@ export async function createTzBatch(formData: FormData): Promise<ImportResult> {
     await removeStoredFiles([...stored.values()].map((s) => s.storagePath));
     return result;
   }
-  invalidateFilterOptions(orgId);
-  for (const p of ["/production", "/production/batches", "/lots", "/dashboard", "/verify", "/documents", "/attention", "/analytics/products"]) revalidatePath(p);
+  revalidateAll(orgId);
   return result;
 }
