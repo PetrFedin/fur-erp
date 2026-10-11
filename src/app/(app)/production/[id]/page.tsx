@@ -37,6 +37,7 @@ import { orderUnitsDec } from "@/lib/batch-stats";
 import { getColorOptions } from "@/lib/colors";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
+import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
@@ -65,9 +66,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const order = await prisma.productionOrder.findFirst({
     where: { id, organizationId: orgId },
     include: {
-      productModel: { include: { materials: { include: { rawMaterial: true } } } },
+      productModel: { include: { materials: { include: { rawMaterial: true } }, categoryRef: true } },
       rawWarehouse: true,
-      finishedWarehouse: true,
+      // finishedWarehouse не показываем: склад один, его выбор из интерфейса убран (колонка в БД остаётся).
       client: true,
       batch: { select: { id: true, number: true } },
       season: { select: { id: true, code: true } },
@@ -99,15 +100,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
   // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
-  // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses).
+  // canWrite: то же право; статус ТЗ больше не ограничивает правку.
   const canEdit = canEditProduction(session.user.role);
   const colorOptions = canEdit ? await getColorOptions(orgId) : [];
   const cancelled = order.status === "CANCELLED";
-  const canWrite = canEdit && !cancelled;
+  // Любое ТЗ правится в любом статусе (у отменённого и завершённого — тот же набор действий; завершённое спрашивает подтверждение).
+  const canWrite = canEdit;
 
   // Списания и расходы правятся при любом статусе (исправление ошибки в завершённом ТЗ — норма, см. syncCompletedOrderCost).
   // allLots (без фильтра по остатку) нужен только выпадающему списку правки: свой лот списания часто выбран целиком.
-  const [availableLots, allLots, expenseCategories, models, warehouses, clients] = await Promise.all([
+  const [availableLots, allLots, expenseCategories, models, warehouses, clients, categoryRefs, furRefs, articleTzCount] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: orgId, warehouseId: order.rawWarehouseId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
@@ -126,6 +128,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     }),
     prisma.warehouse.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
     prisma.client.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    canEdit ? prisma.categoryRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, group: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
+    canEdit ? prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    prisma.productionOrder.count({ where: { organizationId: orgId, productModelId: order.productModelId } }),
   ]);
 
   // Текущие модель/клиент могли быть деактивированы — добавляем их в списки, иначе выбор молча подменится при сохранении.
@@ -277,13 +282,17 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     contractNumber: order.contractNumber ?? "",
     startDate: iso(order.startDate),
     endDate: order.endDate ? formatDate(order.endDate) : "",
+    endDateIso: iso(order.endDate),
     seasonCode: order.season?.code ?? null,
     batchId: order.batchId ?? "",
     clientId: order.clientId ?? "",
     productModelId: order.productModelId,
     category: drill?.cat ?? order.productModel.category ?? "",
-    group: drill?.grp ?? "",
-    furType: drill?.fur ?? "",
+    categoryRefId: order.productModel.categoryRefId ?? "",
+    group: drill?.grp ?? order.productModel.categoryRef?.group ?? "",
+    articleTzCount,
+    furType: drill?.fur ?? order.furTypeOverride ?? "",
+    furTypeOverride: order.furTypeOverride ?? "",
     materialDescription: order.materialDescription ?? "",
     lining: order.lining ?? "",
     colorRefId: order.colorRefId ?? "",
@@ -294,7 +303,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
     workSum: clientRevenue ? clientRevenue.toFixed(2) : null,
     rawWarehouseId: order.rawWarehouseId,
-    finishedWarehouseId: order.finishedWarehouseId,
     notes: order.notes ?? "",
     vatAmount: (drill ? drill.lines.reduce((a, l) => a + (l.i - l.ci) - (l.e - l.ce), 0) : vatB.rows.reduce((a, r) => a + (Number(r.incl) - Number(r.excl)), 0)).toFixed(2),
     vat: vatB.rows.map((r) => ({ rate: r.rate, lines: r.lines, incl: r.incl.toFixed(2), excl: r.excl.toFixed(2) })),
@@ -307,11 +315,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     warehouses: warehouses.map((w) => ({ value: w.id, label: w.name })),
     colors: colorOptions,
     canAddColor: hasRole(session.user.role, ACCESS.colors),
+    categories: categoryRefs,
+    furs: furRefs.map((f) => f.name),
+    canAddCategory: hasRole(session.user.role, ACCESS.categories),
+    canAddFur: hasRole(session.user.role, ACCESS.furRefs),
   };
 
   const linkCls = "rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50 max-md:py-1.5";
 
   return (
+    <EditGuard completed={order.status === "COMPLETED"}>
     <div className="flex flex-col gap-4">
       <IntegrityBanner kind="order" id={order.id} />
       <div>
@@ -344,7 +357,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </div>
           </details>
           {open && canEdit && (
-            <CompleteOrderForm orderId={id} hasUsages={order.materialUsages.length > 0} plannedQuantity={order.plannedQuantity.toString()} warehouseName={order.finishedWarehouse.name} />
+            <CompleteOrderForm orderId={id} hasUsages={order.materialUsages.length > 0} plannedQuantity={order.plannedQuantity.toString()} />
           )}
           {open && canEdit && (
             <details className="relative">
@@ -368,7 +381,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       {drill ? (
         <OrderTiles order={drill} c4={c4Mode} plannedQty={order.plannedQuantity.toString()} producedQty={order.producedQuantity.toString()} completed={order.status === "COMPLETED"} />
       ) : cancelled ? (
-        <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списывать сырьё и добавлять расходы нельзя.</p>
+        <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списания, расходы и параметры по-прежнему можно править.</p>
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
@@ -501,11 +514,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Tbody>
         </Table>
 
-        {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — списывать сырьё и добавлять расходы нельзя.</p>}
+        {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную и сводки не входит; правки сохраняются, но на итоги не влияют.</p>}
       </section>
 
       {drill ? <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} /> : null}
     </div>
+    </EditGuard>
   );
 }
 

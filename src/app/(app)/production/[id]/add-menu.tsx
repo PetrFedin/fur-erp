@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useEditGuard } from "./edit-guard";
 
 type Kind = "fur" | "lining" | "expense" | "bulk" | "bom";
 
@@ -8,6 +9,7 @@ type Kind = "fur" | "lining" | "expense" | "bulk" | "bom";
 export function AddMenu({ fur, lining, expense, bulk, bom }: { fur: ReactNode; lining: ReactNode; expense: ReactNode; bulk: ReactNode; bom?: ReactNode }) {
   const [kind, setKind] = useState<Kind | null>(null);
   const [menu, setMenu] = useState(false);
+  const guard = useEditGuard();
   const items: { k: Kind; label: string }[] = [
     { k: "fur", label: "Мех (лот)" },
     { k: "lining", label: "Подкладка" },
@@ -25,7 +27,7 @@ export function AddMenu({ fur, lining, expense, bulk, bom }: { fur: ReactNode; l
         {menu ? (
           <div className="absolute right-0 top-full z-10 mt-1 flex w-52 flex-col rounded-md border border-neutral-200 bg-white p-1 shadow">
             {items.map((i) => (
-              <button key={i.k} type="button" className="rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-50" onClick={() => { setKind(i.k); setMenu(false); }}>
+              <button key={i.k} type="button" className="rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-50" onClick={async () => { setMenu(false); if (await guard()) setKind(i.k); }}>
                 {i.label}
               </button>
             ))}

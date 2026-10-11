@@ -37,7 +37,6 @@ export function OrderEditForm({
     productModelId: string;
     productModelName: string;
     rawWarehouseId: string;
-    finishedWarehouseId: string;
     plannedQuantity: string;
     color: string;
     colorRefId: string;
@@ -145,21 +144,6 @@ export function OrderEditForm({
           <div>
             <Label htmlFor="rawWarehouseId">Склад сырья (списание)</Label>
             <Select id="rawWarehouseId" name="rawWarehouseId" required defaultValue={defaults.rawWarehouseId}>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="finishedWarehouseId">Склад готовой продукции</Label>
-            <Select
-              id="finishedWarehouseId"
-              name="finishedWarehouseId"
-              required
-              defaultValue={defaults.finishedWarehouseId}
-            >
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}

@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
-import { patchProductionOrder } from "../actions";
+import { patchProductionOrder, setOrderCategory, setOrderFurType, setOrderVat } from "../actions";
+import { useConfirm } from "@/components/confirm-dialog";
+import { CategoryCell, FurTypeCell, VatCell, type CategoryOpt } from "./param-combos";
 import { AreaCell, ComboFrame, SelectCell, TextCell, type SelectOpt } from "./inline-cell";
 import { ArticleSelect } from "@/components/article-select";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
@@ -15,7 +16,7 @@ export type ParamsData = {
   orderId: string;
   canEdit: boolean;
   status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  /** По ТЗ уже есть списания или выпуск — модель менять нельзя. */
+  /** По ТЗ уже есть списания или выпуск — смена артикула требует подтверждения (списания и себестоимость остаются). */
   modelLocked: boolean;
   number: string;
   workOrderNumber: string;
@@ -23,13 +24,22 @@ export type ParamsData = {
   contractNumber: string;
   startDate: string;
   endDate: string;
+  /** Дата окончания в формате ГГГГ-ММ-ДД для правки. */
+  endDateIso: string;
   seasonCode: string | null;
   batchId: string;
   clientId: string;
   productModelId: string;
   category: string;
+  /** Ссылка категории артикула на справочник ("" — категория текстом / не задана). */
+  categoryRefId: string;
   group: string;
+  /** Сколько ТЗ у этого артикула (для подтверждения смены категории). */
+  articleTzCount: number;
+  /** Вид меха, который виден во всех разделах (ручной, иначе по списаниям). */
   furType: string;
+  /** Ручной вид меха ТЗ ("" — определяется по списаниям). */
+  furTypeOverride: string;
   materialDescription: string;
   lining: string;
   colorRefId: string;
@@ -41,7 +51,6 @@ export type ParamsData = {
   clientWorkPricePerUnit: string;
   workSum: string | null;
   rawWarehouseId: string;
-  finishedWarehouseId: string;
   notes: string;
   vat: VatRow[];
   /** Сумма НДС внутри цен списанных лотов (как плитка «НДС в списаниях»). */
@@ -57,6 +66,10 @@ export type ParamsOptions = {
   warehouses: SelectOpt[];
   colors: ColorSelectOption[];
   canAddColor: boolean;
+  categories: CategoryOpt[];
+  furs: string[];
+  canAddCategory: boolean;
+  canAddFur: boolean;
 };
 
 function Row({ label, hint, children, wide }: { label: string; hint?: ReactNode; children: ReactNode; wide?: boolean }) {
@@ -82,13 +95,15 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
   const ro = !d.canEdit;
   const save = (field: string) => (v: string) => patchProductionOrder(d.orderId, field, v);
   const completed = d.status === "COMPLETED";
+  const { ask, node: confirmNode } = useConfirm();
+  const [articleKey, setArticleKey] = useState(0);
   return (
     <section aria-label="Параметры ТЗ" className="flex flex-col gap-2" id="params">
       <div className="flex items-center gap-2">
         <h2 className="text-base font-semibold">Параметры ТЗ</h2>
         <InfoHint label="Как читать: Параметры ТЗ" wide>
           <p>Что заведено в ТЗ. Клик по значению — правка по месту: Enter или уход курсора сохраняет, Esc отменяет. После сохранения пересчитываются итоги страницы, «Произведено», разделы ТЗ, Изделия, Партии и Главная.</p>
-          <p className="mt-1">Серые поля считаются сами: категория и группа — из артикула (в карточке изделия, там же розничная цена), вид меха — из списанных лотов. Сохранение автоматическое: рядом с полем появляется «✓ сохранено».</p>
+          <p className="mt-1">Любое поле можно выбрать из списка или внести своё: артикул, категория и группа, вид меха, НДС. Категория принадлежит артикулу (меняется у всех его ТЗ), «Вид меха» по умолчанию определяется по списанным лотам. Сохранение автоматическое: рядом с полем появляется «✓ сохранено».</p>
         </InfoHint>
       </div>
       <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-neutral-200 bg-white md:grid-cols-2 md:[&>*:nth-child(odd)]:border-r md:[&>*:nth-child(odd)]:border-neutral-100">
@@ -111,20 +126,56 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
           <span className="block px-1.5 py-0.5 text-sm">{STATUS_RU[d.status]}{d.seasonCode ? <span className="text-neutral-500"> · сезон {d.seasonCode}</span> : null}</span>
         </Row>
 
-        <Row label="Артикул" hint={d.modelLocked ? "По ТЗ уже списано сырьё или зафиксирован выпуск — артикул изменить нельзя, заведите новое ТЗ." : "Выберите из справочника или «Ввести новый артикул» — он сохранится в справочник. Смена артикула меняет категорию и группу."}>
-          {ro || d.modelLocked ? (
+        <Row label="Артикул" hint="Выберите из справочника или «Ввести новый артикул» — он сохранится в справочник. Смена артикула меняет категорию и группу (они берутся у артикула). Если по ТЗ уже есть списания или выпуск, они и себестоимость остаются — меняется только артикул ТЗ.">
+          {ro ? (
             <span className="block px-1.5 py-0.5 text-sm">{o.models.find((m) => m.value === d.productModelId)?.label}</span>
           ) : (
             <ComboFrame onSave={save("productModelId")}>
-              {(commit) => <ArticleSelect name="productModelId" defaultValue={d.productModelId} onChange={(a) => { if (a && a.id !== d.productModelId) commit(a.id); }} />}
+              {(commit) => (
+                <ArticleSelect
+                  key={articleKey}
+                  name="productModelId"
+                  defaultValue={d.productModelId}
+                  onChange={async (a) => {
+                    if (!a || a.id === d.productModelId) return;
+                    if (d.modelLocked && !(await ask("Списания и себестоимость остаются, изменится только артикул ТЗ. Сменить артикул?", { ok: "Сменить артикул" }))) {
+                      setArticleKey((k) => k + 1);
+                      return;
+                    }
+                    commit(a.id);
+                  }}
+                />
+              )}
             </ComboFrame>
           )}
         </Row>
-        <Row label="Категория · группа" hint="Берутся из карточки артикула.">
-          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.category}{d.group && d.group !== "Без группы" ? ` · ${d.group}` : ""}<Link href={`/models/${d.productModelId}`} className="ml-2 inline-block text-xs text-blue-700 hover:underline" title="Открыть карточку артикула, чтобы изменить">✎ изменить у артикула</Link></span>
+        <Row label="Категория · группа" hint="Выберите группу (Одежда / Аксессуары), затем категорию из справочника или «Внести новую». Категория принадлежит артикулу: смена затрагивает все ТЗ этого артикула (спросим подтверждение).">
+          {ro ? (
+            <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.category}{d.group && d.group !== "Без группы" ? ` · ${d.group}` : ""}</span>
+          ) : (
+            <CategoryCell
+              categoryRefId={d.categoryRefId}
+              categoryText={d.category}
+              group={d.group === "Без группы" ? "" : d.group}
+              categories={o.categories}
+              tzCount={d.articleTzCount}
+              canCreate={o.canAddCategory}
+              onSave={(id) => setOrderCategory(d.orderId, id)}
+            />
+          )}
         </Row>
-        <Row label="Вид меха" hint="Определяется по списанным лотам; если списаний нет — не определён.">
-          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.furType || <span className="text-neutral-300">—</span>}<Link href={`/models/${d.productModelId}`} className="ml-2 inline-block text-xs text-blue-700 hover:underline" title="Открыть карточку артикула, чтобы изменить">✎ изменить у артикула</Link></span>
+        <Row label="Вид меха" hint="Выберите вид из справочника меха или «Внести свой». «По списаниям» — вид определяется по списанным лотам (как раньше). Ручной вид показывается во всех разделах: Главная, ТЗ, Изделия, Календарь; фильтры по лотам и таблица «Мех / Подкладка» считаются по сырью лотов и ручной вид не учитывают.">
+          {ro ? (
+            <span className="block px-1.5 py-0.5 text-sm">{d.furType || <span className="text-neutral-300">—</span>}</span>
+          ) : (
+            <FurTypeCell
+              value={d.furTypeOverride}
+              furs={o.furs}
+              autoLabel={d.furTypeOverride ? "По списаниям (авто)" : `По списаниям${d.furType ? ` · ${d.furType}` : " · не определён"}`}
+              canCreate={o.canAddFur}
+              onSave={(v) => setOrderFurType(d.orderId, v)}
+            />
+          )}
         </Row>
         <Row label="Материал (из ТЗ)" hint="Описание материала так, как оно записано в ТЗ.">
           <TextCell value={d.materialDescription} onSave={save("materialDescription")} readOnly={ro} label="Материал продукции" />
@@ -162,15 +213,16 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
           label="НДС"
           hint={
             <>
-              <p>Ставка НДС — у лота (закупки 2025 г. — 20%, 2026 г. и далее — 22%). Суммы считаются построчно по каждому списанию.</p>
-              <p className="mt-1">Менять ставку можно только в закупке, из которой пришёл лот (ссылка «закупка» в таблице «Расчёт и списание»): она общая для всех ТЗ, которые лот списывают. Показ «С НДС / Без НДС» — переключатель в шапке.</p>
+              <p>Ставка НДС всех строк списания этого ТЗ: 22 (по умолчанию для закупок 2026 г.), 20 (2025 г.) или своя. «Как в лотах» — у каждой строки ставка её лота. Отдельную строку можно поправить в таблице «Расчёт».</p>
+              <p className="mt-1">Сумма с НДС (цена лота) не меняется — пересчитывается разбивка «без НДС / НДС». Работа заказчику считается без НДС (в учёте ставка у работы не ведётся). Показ «С НДС / Без НДС» — переключатель в шапке.</p>
             </>
           }
         >
-          <span className="block px-1.5 py-0.5 text-sm">
-            {d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate}%`).join(" / ")}
-            {d.vat.length > 0 ? <span className="text-neutral-500"> · {d.vat.reduce((s, r) => s + r.lines, 0)} спис.</span> : null}
-          </span>
+          {ro ? (
+            <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate}%`).join(" / ")}</span>
+          ) : (
+            <VatCell rates={d.vat.map((r) => r.rate)} lines={d.vat.reduce((n, r) => n + r.lines, 0)} onSave={(v) => setOrderVat(d.orderId, v)} />
+          )}
         </Row>
         <Row label="НДС в списаниях, ₽" hint="Сумма НДС внутри цен списанных лотов (без надбавки 4%). Входит в суммы «С НДС», не входит в «Без НДС». Совпадает с плиткой «НДС в списаниях».">
           <span className="block px-1.5 py-0.5 text-right text-sm tabular-nums text-neutral-600">
@@ -181,19 +233,17 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <Row label="Начало">
           <TextCell value={d.startDate} type="date" onSave={save("startDate")} readOnly={ro} label="Дата начала" />
         </Row>
-        <Row label="Окончание" hint="Проставляется при завершении ТЗ.">
-          <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.endDate || <span className="text-neutral-300">—</span>}</span>
+        <Row label="Окончание" hint="Проставляется при завершении ТЗ; при необходимости правится вручную (от даты окончания зависит год ТЗ в сводках).">
+          <TextCell value={d.endDateIso} type="date" onSave={save("endDate")} readOnly={ro} label="Дата окончания" />
         </Row>
         <Row label="Склад сырья" hint="Откуда списывается сырьё.">
           <SelectCell value={d.rawWarehouseId} options={o.warehouses} onSave={save("rawWarehouseId")} readOnly={ro} label="Склад сырья" />
-        </Row>
-        <Row label="Склад готовой продукции" hint="Куда принимаются готовые изделия при завершении.">
-          <SelectCell value={d.finishedWarehouseId} options={o.warehouses} onSave={save("finishedWarehouseId")} readOnly={ro} label="Склад готовой продукции" />
         </Row>
         <Row label="Примечание" wide>
           <AreaCell value={d.notes} onSave={save("notes")} readOnly={ro} label="Примечание" />
         </Row>
       </div>
+      {confirmNode}
       {d.colorRows.length > 0 ? (
         <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
           <table className="w-full text-sm">

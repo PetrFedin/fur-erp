@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useEditGuard } from "./edit-guard";
 
 export type CellResult = { error?: string } | void | undefined;
 
@@ -38,10 +39,11 @@ export function SaveMark({ pending, saved }: { pending: boolean; saved: boolean 
   return null;
 }
 
-function useSaver(onSave: Common["onSave"], current: string) {
+export function useSaver(onSave: Common["onSave"], current: string) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const guard = useEditGuard();
   const save = (next: string, revert: () => void) => {
     if (next.trim() === current.trim()) {
       setError(null);
@@ -49,6 +51,10 @@ function useSaver(onSave: Common["onSave"], current: string) {
     }
     start(async () => {
       try {
+        if (!(await guard())) {
+          revert();
+          return;
+        }
         const r = await onSave(next);
         const err = r && typeof r === "object" && "error" in r ? r.error : undefined;
         setError(err ?? null);

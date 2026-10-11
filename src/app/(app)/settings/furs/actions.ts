@@ -103,3 +103,22 @@ export async function deleteFur(id: string): Promise<Res> {
   done(orgId);
   return { ok: true };
 }
+
+/** Для карточки ТЗ («Внести свой» вид меха): добавить вид в справочник (или вернуть существующий с таким названием/синонимом). */
+export async function createFurInline(rawName: string): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  const session = await requireRole(...ROLES);
+  const orgId = session.user.organizationId;
+  const name = t(rawName, 100);
+  if (name.length < 2) return { ok: false, error: "Укажите название вида меха" };
+  const refs = await prisma.furRef.findMany({ where: { organizationId: orgId } });
+  const same = owner(refs, null, name);
+  if (same) return { ok: true, name: same.name };
+  try {
+    await prisma.furRef.create({ data: { organizationId: orgId, name, nameEn: null, aliases: [] } });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { ok: false, error: "Вид меха с таким названием уже есть" };
+    throw e;
+  }
+  done(orgId);
+  return { ok: true, name };
+}

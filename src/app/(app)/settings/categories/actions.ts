@@ -189,11 +189,15 @@ export async function bindCategoryModels(formData: FormData) {
 }
 
 /** Для CategorySelect: добавить категорию прямо из формы модели/артикула. */
-export async function createCategoryInline(rawName: string): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
+export async function createCategoryInline(rawName: string, group?: string): Promise<{ ok: true; id: string; name: string; group: string | null } | { ok: false; error: string }> {
   const session = await requireRole(...ROLES);
   const p = nameSchema.safeParse(rawName);
   if (!p.success) return { ok: false, error: p.error.issues[0].message };
-  const ref = await ensureCategoryRef(prisma, session.user.organizationId, p.data);
+  let ref = await ensureCategoryRef(prisma, session.user.organizationId, p.data);
+  // Новая категория (без группы) получает выбранную группу «Одежда» / «Аксессуары».
+  if (group && (CATEGORY_GROUPS as readonly string[]).includes(group) && !ref.group) {
+    ref = await prisma.categoryRef.update({ where: { id: ref.id }, data: { group } });
+  }
   revalidateAll(session.user.organizationId);
-  return { ok: true, id: ref.id, name: ref.name };
+  return { ok: true, id: ref.id, name: ref.name, group: ref.group };
 }

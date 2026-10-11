@@ -171,6 +171,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         color: true,
         size: true,
         materialDescription: true,
+        furTypeOverride: true,
         attrs: { select: { attr: { select: { name: true } } } },
         workOrderDate: true,
         endDate: true,
@@ -257,7 +258,9 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
     // Вид меха: по сырью из списаний (через справочник меха, если он заполнен); несколько видов — «A + B»; нет списаний — по тексту.
     const furNames = Array.from(new Set(furUs.map((u) => furOf(u.rawMaterial.name) ?? u.rawMaterial.name))).sort((a, b) => a.localeCompare(b, "ru"));
     const fromText = furOf(o.productModel.category) ?? furOf(o.materialDescription) ?? furFromText(o.productModel.category) ?? furFromText(o.materialDescription);
-    const fur = furNames.length > 0 ? furNames.join(" + ") : (fromText ?? UNDEFINED_FUR);
+    // Ручной вид меха ТЗ (furTypeOverride) главнее вывода из списаний; пусто — как раньше. Единственное место, где вид меха ТЗ определяется.
+    const furOverride = o.furTypeOverride?.trim() || null;
+    const fur = furOverride ?? (furNames.length > 0 ? furNames.join(" + ") : (fromText ?? UNDEFINED_FUR));
 
     const q = qty;
     const work = o.clientWorkPricePerUnit ? Number(o.clientWorkPricePerUnit.mul(qty)) : 0;

@@ -914,6 +914,8 @@ model ProductionOrder {
   // material catalog entries, which may be more granular.
   materialDescription String?
   lining              String?
+  /// Ручной вид меха ТЗ (override). NULL — вид определяется по списанным лотам / тексту, как раньше.
+  furTypeOverride     String?
   startDate           DateTime?
   endDate             DateTime?
   notes               String?

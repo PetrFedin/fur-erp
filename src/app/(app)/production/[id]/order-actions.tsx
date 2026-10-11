@@ -33,12 +33,10 @@ export function ApplyBomButton({ orderId }: { orderId: string }) {
 export function CompleteOrderForm({
   orderId,
   plannedQuantity,
-  warehouseName,
   hasUsages,
 }: {
   orderId: string;
   plannedQuantity: string;
-  warehouseName: string;
   /** No write-offs yet -> completion is refused (zero-cost finished goods). */
   hasUsages: boolean;
 }) {
@@ -53,7 +51,7 @@ export function CompleteOrderForm({
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const qty = String(formData.get("producedQuantity") ?? "");
-        if (!(await ask(`Завершить ТЗ? Готовая продукция (${qty} шт.) придёт на склад «${warehouseName}», себестоимость зафиксируется. Действие нельзя откатить.`, { ok: "Завершить" }))) return;
+        if (!(await ask(`Завершить ТЗ? Готовая продукция (${qty} шт.) будет принята на учёт, себестоимость зафиксируется. Действие нельзя откатить.`, { ok: "Завершить" }))) return;
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
@@ -62,7 +60,7 @@ export function CompleteOrderForm({
       className="flex flex-wrap items-center gap-2"
       title={
         hasUsages
-          ? `Себестоимость фиксируется, готовая продукция принимается на склад «${warehouseName}»`
+          ? `Себестоимость фиксируется, готовая продукция принимается на учёт`
           : "Сначала спишите сырьё: без списаний продукция встанет на склад с нулевой себестоимостью"
       }
     >

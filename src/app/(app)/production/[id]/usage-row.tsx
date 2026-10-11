@@ -9,6 +9,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
 import { SelectCell, TextCell } from "./inline-cell";
+import { useEditGuard } from "./edit-guard";
 
 // Варианты лотов для выпадающего списка правки должны включать и лоты с нулевым остатком: собственный лот списания
 // часто выбран этим же списанием целиком. updateMaterialUsage сначала возвращает старое количество в лот, затем списывает новое.
@@ -81,6 +82,7 @@ export function UsageRow({
   const [busy, startBusy] = useTransition();
   const [c4Error, setC4Error] = useState<string | null>(null);
   const { ask, node } = useConfirm();
+  const guard = useEditGuard();
   const unit = UNIT_LABELS[usage.unit] ?? usage.unit;
 
   const build = (patch: { lotId?: string; quantity?: string; commission4?: boolean }) => {
@@ -151,6 +153,10 @@ export function UsageRow({
           onChange={(e) => {
             const checked = e.target.checked;
             startBusy(async () => {
+              if (!(await guard())) {
+                e.target.checked = !checked;
+                return;
+              }
               const r = await updateAction(build({ commission4: checked }));
               setC4Error(r?.error ?? null);
             });

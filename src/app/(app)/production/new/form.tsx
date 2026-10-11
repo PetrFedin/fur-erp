@@ -273,21 +273,6 @@ export function ProductionCreateForm({
               ))}
             </Select>
           </div>
-          <div>
-            <Label htmlFor="finishedWarehouseId">Склад готовой продукции</Label>
-            <Select
-              id="finishedWarehouseId"
-              name="finishedWarehouseId"
-              value={f.finishedWarehouseId ?? defaultWarehouse}
-              onChange={set("finishedWarehouseId")}
-            >
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
-          </div>
           <div className="col-span-full">
             <Label htmlFor="notes">Заметки</Label>
             <Textarea id="notes" name="notes" rows={2} value={f.notes ?? ""} onChange={set("notes")} />

@@ -24,7 +24,7 @@ import { isUniqueViolation } from "@/lib/input";
 const optDate = (label: string) =>
   z.string().optional().refine((s) => !s || parseDateInput(s) !== null, label);
 
-const CANCELLED_ERROR = "ТЗ отменено — списывать сырьё, добавлять расходы и оплаты нельзя";
+const CANCELLED_ERROR = "ТЗ отменено — оплаты добавлять нельзя";
 
 export type FormState = { error?: string };
 
@@ -354,7 +354,6 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   const session = await requireRole(...EDIT_ROLES);
   const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId },
-    include: { _count: { select: { materialUsages: true } } },
   });
   if (!order) return { error: "ТЗ не найдено" };
   const stale = staleError(formData, order, ORDER_V, order.updatedAt);
@@ -363,7 +362,8 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   const parsed = editOrderSchema.safeParse({
     productModelId: formData.get("productModelId"),
     rawWarehouseId: formData.get("rawWarehouseId"),
-    finishedWarehouseId: formData.get("finishedWarehouseId"),
+    // Склад готовой продукции в интерфейсе не выбирается (склад один): без поля остаётся прежний склад ТЗ.
+    finishedWarehouseId: (formData.get("finishedWarehouseId") as string | null) || order.finishedWarehouseId,
     plannedQuantity: formData.get("plannedQuantity"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
@@ -374,14 +374,6 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     warehouse: [parsed.data.rawWarehouseId, parsed.data.finishedWarehouseId],
   });
   if (badRef) return { error: badRef };
-
-  const modelLocked = order._count.materialUsages > 0 || order.producedQuantity.greaterThan(0);
-  if (modelLocked && parsed.data.productModelId !== order.productModelId) {
-    return {
-      error:
-        "Нельзя изменить модель изделия — по ТЗ уже списано сырьё или зафиксирован выпуск. Заведите новое ТЗ.",
-    };
-  }
 
   const newPlannedQuantity = new Decimal(parsed.data.plannedQuantity);
   if (newPlannedQuantity.lessThan(order.producedQuantity)) {
@@ -428,10 +420,19 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   if ("error" in batchRes) return { error: batchRes.error };
   const batchPatch = batchRes.patch;
 
+  // Смена артикула (в том числе у ТЗ со списаниями и завершённого): списания и себестоимость остаются, меняется только артикул ТЗ.
+  // Цена продажи ТЗ — свойство артикула (проверка «Цена продажи ТЗ = цена артикула»), поэтому берём цену нового артикула, если она задана.
+  let retailPatch: { retailPrice?: Decimal } = {};
+  if (parsed.data.productModelId !== order.productModelId) {
+    const nm = await prisma.productModel.findFirst({ where: { id: parsed.data.productModelId, organizationId: session.user.organizationId }, select: { sellingPrice: true } });
+    if (nm?.sellingPrice != null) retailPatch = { retailPrice: nm.sellingPrice };
+  }
+
   await prisma.productionOrder.update({
     where: { id: orderId },
     data: {
       ...batchPatch,
+      ...retailPatch,
       productModelId: parsed.data.productModelId,
       rawWarehouseId: parsed.data.rawWarehouseId,
       finishedWarehouseId: parsed.data.finishedWarehouseId,
@@ -461,7 +462,7 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
 const PATCH_FIELDS = new Set([
   "productModelId", "rawWarehouseId", "finishedWarehouseId", "plannedQuantity", "producedQuantity", "colorRefId", "color", "size",
   "materialDescription", "lining", "startDate", "notes", "clientId", "batchId", "contractNumber", "workOrderNumber",
-  "workOrderDate", "clientWorkPricePerUnit",
+  "workOrderDate", "clientWorkPricePerUnit", "endDate",
 ]);
 
 /**
@@ -479,6 +480,18 @@ export async function patchProductionOrder(orderId: string, field: string, value
     const fd = new FormData();
     fd.set("producedQuantity", v);
     return updateProducedQuantity(orderId, {}, fd);
+  }
+  if (field === "endDate") {
+    // Дата окончания обычно ставится при завершении; здесь её можно поправить (от неё зависит год ТЗ в сводках).
+    let end: Date | null = null;
+    if (v) {
+      end = parseDateInput(v);
+      if (!end) return { error: "Некорректная дата окончания" };
+    }
+    await prisma.productionOrder.update({ where: { id: orderId }, data: { endDate: end } });
+    await resetByOrder(orderId);
+    revalidateAll(session.user.organizationId);
+    return {};
   }
   const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
   const fd = new FormData();
@@ -693,7 +706,6 @@ export async function addMaterialUsage(orderId: string, formData: FormData): Pro
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const parsed = usageSchema.safeParse({
     lotId: formData.get("lotId"),
@@ -751,7 +763,6 @@ export async function addMaterialUsagesBulk(
   const organizationId = session.user.organizationId;
   const order = await getEditableOrder(organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const raw = ((formData.get("rows") as string | null) ?? "").toString();
   if (!raw.trim()) return { error: "Вставьте хотя бы одну строку" };
@@ -815,7 +826,6 @@ export async function applyBomToOrder(orderId: string): Promise<FormState> {
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
   if (order.productModel.materials.length === 0) {
     return { error: "У модели не задан состав" };
   }
@@ -914,7 +924,6 @@ export async function updateUsageVat(orderId: string, usageId: string, formData:
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const usage = await prisma.productionMaterialUsage.findFirst({
     where: { id: usageId, productionOrderId: orderId },
@@ -959,7 +968,6 @@ export async function updateMaterialUsage(
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
 
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const usage = await prisma.productionMaterialUsage.findFirst({
     where: { id: usageId, productionOrderId: orderId },
@@ -1023,7 +1031,6 @@ export async function addProductionExpense(orderId: string, formData: FormData):
   const session = await requireRole(...EDIT_ROLES);
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const parsed = expenseSchema.safeParse({
     categoryId: formData.get("categoryId"),
@@ -1080,7 +1087,6 @@ export async function updateProductionExpense(
   const order = await getEditableOrder(session.user.organizationId, orderId);
   if (!order) return { error: "ТЗ не найдено" };
 
-  if (order.status === "CANCELLED") return { error: CANCELLED_ERROR };
 
   const expense = await prisma.productionExpense.findFirst({
     where: { id: expenseId, productionOrderId: orderId },
@@ -1539,5 +1545,68 @@ export async function cancelProductionOrder(orderId: string): Promise<FormState>
   }
   await resetByOrder(orderId);
   revalidateAll(organizationId);
+  return {};
+}
+
+
+// ---------- Поля карточки ТЗ, которые лежат не в самом ТЗ ----------
+
+/**
+ * Категория ТЗ — это категория АРТИКУЛА (ProductModel.categoryRef): меняется у артикула и, значит, у всех его ТЗ.
+ * Группа («Одежда» / «Аксессуары») принадлежит категории справочника и подтягивается вместе с ней.
+ */
+export async function setOrderCategory(orderId: string, categoryRefId: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const order = await prisma.productionOrder.findFirst({ where: { id: orderId, organizationId: orgId }, select: { productModelId: true } });
+  if (!order) return { error: "ТЗ не найдено" };
+  const ref = await prisma.categoryRef.findFirst({ where: { id: categoryRefId, organizationId: orgId }, select: { id: true, name: true } });
+  if (!ref) return { error: "Категория не найдена в справочнике" };
+  await prisma.productModel.update({ where: { id: order.productModelId }, data: { categoryRefId: ref.id, category: ref.name } });
+  await resetByOrder(orderId);
+  revalidateAll(orgId);
+  return {};
+}
+
+/**
+ * Ручной вид меха ТЗ (ProductionOrder.furTypeOverride). Пусто — вид снова определяется по списанным лотам.
+ * Учитывается в одном месте (loadOrderRows), поэтому Главная, ТЗ, Изделия, Календарь видят одно и то же.
+ */
+export async function setOrderFurType(orderId: string, furType: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const v = furType.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  if (v.length > 100) return { error: "Название вида меха слишком длинное" };
+  const order = await prisma.productionOrder.findFirst({ where: { id: orderId, organizationId: orgId }, select: { id: true } });
+  if (!order) return { error: "ТЗ не найдено" };
+  await prisma.productionOrder.update({ where: { id: orderId }, data: { furTypeOverride: v || null } });
+  await resetByOrder(orderId);
+  revalidateAll(orgId);
+  return {};
+}
+
+/**
+ * НДС ТЗ: одна ставка на все строки списания (мех и подкладка). Пусто — «как в лоте» у каждой строки.
+ * Сумма с НДС (totalCost) не меняется, меняется только разбивка «без НДС / НДС» (как updateUsageVat).
+ * Работа заказчику в модели без НДС (clientWorkPricePerUnit — одна цена), поэтому ставка на неё не распространяется.
+ */
+export async function setOrderVat(orderId: string, rate: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const order = await prisma.productionOrder.findFirst({ where: { id: orderId, organizationId: orgId }, select: { id: true } });
+  if (!order) return { error: "ТЗ не найдено" };
+  const raw = rate.trim().replace(",", ".");
+  let v: Decimal | null = null;
+  if (raw !== "") {
+    if (!/^\d+(\.\d{1,2})?$/.test(raw)) return { error: "НДС: число от 0 до 100, например 20 или 22" };
+    v = new Decimal(raw);
+    if (v.gt(100)) return { error: "НДС не может быть больше 100%" };
+  }
+  const usages = await prisma.productionMaterialUsage.findMany({ where: { productionOrderId: orderId }, select: { id: true, lot: { select: { vatRate: true } } } });
+  await prisma.$transaction(
+    usages.map((u) => prisma.productionMaterialUsage.update({ where: { id: u.id }, data: { vatRate: v && !v.eq(u.lot.vatRate) ? v : null } })),
+  );
+  await resetByOrder(orderId);
+  revalidateAll(orgId);
   return {};
 }
