@@ -457,6 +457,61 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
   return {};
 }
 
+/** Поля ТЗ, которые правятся по месту в таблице «Параметры ТЗ» (одно поле за раз). */
+const PATCH_FIELDS = new Set([
+  "productModelId", "rawWarehouseId", "finishedWarehouseId", "plannedQuantity", "producedQuantity", "colorRefId", "color", "size",
+  "materialDescription", "lining", "startDate", "notes", "clientId", "batchId", "contractNumber", "workOrderNumber",
+  "workOrderDate", "clientWorkPricePerUnit",
+]);
+
+/**
+ * Правка ОДНОГО поля ТЗ по месту. Берёт текущие значения ТЗ, подменяет одно и отдаёт в updateProductionOrder —
+ * поэтому валидация, блокировки (модель после списаний), сброс подтверждения и пересчёт (revalidateAll) те же, что у формы «Изменить».
+ * «Произведено» (producedQuantity) правится только у завершённого ТЗ — через updateProducedQuantity.
+ */
+export async function patchProductionOrder(orderId: string, field: string, value: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  if (!PATCH_FIELDS.has(field)) return { error: "Это поле здесь не редактируется" };
+  const order = await prisma.productionOrder.findFirst({ where: { id: orderId, organizationId: session.user.organizationId } });
+  if (!order) return { error: "ТЗ не найдено" };
+  const v = value.trim();
+  if (field === "producedQuantity") {
+    const fd = new FormData();
+    fd.set("producedQuantity", v);
+    return updateProducedQuantity(orderId, {}, fd);
+  }
+  const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+  const fd = new FormData();
+  fd.set("productModelId", order.productModelId);
+  fd.set("rawWarehouseId", order.rawWarehouseId);
+  fd.set("finishedWarehouseId", order.finishedWarehouseId);
+  fd.set("plannedQuantity", order.plannedQuantity.toString());
+  fd.set("color", order.color ?? "");
+  fd.set("colorRefId", order.colorRefId ?? "");
+  fd.set("size", order.size ?? "");
+  fd.set("materialDescription", order.materialDescription ?? "");
+  fd.set("lining", order.lining ?? "");
+  fd.set("startDate", day(order.startDate));
+  fd.set("notes", order.notes ?? "");
+  fd.set("clientId", order.clientId ?? "");
+  fd.set("contractNumber", order.contractNumber ?? "");
+  fd.set("workOrderNumber", order.workOrderNumber ?? "");
+  fd.set("workOrderDate", day(order.workOrderDate));
+  fd.set("clientWorkPricePerUnit", order.clientWorkPricePerUnit?.toString() ?? "");
+  // Партия меняется, только если поле пришло (см. resolveBatchChange).
+  if (field === "colorRefId") {
+    fd.set("colorRefId", v);
+    fd.set("color", "");
+  } else if (field === "color") {
+    // Свободный ввод цвета: сервер сам привяжет его к справочнику по названию/синониму либо сохранит текстом.
+    fd.set("color", v);
+    fd.set("colorRefId", "");
+  } else {
+    fd.set(field, v);
+  }
+  return updateProductionOrder(orderId, fd);
+}
+
 type BatchChange = { patch: { batchId: string | null } | Record<string, never>; oldBatchId: string | null; oldNumber: number | null; newBatchId: string | null; newNumber: number | null; changed: boolean };
 
 /**

@@ -1,136 +1,72 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { useTransition } from "react";
 import { Tr, Td } from "@/components/ui/table";
-import { RowCard } from "@/components/responsive-rows";
 import { formatMoney } from "@/lib/utils";
+import { useConfirm } from "@/components/confirm-dialog";
 import type { FormState } from "../actions";
-import type { ExpenseCategory } from "@prisma/client";
-import { useKeepingForm } from "@/lib/use-keeping-form";
+import { SelectCell, TextCell } from "./inline-cell";
 
-const initialState: FormState = {};
-
+/**
+ * Строка расхода ТЗ в таблице «Расчёт и списание»: статья, описание и сумма правятся по месту (Enter / уход фокуса).
+ * Расходы не облагаются НДС и 4%.
+ */
 export function ExpenseRow({
   expense,
   categories,
   updateAction,
   removeAction,
   readOnly = false,
-  variant = "row",
 }: {
   expense: { id: string; categoryId: string; categoryName: string; amount: string; description: string | null };
-  categories: ExpenseCategory[];
+  categories: { id: string; name: string }[];
   updateAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
-  /** No edit rights: hide the change/remove buttons. */
   readOnly?: boolean;
-  /** «card» — карточка для телефона вместо строки таблицы. */
-  variant?: "row" | "card";
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
-    return (await updateAction(fd)) ?? {};
-  }, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
-
-  const [prevPending, setPrevPending] = useState(pending);
-  if (pending !== prevPending) {
-    setPrevPending(pending);
-    if (submitted && !pending) {
-      if (!state.error) setIsEditing(false);
-      setSubmitted(false);
-    }
-  }
-
-  const actions = !readOnly && (
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
-              {isEditing ? "Закрыть" : "Изменить"}
-            </Button>
-            <form
-              action={removeAction}
-              onSubmit={(e) => {
-                if (!confirm(`Удалить расход «${expense.categoryName}» на ${formatMoney(expense.amount)}?`)) e.preventDefault();
+  const [busy, startBusy] = useTransition();
+  const { ask, node } = useConfirm();
+  const build = (patch: { categoryId?: string; amount?: string; description?: string }) => {
+    const fd = new FormData();
+    fd.set("categoryId", patch.categoryId ?? expense.categoryId);
+    fd.set("amount", patch.amount ?? expense.amount);
+    fd.set("description", patch.description ?? expense.description ?? "");
+    return fd;
+  };
+  return (
+    <Tr>
+      <Td className="min-w-[13rem]">
+        <SelectCell value={expense.categoryId} label="Статья расходов" readOnly={readOnly} options={categories.map((c) => ({ value: c.id, label: c.name }))} onSave={(v) => updateAction(build({ categoryId: v }))} />
+      </Td>
+      <Td>
+        <TextCell value={expense.description ?? ""} label="Описание" placeholder="описание" readOnly={readOnly} onSave={(v) => updateAction(build({ description: v }))} />
+      </Td>
+      <Td colSpan={4} className="text-xs text-neutral-400">без НДС и без 4%</Td>
+      <Td className="min-w-[8.5rem]">
+        <TextCell value={expense.amount} type="number" step="0.01" min="0" align="right" label="Сумма" suffix="₽" readOnly={readOnly} onSave={(v) => updateAction(build({ amount: v }))} />
+      </Td>
+      <Td className="w-8 text-center">
+        {!readOnly && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              aria-label="Удалить расход"
+              title="Удалить расход"
+              className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              onClick={async () => {
+                if (!(await ask(`Удалить расход «${expense.categoryName}» на ${formatMoney(expense.amount)}?`, { ok: "Удалить", danger: true }))) return;
+                startBusy(async () => {
+                  await removeAction();
+                });
               }}
             >
-              <Button type="submit" variant="ghost" size="sm">
-                Удалить
-              </Button>
-            </form>
-          </div>
-  );
-  const editForm = (
-            <form
-              ref={keepRef}
-              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2 py-2"
-            >
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-neutral-500">Статья расходов</label>
-                <Select name="categoryId" required defaultValue={expense.categoryId}>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-neutral-500">Сумма, ₽</label>
-                <Input name="amount" type="number" step="0.01" min="0" required defaultValue={expense.amount} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs text-neutral-500">Описание</label>
-                <Input name="description" defaultValue={expense.description ?? ""} />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-5 flex items-center justify-between gap-4">
-                {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-                <Button type="submit" variant="outline" size="sm" disabled={pending}>
-                  {pending ? "Сохраняем..." : "Сохранить"}
-                </Button>
-              </div>
-            </form>
-  );
-  if (variant === "card") {
-    return (
-      <RowCard
-        title={expense.categoryName}
-        subtitle={expense.description}
-        fields={[{ label: "Сумма", value: formatMoney(expense.amount), strong: true }]}
-        extra={
-          !readOnly && (
-            <div className="flex flex-col gap-2">
-              {actions}
-              {isEditing && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
-            </div>
-          )
-        }
-      />
-    );
-  }
-
-  return (
-    <>
-      <Tr>
-        <Td colSpan={5}>
-          {expense.categoryName}
-          {expense.description && <span className="text-neutral-500"> — {expense.description}</span>}
-        </Td>
-        <Td className="text-right font-medium">{formatMoney(expense.amount)}</Td>
-        <Td>
-          {actions}
-        </Td>
-      </Tr>
-      {isEditing && !readOnly && (
-        <Tr>
-          <Td colSpan={7} className="bg-neutral-50">
-            {editForm}
-          </Td>
-        </Tr>
-      )}
-    </>
+              ×
+            </button>
+            {node}
+          </>
+        )}
+      </Td>
+    </Tr>
   );
 }

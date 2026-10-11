@@ -1,23 +1,14 @@
-import { OrderDocsPay } from "../docs-pay";
-import { AllocationEditButton, type AllocOrderOpt } from "@/components/allocation-editor";
-import { IntegrityBanner } from "@/components/integrity-banner";
-import { docCounts } from "@/lib/doc-links";
-import { VerifyBlock } from "../../verify/verify-block";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { RecordHistory } from "@/components/record-history";
-import { RecordComments } from "@/components/comments/record-comments";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IntegrityBanner } from "@/components/integrity-banner";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Money } from "@/components/money";
 import { canEditProduction } from "@/lib/production-access";
-import { RemovePaymentButton } from "./remove-payment-button";
-import { OrderColorsEditButton, ProductionPaymentEditButton } from "./edit-buttons";
-import { PRODUCTION_PAYMENT_V } from "@/lib/concurrency";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
@@ -30,43 +21,23 @@ import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
 import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
-import { OrderBatchBlock } from "./batch-field";
 import { batchLabel } from "@/lib/batch-label";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
-import { RetailPriceForm } from "./retail-price-form";
-import { ProductionPaymentForm } from "./payment-form";
-import { PaymentFormButton } from "@/components/payment-form";
-import { OpenDetailsLink } from "./open-details-link";
-import { ProducedQuantityForm } from "./produced-quantity-form";
 import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
-import { OrderEditForm } from "./order-edit-form";
-import { ShipmentsBlock } from "./shipments-block";
-import { FittingsBlock } from "./fittings-block";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { Section } from "./section";
-import { CollapsibleBlock } from "@/components/collapsible-block";
-import { compareModelNames } from "@/lib/model-code";
-import { batchOrderInclude, batchTotals, orderUnitsDec } from "@/lib/batch-stats";
-import Link from "next/link";
-import { DriveDocuments } from "@/components/drive-documents";
-import { toDriveView } from "@/lib/drive-docs-server";
+import { WorkRow } from "./work-row";
+import { ParamsTable, type ParamsData, type ParamsOptions } from "./params-table";
+import { OrderTiles } from "./order-tiles";
+import { CompositionTable } from "./composition-table";
+import { OrderColorsEditButton } from "./edit-buttons";
+import { AddMenu } from "./add-menu";
 import { ACCESS, hasRole } from "@/lib/access";
+import { compareModelNames } from "@/lib/model-code";
+import { orderUnitsDec } from "@/lib/batch-stats";
 import { getColorOptions } from "@/lib/colors";
-import { rowVersion, ORDER_V } from "@/lib/concurrency";
-import { OrdersTree } from "@/components/orders-tree";
 import { loadOrdersDrill } from "@/lib/orders-drill";
-import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
-import {
-  removeMaterialUsage,
-  removeProductionExpense,
-  removeProductionPayment,
-  updateMaterialUsage,
-  updateProductionExpense,
-  updateProductionOrder,
-  assignOrderBatch,
-} from "../actions";
+import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense } from "../actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -75,42 +46,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info"
   CANCELLED: { label: "Отменён", variant: "danger" },
 };
 
-const UNIT_LABELS: Record<string, string> = {
-  PIECE: "шт.",
-  KG: "кг",
-  M2: "м²",
-  M: "м",
-  SET: "компл.",
-};
-
-const PAYMENT_TYPE_LABELS: Record<string, string> = {
-  ADVANCE: "Аванс",
-  PARTIAL: "Доплата",
-  FINAL: "Окончательная",
-};
-
-const MARGIN_HINT =
-  "Оплата за работу заказчику минус себестоимость меха, подкладки и расходов. Это не прибыль: если сырьё заказчик оплачивает отдельно (давальческое), вычитать его из оплаты за пошив нельзя. Следует переключателю С НДС / Без НДС.";
-const MARKUP_HINT =
-  "Наценка = розничная цена / себестоимость единицы. Не путать со строкой «Работа минус себестоимость» в расчёте.";
-
-/** «6 6 6 7 7 7 8 8» и «46, 46, 50» -> «6×3, 7×3, 8×2» и «46×2, 50». Нестандартную запись не трогаем. */
-function collapseSizes(raw: string): string {
-  const tokens = raw.split(/[\s,;]+/).filter(Boolean);
-  if (tokens.length < 2 || !tokens.every((t) => /^[\dA-Za-zА-Яа-я.\-/]{1,8}$/.test(t))) return raw;
-  const counts = new Map<string, number>();
-  for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
-  if (counts.size === tokens.length) return raw;
-  return Array.from(counts, ([t, n]) => (n > 1 ? `${t}×${n}` : t)).join(", ");
-}
-
-/** «№ 1605 от 16.05.2025», «Договор подряда № 1605 от 16.05.2025 г.» -> «Договор подряда № 1605 от 16.05.2025». */
-function contractLabel(raw: string): string {
-  let c = raw.replace(/^\s*договор(\s+подряда)?\s*/i, "").replace(/\s*г\.?\s*$/i, "").trim();
-  if (!c) return raw;
-  if (!/^№/.test(c)) c = `№ ${c}`;
-  return `Договор подряда ${c}`;
-}
+const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -122,11 +58,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
   const { id } = await params;
   const session = await requireSession();
+  const orgId = session.user.organizationId;
   const c4Mode = await getCommission4Mode();
   let c4 = c4Suffix(c4Mode);
 
   const order = await prisma.productionOrder.findFirst({
-    where: { id, organizationId: session.user.organizationId },
+    where: { id, organizationId: orgId },
     include: {
       productModel: { include: { materials: { include: { rawMaterial: true } } } },
       rawWarehouse: true,
@@ -136,171 +73,69 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       season: { select: { id: true, code: true } },
       ...ORDER_COLORS_INCLUDE,
       attrs: { select: { attr: { select: { name: true } } } },
-      materialUsages: { include: { rawMaterial: true, lot: { include: { attrs: { select: { attr: { select: { name: true } } } } } } }, orderBy: { date: "asc" } },
-      expenses: { include: { category: true }, orderBy: { date: "asc" } },
-      paymentAllocations: {
-        include: { productionPayment: { include: { orders: { include: { productionOrder: true } }, allocations: { select: { amount: true, productionOrderId: true } } } } },
-        orderBy: { productionPayment: { paidAt: "asc" } },
+      materialUsages: {
+        include: { rawMaterial: true, lot: { include: { attrs: { select: { attr: { select: { name: true } } } }, purchase: { select: { id: true, number: true } } } } },
+        orderBy: { date: "asc" },
       },
-      // Разнесение оплат по ТЗ: сколько из каждого платежа отнесено на ЭТО ТЗ.
-      payShares: { select: { productionPaymentId: true, amount: true, source: true } },
+      expenses: { include: { category: true }, orderBy: { date: "asc" } },
     },
   });
   if (!order) notFound();
   // Нет списаний с 4% (напр. ТЗ из партии 6) — подпись «(с 4%)» не ставим.
   if (!order.materialUsages.some((u) => u.commission4)) c4 = "";
 
-  const payments = order.paymentAllocations.map((a) => a.productionPayment);
   // У нескольких заказов бывает один номер ТЗ (напр. ТЗ №88 — 4 строки): в заголовке добавляем модель, чтобы карточки не были «близнецами».
-  const sameTzCount = order.workOrderNumber
-    ? await prisma.productionOrder.count({ where: { organizationId: session.user.organizationId, workOrderNumber: order.workOrderNumber } })
-    : 0;
-  const tzTitle = order.workOrderNumber
-    ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}`
-    : `Заказ ${order.number}`;
+  const sameTzCount = order.workOrderNumber ? await prisma.productionOrder.count({ where: { organizationId: orgId, workOrderNumber: order.workOrderNumber } }) : 0;
+  const tzTitle = order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
+  const tzSearch = encodeURIComponent(order.workOrderNumber ?? order.number);
 
-  // Документы Google Drive: самого ТЗ и его оплат.
-  const driveRows = await prisma.driveDocument.findMany({
-    where: {
-      organizationId: session.user.organizationId,
-      OR: [
-        { productionOrderId: order.id },
-        ...(payments.length ? [{ productionPaymentId: { in: payments.map((p) => p.id) } }] : []),
-      ],
-    },
-    orderBy: [{ docDate: "asc" }, { createdAt: "asc" }],
-  });
-  const driveDocs = driveRows.map((d) => toDriveView(d, d.productionPaymentId ? "оплата" : null, session.user.role));
-
-  // All ТЗ of this client (incl. the current one) for the payment form:
-  // "К оплате" / "оплачено" per ТЗ follow the same rule as this page — work
-  // price x quantity (produced, else planned) and the gross amount of every
-  // payment touching the ТЗ (shared payments are not split per ТЗ).
-  const clientOrders = order.clientId
-    ? await prisma.productionOrder.findMany({
-        where: { clientId: order.clientId, organizationId: session.user.organizationId },
-        select: {
-          id: true,
-          number: true,
-          workOrderNumber: true,
-          status: true,
-          plannedQuantity: true,
-          producedQuantity: true,
-          clientWorkPricePerUnit: true,
-        },
-      })
-    : [];
   const batchOptions = (
     await prisma.productionBatch.findMany({
-      where: { organizationId: session.user.organizationId },
+      where: { organizationId: orgId },
       orderBy: { number: "asc" },
       select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
     })
   ).map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
-  // Разнесённое на ТЗ заказчика (все платежи, кроме отменённых): для «оплачено / остаток» и редактора разнесения.
-  const allocRows = clientOrders.length
-    ? await prisma.paymentAllocation.findMany({
-        where: { organizationId: session.user.organizationId, productionOrderId: { in: clientOrders.map((o) => o.id) }, productionPayment: { status: { not: "CANCELLED" } } },
-        select: { productionOrderId: true, productionPaymentId: true, amount: true },
-      })
-    : [];
-  const paymentOrders = clientOrders
-    .map((o) => {
-      const qty = orderUnitsDec(o);
-      const due = o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.mul(qty) : null;
-      const paid = allocRows.filter((a) => a.productionOrderId === o.id).reduce((sum, a) => sum.add(a.amount), new Decimal(0));
-      return {
-        id: o.id,
-        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
-        sortKey: o.workOrderNumber ?? o.number,
-        due: due ? due.toFixed(2) : null,
-        paid: paid.toFixed(2),
-      };
-    })
-    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, "ru", { numeric: true }) || a.label.localeCompare(b.label, "ru", { numeric: true }))
-    .map((o) => ({ id: o.id, label: o.label, due: o.due, paid: o.paid }));
-
-  // Оплата одна на несколько ТЗ — остаток по одному ТЗ не считаем (в БД нет суммы по ТЗ), показываем оплату по партии.
-  const batchStat = order.batch
-    ? batchTotals(
-        await prisma.productionOrder.findMany({
-          where: { batchId: order.batch.id, organizationId: session.user.organizationId },
-          include: batchOrderInclude,
-        }),
-        c4Mode,
-      )
-    : null;
-  const [shipmentCount, fittingCount] = await Promise.all([
-    prisma.shipment.count({ where: { organizationId: session.user.organizationId, lines: { some: { productionOrderId: order.id } } } }),
-    prisma.fitting.count({ where: { organizationId: session.user.organizationId, productionOrderId: order.id } }),
-  ]);
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
   // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
-  // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses/payments).
+  // canWrite: ...and the ТЗ is not cancelled (no write-offs/expenses).
   const canEdit = canEditProduction(session.user.role);
-  const colorOptions = canEdit ? await getColorOptions(session.user.organizationId) : [];
+  const colorOptions = canEdit ? await getColorOptions(orgId) : [];
   const cancelled = order.status === "CANCELLED";
   const canWrite = canEdit && !cancelled;
 
-  // Material usage / expenses stay editable regardless of status (fixing a
-  // mistake in a COMPLETED order is normal, not exceptional — see
-  // syncCompletedOrderCost in actions.ts), so these are always fetched.
-  // allLots (unfiltered by quantityRemaining) feeds the usage-edit lot
-  // picker only: a usage's own current lot is very often fully consumed by
-  // that very usage, so it must still show up pre-selected in the edit
-  // dropdown even though it has nothing left for the add-usage picker
-  // (availableLots below, unchanged).
+  // Списания и расходы правятся при любом статусе (исправление ошибки в завершённом ТЗ — норма, см. syncCompletedOrderCost).
+  // allLots (без фильтра по остатку) нужен только выпадающему списку правки: свой лот списания часто выбран целиком.
   const [availableLots, allLots, expenseCategories, models, warehouses, clients] = await Promise.all([
     prisma.rawMaterialLot.findMany({
-      where: {
-        organizationId: session.user.organizationId,
-        warehouseId: order.rawWarehouseId,
-        quantityRemaining: { gt: 0 },
-      },
+      where: { organizationId: orgId, warehouseId: order.rawWarehouseId, quantityRemaining: { gt: 0 } },
       include: { rawMaterial: true },
       orderBy: { receivedDate: "asc" },
     }),
     prisma.rawMaterialLot.findMany({
-      where: { organizationId: session.user.organizationId, warehouseId: order.rawWarehouseId },
+      where: { organizationId: orgId, warehouseId: order.rawWarehouseId },
       include: { rawMaterial: true },
       orderBy: { receivedDate: "asc" },
     }),
-    prisma.expenseCategory.findMany({
-      where: { organizationId: session.user.organizationId, kind: "PRODUCTION", isActive: true },
-      orderBy: { name: "asc" },
-    }),
+    prisma.expenseCategory.findMany({ where: { organizationId: orgId, kind: "PRODUCTION", isActive: true }, orderBy: { name: "asc" } }),
     prisma.productModel.findMany({
-      where: { organizationId: session.user.organizationId, isActive: true },
+      where: { organizationId: orgId, isActive: true },
       select: { id: true, name: true, category: true, salesCode: true, salesName: true },
       orderBy: { name: "asc" },
     }),
-    prisma.warehouse.findMany({
-      where: { organizationId: session.user.organizationId },
-      orderBy: { name: "asc" },
-    }),
-    prisma.client.findMany({
-      where: { organizationId: session.user.organizationId, isActive: true },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+    prisma.warehouse.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
+    prisma.client.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
-  // The order's current model/warehouses might have been deactivated since
-  // creation (isActive: false) — the active-only lists above wouldn't offer
-  // them as options, which would silently swap the selection on save. Add
-  // them back in explicitly so the edit form always includes the order's
-  // current values.
+  // Текущие модель/клиент могли быть деактивированы — добавляем их в списки, иначе выбор молча подменится при сохранении.
   const modelOptions = (models.some((m) => m.id === order.productModelId)
     ? models
     : [{ id: order.productModelId, name: order.productModel.name, category: order.productModel.category, salesCode: order.productModel.salesCode, salesName: order.productModel.salesName }, ...models]
   ).sort((a, b) => compareModelNames(a.name, b.name));
-  const clientOptions =
-    order.clientId && !clients.some((c) => c.id === order.clientId)
-      ? [{ id: order.client!.id, name: order.client!.name }, ...clients]
-      : clients;
+  const clientOptions = order.clientId && !clients.some((c) => c.id === order.clientId) ? [{ id: order.client!.id, name: order.client!.name }, ...clients] : clients;
 
-  const lotOptions: LotOption[] = availableLots.map((l) => ({
+  const toLotOption = (l: (typeof availableLots)[number]) => ({
     id: l.id,
     lotNumber: l.lotNumber,
     grade: l.grade,
@@ -310,20 +145,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     unit: l.rawMaterial.unit,
     quantityRemaining: l.quantityRemaining.toString(),
     unitCost: l.unitCost.toString(),
-  }));
-
-  const allLotOptions: EditableLotOption[] = allLots.map((l) => ({
-    id: l.id,
-    lotNumber: l.lotNumber,
-    grade: l.grade,
-    color: l.color,
-    rawMaterialId: l.rawMaterialId,
-    rawMaterialName: l.rawMaterial.name,
-    unit: l.rawMaterial.unit,
-    quantityRemaining: l.quantityRemaining.toString(),
-    unitCost: l.unitCost.toString(),
-  }));
-
+  });
+  const lotOptions: LotOption[] = availableLots.map(toLotOption);
+  const allLotOptions: EditableLotOption[] = allLots.map(toLotOption);
   const furLots = lotOptions.filter((l) => l.unit !== "M");
   const liningLots = lotOptions.filter((l) => l.unit === "M");
   const allFurLots = allLotOptions.filter((l) => l.unit !== "M");
@@ -331,26 +155,14 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
   // Строки подкладки в расчёте показываем, только если она есть в списаниях, указана в ТЗ или входит в состав модели.
-  const showLining =
-    liningUsages.length > 0 ||
-    (order.lining ?? "").trim() !== "" ||
-    order.productModel.materials.some((m) => m.rawMaterial.unit === "M");
+  const showLining = liningUsages.length > 0 || (order.lining ?? "").trim() !== "" || order.productModel.materials.some((m) => m.rawMaterial.unit === "M");
 
-  // Режим «С 4%»: надбавка считается здесь при показе (БД хранит «без 4%»);
-  // только сырьё и подкладка со списаний с commission4 = true, работа и
-  // расходы не облагаются.
+  // Режим «С 4%»: надбавка считается при показе (БД хранит «без 4%»); только сырьё и подкладка со списаний с commission4 = true, работа и расходы не облагаются.
   const furSum = sumUsagesWith4(furUsages, c4Mode);
   const liningSum = sumUsagesWith4(liningUsages, c4Mode);
   const materialCost = furSum.incl.add(liningSum.incl);
-  const extra4Incl = furSum.extraIncl.add(liningSum.extraIncl);
-  // materialUsages.totalCost = quantity * lot.unitCost, and lot.unitCost is
-  // VAT-inclusive by definition (see schema) — so materialCost above is
-  // incl-VAT. Its excl-VAT counterpart uses the same lines' own excl-VAT lot
-  // cost (materialCostExclVat + expenseCostExclVat, exact per the schema
-  // comment on the latter). expenseCost has no excl-VAT counterpart:
-  // ProductionExpense has no vatRate field at all (no VAT tracked for
-  // production expenses in this schema) — shown the same in both modes.
   const materialCostExcl = furSum.excl.add(liningSum.excl);
+  // У расходов нет НДС (в схеме не ведётся) — в обоих режимах одна сумма.
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
   const projectedTotalExclVat = materialCostExcl.add(expenseCost);
@@ -362,228 +174,149 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const vatB = vatBreakdown(order.materialUsages, c4Mode);
 
   const producedOrPlanned = orderUnitsDec(order);
-  const clientRevenue = order.clientWorkPricePerUnit
-    ? order.clientWorkPricePerUnit.mul(producedOrPlanned)
-    : null;
+  const clientRevenue = order.clientWorkPricePerUnit ? order.clientWorkPricePerUnit.mul(producedOrPlanned) : null;
 
-  // unitCost is fixed once the order completes; while in progress, estimate
-  // from costs booked so far so retail pricing can be planned ahead of time.
-  // Снимок unitCost хранится «без 4%» — в режиме «С 4%» добавляем надбавку на единицу.
-  const estimatedUnitCost = order.unitCost
-    ? producedOrPlanned.isZero()
-      ? order.unitCost
-      : order.unitCost.add(extra4Incl.div(producedOrPlanned))
-    : producedOrPlanned.isZero()
-      ? new Decimal(0)
-      : projectedTotal.div(producedOrPlanned);
-  // No excl-VAT snapshot column exists for unitCost, so this is always
-  // computed live from the same lines behind estimatedUnitCost above —
-  // exact even once the order is COMPLETED, since materialUsages/expenses
-  // are themselves fixed historical records by then.
-  const estimatedUnitCostExclVat = producedOrPlanned.isZero() ? new Decimal(0) : projectedTotalExclVat.div(producedOrPlanned);
-  const markup =
-    order.retailPrice && estimatedUnitCost.greaterThan(0) ? order.retailPrice.div(estimatedUnitCost) : null;
+  // Состав себестоимости этого ТЗ — те же строки и суммы, что в окне «Стоимость производства» на Главной (отменённое ТЗ в Главную не входит).
+  const compositionOrders = cancelled ? [] : await loadOrdersDrill(orgId, "all", c4Mode, { ids: new Set([order.id]) });
+  const drill = compositionOrders[0] ?? null;
+  // Шкуры подрядчика не списаны в ТЗ, но входят в себестоимость Главной — показываем отдельной строкой расчёта.
+  const hidesIncl = drill?.hI ?? 0;
+  const hidesExcl = drill?.hE ?? 0;
 
-  const c4Info = (
-    <>
-      <Mode4Badge mode={c4Mode} />
-      <C4Hint
-        mode={c4Mode}
-        base={c4HasData ? c4Calc.base.toFixed(2) : null}
-        extra={c4HasData ? c4Calc.extra.toFixed(2) : null}
-        excluded={c4Calc.excluded.toFixed(2)}
-        total={projectedTotal.toFixed(2)}
-        title="Себестоимость и 4%"
-      >
-        {c4HasData && (
-          <>
-            <p className="mt-1">
-              Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка{" "}
-              {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
-            </p>
-            {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
-          </>
-        )}
-      </C4Hint>
-    </>
-  );
   const boundRemoveUsage = removeMaterialUsage.bind(null, id);
   const boundRemoveExpense = removeProductionExpense.bind(null, id);
-  const boundRemovePayment = removeProductionPayment.bind(null, id);
   const boundUpdateUsage = updateMaterialUsage.bind(null, id);
   const boundUpdateExpense = updateProductionExpense.bind(null, id);
-  const boundUpdateOrder = updateProductionOrder.bind(null, id);
   const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
-  // Оплачено по ТЗ = разнесено на ЭТО ТЗ (PaymentAllocation) от неотменённых платежей. Остаток = работа − оплачено.
-  const liveShares = order.payShares.filter((a) => payments.some((p) => p.id === a.productionPaymentId && p.status !== "CANCELLED"));
-  const shareOf = new Map(liveShares.map((a) => [a.productionPaymentId, a.amount]));
-  const paidTotal = liveShares.reduce((s, a) => s.add(a.amount), new Decimal(0));
-  const balanceDue = clientRevenue ? clientRevenue.sub(paidTotal) : null;
-  /** Платежи, у которых часть суммы не отнесена к ТЗ (аванс без разнесения / сверх работы). */
-  const paysWithRest = payments.filter((p) => p.status !== "CANCELLED" && p.allocations.reduce((s, a) => s.add(a.amount), new Decimal(0)).lessThan(p.amount.sub(0.005)));
-  // Some payments may cover this order together with sibling ТЗ for the same
-  // client (many-to-many via ProductionPaymentOrder — see payment-form.tsx).
-  // "Оплачено" above is deliberately the gross amount of every payment that
-  // touches this order, not a proportional split — the codebase has no
-  // convention for splitting a shared payment across orders, so inventing
-  // one here would just be a different kind of guess. When that's the case,
-  // "Остаток к оплате" is flagged as an approximation rather than presented
-  // as exact.
-  const sharedPayments = payments.filter((p) => p.orders.some((a) => a.productionOrder.id !== id));
-  const hasSharedPayments = sharedPayments.length > 0;
+  const vatRateByLot: Record<string, number> = {};
+  for (const u of order.materialUsages) vatRateByLot[u.lotId] = Number(u.lot.vatRate.toString());
 
-  const allocEdit = (p: (typeof payments)[number]) => {
-    if (!canEdit || p.status === "CANCELLED") return null;
-    const linkedIds = new Set(p.orders.map((a) => a.productionOrder.id));
-    const opts: AllocOrderOpt[] = clientOrders
-      .filter((o) => o.status !== "CANCELLED")
-      .map((o) => {
-        const w = o.clientWorkPricePerUnit ? Math.round(o.clientWorkPricePerUnit.mul(orderUnitsDec(o)).mul(100).toNumber()) : 0;
-        const other = allocRows.filter((a) => a.productionOrderId === o.id && a.productionPaymentId !== p.id).reduce((sum, a) => sum + Math.round(Number(a.amount.toString()) * 100), 0);
-        return { id: o.id, label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`, linked: linkedIds.has(o.id), workCents: w, otherCents: other };
-      })
-      .sort((a, b) => Number(b.linked) - Number(a.linked) || a.label.localeCompare(b.label, "ru", { numeric: true }));
-    const initial = allocRows.filter((a) => a.productionPaymentId === p.id).map((a) => ({ orderId: a.productionOrderId, amount: a.amount.toFixed(2) }));
-    return <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={opts} initial={initial} />;
-  };
-
-  const payEdit = (p: (typeof payments)[number]) =>
-    canEdit ? (
-      <ProductionPaymentEditButton
-        orderId={id}
-        paymentId={p.id}
-        version={rowVersion(p, PRODUCTION_PAYMENT_V)}
-        orders={paymentOrders.map((o) => ({ id: o.id, label: o.label }))}
-        defaults={{
-          amount: p.amount.toString(),
-          paymentType: p.paymentType,
-          method: p.method,
-          paidAt: p.paidAt.toISOString().slice(0, 10),
-          docRef: p.docRef ?? "",
-          notes: p.notes ?? "",
-          orderIds: p.orders.map((a) => a.productionOrder.id),
-        }}
-      />
-    ) : null;
-
-  const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[], variant: "row" | "card" = "row") =>
-    list.map((u) => (
-      <UsageRow
-        key={u.id}
-        variant={variant}
-        usage={{
-          id: u.id,
-          date: u.date,
-          rawMaterialName: u.rawMaterial.name,
-          lotId: u.lotId,
-          lotNumber: u.lot.lotNumber,
-          quantity: u.quantity.toString(),
-          unit: u.rawMaterial.unit,
-          lotCostExclVat: lineWith4(
-            { incl: u.lot.materialCostExclVat, excl: u.lot.materialCostExclVat, commission4: u.commission4 },
+  const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[]) =>
+    list.map((u) => {
+      const line = lineWith4(usageInput(u), c4Mode);
+      const qty = u.quantity;
+      return (
+        <UsageRow
+          key={u.id}
+          usage={{
+            id: u.id,
+            rawMaterialName: u.rawMaterial.name,
+            lotId: u.lotId,
+            lotNumber: u.lot.lotNumber,
+            purchaseId: u.lot.purchase?.id ?? null,
+            purchaseNumber: u.lot.purchase?.number ?? null,
+            quantity: qty.toString(),
+            unit: u.rawMaterial.unit,
+            unitIncl: qty.isZero() ? "0" : line.incl.div(qty).toString(),
+            unitExcl: qty.isZero() ? "0" : line.excl.div(qty).toString(),
+            lotCostExclVat: lineWith4({ incl: u.lot.materialCostExclVat, excl: u.lot.materialCostExclVat, commission4: u.commission4 }, c4Mode).excl.toString(),
             c4Mode,
-          ).excl.toString(),
-          c4Mode,
-          commission4: u.commission4,
-          lotVatRate: u.lot.vatRate.toString(),
-          totalCost: lineWith4(usageInput(u), c4Mode).incl.toString(),
-          totalCostExclVat: lineWith4(usageInput(u), c4Mode).excl.toString(),
-          costBreakdown: u.lot.costBreakdown,
-          lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
-          lotUnitCostIncl: u.lot.unitCost.toString(),
-        }}
-        lots={lots}
-        readOnly={!canEdit}
-        updateAction={boundUpdateUsage.bind(null, u.id)}
-        removeAction={async () => {
-          "use server";
-          await boundRemoveUsage(u.id);
-        }}
-      />
-    ));
+            commission4: u.commission4,
+            lotVatRate: u.lot.vatRate.toString(),
+            totalCost: line.incl.toString(),
+            totalCostExclVat: line.excl.toString(),
+            costBreakdown: u.lot.costBreakdown,
+            lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
+            lotUnitCostIncl: u.lot.unitCost.toString(),
+          }}
+          lots={lots}
+          readOnly={!canEdit}
+          updateAction={boundUpdateUsage.bind(null, u.id)}
+          removeAction={async () => {
+            "use server";
+            await boundRemoveUsage(u.id);
+          }}
+        />
+      );
+    });
 
-  const expenseRows = (variant: "row" | "card") =>
-    order.expenses.map((e) => (
-      <ExpenseRow
-        key={e.id}
-        variant={variant}
-        expense={{
-          id: e.id,
-          categoryId: e.categoryId,
-          categoryName: e.category.name,
-          amount: e.amount.toString(),
-          description: e.description,
-        }}
-        categories={expenseCategories}
-        readOnly={!canEdit}
-        updateAction={boundUpdateExpense.bind(null, e.id)}
-        removeAction={async () => {
-          "use server";
-          await boundRemoveExpense(e.id);
-        }}
-      />
-    ));
+  const expenseRows = order.expenses.map((e) => (
+    <ExpenseRow
+      key={e.id}
+      expense={{ id: e.id, categoryId: e.categoryId, categoryName: e.category.name, amount: e.amount.toString(), description: e.description }}
+      categories={expenseCategories}
+      readOnly={!canEdit}
+      updateAction={boundUpdateExpense.bind(null, e.id)}
+      removeAction={async () => {
+        "use server";
+        await boundRemoveExpense(e.id);
+      }}
+    />
+  ));
 
   const furCost = furSum.incl;
   const sumQty = (us: typeof furUsages) => us.reduce((a, u) => a.add(u.quantity), new Decimal(0));
   const furQty = sumQty(furUsages);
   const liningQty = sumQty(liningUsages);
-  const perUnit = (v: Decimal, q: Decimal) => (q.isZero() ? new Decimal(0) : v.div(q));
   const furCostExcl = furSum.excl;
   const liningCost = liningSum.incl;
   const liningCostExcl = liningSum.excl;
-  // Excl-VAT margin: same work revenue minus the excl-VAT cost, matching the toggle.
-  const cancelBlockedReason =
-    order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
-  const qtyLabel =
-    order.status === "COMPLETED"
-      ? `план ${formatQty(order.plannedQuantity.toString())} / факт ${formatQty(order.producedQuantity.toString())} шт.`
-      : `план ${formatQty(order.plannedQuantity.toString())} шт.`;
+  const workAmount = clientRevenue ?? new Decimal(0);
+  const hidesI = new Decimal(hidesIncl.toFixed(2));
+  const hidesE = new Decimal(hidesExcl.toFixed(2));
+  const grandIncl = projectedTotal.add(workAmount).add(hidesI);
+  const grandExcl = projectedTotalExclVat.add(workAmount).add(hidesE);
+  const unitDiv = producedOrPlanned.isZero() ? null : producedOrPlanned;
 
-  const clean = (v: string | null | undefined) => (v ?? "").trim();
-  const furAttrNames = Array.from(new Set([...order.attrs.map((a) => a.attr.name), ...order.materialUsages.flatMap((u) => u.lot.attrs.map((a) => a.attr.name))])).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
-  const headerParts = [
-    <Link key="model" href={`/models/${order.productModelId}`} className="font-medium text-neutral-800 underline underline-offset-2" title="Карточка изделия: состав, цена">
-      <ArticleName model={order.productModel} />
-    </Link>,
-    orderColors(order).length > 0 && `цвет: ${formatOrderColors(orderColors(order))}`,
-    clean(order.size) && `разм. ${collapseSizes(clean(order.size))}`,
-    qtyLabel,
-    order.client && <span key="client" className="font-medium text-neutral-700">{order.client.name}</span>,
-    order.client && order.workOrderDate && `ТЗ от ${formatDate(order.workOrderDate)}`,
-  ].filter((x) => Boolean(x)) as React.ReactNode[];
-  // Остальное о ТЗ — под «Подробнее»: сезон, договор, материал, подкладка, признаки меха.
-  const moreParts = [
-    order.season && (
-      <Link key="season" href={`/plan?season=${order.season.id}`} className="underline underline-offset-2" title="План и факт сезона">
-        сезон {order.season.code}
-      </Link>
-    ),
-    order.startDate && `начало ${formatDate(order.startDate)}`,
-    order.endDate && `окончание ${formatDate(order.endDate)}`,
-    order.client && clean(order.contractNumber) && contractLabel(clean(order.contractNumber)),
-    clean(order.materialDescription) && `Материал: ${clean(order.materialDescription)}`,
-    clean(order.lining) && `Подкладка: ${clean(order.lining)}`,
-    `склад сырья: ${order.rawWarehouse.name} → готовой: ${order.finishedWarehouse.name}`,
-    clean(order.notes) && `Примечание: ${clean(order.notes)}`,
-    furAttrNames.length > 0 && <span key="attrs" data-order-attrs title="Признаки меха: названные в ТЗ и у списанных лотов">признаки меха: {furAttrNames.join(", ")}</span>,
-  ].filter((x) => Boolean(x)) as React.ReactNode[];
+  const cancelBlockedReason = order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
+  const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+  const colorList = orderColors(order);
+  const paramsData: ParamsData = {
+    orderId: id,
+    canEdit,
+    status: order.status,
+    modelLocked,
+    number: order.number,
+    workOrderNumber: order.workOrderNumber ?? "",
+    workOrderDate: iso(order.workOrderDate),
+    contractNumber: order.contractNumber ?? "",
+    startDate: iso(order.startDate),
+    endDate: order.endDate ? formatDate(order.endDate) : "",
+    seasonCode: order.season?.code ?? null,
+    batchId: order.batchId ?? "",
+    clientId: order.clientId ?? "",
+    productModelId: order.productModelId,
+    category: drill?.cat ?? order.productModel.category ?? "",
+    group: drill?.grp ?? "",
+    furType: drill?.fur ?? "",
+    materialDescription: order.materialDescription ?? "",
+    lining: order.lining ?? "",
+    colorRefId: order.colorRefId ?? "",
+    colorText: colorList.length > 0 ? formatOrderColors(colorList) : "",
+    size: order.size ?? "",
+    plannedQuantity: order.plannedQuantity.toString(),
+    producedQuantity: order.producedQuantity.toString(),
+    clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
+    workSum: clientRevenue ? clientRevenue.toFixed(2) : null,
+    rawWarehouseId: order.rawWarehouseId,
+    finishedWarehouseId: order.finishedWarehouseId,
+    notes: order.notes ?? "",
+    vatAmount: (drill ? drill.lines.reduce((a, l) => a + (l.i - l.ci) - (l.e - l.ce), 0) : vatB.rows.reduce((a, r) => a + (Number(r.incl) - Number(r.excl)), 0)).toFixed(2),
+    vat: vatB.rows.map((r) => ({ rate: r.rate, lines: r.lines, incl: r.incl.toFixed(2), excl: r.excl.toFixed(2) })),
+    colorRows: order.colors.length > 0 ? order.colors.map((c) => ({ name: c.colorRef.name, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" })) : [],
+  };
+  const paramsOptions: ParamsOptions = {
+    models: modelOptions.map((m) => ({ value: m.id, label: articleLabel(m) })),
+    clients: clientOptions.map((c) => ({ value: c.id, label: c.name })),
+    batches: batchOptions.map((b) => ({ value: b.id, label: b.label })),
+    warehouses: warehouses.map((w) => ({ value: w.id, label: w.name })),
+    colors: colorOptions,
+    canAddColor: hasRole(session.user.role, ACCESS.colors),
+  };
 
-  // Состав себестоимости этого ТЗ — те же строки и суммы, что в окне «Стоимость производства» на Главной (отменённое ТЗ в Главную не входит).
-  const compositionOrders = order.status === "CANCELLED" ? [] : await loadOrdersDrill(session.user.organizationId, "all", c4Mode, { ids: new Set([order.id]) });
+  const linkCls = "rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50 max-md:py-1.5";
 
   return (
     <div className="flex flex-col gap-4">
       <IntegrityBanner kind="order" id={order.id} />
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">
-            {tzTitle}
-          </h1>
-          {order.workOrderNumber && (
-            <InfoHint label="Номер заказа">Внутренний номер заказа в системе: {order.number}. В списках и документах ТЗ называется по номеру ТЗ.</InfoHint>
-          )}
+          <Link href="/production" className="rounded px-1.5 py-1 text-lg leading-none text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="К списку ТЗ" aria-label="Назад к списку ТЗ">
+            ←
+          </Link>
+          <h1 className="text-xl font-semibold">{tzTitle}</h1>
+          {order.workOrderNumber && <InfoHint label="Номер заказа">Внутренний номер заказа в системе: {order.number}. В списках и документах ТЗ называется по номеру ТЗ.</InfoHint>}
           <Badge variant={status.variant}>{status.label}</Badge>
           <TzVatBadge b={vatB} />
           <div className="ml-auto" />
@@ -606,256 +339,55 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               )}
             </div>
           </details>
-          {canEdit && <OrderEditForm
-            action={boundUpdateOrder}
-            models={modelOptions.map((m) => ({ id: m.id, name: articleLabel(m) }))}
-            warehouses={warehouses}
-            clients={clientOptions}
-            batches={batchOptions}
-            modelLocked={modelLocked}
-            colorOptions={colorOptions}
-            canAddColor={hasRole(session.user.role, ACCESS.colors)}
-            defaults={{
-              productModelId: order.productModelId,
-              productModelName: articleLabel(order.productModel),
-              rawWarehouseId: order.rawWarehouseId,
-              finishedWarehouseId: order.finishedWarehouseId,
-              plannedQuantity: order.plannedQuantity.toString(),
-              color: order.color ?? "",
-              colorRefId: order.colorRefId ?? "",
-              size: order.size ?? "",
-              materialDescription: order.materialDescription ?? "",
-              lining: order.lining ?? "",
-              startDate: order.startDate ? order.startDate.toISOString().slice(0, 10) : "",
-              notes: order.notes ?? "",
-              clientId: order.clientId ?? "",
-              batchId: order.batchId ?? "",
-              contractNumber: order.contractNumber ?? "",
-              workOrderNumber: order.workOrderNumber ?? "",
-              workOrderDate: order.workOrderDate ? order.workOrderDate.toISOString().slice(0, 10) : "",
-              clientWorkPricePerUnit: order.clientWorkPricePerUnit?.toString() ?? "",
-              version: rowVersion(order, ORDER_V),
-            }}
-          />}
           {open && canEdit && (
-            <CompleteOrderForm
-              orderId={id}
-              hasUsages={order.materialUsages.length > 0}
-              plannedQuantity={order.plannedQuantity.toString()}
-              warehouseName={order.finishedWarehouse.name}
-            />
+            <CompleteOrderForm orderId={id} hasUsages={order.materialUsages.length > 0} plannedQuantity={order.plannedQuantity.toString()} warehouseName={order.finishedWarehouse.name} />
           )}
           {open && canEdit && (
             <details className="relative">
-              <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё">
-                ⋯
-              </summary>
+              <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё">⋯</summary>
               <div className="absolute right-0 z-10 mt-1 rounded-md border border-neutral-200 bg-white p-2 shadow">
                 <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
               </div>
             </details>
           )}
         </div>
-        <p className="mt-1 text-sm text-neutral-500">
-          {headerParts.map((part, i) => (
-            <span key={i}>
-              {i > 0 && " · "}
-              {part}
-            </span>
-          ))}
-        </p>
-        {moreParts.length > 0 && (
-          <details className="mt-1 text-sm text-neutral-500">
-            <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">Подробнее о ТЗ</summary>
-            <p className="mt-1">
-              {moreParts.map((part, i) => (
-                <span key={i}>
-                  {i > 0 && " · "}
-                  {part}
-                </span>
-              ))}
-            </p>
-          </details>
-        )}
+        <nav aria-label="Связанные разделы" className="mt-2 flex flex-wrap items-center gap-2">
+                    <Link href={`/documents?q=${tzSearch}`} className={linkCls} title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
+          {order.client && <Link href="/payments?tab=clients" className={linkCls} title="Оплаты от заказчика, разнесение по ТЗ — в разделе «Оплаты» (вкладка «Заказчики»)">Оплаты</Link>}
+          <Link href={`/shipments?q=${tzSearch}`} className={linkCls} title="Отгрузки с этим ТЗ">Отгрузки</Link>
+          <Link href={`/fittings?q=${tzSearch}`} className={linkCls} title="Примерки по этому ТЗ">Примерки</Link>
+          <Link href={`/verify?tab=orders&q=${tzSearch}`} className={linkCls} title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
+          <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className={linkCls} title="История изменений и комментарии — в разделе «Контроль»">История</Link>
+        </nav>
       </div>
 
-      {canEdit ? (
-        <OrderBatchBlock
-          action={assignOrderBatch.bind(null, id)}
-          batches={batchOptions}
-          current={order.batch ? { id: order.batch.id, number: order.batch.number, label: batchOptions.find((b) => b.id === order.batch!.id)?.label ?? `Партия ${order.batch.number}` } : null}
-        />
-      ) : order.batch ? (
-        <p className="text-sm">
-          Партия пошива:{" "}
-          <Link href={`/production/batches/${order.batch.number}`} className="text-blue-700 hover:underline">
-            {batchOptions.find((b) => b.id === order.batch!.id)?.label ?? `Партия ${order.batch.number}`}
-          </Link>
-        </p>
-      ) : (
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 ring-1 ring-amber-300">Партия не указана</p>
-      )}
-
-      {/* Из чего состоит ТЗ: материалы, расходы, работа — и итог; детали списания по лотам — в блоке ниже. */}
-      <section aria-label="Из чего состоит ТЗ" className="rounded-lg border border-neutral-200 bg-white p-3">
-        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-neutral-800">Из чего состоит ТЗ</h2>
-          <span className="text-xs text-neutral-500">
-            {order.status === "COMPLETED" ? `выпуск ${formatQty(order.producedQuantity.toString())} из ${formatQty(order.plannedQuantity.toString())} шт.` : `план ${formatQty(order.plannedQuantity.toString())} шт.`}
-          </span>
-        </div>
-        <dl className="divide-y divide-neutral-100 text-sm">
-          <SummaryLine
-            label={<>{`Мех${c4}`}<span className="ml-2 text-xs font-normal text-neutral-500">{formatQty(furQty.toString())} шт. · ср. <Money incl={perUnit(furCost, furQty)} excl={perUnit(furCostExcl, furQty)} /> за шт.</span></>}
-            value={<Money incl={furCost} excl={furCostExcl} />}
-          />
-          {showLining && (
-            <SummaryLine
-              label={<>{`Подкладка${c4}`}<span className="ml-2 text-xs font-normal text-neutral-500">{formatQty(liningQty.toString())} м · ср. <Money incl={perUnit(liningCost, liningQty)} excl={perUnit(liningCostExcl, liningQty)} /> за м</span></>}
-              value={<Money incl={liningCost} excl={liningCostExcl} />}
-            />
-          )}
-          <SummaryLine label="Расходы" value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
-          {clientRevenue ? <SummaryLine label="Итого сырьё и расходы" value={<Money incl={projectedTotal} excl={projectedTotalExclVat} />} /> : null}
-          {clientRevenue ? <SummaryLine label={`Работа: ${formatMoney(order.clientWorkPricePerUnit!.toString())} × ${formatQty(producedOrPlanned.toString())} шт.`} value={formatMoney(clientRevenue.toString())} /> : <SummaryLine label="Работа" value="не указана" />}
-          <SummaryLine
-            label={<>Всего себестоимость{c4Info}</>}
-            value={<Money incl={projectedTotal.add(clientRevenue ?? 0)} excl={projectedTotalExclVat.add(clientRevenue ?? 0)} />}
-            strong
-          />
-          <SummaryLine label={"На 1 изделие" + c4} value={<Money incl={estimatedUnitCost.add(producedOrPlanned.isZero() ? 0 : (clientRevenue ?? new Decimal(0)).div(producedOrPlanned))} excl={estimatedUnitCostExclVat.add(producedOrPlanned.isZero() ? 0 : (clientRevenue ?? new Decimal(0)).div(producedOrPlanned))} />} />
-          {order.client ? (
-            <SummaryLine
-              label="Оплачено заказчиком"
-              value={<>{paidTotal.isZero() ? "—" : formatMoney(paidTotal.toString())}{balanceDue && balanceDue.greaterThan(0.005) ? <span className="ml-2 text-xs font-normal text-amber-700">остаток {formatMoney(balanceDue.toString())}</span> : null}</>}
-            />
-          ) : null}
-        </dl>
-      </section>
-
-      {compositionOrders.length > 0 ? (
-        <OrdersTree
-          orders={compositionOrders}
-          c4={c4Mode}
-          id="tz-composition"
-          title="Состав себестоимости по лотам"
-          defaultOpenDepth={1}
-          modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
-          hint={<><p><b>Мех и подкладка:</b> лот (ссылка на карточку лота), закупка (ссылка), количество, цена за единицу без 4%, НДС, 4% отдельно. «Всего» по строке = сумма без 4% + 4%.</p><p className="mt-1"><b>Шкуры подрядчика, расходы и работа</b> — отдельными строками; работа = цена работы заказчику × количество. Итог равен «Всего себестоимость» выше.</p></>}
-        />
+      {drill ? (
+        <OrderTiles order={drill} c4={c4Mode} plannedQty={order.plannedQuantity.toString()} producedQty={order.producedQuantity.toString()} completed={order.status === "COMPLETED"} />
+      ) : cancelled ? (
+        <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списывать сырьё и добавлять расходы нельзя.</p>
       ) : null}
 
-      <Section id="calc" title="Расчёт и списание" defaultOpenMobile>
-      <Card>
-        <CardHeader className="hidden sm:flex">
-          <CardTitle>Расчёт и списание</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <ResponsiveRows
-            table={
-          <Table>
-            <Thead>
-              <Tr>
-                <Th>Лот</Th>
-                <Th>Материал</Th>
-                <Th>Кол-во</Th>
-                <Th>Цена за ед. без НДС{c4}</Th>
-                <Th>НДС</Th>
-                <Th className="text-right">
-                  Сумма с НДС{c4}
-                  <InfoHint label="Как считается сумма по лоту" align="right">
-                    <p>Сумма по лоту = количество × цена лота (с НДС); переключатель НДС меняет отображение.</p>
-                    <p className="mt-1">
-                      {c4Mode === "on"
-                        ? "Режим «С 4%»: к сырью и подкладке добавлено 4% (цена × 1,04) — цена за единицу и сумма уже с 4%. Работа и расходы не облагаются."
-                        : "Режим «Без 4%»: цена лота как в закупке. Переключатель «С 4%» добавит 4% к сырью и подкладке."}
-                    </p>
-                  </InfoHint>
-                </Th>
-                <Th></Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              <SectionRow>Мех</SectionRow>
-              {usageRows(furUsages, allFurLots)}
-              {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
-              <TotalRow label={`Итого мех${c4} · ${formatQty(furQty.toString())} шт.`} value={<Money incl={furCost} excl={furCostExcl} />} />
+      <ParamsTable d={paramsData} o={paramsOptions} />
 
-              {showLining && (
-                <>
-                  <SectionRow>Подкладка</SectionRow>
-                  {usageRows(liningUsages, allLiningLots)}
-                  {liningUsages.length === 0 && (
-                    <EmptyRow>
-                      Подкладка не указана
-                      {canWrite && (
-                        <>
-                          {" — "}
-                          <OpenDetailsLink targetId="add-lining">добавить</OpenDetailsLink>
-                        </>
-                      )}
-                    </EmptyRow>
-                  )}
-                  <TotalRow label={`Итого подкладка${c4} · ${formatQty(liningQty.toString())} м`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
-                </>
-              )}
+      <section aria-label="Расчёт" id="calc" className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold">Расчёт</h2>
+          <InfoHint label="Как читать: Расчёт" wide>
+            <p>Что списано в ТЗ и как из этого складывается себестоимость. Лот, количество и «4%» в строке, статья, описание и сумма расхода, цена работы правятся по месту (Enter или уход курсора сохраняет); итоги пересчитываются.</p>
+            <p className="mt-1">Цена за единицу и ставка НДС — свойства лота из закупки (общие для всех ТЗ, где лот списан): менять их нужно в закупке, ссылка на ставке. {c4Mode === "on" ? "Режим «С 4%»: к меху и подкладке добавлено 4% (цена × 1,04); работа и расходы не облагаются." : "Режим «Без 4%»: цена лота как в закупке."}</p>
+            <p className="mt-1">Режим «С НДС / Без НДС» — общий переключатель шапки.</p>
+          </InfoHint>
+        </div>
 
-              <SectionRow>Расходы</SectionRow>
-              {expenseRows("row")}
-              <TotalRow label="Итого расходы" value={formatMoney(expenseCost.toString())} />
-
-            </Tbody>
-          </Table>
-            }
-          >
-            <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Мех</div>
-            {usageRows(furUsages, allFurLots, "card")}
-            {furUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Мех ещё не списан</p>}
-            {showLining && (
-              <>
-                <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Подкладка</div>
-                {usageRows(liningUsages, allLiningLots, "card")}
-                {liningUsages.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Подкладка не указана</p>}
-              </>
-            )}
-            <div className="mt-2 text-xs font-medium uppercase tracking-wide text-neutral-500">Расходы</div>
-            {expenseRows("card")}
-            {order.expenses.length === 0 && <p className="py-2 text-center text-sm text-neutral-500">Расходов нет</p>}
-          </ResponsiveRows>
-
-          <div className="flex flex-col gap-2 text-sm">
-            {cancelled && (
-              <p className="rounded-md bg-neutral-100 px-3 py-2 text-neutral-600">
-                ТЗ отменено — списывать сырьё, добавлять расходы и оплаты нельзя.
-              </p>
-            )}
-            {canWrite && (
-              <>
-            <details>
-              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ лот</summary>
-              <div className="mt-2">
-                <UsageForm orderId={id} lots={furLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
-              </div>
-            </details>
-            <BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />
-            <details id="add-lining">
-              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ подкладка</summary>
-              <div className="mt-2">
-                <UsageForm orderId={id} lots={liningLots} defaultCommission4={defaultCommission4(order.batch?.number)} />
-              </div>
-            </details>
-            <details>
-              <summary className="cursor-pointer text-neutral-600 max-md:py-2">+ расход</summary>
-              <div className="mt-2">
-                <ProductionExpenseForm orderId={id} categories={expenseCategories} />
-              </div>
-            </details>
-              </>
-            )}
-            {canWrite && order.productModel.materials.length > 0 && (
-              <details>
-                <summary className="cursor-pointer text-neutral-600">Состав модели</summary>
-                <div className="mt-2 flex flex-col gap-3">
+        {canWrite && (
+          <AddMenu
+            fur={<UsageForm orderId={id} lots={furLots} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            lining={<UsageForm orderId={id} lots={liningLots} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            expense={<ProductionExpenseForm orderId={id} categories={expenseCategories} />}
+            bulk={<BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            bom={
+              order.productModel.materials.length > 0 ? (
+                <div className="flex flex-col gap-3">
                   <Table>
                     <Thead>
                       <Tr>
@@ -868,13 +400,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                       {order.productModel.materials.map((line) => (
                         <Tr key={line.id}>
                           <Td>{line.rawMaterial.name}</Td>
-                          <Td>
-                            {formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}
-                          </Td>
-                          <Td>
-                            {formatQty(line.quantityPerUnit.mul(order.plannedQuantity).toString())}{" "}
-                            {UNIT_LABELS[line.rawMaterial.unit]}
-                          </Td>
+                          <Td>{formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}</Td>
+                          <Td>{formatQty(line.quantityPerUnit.mul(order.plannedQuantity).toString())} {UNIT_LABELS[line.rawMaterial.unit]}</Td>
                         </Tr>
                       ))}
                     </Tbody>
@@ -883,236 +410,97 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
                     <ApplyBomButton orderId={id} />
                   </div>
                 </div>
-              </details>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      </Section>
-
-      <Section id="verify" title="Подтверждение ТЗ" collapsed>
-        <VerifyBlock kind="order" id={id} title="Подтверждение ТЗ" />
-      </Section>
-
-      <Section id="docpay" title="Документы и оплата" collapsed>
-        <OrderDocsPay orderId={id} />
-      </Section>
-
-      {order.client && (
-        <Section id="pay" title="Оплаты от заказчика">
-        <CollapsibleBlock
-          title="Оплаты от заказчика"
-          problem={Boolean(balanceDue && balanceDue.lessThan(-0.005))}
-          summary={
-            clientRevenue
-              ? `оплачено ${formatMoney(paidTotal.toString())} из ${formatMoney(clientRevenue.toString())} · ${
-                  balanceDue!.lessThan(-0.005) ? "переплата " : balanceDue!.lessThan(50) ? "оплачено ≈ полностью, остаток " : "остаток "
-                }${formatMoney(balanceDue!.abs().toString())} · платежей: ${payments.length}`
-              : `оплачено ${formatMoney(paidTotal.toString())} · платежей: ${payments.length}`
-          }
-        >
-        <Card>
-          <CardContent className="flex flex-col gap-4">
-            {clientRevenue && (
-              <p className="text-sm text-neutral-600">
-                К оплате <span className="font-medium text-neutral-900">{formatMoney(clientRevenue.toString())}</span>
-                {" · оплачено по этому ТЗ "}
-                <span className="font-medium text-neutral-900">{formatMoney(paidTotal.toString())}</span>
-                {" · "}
-                {balanceDue!.lessThan(-0.005) ? "переплата " : "остаток к оплате "}
-                <span className={`font-semibold ${balanceDue!.greaterThan(0) ? "text-amber-700" : "text-neutral-900"}`}>
-                  {formatMoney(balanceDue!.abs().toString())}
-                </span>
-                {batchStat && order.batch && (
-                  <>
-                    {" · "}
-                    <Link href={`/production/batches/${order.batch.number}`} className="text-blue-600 hover:underline">
-                      партия {order.batch.number}: оплачено <span className="font-medium">{formatMoney(batchStat.paid.toString())}</span> из{" "}
-                      <span className="font-medium">{formatMoney(batchStat.work.toString())}</span>
-                    </Link>
-                  </>
-                )}
-                {hasSharedPayments && (
-                  <InfoHint label="Про общие платежи" wide>
-                    Общих платежей на несколько ТЗ: {sharedPayments.length} — на это ТЗ отнесена только часть, указанная в столбце «На это ТЗ»; разнесение можно поправить кнопкой «Разнесение».
-                  </InfoHint>
-                )}
-                {paysWithRest.length > 0 && (
-                  <span className="text-amber-700">
-                    {" · есть неразнесённая часть"}
-                    <InfoHint label="Про неразнесённую часть" wide>
-                      Часть суммы платежей не отнесена ни к одному ТЗ (аванс без разнесения или сверх работы) — см. «Контроль → Задачи → Неразнесённые авансы».
-                    </InfoHint>
-                  </span>
-                )}
-              </p>
-            )}
-            {canWrite && <div><PaymentFormButton label="Внести оплату (аванс, % от работы, документы)" preset={{ side: "work", orderIds: [id] }} /></div>}
-            {canWrite && <ProductionPaymentForm orderId={id} orders={paymentOrders} />}
-            <ResponsiveRows
-              table={
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Дата</Th>
-                  <Th>Тип</Th>
-                  <Th>Сумма платежа</Th>
-                  <Th>На это ТЗ</Th>
-                  <Th></Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {payments.map((p) => {
-                  return (
-                    <Tr key={p.id}>
-                      <Td>{formatDate(p.paidAt)}</Td>
-                      <Td>{PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}</Td>
-                      <Td className="font-medium">{formatMoney(p.amount.toString())}</Td>
-                      <Td className="font-medium">{shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : <span className="font-normal text-neutral-500">не разнесено</span>}</Td>
-                      <Td>
-                        {canEdit && (
-                          <div className="flex items-center gap-1">
-                            {allocEdit(p)}
-                            {payEdit(p)}
-                            <RemovePaymentButton
-                              summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                              action={async () => {
-                                "use server";
-                                await boundRemovePayment(p.id);
-                              }}
-                            />
-                          </div>
-                        )}
-                      </Td>
-                    </Tr>
-                  );
-                })}
-                {payments.length === 0 && <EmptyRow cols={6}>Оплат пока нет</EmptyRow>}
-              </Tbody>
-            </Table>
-              }
-            >
-              {payments.map((p) => {
-                return (
-                  <RowCard
-                    key={p.id}
-                    title={formatMoney(p.amount.toString())}
-                    subtitle={`${formatDate(p.paidAt)} · ${PAYMENT_TYPE_LABELS[p.paymentType] ?? p.paymentType}`}
-                    fields={[
-                      { label: "На это ТЗ", value: shareOf.has(p.id) ? formatMoney(shareOf.get(p.id)!.toString()) : "не разнесено" },
-                    ]}
-                    extra={
-                      canEdit && (
-                        <div className="flex items-center gap-2">
-                          {allocEdit(p)}
-                            {payEdit(p)}
-                          <RemovePaymentButton
-                            summary={`${formatMoney(p.amount.toString())} от ${formatDate(p.paidAt)}`}
-                            action={async () => {
-                              "use server";
-                              await boundRemovePayment(p.id);
-                            }}
-                          />
-                        </div>
-                      )
-                    }
-                  />
-                );
-              })}
-              {payments.length === 0 && <p className="py-3 text-center text-sm text-neutral-500">Оплат пока нет</p>}
-            </ResponsiveRows>
-          </CardContent>
-        </Card>
-        </CollapsibleBlock>
-        </Section>
-      )}
-
-      <Section id="ship" title="Отгрузки и примерки" collapsed>
-        {shipmentCount === 0 && fittingCount === 0 ? (
-          <p className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
-            <span>Отгрузки (0) · Примерки (0)</span>
-            {canWrite && (
+              ) : undefined
+            }
+          />
+        )}
+        <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
+          <span className="text-neutral-500">Себестоимость ТЗ =</span>
+          <span>мех{c4} <b className="font-medium"><Money incl={furCost} excl={furCostExcl} /></b></span>
+          {showLining && <><span className="text-neutral-400">+</span><span>подкладка{c4} <b className="font-medium"><Money incl={liningCost} excl={liningCostExcl} /></b></span></>}
+          <span className="text-neutral-400">+</span>
+          <span>расходы <b className="font-medium">{expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())}</b></span>
+          {!hidesI.isZero() && <><span className="text-neutral-400">+</span><span>шкуры подрядчика <b className="font-medium"><Money incl={hidesI} excl={hidesE} /></b></span></>}
+          <span className="text-neutral-400">+</span>
+          <span>работа <b className="font-medium">{clientRevenue ? formatMoney(clientRevenue.toString()) : "—"}</b></span>
+          <span className="text-neutral-400">=</span>
+          <b className="text-base"><Money incl={grandIncl} excl={grandExcl} /></b>
+          <span className="text-neutral-500">· на 1 изд. {unitDiv ? <Money incl={grandIncl.div(unitDiv)} excl={grandExcl.div(unitDiv)} /> : "—"}</span>
+          <Mode4Badge mode={c4Mode} />
+          <C4Hint mode={c4Mode} base={c4HasData ? c4Calc.base.toFixed(2) : null} extra={c4HasData ? c4Calc.extra.toFixed(2) : null} excluded={c4Calc.excluded.toFixed(2)} total={projectedTotal.toFixed(2)} title="Себестоимость и 4%">
+            {c4HasData && (
               <>
-                <span>·</span>
-                <Link href={`/shipments/new?order=${id}`} className="inline-block text-neutral-700 underline underline-offset-2 hover:text-neutral-900 max-md:py-2">
-                  + Отгрузка
-                </Link>
-                <Link href={`/fittings/new?order=${id}`} className="inline-block text-neutral-700 underline underline-offset-2 hover:text-neutral-900 max-md:py-2">
-                  + Примерка
-                </Link>
+                <p className="mt-1">
+                  Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
+                </p>
+                {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
               </>
             )}
-          </p>
-        ) : (
-          <>
-            <ShipmentsBlock orderId={id} organizationId={session.user.organizationId} plannedQuantity={order.plannedQuantity.toString()} />
-            <FittingsBlock orderId={id} organizationId={session.user.organizationId} search={order.workOrderNumber ?? order.number} />
-          </>
-        )}
-      </Section>
+          </C4Hint>
+        </p>
 
-      <Section id="drive" title="Документы" collapsed>
-        <Card>
-          <CardContent className="pt-4">
-            <DriveDocuments
-              docs={driveDocs}
-              title="Документы"
-              entity="order"
-              entityId={id}
-              canEdit={canEdit}
-              extraTargets={
-                hasRole(session.user.role, ["OWNER", "ADMIN"])
-                  ? payments.map((p) => ({
-                      entity: "productionPayment" as const,
-                      id: p.id,
-                      label: `Оплата ${p.paidAt.toLocaleDateString("ru-RU", { timeZone: "UTC" })} · ${p.amount.toString()}`,
-                    }))
-                  : undefined
-              }
-            />
-          </CardContent>
-        </Card>
-      </Section>
+        <Table className="min-w-[860px]">
+          <Thead>
+            <Tr>
+              <Th>Лот / статья</Th>
+              <Th>Материал / описание</Th>
+              <Th className="text-right">Кол-во</Th>
+              <Th className="text-right">Цена за ед. без НДС{c4}</Th>
+              <Th className="text-right">НДС</Th>
+              <Th className="text-center">4%</Th>
+              <Th className="text-right">Сумма с НДС{c4}</Th>
+              <Th></Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            <SectionRow>Мех</SectionRow>
+            {usageRows(furUsages, allFurLots)}
+            {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
+            <TotalRow label={`Итого мех${c4} · ${formatQty(furQty.toString())} шт.`} value={<Money incl={furCost} excl={furCostExcl} />} />
 
-      <Section id="finish" title="Завершение и розничная цена" collapsed>
-      {canEdit && order.status === "COMPLETED" && (
-        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-          <ProducedQuantityForm orderId={id} producedQuantity={order.producedQuantity.toString()} />
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-neutral-200 bg-white p-3">
-        {canEdit ? (
-          <RetailPriceForm orderId={id} retailPrice={order.retailPrice?.toString() ?? ""} />
-        ) : (
-          <div className="text-sm text-neutral-600">
-            Розничная цена за ед.{" "}
-            <span className="font-semibold text-neutral-900">
-              {order.retailPrice ? formatMoney(order.retailPrice.toString()) : "—"}
-            </span>
-          </div>
-        )}
-        <div className="text-sm text-neutral-600">
-          Наценка{" "}
-          <span className="font-semibold text-neutral-900">{markup ? `×${markup.toFixed(2).replace(".", ",")}` : "—"}</span>
-          <InfoHint label="Как считается наценка">
-            {MARKUP_HINT}
-            {markup && order.retailPrice && (
-              <p className="mt-1">
-                Здесь: {formatMoney(order.retailPrice.toString())} ÷ {formatMoney(estimatedUnitCost.toFixed(2))} = ×{markup.toFixed(2).replace(".", ",")} ({c4Mode === "on" ? "с 4%" : "без 4%"}).
-              </p>
+            {showLining && (
+              <>
+                <SectionRow>Подкладка</SectionRow>
+                {usageRows(liningUsages, allLiningLots)}
+                {liningUsages.length === 0 && <EmptyRow>Подкладка не списана</EmptyRow>}
+                <TotalRow label={`Итого подкладка${c4} · ${formatQty(liningQty.toString())} м`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+              </>
             )}
-          </InfoHint>
-        </div>
-      </div>
-      </Section>
 
-      <details className="rounded-lg border border-neutral-200 bg-white">
-        <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-600">История и комментарии</summary>
-        <div className="flex flex-col gap-3 border-t border-neutral-100 p-3">
-          <RecordHistory model="ProductionOrder" recordId={order.id} />
-          <RecordComments entityType="ProductionOrder" entityId={order.id} />
-        </div>
-      </details>
+            <SectionRow>Расходы</SectionRow>
+            {expenseRows}
+            {order.expenses.length === 0 && <EmptyRow>Расходов нет</EmptyRow>}
+            <TotalRow label="Итого расходы" value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
+
+            {!hidesI.isZero() && (
+              <>
+                <SectionRow>Шкуры подрядчика</SectionRow>
+                <Tr>
+                  <Td colSpan={6} className="text-xs text-neutral-500">Оплачены в составе счетов за пошив, в ТЗ не списаны — входят в себестоимость, как на Главной</Td>
+                  <Td className="whitespace-nowrap text-right font-medium tabular-nums"><Money incl={hidesI} excl={hidesE} /></Td>
+                  <Td />
+                </Tr>
+              </>
+            )}
+
+            <SectionRow>Работа</SectionRow>
+            <WorkRow
+              orderId={id}
+              price={order.clientWorkPricePerUnit?.toString() ?? ""}
+              qty={producedOrPlanned.toString()}
+              qtyLabel={order.status === "COMPLETED" ? "факт" : "план"}
+              sum={clientRevenue ? clientRevenue.toFixed(2) : null}
+              readOnly={!canEdit}
+            />
+
+            <TotalRow strong label={`Всего себестоимость ТЗ${c4}${unitDiv ? ` · на 1 изд. ` : ""}`} extra={unitDiv ? <Money incl={grandIncl.div(unitDiv)} excl={grandExcl.div(unitDiv)} /> : null} value={<Money incl={grandIncl} excl={grandExcl} />} />
+          </Tbody>
+        </Table>
+
+        {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — списывать сырьё и добавлять расходы нельзя.</p>}
+      </section>
+
+      {drill ? <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} /> : null}
     </div>
   );
 }
@@ -1120,64 +508,32 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 function SectionRow({ children }: { children: React.ReactNode }) {
   return (
     <Tr className="bg-neutral-50/80">
-      <Td colSpan={7} className="py-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+      <Td colSpan={8} className="py-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
         {children}
       </Td>
     </Tr>
   );
 }
 
-function EmptyRow({ children, cols = 7 }: { children: React.ReactNode; cols?: number }) {
+function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
     <Tr>
-      <Td colSpan={cols} className="py-3 text-center text-neutral-500">
+      <Td colSpan={8} className="py-2 text-center text-neutral-500">
         {children}
       </Td>
     </Tr>
   );
 }
 
-function SummaryLine({
-  label,
-  value,
-  strong,
-  className,
-}: {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  strong?: boolean;
-  className?: string;
-}) {
+function TotalRow({ label, value, extra, strong }: { label: React.ReactNode; value: React.ReactNode; extra?: React.ReactNode; strong?: boolean }) {
   return (
-    <div
-      className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "bg-neutral-100 font-semibold" : "font-medium"} ${className ?? ""}`}
-    >
-      <dt className="text-neutral-600">{label}</dt>
-      <dd className="text-right">{value}</dd>
-    </div>
-  );
-}
-
-function TotalRow({
-  label,
-  value,
-  strong,
-  className,
-  title,
-}: {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  strong?: boolean;
-  className?: string;
-  title?: string;
-}) {
-  return (
-    <Tr title={title} className={`${strong ? "bg-neutral-100 font-semibold" : "font-medium"} ${className ?? ""}`}>
-      <Td colSpan={5} className="text-right">
+    <Tr className={strong ? "bg-neutral-100 font-semibold" : "font-medium"}>
+      <Td colSpan={6} className="text-right">
         {label}
+        {extra ? <span className="ml-1 tabular-nums">{extra}</span> : null}
       </Td>
-      <Td className="text-right">{value}</Td>
-      <Td></Td>
+      <Td className="whitespace-nowrap text-right tabular-nums">{value}</Td>
+      <Td />
     </Tr>
   );
 }

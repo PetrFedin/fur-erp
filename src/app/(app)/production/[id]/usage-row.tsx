@@ -1,25 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/input";
+import { useState, useTransition } from "react";
 import { Tr, Td } from "@/components/ui/table";
-import { RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { formatQty } from "@/lib/utils";
 import { Money } from "@/components/money";
+import { useConfirm } from "@/components/confirm-dialog";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
-import { useKeepingForm } from "@/lib/use-keeping-form";
+import { SelectCell, TextCell } from "./inline-cell";
 
-const initialState: FormState = {};
-
-// Lot options for the edit dropdown must include lots with zero remaining
-// stock too (unlike the add-usage form's picker): the usage's own current
-// lot is very often fully consumed by this very usage, and it still has to
-// appear pre-selected. updateMaterialUsage returns the old quantity to its
-// lot before drawing the new one, so picking the same lot back is always
-// valid regardless of what "remaining" shows here.
+// Варианты лотов для выпадающего списка правки должны включать и лоты с нулевым остатком: собственный лот списания
+// часто выбран этим же списанием целиком. updateMaterialUsage сначала возвращает старое количество в лот, затем списывает новое.
 export type EditableLotOption = {
   id: string;
   lotNumber: string | null;
@@ -32,199 +24,156 @@ export type EditableLotOption = {
   unitCost: string;
 };
 
-const UNIT_LABELS: Record<string, string> = {
-  PIECE: "шт.",
-  KG: "кг",
-  M2: "м²",
-  M: "м",
-  SET: "компл.",
+const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
+
+export type UsageRowData = {
+  id: string;
+  rawMaterialName: string;
+  lotId: string;
+  lotNumber: string | null;
+  purchaseId: string | null;
+  purchaseNumber: string | null;
+  quantity: string;
+  unit: string;
+  /** Цена за единицу с НДС и 4% (по режиму) — для живого пересчёта суммы при вводе. */
+  unitIncl: string;
+  unitExcl: string;
+  lotCostExclVat: string;
+  lotVatRate: string;
+  c4Mode: "off" | "on";
+  commission4: boolean;
+  totalCost: string;
+  totalCostExclVat: string;
+  costBreakdown: unknown;
+  lotUnitCostExcl: string;
+  lotUnitCostIncl: string;
 };
 
+/**
+ * Строка списания в таблице «Расчёт и списание»: лот, количество и «4%» правятся по месту (Enter / уход фокуса),
+ * сумма пересчитывается сразу при вводе и окончательно — после сохранения. Цена и НДС — свойства лота (закупки): ссылка ведёт в закупку.
+ */
 export function UsageRow({
   usage,
   lots,
   updateAction,
   removeAction,
   readOnly = false,
-  variant = "row",
 }: {
-  usage: {
-    id: string;
-    date: Date;
-    rawMaterialName: string;
-    lotId: string;
-    lotNumber: string | null;
-    quantity: string;
-    unit: string;
-    lotCostExclVat: string;
-    lotVatRate: string;
-    /** Режим показа 4%: суммы уже пересчитаны на сервере. */
-    c4Mode: "off" | "on";
-    /** Применяется ли 4% к этому списанию (ProductionMaterialUsage.commission4). */
-    commission4: boolean;
-    totalCost: string;
-    totalCostExclVat: string;
-    costBreakdown: unknown;
-    lotUnitCostExcl: string;
-    lotUnitCostIncl: string;
-  };
+  usage: UsageRowData;
   lots: EditableLotOption[];
   updateAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
-  /** No edit rights: hide the change/remove buttons. */
   readOnly?: boolean;
-  /** «card» — карточка для телефона вместо строки таблицы. */
-  variant?: "row" | "card";
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [state, formAction, pending] = useActionState(async (_prev: FormState, fd: FormData) => {
-    return (await updateAction(fd)) ?? {};
-  }, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
-
-  // Close the edit form once a submitted save comes back without an error —
-  // same pattern as PurchaseItemRow.
-  const [prevPending, setPrevPending] = useState(pending);
-  if (pending !== prevPending) {
-    setPrevPending(pending);
-    if (submitted && !pending) {
-      if (!state.error) setIsEditing(false);
-      setSubmitted(false);
-    }
+  const [qty, setQty] = useState(usage.quantity);
+  const [seenQty, setSeenQty] = useState(usage.quantity);
+  if (seenQty !== usage.quantity) {
+    setSeenQty(usage.quantity);
+    setQty(usage.quantity);
   }
+  const [busy, startBusy] = useTransition();
+  const [c4Error, setC4Error] = useState<string | null>(null);
+  const { ask, node } = useConfirm();
+  const unit = UNIT_LABELS[usage.unit] ?? usage.unit;
 
-  const actions = !readOnly && (
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing((v) => !v)}>
-              {isEditing ? "Закрыть" : "Изменить"}
-            </Button>
-            <form
-              action={removeAction}
-              onSubmit={(e) => {
-                if (!confirm(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatQty(usage.quantity)} ${UNIT_LABELS[usage.unit] ?? usage.unit}?`))
-                  e.preventDefault();
-              }}
-            >
-              <Button type="submit" variant="ghost" size="sm">
-                Удалить
-              </Button>
-            </form>
-          </div>
-  );
-  const editForm = (
-            <form
-              ref={keepRef}
-              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
-              className="grid grid-cols-2 sm:grid-cols-4 items-end gap-2 py-2"
-            >
-              <div className="col-span-2">
-                <label className="mb-1 block text-xs text-neutral-500">Лот</label>
-                <Select name="lotId" required defaultValue={usage.lotId}>
-                  {lots.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.rawMaterialName} — {l.lotNumber ?? "без номера"}
-                      {[l.grade, l.color].filter(Boolean).length > 0
-                        ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})`
-                        : ""}{" "}
-                      — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-neutral-500">Количество</label>
-                <Input name="quantity" type="number" step="0.001" min="0" required defaultValue={usage.quantity} />
-              </div>
-<label className="flex items-center gap-2 text-xs text-neutral-600 max-md:min-h-8 max-md:py-1" title="4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются">
-        <input type="hidden" name="c4form" value="1" />
-        <input type="checkbox" name="commission4" defaultChecked={usage.commission4} className="h-4 w-4 max-md:h-5 max-md:w-5" />
-        Начислять 4%
-      </label>
-              <div className="flex items-center justify-between gap-4">
-                {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-                <Button type="submit" variant="outline" size="sm" disabled={pending}>
-                  {pending ? "Сохраняем..." : "Сохранить"}
-                </Button>
-              </div>
-            </form>
-  );
-  if (variant === "card") {
-    return (
-      <RowCard
-        title={`${usage.rawMaterialName} · лот ${usage.lotNumber ?? "без номера"}`}
-        href={`/analytics/raw/lot/${usage.lotId}`}
-        subtitle={`Списано ${formatDate(usage.date)}`}
-        fields={[
-          { label: "Кол-во", value: `${formatQty(usage.quantity)} ${UNIT_LABELS[usage.unit] ?? usage.unit}` },
-          { label: "Цена за ед. без НДС", value: formatMoney(usage.lotCostExclVat) },
-          { label: "НДС", value: `${usage.lotVatRate}%` },
-          {
-            label: "Сумма с НДС",
-            strong: true,
-            value: (
-              <>
-                <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
-                {usage.c4Mode === "on" && !usage.commission4 && <span className="ml-1 text-xs font-normal text-neutral-500">без 4%</span>}
-                {usage.costBreakdown != null && (
-                  <CostBreakdownToggle breakdown={usage.costBreakdown as never} unitCostExcl={usage.lotUnitCostExcl} unitCostIncl={usage.lotUnitCostIncl} />
-                )}
-              </>
-            ),
-          },
-        ]}
-        extra={
-          !readOnly && (
-            <div className="flex flex-col gap-2">
-              {actions}
-              {isEditing && <div className="rounded-md bg-neutral-50 p-2">{editForm}</div>}
-            </div>
-          )
-        }
-      />
-    );
-  }
+  const build = (patch: { lotId?: string; quantity?: string; commission4?: boolean }) => {
+    const fd = new FormData();
+    fd.set("lotId", patch.lotId ?? usage.lotId);
+    fd.set("quantity", patch.quantity ?? usage.quantity);
+    fd.set("c4form", "1");
+    if (patch.commission4 ?? usage.commission4) fd.set("commission4", "on");
+    return fd;
+  };
+  const dirty = qty.trim() !== usage.quantity.trim() && qty.trim() !== "" && Number.isFinite(Number(qty));
+  const live = (unitPrice: string) => (Number(qty) * Number(unitPrice)).toFixed(2);
 
   return (
-    <>
-      <Tr>
-        <Td title={`Списано ${formatDate(usage.date)}`}>
-          <Link href={`/analytics/raw/lot/${usage.lotId}`} className="underline underline-offset-2" title="Карточка лота: закупка, где ещё использован, остаток">
-            {usage.lotNumber ?? "без номера"}
-          </Link>
-        </Td>
-        <Td>{usage.rawMaterialName}</Td>
-        <Td>
-          {formatQty(usage.quantity)} {UNIT_LABELS[usage.unit] ?? usage.unit}
-        </Td>
-        <Td>{formatMoney(usage.lotCostExclVat)}</Td>
-        <Td>{usage.lotVatRate}%</Td>
-        <Td className="text-right font-medium">
-          <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />
-          {usage.c4Mode === "on" && !usage.commission4 && (
-            <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-500" title="4% к этому списанию не применяется">
-              без 4%
-            </span>
-          )}
-          {usage.costBreakdown != null && (
-            <CostBreakdownToggle
-              breakdown={usage.costBreakdown as never}
-              unitCostExcl={usage.lotUnitCostExcl}
-              unitCostIncl={usage.lotUnitCostIncl}
+    <Tr>
+      <Td className="min-w-[13rem]">
+        <div className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <SelectCell
+              value={usage.lotId}
+              label="Лот"
+              readOnly={readOnly}
+              options={lots.map((l) => ({
+                value: l.id,
+                label: `${l.lotNumber ?? "без номера"} · ${l.rawMaterialName}${[l.grade, l.color].filter(Boolean).length ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})` : ""} · ост. ${formatQty(l.quantityRemaining)}`,
+              }))}
+              onSave={(v) => updateAction(build({ lotId: v }))}
             />
-          )}
-        </Td>
-        <Td>
-          {actions}
-        </Td>
-      </Tr>
-      {isEditing && !readOnly && (
-        <Tr>
-          <Td colSpan={7} className="bg-neutral-50">
-            {editForm}
-          </Td>
-        </Tr>
-      )}
-    </>
+          </div>
+          <Link href={`/analytics/raw/lot/${usage.lotId}`} className="shrink-0 text-xs text-blue-700 hover:underline" title="Карточка лота: закупка, где ещё использован, остаток">
+            лот
+          </Link>
+        </div>
+      </Td>
+      <Td className="max-w-[14rem] truncate text-neutral-700" title={usage.rawMaterialName}>{usage.rawMaterialName}</Td>
+      <Td className="min-w-[7.5rem]">
+        <TextCell value={usage.quantity} type="number" step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} onDraft={setQty} onSave={(v) => updateAction(build({ quantity: v }))} />
+      </Td>
+      <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">—</span>}</Td>
+      <Td className="whitespace-nowrap text-right tabular-nums">
+        {usage.purchaseId ? (
+          <Link href={`/purchases/${usage.purchaseId}`} className="text-blue-700 hover:underline" title={`Ставка НДС лота. Меняется в закупке ${usage.purchaseNumber ?? ""}`}>
+            {Number(usage.lotVatRate)}%
+          </Link>
+        ) : (
+          <span>{Number(usage.lotVatRate)}%</span>
+        )}
+      </Td>
+      <Td className="text-center">
+        <input
+          type="checkbox"
+          defaultChecked={usage.commission4}
+          key={String(usage.commission4)}
+          disabled={readOnly || busy}
+          className="h-4 w-4 max-md:h-5 max-md:w-5"
+          aria-label="Начислять 4%"
+          title={c4Error ?? "4% — доп. комиссия посредника (Веллмех): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            startBusy(async () => {
+              const r = await updateAction(build({ commission4: checked }));
+              setC4Error(r?.error ?? null);
+            });
+          }}
+        />
+        {c4Error ? <span className="block text-xs text-red-600">{c4Error}</span> : null}
+      </Td>
+      <Td className="whitespace-nowrap text-right font-medium tabular-nums">
+        {dirty ? <Money incl={live(usage.unitIncl)} excl={live(usage.unitExcl)} /> : <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />}
+        {dirty ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}
+        {usage.c4Mode === "on" && !usage.commission4 && (
+          <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-500" title="4% к этому списанию не применяется">без 4%</span>
+        )}
+        {usage.costBreakdown != null && (
+          <CostBreakdownToggle breakdown={usage.costBreakdown as never} unitCostExcl={usage.lotUnitCostExcl} unitCostIncl={usage.lotUnitCostIncl} />
+        )}
+      </Td>
+      <Td className="w-8 text-center">
+        {!readOnly && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              aria-label="Удалить списание"
+              title="Удалить списание (лот получит количество обратно)"
+              className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              onClick={async () => {
+                if (!(await ask(`Удалить списание: ${usage.rawMaterialName}, лот ${usage.lotNumber ?? "без номера"}, ${formatQty(usage.quantity)} ${unit}?`, { ok: "Удалить", danger: true }))) return;
+                startBusy(async () => {
+                  await removeAction();
+                });
+              }}
+            >
+              ×
+            </button>
+            {node}
+          </>
+        )}
+      </Td>
+    </Tr>
   );
 }

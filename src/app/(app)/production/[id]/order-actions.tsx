@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useConfirm } from "@/components/confirm-dialog";
 import { applyBomToOrder, completeProductionOrder, cancelProductionOrder } from "../actions";
 
 export function ApplyBomButton({ orderId }: { orderId: string }) {
@@ -43,25 +44,20 @@ export function CompleteOrderForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { ask, node } = useConfirm();
   const bound = completeProductionOrder.bind(null, orderId);
 
   return (
     <form
-      action={(formData) =>
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const qty = String(formData.get("producedQuantity") ?? "");
+        if (!(await ask(`Завершить ТЗ? Готовая продукция (${qty} шт.) придёт на склад «${warehouseName}», себестоимость зафиксируется. Действие нельзя откатить.`, { ok: "Завершить" }))) return;
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
-        })
-      }
-      onSubmit={(e) => {
-        const qty = (e.currentTarget.elements.namedItem("producedQuantity") as HTMLInputElement | null)?.value ?? "";
-        if (
-          !confirm(
-            `Завершить ТЗ? Готовая продукция (${qty} шт.) придёт на склад «${warehouseName}», себестоимость зафиксируется. Действие нельзя откатить.`
-          )
-        ) {
-          e.preventDefault();
-        }
+        });
       }}
       className="flex flex-wrap items-center gap-2"
       title={
@@ -81,7 +77,7 @@ export function CompleteOrderForm({
         min="1"
         defaultValue={plannedQuantity}
         required
-        className="w-20"
+        className="h-8 w-20"
       />
       <Button
         type="submit"
@@ -92,6 +88,7 @@ export function CompleteOrderForm({
         {pending ? "Завершаем..." : "Завершить"}
       </Button>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {node}
     </form>
   );
 }
@@ -99,19 +96,21 @@ export function CompleteOrderForm({
 export function CancelOrderButton({ orderId, blockedReason }: { orderId: string; blockedReason?: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { ask, node } = useConfirm();
   return (
     <div className="flex flex-col gap-1">
+      {node}
       <Button
         variant="destructive"
         size="sm"
         disabled={pending || Boolean(blockedReason)}
         title={blockedReason}
-        onClick={() => {
-          if (confirm("Отменить ТЗ? Это действие нельзя отменить."))
-            startTransition(async () => {
-              const result = await cancelProductionOrder(orderId);
-              setError(result.error ?? null);
-            });
+        onClick={async () => {
+          if (!(await ask("Отменить ТЗ? Это действие нельзя отменить.", { ok: "Отменить ТЗ", danger: true }))) return;
+          startTransition(async () => {
+            const result = await cancelProductionOrder(orderId);
+            setError(result.error ?? null);
+          });
         }}
       >
         Отменить ТЗ
