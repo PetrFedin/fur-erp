@@ -150,13 +150,15 @@ export function UsageRow({
           className="h-4 w-4 max-md:h-5 max-md:w-5"
           aria-label="Начислять 4%"
           title={c4Error ?? "4% — доп. комиссия посредника (Веллмех): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"}
-          onChange={(e) => {
-            const checked = e.target.checked;
+          onChange={async (e) => {
+            const box = e.target;
+            const checked = box.checked;
+            // Подтверждение у завершённого ТЗ — до transition.
+            if (!(await guard())) {
+              box.checked = !checked;
+              return;
+            }
             startBusy(async () => {
-              if (!(await guard())) {
-                e.target.checked = !checked;
-                return;
-              }
               const r = await updateAction(build({ commission4: checked }));
               setC4Error(r?.error ?? null);
             });

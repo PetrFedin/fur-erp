@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
 import { patchProductionOrder, setOrderCategory, setOrderFurType, setOrderVat } from "../actions";
@@ -28,6 +29,8 @@ export type ParamsData = {
   endDateIso: string;
   seasonCode: string | null;
   batchId: string;
+  batchNumber: number | null;
+  articleName: string;
   clientId: string;
   productModelId: string;
   category: string;
@@ -72,12 +75,13 @@ export type ParamsOptions = {
   canAddFur: boolean;
 };
 
-function Row({ label, hint, children, wide }: { label: string; hint?: ReactNode; children: ReactNode; wide?: boolean }) {
+function Row({ label, hint, children, wide, to, toTitle }: { label: string; hint?: ReactNode; children: ReactNode; wide?: boolean; to?: string; toTitle?: string }) {
   return (
     <div className={"flex min-w-0 items-start border-b border-neutral-100 " + (wide ? "md:col-span-2" : "")}>
       <div className="flex w-36 shrink-0 items-center gap-1 self-stretch bg-neutral-50/70 px-2 py-1.5 text-xs text-neutral-500 sm:w-44">
         <span>{label}</span>
         {hint ? <InfoHint label={label}>{hint}</InfoHint> : null}
+        {to ? <Link href={to} className="text-blue-700 hover:underline" title={toTitle ?? "Открыть источник"} aria-label={`${label}: открыть источник`}>→</Link> : null}
       </div>
       <div className="min-w-0 flex-1 px-1 py-1">{children}</div>
     </div>
@@ -113,10 +117,10 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <Row label="Дата ТЗ">
           <TextCell value={d.workOrderDate} type="date" onSave={save("workOrderDate")} readOnly={ro} label="Дата ТЗ" />
         </Row>
-        <Row label="Партия" hint="Партия пошива (поставка). Смена партии сбрасывает подтверждение старой партии.">
+        <Row label="Партия" to={d.batchNumber != null ? `/production/batches/${d.batchNumber}` : undefined} toTitle="Партия пошива: состав и итоги" hint="Партия пошива (поставка): справочник «Партии пошива». Куда уходит: итоги партии, оплаты по партии, Главная, Календарь. Партия 6 — без надбавки 4%. Смена партии сбрасывает подтверждение старой партии.">
           <SelectCell value={d.batchId} options={o.batches} onSave={save("batchId")} readOnly={ro} label="Партия" emptyLabel="Партия не указана" />
         </Row>
-        <Row label="Заказчик">
+        <Row label="Заказчик" to={d.clientId ? `/clients/${d.clientId}` : undefined} toTitle="Карточка заказчика">
           <SelectCell value={d.clientId} options={o.clients} onSave={save("clientId")} readOnly={ro} label="Заказчик" emptyLabel="Собственное производство" />
         </Row>
         <Row label="Договор подряда" hint="№ и дата договора подряда.">
@@ -126,7 +130,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
           <span className="block px-1.5 py-0.5 text-sm">{STATUS_RU[d.status]}{d.seasonCode ? <span className="text-neutral-500"> · сезон {d.seasonCode}</span> : null}</span>
         </Row>
 
-        <Row label="Артикул" hint="Выберите из справочника или «Ввести новый артикул» — он сохранится в справочник. Смена артикула меняет категорию и группу (они берутся у артикула). Если по ТЗ уже есть списания или выпуск, они и себестоимость остаются — меняется только артикул ТЗ.">
+        <Row label="Артикул" to={`/articles?q=${encodeURIComponent(d.articleName)}`} toTitle="Артикул в разделе «Изделия»: цена, категория, все его ТЗ" hint="Выберите из справочника или «Ввести новый артикул» — он сохранится в справочник. Смена артикула меняет категорию и группу (они берутся у артикула). Если по ТЗ уже есть списания или выпуск, они и себестоимость остаются — меняется только артикул ТЗ.">
           {ro ? (
             <span className="block px-1.5 py-0.5 text-sm">{o.models.find((m) => m.value === d.productModelId)?.label}</span>
           ) : (
@@ -149,7 +153,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
             </ComboFrame>
           )}
         </Row>
-        <Row label="Категория · группа" hint="Выберите группу (Одежда / Аксессуары), затем категорию из справочника или «Внести новую». Категория принадлежит артикулу: смена затрагивает все ТЗ этого артикула (спросим подтверждение).">
+        <Row label="Категория · группа" to="/settings/categories" toTitle="Справочник категорий и групп" hint="Выберите группу (Одежда / Аксессуары), затем категорию из справочника или «Внести новую». Категория принадлежит артикулу: смена затрагивает все ТЗ этого артикула (спросим подтверждение).">
           {ro ? (
             <span className="block px-1.5 py-0.5 text-sm text-neutral-600">{d.category}{d.group && d.group !== "Без группы" ? ` · ${d.group}` : ""}</span>
           ) : (
@@ -164,7 +168,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
             />
           )}
         </Row>
-        <Row label="Вид меха" hint="Выберите вид из справочника меха или «Внести свой». «По списаниям» — вид определяется по списанным лотам (как раньше). Ручной вид показывается во всех разделах: Главная, ТЗ, Изделия, Календарь; фильтры по лотам и таблица «Мех / Подкладка» считаются по сырью лотов и ручной вид не учитывают.">
+        <Row label="Вид меха" to="/settings/furs" toTitle="Справочник видов меха" hint="Выберите вид из справочника меха или «Внести свой». «По списаниям» — вид определяется по списанным лотам (как раньше). Ручной вид показывается во всех разделах: Главная, ТЗ, Изделия, Календарь; фильтры по лотам и таблица «Мех / Подкладка» считаются по сырью лотов и ручной вид не учитывают.">
           {ro ? (
             <span className="block px-1.5 py-0.5 text-sm">{d.furType || <span className="text-neutral-300">—</span>}</span>
           ) : (
@@ -180,7 +184,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <Row label="Материал (из ТЗ)" hint="Описание материала так, как оно записано в ТЗ.">
           <TextCell value={d.materialDescription} onSave={save("materialDescription")} readOnly={ro} label="Материал продукции" />
         </Row>
-        <Row label="Цвет" hint={d.colorRows.length > 0 ? "Составной цвет: правится кнопкой «Изменить цвета» в меню «⋯» шапки." : "Выберите из справочника или введите своё — новый цвет можно добавить в справочник."}>
+        <Row label="Цвет" to="/settings/colors" toTitle="Справочник цветов" hint={d.colorRows.length > 0 ? "Составной цвет: правится кнопкой «Изменить цвета» в меню «⋯» шапки." : "Выберите из справочника или введите своё — новый цвет можно добавить в справочник."}>
           {d.colorRows.length > 0 || ro ? (
             <span className="block px-1.5 py-0.5 text-sm">{d.colorText || <span className="text-neutral-300">—</span>}</span>
           ) : (
@@ -196,7 +200,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
           <TextCell value={d.lining} onSave={save("lining")} readOnly={ro} label="Подкладка" />
         </Row>
 
-        <Row label="Кол-во по плану, шт." hint="Плановое количество. Не может быть меньше уже произведённого.">
+        <Row label="Кол-во по плану, шт." hint={<><p>Плановое количество. Не может быть меньше уже произведённого.</p><p className="mt-1"><b>Куда уходит:</b> «Произведено» и «Изделия» (у завершённого — по факту), себестоимость на 1 изделие, сумма работы и оплаты заказчика, план/факт в партии и календаре.</p></>}>
           <TextCell value={d.plannedQuantity} type="number" step="1" min="1" align="right" onSave={save("plannedQuantity")} readOnly={ro} label="Плановое количество" />
         </Row>
         <Row label="Кол-во по факту, шт." hint="Фактический выпуск — у завершённого ТЗ. Меняет себестоимость единицы и остаток готовой продукции на складе.">
@@ -206,7 +210,7 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
             <span className="block px-1.5 py-0.5 text-sm text-neutral-400">появится при завершении</span>
           )}
         </Row>
-        <Row label="Работа, ₽ за шт." hint="Цена работы для заказчика за единицу. Сумма работы = цена × количество считается сама — в блоке «Расчёт».">
+        <Row label="Работа, ₽ за шт." hint={<><p>Цена работы для заказчика за единицу. Сумма работы = цена × количество считается сама — в блоке «Расчёт».</p><p className="mt-1"><b>Куда уходит:</b> входит в себестоимость ТЗ (без НДС и без 4%), в «Оплаты → Заказчики» (сколько заказчик должен за работу) и в Главную.</p></>}>
           <TextCell value={d.clientWorkPricePerUnit} type="number" step="0.01" min="0" align="right" onSave={save("clientWorkPricePerUnit")} readOnly={ro} label="Стоимость работ за ед." suffix="₽" />
         </Row>
         <Row

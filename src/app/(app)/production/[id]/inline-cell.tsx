@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useEditGuard } from "./edit-guard";
 
@@ -44,17 +44,28 @@ export function useSaver(onSave: Common["onSave"], current: string) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const guard = useEditGuard();
-  const save = (next: string, revert: () => void) => {
+  const asking = useRef(false);
+  const save = async (next: string, revert: () => void) => {
     if (next.trim() === current.trim()) {
+      setError(null);
+      return;
+    }
+    if (asking.current) return;
+    // Подтверждение у завершённого ТЗ — ДО transition: диалог не должен зависеть от pending-состояния.
+    asking.current = true;
+    let ok = false;
+    try {
+      ok = await guard();
+    } finally {
+      asking.current = false;
+    }
+    if (!ok) {
+      revert();
       setError(null);
       return;
     }
     start(async () => {
       try {
-        if (!(await guard())) {
-          revert();
-          return;
-        }
         const r = await onSave(next);
         const err = r && typeof r === "object" && "error" in r ? r.error : undefined;
         setError(err ?? null);
@@ -95,7 +106,7 @@ function TextCellInner({
           onChange={(e) => { setDraft(e.target.value); onDraft?.(e.target.value); }}
           onBlur={() => save(draft, () => { setDraft(value); onDraft?.(value); })}
           onKeyDown={(e) => {
-            if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+            if (e.key === "Enter") { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); }
             if (e.key === "Escape") { setDraft(value); onDraft?.(value); (e.currentTarget as HTMLInputElement).blur(); }
           }}
           className={cn(BOX, align === "right" && "text-right", error && "border-red-500 bg-red-50 focus:border-red-600", className)}
@@ -128,7 +139,7 @@ function AreaCellInner({ value, onSave, readOnly, label, className }: Common & {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => save(draft, () => setDraft(value))}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (e.currentTarget as HTMLTextAreaElement).blur();
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); (e.currentTarget as HTMLTextAreaElement).blur(); }
           if (e.key === "Escape") { setDraft(value); (e.currentTarget as HTMLTextAreaElement).blur(); }
         }}
         className={cn(BOX, error && "border-red-500 bg-red-50", className)}

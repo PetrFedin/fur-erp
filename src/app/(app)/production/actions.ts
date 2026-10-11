@@ -50,7 +50,24 @@ const orderSchema = z.object({
   liningQuantity: zNumOpt("Метраж подкладки", { positive: true, max: MAX_QTY }),
 });
 
-export type CreateOrderState = { error?: string; errors?: string[] };
+export type CreateOrderState = { error?: string; errors?: string[]; created?: { id: string; label: string } };
+
+// Черновик ТЗ из формы создания: строки списаний (мех, подкладка по лотам), расходы, ставка НДС, партия, вид меха.
+// Всё записывается одной транзакцией вместе с ТЗ (всё или ничего).
+const draftLine = z.object({
+  lotId: z.string().min(1),
+  quantity: z.number().positive().max(MAX_QTY),
+  commission4: z.boolean(),
+});
+const draftSchema = z.object({
+  fur: z.array(draftLine).max(300),
+  lining: z.array(draftLine).max(100),
+  expenses: z.array(z.object({ categoryId: z.string().min(1), amount: z.number().positive().max(1e10), description: z.string().trim().max(500).optional() })).max(100),
+  vatRate: z.string().trim().max(10).optional(),
+  batchId: z.string().trim().optional(),
+  batchNumber: z.string().trim().max(6).optional(),
+  furType: z.string().trim().max(100).optional(),
+});
 
 type ResolvedLot = { line: number; lotId: string; quantity: number };
 
@@ -158,6 +175,61 @@ export async function createProductionOrder(
     errors.push("Подкладка: указан метраж, но не выбрана ткань — выберите ткань или очистите метраж");
   }
 
+  // Черновик из формы (JSON): строки списаний, расходы, НДС, партия, вид меха.
+  let draft: z.infer<typeof draftSchema> | null = null;
+  const draftRaw = formData.get("draft");
+  if (typeof draftRaw === "string" && draftRaw) {
+    try {
+      const d = draftSchema.safeParse(JSON.parse(draftRaw));
+      if (!d.success) errors.push("Не удалось прочитать строки расчёта — обновите страницу и повторите");
+      else draft = d.data;
+    } catch {
+      errors.push("Не удалось прочитать строки расчёта — обновите страницу и повторите");
+    }
+  }
+  let vatOwn: Decimal | null = null;
+  if (draft?.vatRate) {
+    const raw = draft.vatRate.replace(",", ".");
+    if (!/^\d+(\.\d{1,2})?$/.test(raw) || Number(raw) > 100) errors.push("НДС: число от 0 до 100, например 20 или 22");
+    else vatOwn = new Decimal(raw);
+  }
+  const draftLots = draft ? [...draft.fur, ...draft.lining] : [];
+  const lotInfo = new Map<string, { id: string; lotNumber: string | null; quantityRemaining: Decimal; vatRate: Decimal; unit: string }>();
+  if (draft) {
+    const ids = [...new Set(draftLots.map((l) => l.lotId))];
+    const rows = ids.length
+      ? await prisma.rawMaterialLot.findMany({
+          where: { id: { in: ids }, organizationId },
+          select: { id: true, lotNumber: true, quantityRemaining: true, vatRate: true, rawMaterial: { select: { unit: true } } },
+        })
+      : [];
+    for (const r of rows) lotInfo.set(r.id, { id: r.id, lotNumber: r.lotNumber, quantityRemaining: r.quantityRemaining, vatRate: r.vatRate, unit: r.rawMaterial.unit });
+    const need = new Map<string, Decimal>();
+    for (const l of draftLots) {
+      const info = lotInfo.get(l.lotId);
+      if (!info) { errors.push("Один из выбранных лотов не найден — обновите страницу"); continue; }
+      need.set(l.lotId, (need.get(l.lotId) ?? new Decimal(0)).add(l.quantity));
+    }
+    for (const [id, total] of need) {
+      const info = lotInfo.get(id)!;
+      if (info.quantityRemaining.lessThan(total)) {
+        errors.push(`Лот ${info.lotNumber ?? "без номера"}: остаток ${info.quantityRemaining.toString()}, в ТЗ ${total.toString()}`);
+      }
+    }
+    const catIds = [...new Set(draft.expenses.map((e) => e.categoryId))];
+    if (catIds.length) {
+      const bad = await checkOrgRefs(organizationId, { expenseCategory: catIds[0] });
+      if (bad) errors.push(bad);
+      const cnt = await prisma.expenseCategory.count({ where: { id: { in: catIds }, organizationId } });
+      if (cnt !== catIds.length) errors.push("Статья расходов не найдена");
+    }
+    if (draft.batchId) {
+      const b = await prisma.productionBatch.findFirst({ where: { id: draft.batchId, organizationId }, select: { id: true } });
+      if (!b) errors.push("Партия не найдена");
+    }
+    if (draft.batchNumber && (!/^\d{1,4}$/.test(draft.batchNumber) || Number(draft.batchNumber) < 1)) errors.push("Номер партии — целое число от 1 до 9999");
+  }
+
   const badRef = await checkOrgRefs(organizationId, {
     productModel: parsed.data.productModelId,
     client: parsed.data.clientId,
@@ -183,7 +255,7 @@ export async function createProductionOrder(
     return { errors: [...errors.filter((e) => lineNo(e) === 0), ...withLine] };
   }
 
-  let orderId: string;
+  let orderId: { id: string; label: string };
   try {
     orderId = await prisma.$transaction(async (tx) => {
       const number = await nextDocumentNumber(tx, "productionOrder", organizationId, "П");
@@ -213,6 +285,44 @@ export async function createProductionOrder(
           createdById: session.user.id,
         },
       });
+
+      // Партия (из списка или новым номером) и ручной вид меха.
+      if (draft) {
+        let batchId: string | null = draft.batchId || null;
+        if (draft.batchNumber) {
+          const number = Number(draft.batchNumber);
+          const b =
+            (await tx.productionBatch.findFirst({ where: { organizationId, number }, select: { id: true } })) ??
+            (await tx.productionBatch.create({
+              data: { organizationId, number, name: `Поставка ${number}`, year: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate).getUTCFullYear() : null },
+              select: { id: true },
+            }));
+          batchId = b.id;
+        }
+        const furType = (draft.furType ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+        if (batchId || furType) {
+          await tx.productionOrder.update({ where: { id: order.id }, data: { batchId: batchId ?? undefined, furTypeOverride: furType || undefined } });
+        }
+        for (const l of [...draft.fur, ...draft.lining]) {
+          const info = lotInfo.get(l.lotId)!;
+          const { unitCost, totalCost, rawMaterialId } = await consumeFromLot(tx, { organizationId, lotId: l.lotId, quantity: l.quantity, productionOrderId: order.id });
+          await tx.productionMaterialUsage.create({
+            data: {
+              productionOrderId: order.id,
+              rawMaterialId,
+              lotId: l.lotId,
+              quantity: l.quantity,
+              unitCost,
+              totalCost,
+              commission4: l.commission4,
+              vatRate: vatOwn && !vatOwn.eq(info.vatRate) ? vatOwn : null,
+            },
+          });
+        }
+        for (const e of draft.expenses) {
+          await tx.productionExpense.create({ data: { productionOrderId: order.id, categoryId: e.categoryId, amount: e.amount, description: e.description || undefined } });
+        }
+      }
 
       // Pasted lots: same primitive (consumeFromLot) and same usage row as
       // addMaterialUsagesBulk, so cost snapshots are identical.
@@ -248,18 +358,20 @@ export async function createProductionOrder(
           quantity: parsed.data.liningQuantity,
         });
       }
-      if (resolved.length > 0 || (parsed.data.liningMaterialId && parsed.data.liningQuantity)) {
+      if (resolved.length > 0 || (draft && (draft.fur.length > 0 || draft.lining.length > 0)) || (parsed.data.liningMaterialId && parsed.data.liningQuantity)) {
         await tx.productionOrder.update({ where: { id: order.id }, data: { status: "IN_PROGRESS" } });
       }
 
-      return order.id;
+      return { id: order.id, label: parsed.data.workOrderNumber ? `ТЗ №${parsed.data.workOrderNumber}` : number };
     });
   } catch (e) {
     return { errors: [e instanceof Error ? e.message : "Не удалось создать ТЗ"] };
   }
 
   revalidateAll(organizationId);
-  redirect(`/production/${orderId}`);
+  // «Сохранить и добавить ещё»: остаёмся на форме, ссылка на созданное ТЗ — в сообщении.
+  if (formData.get("intent") === "again") return { created: { id: orderId.id, label: orderId.label } };
+  redirect(`/production/${orderId.id}`);
 }
 
 // Consumes `quantity` metres of a lining fabric's pooled stock for a

@@ -15,7 +15,7 @@ import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput, bas
 import { InfoHint } from "@/components/info-hint";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
-import { C4Hint, Mode4Badge } from "@/components/c4-note";
+import { C4Hint } from "@/components/c4-note";
 import { UsageForm, type LotOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
@@ -26,6 +26,8 @@ import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-ac
 import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
 import { WorkRow } from "./work-row";
+import { OrderNav } from "./order-nav";
+import { CostSummary, type WeightedGroup } from "./cost-summary";
 import { ParamsTable, type ParamsData, type ParamsOptions } from "./params-table";
 import { OrderTiles } from "./order-tiles";
 import { CompositionTable } from "./composition-table";
@@ -89,6 +91,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const sameTzCount = order.workOrderNumber ? await prisma.productionOrder.count({ where: { organizationId: orgId, workOrderNumber: order.workOrderNumber } }) : 0;
   const tzTitle = order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
   const tzSearch = encodeURIComponent(order.workOrderNumber ?? order.number);
+
+  // Счётчики для ряда разделов ТЗ: записи именно по этому ТЗ (артикулу).
+  const [shipmentLines, fittingCount, planCount, supplyCount, batchOrdersCount] = await Promise.all([
+    prisma.shipmentLine.findMany({ where: { productionOrderId: order.id }, select: { shipmentId: true }, distinct: ["shipmentId"] }),
+    prisma.fitting.count({ where: { productionOrderId: order.id } }),
+    prisma.productionPlan.count({ where: { organizationId: orgId, OR: [{ modelId: order.productModelId }, { articleCode: { equals: order.productModel.name, mode: "insensitive" } }] } }),
+    prisma.supplyPlanEntry.count({ where: { organizationId: orgId, productModelId: order.productModelId } }),
+    order.batchId ? prisma.productionOrder.count({ where: { organizationId: orgId, batchId: order.batchId } }) : Promise.resolve(null),
+  ]);
+  const shipmentCount = shipmentLines.length;
 
   const batchOptions = (
     await prisma.productionBatch.findMany({
@@ -268,6 +280,23 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const grandExcl = projectedTotalExclVat.add(workAmount).add(hidesE);
   const unitDiv = producedOrPlanned.isZero() ? null : producedOrPlanned;
 
+  // Две цифры: «с 4%» и «без 4%» (не зависят от переключателя): те же функции, что у Главной.
+  const furOn = sumUsagesWith4(furUsages, "on");
+  const furOff = sumUsagesWith4(furUsages, "off");
+  const liningOn = sumUsagesWith4(liningUsages, "on");
+  const liningOff = sumUsagesWith4(liningUsages, "off");
+  const grandOn = { incl: furOn.incl.add(liningOn.incl).add(expenseCost).add(workAmount).add(hidesI), excl: furOn.excl.add(liningOn.excl).add(expenseCost).add(workAmount).add(hidesE) };
+  const grandOff = { incl: furOff.incl.add(liningOff.incl).add(expenseCost).add(workAmount).add(hidesI), excl: furOff.excl.add(liningOff.excl).add(expenseCost).add(workAmount).add(hidesE) };
+  const extra4 = furOn.incl.add(liningOn.incl).sub(furOff.incl).sub(liningOff.incl);
+  const vatOn = vatBreakdown(order.materialUsages, "on");
+  const groupBy = (us: typeof furUsages, unit: string): WeightedGroup[] => {
+    const m = new Map<string, typeof furUsages>();
+    for (const u of us) m.set(u.rawMaterial.name, [...(m.get(u.rawMaterial.name) ?? []), u]);
+    return [...m.entries()].map(([name, list]) => ({ name, unit, qty: sumQty(list), on: sumUsagesWith4(list, "on"), off: sumUsagesWith4(list, "off") }));
+  };
+  const furGroups = groupBy(furUsages, "шк.");
+  const liningGroup: WeightedGroup | null = liningUsages.length > 0 ? { name: "Подкладка", unit: "м", qty: liningQty, on: liningOn, off: liningOff } : null;
+
   const cancelBlockedReason = order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
   const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
   const colorList = orderColors(order);
@@ -285,6 +314,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     endDateIso: iso(order.endDate),
     seasonCode: order.season?.code ?? null,
     batchId: order.batchId ?? "",
+    batchNumber: order.batch?.number ?? null,
+    articleName: order.productModel.name,
     clientId: order.clientId ?? "",
     productModelId: order.productModelId,
     category: drill?.cat ?? order.productModel.category ?? "",
@@ -321,8 +352,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     canAddFur: hasRole(session.user.role, ACCESS.furRefs),
   };
 
-  const linkCls = "rounded border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50 max-md:py-1.5";
-
   return (
     <EditGuard completed={order.status === "COMPLETED"}>
     <div className="flex flex-col gap-4">
@@ -341,8 +370,12 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             Печать / PDF
           </Link>
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: Word, цвета">⋯</summary>
+            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета">⋯</summary>
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
+              <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
+              {order.client && <Link href="/payments?tab=clients" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Оплаты от заказчика, разнесение по ТЗ">Оплаты заказчика</Link>}
+              <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
+              <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="История изменений и комментарии — в разделе «Контроль»">История</Link>
               <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
                 Скачать .docx
               </a>
@@ -368,14 +401,19 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </details>
           )}
         </div>
-        <nav aria-label="Связанные разделы" className="mt-2 flex flex-wrap items-center gap-2">
-                    <Link href={`/documents?q=${tzSearch}`} className={linkCls} title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
-          {order.client && <Link href="/payments?tab=clients" className={linkCls} title="Оплаты от заказчика, разнесение по ТЗ — в разделе «Оплаты» (вкладка «Заказчики»)">Оплаты</Link>}
-          <Link href={`/shipments?q=${tzSearch}`} className={linkCls} title="Отгрузки с этим ТЗ">Отгрузки</Link>
-          <Link href={`/fittings?q=${tzSearch}`} className={linkCls} title="Примерки по этому ТЗ">Примерки</Link>
-          <Link href={`/verify?tab=orders&q=${tzSearch}`} className={linkCls} title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
-          <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className={linkCls} title="История изменений и комментарии — в разделе «Контроль»">История</Link>
-        </nav>
+        <div className="mt-2">
+          <OrderNav
+            tzLabel={tzTitle}
+            batchNumber={order.batch?.number ?? null}
+            batchCount={batchOrdersCount}
+            shipments={shipmentCount}
+            fittings={fittingCount}
+            planCount={planCount}
+            supplyCount={supplyCount}
+            search={order.workOrderNumber ?? order.number}
+            article={order.productModel.name}
+          />
+        </div>
       </div>
 
       {drill ? (
@@ -390,7 +428,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold">Расчёт</h2>
           <InfoHint label="Как читать: Расчёт" wide>
-            <p>Что списано в ТЗ и как из этого складывается себестоимость. Лот, количество и «4%» в строке, статья, описание и сумма расхода, цена работы правятся по месту (Enter или уход курсора сохраняет); итоги пересчитываются.</p>
+            <p><b>Откуда и куда:</b> лот → цена и ставка НДС из закупки (ссылки «лот» и «закупка» в строке), списание уменьшает остаток лота и растёт в «Сырьё»; статья расхода — из справочника «Статьи расходов»; итог идёт на Главную, в «Изделия» и в «Партии». </p><p className="mt-1">Что списано в ТЗ и как из этого складывается себестоимость. Лот, количество и «4%» в строке, статья, описание и сумма расхода, цена работы правятся по месту (Enter или уход курсора сохраняет); итоги пересчитываются.</p>
             <p className="mt-1">Цена за единицу — свойство лота из закупки (менять в закупке). Ставка НДС по умолчанию берётся из лота (22%, у закупок 2025 г. — 20%); в этом ТЗ её можно исправить по месту (поле «НДС, %»; пусто или как в лоте — без изменения): сумма с НДС остаётся, пересчитывается разбивка «без НДС / НДС». {c4Mode === "on" ? "Режим «С 4%»: к меху и подкладке добавлено 4% (цена × 1,04); работа и расходы не облагаются." : "Режим «Без 4%»: цена лота как в закупке."}</p>
             <p className="mt-1">Режим «С НДС / Без НДС» — общий переключатель шапки.</p>
           </InfoHint>
@@ -431,30 +469,33 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             }
           />
         )}
-        <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
-          <span className="text-neutral-500">Себестоимость ТЗ =</span>
-          <span>мех{c4} <b className="font-medium"><Money incl={furCost} excl={furCostExcl} /></b></span>
-          {showLining && <><span className="text-neutral-400">+</span><span>подкладка{c4} <b className="font-medium"><Money incl={liningCost} excl={liningCostExcl} /></b></span></>}
-          <span className="text-neutral-400">+</span>
-          <span>расходы <b className="font-medium">{expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())}</b></span>
-          {!hidesI.isZero() && <><span className="text-neutral-400">+</span><span>шкуры подрядчика <b className="font-medium"><Money incl={hidesI} excl={hidesE} /></b></span></>}
-          <span className="text-neutral-400">+</span>
-          <span>работа <b className="font-medium">{clientRevenue ? formatMoney(clientRevenue.toString()) : "—"}</b></span>
-          <span className="text-neutral-400">=</span>
-          <b className="text-base"><Money incl={grandIncl} excl={grandExcl} /></b>
-          <span className="text-neutral-500">· на 1 изд. {unitDiv ? <Money incl={grandIncl.div(unitDiv)} excl={grandExcl.div(unitDiv)} /> : "—"}</span>
-          <Mode4Badge mode={c4Mode} />
-          <C4Hint mode={c4Mode} base={c4HasData ? c4Calc.base.toFixed(2) : null} extra={c4HasData ? c4Calc.extra.toFixed(2) : null} excluded={c4Calc.excluded.toFixed(2)} total={projectedTotal.toFixed(2)} title="Себестоимость и 4%">
-            {c4HasData && (
-              <>
-                <p className="mt-1">
-                  Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
-                </p>
-                {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
-              </>
-            )}
-          </C4Hint>
-        </p>
+        <CostSummary
+          fur={{ on: furOn, off: furOff }}
+          lining={showLining ? { on: liningOn, off: liningOff } : null}
+          expenses={expenseCost}
+          work={workAmount}
+          hides={hidesI.isZero() ? null : { incl: hidesI, excl: hidesE }}
+          grand={{ on: grandOn, off: grandOff }}
+          perUnit={unitDiv ? { on: { incl: grandOn.incl.div(unitDiv), excl: grandOn.excl.div(unitDiv) }, off: { incl: grandOff.incl.div(unitDiv), excl: grandOff.excl.div(unitDiv) } } : null}
+          qty={producedOrPlanned}
+          qtyLabel={order.status === "COMPLETED" ? "факт" : "план"}
+          furGroups={furGroups}
+          liningGroup={liningGroup}
+          vatRows={vatOn.rows.map((r) => ({ rate: r.rate, vat: r.incl.sub(r.excl), incl: r.incl }))}
+          extra4={extra4}
+          c4Hint={
+            <C4Hint mode={c4Mode} base={c4HasData ? c4Calc.base.toFixed(2) : null} extra={c4HasData ? c4Calc.extra.toFixed(2) : null} excluded={c4Calc.excluded.toFixed(2)} total={projectedTotal.toFixed(2)} title="Себестоимость и 4%">
+                        {c4HasData && (
+                          <>
+                            <p className="mt-1">
+                              Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
+                            </p>
+                            {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
+                          </>
+                        )}
+                      </C4Hint>
+          }
+        />
 
         <Table className="min-w-[860px]">
           <Thead>
