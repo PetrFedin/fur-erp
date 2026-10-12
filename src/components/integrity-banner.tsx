@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireSession } from "@/lib/session";
-import { getIntegrityReport, violationsForEntity, knownForEntity, summarize } from "@/lib/integrity";
+import { getIntegrityReport, violationsForEntity, knownForEntity } from "@/lib/integrity";
 import { cn } from "@/lib/utils";
 
 const fmt = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(Math.abs(v));
@@ -11,21 +11,9 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
   const report = await getIntegrityReport(session.user.organizationId);
   if (!report) return null;
 
-  // Сводка: общая плашка со счётчиком.
-  if (!kind || !id) {
-    const s = summarize(report, 3);
-    // На Сводке — только красное (ошибки); жёлтые предупреждения видны в колокольчике и в «Контроле → Самопроверка».
-    if (!s.failingErrors) return null;
-    const red = true;
-    return (
-      <div role="status" className={cn("mb-3 rounded-lg border px-3 py-2 text-sm", red ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900")}>
-        <span className="font-medium">Данные не сходятся: {s.failing}.</span>{" "}
-        {s.items.map((it) => `${it.entityLabel}${it.delta != null ? ` (на ${fmt(it.delta)} ${it.unit})` : ""}`).join("; ")}
-        {s.more > 0 ? ` и ещё ${s.more}` : ""}.{" "}
-        <Link href="/integrity" className="underline">Самопроверка</Link>
-      </div>
-    );
-  }
+  // Общую плашку «Данные не сходятся» на Сводке не показываем (решение владельца: не пугать).
+  // Список расхождений остаётся на странице «Контроль → Самопроверка» (/integrity).
+  if (!kind || !id) return null;
 
   const v = violationsForEntity(report, kind, id);
   const k = knownForEntity(report, kind, id);
