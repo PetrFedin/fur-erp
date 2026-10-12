@@ -19,7 +19,7 @@ import { auctionName, loadAuctionSummaries, lockAuction, PAY_EPS } from "@/lib/a
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatMoney } from "@/lib/utils";
 import { resetByPurchase, resetVerification } from "@/lib/verification";
-import { resolveAuction } from "@/lib/auction-ref";
+import { createAuctionTx, resolveAuction, resolveAuctionIn } from "@/lib/auction-ref";
 import { replaceFirstLine } from "@/lib/auction-key";
 import { staleError, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V, LOT_V } from "@/lib/concurrency";
 import { parseLotSizeGrade } from "@/lib/lot-size";
@@ -1415,6 +1415,8 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
   const orgId = session.user.organizationId;
   const orderDate = parseDateInput(String(formData.get("date") ?? ""));
   if (!orderDate) return { error: "Укажите дату закупки" };
+  // Закупка принимается на склад сразу, поэтому дата в будущем невозможна (и выпала бы из таблиц по годам). Запас в сутки — на часовые пояса.
+  if (orderDate.getTime() > Date.now() + 24 * 3600 * 1000) return { error: "Дата закупки не может быть в будущем — закупка принимается на склад сразу" };
   const supplierId = String(formData.get("supplierId") ?? "");
   const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, organizationId: orgId }, select: { id: true } });
   if (!supplier) return { error: "Выберите поставщика" };
@@ -1458,6 +1460,11 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
       const m = await prisma.rawMaterial.findFirst({ where: { organizationId: orgId, unit: "M", name: { equals: materialName, mode: "insensitive" } }, select: { id: true, defaultVatRate: true } });
       if (m) { materialId = m.id; defaultVat = m.defaultVatRate?.toString() ?? null; }
     }
+    // Докупка идёт в единый пул ткани (addOrPoolLiningLot): если лотов у ткани уже несколько, приёмка откажет — говорим об этом сразу и понятно, до создания закупки.
+    if (materialId) {
+      const lotCount = await prisma.rawMaterialLot.count({ where: { organizationId: orgId, rawMaterialId: materialId } });
+      if (lotCount > 1) return { error: `Строка ${n}: у «${materialName}» ${lotCount} лота — докупать через форму можно только ткань с одним лотом. Лоты ткани нужно сначала объединить (scripts/consolidate-lining-lots.ts).` };
+    }
     const vatRaw = String(l.vat ?? "").replace(",", ".").trim();
     const vat = vatRaw === "" ? resolveVatRate(defaultVat, orderDate).rate : Number(vatRaw);
     if (!Number.isFinite(vat) || vat < 0 || vat > 100) return { error: `Строка ${n}: НДС от 0 до 100%` };
@@ -1467,14 +1474,27 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
   }
 
   let purchaseId: string | null = null;
+  let createdAuctionId: string | null = null;
   const createdMaterials: string[] = [];
   try {
     const created = await prisma.$transaction(async (tx) => {
       const number = await nextDocumentNumber(tx, "purchase", orgId, "З");
+      // Партия -> аукцион справочника (kind «Подкладка»): найденный по имени/написанию или новый. Без ссылки самопроверка ругается «записан текстом».
+      const found = await resolveAuctionIn(tx, batchName, orgId);
+      let auctionId: string | null = null;
+      let auctionText = batchName;
+      if (found && !found.isService) {
+        auctionId = found.id; auctionText = found.name;
+      } else if (!found) {
+        const a = await createAuctionTx(tx, orgId, {
+          name: batchName, kind: "LINING", currency: "RUB", year: orderDate.getUTCFullYear(), month: orderDate.getUTCMonth() + 1,
+        });
+        auctionId = a.id; createdAuctionId = a.id;
+      }
       const purchase = await tx.purchase.create({
         data: {
           organizationId: orgId, number, supplierId: supplier.id, warehouseId: defaultWarehouseId, currency: "RUB", exchangeRate: 1,
-          auctionSession: batchName, invoiceNumber, orderDate, notes, createdById: session.user.id,
+          auctionSession: auctionText, auctionId, invoiceNumber, orderDate, notes, createdById: session.user.id,
         },
       });
       const idByName = new Map<string, string>();
@@ -1504,6 +1524,7 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
         const [items, lots] = await Promise.all([prisma.purchaseItem.count({ where: { rawMaterialId: mid } }), prisma.rawMaterialLot.count({ where: { rawMaterialId: mid } })]);
         if (items === 0 && lots === 0) await prisma.rawMaterial.delete({ where: { id: mid } });
       }
+      if (createdAuctionId) await prisma.auction.deleteMany({ where: { id: createdAuctionId, organizationId: orgId, purchases: { none: {} } } });
     } catch {
       /* best effort */
     }

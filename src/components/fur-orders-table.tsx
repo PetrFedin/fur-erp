@@ -24,13 +24,15 @@ type Row = {
   usdQty: number; usdSum: number;
   lots: Map<string, { lot: FurLot; qty: number; excl: number; incl: number }>;
   auctions: Set<string>; remQty: number; remIncl: number; remExcl: number;
+  /** НДС внутри суммы списаний по ставке лота: ставка → ₽ (с НДС − без НДС). */
+  vatBy: Map<number, number>;
 };
 
 const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v));
 const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const BL = " border-l border-neutral-200";
-const TH = "px-2 pb-2 pt-1 text-right align-bottom text-xs font-medium leading-tight text-neutral-500";
+const TH = "px-2 pb-2 pt-1 text-right align-middle text-xs font-medium leading-tight text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const block = "border-b border-l border-neutral-200 px-2 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600";
 
@@ -64,9 +66,10 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
     const m = new Map<string, Row>();
     for (const l of lots) {
       for (const u of l.usages) {
-        const r = m.get(u.orderId) ?? { orderId: u.orderId, number: u.number, info: orderInfo[u.orderId] ?? null, qty: 0, excl: 0, incl: 0, extraExcl: 0, extraIncl: 0, usdQty: 0, usdSum: 0, lots: new Map(), auctions: new Set<string>(), remQty: 0, remIncl: 0, remExcl: 0 };
+        const r = m.get(u.orderId) ?? { orderId: u.orderId, number: u.number, info: orderInfo[u.orderId] ?? null, qty: 0, excl: 0, incl: 0, extraExcl: 0, extraIncl: 0, usdQty: 0, usdSum: 0, lots: new Map(), auctions: new Set<string>(), remQty: 0, remIncl: 0, remExcl: 0, vatBy: new Map<number, number>() };
         r.qty += u.qty; r.excl += u.excl; r.incl += u.incl; r.extraExcl += u.extraExcl; r.extraIncl += u.extraIncl;
         if (l.usdPrice != null) { r.usdQty += u.qty; r.usdSum += u.qty * l.usdPrice; }
+        r.vatBy.set(l.vatRate, (r.vatBy.get(l.vatRate) ?? 0) + (u.incl - u.excl));
         const lr = r.lots.get(l.id) ?? { lot: l, qty: 0, excl: 0, incl: 0 };
         lr.qty += u.qty; lr.excl += u.excl; lr.incl += u.incl;
         r.lots.set(l.id, lr);
@@ -118,6 +121,8 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
     qty: a.qty + r.qty, excl: a.excl + r.excl, incl: a.incl + r.incl, exE: a.exE + r.extraExcl, exI: a.exI + r.extraIncl,
     usdQty: a.usdQty + r.usdQty, usdSum: a.usdSum + r.usdSum, units: a.units + (r.info?.units ?? 0), remQty: a.remQty + r.remQty, remIncl: a.remIncl + r.remIncl, remExcl: a.remExcl + r.remExcl,
   }), { qty: 0, excl: 0, incl: 0, exE: 0, exI: 0, usdQty: 0, usdSum: 0, units: 0, remQty: 0, remIncl: 0, remExcl: 0 });
+  const totVat = new Map<number, number>();
+  for (const r of shown) for (const [k, v] of r.vatBy) totVat.set(k, (totVat.get(k) ?? 0) + v);
   const totBase = vat === "excl" ? T.excl : T.incl;
   const totC4 = totBase + (vat === "excl" ? T.exE : T.exI);
   const totalQtyAll = lots.reduce((a, l) => a + l.used, 0);
@@ -130,6 +135,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
     </th>
   );
   const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[10px] font-normal text-neutral-500">по {formatQty(have)} из {formatQty(qty)}</div> : null);
+  const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}`;
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const perUnit = (qty: number, units: number) => (units > 0 ? qty / units : null);
   
@@ -232,7 +238,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                     <td className={TD + BL}>{formatQty(r.qty)}</td>
                     <td className={TD}>{r.lots.size}</td>
                     <td className={TD}>{r.auctions.size}</td>
-                    <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[10px] font-normal text-neutral-500">с 4%: {money(withC4(r))}</div></td>
+                    <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[10px] font-normal text-neutral-500">с 4%: {money(withC4(r))}</div><div className="text-[10px] font-normal text-neutral-500">{rateText([...r.vatBy.keys()])}</div></td>
                     <td className={TD}>{r.qty > 0 ? formatMoney(Math.round((sum / r.qty) * 100) / 100) : <D />}</td>
                     <td className={TD}>{r.usdQty > 0 ? usd(r.usdSum / r.usdQty) : <D />}{usdNote(r.usdQty, r.qty)}</td>
                     <td className={TD + " text-neutral-600"}>{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
@@ -249,7 +255,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                       </td>
                       <td className={TD + BL}>{formatQty(qty)}</td>
                       <td className={TD} colSpan={2} />
-                      <td className={TD}>{money(vat === "excl" ? excl : incl)}</td>
+                      <td className={TD}>{money(vat === "excl" ? excl : incl)}<div className="text-[10px] font-normal text-neutral-500">НДС {lot.vatRate}%{lot.year < 2026 ? ", куплено до 2026" : ", с 2026"}</div></td>
                       <td className={TD}>{qty > 0 ? formatMoney(Math.round(((vat === "excl" ? excl : incl) / qty) * 100) / 100) : <D />}</td>
                       <td className={TD}>{lot.usdPrice != null ? usd(lot.usdPrice) : <D />}</td>
                       <td className={TD} />
@@ -267,7 +273,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                 <td className={TD} />
                 <td className={TD + BL}>{formatQty(T.qty)}</td>
                 <td className={TD} /><td className={TD} />
-                <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[10px] font-normal opacity-80">с 4%: {money(totC4)}</div></td>
+                <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[10px] font-normal opacity-80">с 4%: {money(totC4)}</div><div className="text-[10px] font-normal opacity-80">{[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}</div><div className="text-[10px] font-normal opacity-80">НДС: {[...totVat.keys()].sort((a, b) => a - b).map((r) => `${r}% — ${formatMoney(totVat.get(r) ?? 0)}`).join(" · ")}</div></td>
                 <td className={TD}>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : <D />}</td>
                 <td className={TD}>{T.usdQty > 0 ? usd(T.usdSum / T.usdQty) : <D />}{usdNote(T.usdQty, T.qty)}</td>
                 <td className={TD}>{T.qty > 0 ? formatPercent(100) : <D />}</td>

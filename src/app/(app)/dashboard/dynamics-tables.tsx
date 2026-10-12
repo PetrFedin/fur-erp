@@ -244,7 +244,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             <tr key={r.key + a.key} data-block={r.kind} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
               <NameCell indent title={a.label}>
                 {auctionLinkable(a.key) ? (
-                  <Link href={`/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title="Открыть аукцион: счета, лоты и себестоимость">
+                  <Link href={r.kind === "lining" ? `/lots/lining/${encodeURIComponent(a.key)}` : `/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title={r.kind === "lining" ? "Открыть партию подкладки" : "Открыть аукцион: счета, лоты и себестоимость"}>
                     {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
                   </Link>
                 ) : serviceHref(a.key) ? (

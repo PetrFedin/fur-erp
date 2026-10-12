@@ -43,6 +43,7 @@ import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
 import { PaymentDeleteButton } from "./payment-delete-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -476,7 +477,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex flex-col gap-4">
       <IntegrityBanner kind="purchase" id={purchase.id} />
-      <div className="-mb-2 text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: purchase.number }]} />
       <div className="flex items-start justify-between">
         <div>
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}

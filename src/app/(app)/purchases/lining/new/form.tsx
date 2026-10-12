@@ -11,7 +11,7 @@ import { resolveVatRate, vatPeriodLabel } from "@/lib/vat-by-date";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { createLiningBatchPurchase, type LiningBatchState } from "../../actions";
 
-type Mat = { id: string; name: string; defaultVatRate: number | null };
+type Mat = { id: string; name: string; defaultVatRate: number | null; lots: number };
 type Line = { key: number; materialId: string; newNumber: string; meters: string; price: string; vat: string; vatTouched: boolean };
 
 const num = (v: string) => { const n = Number(v.replace(",", ".")); return Number.isFinite(n) ? n : 0; };
@@ -32,7 +32,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
   const [notes, setNotes] = useState("");
   const [priceIncl, setPriceIncl] = useState(mode === "incl");
   const [seq, setSeq] = useState(1);
-  const blank = (key: number): Line => ({ key, materialId: materials[0]?.id ?? "__new", newNumber: "", meters: "", price: "", vat: "", vatTouched: false });
+  const blank = (key: number): Line => ({ key, materialId: materials.find((m) => m.lots <= 1)?.id ?? "__new", newNumber: "", meters: "", price: "", vat: "", vatTouched: false });
   const [lines, setLines] = useState<Line[]>([blank(0)]);
 
   const autoBatch = useMemo(() => {
@@ -126,7 +126,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
                 <div className="col-span-2 sm:col-span-4 lg:col-span-1">
                   <Label htmlFor={`lb-mat-${l.key}`}>Ткань</Label>
                   <Select id={`lb-mat-${l.key}`} value={l.materialId} onChange={(e) => setLine(l.key, { materialId: e.target.value })}>
-                    {materials.map((m) => <option key={m.id} value={m.id}>{short(m.name)}</option>)}
+                    {materials.map((m) => <option key={m.id} value={m.id} disabled={m.lots > 1}>{short(m.name)}{m.lots > 1 ? ` — ${m.lots} лота, докупить нельзя` : ""}</option>)}
                     <option value="__new">+ Новая ткань…</option>
                   </Select>
                   {l.materialId === "__new" ? <Input aria-label="Номер новой ткани" placeholder="№ новой ткани" className="mt-1" value={l.newNumber} onChange={(e) => setLine(l.key, { newNumber: e.target.value })} required /> : null}

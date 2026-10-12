@@ -5,6 +5,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
 import { allocateHides, hidesByPayYear } from "@/lib/contractor-hides";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { HidesView, type HidesOrderRow, type HidesPayment } from "./hides-view";
@@ -36,6 +37,7 @@ export default async function ContractorHidesPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: "Шкуры подрядчика" }]} />
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/lots" aria-label="Назад в «Сырьё — Мех»" title="Назад в «Сырьё — Мех»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
         <h1 className="text-xl font-semibold">Шкуры подрядчика</h1>
@@ -46,9 +48,6 @@ export default async function ContractorHidesPage() {
             <p className="mt-1">Откуда данные: сумма — из оплат производства (нераспределённый остаток платежа с пометкой «шкур…» в основании), по году платежа; партии и закреплённые ТЗ — по документам (п/п №22618 от 21.01.2026, счёт №1 — партия 7; п/п №82173 от 27.11.2025 — партия 8). Остаток партии делится между её ТЗ пропорционально изделиям. НДС: партия 7 — 22%, партия 8 — 20%. Год шапки применяется по году платежа.</p>
           </InfoHint>
         </span>
-        <nav aria-label="Хлебные крошки" className="text-xs text-neutral-500 print:hidden">
-          <Link href="/lots" className="hover:underline">Сырьё</Link> › <Link href="/lots" className="hover:underline">Мех</Link> › Шкуры подрядчика
-        </nav>
       </div>
       <HidesView orders={rows} payments={payments} />
     </div>

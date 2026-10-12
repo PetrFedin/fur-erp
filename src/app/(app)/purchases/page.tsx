@@ -19,8 +19,10 @@ import { getYearFilter } from "@/lib/year-filter";
 import { purchaseYear } from "@/lib/year-scope";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PurchasesTabs } from "@/components/raw-tabs";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { loadFurKinds } from "@/lib/fur-kinds-server";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
@@ -104,6 +106,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     getFilterOptions(orgId, year, ["auction", "pyear", "fur", "color", "attr"]),
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
   ]);
+  const furKinds = await loadFurKinds(orgId);
   const lotsOf = new Map<string, FurLot[]>();
   const lotById = new Map<string, FurLot>();
   for (const l of [...furLots, ...liningLots]) {
@@ -264,6 +267,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки" }]} />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center">
           <h1 className="text-xl font-semibold">Закупки</h1>
@@ -293,7 +297,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           controls={[
             { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, allLabel: "Все годы", hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
-            { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur, allLabel: "Все виды" },
+            { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: furKinds.options.map((o) => (furKinds.noLots.includes(o.value) ? { ...o, label: `${o.label} (лотов нет)` } : o)), allLabel: "Все виды" },
             { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", hint: "Закупка подходит, если у неё есть лот этого цвета" },
             { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", hint: "Закупка подходит, если у неё есть лот этого размера" },
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },

@@ -73,13 +73,13 @@ function Duo({ children }: { children: React.ReactNode }) {
 
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»).
  *  Если передан pay (три плитки оплат), они встают в ТОТ ЖЕ ряд: «Сырьё | Оплаты» — шесть плиток в одну строку на мониторе, тонкая линия между группами. */
-export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
+export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd, titleSuffix, headerExtra }: { /** Подпись текущего слайда в заголовке ряда («· Лиса»). */ titleSuffix?: string; /** Элементы рядом с заголовком (стрелки и точки слайдов). */ headerExtra?: React.ReactNode; view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
   const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null;
   if (pay) {
     return (
-      <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка"} headerEnd={headerEnd}>
+      <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerExtra={headerExtra} headerEnd={headerEnd}>
         <div className="raw-row raw-row-pay">
           <div className="raw-group" role="group" aria-label="Сырьё">
             <div className="raw-group-label">Сырьё</div>
@@ -98,7 +98,7 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
     );
   }
   return (
-    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"} headerEnd={headerEnd}>
+    <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerExtra={headerExtra} headerEnd={headerEnd}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <RawTriple view={view} fur={fur} lining={lining} c4={c4} onOpen={setPriceCol} vatRates={vatRates} />
       </div>
@@ -411,6 +411,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
             {list.length === 0 ? <tr><td colSpan={cols} className="px-2 py-6 text-center text-neutral-500">По выбранным фильтрам нет данных.</td></tr> : null}
           </tbody>
         </table>
+        <p className="mt-2 text-[11px] leading-4 text-neutral-500">Бобр — сырьё подрядчика: лотов закупки нет, см. <Link href="/lots/fur/%D0%91%D0%BE%D0%B1%D1%80" className="text-blue-700 hover:underline">Сырьё › Мех › Бобр</Link>.</p>
       </div>
     </dialog>
   );

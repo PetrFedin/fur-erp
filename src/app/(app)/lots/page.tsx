@@ -1,4 +1,9 @@
 import { resolveAuctionValues } from "@/lib/auction-ref";
+import { redirect } from "next/navigation";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { loadFurKinds } from "@/lib/fur-kinds-server";
+import { purchaseIdsByAuction } from "@/lib/filter-options";
+import { auctionName as auctionNameOf } from "@/lib/auction-names";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -69,6 +74,14 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     for (const a of found) if (!auctionNames.includes(a.name)) auctionNames.push(a.name);
   }
   const auctionMode = tab === "fur" && auctionValues.length > 0;
+  // Старые ссылки /lots?auction=<партия подкладки> ведут на карточку партии подкладки (а не на страницу аукциона меха).
+  if (auctionMode) {
+    const ids = await purchaseIdsByAuction(orgId, auctionValues);
+    if (ids.length) {
+      const items = await prisma.purchaseItem.findMany({ where: { purchaseId: { in: ids } }, select: { rawMaterial: { select: { unit: true } }, purchase: { select: { auctionSession: true } } } });
+      if (items.length > 0 && items.every((i) => i.rawMaterial.unit === "M")) redirect(`/lots/lining/${encodeURIComponent(auctionNameOf(items[0].purchase.auctionSession) ?? auctionValues[0])}`);
+    }
+  }
   const auctionLabel = auctionNames.length === 1 ? auctionNames[0] : `${auctionNames.length} партий закупки`;
   // Материал: id материала либо название вида меха («Лиса» включает «Лиса красная»).
   const furIdx = await getFurIndex(orgId);
@@ -105,6 +118,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   if (tab === "summary") {
     return (
       <div className="flex flex-col gap-4">
+        <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Сводка по годам" }]} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сырьё О сводке». */}
@@ -172,6 +186,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   if (auctionMode) {
     return (
       <div className="flex flex-col gap-4">
+        <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: `Аукцион ${auctionLabel}` }]} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="flex flex-wrap items-center">
@@ -263,6 +278,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: tab === "lining" ? "Подкладка" : "Мех" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Сырьё О странице…». */}
@@ -324,7 +340,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Справа за тонкой линией: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
             </InfoHint>
           </div>
-          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable }} />
+          <FurSelectionTotal noLotsKinds={(await loadFurKinds(orgId)).noLots} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable }} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">

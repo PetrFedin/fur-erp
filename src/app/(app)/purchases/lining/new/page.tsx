@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import { LiningBuyForm } from "./form";
 
@@ -12,17 +13,20 @@ export default async function BuyLiningPage() {
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.purchases);
-  const [suppliers, materials, last] = await Promise.all([
+  const [suppliers, materials, last, lotCounts] = await Promise.all([
     prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.rawMaterial.findMany({ where: { organizationId: orgId, unit: "M" }, select: { id: true, name: true, defaultVatRate: true } }),
     prisma.purchase.findFirst({ where: { organizationId: orgId, items: { some: { rawMaterial: { unit: "M" } } } }, orderBy: { orderDate: "desc" }, select: { supplierId: true } }),
+    prisma.rawMaterialLot.groupBy({ by: ["rawMaterialId"], where: { organizationId: orgId, rawMaterial: { unit: "M" } }, _count: { _all: true } }),
   ]);
+  const lotsByMat = new Map(lotCounts.map((c) => [c.rawMaterialId, c._count._all]));
   const mats = materials
     .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
-    .map((m) => ({ id: m.id, name: m.name, defaultVatRate: m.defaultVatRate != null ? Number(m.defaultVatRate) : null }));
+    .map((m) => ({ id: m.id, name: m.name, defaultVatRate: m.defaultVatRate != null ? Number(m.defaultVatRate) : null, lots: lotsByMat.get(m.id) ?? 0 }));
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Подкладка", href: "/lots?tab=lining" }, { label: "Купить подкладку" }]} />
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/lots?tab=lining" aria-label="Назад в «Сырьё — Подкладка»" title="Назад в «Сырьё — Подкладка»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
         <h1 className="text-xl font-semibold">Купить подкладку</h1>
