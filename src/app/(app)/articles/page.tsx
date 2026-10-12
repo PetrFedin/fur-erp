@@ -242,6 +242,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         id="articles"
         title="Изделия — итоги"
         extraCount={1}
+        carousel
         perUnit={<PerUnitCarousel key="per-unit" orders={drill} c4={c4Mode} />}
         extra={<MarkupCarousel key="markup" rows={markupRows} />}
       />

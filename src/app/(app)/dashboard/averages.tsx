@@ -9,6 +9,7 @@ import type { DrillData, DrillOrder } from "@/lib/dashboard-drill";
 import { InfoHint } from "@/components/info-hint";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { loadProductionDrill } from "./actions";
+import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "./tile";
 import { addOrder, blank, build, cmpFor, cost, type Agg, type Lvl } from "./production-table";
 
@@ -43,7 +44,7 @@ const MODES: { id: string; label: string; levels: Lvl[] }[] = [
   { id: "model", label: "Категория → артикул", levels: ["cat", "model"] },
 ];
 
-function useDrill(search: Record<string, string[]>) {
+export function useDrill(search: Record<string, string[]>) {
   const [data, setData] = useState<DrillData | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -54,9 +55,8 @@ function useDrill(search: Record<string, string[]>) {
   return { data, error };
 }
 
-export function AveragesTile({ search }: { search: Record<string, string[]> }) {
+export function AveragesTile({ data }: { data: DrillData | null }) {
   const { mode: vat } = useVatDisplay();
-  const { data } = useDrill(search);
   const [modal, setModal] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
@@ -107,11 +107,15 @@ export function AveragesTile({ search }: { search: Record<string, string[]> }) {
             );
           })}
         </div>
-        <div className="mt-auto flex items-center justify-center gap-2 pt-3" role="tablist" aria-label="Группа">
-          {groups.map((g, i) => (
-            <button key={g.name} type="button" role="tab" aria-selected={i === idx} aria-label={g.name} title={g.name} onClick={() => goTo(i)}
-              className={"h-2 rounded-full transition-all " + (i === idx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
-          ))}
+        <div className="mt-auto flex items-center justify-center gap-2 pt-3">
+          <button type="button" className={CAROUSEL_ARROW} onClick={() => goTo(Math.max(0, idx - 1))} disabled={idx === 0} aria-label="Предыдущий слайд">‹</button>
+          <div className="flex items-center justify-center gap-1.5" role="tablist" aria-label="Группа">
+            {groups.map((g, i) => (
+              <button key={g.name} type="button" role="tab" aria-selected={i === idx} aria-label={g.name} title={g.name} onClick={() => goTo(i)}
+                className={"h-2 rounded-full transition-all " + (i === idx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+            ))}
+          </div>
+          <button type="button" className={CAROUSEL_ARROW} onClick={() => goTo(Math.min(groups.length - 1, idx + 1))} disabled={idx >= groups.length - 1} aria-label="Следующий слайд">›</button>
         </div>
       </div>
       <div className="absolute right-3 top-3">

@@ -199,7 +199,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3 print:break-inside-avoid">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Производство по {by === "cat" ? "группам и категориям" : "меху"}</h3>
+        <h3 className="text-sm font-semibold">Производство по группам меха и категориям</h3>
         <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
           {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
