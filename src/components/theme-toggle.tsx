@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { applyTheme, parseTheme, type UiTheme } from "@/lib/ui-theme";
+import { applyTheme, parseTheme, THEME_SWITCH_ENABLED, type UiTheme } from "@/lib/ui-theme";
 import { cn } from "@/lib/utils";
 
 const ITEMS: { id: UiTheme; label: string }[] = [
@@ -24,6 +24,7 @@ export function ThemeToggle({ initial, className }: { initial?: UiTheme; classNa
     applyTheme(t);
     router.refresh();
   };
+  if (!THEME_SWITCH_ENABLED) return null;
   return (
     <div role="group" aria-label="Стиль оформления" className={cn("flex items-center rounded-md border border-neutral-300 bg-white p-0.5 text-xs", className)}>
       {ITEMS.map((i) => (

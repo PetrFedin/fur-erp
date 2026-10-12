@@ -4,7 +4,9 @@
 export type UiTheme = "customer" | "current";
 export const THEME_COOKIE = "uiTheme";
 export const DEFAULT_THEME: UiTheme = "customer";
-export const parseTheme = (v: string | undefined | null): UiTheme => (v === "current" || v === "customer" ? v : DEFAULT_THEME);
+// «Текущий стиль» скрыт: переключателя нет, всегда «Привычный стиль» (cookie uiTheme игнорируется). Чтобы вернуть выбор, восстановите проверку cookie здесь и показ ThemeToggle.
+export const THEME_SWITCH_ENABLED = false;
+export const parseTheme = (v: string | undefined | null): UiTheme => (THEME_SWITCH_ENABLED && (v === "current" || v === "customer") ? v : DEFAULT_THEME);
 
 /** Только в браузере: запоминает выбор и сразу применяет тему к <html>. */
 export function applyTheme(t: UiTheme) {
