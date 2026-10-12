@@ -150,6 +150,8 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const sum = cost;
 
   const th = "px-2 py-1.5 text-right font-medium";
+  // Тонкая вертикальная линия между блоками колонок: «Производство» | «Расходы» | «Средние и расход».
+  const BL = " border-l border-neutral-200";
   const cells = (g: Agg, small: boolean, noQty = false, dark = false) => {
     const q = noQty ? 0 : qty(g);
     const cls = "whitespace-nowrap px-2 text-right tabular-nums " + (small ? "py-1 text-xs " + (dark ? "text-neutral-900" : "text-neutral-600") : "py-1.5 text-sm");
@@ -158,12 +160,12 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <td className={cls}>{noQty ? "—" : formatQty(q)}</td>
         <td className={cls}>{dash(q > 0 ? sum(g) / q : null, money)}</td>
         <td className={cls + (small ? "" : " font-medium")}>{money(sum(g))}</td>
-        <td className={cls}>{money(g.fur)}</td>
+        <td className={cls + BL}>{money(g.fur)}</td>
         <td className={cls}>{money(g.lining)}</td>
         <td className={cls}>{money(g.work)}</td>
         <td className={cls}>{money(g.c4)}</td>
         {showOther ? <td className={cls}>{money(g.other)}</td> : null}
-        <td className={cls}>{formatQty(g.hides)}</td>
+        <td className={cls + BL}>{formatQty(g.hides)}</td>
         <td className={cls}>{dash(g.hides > 0 ? g.hideSum / g.hides : null, money)}</td>
         <td className={cls}>{formatQty(g.meters)}</td>
         <td className={cls}>{dash(g.meters > 0 ? g.liningSum / g.meters : null, money)}</td>
@@ -211,17 +213,23 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left">
             <thead>
+              <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                <th />
+                <th colSpan={3} className="border-b border-neutral-200 px-2 pb-1 text-left">Производство</th>
+                <th colSpan={showOther ? 5 : 4} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Расходы</th>
+                <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Средние и расход</th>
+              </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                 <th className="py-1.5 pr-2 font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
                 <th className={th}>Изделий, шт.</th>
                 <th className={th}>Ср. цена изделия</th>
                 <th className={th}>Сумма производства</th>
-                <th className={th}>Мех</th>
+                <th className={th + BL}>Мех</th>
                 <th className={th}>Подкладка</th>
                 <th className={th}>Работа</th>
                 <th className={th}>4%</th>
                 {showOther ? <th className={th}>Расходы и прочее</th> : null}
-                <th className={th}>Шкур, шт.</th>
+                <th className={th + BL}>Шкур, шт.</th>
                 <th className={th}>Ср. цена шкуры</th>
                 <th className={th}>Подкладки, м</th>
                 <th className={th}>Ср. цена подкладки, ₽/м</th>
