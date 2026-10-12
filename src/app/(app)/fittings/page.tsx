@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { FittingThumbs } from "@/components/fitting-thumbs";
@@ -12,7 +11,7 @@ import { formatDate, formatQty } from "@/lib/utils";
 import { Dash } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
 import { SummaryTiles } from "../production/summary-tiles";
-import { FITTING_STATUS, FITTING_STATUS_KEYS, orderLabel, truncate } from "@/lib/fittings";
+import { orderLabel, truncate } from "@/lib/fittings";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
 import { articleLabel } from "@/lib/article-label";
@@ -20,8 +19,7 @@ import { articleLabel } from "@/lib/article-label";
 export const metadata = { title: "Примерки" };
 
 const FITTING_FILTERS = defineFilters({
-  ...pick(["q", "status", "model", "year", "from", "to"], {
-    status: { allowed: FITTING_STATUS_KEYS as readonly string[], label: "Итог" },
+  ...pick(["q", "model", "year", "from", "to"], {
     q: { label: "Поиск" },
     from: { label: "Дата примерки с" },
     to: { label: "Дата примерки по" },
@@ -39,7 +37,6 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
 
   const where: Prisma.FittingWhereInput = {
     organizationId: orgId,
-    ...(f.status.length ? { status: { in: f.status as Array<keyof typeof FITTING_STATUS> } } : {}),
     ...(f.model.length ? { productionOrder: { productModelId: { in: f.model } } } : {}),
     AND: [
       ...(f.year.length ? [{ OR: yearRanges(f.year).map((r) => ({ fittingDate: r })) }] : []),
@@ -87,7 +84,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
   const okCnt = cntOf("HELD_OK");
   const photoTotal = fittings.reduce((a, x) => a + x.photos.length, 0);
   const num = (n: number) => (n ? formatQty(n) : <Dash />);
-  const hasFilters = Boolean(f.status.length || f.model.length || f.year.length || f.from || f.to || q);
+  const hasFilters = Boolean(f.model.length || f.year.length || f.from || f.to || q);
   const isEmpty = fittings.length === 0 && !hasFilters;
 
   return (
@@ -120,9 +117,9 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         linkLabel="→ ТЗ"
         tiles={[
           { key: "all", label: "Примерок", value: num(fittings.length), caption: hasFilters ? "по выбранным фильтрам" : undefined },
-          { key: "planned", label: "Запланировано", value: num(plannedCnt), href: "/fittings?status=PLANNED" },
-          { key: "remarks", label: "Есть замечания", value: num(remarksCnt), href: "/fittings?status=HELD_REMARKS" },
-          { key: "ok", label: "Принято", value: num(okCnt), href: "/fittings?status=HELD_OK" },
+          { key: "planned", label: "Запланировано", value: num(plannedCnt) },
+          { key: "remarks", label: "Есть замечания", value: num(remarksCnt) },
+          { key: "ok", label: "Принято", value: num(okCnt) },
           { key: "photos", label: "Фото, шт.", value: num(photoTotal) },
         ]}
       />
@@ -133,7 +130,6 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         hideChips
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или комментарий" },
-          { type: "multi", name: "status", label: "Итог", options: FITTING_STATUS_KEYS.map((k) => ({ value: k, label: FITTING_STATUS[k].label })), allLabel: "Любой итог" },
           { type: "multi", name: "model", label: "Модель", options: models.map((m) => ({ value: m.id, label: m.name })), allLabel: "Все модели" },
           { type: "multi", name: "year", label: "Год примерки", options: yearOptionsFrom(allDates.map((d) => d.fittingDate)) },
           { type: "date", name: "from", label: "Дата с" },
@@ -148,14 +144,12 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
             <Th>ТЗ</Th>
             <Th>Заказчик</Th>
             <Th>Размер</Th>
-            <Th>Итог</Th>
             <Th>Комментарий</Th>
             <Th>Фото, шт.</Th>
           </Tr>
         </Thead>
         <Tbody>
           {fittings.map((f) => {
-            const st = FITTING_STATUS[f.status];
             const href = `/fittings/${f.id}`;
             const link = "block px-3 py-2";
             return (
@@ -178,11 +172,6 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
                   <Link href={href} className={link}>{f.size ?? "—"}</Link>
                 </Td>
                 <Td className="p-0">
-                  <Link href={href} className={link}>
-                    <Badge variant={st.variant}>{st.label}</Badge>
-                  </Link>
-                </Td>
-                <Td className="p-0">
                   <Link href={href} className={`${link} max-w-xs`} title={f.comment ?? undefined}>
                     {truncate(f.comment, 100) || "—"}
                   </Link>
@@ -197,13 +186,13 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
           })}
           {fittings.length > 0 && (
             <Tr className="row-total">
-              <Td colSpan={6}><TotalLabel unit="шт." note={`примерок: ${formatQty(fittings.length)}`} /></Td>
+              <Td colSpan={5}><TotalLabel unit="шт." note={`примерок: ${formatQty(fittings.length)}`} /></Td>
               <Td className="tabular-nums">{photoTotal ? formatQty(photoTotal) : <Dash />}</Td>
             </Tr>
           )}
           {fittings.length === 0 && (
             <Tr>
-              <Td colSpan={7} className="py-8 text-center text-neutral-500">
+              <Td colSpan={6} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : "Примерок пока нет"}
               </Td>
             </Tr>

@@ -1,7 +1,6 @@
 import { uniqueLabelCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { InfoHint } from "@/components/info-hint";
 import { YearGroup } from "./year-group";
 import { formatMoney } from "@/lib/utils";
@@ -181,7 +180,6 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                 {groupByDate(list).map((g) => {
                   const r = g.rows[0];
                   const many = g.rows.length > 1;
-                  const confirmedN = g.rows.filter((x) => x.confirmed).length;
                   return (
                     <tr key={g.iso} className="border-b border-neutral-100 align-top">
                       <td className="whitespace-nowrap px-3 py-2">
@@ -203,7 +201,6 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                         );
                       })()}
                       <td className="border-l border-neutral-200 px-3 py-2">
-                        {confirmedN === g.rows.length && g.rows.reduce((a2, x) => a2 + x.due - x.paid, 0) > 0.5 ? <Badge variant="warning">подтверждена частично</Badge> : confirmedN === g.rows.length ? <Badge variant="success">подтверждена</Badge> : confirmedN === 0 ? <Badge variant="warning">не подтверждена</Badge> : <Badge variant="warning">подтверждено {confirmedN} из {g.rows.length}</Badge>}
                         {!many && r.verify && !r.confirmed ? (
                           <details className="mt-1">
                             <summary className="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800">подтвердить…</summary>

@@ -15,10 +15,9 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 import { ACCESS, hasRole } from "@/lib/access";
-import { Badge } from "@/components/ui/badge";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { resolveAuctionValues } from "@/lib/auction-ref";
-import { auctionName, loadAuctionSummaries, payStatus, AUCTION_PAY_STATUS_LABELS, CLOSING_NOTE, PAY_EPS, type AuctionPay, type AuctionPayStatus } from "@/lib/auction-payments";
+import { auctionName, loadAuctionSummaries, CLOSING_NOTE, PAY_EPS, type AuctionPay } from "@/lib/auction-payments";
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { PaymentRowControls } from "./auction-payment-form";
 import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
@@ -86,22 +85,12 @@ const FRESH_MS = 365 * 24 * 3600 * 1000;
 const PAY_FILTERS = defineFilters({
   ptype: { kind: "multi", label: "Тип оплаты", allowed: ["ADVANCE", "PARTIAL", "FINAL"] },
   stat: { kind: "multi", label: "Статья", allowed: ["raw", "prod"] },
-  ...pick(["auction", "q", "supplier", "status", "verified", "from", "to", "tab", "batch"], {
+  ...pick(["auction", "q", "from", "to", "tab", "batch"], {
     q: { aliases: ["dq"], label: "Название партии" },
-    status: { aliases: ["f"], allowed: ["rest", "paid"], label: "Оплата" },
-    verified: { allowed: ["yes", "no"], label: "Подтверждение" },
     from: { label: "Оплата с" },
     to: { label: "Оплата по" },
   }),
 });
-const PAY_STATUS_OPTIONS = [
-  { value: "rest", label: "С остатком" },
-  { value: "paid", label: "Оплачено полностью" },
-];
-const PAY_VERIFIED_OPTIONS = [
-  { value: "yes", label: "Подтверждено" },
-  { value: "no", label: "Ждёт проверки (нет платёжки)" },
-];
 
 const KIND_LABELS: Record<string, string> = {
   ADVANCE: "Аванс",
@@ -110,33 +99,6 @@ const KIND_LABELS: Record<string, string> = {
   OTHER: "Другое",
 };
 
-const STATUS_VARIANT: Record<AuctionPayStatus, "danger" | "warning" | "success" | "info"> = {
-  UNPAID: "danger",
-  PARTIAL: "warning",
-  PAID: "success",
-  OVERPAID: "success",
-};
-
-/** Допуск округления: остаток меньше 50 ₽ — партия считается оплаченной («Оплачен ≈»). */
-const ROUND_TOL = 50;
-/** Статус по сумме и оплате — тот же, что у строки партии (остаток меньше 50 ₽ — «Оплачен ≈»), для итоговых строк. */
-function totalsBadge(total: Decimal, paid: Decimal) {
-  const st = payStatus(total, paid);
-  const rem = total.sub(paid);
-  if (st === "PARTIAL" && rem.greaterThan(PAY_EPS) && rem.lessThan(ROUND_TOL)) return <Badge variant="success" title={`Остаток ${rem.toFixed(2)} ₽ — копейки округления`}>Оплачен ≈</Badge>;
-  return <Badge variant={STATUS_VARIANT[st]}>{st === "OVERPAID" ? "Оплачен" : AUCTION_PAY_STATUS_LABELS[st]}</Badge>;
-}
-
-function statusBadge(a: AuctionPay) {
-  const nearly = a.status === "PARTIAL" && a.remaining.greaterThan(PAY_EPS) && a.remaining.lessThan(ROUND_TOL);
-  return nearly ? (
-    <Badge variant="success" title={`Остаток ${a.remaining.toFixed(2)} ₽ — копейки округления, партия считается оплаченной`}>
-      Оплачен ≈
-    </Badge>
-  ) : (
-    <Badge variant={STATUS_VARIANT[a.status]}>{a.status === "OVERPAID" ? "Оплачен" : AUCTION_PAY_STATUS_LABELS[a.status]}</Badge>
-  );
-}
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   ADVANCE: "Аванс",
@@ -182,12 +144,9 @@ export default async function PaymentsPage({
   // Фильтры вкладки «Поставщикам» не действуют на «От заказчиков» и наоборот.
   const fAuction = clientsTab ? [] : pf.auction;
   const listQ = clientsTab ? "" : pf.q;
-  const fSupplier = clientsTab ? [] : pf.supplier;
-  const fStatus = clientsTab ? [] : pf.status;
-  const fVerified = pf.verified;
   const period = dateRange(pf.from, pf.to);
   const listFiltered = !clientsTab && activeCount(PAY_FILTERS, { ...pf, tab: "" }) > 0;
-  const payOpts = await getFilterOptions(orgId, year, ["auction", "supplier"]);
+  const payOpts = await getFilterOptions(orgId, year, ["auction"]);
   // Если выбрана ровно одна партия — под списком открывается её карточка с оплатами.
   const auctionQ = fAuction.length === 1 && fAuction[0] !== NONE ? (await resolveAuctionValues(orgId, fAuction))[0] : "";
   const [payments, clientPayments, summariesAll, auctionPurchases, debt] = await Promise.all([
@@ -207,7 +166,6 @@ export default async function PaymentsPage({
             organizationId: session.user.organizationId,
             ...(yearRange(year) ? { paidAt: yearRange(year) } : {}),
             ...(period ? { AND: [{ paidAt: period }] } : {}),
-            ...(fVerified.length === 1 ? { confirmed: fVerified[0] === "yes" } : {}),
             ...(clientsTab && pf.ptype.length ? { paymentType: { in: pf.ptype as ("ADVANCE" | "PARTIAL" | "FINAL")[] } } : {}),
             ...(clientsTab && pf.batch.length ? { orders: { some: { productionOrder: { batch: { number: { in: pf.batch.map(Number) } } } } } } : {}),
           },
@@ -267,16 +225,7 @@ export default async function PaymentsPage({
   const visibleAuctions = auctions.filter((a) => {
     if (!matchesAuction(a)) return false;
     if (listQLower && !a.name.toLowerCase().includes(listQLower)) return false;
-    if (fSupplier.length && !a.suppliers.some((x) => fSupplier.includes(x.id))) return false;
-    if (fStatus.length) {
-      const rest = a.remaining.greaterThan(PAY_EPS);
-      if (!(fStatus.includes("rest") && rest) && !(fStatus.includes("paid") && !rest)) return false;
-    }
     const pays = paysByAuction.get(a.name) ?? [];
-    if (fVerified.length === 1) {
-      const unconfirmed = pays.some((p) => p.status === "COMPLETED" && !(p.confirmed && p.confirmedAt));
-      if (fVerified[0] === "yes" ? unconfirmed || pays.length === 0 : !unconfirmed) return false;
-    }
     if (period && !pays.some((p) => (!period.gte || p.paidAt >= period.gte) && (!period.lte || p.paidAt <= period.lte))) return false;
     return true;
   });
@@ -292,11 +241,6 @@ export default async function PaymentsPage({
   const today = new Date().toISOString().slice(0, 10);
 
   // Имена посредников берём из данных аукционов (не хардкодим).
-  const supplierNamesOf = (list: AuctionPay[]) => {
-    const names = Array.from(new Set(list.flatMap((a) => a.suppliers.map((x) => x.name))));
-    return names.length <= 4 ? names.join(", ") : `${names.slice(0, 4).join(", ")} и ещё ${names.length - 4}`;
-  };
-  const intermediaries = supplierNamesOf(auctions);
   const ppDocCnt = await docCounts(orgId, "productionPayment", clientPayments.map((p) => p.id));
   // Ближайшие сроки счетов (из документов Drive «срок дд.мм.гггг»), как на Главной.
   const deadlines = (debt?.byAuction ?? [])
@@ -338,9 +282,6 @@ export default async function PaymentsPage({
               <p>{OVERPAY_NOTE.find((n) => n.inline && n.rx.test(a.name))!.text}</p>
             </InfoHint>
           ) : null}
-        </Td>
-        <Td>
-          {statusBadge(a)}
         </Td>
       </Tr>
     );
@@ -415,7 +356,6 @@ export default async function PaymentsPage({
       <Td className="whitespace-nowrap text-right">{formatMoney(e.paid.toString())}</Td>
       {anyPlanned && <Td className="text-right">—</Td>}
       <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(e.rem)}</Td>
-      <Td>{totalsBadge(e.total, e.paid)}</Td>
     </Tr>
   );
   const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
@@ -426,7 +366,6 @@ export default async function PaymentsPage({
         key={a.name}
         title={shortAuctionName(a.name)}
         href={href}
-        badge={statusBadge(a)}
         fields={[
           { label: "Остаток", value: <span className={remClass(a.remaining)}>{fmtRemaining(a.remaining)}</span>, strong: true },
           { label: "Стоимость", value: formatMoney(a.total.toString()) },
@@ -479,7 +418,6 @@ export default async function PaymentsPage({
           <Th className="text-right">Оплачено</Th>
           {anyPlanned && <Th className="text-right">Запланировано</Th>}
           <Th className="text-right">Задолженность</Th>
-          <Th>Статус</Th>
         </Tr>
       </Thead>
       <Tbody>
@@ -512,7 +450,6 @@ export default async function PaymentsPage({
                       </td>
                       {anyPlanned && <td className="px-3 py-2 text-right">—</td>}
                       <td className={"whitespace-nowrap px-3 py-2 text-right tabular-nums " + remClass(gr)}>{fmtRemaining(gr)}</td>
-                      <td className="px-3 py-2">{totalsBadge(gt, gp)}</td>
                     </>
                   }
                 >
@@ -684,7 +621,7 @@ export default async function PaymentsPage({
         <h1 className="text-xl font-semibold">Оплаты</h1>
         {year !== "all" && <span className="text-sm font-normal text-neutral-600">· {yearLabel(year)}</span>}
         <InfoHint wide label="О странице оплат">
-          <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.{intermediaries ? ` Посредники: ${intermediaries}.` : ""}</p>
+          <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
         </InfoHint>
         {canPay && <span className="ml-auto"><PaymentFormButton label="+ Внести оплату" variant="default" size="default" requireYear /></span>}
       </div>
@@ -707,7 +644,6 @@ export default async function PaymentsPage({
           hideChips
           controls={[
             { type: "multi", name: "stat", label: "Статья", options: [{ value: "raw", label: "За сырьё" }, { value: "prod", label: "За работу" }], allLabel: "Все" },
-            { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
           ]}
@@ -718,7 +654,7 @@ export default async function PaymentsPage({
           const lf = await overviewLeft(orgId);
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
           const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0) };
-          const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (pf.verified.length === 0 || pf.verified.includes(r.confirmed ? "yes" : "no")) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
+          const rows = (await loadPaymentsOverview(orgId)).filter((r) => (year === "all" || r.year === Number(year)) && (pf.stat.length === 0 || pf.stat.includes(r.kind)) && (!pf.from || r.iso >= pf.from) && (!pf.to || r.iso <= pf.to));
           // Кнопки правки и удаления в описании платежа: оплата партии / аванс — на месте; оплата закупки и производства — переход в карточку.
           const controls: Record<string, React.ReactNode> = {};
           const advTargets: AllocTarget[] = [];
@@ -773,7 +709,6 @@ export default async function PaymentsPage({
           controls={[
             { type: "multi", name: "batch", label: "Партия", options: clientBatchOptions, allLabel: "Все партии" },
             { type: "multi", name: "ptype", label: "Тип оплаты", options: [{ value: "ADVANCE", label: "Аванс" }, { value: "PARTIAL", label: "Доплата" }, { value: "FINAL", label: "Оплата" }], allLabel: "Любой" },
-            { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
           ]}
@@ -794,9 +729,6 @@ export default async function PaymentsPage({
               controls={[
                 { type: "multi", name: "auction", label: "Аукцион", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
                 { type: "text", name: "q", label: "Название партии", aliases: ["dq"], placeholder: "часть названия" },
-                { type: "multi", name: "supplier", label: "Поставщик", options: payOpts.supplier },
-                { type: "multi", name: "status", label: "Оплата", aliases: ["f"], options: PAY_STATUS_OPTIONS, allLabel: "Любая" },
-                { type: "multi", name: "verified", label: "Подтверждение", options: PAY_VERIFIED_OPTIONS, allLabel: "Любое" },
                 { type: "date", name: "from", label: "Оплата с" },
                 { type: "date", name: "to", label: "Оплата по" },
               ]}
@@ -937,7 +869,7 @@ export default async function PaymentsPage({
                 <CardContent className="flex flex-col gap-5">
                   <section>
                     <h3 className="mb-2 text-sm font-semibold">Оплаты ({lines.length})</h3>
-                    <PaymentLinesTable lines={lines} emptyText={`По этой партии оплат поставщику${supplierNamesOf([selected]) ? ` (${supplierNamesOf([selected])})` : ""} пока нет`} />
+                    <PaymentLinesTable lines={lines} emptyText={`По этой партии оплат пока нет`} />
                   </section>
 
                 </CardContent>

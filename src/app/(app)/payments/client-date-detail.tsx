@@ -1,7 +1,6 @@
 import { uniqueLabelCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
-import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Goods, SplitLine, type ClientPayRow, type PaidGood } from "./client-payments-table";
@@ -54,7 +53,6 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-lg font-semibold tabular-nums">{formatMoney(r.amount.toFixed(2))}</span>
                   <span className="text-sm text-neutral-600">{r.type}{invoice ? ` по счёту №${invoice[1]}${invoice[2] ? ` от ${invoice[2]}` : ""}` : ""}</span>
-                  {r.confirmed ? (r.due - r.paid > 0.5 ? <Badge variant="warning">подтверждена частично</Badge> : <Badge variant="success">подтверждена</Badge>) : <Badge variant="warning">не подтверждена</Badge>}
                 </div>
                 {noTz && what ? <p className="mt-1 text-sm text-neutral-700">{what}</p> : null}
               </div>

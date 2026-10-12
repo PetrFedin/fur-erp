@@ -335,13 +335,6 @@ export function BatchWizard({
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor="supplierId">Поставщик / посредник</Label>
-                  <Select id="supplierId" value={header.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
-                    <option value="">Выберите…</option>
-                    {refs.suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </Select>
-                </div>
-                <div>
                   <Label htmlFor="orderDate">Дата закупки</Label>
                   <Input id="orderDate" type="date" value={header.orderDate} onChange={(e) => set("orderDate", e.target.value)} />
                 </div>
@@ -467,7 +460,6 @@ function ReviewStep({
       <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
         <div>
           <Row label="Аукцион">{aName}</Row>
-          <Row label="Поставщик">{refs.suppliers.find((s) => s.id === header.supplierId)?.name ?? "—"}</Row>
           <Row label="Валюта и курс">{header.currency}{header.currency !== "RUB" ? `, ${header.exchangeRate}` : ""}</Row>
           <Row label="Закупок будет создано">{preview.purchases.length}</Row>
           <Row label="Лотов">{fmt(t.lots)}</Row>

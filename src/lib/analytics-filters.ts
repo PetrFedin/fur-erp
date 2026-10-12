@@ -56,7 +56,7 @@ const num = (s: string) => {
 };
 
 export function parseShared(sp: SP): SharedFilters {
-  const vat = one(sp.vat) === "mixed" ? "mix" : one(sp.vat);
+  const vat = "" as "" | "20" | "22" | "mix"; // фильтр «Ставка НДС» убран из интерфейса: параметр адреса игнорируем
   return {
     cat: manyAs(sp, "category", "cat"),
     fur: many(sp.fur),

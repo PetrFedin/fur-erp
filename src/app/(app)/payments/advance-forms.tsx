@@ -78,7 +78,7 @@ export function AdvanceForm({
     <form onSubmit={submit} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {confirmNode}
       {initial?.version && <input type="hidden" name="_v" value={initial.version} />}
-      <div>
+      {suppliers.length === 1 ? <input type="hidden" name="supplierId" value={suppliers[0].id} /> : <div>
         <label htmlFor={fid("supplierId")} className={lab}>
           Поставщик
         </label>
@@ -92,7 +92,7 @@ export function AdvanceForm({
             </option>
           ))}
         </Select>
-      </div>
+      </div>}
       <div>
         <label htmlFor={fid("amount")} className={lab}>
           Сумма, ₽

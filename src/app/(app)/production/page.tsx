@@ -40,18 +40,9 @@ import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
 import { searchArticles } from "@/lib/article-ref";
 import { TzVatBadge } from "@/components/tz-vat-badge";
-import { matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
+import { vatBreakdown } from "@/lib/tz-vat";
 import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
 import { loadOrderRows } from "@/lib/analytics-orders";
-
-const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
-  PLANNED: { label: "Запланирован", variant: "default" },
-  IN_PROGRESS: { label: "В работе", variant: "warning" },
-  COMPLETED: { label: "Завершён", variant: "success" },
-  CANCELLED: { label: "Отменён", variant: "danger" },
-};
-
-const STATUS_KEYS = Object.keys(STATUS_LABELS);
 
 const SORTS: Record<string, string> = {
   num_desc: "№ ТЗ: по убыванию",
@@ -61,18 +52,12 @@ const DOCS_OPTIONS = [
   { value: "docs", label: "Только без документов" },
   { value: "pay", label: "Только без оплаты" },
 ];
-const VAT_OPTIONS = [
-  { value: "20", label: "Только 20%" },
-  { value: "22", label: "Только 22%" },
-  { value: "mixed", label: "Смешанные (20% и 22%)" },
-];
 const VERIFIED_OPTIONS = [
   { value: "yes", label: "Подтверждено" },
   { value: "no", label: "Ждёт проверки" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "status", "season", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "vat", "verified", "from", "to", "sort", "view"], {
-    status: { allowed: STATUS_KEYS },
+  ...pick(["q", "season", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
     verified: { allowed: ["yes", "no"], label: "Проверка" },
@@ -100,8 +85,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const sort = f.sort;
   const grouped = f.view === "batches";
   const filtersOn = activeCount(PROD_FILTERS, f) > 0;
-  // Фильтр «Ставка НДС» по лотам в списаниях ТЗ: 20 / 22 / смешанные.
-  const vatKinds = f.vat.map((v) => (v === "mix" ? "mixed" : v));
   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
   const PAGE_SIZE = 50;
   const limitRaw = /^\d{1,5}$/.test(f.limit) ? parseInt(f.limit, 10) : PAGE_SIZE;
@@ -153,7 +136,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             ],
           };
         },
-        status: (v) => ({ status: { in: v as Array<"PLANNED"> } }),
         season: (v) => {
           const { none, rest } = splitNone(v);
           return { OR: [...(rest.length ? [{ season: { code: { in: rest } } }, { seasonId: { in: rest } }] : []), ...(none ? [{ seasonId: null }] : [])] };
@@ -252,7 +234,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       const ss = parseOrderSizes(o.size);
       if (!(ss.length === 0 ? sizeSel.none : ss.some((x) => sizeSel.rest.includes(x)))) return false;
     }
-    if (vatKinds.length && !vatKinds.some((k) => matchesVatFilter(vatBreakdown(o.materialUsages, c4Mode).kind, k))) return false;
     if (period) {
       const d = orderDateOf(o);
       if (!d || (period.gte && d < period.gte) || (period.lte && d > period.lte)) return false;
@@ -318,7 +299,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   // Работа (цена работы × выпуск/план) и шкуры подрядчика по списку — чтобы итог сходился с «Себестоимостью» на Главной и в «Изделиях».
   const live = priced.filter((x) => x.o.status !== "CANCELLED");
   const workSum = live.reduce((a, { o }) => a + (o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0), 0);
-  const hidesShares = hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: f.vat ?? [] })
+  const hidesShares = hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: [] })
     ? allocateHides(live.map(({ o }) => ({ id: o.id, number: o.number, batch: o.batch?.number == null ? "none" : String(o.batch.number), qty: orderUnits(o) })), hidesByPayYear(await loadPaymentsOverview(orgId)), "all")
     : [];
   const hidesSum = hidesShares.reduce((a, x) => a + x.incl, 0);
@@ -331,7 +312,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return { incl: total.add(w).add(h?.incl ?? 0), excl: totalExcl.add(w).add(h?.excl ?? 0) };
   };
   // Плитки и дерево — из тех же ТЗ, что окно «Стоимость производства» на Главной, но только из списка страницы (фильтры применены).
-  const drill = await loadOrdersDrill(orgId, year, c4Mode, { ids: new Set(orders.map((o) => o.id)), hides: hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: f.vat ?? [] }) });
+  const drill = await loadOrdersDrill(orgId, year, c4Mode, { ids: new Set(orders.map((o) => o.id)), hides: hidesApply({ auction: f.auction ?? [], fur: f.fur ?? [], color: f.color ?? [], attr: f.attr ?? [], vat: [] }) });
   // Вид меха ТЗ — как в карточке и на Главной (ручной вид или по лотам).
   const furOf = new Map(drill.map((d) => [d.id, d.fur]));
   // Колонки списка: те же функции, что у карточки (sumUsagesWith4); «без 4%» — мелко под цифрой, если надбавка есть.
@@ -373,14 +354,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const full = fullOf(o, total, totalExcl);
             const st = statOf(o, full);
             const fur = furOf.get(o.id) || "—";
-            const stLabel = STATUS_LABELS[o.status]?.label ?? "";
             const card = (
               <RowCard
                 key={o.id}
                 title={`ТЗ ${o.workOrderNumber ?? "—"}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
                 href={href}
                 subtitle={`${articleLabel(o.productModel)}${fur !== "—" ? ` · ${fur}` : ""}`}
-                badge={<span className="text-xs text-neutral-500">{stLabel}</span>}
                 fields={[
                   {
                     label: <VatLabel base={`Себестоимость${c4}`} />,
@@ -420,8 +399,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   )}
                 </Td>
                 <Td className={`${cell} font-medium`}>
-                  <Link href={href} className={`${link} whitespace-nowrap hover:underline`} title={stLabel}>
-                    <span className={"mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle " + (o.status === "COMPLETED" ? "bg-emerald-500" : o.status === "IN_PROGRESS" ? "bg-amber-500" : o.status === "CANCELLED" ? "bg-red-400" : "bg-neutral-300")} aria-label={stLabel} />
+                  <Link href={href} className={`${link} whitespace-nowrap hover:underline`}>
                     {child ? <span className="pl-4 text-xs font-normal text-neutral-600">{o.number}</span> : (o.workOrderNumber ?? "—")}
                     {matchOf(o)?.label && <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>}
                   </Link>
@@ -589,7 +567,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         hideChips
         controls={[
           { type: "text", name: "q", label: "№ ТЗ / поиск", placeholder: "№ ТЗ, артикул, заказчик" },
-          { type: "multi", name: "status", label: "Статус", options: STATUS_KEYS.map((k) => ({ value: k, label: STATUS_LABELS[k].label })), allLabel: "Все статусы" },
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Артикул", options: opts.model },
@@ -601,7 +578,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "color", label: "Цвет изделия", options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
           ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все", more: true },
-          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка", more: true },
           { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },
           { type: "date", name: "from", label: "Дата ТЗ с", more: true },
           { type: "date", name: "to", label: "Дата ТЗ по", more: true },

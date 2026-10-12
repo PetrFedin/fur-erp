@@ -17,7 +17,6 @@ export type OrderInfo = {
 };
 type Grp = "all" | "cloth" | "acc";
 const GRP_NAME: Record<Exclude<Grp, "all">, string> = { cloth: "Одежда", acc: "Аксессуары" };
-const STATUS: Record<OrderInfo["status"], string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "завершён" };
 
 type Row = {
   orderId: string; number: string; info: OrderInfo | null;
@@ -185,13 +184,13 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
       </div>
 
       <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200">
-        <table className="w-full table-fixed text-sm" style={{ minWidth: 1200 }}>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: 1124 }}>
           <colgroup>
-            {[170, 130, 52, 76, 40, 66, 46, 46, 104, 80, 84, 50, 70, 90].map((w, i) => <col key={i} style={{ width: w }} />)}
+            {[170, 130, 52, 40, 66, 46, 46, 104, 80, 84, 50, 70, 90].map((w, i) => <col key={i} style={{ width: w }} />)}
           </colgroup>
           <thead>
             <tr>
-              <th colSpan={5} className={block.replace("border-l ", "") + " sticky left-0 z-[2] bg-white"}>ТЗ</th>
+              <th colSpan={4} className={block.replace("border-l ", "") + " sticky left-0 z-[2] bg-white"}>ТЗ</th>
               <th colSpan={7} className={block}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</th>
               <th colSpan={2} className={block}>На изделие</th>
             </tr>
@@ -201,7 +200,6 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
               </th>
               <th className={cn(TH, "!text-left")}>Артикул</th>
               <th className={TH}>Изд., шт.</th>
-              <th className={TH}>Статус</th>
               {head("year", "Год")}
               {head("qty", `${kind === "lining" ? "Метров" : "Шкур"}, ${unit}`, false, true)}
               <th className={TH}>Лотов</th>
@@ -230,7 +228,6 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                     </td>
                     <td className="truncate px-2 py-1.5 text-left text-xs" title={`${info?.article ?? ""} · ${info?.category ?? ""}`}>{info ? <>{info.article.split(" · ")[0]}<div className="truncate text-[11px] text-neutral-500">{info.category}</div></> : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatQty(info.units) : <D />}</td>
-                    <td className={TD + " text-xs"}>{info ? STATUS[info.status] : <D />}</td>
                     <td className={TD + " text-xs"}>{info?.year ?? <D />}</td>
                     <td className={TD + BL}>{formatQty(r.qty)}</td>
                     <td className={TD}>{r.lots.size}</td>
@@ -247,7 +244,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                       <td className="sticky left-0 z-[1] bg-white px-2 py-1 pl-8 text-left">
                         {lot.id.startsWith("hides") || lot.id.startsWith("ordered:") ? <span>лот № {lot.lotNumber}</span> : <Link href={`/analytics/raw/lot/${lot.id}`} className="whitespace-nowrap text-blue-700 hover:underline">лот № {lot.lotNumber}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>}
                       </td>
-                      <td className="truncate px-2 py-1 text-left text-xs" colSpan={4}>
+                      <td className="truncate px-2 py-1 text-left text-xs" colSpan={3}>
                         {lot.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(lot.auction)}`} className="text-blue-700 hover:underline">{lot.auctionLabel}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link> : lot.auctionLabel}
                       </td>
                       <td className={TD + BL}>{formatQty(qty)}</td>
@@ -262,12 +259,12 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                 </Fragment>
               );
             })}
-            {shown.length === 0 ? <tr><td colSpan={14} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
+            {shown.length === 0 ? <tr><td colSpan={13} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
               <tr className="row-total">
                 <td className="sticky left-0 z-[1] bg-inherit px-2 py-2 text-left"><TotalLabel unit="₽" avg /></td>
                 <td className={TD} />
                 <td className={TD}>{T.units > 0 ? formatQty(T.units) : <D />}</td>
-                <td className={TD} /><td className={TD} />
+                <td className={TD} />
                 <td className={TD + BL}>{formatQty(T.qty)}</td>
                 <td className={TD} /><td className={TD} />
                 <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[10px] font-normal opacity-80">с 4%: {money(totC4)}</div></td>

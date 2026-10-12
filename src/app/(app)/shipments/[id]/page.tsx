@@ -3,11 +3,10 @@ import { ArticleName } from "@/components/article-name";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { formatDate, formatQty } from "@/lib/utils";
-import { SHIPMENT_STATUS, orderLabel, isoDay, todayIso } from "@/lib/shipments";
+import { orderLabel, isoDay, todayIso } from "@/lib/shipments";
 import { PlannedActions, ShippedEdit } from "./shipment-actions";
 import { TotalLabel } from "@/components/total-label";
 
@@ -29,9 +28,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   });
   if (!s) notFound();
   const canEdit = EDIT_ROLES.includes(session.user.role);
-  const st = SHIPMENT_STATUS[s.status];
   const today = todayIso();
-  const overdue = s.status === "PLANNED" && isoDay(s.plannedDate) < today;
   const total = s.lines.reduce((a, l) => a + l.quantity, 0);
 
   return (
@@ -44,8 +41,6 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">Отгрузка на {formatDate(s.plannedDate)}</h1>
-        <Badge variant={st.variant}>{st.label}</Badge>
-        {overdue && <Badge variant="danger">просрочена</Badge>}
       </div>
 
       <dl className="grid grid-cols-[7rem_1fr] sm:grid-cols-[10rem_1fr] gap-y-1 text-sm">

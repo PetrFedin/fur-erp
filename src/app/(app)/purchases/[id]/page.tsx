@@ -10,7 +10,6 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -45,14 +44,6 @@ import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_ED
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
-
-// Two states in the UI. ORDERED / IN_TRANSIT rows that already exist in the DB
-// are shown (and behave) as a draft; the enum itself is untouched.
-function statusView(status: string): { label: string; variant: "default" | "success" | "danger" } {
-  if (status === "RECEIVED") return { label: "Принято на склад", variant: "success" };
-  if (status === "CANCELLED") return { label: "Отменено", variant: "danger" };
-  return { label: "Черновик", variant: "default" };
-}
 
 const METHOD_LABELS: Record<string, string> = {
   BANK_TRANSFER: "Банк. перевод",
@@ -242,7 +233,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ? (await loadAuctionSummaries(prisma, session.user.organizationId, [batchName]))[0] ?? null
     : null;
   const balanceDue = grandTotalRub.sub(paidTotal);
-  const status = statusView(purchase.status);
 
   const boundUpdatePurchase = updatePurchase.bind(null, id);
   const boundRemoveItem = removePurchaseItem.bind(null, id);
@@ -492,14 +482,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}
           <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
-            <Badge variant={status.variant}>{status.label}</Badge>
             <InfoHint label="О закупке" wide>
               <p>Позиции сырья и подкладки, расходы закупки, оплаты и документы. Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года.</p>
             </InfoHint>
           </div>
           <p className="text-sm text-neutral-500">
             {[
-              purchase.supplier.name,
               formatDate(purchase.orderDate),
               purchase.auctionSession ? `партия ${purchase.auctionSession}` : null,
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,

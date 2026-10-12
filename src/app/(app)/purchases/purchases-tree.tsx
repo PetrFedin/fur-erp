@@ -11,7 +11,7 @@ import { TotalLabel } from "@/components/total-label";
 import { LotUsageMini } from "@/components/lot-usage-bar";
 import { RowCard } from "@/components/responsive-rows";
 import { shortMaterialName } from "@/lib/material-name";
-import { aggregate, type Agg, type PurchaseStatus, type TreeBatch, type TreeItem, type TreePurchase, type TreeYear } from "./purchases-agg";
+import { aggregate, type Agg, type TreeItem, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 export type { PurchaseStatus, TreeBatch, TreePurchase, TreeYear } from "./purchases-agg";
 
@@ -31,13 +31,6 @@ const remText = (a: Pick<Agg, "remFur" | "remLining" | "hasLots">) => {
   const parts = [a.remFur > 0.0005 ? `${formatQty(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatQty(a.remLining)} м` : null].filter(Boolean);
   return parts.length ? parts.join(" · ") : <Dash />;
 };
-/** Статус закупки — маленький серый чип рядом с номером (отдельного столбца нет); принятые закупки без чипа. */
-function StatusChip({ status }: { status?: PurchaseStatus }) {
-  if (status === "CANCELLED") return <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] leading-4 text-neutral-500" title="Закупка отменена">отменена</span>;
-  if (status === "DRAFT") return <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] leading-4 text-neutral-500" title="Черновик: заказано, ещё не принято на склад">черновик</span>;
-  return null;
-}
-
 /** Служебные строки (шкуры подрядчика, округление): сумма, оплачено, ссылка ↗ на детализацию, пояснение в «i». */
 function ExtraLabel({ x }: { x: ExtraRow }) {
   return (
@@ -71,7 +64,7 @@ function HelpHint() {
 
 // ───────────────────────────── дерево «По годам и партиям» ─────────────────────────────
 
-const TREE_COLS = [250, 118, 84, 64, 60, 84, 88, 116, 104, 112, 116, 104];
+const TREE_COLS = [250, 84, 64, 60, 84, 88, 116, 104, 112, 116, 104];
 const NAME_CELL = "sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left align-top";
 const LINK = "text-blue-700 hover:underline";
 
@@ -89,10 +82,9 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
   const exPaid = extras.reduce((a, x) => a + x.paid, 0);
 
   /** Ячейки строки уровня «год / партия / закупка» по агрегату. */
-  const cells = (a: Agg, o: { supplier?: ReactNode; date?: ReactNode } = {}) => (
+  const cells = (a: Agg, o: { date?: ReactNode } = {}) => (
     <>
-      <td className={TD + BL + " truncate !text-left text-xs"}>{o.supplier ?? (a.suppliers.length === 1 ? a.suppliers[0] : a.suppliers.length > 1 ? `${a.suppliers.length} поставщ.` : <Dash />)}</td>
-      <td className={TD + " text-xs"}>{o.date ?? <Dash />}</td>
+      <td className={TD + BL + " text-xs"}>{o.date ?? <Dash />}</td>
       <td className={TD}>{a.purchases > 0 ? a.purchases : <Dash />}</td>
       <td className={TD}>{a.lots > 0 ? a.lots : <Dash />}</td>
       <td className={TD}>{qty(a.fur)}</td>
@@ -118,13 +110,12 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
           <thead>
             <tr>
               <th rowSpan={2} className="sticky left-0 z-[2] bg-white px-2 py-1.5 text-left align-bottom text-xs font-medium text-neutral-500">Год / партия / закупка / лот</th>
-              <th colSpan={7} className={blockTh + BL}>Закупка</th>
+              <th colSpan={6} className={blockTh + BL}>Закупка</th>
               <th colSpan={2} className={blockTh + BL}>Использование</th>
               <th colSpan={2} className={blockTh + BL}>Оплата</th>
             </tr>
             <tr className="border-b border-neutral-200">
-              <th className={TH + BL + " !text-left"}>Поставщик</th>
-              <th className={TH}>Дата</th>
+              <th className={TH + BL}>Дата</th>
               <th className={TH}>Закупок, шт.</th>
               <th className={TH}>Лотов, шт.</th>
               <th className={TH}>Шкур, шт.</th>
@@ -174,7 +165,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                               <tr className={rowTone(2, pOpen) + (cancelled ? " opacity-60" : "")}>
                                 <td className={NAME_CELL + " pl-9"}>
                                   <span className="mr-1 inline-block align-middle">{arrow(pOpen, () => setOpen((s) => flip(s, pk)), p.number)}</span>
-                                  <span className="font-medium text-neutral-900">{p.number}</span><StatusChip status={p.status} />
+                                  <span className="font-medium text-neutral-900">{p.number}</span>
                                   <Link href={`/purchases/${p.id}`} className="ml-1.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть закупку" aria-label={`Открыть закупку ${p.number}`}>↗</Link>
                                   {p.invoice ? <span className="ml-1.5 text-[11px] text-neutral-500">счёт {p.invoice}</span> : null}
                                   <div className="pl-5 text-[11px]">
@@ -183,7 +174,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                                     <Link href={p.auction ? `/documents?auction=${encodeURIComponent(p.auction)}` : `/purchases/${p.id}`} className={LINK + " ml-2"}>документы ›</Link>
                                   </div>
                                 </td>
-                                {cells(cancelled ? { ...pa, total: 0, totalExcl: 0, paid: 0, rest: 0 } : pa, { supplier: p.supplier, date: p.date })}
+                                {cells(cancelled ? { ...pa, total: 0, totalExcl: 0, paid: 0, rest: 0 } : pa, { date: p.date })}
                               </tr>
                               {pOpen ? (
                                 <>
@@ -201,7 +192,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                                             <span className="mr-1 inline-block w-4 align-middle">{n > 0 ? arrow(gOpen, () => setOpen((s) => flip(s, gk)), label) : null}</span>
                                             {label}<span className="ml-1.5 text-neutral-500">{n > 0 ? n : "нет"}</span>
                                           </td>
-                                          {empty(6)}
+                                          {empty(5)}
                                           <td className={TD}>{total != null ? money(total) : <Dash />}</td>
                                           {empty(2)}
                                           <td className={TD + BL}>{paid != null ? money(paid) : <Dash />}</td>
@@ -211,7 +202,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                                         {gOpen && g === "exp" ? p.expenses.map((x) => (
                                           <tr key={x.id} className={rowTone(3)}>
                                             <td className={NAME_CELL + " pl-20"}>{x.label}</td>
-                                            {empty(6)}<td className={TD}>{money(x.sum)}</td>{empty(4)}
+                                            {empty(5)}<td className={TD}>{money(x.sum)}</td>{empty(4)}
                                           </tr>
                                         )) : null}
                                         {gOpen && g === "pay" ? (
@@ -219,13 +210,13 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                                             {p.pays.map((x) => (
                                               <tr key={x.id} className={rowTone(3)}>
                                                 <td className={NAME_CELL + " pl-20"}><span className="tabular-nums">{x.date}</span>{x.doc ? <span className="ml-2 text-neutral-500">{x.doc}</span> : null}</td>
-                                                {empty(9)}<td className={TD + BL}>{money(x.amount)}</td>{empty(1)}
+                                                {empty(8)}<td className={TD + BL}>{money(x.amount)}</td>{empty(1)}
                                               </tr>
                                             ))}
                                             {Math.abs(p.paidBatch) > 0.5 ? (
                                               <tr className={rowTone(3)}>
                                                 <td className={NAME_CELL + " pl-20"}>Остальные оплаты партии<div className="text-[11px] text-neutral-400">доля закупки, пропорционально сумме</div></td>
-                                                {empty(9)}<td className={TD + BL}>{money(p.paidBatch)}</td>{empty(1)}
+                                                {empty(8)}<td className={TD + BL}>{money(p.paidBatch)}</td>{empty(1)}
                                               </tr>
                                             ) : null}
                                           </>
@@ -244,17 +235,17 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                 </Fragment>
               );
             })}
-            {years.length === 0 ? <tr><td colSpan={12} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
+            {years.length === 0 ? <tr><td colSpan={11} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
             {extras.map((x) => (
               <tr key={x.key} className={rowTone(1)}>
                 <td className={NAME_CELL + " pl-5"}><ExtraLabel x={x} /></td>
-                {empty(6)}<td className={TD}>{money(x.sum)}</td>{empty(2)}<td className={TD + BL}>{money(x.paid)}</td><td className={TD}><Dash /></td>
+                {empty(5)}<td className={TD}>{money(x.sum)}</td>{empty(2)}<td className={TD + BL}>{money(x.paid)}</td><td className={TD}><Dash /></td>
               </tr>
             ))}
             {years.length > 0 ? (
               <tr className="row-total">
                 <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left"><TotalLabel /></td>
-                {cells({ ...tot, total: tot.total + exSum, totalExcl: tot.totalExcl + exSum, paid: tot.paid + exPaid }, { supplier: <Dash />, date: <Dash /> })}
+                {cells({ ...tot, total: tot.total + exSum, totalExcl: tot.totalExcl + exSum, paid: tot.paid + exPaid }, { date: <Dash /> })}
               </tr>
             ) : null}
           </tbody>
@@ -288,7 +279,6 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
         </td>
         <td className={TD + BL} />
         <td className={TD} />
-        <td className={TD} />
         <td className={TD}>1</td>
         <td className={TD}>{isFur ? formatQty(x.qty) : <Dash />}</td>
         <td className={TD}>{!isFur ? formatQty(x.qty) : <Dash />}</td>
@@ -303,7 +293,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
       {isOpen ? x.usages.map((u) => (
         <tr key={u.orderId} className={rowTone(3)}>
           <td className={NAME_CELL + " pl-28"}><Link href={`/production/${u.orderId}`} className={LINK}>ТЗ {u.number}</Link></td>
-          <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} />
+          <td className={TD + BL} /><td className={TD} /><td className={TD} />
           <td className={TD}>{isFur ? formatQty(u.qty) : <Dash />}</td>
           <td className={TD}>{!isFur ? formatQty(u.qty) : <Dash />}</td>
           <td className={TD}>{money(u.sum)}</td>
@@ -317,7 +307,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
 // ───────────────────────────── «Списком»: плоская таблица закупок ─────────────────────────────
 
 export type ListSort = { key: string; dir: "asc" | "desc" };
-const LIST_COLS = [150, 62, 130, 118, 84, 60, 84, 88, 116, 104, 112, 116, 104];
+const LIST_COLS = [150, 62, 130, 84, 60, 84, 88, 116, 104, 112, 116, 104];
 
 /**
  * Одна секция режима «Списком» — закупки меха (шкуры, шт.) или подкладки (метры). Закупка со смешанным составом попадает в обе секции своей частью
@@ -353,9 +343,9 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
         {rows.map((p) => (
           <RowCard
             key={p.id}
-            title={<>{p.number}<StatusChip status={p.status} /></>}
+            title={<>{p.number}</>}
             href={`/purchases/${p.id}`}
-            subtitle={[p.supplier, p.batchLabel, p.date].join(" · ")}
+            subtitle={[p.batchLabel, p.date].join(" · ")}
             fields={[
               { label: `Сумма (${word})`, value: money(pick(p)), strong: true },
               { label: `Кол-во, ${unitLabel}`, value: qty(qtyOf(p)) },
@@ -382,15 +372,14 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   № закупки{sort.key === "number" ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
                 </Link>
               </th>
-              <th colSpan={7} className={blockTh + BL}>Закупка</th>
+              <th colSpan={6} className={blockTh + BL}>Закупка</th>
               <th colSpan={2} className={blockTh + BL}>Использование</th>
               <th colSpan={2} className={blockTh + BL}>Оплата</th>
             </tr>
             <tr className="border-b border-neutral-200">
               {head("year", "Год", { bl: true })}
               {head("batch", "Партия", { left: true })}
-              {head("supplier", "Поставщик", { left: true })}
-              {head("date", "Дата")}
+              {head("date", "Дата", { bl: true })}
               {head("lots", "Лотов, шт.")}
               {head(isFurSec ? "fur" : "lining", `${isFurSec ? "Шкур" : "Подкладка"}, ${unitLabel}`)}
               {head("total", <>Сумма, ₽ <span className="font-normal">({word})</span></>)}
@@ -412,12 +401,10 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left font-medium">
                     <Link href={`/purchases/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.number}</Link>
                     <span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
-                    <StatusChip status={p.status} />
                   </td>
                   <td className={TD + BL}>{p.year}</td>
                   <td className={TD + " truncate !text-left text-xs"} title={p.batchLabel}>{p.batchLabel}</td>
-                  <td className={TD + " truncate !text-left text-xs"} title={p.supplier}>{p.supplier}</td>
-                  <td className={TD + " text-xs"}>{p.date}</td>
+                  <td className={TD + BL + " text-xs"}>{p.date}</td>
                   <td className={TD}>{p.lots > 0 ? p.lots : <Dash />}</td>
                   <td className={TD}>{qty(qtyOf(p))}</td>
                   <td className={TD}>{cancelled ? <Dash /> : money(pick(p))}</td>
@@ -428,11 +415,11 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                 </tr>
               );
             })}
-            {rows.length === 0 ? <tr><td colSpan={13} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
+            {rows.length === 0 ? <tr><td colSpan={12} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
             {extras.map((x) => (
               <tr key={x.key} className="border-b border-neutral-100 bg-neutral-50/40 text-[13px]">
                 <td className="sticky left-0 z-[1] bg-white px-2 py-1.5 text-left" colSpan={1}><ExtraLabel x={x} /></td>
-                <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} />
+                <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} />
                 <td className={TD}>{money(x.sum)}</td>
                 <td className={TD + BL} /><td className={TD} />
                 <td className={TD + BL}>{money(x.paid)}</td><td className={TD}><Dash /></td>
@@ -441,7 +428,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
             {rows.length > 0 ? (
               <tr className="row-total">
                 <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left"><TotalLabel /></td>
-                <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} />
+                <td className={TD + BL} /><td className={TD} /><td className={TD} />
                 <td className={TD}>{tot.lots}</td>
                 <td className={TD}>{qty(qtyOf(tot))}</td>
                 <td className={TD}>{money(pick(tot) + exSum)}</td>

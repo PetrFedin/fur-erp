@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
 
@@ -39,28 +38,22 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
             <th className="px-2 py-1.5 font-medium">Счёт</th>
             {hasComment ? <th className="px-2 py-1.5 font-medium">Комментарий</th> : null}
             <th className="px-2 py-1.5 font-medium">П/п</th>
-            <th className="px-2 py-1.5 font-medium">Подтверждение</th>
             <th className="px-2 py-1.5" />
           </tr>
         </thead>
         <tbody>
           {lines.map((l) => (
-            <tr key={l.id} className="border-b border-neutral-100 align-top">
+            <tr key={l.id} className={"border-b border-neutral-100 align-top" + (l.status !== "COMPLETED" ? " opacity-60" : "")}>
               <td className="whitespace-nowrap py-2 pr-2">{l.date}</td>
               <td className="whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums">{formatMoney(l.amount)}</td>
               <td className="px-2 py-2">
                 {l.what}
-                {l.status === "PENDING" ? <Badge variant={l.overdue ? "danger" : "warning"} className="mt-0.5">{l.overdue ? "запланирована, просрочена" : "запланирована"}</Badge> : null}
-                {l.status === "CANCELLED" ? <Badge className="mt-0.5">отменена</Badge> : null}
               </td>
               <td className="whitespace-nowrap px-2 py-2">
                 {l.invoice ? (l.invoice.href ? <Link href={l.invoice.href} className="text-blue-700 hover:underline">{l.invoice.text}</Link> : l.invoice.text) : <span className="text-neutral-400">—</span>}
               </td>
               {hasComment ? <td className="px-2 py-2 text-xs text-neutral-600">{l.comment ?? ""}</td> : null}
               <td className="whitespace-nowrap px-2 py-2 text-neutral-600">{l.ppNo ? `№ ${l.ppNo}` : "—"}</td>
-              <td className="px-2 py-2">
-                {l.status !== "COMPLETED" ? <span className="text-neutral-400">—</span> : l.confirmed ? <Badge variant="success">подтверждена</Badge> : <Badge variant="warning">ждёт платёжку</Badge>}
-              </td>
               <td className="px-2 py-2 text-right">
                 {l.controls ? (
                   <details className="relative inline-block text-left">
@@ -101,7 +94,6 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
             <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
             {withPaid ? <th className="px-2 py-1.5 text-right font-medium">Оплачено</th> : null}
             {withPaid ? <th className="px-2 py-1.5 text-right font-medium">Остаток</th> : null}
-            <th className="px-2 py-1.5 font-medium">Статус</th>
           </tr>
         </thead>
         <tbody>
@@ -121,11 +113,6 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
                     {Math.abs(due) <= 0.5 ? "—" : formatMoney(String(due))}
                   </td>
                 ) : null}
-                <td className="px-2 py-2">
-                  {withPaid ? (
-                    Number(l.paid) <= 0.5 ? <Badge variant="danger">не оплачена</Badge> : due > 0.5 ? <Badge variant="warning">частично</Badge> : <Badge variant="success">оплачена</Badge>
-                  ) : l.received ? <Badge variant="success">принят</Badge> : <Badge variant="warning">черновик</Badge>}
-                </td>
               </tr>
             );
           })}
@@ -137,7 +124,6 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
             <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(String(sum("total")))}</td>
             {withPaid ? <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(String(sum("paid")))}</td> : null}
             {withPaid ? <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(String(sum("due")))}</td> : null}
-            <td />
           </tr>
         </tfoot>
       </table>

@@ -61,7 +61,6 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
           <Tr>
             <Th>Название</Th>
             <Th>Тип</Th>
-            <Th>Статус</Th>
             <Th></Th>
           </Tr>
         </Thead>
@@ -71,11 +70,6 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
               <Td className="font-medium">{c.name}</Td>
               <Td>
                 <Badge variant="info">{KIND_LABELS[c.kind]}</Badge>
-              </Td>
-              <Td>
-                <Badge variant={c.isActive ? "success" : "default"}>
-                  {c.isActive ? "Активна" : "Неактивна"}
-                </Badge>
               </Td>
               <Td>
                 <form

@@ -35,32 +35,15 @@ function firstLine(v: string | null) {
 export const metadata = { title: "Закупки" };
 
 const PURCHASE_FILTERS = defineFilters({
-  ...pick(["auction", "status", "supplier", "fur", "color", "size", "attr", "rest", "usage", "pay", "verified", "vat", "pyear", "q", "from", "to", "view", "sort", "dir"], {
+  ...pick(["auction", "fur", "color", "size", "attr", "rest", "usage", "pyear", "q", "from", "to", "view", "sort", "dir"], {
     view: { allowed: ["tree", "list"] },
-    status: { allowed: ["DRAFT", "RECEIVED", "CANCELLED"], label: "Статус закупки" },
-    verified: { allowed: ["yes", "no"], label: "Подтверждение" },
-    vat: { label: "НДС" },
-    sort: { allowed: ["number", "year", "batch", "supplier", "date", "status", "lots", "fur", "lining", "total", "paid", "rest", "used", "rem"] },
+    sort: { allowed: ["number", "year", "batch", "date", "lots", "fur", "lining", "total", "paid", "rest", "used", "rem"] },
   }),
 });
 const PURCHASE_FILTERS_ALL = defineFilters({
   ...PURCHASE_FILTERS.defs,
   sec: stateParam("Раздел", { allowed: ["fur", "lining"] }),
 });
-const STATUS_OPTIONS = [
-  { value: "DRAFT", label: "Черновик" },
-  { value: "RECEIVED", label: "Принято на склад" },
-  { value: "CANCELLED", label: "Отменено" },
-];
-const VERIFIED_OPTIONS = [
-  { value: "yes", label: "Подтверждено" },
-  { value: "no", label: "Ждёт проверки" },
-];
-const VAT_OPTIONS = [
-  { value: "20", label: "Только 20%" },
-  { value: "22", label: "Только 22%" },
-  { value: "mixed", label: "Смешанные (20% и 22%)" },
-];
 const REST_OPTIONS = [
   { value: "with", label: "Есть остаток" },
   { value: "zero", label: "Остатка нет (исчерпан)" },
@@ -68,11 +51,6 @@ const REST_OPTIONS = [
 const USAGE_OPTIONS = [
   { value: "used", label: "Использована в ТЗ" },
   { value: "unused", label: "Не использована" },
-];
-const PAY_OPTIONS = [
-  { value: "paid", label: "Оплачена" },
-  { value: "partial", label: "Оплачена частично" },
-  { value: "unpaid", label: "Не оплачена" },
 ];
 
 const num = (d: Decimal) => d.toNumber();
@@ -93,26 +71,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
 
   const auctionIds = f.auction.length ? await purchaseIdsByAuction(orgId, f.auction) : null;
   const furMaterialIds = f.fur.length ? await furMaterialIdsByKind(orgId, f.fur) : [];
-  const vatKinds = new Set(f.vat.map((v) => (v === "mix" ? "mixed" : v)));
-  const vatWhere = (k: string): Prisma.PurchaseWhereInput =>
-    k === "mixed"
-      ? { AND: [{ items: { some: { vatRate: 20 } } }, { items: { some: { vatRate: 22 } } }] }
-      : { items: { some: { vatRate: Number(k) } }, NOT: { items: { some: { vatRate: { not: Number(k) } } } } };
   const where: Prisma.PurchaseWhereInput = {
     organizationId: orgId,
     AND: [
       purchaseYear(year),
       ...toWhere<typeof f, Prisma.PurchaseWhereInput>(f, {
-        status: (v) => ({
-          OR: v.map((x) =>
-            x === "RECEIVED" ? { status: "RECEIVED" as const } : x === "CANCELLED" ? { status: "CANCELLED" as const } : { status: { notIn: ["RECEIVED" as const, "CANCELLED" as const] } },
-          ),
-        }),
-        supplier: (v) => ({ supplierId: { in: v } }),
         auction: () => ({ id: { in: auctionIds ?? [] } }),
         fur: () => ({ items: { some: { rawMaterialId: { in: furMaterialIds.length ? furMaterialIds : ["__none"] } } } }),
-        verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
-        vat: () => ({ OR: [...vatKinds].filter((k) => ["20", "22", "mixed"].includes(k)).map(vatWhere) }),
         pyear: (v) => ({ OR: v.map((y) => ({ orderDate: { gte: new Date(Date.UTC(Number(y), 0, 1)), lt: new Date(Date.UTC(Number(y) + 1, 0, 1)) } })) }),
         from: () => ({ orderDate: dateRange(f.from, f.to) }),
         to: () => (f.from ? undefined : { orderDate: dateRange(f.from, f.to) }),
@@ -136,7 +101,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     }),
     loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
     loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
-    getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur", "color", "attr"]),
+    getFilterOptions(orgId, year, ["auction", "pyear", "fur", "color", "attr"]),
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
   ]);
   const lotsOf = new Map<string, FurLot[]>();
@@ -196,10 +161,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   // Фильтры по лотам и оплате — в памяти: закупка подходит, если ЕЁ лот подходит под все выбранные признаки лота (цвет, размер, признак меха, остаток, использование).
   const lotFilter = { ...emptyFilters(), color: f.color, size: f.size, attr: f.attr, rest: f.rest, usage: f.usage };
   const lotFilterOn = f.color.length + f.size.length + f.attr.length + f.rest.length + f.usage.length > 0;
-  const payOf = (p: TreePurchase): "paid" | "partial" | "unpaid" => (p.rest <= 0.005 ? "paid" : p.paid <= 0.005 ? "unpaid" : "partial");
   const rows = all.filter((p) => {
     if (lotFilterOn && filterLots(lotsOf.get(p.id) ?? [], lotFilter).length === 0) return false;
-    if (f.pay.length && (p.status === "CANCELLED" || !f.pay.includes(payOf(p)))) return false;
     return true;
   });
 
@@ -281,7 +244,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const sortDir: "asc" | "desc" = f.dir === "asc" ? "asc" : f.dir === "desc" ? "desc" : sortKey === "number" ? "desc" : "asc";
   const usedPct = (p: TreePurchase) => (p.hasLots && p.recvValue > 0.5 ? p.usedValue / p.recvValue : -1);
   const SORT: Record<string, (p: TreePurchase) => number | string> = {
-    number: (p) => p.number, year: (p) => p.year, batch: (p) => p.batchLabel, supplier: (p) => p.supplier, date: (p) => p.date.split(".").reverse().join(""), status: (p) => p.status,
+    number: (p) => p.number, year: (p) => p.year, batch: (p) => p.batchLabel, date: (p) => p.date.split(".").reverse().join(""),
     lots: (p) => p.lots, fur: (p) => p.fur, lining: (p) => p.lining, total: (p) => p.total, paid: (p) => p.paid, rest: (p) => p.rest, used: usedPct, rem: (p) => p.remFur + p.remLining,
   };
   const collator = new Intl.Collator("ru", { numeric: true });
@@ -330,18 +293,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           controls={[
             { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, allLabel: "Все годы", hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
-            { type: "multi", name: "supplier", label: "Поставщик", options: opts.supplier, allLabel: "Все поставщики" },
             { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur, allLabel: "Все виды" },
             { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", hint: "Закупка подходит, если у неё есть лот этого цвета" },
             { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", hint: "Закупка подходит, если у неё есть лот этого размера" },
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
-            { type: "multi", name: "status", label: "Статус закупки", options: STATUS_OPTIONS, allLabel: "Все статусы", more: true },
-            { type: "multi", name: "pay", label: "Оплата", options: PAY_OPTIONS, allLabel: "Любая", more: true, hint: "Оплата закупки с учётом доли оплат её партии" },
             { type: "multi", name: "usage", label: "Использование", options: USAGE_OPTIONS, allLabel: "Любое", more: true, hint: "Закупка подходит, если есть лот, использованный (не использованный) в ТЗ" },
             { type: "multi", name: "rest", label: "Остаток", options: REST_OPTIONS, allLabel: "Любой", more: true, hint: "Закупка подходит, если есть лот с остатком (или исчерпанный)" },
             { type: "multi", name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true },
-            { type: "multi", name: "verified", label: "Подтверждение", options: VERIFIED_OPTIONS, allLabel: "Любое", more: true },
-            { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка", more: true },
             { type: "date", name: "from", label: "Дата с", more: true },
             { type: "date", name: "to", label: "Дата по", more: true },
           ]}
@@ -355,7 +313,6 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             <div className={TILE_BOX}>
               <TileHead>Закупок</TileHead>
               <TileValue compact>{tot.purchases}</TileValue>
-              <TileCaption>{tot.draft > 0 ? `из них черновиков: ${tot.draft}` : "все приняты на склад"}</TileCaption>
             </div>
             <div className={TILE_BOX}>
               <TileHead>Лотов</TileHead>

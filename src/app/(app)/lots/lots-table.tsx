@@ -626,7 +626,6 @@ function LotCardView({
   return (
     <RowCard
       className={checked ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : undefined}
-      badge={r.onStock ? undefined : <Badge>не принят</Badge>}
       title={
         <label className="flex cursor-pointer items-start gap-2">
           <input

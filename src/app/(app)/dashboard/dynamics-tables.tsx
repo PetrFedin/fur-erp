@@ -192,8 +192,8 @@ function MoneyTds({ paid, due, bold }: { paid: number; due: number; bold?: boole
 
 /** Ключ строки аукциона — настоящее название партии закупки; служебные строки (без аукциона, шкуры подрядчика, не полученное) не ссылки. */
 const auctionLinkable = (key: string) => !key.startsWith("__") && key !== "hides" && !key.startsWith("unrecv|");
-/** Ссылка служебной строки на существующую страницу: «Без аукциона» — закупки с фильтром «Без аукциона»; «не получен» — закупки в статусе «Черновик / в пути». «Шкуры подрядчика» — страница /lots/contractor-hides. Год берётся из шапки. */
-const serviceHref = (key: string): string | null => (key === "__none" ? "/purchases?auction=none" : key.startsWith("unrecv|") ? "/purchases?status=DRAFT" : key === "hides" ? "/lots/contractor-hides" : null);
+/** Ссылка служебной строки на существующую страницу: «Без аукциона» — закупки с фильтром «Без аукциона»; «не получен» — список закупок. «Шкуры подрядчика» — страница /lots/contractor-hides. Год берётся из шапки. */
+const serviceHref = (key: string): string | null => (key === "__none" ? "/purchases?auction=none" : key.startsWith("unrecv|") ? "/purchases" : key === "hides" ? "/lots/contractor-hides" : null);
 
 const addCells = (list: Cells[]): Cells => {
   const s = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });

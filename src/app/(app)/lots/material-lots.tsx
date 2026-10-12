@@ -142,7 +142,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
                 {l.purchase ? (
                   <>
                     <Link href={`/purchases/${l.purchase.id}`} className="hover:underline">
-                      {l.purchase.supplier.name} ({l.purchase.number})
+                      {l.purchase.number}
                     </Link>
                     <div className="text-xs text-neutral-500">
                       {[
@@ -225,7 +225,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
                 value: l.purchase ? (
                   <>
                     <Link href={`/purchases/${l.purchase.id}`} className="underline">
-                      {l.purchase.supplier.name} ({l.purchase.number})
+                      {l.purchase.number}
                     </Link>
                     <div className="text-xs text-neutral-500">
                       {[

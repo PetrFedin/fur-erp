@@ -200,7 +200,6 @@ function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; c
         <span className="font-semibold tabular-nums">{p.amountText}</span>
         <span className="text-xs text-neutral-500">{p.kindText}</span>
         {p.scopeText && <span className="text-xs text-neutral-500">{p.scopeText}</span>}
-        {p.planned && <span className="text-xs text-amber-700">запланирована</span>}
         {p.manual && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">отмечено вручную</span>}
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

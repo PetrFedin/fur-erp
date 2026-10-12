@@ -30,7 +30,10 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   const [side, setSide] = useState<"supplier" | "work">(preset?.side ?? "supplier");
   const [auction, setAuction] = useState(preset?.auction ?? "");
   const [purchaseId, setPurchaseId] = useState(preset?.purchaseId ?? "");
-  const [supplierId, setSupplierId] = useState(preset?.supplierId ?? "");
+  const [supplierIdState, setSupplierId] = useState(preset?.supplierId ?? "");
+  // Поставщик один (Веллмех): поле не показываем, подставляем единственного.
+  const soleSupplier = targets?.suppliers.length === 1 ? targets.suppliers[0].id : "";
+  const supplierId = supplierIdState || soleSupplier;
   const [targetMode, setTargetMode] = useState<"auction" | "purchase" | "advance">(preset?.purchaseId ? "purchase" : preset?.auction ? "auction" : "auction");
   const [workMode, setWorkMode] = useState<"batch" | "orders">(preset?.orderIds?.length ? "orders" : "batch");
   const [batchId, setBatchId] = useState(preset?.batchId ?? "");
@@ -87,6 +90,12 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specKey, hasTarget]);
+
+  useEffect(() => {
+    // Платёж по аукциону вне справочника — только аванс (раньше это выставлял выбор поставщика).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (customAuction && soleSupplier) setKind("ADVANCE");
+  }, [customAuction, soleSupplier]);
 
   const base = quote?.total ?? 0;
   const rest = Math.max(0, quote?.remaining ?? 0);
@@ -231,13 +240,13 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
                   </div>
                   {customAuction && (
                     <div>
-                      <label htmlFor="pf-supplier-c" className={lab}>Такого аукциона нет в справочнике — платёж запишется авансом без привязки. Поставщик</label>
-                      <Select id="pf-supplier-c" value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setKind("ADVANCE"); }}>
+                      <label htmlFor="pf-supplier-c" className={lab}>Такого аукциона нет в справочнике — платёж запишется авансом без привязки.{soleSupplier ? "" : " Поставщик"}</label>
+                      {!soleSupplier && <Select id="pf-supplier-c" value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setKind("ADVANCE"); }}>
                         <option value="">— выберите —</option>
                         {tgt?.suppliers.map((x) => (
                           <option key={x.id} value={x.id}>{x.name}</option>
                         ))}
-                      </Select>
+                      </Select>}
                     </div>
                   )}
                 </div>
@@ -248,13 +257,13 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
                   <Select id="pf-purchase" value={purchaseId} onChange={(e) => setPurchaseId(e.target.value)}>
                     <option value="">— выберите —</option>
                     {tgt?.purchases.map((p) => (
-                      <option key={p.id} value={p.id}>{p.label} · {p.supplier} · остаток {money(p.remaining)}</option>
+                      <option key={p.id} value={p.id}>{p.label} · остаток {money(p.remaining)}</option>
                     ))}
                   </Select>
                 </div>
               )}
               {targetMode === "advance" && (
-                <div>
+                <div hidden={!!soleSupplier}>
                   <label htmlFor="pf-supplier" className={lab}>Поставщик</label>
                   <Select id="pf-supplier" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                     <option value="">— выберите —</option>

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
@@ -11,7 +10,7 @@ import { escapeLike } from "@/lib/input";
 import { toggleSupplierActive } from "./actions";
 
 // Список: поиск по названию, контакту, телефону и email; статус — активные / неактивные.
-const LIST_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active", "inactive"] } }) });
+const LIST_FILTERS = defineFilters({ ...pick(["q"], { q: { label: "Поиск" } }) });
 
 export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
   const session = await requireSession();
@@ -21,7 +20,6 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
   const suppliers = await prisma.supplier.findMany({
     where: {
       organizationId: session.user.organizationId,
-      ...(f.status.length === 1 ? { isActive: f.status[0] === "active" } : {}),
       ...(f.q
         ? {
             OR: [
@@ -39,9 +37,8 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
   const showContact = suppliers.some((x) => x.contactName);
   const showPhone = suppliers.some((x) => x.phone);
   const showEmail = suppliers.some((x) => x.email);
-  const colCount = 3 + (showContact ? 1 : 0) + (showPhone ? 1 : 0) + (showEmail ? 1 : 0);
+  const colCount = 2 + (showContact ? 1 : 0) + (showPhone ? 1 : 0) + (showEmail ? 1 : 0);
 
-  const inactiveN = await prisma.supplier.count({ where: { organizationId: session.user.organizationId, isActive: false } });
 
   return (
     <div className="flex flex-col gap-4">
@@ -59,8 +56,6 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
         title="Фильтры поставщиков"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, контакт, телефон, email" },
-          // «Статус» нужен, только если в справочнике есть и неактивные записи (иначе фильтр ничего не сужает).
-          ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
 
@@ -71,7 +66,6 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
             {showContact && <Th>Контакт</Th>}
             {showPhone && <Th>Телефон</Th>}
             {showEmail && <Th>Email</Th>}
-            <Th>Статус</Th>
             <Th></Th>
           </Tr>
         </Thead>
@@ -86,11 +80,6 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
               {showContact && <Td>{s.contactName ?? "—"}</Td>}
               {showPhone && <Td>{s.phone ?? "—"}</Td>}
               {showEmail && <Td>{s.email ?? "—"}</Td>}
-              <Td>
-                <Badge variant={s.isActive ? "success" : "default"}>
-                  {s.isActive ? "Активен" : "Неактивен"}
-                </Badge>
-              </Td>
               <Td>
                 <form
                   action={async () => {
@@ -108,7 +97,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
           {suppliers.length === 0 && (
             <Tr>
               <Td colSpan={colCount} className="py-8 text-center text-neutral-500">
-                {f.q || f.status.length ? "Ничего не найдено" : "Поставщиков пока нет"}
+                {f.q  ? "Ничего не найдено" : "Поставщиков пока нет"}
               </Td>
             </Tr>
           )}

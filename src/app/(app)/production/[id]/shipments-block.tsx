@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatQty } from "@/lib/utils";
-import { SHIPMENT_STATUS } from "@/lib/shipments";
 
 /** Компактный блок «Отгрузки» на карточке ТЗ: журнал плана и факта, ничего не списывает. */
 export async function ShipmentsBlock({
@@ -66,14 +64,12 @@ export async function ShipmentsBlock({
         {(
           <ul className="flex flex-col gap-1">
             {shipments.map((s) => {
-              const st = SHIPMENT_STATUS[s.status];
               return (
                 <li key={s.id} className="flex flex-wrap items-center gap-2">
                   <Link href={`/shipments/${s.id}`} className="font-medium hover:underline">
                     {formatDate(s.status === "SHIPPED" && s.shippedDate ? s.shippedDate : s.plannedDate)}
                   </Link>
                   <span>{s.lines.map((l) => `${l.size ?? "—"}×${l.quantity}`).join(", ")}</span>
-                  <Badge variant={st.variant}>{st.label}</Badge>
                 </li>
               );
             })}

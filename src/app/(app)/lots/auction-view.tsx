@@ -7,7 +7,6 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatQty } from "@/lib/utils";
@@ -267,16 +266,6 @@ export async function AuctionView({
   const priceExcl = counted.reduce((s, b) => s.add(b.pPriceExcl), zero());
   const fullIncl = counted.reduce((s, b) => s.add(b.pFullIncl), zero());
   const fullExcl = counted.reduce((s, b) => s.add(b.pFullExcl), zero());
-  const received = purchases.filter((p) => p.status === "RECEIVED").length;
-  const cancelled = purchases.filter((p) => p.status === "CANCELLED").length;
-  const drafts = purchases.length - received - cancelled;
-
-  const statusParts = [
-    received ? `принято: ${received}` : null,
-    drafts ? `черновиков: ${drafts}` : null,
-    cancelled ? `отменено: ${cancelled}` : null,
-  ].filter(Boolean);
-
   // Свои столбцы организации и плоские данные лотов для клиентских таблиц (фильтры, выбор, «Итого»).
   const customFields = await prisma.customField.findMany({
     where: { organizationId, entity: CUSTOM_FIELD_ENTITY },
@@ -370,7 +359,7 @@ export async function AuctionView({
                 {counted.length} / {formatQty(totalQty.toString())}
               </dd>
               <dd className="text-xs text-neutral-500">
-                {totalLots} лот.{statusParts.length > 0 ? ` · ${statusParts.join(", ")}` : ""}
+                {totalLots} лот.
               </dd>
             </div>
             <div>
@@ -471,14 +460,6 @@ export async function AuctionView({
       <LotsProvider rows={lotsData.rows} purchases={lotsData.purchases} fields={customFields} canEdit={canEdit}>
       {!flat && blocks.map(({ p, lines, qty, pFullIncl, pFullExcl, expIncl, expExcl, unallocated, invoice }) => {
         const isReceived = p.status === "RECEIVED";
-        const statusBadge =
-          p.status === "RECEIVED" ? (
-            <Badge variant="success">Принято на склад</Badge>
-          ) : p.status === "CANCELLED" ? (
-            <Badge variant="danger">Отменено</Badge>
-          ) : (
-            <Badge>Черновик</Badge>
-          );
         return (
           <details
             key={p.id}
@@ -490,9 +471,8 @@ export async function AuctionView({
               <span className="inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
               <span className="font-medium">{p.invoiceNumber ? `Счёт ${p.invoiceNumber}` : p.number}</span>
               <span className="text-xs text-neutral-500">
-                {p.number} · {formatDate(p.orderDate)} · {p.supplier.name}
+                {p.number} · {formatDate(p.orderDate)}
               </span>
-              {statusBadge}
               <span className="text-xs text-neutral-500">
                 {lines.length} лот. · {formatQty(qty.toString())} шт.
               </span>

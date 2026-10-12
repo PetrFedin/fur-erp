@@ -13,10 +13,9 @@ import { saveArticleForm } from "../actions";
 import { BomAddForm } from "./bom-add-form";
 import { BomRemoveButton } from "./bom-remove-button";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { FITTING_STATUS, orderLabel, truncate } from "@/lib/fittings";
-import { SHIPMENT_STATUS, summarizeLines } from "@/lib/shipments";
+import { orderLabel, truncate } from "@/lib/fittings";
+import { summarizeLines } from "@/lib/shipments";
 import { ArticleName } from "@/components/article-name";
 import { ProdTiles } from "@/components/prod-tiles";
 import { OrdersTree } from "@/components/orders-tree";
@@ -177,7 +176,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       <div className="flex flex-wrap items-center gap-y-2">
         <h1 className="text-xl font-semibold"><ArticleName model={model} /></h1>
         <YearNote year={year} />
-        {!model.isActive && <span className="ml-2"><Badge variant="default">не используется</Badge></span>}
         <span className="ml-2 inline-flex">
           <InfoHint label="О карточке артикула" wide>
             <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, склад и движения, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «Произведено» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость; склад и движения — текущие.</p>
@@ -425,7 +423,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                   <li key={sh.id}>
                     <Link href={`/shipments/${sh.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-neutral-50">
                       <span className="whitespace-nowrap font-medium">{sh.status === "SHIPPED" && sh.shippedDate ? `отгружена ${formatDate(sh.shippedDate)}` : `план ${formatDate(sh.plannedDate)}`}</span>
-                      <Badge variant={SHIPMENT_STATUS[sh.status].variant}>{SHIPMENT_STATUS[sh.status].label}</Badge>
                       <span className="min-w-0 text-neutral-600">{summarizeLines(lines).join("; ")}</span>
                     </Link>
                   </li>
@@ -473,13 +470,11 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           ) : (
             <ul className="flex flex-col divide-y divide-neutral-100">
               {fittings.map((f) => {
-                const st = FITTING_STATUS[f.status];
                 return (
                   <li key={f.id}>
                     <Link href={`/fittings/${f.id}`} className="flex flex-wrap items-center gap-3 py-2 text-sm hover:bg-neutral-50">
                       <span className="whitespace-nowrap font-medium">{formatDate(f.fittingDate)}</span>
                       <span className="whitespace-nowrap">{orderLabel(f.productionOrder)}</span>
-                      <Badge variant={st.variant}>{st.label}</Badge>
                       <span className="min-w-0 flex-1 text-neutral-600">{truncate(f.comment, 100)}</span>
                     </Link>
                   </li>

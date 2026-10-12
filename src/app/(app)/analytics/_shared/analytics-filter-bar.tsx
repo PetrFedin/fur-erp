@@ -1,5 +1,5 @@
 import { FilterBar, type BarControl } from "@/components/filters/filter-bar";
-import { VAT_LABEL, type Options } from "@/lib/analytics-filters";
+import { type Options } from "@/lib/analytics-filters";
 import type { FilterOption } from "@/lib/filters";
 import { UNDEFINED_COLOR, UNDEFINED_SIZE } from "@/lib/product-category";
 
@@ -25,15 +25,6 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
     ...multi("size", "Размер", opts.size, { more: true }),
     ...multi("batch", "Партия пошива", opts.batch),
     ...multi("season", "Сезон", opts.season, { more: true }),
-    {
-      type: "multi",
-      name: "vat",
-      label: "Ставка НДС",
-      single: true,
-      more: true,
-      allLabel: "Любая",
-      options: (Object.keys(VAT_LABEL) as (keyof typeof VAT_LABEL)[]).map((k) => ({ value: k, label: VAT_LABEL[k] })),
-    },
     { type: "text", name: "q", label: "Модель, артикул", placeholder: "Код, название, № ТЗ, синоним", datalist: opts.models },
     ...(opts.auc.length
       ? [{ type: "multi" as const, name: "auction", label: "Партия закупки (аукцион)", more: true, aliases: ["auc"], allLabel: "Все партии", options: opts.auc.map((v) => ({ value: v, label: aucOf?.(v).label ?? v, title: aucOf?.(v).title })) }]

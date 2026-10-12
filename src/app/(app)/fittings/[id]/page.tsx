@@ -3,10 +3,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { FITTING_STATUS, dateInputValue, orderLabel } from "@/lib/fittings";
+import { dateInputValue, orderLabel } from "@/lib/fittings";
 import { updateFitting, deleteFitting, deleteFittingPhoto } from "../actions";
 import { EditFittingForm } from "./edit-fitting-form";
 import { PhotoGallery } from "./photo-gallery";
@@ -36,7 +35,6 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
   });
   if (!fitting) notFound();
   const canEdit = ["OWNER", "ADMIN", "TECHNOLOGIST"].includes(session.user.role);
-  const st = FITTING_STATUS[fitting.status];
   const o = fitting.productionOrder;
 
   return (
@@ -74,12 +72,6 @@ export default async function FittingPage({ params }: PageProps<"/fittings/[id]"
             <div>
               <dt className="text-xs text-neutral-500">Заказчик</dt>
               <dd>{o.client?.name ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-500">Итог</dt>
-              <dd>
-                <Badge variant={st.variant}>{st.label}</Badge>
-              </dd>
             </div>
             <div>
               <dt className="text-xs text-neutral-500">Размер</dt>

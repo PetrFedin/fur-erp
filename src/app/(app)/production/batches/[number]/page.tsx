@@ -13,7 +13,6 @@ import { RecordHistory } from "@/components/record-history";
 import { RecordComments } from "@/components/comments/record-comments";
 import { canEditProduction } from "@/lib/production-access";
 import { ProductionTabs } from "@/components/production-tabs";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { DriveDocuments } from "@/components/drive-documents";
@@ -34,12 +33,6 @@ import { ProdTiles } from "@/components/prod-tiles";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../../dashboard/tile";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 
-const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
-  PLANNED: { label: "Запланирован", variant: "default" },
-  IN_PROGRESS: { label: "В работе", variant: "warning" },
-  COMPLETED: { label: "Завершён", variant: "success" },
-  CANCELLED: { label: "Отменён", variant: "danger" },
-};
 const PAY_TYPE: Record<string, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательная" };
 
 export async function generateMetadata({ params }: { params: Promise<{ number: string }> }) {
@@ -226,7 +219,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>№ ТЗ</Th>
                 <Th>Изделие</Th>
                 <Th>Шт.</Th>
-                <Th>Статус</Th>
                 <Th className="hidden sm:table-cell">
                   Себестоимость, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
                   <InfoHint label="Что значит 4%" wide>4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
@@ -240,7 +232,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             <Tbody>
               {orders.map((o) => {
                 const s = orderStat(o, c4Mode);
-                const st = STATUS[o.status];
                 return (
                   <Tr key={o.id}>
                     <Td className="font-medium">
@@ -253,9 +244,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                       {o.client && <span className="block text-xs text-neutral-500">{o.client.name}</span>}
                     </Td>
                     <Td>{formatQty(s.qty.toString())}</Td>
-                    <Td>
-                      <Badge variant={st.variant}>{st.label}</Badge>
-                    </Td>
                     <Td className="hidden whitespace-nowrap sm:table-cell">{s.cost.isZero() ? "—" : formatMoney(s.cost.toString())}</Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">{s.work.isZero() ? "—" : formatMoney(s.work.toString())}</Td>
                     <Td className="hidden whitespace-nowrap md:table-cell">{paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "—"}</Td>
@@ -273,7 +261,6 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   <Td><TotalLabel unit="₽" /></Td>
                   <Td className="text-xs">{tzCountText(t.orders, t.items)}</Td>
                   <Td>{t.producedUnits.isZero() ? <Dash /> : formatQty(t.producedUnits.toString())}</Td>
-                  <Td />
                   <Td className="hidden whitespace-nowrap sm:table-cell">{t.cost.isZero() ? <Dash /> : formatMoney(t.cost.toString())}</Td>
                   <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? <Dash /> : formatMoney(t.work.toString())}</Td>
                   <Td className="hidden whitespace-nowrap md:table-cell">{t.paid.isZero() ? <Dash /> : formatMoney(t.paid.toString())}</Td>
@@ -283,7 +270,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               )}
               {orders.length === 0 && (
                 <Tr>
-                  <Td colSpan={9} className="py-6 text-center text-neutral-500">
+                  <Td colSpan={8} className="py-6 text-center text-neutral-500">
                     К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production?view=batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
                   </Td>
                 </Tr>

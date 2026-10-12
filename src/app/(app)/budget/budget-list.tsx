@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { InfoHint } from "@/components/info-hint";
-import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
+import { BTN, BTN_PRIMARY, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
 import { createBudget, deleteBudget, duplicateBudget, renameBudget } from "./actions";
 
 export type BudgetSummary = {
@@ -64,7 +64,6 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
                   <span className="block truncate text-base font-semibold">{b.name}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
                     <span>{b.season}</span>
-                    {b.status === "APPROVED" ? <Badge tone="ok">Утверждён</Badge> : null}
                     {b.parentName ? <span title="Получен копированием">копия «{b.parentName}»</span> : null}
                   </div>
                 </div>

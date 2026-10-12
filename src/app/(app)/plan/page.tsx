@@ -34,7 +34,6 @@ export const metadata = { title: "План заказа" };
 // Фильтры плана: сезон (код; старые ссылки с id сезона читаются тоже) и поиск по артикулу. edit — служебный параметр формы правки.
 const PLAN_FILTERS = defineFilters({ ...pick(["season", "q"], { q: { label: "Поиск" } }) });
 
-const ORDER_STATUS: Record<string, string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "завершён" };
 const n0 = (n: number) => (n ? formatQty(n) : <Dash />);
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
@@ -393,7 +392,7 @@ function OrderLinks({ f }: { f: PlanFact }) {
     <span className="flex flex-col gap-0.5">
       {f.orders.slice(0, 5).map((o) => (
         <Link key={o.id} href={`/production/${o.id}`} className="text-blue-600 hover:underline">
-          {o.label} · {ORDER_STATUS[o.status]} · {formatQty(o.produced)}/{formatQty(o.planned)}
+          {o.label} · {formatQty(o.produced)}/{formatQty(o.planned)}
         </Link>
       ))}
       {f.orders.length > 5 && <span className="text-neutral-500">…ещё {f.orders.length - 5}</span>}

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { IntegrityBanner } from "@/components/integrity-banner";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -43,13 +42,6 @@ import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
 import { TotalLabel } from "@/components/total-label";
-
-const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
-  PLANNED: { label: "Запланирован", variant: "default" },
-  IN_PROGRESS: { label: "В работе", variant: "warning" },
-  COMPLETED: { label: "Завершён", variant: "success" },
-  CANCELLED: { label: "Отменён", variant: "danger" },
-};
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -203,7 +195,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
   const projectedTotalExclVat = materialCostExcl.add(expenseCost);
-  const status = STATUS_LABELS[order.status];
   // Расшифровка 4% по этому ТЗ: сырьё и подкладка × 4% (не зависит от переключателя).
   const c4Calc = base4AndExtra(order.materialUsages);
   const c4HasData = order.materialUsages.length > 0;
@@ -383,7 +374,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Link>
           <h1 className="text-xl font-semibold">{tzTitle}</h1>
           {order.workOrderNumber && <InfoHint label="Номер заказа">Внутренний номер заказа в системе: {order.number}. В списках и документах ТЗ называется по номеру ТЗ.</InfoHint>}
-          <Badge variant={status.variant}>{status.label}</Badge>
           <TzVatBadge b={vatB} />
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">

@@ -2,7 +2,6 @@ import { itemsSuffix } from "@/lib/tz-key";
 import Link from "next/link";
 import { batchLabel } from "@/lib/batch-label";
 import { ArticleName } from "@/components/article-name";
-import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { batchExtraName, batchTotals, orderStat, type BatchOrder } from "@/lib/batch-stats";
 import { c4Suffix } from "@/lib/commission4";
@@ -14,13 +13,6 @@ import { Mode4Badge } from "@/components/c4-note";
 import { DocsPayBadge } from "@/components/docs-pay-badge";
 import { VerifyPill } from "@/components/verify-control";
 import type { OrderIndicator } from "@/lib/production-doc-checklist";
-
-const STATUS: Record<string, { label: string; variant: "default" | "warning" | "success" | "danger" }> = {
-  PLANNED: { label: "Запланирован", variant: "default" },
-  IN_PROGRESS: { label: "В работе", variant: "warning" },
-  COMPLETED: { label: "Завершён", variant: "success" },
-  CANCELLED: { label: "Отменён", variant: "danger" },
-};
 
 export type GroupBatch = { id: string; number: number; name: string | null; year: number | null };
 
@@ -93,7 +85,6 @@ export function GroupedByBatch({
             <ul className="divide-y divide-neutral-100 border-t border-neutral-100 text-sm">
               {sorted.map((o) => {
                 const s = orderStat(o, c4Mode);
-                const st = STATUS[o.status];
                 return (
                   <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                     <Link href={`/production/${o.id}`} className="font-medium hover:underline">
@@ -101,7 +92,6 @@ export function GroupedByBatch({
                     </Link>
                     <span className="text-neutral-700"><ArticleName model={o.productModel} /></span>
                     <span className="text-xs text-neutral-500">{formatQty(s.qty.toString())} шт.</span>
-                    <Badge variant={st.variant}>{st.label}</Badge>
                     {indicators?.get(o.id) && (
                       <Link href={`/production/${o.id}#docpay`} className="inline-flex">
                         <DocsPayBadge

@@ -27,14 +27,14 @@ export const DASH_FILTERS = defineFilters({
 
 export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; catgroup: string[]; kind?: string[]; /** Больше не фильтры панели: всегда пусто. */ status: string[]; vat: string[] };
 
-/** Разбор параметров Сводки: kind — один пункт (prod | repair), status — всегда пусто, vat — пусто (панель Главной), кроме страницы «Сырьё → Сводка по годам» (opts.vat), где фильтр по ставке НДС остался. */
-export function parseDashFilters(sp: Parameters<typeof parseFilters>[1], opts: { vat?: boolean } = {}): DashFilters {
+/** Разбор параметров Сводки: kind — один пункт (prod | repair), status — всегда пусто, vat — пусто (панель Главной). Фильтр по ставке НДС убран отовсюду. */
+export function parseDashFilters(sp: Parameters<typeof parseFilters>[1]): DashFilters {
   // Старые ссылки: ?kind=Соболь — это вид меха (прежний псевдоним fur); тип ТЗ — только kind=prod|repair.
   const kindRaw = ([] as (string | undefined)[]).concat(sp.kind).filter((v): v is string => typeof v === "string" && v !== "");
   const legacyFur = kindRaw.filter((v) => !(v in KIND_LABELS));
   const sp2 = legacyFur.length ? { ...sp, fur: [...([] as (string | undefined)[]).concat(sp.fur).filter((v): v is string => !!v), ...legacyFur], kind: kindRaw.filter((v) => v in KIND_LABELS) } : sp;
   const f = parseFilters(DASH_FILTERS, sp2) as unknown as DashFilters;
-  return { ...f, kind: (f.kind ?? []).slice(0, 1), status: [], vat: opts.vat ? f.vat : [] };
+  return { ...f, kind: (f.kind ?? []).slice(0, 1), status: [], vat: [] };
 }
 
 export const lotFiltersOn = (f: DashFilters) => Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length);

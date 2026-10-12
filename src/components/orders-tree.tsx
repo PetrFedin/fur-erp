@@ -15,7 +15,6 @@ import { pathBlock } from "@/lib/block-hover";
 export type TreeDim = "year" | "batch" | "article" | "category" | "group" | "fur" | "order";
 export type TreeMode = { id: string; label: string; dims: TreeDim[] };
 
-const STATUS_TEXT: Record<string, string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "" };
 const naturalSort = new Intl.Collator("ru", { numeric: true });
 
 function keyLabel(dim: TreeDim, o: DrillOrder): [string, string] {
@@ -178,7 +177,6 @@ export function OrdersTree({
             <td className={`py-1.5 pr-2 text-left ${INDENT[Math.min(depth, 3)]}`}>
               <Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.ml}</Link>
               <span className="ml-2 font-normal text-neutral-500">{formatQty(o.qty)} шт. · {o.number}</span>
-              {STATUS_TEXT[o.st] ? <span className="ml-2 font-normal text-amber-700">{STATUS_TEXT[o.st]}</span> : null}
             </td>
             {figs(s, { pay: payBy ? { paid: payBy[`order:${o.id}`], work: s.work } : undefined })}
           </tr>
@@ -233,7 +231,6 @@ export function OrdersTree({
                 <>
                   <span className="ml-2 font-normal text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</span>
                   {isRepair(o) && !countRepairQty ? <span className="ml-2 font-normal text-neutral-400">ремонт</span> : null}
-                  {STATUS_TEXT[o.st] ? <span className="ml-2 font-normal text-amber-700">{STATUS_TEXT[o.st]}</span> : null}
                   {dims.includes("batch") ? null : <span className="ml-2 font-normal text-neutral-400">{o.bl}</span>}
                 </>
               ) : (

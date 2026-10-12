@@ -4,7 +4,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { buttonVariants, Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { redirect } from "next/navigation";
 import { RoleSelect } from "./role-select";
@@ -25,7 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 // Список: поиск по имени и email, роль (мультивыбор), статус. error — разовое сообщение после действия.
 const USER_FILTERS = defineFilters({
-  ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["active", "inactive"] } }),
+  ...pick(["q"], { q: { label: "Поиск" } }),
   role: { kind: "multi", label: "Роль", allowed: Object.keys(ROLE_LABELS) },
 });
 
@@ -40,14 +39,12 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
     where: {
       organizationId: session.user.organizationId,
       ...(f.role.length ? { role: { in: f.role as Array<"OWNER"> } } : {}),
-      ...(f.status.length === 1 ? { isActive: f.status[0] === "active" } : {}),
       ...(f.q ? { OR: [{ name: { contains: escapeLike(f.q), mode: "insensitive" as const } }, { email: { contains: escapeLike(f.q), mode: "insensitive" as const } }] } : {}),
     },
     orderBy: { createdAt: "asc" },
   });
 
   const presentRoles = new Set((await prisma.user.findMany({ where: { organizationId: session.user.organizationId }, select: { role: true } })).map((u) => u.role as string));
-  const inactiveN = await prisma.user.count({ where: { organizationId: session.user.organizationId, isActive: false } });
 
   return (
     <div className="flex flex-col gap-4">
@@ -71,8 +68,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Имя или email" },
           { type: "multi", name: "role", label: "Роль", options: Object.entries(ROLE_LABELS).filter(([value]) => presentRoles.has(value)).map(([value, label]) => ({ value, label })), allLabel: "Все роли" },
-          // «Статус» нужен, только если в справочнике есть и неактивные записи (иначе фильтр ничего не сужает).
-          ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
 
@@ -82,7 +77,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
             <Th>Имя</Th>
             <Th>Email</Th>
             <Th>Роль</Th>
-            <Th>Статус</Th>
             <Th></Th>
           </Tr>
         </Thead>
@@ -105,11 +99,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
                 ) : (
                   u.role
                 )}
-              </Td>
-              <Td>
-                <Badge variant={u.isActive ? "success" : "default"}>
-                  {u.isActive ? "Активен" : "Неактивен"}
-                </Badge>
               </Td>
               <Td>
                 {canManage && u.id !== session.user.id && (isOwner || u.role !== "OWNER") && (

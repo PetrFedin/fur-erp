@@ -88,7 +88,6 @@ function Row({ label, hint, children, wide, to, toTitle }: { label: string; hint
   );
 }
 
-const STATUS_RU: Record<string, string> = { PLANNED: "Запланирован", IN_PROGRESS: "В работе", COMPLETED: "Завершён", CANCELLED: "Отменён" };
 
 /**
  * «Параметры ТЗ»: поле → значение, всё правится по месту (Enter или уход фокуса сохраняет).
@@ -126,9 +125,11 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <Row label="Договор подряда" hint="№ и дата договора подряда.">
           <TextCell value={d.contractNumber} onSave={save("contractNumber")} readOnly={ro} label="Договор" />
         </Row>
-        <Row label="Статус">
-          <span className="block px-1.5 py-0.5 text-sm">{STATUS_RU[d.status]}{d.seasonCode ? <span className="text-neutral-500"> · сезон {d.seasonCode}</span> : null}</span>
-        </Row>
+        {d.seasonCode ? (
+          <Row label="Сезон">
+            <span className="block px-1.5 py-0.5 text-sm">{d.seasonCode}</span>
+          </Row>
+        ) : null}
 
         <Row label="Артикул" to={`/articles?q=${encodeURIComponent(d.articleName)}`} toTitle="Артикул в разделе «Изделия»: цена, категория, все его ТЗ" hint="Выберите из справочника или «Ввести новый артикул» — он сохранится в справочник. Смена артикула меняет категорию и группу (они берутся у артикула). Если по ТЗ уже есть списания или выпуск, они и себестоимость остаются — меняется только артикул ТЗ.">
           {ro ? (

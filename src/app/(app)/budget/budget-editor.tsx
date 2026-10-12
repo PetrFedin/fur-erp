@@ -522,7 +522,6 @@ export function BudgetEditor(p: Props) {
                 <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
               </button>
             ) : null}
-            {status === "APPROVED" ? <Badge tone="ok">Утверждён</Badge> : null}
           </div>
           <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {new Date(updatedAtState ?? p.savedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
           <p className="text-[11px] text-neutral-400" role="status">{saveText}</p>
