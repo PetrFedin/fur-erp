@@ -6,7 +6,9 @@ import { Fragment, useState, type ReactNode } from "react";
 import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
-import { Chevron, Dash, SCROLL_BOX, TD, TH, rowTone } from "@/components/tree-table";
+import { Chevron, Dash, SCROLL_BOX, TD, rowTone } from "@/components/tree-table";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 import { TotalLabel } from "@/components/total-label";
 import { LotUsageMini } from "@/components/lot-usage-bar";
 import { RowCard } from "@/components/responsive-rows";
@@ -44,7 +46,6 @@ function ExtraLabel({ x }: { x: ExtraRow }) {
 }
 
 /** Заголовок блока колонок: подпись, нижняя линия, вертикальная линия слева. */
-const blockTh = "border-b border-neutral-200 px-1.5 pb-1 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
 
 function useSum() {
   const { mode } = useVatDisplay();
@@ -109,22 +110,22 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
           <colgroup>{TREE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
             <tr>
-              <th rowSpan={2} className="sticky left-0 z-[2] bg-white px-2 py-1.5 text-left align-bottom text-xs font-medium text-neutral-500">Год / партия / закупка / лот</th>
-              <th colSpan={6} className={blockTh + BL}>Закупка</th>
-              <th colSpan={2} className={blockTh + BL}>Использование</th>
-              <th colSpan={2} className={blockTh + BL}>Оплата</th>
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white" label="Год / партия / закупка / лот" />
+              <THGroup colSpan={6}>Закупка</THGroup>
+              <THGroup colSpan={2}>Использование</THGroup>
+              <THGroup colSpan={2}>Оплата</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <th className={TH + BL}>Дата</th>
-              <th className={TH}>Закупок, шт.</th>
-              <th className={TH}>Лотов, шт.</th>
-              <th className={TH}>Шкур, шт.</th>
-              <th className={TH}>Подкладка, м</th>
-              <th className={TH}>Сумма, ₽ <span className="font-normal">({word})</span></th>
-              <th className={TH + BL}>Использовано, %</th>
-              <th className={TH}>Остаток</th>
-              <th className={TH + BL}>Оплачено, ₽</th>
-              <th className={TH}>Долг, ₽</th>
+              <TH sep align="center" label="Дата" />
+              <TH label="Закупок" unit={UNIT.pcs} />
+              <TH label="Лотов" unit={UNIT.pcs} />
+              <TH label="Шкур" unit={UNIT.pcs} />
+              <TH label="Подкладка" unit={UNIT.m} />
+              <TH label="Сумма" unit={`${UNIT.rub} · ${word}`} />
+              <TH sep label="Использовано" unit={UNIT.pct} />
+              <TH label="Остаток" unit="шт. · м" />
+              <TH sep label="Оплачено" unit={UNIT.rub} />
+              <TH label="Долг" unit={UNIT.rub} />
             </tr>
           </thead>
           <tbody>
@@ -320,16 +321,9 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
   const exSum = extras.reduce((a, x) => a + x.sum, 0);
   const exPaid = extras.reduce((a, x) => a + x.paid, 0);
   const isFurSec = unitLabel === "шт.";
-  const head = (k: string, label: ReactNode, o: { left?: boolean; bl?: boolean } = {}) => {
-    const active = sort.key === k;
-    return (
-      <th aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={cn(TH, o.left && "!text-left", o.bl && BL)}>
-        <Link href={sortHrefs[k] ?? "#"} className={cn("inline-flex items-center gap-0.5 hover:underline", active && "text-[var(--ui-accent-text)]")} title="Сортировать по этому столбцу">
-          {label}{active ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
-        </Link>
-      </th>
-    );
-  };
+  const head = (k: string, label: ReactNode, o: { left?: boolean; bl?: boolean; unit?: string } = {}) => (
+    <TH label={label} unit={o.unit} align={o.left ? "left" : "right"} sep={o.bl} sort={sort.key === k ? sort.dir : "none"} href={sortHrefs[k] ?? "#"} />
+  );
   const qtyOf = (p: Pick<Agg, "fur" | "lining">) => (isFurSec ? p.fur : p.lining);
   return (
     <section aria-labelledby={id} className="space-y-2" data-testid={id}>
@@ -367,26 +361,22 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
           <colgroup>{LIST_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
             <tr>
-              <th rowSpan={2} className="sticky left-0 z-[2] bg-white px-2 py-1.5 text-left align-bottom text-xs font-medium text-neutral-500" aria-sort={sort.key === "number" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-                <Link href={sortHrefs.number ?? "#"} className={cn("inline-flex items-center gap-0.5 hover:underline", sort.key === "number" && "text-[var(--ui-accent-text)]")}>
-                  № закупки{sort.key === "number" ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
-                </Link>
-              </th>
-              <th colSpan={6} className={blockTh + BL}>Закупка</th>
-              <th colSpan={2} className={blockTh + BL}>Использование</th>
-              <th colSpan={2} className={blockTh + BL}>Оплата</th>
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white" label="№ закупки" sort={sort.key === "number" ? sort.dir : "none"} href={sortHrefs.number ?? "#"} />
+              <THGroup colSpan={6}>Закупка</THGroup>
+              <THGroup colSpan={2}>Использование</THGroup>
+              <THGroup colSpan={2}>Оплата</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
               {head("year", "Год", { bl: true })}
               {head("batch", "Партия", { left: true })}
               {head("date", "Дата", { bl: true })}
-              {head("lots", "Лотов, шт.")}
-              {head(isFurSec ? "fur" : "lining", `${isFurSec ? "Шкур" : "Подкладка"}, ${unitLabel}`)}
-              {head("total", <>Сумма, ₽ <span className="font-normal">({word})</span></>)}
-              {head("used", "Использовано, %", { bl: true })}
-              {head("rem", "Остаток")}
-              {head("paid", "Оплачено, ₽", { bl: true })}
-              {head("rest", "Долг, ₽")}
+              {head("lots", "Лотов", { unit: UNIT.pcs })}
+              {head(isFurSec ? "fur" : "lining", isFurSec ? "Шкур" : "Подкладка", { unit: unitLabel })}
+              {head("total", "Сумма", { unit: `${UNIT.rub} · ${word}` })}
+              {head("used", "Использовано", { bl: true, unit: UNIT.pct })}
+              {head("rem", "Остаток", { unit: unitLabel })}
+              {head("paid", "Оплачено", { bl: true, unit: UNIT.rub })}
+              {head("rest", "Долг", { unit: UNIT.rub })}
             </tr>
           </thead>
           <tbody>

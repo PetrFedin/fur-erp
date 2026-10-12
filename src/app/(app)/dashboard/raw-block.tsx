@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
 import type { RawTableRow, VatTriple } from "@/lib/dashboard-data";
@@ -318,19 +320,19 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-              <th />
-              <th colSpan={showShare ? 2 : 1} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Количество</th>
-              <th className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Сумма</th>
-              <th colSpan={showUsd ? 2 : 1} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Цена</th>
+            <tr>
+              <THGroup sep={false} colSpan={1}>{" "}</THGroup>
+              <THGroup colSpan={showShare ? 2 : 1}>Количество</THGroup>
+              <THGroup>Сумма</THGroup>
+              <THGroup colSpan={showUsd ? 2 : 1}>Цена</THGroup>
             </tr>
-            <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-              <th className="py-1.5 pr-2 font-medium">Вид</th>
-              {showShare ? <th className={"px-2 py-1.5 text-right font-medium" + BL}>Доля от купленного</th> : null}
-              <th className={"px-2 py-1.5 text-right font-medium" + (showShare ? "" : BL)}>Кол-во</th>
-              <th className={"px-2 py-1.5 text-right font-medium" + BL}>Сумма</th>
-              <th className={"px-2 py-1.5 text-right font-medium" + BL}>Цена, ₽</th>
-              {showUsd ? <th className="px-2 py-1.5 text-right font-medium">Цена, $</th> : null}
+            <tr className="border-b border-neutral-200">
+              <TH align="left" label="Вид" />
+              {showShare ? <TH sep label="Доля от купленного" unit={UNIT.pct} /> : null}
+              <TH sep={!showShare} label="Кол-во" unit="шт. · м" />
+              <TH sep label="Сумма" unit={UNIT.rub} />
+              <TH sep label="Цена" unit="₽/шт. · ₽/м" />
+              {showUsd ? <TH label="Цена" unit={UNIT.usdPerPcs} /> : null}
             </tr>
           </thead>
           <tbody>

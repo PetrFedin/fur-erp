@@ -1,6 +1,8 @@
 "use client";
 
 import { TotalLabel } from "@/components/total-label";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -82,15 +84,15 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
           <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <th rowSpan={2} className={NAME_TH}>Сырьё / год</th>
-              <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Куплено</th>
-              <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
-              <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
-              <th rowSpan={2} className={th + " border-l border-neutral-100"}>Оплачено</th>
-              <th rowSpan={2} className={th}>Задолженность</th>
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Сырьё / год" />
+              <THGroup colSpan={2}>Куплено</THGroup>
+              <THGroup colSpan={2}>Использовано</THGroup>
+              <THGroup colSpan={2}>Остаток</THGroup>
+              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} />
+              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} />
             </tr>
             <tr className="border-b border-neutral-200">
-              {["шт.", "₽", "шт.", "₽", "шт.", "₽"].map((h, i) => <th key={i} className={th + (i % 2 === 0 ? " border-l border-neutral-100" : "")}>{h}</th>)}
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />])}
             </tr>
           </thead>
           <tbody>
@@ -270,15 +272,19 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
   );
   // Подкладка по умолчанию свёрнута до одной итоговой строки; по клику — ткани.
   const LIN = "__lining";
+  const linPaid = lin.reduce((a, r) => a + r.paid, 0), linDue = lin.reduce((a, r) => a + r.due, 0);
   const linBlock = (
     <>
       {kindHead("Подкладка", "lining")}
-      <tr data-block="lining" className="border-b border-neutral-200 bg-neutral-50">
-        <NameCell arrow={lin.length > 0 ? arrow(LIN, "подкладка") : null}>Подкладка</NameCell>
+      <tr data-block="lining" className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
+        <NameCell arrow={lin.length > 0 ? arrow(LIN, "подкладка") : null}><span className="font-medium">Подкладка</span></NameCell>
         <CellsTds c={linSub} unit="м" avg={avg} />
-        <MoneyTds paid={lin.reduce((a, r) => a + r.paid, 0)} due={lin.reduce((a, r) => a + r.due, 0)} />
+        <MoneyTds paid={linPaid} due={linDue} />
       </tr>
       {open.has(LIN) ? itemRows(lin, "м") : null}
+      {open.has(LIN) && lin.length > 1 ? (
+        <tr className="row-total"><NameCell><TotalLabel note="подкладка" avg={avg} /></NameCell><CellsTds c={linSub} unit="м" bold avg={avg} /><MoneyTds paid={linPaid} due={linDue} bold /></tr>
+      ) : null}
     </>
   );
 
@@ -287,7 +293,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
       headerExtra={
           <InfoHint label="Как читать таблицу по сырью" wide>
             <p>Строка — вид меха или ткань подкладки («Лиса красная» — вид «Лиса», красная — цвет). Нажмите на вид — разбивка по аукционам.</p>
-            <p className="mt-1"><b>Средневзвешенная цена</b> = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано, куплено и остаток — без 4%.</p>
+            <p className="mt-1"><b>Ср. цена</b> (средневзвешенное значение: сумма ÷ количество по лотам) = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано, куплено и остаток — без 4%.</p>
             <p className="mt-1">Год шапки и фильтры панели действуют. «Всего» складывает мех и подкладку только в рублях.</p>
             <p className="mt-1"><b>Куплено = использовано + остаток</b> по штукам и рублям, все колонки — без 4%.{orderFilters ? " Фильтр по ТЗ сужает только «Использовано»: тогда куплено − использовано ≠ остаток." : ""}</p>
             <p className="mt-1"><b>Бобр</b> — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия». Поэтому в этой таблице по лотам его нет.</p>
@@ -299,15 +305,15 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
           <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <th rowSpan={2} className={NAME_TH}>Вид</th>
-              <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Куплено</th>
-              <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
-              <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
-              <th rowSpan={2} className={th + " border-l border-neutral-100"}>Оплачено</th>
-              <th rowSpan={2} className={th}>Задолженность</th>
+              <TH rowSpan={2} align="left" className="sticky left-0 z-[2] bg-white px-2" label="Вид" />
+              <THGroup colSpan={avg ? 3 : 2}>Куплено</THGroup>
+              <THGroup colSpan={avg ? 3 : 2}>Использовано</THGroup>
+              <THGroup colSpan={avg ? 3 : 2}>Остаток</THGroup>
+              <TH rowSpan={2} sep label="Оплачено" unit={UNIT.rub} />
+              <TH rowSpan={2} label="Задолженность" unit={UNIT.rub} />
             </tr>
             <tr className="border-b border-neutral-200">
-              {[0, 1, 2].flatMap((g) => (avg ? ["шт.", "₽", "цена ₽/шт."] : ["шт.", "₽"]).map((h, i) => <th key={g + h} className={th + (i === 0 ? " border-l border-neutral-100" : "")}>{h}</th>))}
+              {[0, 1, 2].flatMap((g) => [<TH key={`q${g}`} sep label="Кол-во" unit="шт. · м" />, <TH key={`v${g}`} label="Сумма" unit={UNIT.rub} />, ...(avg ? [<TH key={`a${g}`} label="Ср. цена" unit="₽/шт. · ₽/м" />] : [])])}
             </tr>
           </thead>
           <tbody>
@@ -346,7 +352,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             {rows.length === 0 ? <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-neutral-500">По выбранным фильтрам лотов нет.</td></tr> : null}
             {rows.length > 0 ? (
               <tr className="row-total">
-                <NameCell><TotalLabel /></NameCell>
+                <NameCell><TotalLabel note="мех+подкладка" /></NameCell>
                 <td className={td}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>—</td> : null}

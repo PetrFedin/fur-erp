@@ -9,13 +9,13 @@ import { TotalLabel } from "@/components/total-label";
 import { LotUsageMini } from "@/components/lot-usage-bar";
 import { shortMaterialName } from "@/lib/material-name";
 import type { FurLot } from "@/lib/fur-table";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 
 const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
-const TH = "px-2 py-1.5 text-right text-xs font-medium text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";
-const block = "border-b border-l border-neutral-200 px-2 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600";
 
 /** Таблица тканей партии подкладки: метры, цена ₽/м, сумма, НДС, использовано (м, %, полоса), остаток; ткань → карточка лота (одна закупка ткани) или её лоты. */
 export function LiningFabrics({ lots }: { lots: FurLot[] }) {
@@ -78,22 +78,22 @@ export function LiningFabrics({ lots }: { lots: FurLot[] }) {
         <table className="w-full table-fixed text-sm" style={{ minWidth: 960 }}>
           <thead>
             <tr>
-              <th className="px-2 pb-1 pt-2" />
-              <th colSpan={3} className={block}>Куплено</th>
-              <th colSpan={2} className={block}>НДС</th>
-              <th colSpan={2} className={block}>Использовано</th>
-              <th className={block}>Остаток</th>
+              <THGroup sep={false} colSpan={1}>{" "}</THGroup>
+              <THGroup colSpan={3}>Куплено</THGroup>
+              <THGroup colSpan={2}>НДС</THGroup>
+              <THGroup colSpan={2}>Использовано</THGroup>
+              <THGroup colSpan={1}>Остаток</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <th className={cn(TH, "!text-left")}>Ткань</th>
-              <th className={TH + BL}>Метров</th>
-              <th className={TH}>Цена, ₽/м</th>
-              <th className={TH}>Сумма, ₽</th>
-              <th className={TH + BL}>Ставка</th>
-              <th className={TH}>НДС, ₽</th>
-              <th className={TH + BL}>Метров, ₽</th>
-              <th className={TH}>Доля</th>
-              <th className={TH + BL}>Метров, ₽</th>
+              <TH align="left" label="Ткань" />
+              <TH sep label="Кол-во" unit={UNIT.m} />
+              <TH label="Цена" unit={UNIT.rubPerM} />
+              <TH label="Сумма" unit={UNIT.rub} />
+              <TH sep label="Ставка" unit={UNIT.pct} />
+              <TH label="НДС" unit={UNIT.rub} />
+              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} />
+              <TH label="Доля" unit={UNIT.pct} />
+              <TH sep label="Кол-во" unit={`${UNIT.m} · ${UNIT.rub}`} />
             </tr>
           </thead>
           <tbody>

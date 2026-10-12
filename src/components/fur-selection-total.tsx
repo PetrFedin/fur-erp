@@ -10,6 +10,8 @@ import { TotalLabel } from "@/components/total-label";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
 import { shortMaterialName } from "@/lib/material-name";
 import { CAROUSEL_ARROW } from "@/components/tile-carousel";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 import { RawCards } from "@/app/(app)/dashboard/raw-block";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
@@ -226,7 +228,7 @@ export function FurSelectionTotal({
         <span>{group === "year" ? "Год закупки" : group === "auction" ? "Партия закупки (аукцион)" : kind === "lining" ? "Подкладка" : "Мех"}</span>
       </th>
       {GROUPS.map((g) => (
-        <th key={g.key} colSpan={colsOf(g.key)} className="border-b border-l border-neutral-200 px-3 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{g.title}</th>
+        <THGroup key={g.key} colSpan={colsOf(g.key)}>{g.title}</THGroup>
       ))}
       {showVat && <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600">НДС</th>}
     </tr>
@@ -235,17 +237,17 @@ export function FurSelectionTotal({
     <>
       {GROUPS.map((g) => (
         <Fragment key={g.key}>
-          {showQty && <Th first>Кол-во, {unit}</Th>}
-          {showMoney && <Th first={!showQty}>Сумма, ₽</Th>}
-          <Th>Ср. цена, ₽/{priceUnit}</Th>
+          {showQty && <TH sep label="Кол-во" unit={unit} />}
+          {showMoney && <TH sep={!showQty} label="Сумма" unit={UNIT.rub} />}
+          <TH label="Ср. цена" unit={`₽/${priceUnit}`} />
           {showHam && g.key === "recv" && <Th>Молоток, ₽/{priceUnit}<InfoHint label="Что такое молоток" align="right">Цена шкуры на аукционе до сборов, выделки, транспорта, брокера и комиссий (в режиме «С НДС / Без НДС» шапки). Берётся из расчёта лота; средневзвешенная считается только по лотам, у которых молоток в расчёте есть. Лот без молотка — «—».</InfoHint></Th>}
-          {showUsd && <Th>Ср. цена, $/{priceUnit}<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint></Th>}
+          {showUsd && <TH label="Ср. цена" unit={`$/${priceUnit}`} after={<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint>} />}
         </Fragment>
       ))}
       {showVat && (
         <>
-          <Th first>Ставка</Th>
-          <Th>НДС, ₽</Th>
+          <TH sep label="Ставка" />
+          <TH label="НДС" unit={UNIT.rub} />
         </>
       )}
     </>

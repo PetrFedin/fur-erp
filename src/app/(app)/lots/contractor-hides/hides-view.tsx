@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { cn, formatMoney, formatPercent } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 
@@ -16,10 +18,8 @@ export type HidesPayment = { id: string; iso: string; date: string; year: number
 
 const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v.toFixed(2)));
-const TH = "px-2 py-1.5 text-right text-xs font-medium text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
 const BL = " border-l border-neutral-200";
-const block = "border-b border-l border-neutral-200 px-2 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600";
 
 /**
  * Шкуры подрядчика: плитки, таблицы «По партиям», «По ТЗ» и «Оплаты» (основания). Те же суммы, что входят в Главную (мех «Использовано» и «Куплено»):
@@ -71,7 +71,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         </div>
         <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="w-full table-fixed text-sm" style={{ minWidth: 640 }}>
-            <thead><tr className="border-b border-neutral-200"><th className={cn(TH, "!text-left")}>Партия</th><th className={TH}>Год оплаты</th><th className={TH}>ТЗ, шт.</th><th className={TH + BL}>Без НДС, ₽</th><th className={TH}>НДС, ₽</th><th className={TH}>С НДС, ₽</th></tr></thead>
+            <thead><tr className="border-b border-neutral-200"><TH align="left" label="Партия" /><TH label="Год оплаты" /><TH label="ТЗ" unit={UNIT.pcs} /><TH sep label="Без НДС" unit={UNIT.rub} /><TH label="НДС" unit={UNIT.rub} /><TH label="С НДС" unit={UNIT.rub} /></tr></thead>
             <tbody>
               {byBatch.map((b) => (
                 <tr key={`${b.batch}${b.payYear}`} className="border-t border-neutral-100">
@@ -109,8 +109,8 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="w-full table-fixed text-sm" style={{ minWidth: 900 }}>
             <thead>
-              <tr><th colSpan={5} className={block.replace("border-l ", "")}>ТЗ</th><th colSpan={4} className={block}>Стоимость шкур подрядчика</th></tr>
-              <tr className="border-b border-neutral-200"><th className={cn(TH, "!text-left")}>ТЗ</th><th className={TH}>Партия</th><th className={TH}>Год оплаты</th><th className={cn(TH, "!text-left")}>Артикул</th><th className={TH}>Изд., шт.</th><th className={TH + BL}>Сумма, ₽ ({vat === "excl" ? "без НДС" : "с НДС"})</th><th className={TH}>НДС, ₽</th><th className={TH}>Доля, %</th><th className={TH}>На изделие, ₽</th></tr>
+              <tr><THGroup sep={false} colSpan={5}>ТЗ</THGroup><THGroup colSpan={4}>Стоимость шкур подрядчика</THGroup></tr>
+              <tr className="border-b border-neutral-200"><TH align="left" label="ТЗ" /><TH label="Партия" /><TH label="Год оплаты" /><TH align="left" label="Артикул" /><TH label="Изд." unit={UNIT.pcs} /><TH sep label={`Сумма (${vat === "excl" ? "без НДС" : "с НДС"})`} unit={UNIT.rub} /><TH label="НДС" unit={UNIT.rub} /><TH label="Доля" unit={UNIT.pct} /><TH label="На изделие" unit={UNIT.rub} /></tr>
             </thead>
             <tbody>
               {shown.map((o) => (
@@ -141,7 +141,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
         </div>
         <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="w-full table-fixed text-sm" style={{ minWidth: 760 }}>
-            <thead><tr className="border-b border-neutral-200"><th className={cn(TH, "!text-left")}>Дата</th><th className={cn(TH, "!text-left")}>Платёж</th><th className={cn(TH, "!text-left")}>Основание (п/п, счёт)</th><th className={TH + BL}>Платёж всего, ₽</th><th className={TH}>Из них шкуры, ₽</th><th className={TH}>Подтв.</th></tr></thead>
+            <thead><tr className="border-b border-neutral-200"><TH align="left" label="Дата" /><TH align="left" label="Платёж" /><TH align="left" label="Основание (п/п, счёт)" /><TH sep label="Платёж всего" unit={UNIT.rub} /><TH label="Из них шкуры" unit={UNIT.rub} /><TH label="Подтв." /></tr></thead>
             <tbody>
               {shownPays.map((p) => (
                 <tr key={p.id} className="border-t border-neutral-100">

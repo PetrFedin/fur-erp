@@ -8,6 +8,8 @@ import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "@/app/(app)/dashboard/tile";
 import type { FurKind, FurLot } from "@/lib/fur-table";
+import { TH, THGroup } from "@/components/table-head";
+import { UNIT } from "@/lib/units";
 
 export type OrderInfo = {
   number: string; article: string; category: string; batch: string; year: number | null;
@@ -32,9 +34,7 @@ const D = () => <span className="text-neutral-300">—</span>;
 const money = (v: number) => (Math.abs(v) < 0.5 ? <D /> : formatMoney(v));
 const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const BL = " border-l border-neutral-200";
-const TH = "px-2 pb-2 pt-1 text-right align-middle text-xs font-medium leading-tight text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5 text-right tabular-nums";
-const block = "border-b border-l border-neutral-200 px-2 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600";
 
 type SortKey = "number" | "year" | "qty" | "sum" | "avg" | "per";
 
@@ -127,12 +127,8 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
   const totC4 = totBase + (vat === "excl" ? T.exE : T.exI);
   const totalQtyAll = lots.reduce((a, l) => a + l.used, 0);
 
-  const head = (k: SortKey, label: ReactNode, left?: boolean, bl?: boolean) => (
-    <th className={cn(TH, left && "!text-left", bl && BL)} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" onClick={() => setSort((s) => ({ key: k, dir: s.key === k && s.dir === "desc" ? "asc" : "desc" }))} className={cn("hover:underline", sort.key === k && "text-[var(--ui-accent-text)]")} title="Сортировать">
-        {label}{sort.key === k ? <span aria-hidden> {sort.dir === "asc" ? "▲" : "▼"}</span> : null}
-      </button>
-    </th>
+  const head = (k: SortKey, label: ReactNode, unit?: string, o: { left?: boolean; bl?: boolean; after?: ReactNode } = {}) => (
+    <TH label={label} unit={unit} align={o.left ? "left" : "right"} sep={o.bl} after={o.after} sort={sort.key === k ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: k, dir: s.key === k && s.dir === "desc" ? "asc" : "desc" }))} />
   );
   const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[10px] font-normal text-neutral-500">по {formatQty(have)} из {formatQty(qty)}</div> : null);
   const rateText = (rates: number[]) => `${vat === "excl" ? "без НДС" : "с НДС"} ${rates.sort((a, b) => a - b).map((r) => `${r}%`).join(" · ")}`;
@@ -196,26 +192,24 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
           </colgroup>
           <thead>
             <tr>
-              <th colSpan={4} className={block.replace("border-l ", "") + " sticky left-0 z-[2] bg-white"}>ТЗ</th>
-              <th colSpan={7} className={block}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</th>
-              <th colSpan={2} className={block}>На изделие</th>
+              <THGroup sep={false} colSpan={4} className="sticky left-0 z-[2] bg-white">ТЗ</THGroup>
+              <THGroup colSpan={7}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</THGroup>
+              <THGroup colSpan={2}>На изделие</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
-              <th className={cn(TH, "sticky left-0 z-[2] bg-white !text-left")} aria-sort={sort.key === "number" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-                <button type="button" onClick={() => setSort((s) => ({ key: "number", dir: s.key === "number" && s.dir === "desc" ? "asc" : "desc" }))} className={cn("hover:underline", sort.key === "number" && "text-[var(--ui-accent-text)]")}>№ ТЗ / партия{sort.key === "number" ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}</button>
-              </th>
-              <th className={cn(TH, "!text-left")}>Артикул</th>
-              <th className={TH}>Изд., шт.</th>
+              <TH align="left" className="sticky left-0 z-[2] bg-white" label="№ ТЗ / партия" sort={sort.key === "number" ? sort.dir : "none"} onSort={() => setSort((s) => ({ key: "number", dir: s.key === "number" && s.dir === "desc" ? "asc" : "desc" }))} />
+              <TH align="left" label="Артикул" />
+              <TH label="Изд." unit={UNIT.pcs} />
               {head("year", "Год")}
-              {head("qty", `${kind === "lining" ? "Метров" : "Шкур"}, ${unit}`, false, true)}
-              <th className={TH}>Лотов</th>
-              <th className={TH}>Аукц.</th>
-              {head("sum", <>Сумма, ₽<br /><span className="font-normal">без 4%</span></>)}
-              {head("avg", <>Ср. цена, ₽/{unit}<InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint></>)}
-              <th className={TH}>Ср. цена, $/{unit}<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint></th>
-              <th className={TH}>Доля{grp === "all" ? "" : " от группы"}, %</th>
-              {head("per", `${kind === "lining" ? "М" : "Шкур"} на изд.`, false, true)}
-              <th className={TH}>Мех на изд., ₽</th>
+              {head("qty", kind === "lining" ? "Метров" : "Шкур", unit, { bl: true })}
+              <TH label="Лотов" />
+              <TH label="Аукц." />
+              {head("sum", "Сумма", `${UNIT.rub} · без 4%`)}
+              {head("avg", "Ср. цена", `₽/${unit}`, { after: <InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint> })}
+              <TH label="Ср. цена" unit={`$/${unit}`} after={<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint>} />
+              <TH label={grp === "all" ? "Доля" : "Доля от группы"} unit={UNIT.pct} />
+              {head("per", kind === "lining" ? "Метров на изд." : "Шкур на изд.", unit, { bl: true })}
+              <TH label={kind === "lining" ? "Подкладка на изд." : "Мех на изд."} unit={UNIT.rub} />
             </tr>
           </thead>
           <tbody>
