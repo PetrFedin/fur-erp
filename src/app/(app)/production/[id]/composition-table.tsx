@@ -8,6 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { Dash, SCROLL_BOX } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
 
 const TH = "whitespace-nowrap px-2 py-1.5 text-xs font-medium text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5";
@@ -100,7 +101,7 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
               <th className={TH + " border-l border-neutral-100 text-right"}>Сумма, {modeLabel}</th>
               <th className={TH + " text-right"}>в т.ч. НДС</th>
               {c4 === "on" ? <th className={TH + " text-right"}>4%</th> : null}
-              <th className={TH + " border-l border-neutral-100 text-right"}>Всего</th>
+              <th className={TH + " border-l border-neutral-100 text-right"}>Всего, ₽</th>
               <th className={TH + " text-right"}>Доля</th>
             </tr>
           </thead>
@@ -126,8 +127,8 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
-              <td className={TD} colSpan={5}>Итого по ТЗ</td>
+            <tr className="row-total">
+              <td className={TD} colSpan={5}><TotalLabel extra="по ТЗ" /></td>
               <td className={TD + " text-right tabular-nums"}>{qty > 0 ? <>{formatQty(qty)} <span className="text-xs font-normal text-neutral-500">шт.</span></> : <Dash />}</td>
               <td className={TD + " text-right tabular-nums"}>{qty > 0 ? <><span className="text-xs font-normal text-neutral-500">на изд. </span>{money(grand / qty)}</> : <Dash />}</td>
               <td className={TD} />

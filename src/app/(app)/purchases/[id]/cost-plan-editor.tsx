@@ -135,7 +135,7 @@ export function CostPlanItemEditor({
       <span className="text-xs text-neutral-500">(без НДС {fmt(calc.unitExcl)} ₽)</span>
     </div>
     <div>
-      Всего: <b>{fmt(calc.totalIncl)} ₽</b>{" "}
+      Всего, ₽: <b>{fmt(calc.totalIncl)} ₽</b>{" "}
       <span className="text-xs text-neutral-500">(без НДС {fmt(calc.totalExcl)} ₽)</span>
     </div>
     <div className="mt-1 hidden text-xs text-neutral-500 sm:block">

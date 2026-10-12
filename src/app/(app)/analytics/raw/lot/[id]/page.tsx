@@ -21,6 +21,7 @@ import { getColorOptions } from "@/lib/colors";
 import { rowVersion, LOT_V } from "@/lib/concurrency";
 import { LotEditButton } from "@/components/lot-edit";
 import { TILE_BOX, TileHead, TileValue, TileList } from "../../../../dashboard/tile";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Карточка лота" };
 
@@ -404,8 +405,8 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                         <Td className="text-right tabular-nums"><CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} /></Td>
                       </Tr>
                     ))}
-                    <Tr className="border-y-2 border-neutral-200 bg-neutral-50 font-medium">
-                      <Td colSpan={5}>Итого ({orders.length} ТЗ)</Td>
+                    <Tr className="row-total">
+                      <Td colSpan={5}><TotalLabel extra={`${orders.length} ТЗ`} /></Td>
                       <Td className="text-right tabular-nums">{formatQty(tot.produced.toString())}</Td>
                       <Td className="text-right tabular-nums">≈ {formatQty(tot.units.toFixed(1))}</Td>
                       <Td className="text-right tabular-nums">{formatQty(tot.qty.toString())}</Td>
@@ -442,8 +443,8 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                   ]}
                 />
               ))}
-              <div className="rounded-lg border border-neutral-300 bg-neutral-50 p-3 text-sm font-semibold">
-                Σ Итого: {formatQty(tot.qty.toString())} {unit} · <CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} />
+              <div className="row-total rounded-lg p-3 text-sm">
+                <TotalLabel unit={unit} />: {formatQty(tot.qty.toString())} {unit} · <CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} />
                 <div className="mt-1 text-xs font-normal text-neutral-600">
                   Произведено в ТЗ: {formatQty(tot.produced.toString())} шт., ≈ из лота {formatQty(tot.units.toFixed(1))} шт. Остаток лота: {qty(l.rem)} · <Money incl={q2(remIncl)} excl={q2(remExcl)} />
                 </div>

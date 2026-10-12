@@ -2,6 +2,7 @@ import { InfoHint } from "./info-hint";
 import { Money } from "./money";
 import { formatMoney } from "@/lib/utils";
 import { vatKindLabel, type VatBreakdown } from "@/lib/tz-vat";
+import { TotalLabel } from "@/components/total-label";
 
 const TONE: Record<string, string> = {
   "20": "border-sky-300 bg-sky-50 text-sky-800",
@@ -55,8 +56,8 @@ export function TzVatBadge({ b, compact = false, hint = true, className = "" }: 
               </tr>
             ))}
             {b.rows.length > 1 && (
-              <tr className="border-t border-neutral-200 font-medium">
-                <td className="pr-2">Итого</td>
+              <tr className="row-total">
+                <td className="pr-2"><TotalLabel /></td>
                 <td className="pr-2">{b.rows.reduce((s, r) => s + r.lines, 0)}</td>
                 <td className="pr-2 text-right">{formatMoney(total.toFixed(2))}</td>
                 <td className="pr-2 text-right">{formatMoney(b.rows.reduce((s, r) => s.add(r.excl), total.mul(0)).toFixed(2))}</td>

@@ -16,6 +16,7 @@ import type { YearFilter } from "@/lib/year-filter";
 import { emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { loadSummaryAuction } from "./summary-node-action";
+import { TotalLabel } from "@/components/total-label";
 
 const UNIT: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 const COLS = "md:min-w-[940px] md:text-[13px] md:grid-cols-[minmax(160px,1.4fr)_repeat(7,minmax(100px,1fr))]";
@@ -408,9 +409,9 @@ export async function PurchaseSummary({
             </Node>
           ))}
           <div
-            className={`grid grid-cols-1 gap-x-2 gap-y-1 border-t-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold ${COLS}`}
+            className={`row-total grid grid-cols-1 gap-x-2 gap-y-1 px-3 py-2 text-sm ${COLS}`}
           >
-            <span>Итого{filtered ? " по фильтру" : ""}</span>
+            <span><TotalLabel extra={filtered ? "по фильтру" : undefined} /></span>
             <Metrics a={grand} mode={mode} />
           </div>
         </div>

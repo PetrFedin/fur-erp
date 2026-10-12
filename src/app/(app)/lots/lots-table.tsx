@@ -22,6 +22,7 @@ import { AddFieldButton, CustomCell, CustomFieldHeader, MobileFieldsManager } fr
 import { FilterPanel } from "./lots-filters";
 import { InfoHint } from "@/components/info-hint";
 import { ALL_SCOPE, useLots, useScope, type ScopeView } from "./lots-state";
+import { TotalLabel } from "@/components/total-label";
 
 const rateFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 4 });
 const symbol = (c: string) => (c === "USD" ? "$" : c);
@@ -84,11 +85,11 @@ function TotalsFooter({
   const tail = fields.length + (hasEditCol ? 1 : 0) + 1; // свои столбцы + правка + «+»
   const lead = (hasCheckCol ? 1 : 0) + (invoiceCol ? 1 : 0) + 8;
   return (
-    <tfoot className="border-t-2 border-neutral-300 bg-neutral-50 align-top text-sm">
-      <tr data-totals-row>
+    <tfoot className="align-top text-sm">
+      <tr data-totals-row className="row-total">
         {hasCheckCol && <Td />}
         <Td className="min-w-40">
-          <div className="font-semibold">Итого</div>
+          <div><TotalLabel /></div>
           <div className="text-xs font-normal text-neutral-500" data-totals-label>
             {view.label}
           </div>
@@ -203,9 +204,9 @@ function TotalsFooter({
             </Td>
             <Td colSpan={tail + 2} />
           </tr>
-          <tr className="font-semibold">
+          <tr className="row-total">
             <Td colSpan={lead} className="text-right">
-              Всего с расходами закупки
+              <TotalLabel note="с расходами закупки" />
             </Td>
             <Td className="whitespace-nowrap">
               <Money incl={b.totalIncl} excl={b.totalExcl} />
@@ -224,7 +225,7 @@ function MobileSummary({ view }: { view: ScopeView }) {
   const single = t.currencies.length === 1;
   return (
     <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm md:hidden" data-totals-summary>
-      <span className="font-semibold">Итого:</span>{" "}
+      <span className="font-semibold">Всего, ₽:</span>{" "}
       {t.count === 0 ? (
         <span>Σ 0</span>
       ) : (
@@ -266,7 +267,7 @@ function TotalsList({ view, fields }: { view: ScopeView; fields: CustomFieldDef[
   }
   if (withExp) {
     items.push({ label: "Расходы закупки (не распределены)", value: <Money incl={b.unallocatedIncl} excl={b.unallocatedExcl} /> });
-    items.push({ label: "Всего с расходами закупки", value: <Money incl={b.totalIncl} excl={b.totalExcl} /> });
+    items.push({ label: "Всего, ₽ с расходами закупки", value: <Money incl={b.totalIncl} excl={b.totalExcl} /> });
   }
   return (
     <ul className="flex flex-col divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm md:hidden" data-totals-list>
@@ -349,7 +350,7 @@ function LotsControls({ scope }: { scope: string }) {
 function Legend() {
   return (
     <p className="text-xs text-neutral-500">
-      «Итого» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср. взвеш.</b> — среднее
+      «Всего, ₽» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср. взвеш.</b> — среднее
       взвешенное по количеству шкур (курс — по сумме закупки в валюте; никогда не простое среднее), <b>уник.</b> — число разных значений. Цена в валюте и курс от режима
       «С НДС / Без НДС» не зависят.
     </p>
@@ -361,7 +362,7 @@ const hasTz = (r: LotRow) => r.usages.length > 0;
 
 /**
  * Разделение лотов: основной блок — лоты со списаниями в ТЗ, в конце таблицы отдельным сворачиваемым блоком — лоты без ТЗ.
- * Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (оба считаются по тем же показанным лотам, что и итог без выбора).
+ * Σ «с ТЗ» + Σ «без ТЗ» = «Всего, ₽» (оба считаются по тем же показанным лотам, что и итог без выбора).
  */
 function useTzSplit(rows: LotRow[]) {
   const { fields, extraOf } = useLots();
@@ -743,8 +744,8 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
               </li>
             );
           })}
-          <li className="mt-1 flex items-baseline justify-between gap-3 border-t border-neutral-200 pt-1.5 text-sm font-semibold">
-            <span>Итого — полная себестоимость</span>
+          <li className="row-total mt-1 flex items-baseline justify-between gap-3 px-1 py-1.5 text-sm">
+            <span><TotalLabel note="полная себестоимость" /></span>
             <span className="whitespace-nowrap tabular-nums" data-cost-total>
               {formatMoney(total)}
             </span>
@@ -781,7 +782,7 @@ export function AuctionTotalsPanel() {
   return (
     <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" data-auction-totals>
       <div>
-        <h3 className="text-base font-semibold">Итого по аукциону</h3>
+        <h3 className="text-base font-semibold">Всего, ₽ по аукциону</h3>
         <Legend />
       </div>
       <LotsControls scope={ALL_SCOPE} />

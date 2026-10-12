@@ -6,6 +6,7 @@ import { fmtRu } from "@/lib/calendar-grid";
 import { pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { buildMonthTable, cellItems, dateSpan, sumOf, type StageSums, type TableFilters } from "@/lib/calendar-table";
 import { formatQty } from "@/lib/utils";
+import { TotalLabel } from "@/components/total-label";
 
 type HrefFn = (patch: Record<string, string | string[]>) => string;
 
@@ -174,7 +175,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
             <tr>
               <th className="sticky left-0 z-10 bg-neutral-50 px-2 py-1 text-left text-xs font-medium text-neutral-500">Вид меха</th>
               {stages.map((k) => <th key={k} className={`${th} ${STAGE_STYLES[k].text}`} title={STAGE_STYLES[k].hint}>{STAGE_STYLES[k].label}{k !== "repair" && k !== "shipped" ? " →" : ""}</th>)}
-              <th className={`${th} border-l border-neutral-200 text-neutral-500`}>Всего</th>
+              <th className={`${th} border-l border-neutral-200 text-neutral-500`}>Всего, шт.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -192,8 +193,8 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
             {t.rows.length === 0 && <tr><td colSpan={stages.length + 2} className="px-2 py-4 text-center text-xs text-neutral-500">Нет данных по выбранным фильтрам.</td></tr>}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-medium">
-              <th scope="row" className="sticky left-0 z-10 bg-neutral-50 px-2 py-1 text-left text-xs">Итого</th>
+            <tr className="row-total">
+              <th scope="row" className="sticky left-0 z-10 bg-neutral-50 px-2 py-1 text-left text-xs"><TotalLabel unit="шт." /></th>
               {stages.map((k) => <td key={k} className={`px-2 py-1 text-right text-xs tabular-nums ${STAGE_STYLES[k].text}`}>{t.grand[k] > 0 ? formatQty(t.grand[k]) : <span className="text-neutral-300">—</span>}</td>)}
               <td className="border-l border-neutral-200 px-2 py-1 text-right text-xs tabular-nums">{formatQty(stages.reduce((a, k) => a + t.grand[k], 0))}</td>
             </tr>
@@ -202,7 +203,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <StageLegend />
-        <span className="text-neutral-700">Σ без ремонта: <b className="tabular-nums">{formatQty(sumOf(t.grand, false))}</b> шт.</span>
+        <span className="text-neutral-700">Всего, шт. без ремонта: <b className="tabular-nums">{formatQty(sumOf(t.grand, false))}</b></span>
         <InfoHint wide>Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «Произведено» не входит.</InfoHint>
       </div>
       {open.length > 0 && (

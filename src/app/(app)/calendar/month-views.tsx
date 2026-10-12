@@ -94,12 +94,12 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
   const LBL = "sticky left-0 z-10 w-40 min-w-40 border-r border-neutral-200";
   const hd = "px-1 py-1.5 text-center text-xs font-medium text-neutral-700";
   const num = (v: number) => (v > 0 ? formatQty(v) : <span className="text-neutral-300">—</span>);
-  /** Блок вида меха (или «Итого»): «Всего по плану» крупно + строки стадий словами. */
+  /** Блок вида меха (или «Всего, шт.»): «Всего по плану» крупно + строки стадий словами. */
   const block = ({ title, fur, cells, total, grand }: { title: string; fur: string; cells: (c: string) => StageSums | undefined; total: StageSums; grand?: boolean }) => {
-    const bg = grand ? "bg-neutral-100" : "bg-white";
+    const bg = grand ? "bg-[var(--ui-soft)]" : "bg-white";
     const cellsAll = [...t.cols.map((c) => ({ c, s: cells(c) })), { c: "*", s: total }];
     return (
-      <tbody key={fur} className={grand ? "border-t-2 border-neutral-400" : ""}>
+      <tbody key={fur} className={grand ? "border-t-2 border-[var(--ui-accent)] text-[var(--ui-accent-text)]" : ""}>
         <tr className="border-t border-neutral-300">
           <th scope="row" className={`${LBL} ${bg} p-0 text-left`}>
             <Link href={link("*", fur)} title="Показать ТЗ за все месяцы" className="block px-2 py-2 hover:underline"><span className="block text-sm font-semibold">{title}</span><span className="block text-xs font-normal text-neutral-600">Всего по плану, шт.</span></Link>
@@ -148,12 +148,12 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
                 </th>
               ))}
               <th className="sticky top-0 z-20 border-b border-l border-neutral-300 bg-neutral-100 p-0" style={{ minWidth: COL_W }}>
-                <Link href={link("*", "*")} className={`${hd} block hover:underline`}>Итого</Link>
+                <Link href={link("*", "*")} className={`${hd} block hover:underline`}>Всего, шт.</Link>
               </th>
             </tr>
           </thead>
           {t.rows.map((r) => block({ title: r.fur, fur: r.fur, cells: (c) => r.cells[c], total: r.total }))}
-          {block({ title: "Итого", fur: "*", cells: (c) => t.colTotals[c], total: t.grand, grand: true })}
+          {block({ title: "Всего, шт.", fur: "*", cells: (c) => t.colTotals[c], total: t.grand, grand: true })}
         </table>
       </div>
       {open.length > 0 && (

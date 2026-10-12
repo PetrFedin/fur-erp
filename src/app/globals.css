@@ -105,3 +105,58 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 @media (min-width: 640px) and (max-width: 1023px) {
   .tile-box { padding: 0.875rem; }
 }
+
+/* ── Акцент интерфейса: «Текущий стиль» — нейтральный, «Привычный» (theme-customer.css) — оранжевый. ── */
+:root {
+  --ui-accent: #404040;       /* рамки при наведении, линия над итогом */
+  --ui-soft: #f5f5f4;         /* подложка строки «Всего» */
+  --ui-accent-text: #171717;  /* число в строке «Всего» */
+}
+
+/* Строка итога «Всего, ₽» — одна на всё приложение: <tr className="row-total"> (или TotalRow). */
+.row-total > :is(td, th) {
+  background-color: var(--ui-soft);
+  border-top: 2px solid var(--ui-accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-accent-text);
+}
+.row-total > :is(td, th):first-child { color: inherit; }
+.row-total .text-neutral-500, .row-total .text-neutral-600, .row-total .text-neutral-400 { color: inherit; opacity: 0.8; }
+/* итог в виде блока (не таблица): рамка и подложка те же */
+div.row-total {
+  background-color: var(--ui-soft);
+  border-top: 2px solid var(--ui-accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-accent-text);
+}
+
+/* Кликабельный виджет: рамка акцентного цвета при наведении, нажатии и фокусе с клавиатуры; раскладка не сдвигается (ширина рамки постоянна). */
+.tile-click { cursor: pointer; transition: border-color 0.14s ease, box-shadow 0.14s ease; }
+html:root .tile-click:is(:hover, :active, :focus-visible) {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 0.5px var(--ui-accent);
+  outline: none;
+}
+
+/* Главная, «Сырьё»: шесть плиток в одном ряду (мех | подкладка). */
+.raw-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+.raw-group { display: flex; min-width: 0; flex-direction: column; gap: 0.25rem; }
+.raw-group-label { font-size: 0.75rem; line-height: 1rem; font-weight: 700; color: #5a6a94; }
+.raw-tiles { display: grid; flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.raw-divider { height: 1px; background: #d9deea; }
+@media (min-width: 1280px) {
+  .raw-row { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); column-gap: 0.75rem; }
+  .raw-divider { height: auto; width: 1px; }
+  .raw-row .tile-box { padding: 0.75rem; }
+}
+@media (max-width: 767px) {
+  .raw-divider { display: none; }
+  .raw-tiles {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin-inline: -0.75rem; padding-inline: 0.75rem; scroll-padding-inline: 0.75rem;
+  }
+  .raw-tiles::-webkit-scrollbar { display: none; }
+  .raw-tiles > * { flex: 0 0 172px; min-width: 0; scroll-snap-align: start; }
+}

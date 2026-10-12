@@ -2,6 +2,7 @@ import type { SupplierDebt } from "@/lib/supplier-debt";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
 import { yearLabel, type YearFilter } from "@/lib/year-filter";
+import { TotalLabel } from "@/components/total-label";
 
 const m = (v: { toString(): string }) => formatMoney(v.toString());
 
@@ -45,8 +46,8 @@ export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt:
             </td>
             <td className="whitespace-nowrap py-1 text-right font-semibold">{m(debt.expected)}</td>
           </tr>
-          <tr className="border-t border-neutral-300">
-            <td className="py-1 pr-2 font-semibold">Итого долг</td>
+          <tr className="row-total">
+            <td className="py-1 pr-2"><TotalLabel note="долг" /></td>
             <td className="whitespace-nowrap py-1 text-right font-semibold">{m(debt.debt)}</td>
           </tr>
         </tbody>

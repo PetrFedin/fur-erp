@@ -53,7 +53,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
-            <li key={b.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-400 hover:shadow-md">
+            <li key={b.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm tile-click">
               <Link href={`/budget/${b.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть бюджет: ${b.name}`} />
               <div className="flex items-start justify-between gap-2">
                 <div className="pointer-events-none relative z-10 min-w-0">

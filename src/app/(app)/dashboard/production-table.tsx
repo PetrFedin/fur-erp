@@ -1,5 +1,6 @@
 "use client";
 
+import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -139,7 +140,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const rows = useMemo(() => (data ? build(data.orders.filter((o) => !isRepair(o)), vat, LEVELS[by]) : []), [data, vat, by]);
   const showOther = rows.some((r) => Math.abs(r.other) > 0.5);
   const { total, repair, all } = useMemo(() => {
-    const t = blank("items", "Итого изделия"), r = blank("repair", "Ремонт"), a = blank("all", "Всего");
+    const t = blank("items", "Всего, ₽ без ремонта"), r = blank("repair", "Ремонт"), a = blank("all", "Всего, ₽ с ремонтом");
     if (data) for (const o of data.orders) { addOrder(isRepair(o) ? r : t, o, vat); addOrder(a, o, vat); }
     return { total: t, repair: r, all: a };
   }, [data, vat]);
@@ -229,8 +230,8 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
             </thead>
             <tbody>
               {renderRows(rows, 0, "")}
-              <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
-                <td className="py-1.5 pr-2 text-sm">Итого изделия</td>
+              <tr className="row-total">
+                <td className="py-1.5 pr-2 text-sm"><TotalLabel note={repair.orders.size > 0 ? "без ремонта" : undefined} /></td>
                 {cells(total, false)}
               </tr>
               {repair.orders.size > 0 ? (
@@ -239,8 +240,8 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                     <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link></td>
                     {cells(repair, true, true)}
                   </tr>
-                  <tr className="border-b-2 border-neutral-300 bg-neutral-50 font-semibold">
-                    <td className="py-1.5 pr-2 text-sm">Всего с ремонтом</td>
+                  <tr className="row-total">
+                    <td className="py-1.5 pr-2 text-sm"><TotalLabel note="с ремонтом" /></td>
                     {cells(all, false, true)}
                   </tr>
                 </>

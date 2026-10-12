@@ -113,7 +113,7 @@ export default async function DocumentAnalysisPage() {
             const s = section.get(key);
             const gaps = s?.rowsWithGaps ?? 0;
             return (
-              <Link key={key} href={href} className={TILE_BOX + " shadow-sm transition hover:border-neutral-400 hover:shadow-md print:shadow-none"}>
+              <Link key={key} href={href} className={TILE_BOX + " shadow-sm tile-click print:shadow-none"}>
                 <TileHead>{label}</TileHead>
                 <TileValue>{s?.percent == null ? "—" : `${s.percent}%`}</TileValue>
                 <div className={"text-xs " + (gaps ? "text-amber-700" : "text-emerald-700")}>{gaps ? `Пробелы: ${gaps}` : "Пробелов нет"}</div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { TotalLabel } from "@/components/total-label";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
 import type { RawTableRow } from "@/lib/dashboard-data";
@@ -18,7 +19,7 @@ const rub = (v: number) => formatMoney(v.toFixed(2));
 
 function Card({ title, children, hint, onOpen }: { title: string; children: React.ReactNode; hint?: React.ReactNode; onOpen?: () => void }) {
   return (
-    <div className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")} onClick={onOpen} role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined} aria-haspopup={onOpen ? "dialog" : undefined} title={onOpen ? "Показать цены по видам сырья" : undefined}>
+    <div className={TILE_BOX + (onOpen ? " tile-click" : "")} onClick={onOpen} role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined} aria-haspopup={onOpen ? "dialog" : undefined} title={onOpen ? "Показать цены по видам сырья" : undefined}>
       <TileHead>{title}</TileHead>
       {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
       {children}
@@ -26,8 +27,24 @@ function Card({ title, children, hint, onOpen }: { title: string; children: Reac
   );
 }
 
+const CompactCtx = createContext(false);
+/** Зарезервированные строки пояснения под цифрой: высота одинакова во всех плитках общего ряда. */
+function SubLines({ n, lines = [] }: { n: number; lines?: string[] }) {
+  return <div style={{ minHeight: `${n}rem` }}>{lines.map((l, i) => <div key={i} className="whitespace-nowrap">{l}</div>)}</div>;
+}
+
 /** Строка плитки: подпись, цифра, пояснение — высоты зарезервированы, чтобы строки трёх плиток стояли на одном уровне. */
 function Row({ k, v, sub, strong, onClick }: { k: React.ReactNode; v: React.ReactNode; sub?: React.ReactNode; strong?: boolean; onClick?: () => void }) {
+  const compact = useContext(CompactCtx);
+  if (compact) {
+    return (
+      <div className="mt-2 first:mt-1">
+        <div className="min-h-4 whitespace-nowrap text-[11px] leading-4 text-neutral-500">{k}</div>
+        <div className={(strong ? "text-base font-semibold " : "text-sm font-medium ") + "min-h-6 whitespace-nowrap leading-6 tabular-nums text-neutral-900"}>{v}</div>
+        {sub ? <div className="text-[11px] leading-4 text-neutral-500">{sub}</div> : null}
+      </div>
+    );
+  }
   if (onClick) {
     return (
       <button type="button" onClick={onClick} aria-haspopup="dialog" title="Показать по видам сырья" className="mt-2 block w-full rounded text-left first:mt-1 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
@@ -48,6 +65,7 @@ function Row({ k, v, sub, strong, onClick }: { k: React.ReactNode; v: React.Reac
 
 /** Две строки плитки рядом (штуки и деньги, цены в ₽ и в $). */
 function Duo({ children }: { children: React.ReactNode }) {
+  if (useContext(CompactCtx)) return <div className="mt-2 first:mt-1">{children}</div>;
   return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
@@ -55,6 +73,20 @@ function Duo({ children }: { children: React.ReactNode }) {
 export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
+  return (
+    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"}>
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
+        <RawTriple view={view} fur={fur} lining={lining} c4={c4} onOpen={setPriceCol} />
+      </div>
+      {priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null}
+    </WidgetRow>
+  );
+}
+
+/** Три плитки «Куплено / Использовано / Остаток» по меху или подкладке. compact — узкая раскладка для общего ряда из шести плиток:
+ *  поля стоят в столбик с зарезервированной высотой, поэтому одинаковые строки лежат на одной горизонтали во всех шести плитках. */
+function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false }: { view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean }) {
+  const { mode: vat } = useVatDisplay();
   const F = fur[vat];
   const L = lining[vat];
   const unit = view === "lining" ? "м" : "шт.";
@@ -92,7 +124,8 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
   const ghost = <span aria-hidden className="invisible">{`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`}</span>;
   // Доля от купленного: сколько ушло в ТЗ и сколько лежит на складе.
   const share = (part: number, whole: number) => (whole > 0 ? `${((part / whole) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : null);
-  const withShare = (part: number, whole: number, text: string) => (
+  const lab = (base: string, part: number, whole: number) => (compact && whole > 0 ? `${base} · ${share(part, whole)}` : base);
+  const withShare = (part: number, whole: number, text: string) => compact ? text : (
     <>
       {whole > 0 ? <span className="mr-1 text-xs font-medium text-neutral-500">{share(part, whole)} ·</span> : null}
       {text}
@@ -100,8 +133,7 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
   );
 
   return (
-    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"}>
-      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
+    <CompactCtx.Provider value={compact}>
         <Card title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
           <InfoHint label="О «Куплено»" align="right">
             <p>Сумма — всегда без 4%. Цена — средневзвешенная.</p>
@@ -114,11 +146,11 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
           ) : (
             <>
               <Duo>
-                <Row k={<>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${formatQty(cur.recvQty)} ${unit}`} strong />
-                <Row k="Сумма" v={rub(cur.recvValue)} strong sub={ghost} />
+                <Row k={compact ? "Количество" : <>Количество<span aria-hidden className="invisible"> (доля от купленного)</span></>} v={`${formatQty(cur.recvQty)} ${unit}`} strong />
+                <Row k="Сумма" v={rub(cur.recvValue)} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
+                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
                 {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
               </Duo>
             </>
@@ -138,11 +170,11 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
           ) : (
             <>
               <Duo>
-                <Row k="Количество (доля от купленного)" v={withShare(cur.usedQty, cur.recvQty, `${formatQty(cur.usedQty)} ${unit}`)} strong />
-                <Row k="Сумма" v={withShare(usedNo4, cur.recvValue, rub(usedNo4))} strong sub={`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
+                <Row k={compact ? lab("Количество", cur.usedQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.usedQty, cur.recvQty, `${formatQty(cur.usedQty)} ${unit}`)} strong />
+                <Row k={lab("Сумма", usedNo4, cur.recvValue)} v={withShare(usedNo4, cur.recvValue, rub(usedNo4))} strong sub={compact ? <SubLines n={2} lines={[`с 4%: ${rub(usedWith4)}`, `надбавка ${rub(usedWith4 - usedNo4)}`]} /> : `с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
+                <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
               </Duo>
             </>
@@ -160,19 +192,17 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
           ) : (
             <>
               <Duo>
-                <Row k="Количество (доля от купленного)" v={withShare(cur.remQty, cur.recvQty, `${formatQty(cur.remQty)} ${unit}`)} strong />
-                <Row k="Сумма" v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={ghost} />
+                <Row k={compact ? lab("Количество", cur.remQty, cur.recvQty) : "Количество (доля от купленного)"} v={withShare(cur.remQty, cur.recvQty, `${formatQty(cur.remQty)} ${unit}`)} strong />
+                <Row k={lab("Сумма", cur.remValue, cur.recvValue)} v={withShare(cur.remValue, cur.recvValue, rub(cur.remValue))} strong sub={compact ? <SubLines n={2} /> : ghost} />
               </Duo>
               <Duo>
-                <Row k={`Цена, ₽/${priceUnit}`} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
+                <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
               </Duo>
             </>
           )}
         </Card>
-      </div>
-      {priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : F} lining={view === "fur" ? null : L} onClose={() => setPriceCol(null)} /> : null}
-    </WidgetRow>
+    </CompactCtx.Provider>
   );
 }
 
@@ -181,28 +211,43 @@ export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters }: { 
   const { mode: vat } = useVatDisplay();
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
   const c4W = c4 === "on" ? "с 4%" : "без 4%";
+  const [pc, setPc] = useState<null | { view: "fur" | "lining"; col: "recv" | "used" | "rem" }>(null);
+  const extra = (
+    <>
+      <InfoHint label="Как считаются плитки сырья" wide>
+        <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), а не среднее цен лотов. Совпадает с таблицей «Сырьё». Нажмите на плитку — цены по видам сырья.</p>
+        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%).</p>
+        <p className="mt-1"><b>Как сходится.</b> Куплено = использовано (без 4%) + остаток — отдельно для меха (шт.) и для подкладки (м).</p>
+        <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; евро × записанный курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчётного листа. У подкладки цен в долларах нет. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
+      </InfoHint>
+      {orderFilters ? (
+        <BridgeHint label="Фильтр по ТЗ" warn>
+          <p>Выбран фильтр по ТЗ: «Использовано» — только в выбранных ТЗ, остальное списание в «Остаток» не попадает, поэтому куплено − использовано ≠ остаток.</p>
+        </BridgeHint>
+      ) : null}
+    </>
+  );
+  const groups: { view: "fur" | "lining"; label: string }[] = [{ view: "fur", label: "Мех" }, { view: "lining", label: "Подкладка" }];
   return (
-    <section aria-labelledby="dash-raw" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 id="dash-raw" className="text-base font-semibold">Сырьё</h2>
-          <InfoHint label="Как считаются плитки сырья" wide>
-            <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), а не среднее цен лотов. Совпадает с таблицей «Сырьё». Нажмите на плитку — цены по видам сырья.</p>
-            <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%).</p>
-            <p className="mt-1"><b>Как сходится.</b> Куплено = использовано (без 4%) + остаток — отдельно для меха (шт.) и для подкладки (м).</p>
-            <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; евро × записанный курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчётного листа. У подкладки цен в долларах нет. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
-          </InfoHint>
-          <span className="text-xs text-neutral-500">{lots} лотов</span>
-          {orderFilters ? (
-            <BridgeHint label="Фильтр по ТЗ" warn>
-              <p>Выбран фильтр по ТЗ: «Использовано» — только в выбранных ТЗ, остальное списание в «Остаток» не попадает, поэтому куплено − использовано ≠ остаток.</p>
-            </BridgeHint>
-          ) : null}
+    <section aria-labelledby="dash-raw">
+      <h2 id="dash-raw" className="sr-only">Сырьё</h2>
+      <WidgetRow id="raw" title={`Сырьё · ${lots} лотов`} titleClass="text-sm font-semibold" headerExtra={extra}
+        headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+        <div className="raw-row">
+          {groups.map((g, i) => (
+            <Fragment key={g.view}>
+              {i > 0 ? <div className="raw-divider" aria-hidden /> : null}
+              <div className="raw-group" role="group" aria-label={g.label}>
+                <div className="raw-group-label">{g.label}</div>
+                <div className="raw-tiles">
+                  <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} />
+                </div>
+              </div>
+            </Fragment>
+          ))}
         </div>
-        <Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>
-      </div>
-      <RawCards view="fur" rows={rows} fur={fur} lining={lining} c4={c4} />
-      <RawCards view="lining" rows={rows} fur={fur} lining={lining} c4={c4} />
+        {pc ? <PriceModal col={pc.col} rows={rows.filter((r) => r.kind === pc.view)} vat={vat} fur={pc.view === "lining" ? null : fur[vat]} lining={pc.view === "fur" ? null : lining[vat]} onClose={() => setPc(null)} /> : null}
+      </WidgetRow>
     </section>
   );
 }
@@ -278,8 +323,8 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                           </tr>
                         ))}
                         {t ? (
-                          <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
-                            <td className="py-1.5 pr-2">Итого подкладка · средневзвешенная</td>
+                          <tr className="row-total">
+                            <td className="py-1.5 pr-2"><TotalLabel avg /></td>
                             {shareCell(t.q, t.rq)}
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>
@@ -315,8 +360,8 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                   {(() => {
                     const t = k === "fur" ? total(fur) : null;
                     return t ? (
-                      <tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
-                        <td className="py-1.5 pr-2">Итого {k === "fur" ? "мех" : "подкладка"} · средневзвешенная</td>
+                      <tr className="row-total">
+                        <td className="py-1.5 pr-2"><TotalLabel avg /></td>
                         {shareCell(t.q, t.rq)}
                         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
                         <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>

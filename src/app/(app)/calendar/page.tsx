@@ -343,7 +343,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {/* Итоги */}
       {mode === "detail" && <>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-neutral-700">Итого за {view === "week" ? "неделю" : "месяц"}: {formatQty(periodTotal)} шт.</span>
+        <span className="font-medium text-neutral-700">Всего, шт. за {view === "week" ? "неделю" : "месяц"}: {formatQty(periodTotal)}</span>
         {[...byAction.entries()].map(([a, q]) => (
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}

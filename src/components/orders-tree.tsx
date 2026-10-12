@@ -8,6 +8,7 @@ import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
 
 export type TreeDim = "year" | "batch" | "article" | "category" | "group" | "fur" | "order";
 export type TreeMode = { id: string; label: string; dims: TreeDim[] };
@@ -239,19 +240,19 @@ export function OrdersTree({
             {orders.length > 0 ? (
               repair.repairOrders > 0 && nonRepair.orders > 0 ? (
                 <>
-                  <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
-                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left">Итого изделия</td>{figs(nonRepair, { pay: payBy ? { paid: undefined, work: 0 } : undefined })}
+                  <tr className="row-total">
+                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="без ремонта" /></td>{figs(nonRepair, { pay: payBy ? { paid: undefined, work: 0 } : undefined })}
                   </tr>
                   <tr className="border-b border-neutral-100">
                     <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link><span className="ml-1.5 text-xs text-neutral-500">{repair.repairOrders} ТЗ, не входит в «Произведено»</span></td>{figs(repair, { qty: false })}
                   </tr>
-                  <tr className="border-b-2 border-neutral-300 bg-neutral-50 font-semibold">
-                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left">Всего с ремонтом</td>{figs(grand, { qty: false })}
+                  <tr className="row-total">
+                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="с ремонтом" /></td>{figs(grand, { qty: false })}
                   </tr>
                 </>
               ) : (
-                <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
-                  <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left">Итого</td>{figs(grand, { pay: payBy ? { paid: undefined, work: 0 } : undefined })}
+                <tr className="row-total">
+                  <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel /></td>{figs(grand, { pay: payBy ? { paid: undefined, work: 0 } : undefined })}
                 </tr>
               )
             ) : null}

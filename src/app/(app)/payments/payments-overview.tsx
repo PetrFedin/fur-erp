@@ -6,6 +6,7 @@ import type { OverviewRow } from "@/lib/payments-overview";
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
 
 const fmtDate = (iso: string) => iso.split("-").reverse().join(".");
 const sum = (rows: OverviewRow[], k: "fur" | "lining" | "work" | "hides" | "amount") => rows.reduce((a, r) => a + r[k], 0);
@@ -158,9 +159,9 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
               {years.map(yearBlock)}
               {years.length === 0 ? <tr><td colSpan={7} className="px-3 py-6 text-center text-sm text-neutral-500">Оплат за выбранный период нет.</td></tr> : null}
               {years.length > 0 ? (
-                <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
+                <tr className="row-total">
                   <td className={ARROW_TD} />
-                  <td className="px-2 py-1.5 text-left">Итого</td>
+                  <td className="px-2 py-1.5 text-left"><TotalLabel /></td>
                   {figures({ fur: sum(rows, "fur"), lining: sum(rows, "lining"), work: sum(rows, "work"), paid: sum(rows, "amount"), debt: left.raw + left.prod })}
                 </tr>
               ) : null}

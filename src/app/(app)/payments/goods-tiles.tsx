@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "../dashboard/tile";
+import { TotalLabel } from "@/components/total-label";
 
 /** ТЗ с неоплаченной работой: что именно не оплачено. */
 export type OwedOrder = { id: string; label: string; article: string; fur: string; batch: number | null; year: number | null; qty: number; work: number; work4?: number; paid: number };
@@ -72,8 +73,8 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
           ) : null}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-neutral-300 font-semibold">
-            <td className="py-1.5 pr-2">Итого</td>
+          <tr className="row-total">
+            <td className="py-1.5 pr-2"><TotalLabel /></td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(work)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(paid)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rest(work, paid)}</td>
@@ -87,7 +88,7 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
 function Tile({ label, value, onOpen, valueClass, hint, items, note }: { label: string; value: string; onOpen?: () => void; valueClass?: string; hint?: ReactNode; items?: TileItem[]; note?: string }) {
   return (
     <div
-      className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")}
+      className={TILE_BOX + (onOpen ? " tile-click" : "")}
       onClick={onOpen}
       role={onOpen ? "button" : undefined}
       tabIndex={onOpen ? 0 : undefined}

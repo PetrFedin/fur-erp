@@ -25,7 +25,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const years = new Map<string, number>();
   for (const o of orders) if (o.cat !== "Ремонт") { const k = o.y == null ? "Без года" : String(o.y); years.set(k, (years.get(k) ?? 0) + o.qty); }
   const share = (v: number, t: number) => (t ? v / t : null);
-  const link = (href: string) => ({ href, className: TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none" });
+  const link = (href: string) => ({ href, className: TILE_BOX + " w-full text-left shadow-sm tile-click focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none" });
   return (
     <WidgetRow id={id} title={title}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>

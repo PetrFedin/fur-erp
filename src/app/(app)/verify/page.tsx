@@ -101,7 +101,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
           { label: "Ждёт проверки", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
           { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
-          { label: "Всего строк", v: total.total, sub: null, tone: "" },
+          { label: "Всего, строк", v: total.total, sub: null, tone: "" },
         ].map((c) => (
           <div key={c.label} className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>{c.label}</TileHead>

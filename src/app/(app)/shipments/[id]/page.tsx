@@ -9,6 +9,7 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { formatDate, formatQty } from "@/lib/utils";
 import { SHIPMENT_STATUS, orderLabel, isoDay, todayIso } from "@/lib/shipments";
 import { PlannedActions, ShippedEdit } from "./shipment-actions";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Отгрузка" };
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
@@ -80,9 +81,9 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               <Td>{formatQty(l.quantity)}</Td>
             </Tr>
           ))}
-          <Tr>
-            <Td colSpan={3} className="text-right text-neutral-500">
-              Итого
+          <Tr className="row-total">
+            <Td colSpan={3} className="text-right">
+              <TotalLabel unit="шт." />
             </Td>
             <Td className="font-semibold">{formatQty(total)}</Td>
           </Tr>

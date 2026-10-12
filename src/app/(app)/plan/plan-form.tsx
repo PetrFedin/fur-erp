@@ -341,7 +341,7 @@ export function PlanForm({
                 </div>
               ))}
               <div className="w-20 shrink-0 text-right">
-                <div className="mb-1 text-xs font-medium text-neutral-600">Итого</div>
+                <div className="mb-1 text-xs font-medium text-neutral-600">Всего, шт.</div>
                 <div className="flex h-10 items-center justify-end text-base font-semibold tabular-nums">{total(r)}</div>
               </div>
             </div>
@@ -358,7 +358,7 @@ export function PlanForm({
       {!initial && (
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => { const nr = emptyRow(); setRows((rs) => [...rs, nr]); setFocusReq(nr.key); }}>+ Ещё позиция</Button>
-          <span className="text-sm text-neutral-500">Всего в форме: <b className="tabular-nums text-neutral-900">{grand}</b> шт. в {rows.length} поз.</span>
+          <span className="text-sm text-neutral-500">Всего, шт. в форме: <b className="tabular-nums text-neutral-900">{grand}</b> в {rows.length} поз.</span>
         </div>
       )}
 

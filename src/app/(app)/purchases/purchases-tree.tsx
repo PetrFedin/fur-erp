@@ -5,6 +5,7 @@ import { Fragment, useState } from "react";
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
 
 export type TreeItem = { id: string; lotId: string | null; label: string; lot: string | null; qty: string; sum: number };
 export type TreeExpense = { id: string; label: string; sum: number };
@@ -52,7 +53,7 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
         <InfoHint label="Как читать таблицу закупок" wide>
           <p><b>Год → партия закупки (аукцион) → закупка → позиции, расходы, оплаты.</b> Год — по дате заказа закупки. Нажмите ›, чтобы раскрыть вглубь; номер закупки ведёт в её карточку, а оттуда — к лотам и оплатам.</p>
           <p className="mt-1"><b>Сумма</b> — позиции с НДС плюс расходы закупки; <b>Оплачено</b> — оплаты закупки и её доля в оплатах партии (пропорционально сумме); <b>Задолженность</b> = Сумма − Оплачено. Всегда с НДС; 4% к закупкам не применяется.</p>
-          <p className="mt-1">«Итого» совпадает с плитками выше и с Главной. Отменённые закупки в итог не входят.</p>
+          <p className="mt-1">«Всего, ₽» совпадает с плитками выше и с Главной. Отменённые закупки в итог не входят.</p>
         </InfoHint>
       </div>
       <div className={SCROLL_BOX}>
@@ -192,9 +193,9 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
               </tr>
             ) : null}
             {years.length > 0 ? (
-              <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
+              <tr className="row-total">
                 <td className={ARROW_TD} />
-                <td className="px-2 py-1.5 text-left">Итого</td>
+                <td className="px-2 py-1.5 text-left"><TotalLabel /></td>
                 {figs({ total: sum(all, "total") + hides, paid: sum(all, "paid") + hides, rest: sum(all, "rest") })}
               </tr>
             ) : null}

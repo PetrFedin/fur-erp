@@ -234,7 +234,7 @@ export default async function ReconciliationPage() {
       <section className="space-y-2" aria-label="Итоги">
         <WidgetRow id="recon" title="Сверка — итоги">
           <div className="space-y-2">
-            <SummaryCard title="Итого по всему реестру" t={totalAll} />
+            <SummaryCard title="Всего, ₽ по всему реестру" t={totalAll} />
             <div className="grid gap-2 md:grid-cols-2">
               {sections.map((sec) => {
                 const t = totalsOf(calcAll.filter((c) => c.inv.section === sec.key));

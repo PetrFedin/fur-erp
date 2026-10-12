@@ -391,7 +391,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const buildYears = (): YearRow[] => {
     const shownRows = yearRows.filter(hasData);
     const totalRow: YearRow = {
-      key: "all", label: "Итого",
+      key: "all", label: "Всего, ₽",
       fur: sumPair(yearRows.map((r) => r.fur)),
       lining: sumPair(yearRows.map((r) => r.lining)),
       prod: yearRows.reduce((a, r) => ({ qty: a.qty + r.prod.qty, costIncl: a.costIncl + r.prod.costIncl, costExcl: a.costExcl + r.prod.costExcl, work: a.work + r.prod.work }), { qty: 0, costIncl: 0, costExcl: 0, work: 0 }),

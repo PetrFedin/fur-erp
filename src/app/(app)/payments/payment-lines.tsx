@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils";
+import { TotalLabel } from "@/components/total-label";
 
 /** Одна оплата в упрощённом виде: что, когда, сколько, подтверждена ли и есть ли файлы. */
 export type PayLine = {
@@ -130,8 +131,8 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
           })}
         </tbody>
         <tfoot>
-          <tr className="font-semibold">
-            <td className="py-2 pr-2">Итого</td>
+          <tr className="row-total">
+            <td className="py-2 pr-2"><TotalLabel /></td>
             <td />
             <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(String(sum("total")))}</td>
             {withPaid ? <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatMoney(String(sum("paid")))}</td> : null}

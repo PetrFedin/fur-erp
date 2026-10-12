@@ -41,6 +41,7 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
+import { TotalLabel } from "@/components/total-label";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -514,21 +515,21 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             <SectionRow>Мех</SectionRow>
             {usageRows(furUsages, allFurLots)}
             {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
-            <TotalRow label={`Итого мех${c4} · ${formatQty(furQty.toString())} шт.`} value={<Money incl={furCost} excl={furCostExcl} />} />
+            <TotalRow label={<TotalLabel note={`мех${c4} · ${formatQty(furQty.toString())} шт.`} />} value={<Money incl={furCost} excl={furCostExcl} />} />
 
             {showLining && (
               <>
                 <SectionRow>Подкладка</SectionRow>
                 {usageRows(liningUsages, allLiningLots)}
                 {liningUsages.length === 0 && <EmptyRow>Подкладка не списана</EmptyRow>}
-                <TotalRow label={`Итого подкладка${c4} · ${formatQty(liningQty.toString())} м`} value={<Money incl={liningCost} excl={liningCostExcl} />} />
+                <TotalRow label={<TotalLabel note={`подкладка${c4} · ${formatQty(liningQty.toString())} м`} />} value={<Money incl={liningCost} excl={liningCostExcl} />} />
               </>
             )}
 
             <SectionRow>Расходы</SectionRow>
             {expenseRows}
             {order.expenses.length === 0 && <EmptyRow>Расходов нет</EmptyRow>}
-            <TotalRow label="Итого расходы" value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
+            <TotalRow label={<TotalLabel note="расходы" />} value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
 
             {!hidesI.isZero() && (
               <>
@@ -551,7 +552,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               readOnly={!canEdit}
             />
 
-            <TotalRow strong label={`Всего себестоимость ТЗ${c4}${unitDiv ? ` · на 1 изд. ` : ""}`} extra={unitDiv ? <Money incl={grandIncl.div(unitDiv)} excl={grandExcl.div(unitDiv)} /> : null} value={<Money incl={grandIncl} excl={grandExcl} />} />
+            <TotalRow strong label={<TotalLabel note={`себестоимость ТЗ${c4}${unitDiv ? ` · на 1 изд. ` : ""}`} />} extra={unitDiv ? <Money incl={grandIncl.div(unitDiv)} excl={grandExcl.div(unitDiv)} /> : null} value={<Money incl={grandIncl} excl={grandExcl} />} />
           </Tbody>
         </Table>
 
@@ -586,7 +587,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 
 function TotalRow({ label, value, extra, strong }: { label: React.ReactNode; value: React.ReactNode; extra?: React.ReactNode; strong?: boolean }) {
   return (
-    <Tr className={strong ? "bg-neutral-100 font-semibold" : "font-medium"}>
+    <Tr className="row-total" data-strong={strong ? "1" : undefined}>
       <Td colSpan={6} className="text-right">
         {label}
         {extra ? <span className="ml-1 tabular-nums">{extra}</span> : null}

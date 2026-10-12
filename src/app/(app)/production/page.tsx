@@ -567,8 +567,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </p>
       )}
       {orders.length > 0 && (
-        <div className="flex flex-wrap items-baseline justify-end gap-2 text-sm font-semibold">
-          <VatLabel base="Итоговая себестоимость по списку" />
+        <div className="row-total flex flex-wrap items-baseline justify-end gap-2 px-3 py-2 text-sm">
+          <VatLabel base="Всего, ₽ по списку" />
           <Mode4Badge mode={c4Mode} />
           <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl.add(workSum).add(hidesSum)} excl={sumExcl.add(workSum).add(hidesSumExcl)} />}</span>
           <C4Hint
@@ -577,7 +577,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             extra={sumMatLines ? sumExtra.toFixed(2) : null}
             excluded={sumExcluded.toFixed(2)}
             total={sumIncl.toFixed(2)}
-            title="Итого по списку"
+            title="Всего, ₽ по списку"
             align="right"
           >
             <p className="mt-1">

@@ -6,6 +6,7 @@ import { WidgetRow } from "@/components/widget-row";
 import { DEFAULT_PARAMS, computeTree, furRank, grandTotal, parseNodes, perUnit, type Agg, type BudgetNode, type BudgetParams } from "@/lib/budget-calc";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "../../dashboard/tile";
 import { money, pct, qty } from "../format";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Сравнение бюджетов" };
 
@@ -91,7 +92,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               <th rowSpan={2} className="px-3 py-2 text-left font-medium">Тип сырья / категория</th>
               <th colSpan={2} className="px-3 pt-2 text-center font-medium">Изделий</th>
-              <th colSpan={2} className="px-3 pt-2 text-center font-medium">Итого, ₽</th>
+              <th colSpan={2} className="px-3 pt-2 text-center font-medium">Всего, ₽</th>
               <th colSpan={2} className="px-3 pt-2 text-center font-medium">Var (Б к А)</th>
             </tr>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
@@ -104,8 +105,8 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
               const cats = Array.from(new Set([...(ea?.cats.keys() ?? []), ...(eb?.cats.keys() ?? [])]));
               return [line(nm, ea?.agg ?? null, eb?.agg ?? null), ...cats.map((c) => line(c, ea?.cats.get(c) ?? null, eb?.cats.get(c) ?? null, true))];
             })}
-            <tr className="border-t-2 border-neutral-300 font-semibold">
-              <td className="px-3 py-2.5">Итого</td>
+            <tr className="row-total">
+              <td className="px-3 py-2.5"><TotalLabel /></td>
               <td className={cell}>{qty(ta.pcs, 0)}</td><td className={cell}>{qty(tb.pcs, 0)}</td>
               <td className={cell}>{money(ta.total)}</td><td className={cell}>{money(tb.total)}</td>
               <td className={cell}>{dRub(ta.total, tb.total)}</td><td className={cell}>{dPct(ta.total, tb.total)}</td>

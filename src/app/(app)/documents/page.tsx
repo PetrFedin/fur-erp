@@ -142,7 +142,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- сводка */}
       <WidgetRow id="docs-coverage" title="Покрытие документами">
       <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        <SummaryTile title="Всего" stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
+        <SummaryTile title="Всего, шт." stat={sum.total} href={buildHref({ section: null, gaps: "1", dpage: null })} strong />
         {sum.sections.map((s) => (
           <SummaryTile key={s.key} title={SECTION_TITLES[s.key]} stat={s} href={buildHref({ section: s.key, gaps: "1", dpage: null })} />
         ))}
@@ -320,7 +320,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
     <Link
       href={href}
       title="Показать записи этого раздела с пробелами"
-      className={cn(TILE_BOX, "shadow-sm transition hover:border-neutral-400 hover:shadow-md print:shadow-none", strong && "border-neutral-400")}
+      className={cn(TILE_BOX, "shadow-sm tile-click print:shadow-none", strong && "border-neutral-400")}
     >
       <TileHead>{title}</TileHead>
       <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : `${stat.percent}%`}</div>
@@ -340,7 +340,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
 function Legend({ totalGaps }: { totalGaps: number }) {
   return (
     <p className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-      <span>Всего записей с пробелами: <b>{totalGaps}</b></span>
+      <span>Всего, записей с пробелами: <b>{totalGaps}</b></span>
       <InfoHint wide label="Условные обозначения таблиц">
         <ul className="space-y-1">
           <li><b className="text-emerald-700">✓ 2</b> — документ есть (сколько штук).</li>

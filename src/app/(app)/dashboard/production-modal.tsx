@@ -1,5 +1,6 @@
 "use client";
 
+import { TotalLabel } from "@/components/total-label";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -253,8 +254,8 @@ export function ProductionModal({
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="font-semibold">
-                          <td className="py-1.5 pr-2">Итого</td>
+                        <tr className="row-total">
+                          <td className="py-1.5 pr-2"><TotalLabel /></td>
                           <td />
                           {perUnit ? <td /> : null}
                           <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>

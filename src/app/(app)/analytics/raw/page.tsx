@@ -29,6 +29,7 @@ import { COMMISSION_RATE } from "@/lib/commission4-const";
 import { figures } from "@/lib/fur-table";
 import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -370,8 +371,8 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 <GroupRow key={g.key} g={g} by={by} f={f} unit={unit} c4={c4} />
               ))}
               {groups.length > 0 && (
-                <div className={`grid grid-cols-2 gap-2 border-y-2 border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium ${LOT_COLS}`}>
-                  <span className="col-span-2 md:col-span-1">Итого ({lots.length} лотов)</span>
+                <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${LOT_COLS}`}>
+                  <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${lots.length} лотов`} /></span>
                   <Cells a={total} unit={unit} c4={c4} />
                 </div>
               )}
@@ -649,8 +650,8 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         />
       ))}
       {groups.length > 0 && (
-        <div className={`grid grid-cols-2 gap-2 border-y-2 border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium ${USAGE_COLS}`}>
-          <span className="col-span-2 md:col-span-1">Итого ({groups.length} · лотов в выборке: {lots})</span>
+        <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${USAGE_COLS}`}>
+          <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${groups.length} · лотов в выборке: ${lots}`} /></span>
           <span />
           <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(tot.produced.toString())} шт.</span>
           <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>

@@ -63,7 +63,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
       <WidgetRow id="prod" title="Производство — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <div className="relative">
-          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={TILE_BOX + " w-full text-left shadow-sm tile-click focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
             <TileHead>Произведено</TileHead>
             <TileValue>{formatQty(fact.qty)} шт.</TileValue>
             <TileCaption>{fact.orders} ТЗ · состав →{fact.repairOrders > 0 ? ` · ремонт ${fact.repairOrders} ТЗ отдельно` : ""}</TileCaption>
@@ -84,7 +84,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, c4, search,
           </div>
         </div>
         <div className="relative">
-          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={TILE_BOX + " w-full text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
+          <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={TILE_BOX + " w-full text-left shadow-sm tile-click focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none"}>
             <TileHead>Себестоимость</TileHead>
             <TileValue>{money(total)}</TileValue>
             <TileCaption>факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа</TileCaption>

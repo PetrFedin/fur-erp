@@ -30,6 +30,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { articleMetrics } from "@/lib/article-metrics";
 import { CostTwo } from "@/components/cost-two";
 import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Изделия" };
 
@@ -346,8 +347,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             </Tr>
           ))}
           {rows.length > 0 && (
-            <Tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
-              <Td>Итого</Td>
+            <Tr className="row-total">
+              <Td><TotalLabel unit="шт." /></Td>
               <Td /><Td /><Td />
               <Td className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
               <Td className="text-right tabular-nums">{totalStockQty > 0 ? formatQty(totalStockQty) : "—"}</Td>
@@ -459,8 +460,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   ))}
                 </Fragment>
               ))}
-              <tr className="border-t-2 border-neutral-300 bg-neutral-100">
-                <td className="px-3 py-1.5">Всего</td>
+              <tr className="row-total">
+                <td className="px-3 py-1.5"><TotalLabel unit="₽" avg /></td>
                 <td className="px-3 py-1.5" />
                 <td className="px-3 py-1.5 text-right tabular-nums">{markupTotal.n}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(markupTotal.price.toFixed(0))}</td>

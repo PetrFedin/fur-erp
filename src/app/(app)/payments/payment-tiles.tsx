@@ -68,7 +68,7 @@ function Bars({ rows, tone }: { rows: BarRow[]; tone: "paid" | "debt" }) {
 function Tile({ label, value, hint, onOpen, valueClass, items, children }: { label: string; value: string; hint?: ReactNode; onOpen?: () => void; valueClass?: string; items?: TileItem[]; children?: ReactNode }) {
   return (
     <div
-      className={TILE_BOX + (onOpen ? " cursor-pointer transition hover:border-neutral-400 hover:shadow-md" : "")}
+      className={TILE_BOX + (onOpen ? " tile-click" : "")}
       onClick={onOpen}
       role={onOpen ? "button" : undefined}
       tabIndex={onOpen ? 0 : undefined}

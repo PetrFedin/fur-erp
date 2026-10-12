@@ -1,3 +1,4 @@
+import { TotalLabel } from "@/components/total-label";
 
 import { WidgetRow } from "@/components/widget-row";
 import { IntegrityBanner } from "@/components/integrity-banner";
@@ -338,7 +339,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
                       { label: "НДС", value: `${item.vatRate.toString()}%` },
                       ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
-                      { label: <VatLabel key="total-label" base={hasPlan ? "Всего" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
+                      { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
                     details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
                     // То же, что в ячейках десктопной строки: «Из чего цена», пометка о ручной правке, «Править расчёт».
@@ -569,7 +570,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       <WidgetRow id="purchase" title="Закупка — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         <SummaryCard
-          label={<VatLabel base="Итого, RUB" />}
+          label={<VatLabel base="Всего, ₽" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
           note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
@@ -677,7 +678,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                           Расчёт из расчётного листа: цена лота, сборы аукциона, выделка, транспорт, брокерский %, НДС.
                         </InfoHint>
                       </Th>
-                      <Th>Всего</Th>
+                      <Th>Всего, ₽</Th>
                     </>
                   ) : (
                     <Th>Сумма{isForeignCurrency && " (RUB)"}</Th>
@@ -766,8 +767,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   </div>
                 </details>
               ))}
-              <div className="mt-1 flex justify-between border-t border-neutral-200 px-2 pt-2 text-sm font-semibold">
-                <span>Итого по лотам</span>
+              <div className="row-total mt-1 flex justify-between px-2 py-2 text-sm">
+                <span><TotalLabel extra="по лотам" /></span>
                 <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
               </div>
             </CardContent>

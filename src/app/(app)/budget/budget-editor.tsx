@@ -570,7 +570,7 @@ export function BudgetEditor(p: Props) {
 
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
-          <WidgetRow id="budget-totals" title="Итого по бюджету">{totalTiles}</WidgetRow>
+          <WidgetRow id="budget-totals" title="Всего, ₽ по бюджету">{totalTiles}</WidgetRow>
         </div>
         <aside aria-label="Надбавки" className="flex flex-wrap items-end gap-x-3 gap-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 print:hidden">
           <div className="flex items-center gap-1 self-center text-sm font-medium">Надбавки, %
@@ -633,8 +633,8 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Подкладка = метры × цена за метр">Подкладка</Th>
                   <Th tip="Работа = изделия × работа на изделие">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL}>Итого</Th>
-                  <Th tip="Итого ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше">На 1 изд.</Th>
+                  <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL}>Всего, ₽</Th>
+                  <Th tip="Всего, ₽ ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>
@@ -666,8 +666,8 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Подкладка = бюджет × м на изделие × цена за метр">Подкладка</Th>
                   <Th tip="Работа = бюджет × работа на изделие">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%">Итого</Th>
-                  <Th tip="Итого ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)">На 1 изд.</Th>
+                  <Th tip="Мех + подкладка + работа + 4%">Всего, ₽</Th>
+                  <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>

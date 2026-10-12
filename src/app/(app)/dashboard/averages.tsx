@@ -1,5 +1,6 @@
 "use client";
 
+import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
@@ -78,7 +79,7 @@ export function AveragesTile({ search }: { search: Record<string, string[]> }) {
 
   return (
     <div className="relative">
-      <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
+      <div className={TILE_BOX + " tile-click shadow-sm print:shadow-none"}>
         <TileHead>Среднее на изделие · {cur ? cur.name : ""}</TileHead>
         <div ref={scroller} onScroll={onScroll} className="-mx-1 flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-roledescription="карусель" aria-label="Среднее на изделие по группам">
           {groups.map((g, i) => {
@@ -231,8 +232,8 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
               </thead>
               <tbody>
                 {render(rows, 0, "")}
-                <tr className="border-y-2 border-neutral-300 bg-neutral-50 font-semibold">
-                  <td className="py-1.5 pr-2 text-sm">Всего: {group}</td>
+                <tr className="row-total">
+                  <td className="py-1.5 pr-2 text-sm"><TotalLabel unit="₽/изд." avg extra={group} /></td>
                   {cells(total, "py-1.5 text-sm")}
                 </tr>
               </tbody>

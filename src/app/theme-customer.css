@@ -13,6 +13,10 @@ html[data-theme="customer"] {
   --cv-navy: #1b2a5c;
   --cv-muted: #5a6a94;
   --cv-bg: #f3f4f7;
+  /* общие токены акцента (globals.css): рамки виджетов при наведении и строка итога «Всего» */
+  --ui-accent: #ff4a1c;
+  --ui-soft: #ffe9e0;
+  --ui-accent-text: #b92e08;
 
   /* нейтральная шкала → сине-серая; 900 (активные кнопки, сегменты, рамки выбранного, фокус, чекбоксы) → акцент */
   --color-neutral-50: #f3f4f7;
@@ -75,7 +79,6 @@ html[data-theme="customer"] .tile-box {
   border-radius: 14px;
   box-shadow: none;
 }
-html[data-theme="customer"] .tile-box:hover { border-color: var(--cv-mid); }
 html[data-theme="customer"] [data-comment-title] { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--cv-muted); }
 html[data-theme="customer"] .tile-box .text-xl { color: var(--cv-navy); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.015em; }
 html[data-theme="customer"] .tile-box .text-base { color: var(--cv-navy); font-size: 0.9rem; font-weight: 800; }

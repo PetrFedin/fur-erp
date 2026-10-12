@@ -1,5 +1,6 @@
 "use client";
 
+import { TotalLabel } from "@/components/total-label";
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -52,7 +53,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — всегда без 4% (надбавка 4% показана в виджетах «Сырьё» и «Себестоимость»).</p>
             <p className="mt-1">Штуки — только мех; подкладка (метры) — в раскрытой строке, а в рублях она учтена. </p>
                         <p className="mt-1"><b>Оплачено</b> и <b>задолженность</b> (поставщику) — по закупкам этого года, как в «Оплатах»; в раскрытой строке — отдельно по меху и подкладке. Фильтры панели действуют и на эти колонки.</p>
-            <p className="mt-1"><b>Итого</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
+            <p className="mt-1"><b>Всего, ₽</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
             <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и задолженность — всегда с НДС, не зависят от 4%.</p>
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
           </InfoHint>
@@ -82,7 +83,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
               const total = r.key === "all";
               return (
                 <Fragment key={r.key}>
-                  <tr className={"border-b border-neutral-100 " + (total ? "bg-neutral-50 font-semibold" : "")}>
+                  <tr className={total ? "row-total" : "border-b border-neutral-100"}>
                     <td className={ARROW_TD}>
                       <button type="button" onClick={() => toggle(r.key)} aria-expanded={isOpen} aria-label={`Раскрыть: ${r.label}`}><Chevron open={isOpen} /></button>
                     </td>
@@ -185,7 +186,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
       {kindHead("Мех")}
       {itemRows(fur, "шт.")}
       {fur.length > 1 ? (
-        <tr className="border-b border-neutral-200 bg-neutral-50 font-semibold"><td className={ARROW_TD} /><td className="px-2 py-1.5 text-left">Итого мех</td><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
+        <tr className="row-total"><td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="мех" avg={avg} /></td><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
       ) : null}
     </>
   );
@@ -271,12 +272,12 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
             })()}
             {rows.length === 0 ? <tr><td colSpan={avg ? 13 : 10} className="px-3 py-6 text-center text-sm text-neutral-500">По выбранным фильтрам лотов нет.</td></tr> : null}
             {rows.length > 0 ? (
-              <tr className="bg-neutral-900 font-semibold text-white">
-                <td className="w-6" /><td className="px-2 py-2 text-left">Всего, ₽</td>
-                <td className={td + " text-white/50"}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td + " text-white/50"}>—</td> : null}
-                <td className={td + " text-white/50"}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td + " text-white/50"}>—</td> : null}
-                <td className={td + " text-white/50"}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td + " text-white/50"}>—</td> : null}
-                <td className={td + " border-l border-white/10"}>{rub0(money.paid)}</td><td className={td}>{rub0(money.due)}</td>
+              <tr className="row-total">
+                <td className="w-6" /><td className="px-2 py-2 text-left"><TotalLabel /></td>
+                <td className={td}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>—</td> : null}
+                <td className={td}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>—</td> : null}
+                <td className={td}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>—</td> : null}
+                <td className={td + " border-l border-neutral-300"}>{rub0(money.paid)}</td><td className={td}>{rub0(money.due)}</td>
               </tr>
             ) : null}
           </tbody>

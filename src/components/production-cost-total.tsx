@@ -58,7 +58,7 @@ export function ProductionCostTotal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group w-full rounded-xl border border-neutral-200 bg-white p-4 text-left shadow-sm transition hover:border-neutral-400 hover:shadow-md"
+        className="group w-full rounded-xl border border-neutral-200 bg-white p-4 text-left shadow-sm tile-click"
       >
         <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Общая стоимость произведённого товара</div>
         <div className="mt-2 text-2xl font-semibold tabular-nums">{money(total)}</div>

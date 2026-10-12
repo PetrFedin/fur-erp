@@ -113,7 +113,7 @@ export function CostBreakdownToggle({
                   <div className="font-mono font-semibold">{fmt(incl - excl)}</div>
                 </div>
                 <div>
-                  <div className="text-neutral-500">Всего</div>
+                  <div className="text-neutral-500">Всего, ₽</div>
                   <div className="font-mono font-semibold">{fmt(incl)}</div>
                 </div>
               </div>

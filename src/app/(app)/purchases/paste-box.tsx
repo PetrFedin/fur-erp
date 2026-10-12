@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/input";
 import { formatQty, formatCurrency } from "@/lib/utils";
 import { parsePasteRows, DEFAULT_PASTE_VAT_RATE } from "./parse-rows";
 import type { Issue } from "./actions";
+import { TotalLabel } from "@/components/total-label";
 
 const EXAMPLE = "Соболь дикий выделанный\t21\t60355,15\t22\t15874\tК 2\tтёмный";
 
@@ -154,9 +155,9 @@ export function PasteBox({
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-neutral-200 bg-neutral-50 font-medium">
+              <tr className="row-total">
                 <td colSpan={6} className="px-2 py-1 text-right">
-                  Итого без НДС
+                  <TotalLabel note="без НДС" />
                 </td>
                 <td className="px-2 py-1 text-right">{formatCurrency(String(total), currency)}</td>
                 <td />

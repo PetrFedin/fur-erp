@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
  * Состояние запоминается в браузере отдельно для каждой страницы и ряда (id).
  * Использование: <WidgetRow id="prod" title="Производство">…плитки…</WidgetRow>
  */
-export function WidgetRow({ id, title = "Виджеты", children, className = "" }: { id: string; title?: string; children: ReactNode; className?: string }) {
+export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd }: { id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
   const path = usePathname();
   const key = `widgets:${path}:${id}`;
   const [collapsed, setCollapsed] = useState(false);
@@ -43,11 +43,13 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
     >
       <div className="flex items-center justify-between gap-2 print:hidden">
         <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed} data-touch-ok
-          className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-900">
+          className={"inline-flex min-w-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-900 " + titleClass}>
           <span aria-hidden className={"inline-block w-3 transition-transform " + (collapsed ? "" : "rotate-90")}>›</span>
           <span className="truncate">{title}</span>
         </button>
-        <div className="flex shrink-0 items-center gap-1.5">
+        {headerExtra ? <div className="flex min-w-0 flex-1 items-center gap-2">{headerExtra}</div> : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {headerEnd}
           <button type="button" onClick={toggleCollapsed} data-touch-ok aria-label={collapsed ? "Развернуть виджеты" : "Свернуть виджеты"} title={collapsed ? "Развернуть" : "Свернуть"}
             className={btn + " border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"}>{collapsed ? "Развернуть" : "Свернуть"}</button>
           <button type="button" onClick={togglePinned} data-touch-ok aria-pressed={pinned} aria-label={pinned ? "Открепить виджеты" : "Закрепить виджеты: показывать всегда"} title={pinned ? "Открепить" : "Закрепить: показывать всегда при прокрутке"}

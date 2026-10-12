@@ -75,7 +75,7 @@ export function C4Hint({
           {total != null && (
             <>
               <br />
-              Итого {mode === "on" ? "с 4%" : "без 4%"}: <b>{f(total)}</b>
+              Всего, ₽ {mode === "on" ? "с 4%" : "без 4%"}: <b>{f(total)}</b>
             </>
           )}
         </p>

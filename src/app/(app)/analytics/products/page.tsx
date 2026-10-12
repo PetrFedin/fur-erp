@@ -36,6 +36,7 @@ import { SIZE_CM, SIZE_SET, SOURCE_LABEL, UNDEFINED_CATEGORY } from "@/lib/produ
 import { auctionLabeler } from "@/lib/filter-options";
 import { AnalyticsFilterBar } from "../_shared/analytics-filter-bar";
 import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref } from "../_shared/metric-ui";
+import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Что произведено" };
 
@@ -170,8 +171,8 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
               </Td>
             </Tr>
           ))}
-          <Tr>
-            <Td className="sticky left-0 bg-white font-semibold">Σ</Td>
+          <Tr className="row-total">
+            <Td className="sticky left-0"><TotalLabel unit={f.mx === "cost" ? "₽" : "шт."} /></Td>
             {m.colLabels.map((c) => (
               <Td key={c} className="whitespace-nowrap text-right font-semibold tabular-nums">
                 {f.mx === "cost" ? <Money incl={m.colTotals.get(c)!.costIncl} excl={m.colTotals.get(c)!.costExcl} /> : formatQty(m.colTotals.get(c)!.units)}
@@ -408,8 +409,8 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                 </FragmentRows>
               ))}
               {nodes.length > 0 && (
-                <Tr className="border-y-2 border-neutral-200 bg-neutral-50 font-medium">
-                  <Td>Итого</Td>
+                <Tr className="row-total">
+                  <Td><TotalLabel /></Td>
                   {cols.map((c) => (
                     <Td key={c} className="text-right tabular-nums">
                       {c === "share" ? "100%" : <MetricCell col={c} m={total} total={total} />}
@@ -431,7 +432,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         {nodes.flatMap((n) => [card(n, 0, f.g), ...n.children.map((c) => card(c, 1, f.g2 as GroupKey))])}
         {nodes.length > 0 && (
           <RowCard
-            title="Итого"
+            title="Всего, ₽"
             fields={cardCols.slice(0, 4).map((c) => ({ label: colLabel(c, c4), value: <MetricCell col={c} m={total} total={total} />, strong: c === "units" }))}
             details={cardCols.slice(4).map((c) => ({ label: colLabel(c, c4), value: <MetricCell col={c} m={total} total={total} /> }))}
             className="bg-neutral-50"

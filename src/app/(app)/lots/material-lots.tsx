@@ -74,7 +74,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
           <Th>Остаток</Th>
           <Th>Без НДС</Th>
           <Th>НДС</Th>
-          <Th>Всего</Th>
+          <Th>Всего, ₽</Th>
           <Th>Использован в ТЗ</Th>
           <Th>Закупка / аукцион</Th>
         </Tr>
