@@ -11,6 +11,7 @@ import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
 import { canonicalFur } from "@/lib/fur-ref";
 import { lotUsdPrice } from "@/lib/lot-hammer";
 import { getFurIndex } from "@/lib/fur-ref-server";
+import { withOrderFurOptions } from "@/lib/order-fur";
 import { auctionLabeler, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { loadClientDebt, type ClientDebt, type ClientDebtRow } from "@/lib/payment-alloc";
 import { auctionName } from "@/lib/auction-names";
@@ -22,7 +23,7 @@ import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
 import { availableYears, inYear, type YearFilter } from "@/lib/year-filter";
 import type { Commission4Mode } from "@/lib/commission4-mode";
 import {
-  figuresPair, furLiningFlows, isDone, orderMatches, prodTotals, restrictUsage, selectLots, toDrillOrder, orderFiltersOn, lotFiltersOn,
+  figuresPair, furLiningFlows, isDone, orderMatches, prodTotals, restrictUsage, selectLots, toDrillOrder, orderFiltersOn, lotFiltersOn, REPAIR_CATEGORY,
   type DashFilters, type Pair, type ProdTotals,
 } from "@/lib/dashboard-calc";
 import type { DrillOrder } from "@/lib/dashboard-drill";
@@ -72,11 +73,18 @@ export type YearRow = {
   money: { fur: { paid: number; debt: number }; lining: { paid: number; debt: number } };
 };
 
+/** НДС по ставкам, ₽: ключ — ставка в процентах («20», «22»). Это сумма НДС, лежащая внутри цен с НДС (с НДС − без НДС), от режима «С НДС / без НДС» шапки не зависит. */
+export type VatByRate = Record<string, number>;
+export type VatTriple = { recv: VatByRate; used: VatByRate; rem: VatByRate };
+const addVat = (m: VatByRate, rate: number | string, v: number) => { if (Number.isFinite(v) && Math.abs(v) > 0.000001) m[String(rate)] = (m[String(rate)] ?? 0) + v; };
+
 export type { ClientDebtRow };
 
 export type DashboardData = {
   c4: Commission4Mode;
   raw: { fur: Pair<FlowFigures>; lining: Pair<FlowFigures>; lots: number };
+  /** НДС по ставкам внутри плиток сырья (куплено / использовано / остаток; использовано — без 4%) и в себестоимости (по строкам списаний + шкуры подрядчика, без НДС на надбавку 4%). */
+  vat: { fur: VatTriple; lining: VatTriple; cost: VatByRate };
   prod: { done: ProdTotals; work: ProdTotals; /** Все ТЗ года: уникальные номера ТЗ считаются по всему набору, а не суммой «завершённые + в работе». */ all: ProdTotals };
   rawTable: RawTableRow[];
   rawTableTotal: CellsPair;
@@ -104,6 +112,8 @@ export type DashboardData = {
   control: ControlCounts | null;
   options: Awaited<ReturnType<typeof getFilterOptions<"auction" | "fur" | "color" | "attr" | "batch">>>;
   noColorLots: number;
+  /** ТЗ без группы категории (все годы): ремонт и прочие — подпись пункта «Без группы» в фильтре. */
+  noGroup: { repair: number; other: number };
   /** ID выбранных ТЗ (для окна «стоимость производства»). */
   orderIds: string[];
   furTotalLots: number;
@@ -190,9 +200,10 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   const [ovAll, ovLeftAll] = await Promise.all([loadPaymentsOverview(orgId), loadPaymentsLeft(orgId)]);
   // Шкуры подрядчика, оплаченные в составе пошива: по выбранным ТЗ (партии 7 и 8), по году оплаты. Фильтры панели действуют.
   const hidesYear = new Map<number, { incl: number; excl: number }>();
+  const hidesVat: VatByRate = {};
   if (hidesApply(f)) {
     const shares = allocateHides(ordersFiltered.map((o) => ({ id: o.id, number: o.number, batch: o.batchNumber == null ? "none" : String(o.batchNumber), qty: o.qty })), hidesByPayYear(ovAll), year);
-    for (const sh of shares) { const cur = hidesYear.get(sh.payYear) ?? { incl: 0, excl: 0 }; cur.incl += sh.incl; cur.excl += sh.excl; hidesYear.set(sh.payYear, cur); }
+    for (const sh of shares) { const cur = hidesYear.get(sh.payYear) ?? { incl: 0, excl: 0 }; cur.incl += sh.incl; cur.excl += sh.excl; hidesYear.set(sh.payYear, cur); if (sh.excl > 0) addVat(hidesVat, Math.round((sh.incl / sh.excl - 1) * 100), sh.incl - sh.excl); }
   }
   const hidesTotal = Array.from(hidesYear.values()).reduce((a, v) => ({ incl: a.incl + v.incl, excl: a.excl + v.excl }), { incl: 0, excl: 0 });
   const aucMoney = new Map<string, { paid: number; due: number }>();
@@ -224,6 +235,8 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     return fix && fix > 0 && Number.isFinite(mat) && mat > 0 ? mat / fix : null;
   };
   const orderedYear = new Map<number, Ordered>();
+  /** НДС заказанного, но не полученного меха по ставкам позиций закупки (с тем же масштабом, что и сумма). */
+  const orderedVat: VatByRate = {};
   const unreceived = { paid: 0, due: 0, names: [] as string[], byFur: [] as { label: string; names: string[]; paid: number; due: number; ordered: Ordered; years: Map<number, Ordered>; usd: { q: number; s: number } }[] };
   const matName = new Map((await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { id: true, name: true } })).map((m) => [m.id, m.name]));
   // Оплаты закупок без аукциона (З-2026-…): если у закупки есть лоты, это оплата конкретных видов меха, а не «мех не получен».
@@ -245,6 +258,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     const byFurVal = new Map<string, Ordered>();
     const byFurYear = new Map<string, Map<number, Ordered>>();
     const byFurUsd = new Map<string, { q: number; s: number }>();
+    const byFurVat = new Map<string, VatByRate>();
     for (const p of debtInputs.allPurchases) {
       if (p.status === "CANCELLED" || auctionName(p.auctionSession) !== name || !inYear(p.orderDate, year)) continue;
       for (const it of p.items) {
@@ -255,6 +269,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
         const cur = byFurVal.get(k) ?? { qty: 0, incl: 0, excl: 0 };
         cur.qty += q; cur.incl += incl; cur.excl += excl;
         byFurVal.set(k, cur);
+        const bv = byFurVat.get(k) ?? {}; addVat(bv, it.vatRate.toNumber(), incl - excl); byFurVat.set(k, bv);
         // По годам закупки и цена в $ (из расчёта позиции): нужны окнам «Цена по видам сырья» для вида без лотов (рысь).
         const yr = p.orderDate ? p.orderDate.getFullYear() : 2026;
         const ym = byFurYear.get(k) ?? new Map<number, Ordered>();
@@ -273,6 +288,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       const g = unreceived.byFur.find((x) => x.label === label) ?? (unreceived.byFur.push({ label, names: [], paid: 0, due: 0, ordered: { qty: 0, incl: 0, excl: 0 }, years: new Map(), usd: { q: 0, s: 0 } }), unreceived.byFur[unreceived.byFur.length - 1]);
       g.paid += m.paid * (v.incl / totV); g.due += m.due * (v.incl / totV); if (!g.names.includes(name)) g.names.push(name);
       g.ordered.qty += v.qty; g.ordered.incl += v.incl * scale; g.ordered.excl += v.excl * scale;
+      for (const [rate, x] of Object.entries(byFurVat.get(label) ?? {})) addVat(orderedVat, rate, x * scale);
       for (const [yr, yv] of byFurYear.get(label) ?? []) {
         const yc = g.years.get(yr) ?? { qty: 0, incl: 0, excl: 0 };
         yc.qty += yv.qty; yc.incl += yv.incl * scale; yc.excl += yv.excl * scale; g.years.set(yr, yc);
@@ -419,7 +435,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
 
   // Долг заказчиков (давальческие ТЗ): единая функция loadClientDebt (payment-alloc.ts) — работа выбранных ТЗ
   // минус оплачено, где оплачено = разнесено на эти ТЗ (PaymentAllocation) + неразнесённые авансы года.
-  const filtersActive = Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length || f.status.length || f.batch.length);
+  const filtersActive = Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length || f.status.length || f.batch.length || f.catgroup?.length || f.kind?.length);
   const clientDebt = await loadClientDebt(prisma, orgId, { year, orderIds: ordersYear.map((o) => o.id), orderFiltersActive: filtersActive });
   const clientDebts: ClientDebtRow[] = clientDebt.rows;
 
@@ -576,8 +592,26 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
   }
   const unreceivedOut = moneyFromRows ? { paid: 0, due: 0, names: [] as string[], byFur: [] as typeof unreceived.byFur } : unreceivedLeft;
 
+  // НДС по ставкам: плитки сырья — по лотам года/фильтров (ставка лота) + заказанное, но не полученное (ставки позиций закупки) + шкуры подрядчика;
+  // себестоимость — по строкам списаний выбранных ТЗ (ставка строки: своя либо лота) + шкуры подрядчика. 4% в НДС не входит.
+  const lotVat = (ls: FurLot[], k: "recv" | "used" | "rem"): VatByRate => {
+    const m: VatByRate = {};
+    for (const l of ls) addVat(m, l.vatRate, k === "recv" ? l.recvIncl - l.recvExcl : k === "used" ? l.usedIncl - l.usedExcl : l.remIncl - l.remExcl);
+    return m;
+  };
+  const mergeVat = (...list: VatByRate[]): VatByRate => { const m: VatByRate = {}; for (const x of list) for (const [r, v] of Object.entries(x)) addVat(m, r, v); return m; };
+  const furLots = lotsYear.filter((l) => l.kind === "fur"), liningLots = lotsYear.filter((l) => l.kind === "lining");
+  const costVat: VatByRate = {};
+  for (const o of ordersYear) for (const l of o.lines) addVat(costVat, l.vat, l.incl - l.excl);
+  const vatOut = {
+    fur: { recv: mergeVat(lotVat(furLots, "recv"), orderedVat, hidesVat), used: mergeVat(lotVat(furLots, "used"), hidesVat), rem: mergeVat(lotVat(furLots, "rem"), orderedVat) },
+    lining: { recv: lotVat(liningLots, "recv"), used: lotVat(liningLots, "used"), rem: lotVat(liningLots, "rem") },
+    cost: mergeVat(costVat, hidesVat),
+  };
+
   return {
     c4,
+    vat: vatOut,
     paidByItem: paidOut,
     left: leftOut,
     overpaid: debt.overpaid.map((o) => ({ name: o.name, amount: o.amount.toNumber() })),
@@ -589,7 +623,8 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },
     rawTable, rawTableTotal: rawTableTotalAll, years, debt,
     supplierCashPaid,
-    clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options, noColorLots,
+    clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options: { ...options, fur: withOrderFurOptions(options.fur, ordersAll) }, noColorLots,
+    noGroup: { repair: ordersAll.filter((o) => !o.categoryGroup && o.category === REPAIR_CATEGORY).length, other: ordersAll.filter((o) => !o.categoryGroup && o.category !== REPAIR_CATEGORY).length },
     orderIds: ordersYear.map((o) => o.id),
     furTotalLots: lotsYear.length,
     bridge: {

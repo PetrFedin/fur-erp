@@ -7,7 +7,9 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
-import type { RawTableRow } from "@/lib/dashboard-data";
+import type { RawTableRow, VatTriple } from "@/lib/dashboard-data";
+import { VatLine } from "./vat-line";
+import { shortMaterialName } from "@/lib/material-name";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
@@ -70,13 +72,13 @@ function Duo({ children }: { children: React.ReactNode }) {
 }
 
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»). */
-export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
+export function RawCards({ view, rows, fur, lining, c4, vatRates }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
   return (
     <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <RawTriple view={view} fur={fur} lining={lining} c4={c4} onOpen={setPriceCol} />
+        <RawTriple view={view} fur={fur} lining={lining} c4={c4} onOpen={setPriceCol} vatRates={vatRates} />
       </div>
       {priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null}
     </WidgetRow>
@@ -85,7 +87,7 @@ export function RawCards({ view, rows, fur, lining, c4 }: { view: "fur" | "linin
 
 /** Три плитки «Куплено / Использовано / Остаток» по меху или подкладке. compact — узкая раскладка для общего ряда из шести плиток:
  *  поля стоят в столбик с зарезервированной высотой, поэтому одинаковые строки лежат на одной горизонтали во всех шести плитках. */
-function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false }: { view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean }) {
+function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates }: { view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
   const { mode: vat } = useVatDisplay();
   const F = fur[vat];
   const L = lining[vat];
@@ -153,6 +155,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
                 {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
               </Duo>
+              {vatRates ? <VatLine v={vatRates.recv} minRem={compact ? 3 : 1} /> : null}
             </>
           )}
         </Card>
@@ -177,6 +180,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
               </Duo>
+              {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} /> : null}
             </>
           )}
         </Card>
@@ -199,6 +203,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
               </Duo>
+              {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} /> : null}
             </>
           )}
         </Card>
@@ -206,7 +211,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
-export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters }: { rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean }) {
+export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates }: { rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple } }) {
   void info;
   const { mode: vat } = useVatDisplay();
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
@@ -216,7 +221,7 @@ export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters }: { 
     <>
       <InfoHint label="Как считаются плитки сырья" wide>
         <p><b>Цена</b> — средневзвешенная: Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м), а не среднее цен лотов. Совпадает с таблицей «Сырьё». Нажмите на плитку — цены по видам сырья.</p>
-        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%).</p>
+        <p className="mt-1"><b>Режимы.</b> Цены {vatW}; «Использовано» — {c4W}. 4% начисляется только при списании в ТЗ, поэтому «Куплено» и «Остаток» всегда без 4%. НДС берётся по ставке каждого лота (20% или 22%); под суммой каждой плитки — «в т.ч. НДС» по ставкам (при режиме «Без НДС» — НДС, который в сумму не входит). Бобр — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия».</p>
         <p className="mt-1"><b>Как сходится.</b> Куплено = использовано (без 4%) + остаток — отдельно для меха (шт.) и для подкладки (м).</p>
         <p className="mt-1"><b>Цена в долларах</b> — молоток за шкуру (до сборов), только из документов лота: строка в долларах; евро × записанный курс EUR→USD; молоток в ₽ ÷ записанный курс USD/RUB; цена $ из расчётного листа. У подкладки цен в долларах нет. Остальные лоты в среднюю $ не входят и по курсу ЦБ не пересчитываются.</p>
       </InfoHint>
@@ -240,7 +245,7 @@ export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters }: { 
               <div className="raw-group" role="group" aria-label={g.label}>
                 <div className="raw-group-label">{g.label}</div>
                 <div className="raw-tiles">
-                  <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} />
+                  <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} vatRates={vatRates?.[g.view]} />
                 </div>
               </div>
             </Fragment>
@@ -338,7 +343,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                   {part.map((x) => (
                     <Fragment key={x.r.key}>
                     <tr className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
-                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{x.r.label}</td>
+                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{shortMaterialName(x.r.label)}</td>
                       {shareCell(x.q, x.rq)}
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(x.q)} {unit}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(x.v)}</td>

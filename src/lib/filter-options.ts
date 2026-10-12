@@ -80,7 +80,8 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
         orderBy: { number: "asc" },
       });
       // Год обязателен в подписи: «Партия 5 · 2025»; нет года — «≈год по ТЗ» или «пусто» (batch-label.ts).
-      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: uniqueOrderCount(b.orders), title: b.name ?? undefined }));
+      // Группа списка — год партии (batch.year); без года — «Без года». Серверный разбор значений не меняется.
+      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: uniqueOrderCount(b.orders), title: b.name ?? undefined, group: b.year ? String(b.year) : "Без года" }));
     }
     case "supplier": {
       // Только поставщики, у которых есть закупки или оплаты: остальные фильтр ничем не сужают.
@@ -132,20 +133,32 @@ export async function loadAuctionFilterOptions(orgId: string, year: YearFilter):
   const [rows, list] = await Promise.all([
     prisma.purchase.findMany({
       where: { organizationId: orgId, auctionSession: { not: null }, ...purchaseYear(year) },
-      select: { auctionSession: true },
+      select: { auctionSession: true, orderDate: true },
     }),
     prisma.auction.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true, fullName: true, house: true, year: true } }),
   ]);
   const counts = new Map<string, number>();
+  // Год партии закупки — по дате закупки (год проведения аукциона): самый частый год закупок партии.
+  const years = new Map<string, Map<number, number>>();
   for (const r of rows) {
     const n = auctionName(r.auctionSession);
-    if (n) counts.set(n, (counts.get(n) ?? 0) + 1);
+    if (!n) continue;
+    counts.set(n, (counts.get(n) ?? 0) + 1);
+    const y = r.orderDate.getUTCFullYear();
+    const ym = years.get(n) ?? new Map<number, number>();
+    ym.set(y, (ym.get(y) ?? 0) + 1);
+    years.set(n, ym);
   }
+  const yearOf = (n: string, refYear: unknown) => {
+    const ym = years.get(n);
+    if (ym && ym.size) return String(Array.from(ym).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0]);
+    return typeof refYear === "number" || (typeof refYear === "string" && /^\d{4}$/.test(refYear)) ? String(refYear) : "Без года";
+  };
   return Array.from(counts, ([value, count]) => {
     const a = findAuctionIn(value, list);
     const label = shortAuctionName(a && !a.isService ? a.name : value, 56);
     const title = a && !a.isService ? [a.fullName ?? a.name, a.house, a.year].filter(Boolean).join(" · ") : value;
-    return { value, label, count, title };
+    return { value, label, count, title, group: yearOf(value, a?.year) };
   }).sort((a, b) => Number(isServiceAuction(a.value)) - Number(isServiceAuction(b.value)) || byLabel(a, b));
 }
 

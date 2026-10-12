@@ -34,7 +34,14 @@ export type FilterValues<D extends FilterDefs> = { [K in keyof D]: D[K]["kind"] 
 export type SearchParamsLike = Record<string, string | string[] | undefined>;
 
 /** Вариант выпадающего списка: value — в адресе, label — на экране, count — сколько записей, title — полное название. */
-export type FilterOption = { value: string; label: string; count?: number; title?: string };
+export type FilterOption = {
+  value: string;
+  label: string;
+  count?: number;
+  title?: string;
+  /** Группа для списка с группировкой (год партии: «2026», «Без года»). Есть хотя бы у одного варианта — список группируется. */
+  group?: string;
+};
 
 export const MAX_VALUES = 60;
 /** Служебное значение мультивыбора «Без …» (поле не заполнено). */

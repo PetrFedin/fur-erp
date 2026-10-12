@@ -8,7 +8,7 @@ import { loadMaterialVat } from "@/lib/material-vat-server";
 import { MaterialVatCell } from "@/components/material-vat-cell";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { YearsTable, RawTable } from "../dashboard/dynamics-tables";
-import { DASH_FILTERS, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
+import { orderFiltersOn, parseDashFilters } from "@/lib/dashboard-calc";
 import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -134,7 +134,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         </div>
         {await (async () => {
           // «Сводка по годам» — те же таблицы и подписи, что на Главной: динамика по годам и по сырью (год → мех / подкладка, вид → партия).
-          const sf = parseFilters(DASH_FILTERS, sp) as unknown as DashFilters;
+          const sf = parseDashFilters(sp, { vat: true });
           const c4 = await getCommission4Mode();
           const d = await loadDashboard(orgId, year, sf, c4);
           const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
@@ -246,7 +246,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Плитки и таблица «Мех» сходятся с Главной: считаются той же функцией (с общим годом и без фильтров панели); к лотам добавлены
   // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
   const c4Mode = await getCommission4Mode();
-  const dash = await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, c4Mode);
+  const dash = await loadDashboard(orgId, year, parseDashFilters({}), c4Mode);
   const furTabLots = tab === "fur" ? [...tableLots, ...dash.syntheticLots] : tableLots;
   const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
   const tiles = (

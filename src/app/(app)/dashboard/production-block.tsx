@@ -13,6 +13,8 @@ import { WidgetRow } from "@/components/widget-row";
 import { TileCaption, TileValue } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { formatCompactMoney } from "./compact";
+import { VatLine, vatEntries } from "./vat-line";
+import type { VatByRate } from "@/lib/dashboard-data";
 
 export type ProdNums = { items: number; repairOrders: number; repairQty: number; repairCostIncl: number; repairCostExcl: number; orders: number; qty: number; costIncl: number; costExcl: number; work: number; furIncl: number; furExcl: number; liningIncl: number; liningExcl: number; matIncl: number; matExcl: number; c4Incl: number; c4Excl: number };
 export type ProdBridge = { usedBase: { incl: number; excl: number }; comparable: boolean; lotFilters: boolean; yearOnly: boolean };
@@ -21,7 +23,7 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
-export function ProductionBlock({ hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { hides: VatPair; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   const { data: drill } = useDrill(search);
@@ -57,7 +59,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, all, c4, se
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 id="dash-prod" className="text-base font-semibold">Производство</h2>
-          <ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} />
+          <ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />
         </div>
         <div className="flex items-center gap-3 text-xs text-neutral-500">
           <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
@@ -74,7 +76,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, all, c4, se
             { key: "total", label: "Тотал", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={SLIDE_BTN}>
                 <TileValue>{formatQty(fact.qty)} шт.</TileValue>
-                <TileCaption>{fact.orders} ТЗ{fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}</TileCaption>
+                <TileCaption>{kind === "repair" ? `Ремонт: ${fact.repairOrders} ТЗ` : `${fact.orders} ТЗ${fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}`}</TileCaption>
                 <dl className="mt-1 space-y-0.5 text-xs">
                   {years.filter((y) => y.qty !== 0).map((y) => (
                     <div key={y.label} className="flex items-baseline justify-between gap-3">
@@ -112,6 +114,7 @@ export function ProductionBlock({ hides, c4Parts, years, done, work, all, c4, se
                     </div>
                   ))}
                 </dl>
+                <VatLine v={vatCost} />
               </button>) },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label={`Себестоимость: ${g} — открыть состав`} className={SLIDE_BTN}>
@@ -140,7 +143,7 @@ const SLIDE_BTN = "block w-full text-left focus-visible:outline focus-visible:ou
 const mln = (v: number) => formatCompactMoney(v);
 
 /** Мост цифр Производства: состав себестоимости, работа, НДС и связь с блоком «Сырьё» — теперь в «i» у заголовка. */
-function ProdBridgeHint({ done, c4, vat, bridge }: { done: ProdNums; c4: "on" | "off"; vat: "incl" | "excl"; bridge: ProdBridge }) {
+function ProdBridgeHint({ done, c4, vat, bridge, vatCost }: { vatCost: VatByRate; done: ProdNums; c4: "on" | "off"; vat: "incl" | "excl"; bridge: ProdBridge }) {
   const g = (n: ProdNums) => ({ cost: vat === "incl" ? n.costIncl : n.costExcl, mat: vat === "incl" ? n.matIncl : n.matExcl, c4: vat === "incl" ? n.c4Incl : n.c4Excl });
   const D = g(done);
   const rawOther = D.cost - D.mat - D.c4;
@@ -149,7 +152,7 @@ function ProdBridgeHint({ done, c4, vat, bridge }: { done: ProdNums; c4: "on" | 
   return (
     <BridgeHint label="Как сходятся цифры производства" warn={!bridge.comparable}>
       <p><b>Себестоимость (все ТЗ, с ремонтом) {mln(D.cost)} = сырьё (мех + подкладка) {mln(D.mat)} + {c4 === "on" ? <>4%: +{mln(D.c4)}</> : "4%: не начислено"} + расходы ТЗ и прочее {mln(other)}.</b> Работа {mln(done.work)} в себестоимость не входит: сырьё + работа = {mln(D.cost + done.work)}.</p>
-      <p className="mt-1">НДС в себестоимости ({vat === "incl" ? "учтён" : "вычтен"}): {mln(vatAmount)} — по ставке лота (20% или 22%). 4% — только на мех и подкладку. Средняя на изделие = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ).</p>
+      <p className="mt-1">НДС в себестоимости ({vat === "incl" ? "учтён" : "вычтен"}): {mln(vatAmount)} — по ставке лота (20% или 22%){vatEntries(vatCost).length ? <>: без надбавки 4% — {vatEntries(vatCost).map(([r, x]) => `${r}% — ${mln(x)}`).join(" · ")}</> : null}. 4% — только на мех и подкладку. Средняя на изделие = Σ себестоимость ÷ Σ изделий (не среднее по ТЗ).</p>
       {bridge.comparable ? (
         <p className="mt-1"><b>Связь с блоком «Сырьё»:</b> использовано сырья {mln(bridge.usedBase[vat])} (без 4%) = сырьё во всех ТЗ {mln(D.mat)} (завершённые и в работе, вместе с ремонтом).</p>
       ) : (

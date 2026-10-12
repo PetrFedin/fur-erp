@@ -1,7 +1,7 @@
 // Расчёты Сводки (/dashboard): отбор лотов и ТЗ по фильтрам панели и сборка чисел для блоков.
 // Чистые функции без базы и React — их же вызывает scripts/test-dashboard-numbers.ts.
 // Сырьё считает src/lib/fur-table.ts (один источник с таблицей «Мех / Подкладка»), ТЗ — строки аналитики (analytics-orders.ts).
-import { defineFilters, pick, splitNone } from "@/lib/filters";
+import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
 import { figures, flowOf, NOT_SET, type C4Kind, type Flow, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import type { OrderRow } from "@/lib/analytics-orders";
 import { NO_GROUP } from "@/lib/category-groups";
@@ -12,19 +12,33 @@ import { orderKey } from "@/lib/tz-key";
 
 export const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запланирован", IN_PROGRESS: "В работе", COMPLETED: "Завершён", CANCELLED: "Отменён" };
 
-// Фильтры Сводки (год — общий, из шапки).
+// Фильтры Сводки (год — общий, из шапки). «Статус ТЗ» и «Ставка НДС» из панели убраны: старые параметры status / vat / nds
+// в адресе игнорируются (parseDashFilters всегда отдаёт для них пустой выбор). «kind» здесь — тип ТЗ (prod / repair);
+// прежний псевдоним kind у «Вида меха» на Сводке не действует (вид меха — fur).
+export const KIND_LABELS: Record<string, string> = { prod: "Производство", repair: "Ремонт" };
 export const DASH_FILTERS = defineFilters({
-  ...pick(["auction", "fur", "color", "attr", "batch", "status", "vat", "catgroup"], {
-    status: { allowed: Object.keys(ORDER_STATUS_LABELS) },
+  ...pick(["auction", "fur", "color", "attr", "batch", "catgroup", "vat"], {
+    fur: { aliases: [] },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     vat: { allowed: ["20", "22"] },
   }),
+  kind: { kind: "multi", label: "Тип", allowed: Object.keys(KIND_LABELS), maxLen: 10 },
 });
 
-export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; status: string[]; vat: string[]; catgroup: string[] };
+export type DashFilters = { auction: string[]; fur: string[]; color: string[]; attr: string[]; batch: string[]; catgroup: string[]; kind?: string[]; /** Больше не фильтры панели: всегда пусто. */ status: string[]; vat: string[] };
+
+/** Разбор параметров Сводки: kind — один пункт (prod | repair), status — всегда пусто, vat — пусто (панель Главной), кроме страницы «Сырьё → Сводка по годам» (opts.vat), где фильтр по ставке НДС остался. */
+export function parseDashFilters(sp: Parameters<typeof parseFilters>[1], opts: { vat?: boolean } = {}): DashFilters {
+  // Старые ссылки: ?kind=Соболь — это вид меха (прежний псевдоним fur); тип ТЗ — только kind=prod|repair.
+  const kindRaw = ([] as (string | undefined)[]).concat(sp.kind).filter((v): v is string => typeof v === "string" && v !== "");
+  const legacyFur = kindRaw.filter((v) => !(v in KIND_LABELS));
+  const sp2 = legacyFur.length ? { ...sp, fur: [...([] as (string | undefined)[]).concat(sp.fur).filter((v): v is string => !!v), ...legacyFur], kind: kindRaw.filter((v) => v in KIND_LABELS) } : sp;
+  const f = parseFilters(DASH_FILTERS, sp2) as unknown as DashFilters;
+  return { ...f, kind: (f.kind ?? []).slice(0, 1), status: [], vat: opts.vat ? f.vat : [] };
+}
 
 export const lotFiltersOn = (f: DashFilters) => Boolean(f.auction.length || f.fur.length || f.color.length || f.attr.length || f.vat.length);
-export const orderFiltersOn = (f: DashFilters) => Boolean(f.status.length || f.batch.length || f.catgroup?.length);
+export const orderFiltersOn = (f: DashFilters) => Boolean(f.status.length || f.batch.length || f.catgroup?.length || f.kind?.length);
 
 // ───────────────────────────── лоты ─────────────────────────────
 
@@ -75,6 +89,10 @@ export function furLiningFlows(lots: FurLot[]) {
 /** ТЗ подходит: статус и партия производства; при фильтрах по сырью — в нём списан хотя бы один подходящий лот. */
 export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | null, furName: (raw: string) => string): boolean {
   if (f.status.length && !f.status.includes(o.status)) return false;
+  if (f.kind?.length) {
+    const repair = o.category === REPAIR_CATEGORY;
+    if (f.kind.includes("repair") ? !repair : repair) return false;
+  }
   if (f.catgroup?.length) {
     const g = splitNone(f.catgroup);
     if (!(o.categoryGroup ? g.rest.includes(o.categoryGroup) : g.none)) return false;
@@ -85,7 +103,13 @@ export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | 
     const ok = (o.batchNumber == null ? b.none : nums.includes(o.batchNumber));
     if (!ok) return false;
   }
-  if (lotFiltersOn(f)) {
+  // Вид меха ТЗ — одна функция для всех экранов (analytics-orders: ручной вид > списания > текст): если вид меха — единственный
+  // фильтр по сырью, ТЗ отбирается по нему (так в выборке есть «Бобр» — сырьё подрядчика, лотов нет).
+  const furOnly = f.fur.length > 0 && !(f.auction.length || f.color.length || f.attr.length || f.vat.length);
+  if (furOnly) {
+    const parts = o.fur.split(" + ");
+    if (!f.fur.some((x) => parts.includes(x))) return false;
+  } else if (lotFiltersOn(f)) {
     const colors = splitNone(f.color);
     const vats = f.vat.map(Number);
     const any = o.lines.some((l) => {

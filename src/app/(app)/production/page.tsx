@@ -1,4 +1,4 @@
-import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
+import { CATEGORY_GROUPS, NO_GROUP_ARTICLES_LABEL } from "@/lib/category-groups";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +41,8 @@ import { articleLabel } from "@/lib/article-label";
 import { searchArticles } from "@/lib/article-ref";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { matchesVatFilter, vatBreakdown } from "@/lib/tz-vat";
+import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
+import { loadOrderRows } from "@/lib/analytics-orders";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" | "danger" }> = {
   PLANNED: { label: "Запланирован", variant: "default" },
@@ -102,8 +104,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const limit = Math.min(Math.max(limitRaw, PAGE_SIZE), 100000);
 
   // Фильтры по сырью: партия закупки (аукцион) и вид меха — через лоты в списаниях ТЗ.
+  // Вид меха без партии закупки отбирает ТЗ по виду меха ТЗ (order-fur.ts, тот же, что в Изделиях и Календаре): так находится и «Бобр»
+  // (сырьё подрядчика, лотов нет). Вместе с партией закупки вид меха остаётся отбором по лотам списаний.
+  const orderFurRows = await loadOrderRows(orgId, "all", c4Mode);
   let lotOrderIds: string[] | null = null;
-  if (f.auction.length || f.fur.length) {
+  if (f.fur.length && !f.auction.length) {
+    lotOrderIds = orderFurRows.filter((o) => furKindsOfOrder(o.fur).some((k) => f.fur.includes(k))).map((o) => o.id);
+  } else if (f.auction.length || f.fur.length) {
     const [purchaseIds, materialIds] = await Promise.all([
       f.auction.length ? purchaseIdsByAuction(orgId, f.auction) : Promise.resolve(null),
       f.fur.length ? furMaterialIdsByKind(orgId, f.fur) : Promise.resolve(null),
@@ -207,7 +214,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const attr = await loadOrderAttrOptions(orgId);
   const colorSel = splitNone(f.color);
   const sizeSel = splitNone(f.size);
-  const opts = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr"]);
+  const optsBase = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr"]);
+  const opts = { ...optsBase, fur: withOrderFurOptions(optsBase.fur, orderFurRows) };
   const hasFilters = filtersOn;
 
   // What matched the search text, so a result like "141" -> ТЗ №132 (order
@@ -577,7 +585,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Артикул", options: opts.model },
-          { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP, allLabel: "Все группы", more: true },
+          { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP_ARTICLES_LABEL, allLabel: "Все группы", more: true },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },

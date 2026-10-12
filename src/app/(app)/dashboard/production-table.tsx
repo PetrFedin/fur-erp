@@ -8,6 +8,7 @@ import { formatMoney, formatQty } from "@/lib/utils";
 import { groupRank } from "@/lib/category-groups";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
 import { NO_GROUP } from "@/lib/category-groups";
+import { furKindsOfOrder } from "@/lib/order-fur";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
@@ -92,9 +93,11 @@ export function addOrderFur(g: Agg, o: DrillOrder, vat: "incl" | "excl", fu: str
   g.work += share * o.work;
 }
 
-/** Виды меха ТЗ по строкам списания (у смешанных ТЗ — несколько); ТЗ без списаний меха — по виду меха ТЗ. */
+/** Виды меха ТЗ по строкам списания (у смешанных ТЗ — несколько) плюс вид самого ТЗ (order-fur.ts: ручной вид > списания > текст):
+ *  ТЗ без списаний меха (бобр подрядчика) попадает в строку «Бобр», а ручной вид ТЗ не теряется. */
 const furKinds = (o: DrillOrder): string[] => {
   const k = Array.from(new Set(o.lines.filter((l) => l.k === "f").map((l) => l.fu)));
+  for (const x of furKindsOfOrder(o.fur)) if (!k.includes(x)) k.push(x);
   return k.length ? k : [o.fur];
 };
 

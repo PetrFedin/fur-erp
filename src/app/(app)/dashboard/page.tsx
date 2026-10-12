@@ -5,10 +5,9 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter, yearLabel } from "@/lib/year-filter";
 import { FilterBar } from "@/components/filters/filter-bar";
-import { parseFilters } from "@/lib/filters";
 import { loadDashboard } from "@/lib/dashboard-data";
-import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
-import { DASH_FILTERS, ORDER_STATUS_LABELS, lotFiltersOn, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
+import { CATEGORY_GROUPS, noGroupLabelFor } from "@/lib/category-groups";
+import { KIND_LABELS, lotFiltersOn, orderFiltersOn, parseDashFilters, type DashFilters } from "@/lib/dashboard-calc";
 import { RawBlock } from "./raw-block";
 import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
@@ -42,15 +41,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const forbidden = sp.error === "forbidden";
   const organizationId = session.user.organizationId;
   const year = await getYearFilter();
-  const f = parseFilters(DASH_FILTERS, sp) as unknown as DashFilters;
+  const f = parseDashFilters(sp);
   const filtersOn = lotFiltersOn(f) || orderFiltersOn(f);
 
   const d = await loadDashboard(organizationId, year, f, c4Mode);
   const yl = yearLabel(year);
-  const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, status: f.status, vat: f.vat, catgroup: f.catgroup };
+  const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
-  const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["vat", "НДС"], ["status", "статус ТЗ"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"]];
-  const activeFilters = FILTER_NAMES.filter(([k]) => f[k].length > 0).map(([k, n]) => `${n} ×${f[k].length}`).join(", ");
+  const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
+  const activeFilters = FILTER_NAMES.filter(([k]) => (f[k]?.length ?? 0) > 0).map(([k, n]) => `${n} ×${f[k]?.length ?? 0}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
 
   return (
@@ -79,22 +78,22 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           title="Фильтры сводки"
           oneRow
           hideChips
+          dropOnChange={["status", "vat", "nds"]}
           controls={[
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
-            { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
+            { type: "multi", name: "fur", label: "Вид меха", options: d.options.fur },
             { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета", noneLabel: d.noColorLots > 0 ? "Цвет не указан в документах" : undefined, hint: "Цвет лота по справочнику" },
             ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки", noneLabel: "Без признака", hint: "Признаки лота по справочнику: седина, дикий / клеточный, тонированный…" }] : []),
             { type: "multi", name: "batch", label: "Партия производства", options: d.options.batch, noneLabel: "Без партии", allLabel: "Все партии" },
-            { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP, allLabel: "Все группы" },
-            { type: "multi", name: "status", label: "Статус ТЗ", options: Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })), allLabel: "Все статусы" },
-            { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая", hint: "Ставка НДС лота" },
+            { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: noGroupLabelFor(d.noGroup.repair, d.noGroup.other), allLabel: "Все группы", hint: "«Ремонт (без группы)»: у категории «Ремонт» в справочнике нет группы. Категории ремонта видны в таблице «Производство» (Группа → Категория)." },
+            { type: "multi", name: "kind", label: "Тип", single: true, options: [{ value: "prod", label: KIND_LABELS.prod }, { value: "repair", label: KIND_LABELS.repair }], allLabel: "Все", hint: "Производство — все ТЗ кроме ремонта; Ремонт — только ремонтные ТЗ" },
           ]}
           footer={
             <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
               Фильтры применяются сразу
               <InfoHint label="Что фильтруется на Главной" wide>
                 <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).</p>
-                <p className="mt-1">Партия закупки, вид меха, цвет, признак меха и ставка НДС отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот. Статус и партия производства отбирают ТЗ (и «использовано» — только по ним).</p>
+                <p className="mt-1">Партия закупки, вид меха, цвет и признак меха отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот; вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип (производство / ремонт) отбирают ТЗ (и «использовано» — только по ним). Ставки НДС показаны внутри карточек.</p>
                 <p className="mt-1">Сужают блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков». Долг и оплаты поставщику (по закупкам и оплатам года) от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </p>
@@ -102,13 +101,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         />
       </div>
 
-      <RawBlock rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} />
+      <RawBlock rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} />
 
       <YearsTable rows={d.years} c4={c4Mode} info={info} />
 
-      <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} />
+      <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
 
-      <ProductionBlock hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
+      <ProductionBlock vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <section aria-labelledby="dash-pay" className="space-y-2">

@@ -3,8 +3,7 @@
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { parseFilters } from "@/lib/filters";
-import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 import { loadDrillOrders } from "@/lib/dashboard-data";
 import type { DrillData } from "@/lib/dashboard-drill";
 
@@ -22,7 +21,7 @@ export async function loadProductionDrill(scope: "done" | "work" | "all", search
   const sc = scope === "work" ? "work" : scope === "all" ? "all" : "done";
   const safe: Record<string, string[]> = {};
   for (const [k, v] of Object.entries(search ?? {})) if (Array.isArray(v)) safe[String(k).slice(0, 20)] = v.slice(0, 60).map((s) => String(s).slice(0, 300));
-  const f = parseFilters(DASH_FILTERS, safe) as unknown as DashFilters;
+  const f = parseDashFilters(safe);
   const [year, c4] = await Promise.all([getYearFilter(), getCommission4Mode()]);
   const key = `${orgId}|${year}|${c4}|${sc}|${JSON.stringify(f)}`;
   const hit = cache.get(key);

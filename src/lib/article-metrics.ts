@@ -3,6 +3,7 @@
 // Формул цены здесь нет: суммы по ТЗ берёт sumOrders (orders-sum), средневзвешенное — сумма по строкам ÷ количество (как cost-summary ТЗ).
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
+import { furKindsOfOrder } from "@/lib/order-fur";
 
 export type Pair = { incl: number; excl: number };
 const z = (): Pair => ({ incl: 0, excl: 0 });
@@ -87,6 +88,8 @@ export function articleMetrics(os: DrillOrder[]): ArticleMetrics {
       }
     }
   }
+  // Вид меха самого ТЗ (order-fur.ts): ТЗ без списаний меха (например, бобр подрядчика) тоже даёт строку вида — иначе у артикула «мех: —».
+  for (const o of list) for (const key of furKindsOfOrder(o.fur)) if (!kinds.has(key)) kinds.set(key, { fur: key, qty: 0, on: z(), off: z() });
   const totIncl = sumTotal(sI);
   const totExcl = sumTotal(sE);
   const total = { on: { incl: totIncl, excl: totExcl }, off: { incl: totIncl - sI.c4, excl: totExcl - sE.c4 } };

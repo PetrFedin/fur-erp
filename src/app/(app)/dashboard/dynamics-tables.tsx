@@ -6,7 +6,9 @@ import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
-import type { Cells, CellsPair, RawTableRow, YearRow } from "@/lib/dashboard-data";
+import { VatTriplesHint } from "./vat-line";
+import { shortMaterialName } from "@/lib/material-name";
+import type { Cells, CellsPair, RawTableRow, VatTriple, YearRow } from "@/lib/dashboard-data";
 import type { ModeInfo } from "./mode-line";
 
 const rub = (v: number) => formatMoney(v.toFixed(2));
@@ -26,7 +28,7 @@ function Chevron({ open }: { open: boolean }) {
  * узкая и закреплена при горизонтальной прокрутке, 8 числовых колонок (Куплено шт./₽, Использовано шт./₽, Остаток шт./₽, Оплачено, Задолженность)
  * — равной ширины, поэтому колонки и вертикальные линии обеих таблиц стоят на одних и тех же местах.
  */
-const NAME_W = 160;
+const NAME_W = 170;
 const TABLE_CLS = "w-full table-fixed text-sm min-w-[960px]";
 function TableCols() {
   return (
@@ -38,14 +40,14 @@ function TableCols() {
 }
 const NAME_TH = "sticky left-0 z-[2] bg-white px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
 
-/** Первая ячейка строки: стрелка раскрытия (или пустое место той же ширины) и название; уровни — отступом. Длинное название обрезается с «…». */
+/** Первая ячейка строки: стрелка раскрытия (или пустое место той же ширины) и название; уровни — отступом. Длинное название переносится на вторую строку. */
 function NameCell({ arrow, indent = 0, children, title, className = "" }: { arrow?: React.ReactNode; indent?: boolean | number; children: React.ReactNode; title?: string; className?: string }) {
   const pad = indent === true ? 20 : indent || 0;
   return (
     <td className={"sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left " + className} title={title}>
       <div className="flex min-w-0 items-center" style={{ paddingLeft: pad }}>
         <span className="inline-flex w-5 shrink-0 items-center">{arrow ?? null}</span>
-        <span className="min-w-0 truncate">{children}</span>
+        <span className="min-w-0 break-words leading-tight">{children}</span>
       </div>
     </td>
   );
@@ -73,6 +75,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p className="mt-1"><b>Всего, ₽</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
             <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и задолженность — всегда с НДС, не зависят от 4%.</p>
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
+            <p className="mt-1">Бобр — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия».</p>
           </InfoHint>
         </div>
       </div>
@@ -110,7 +113,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                     return (
                       <Fragment key={kd.k}>
                         <tr className="border-b border-neutral-100 bg-white">
-                          <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button>}>{kd.label}</NameCell>
+                          <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button>}>{shortMaterialName(kd.label)}</NameCell>
                           <CellsTds c={c} unit={kd.unit} avg={false} />
                           <MoneyTds paid={m.paid} due={m.debt} />
                         </tr>
@@ -118,7 +121,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                           const y = kd.pick(r), ym = kd.money(r);
                           return (
                             <tr key={kd.k + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
-                              <NameCell indent title={r.label}>{r.label}{yearInfo(r)}</NameCell>
+                              <NameCell indent title={r.label}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
                               <CellsTds c={y} unit={kd.unit} avg={false} />
                               <MoneyTds paid={ym.paid} due={ym.debt} />
                             </tr>
@@ -143,7 +146,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                           const y = sum(r.fur[vat], r.lining[vat]);
                           return (
                             <tr key={"all" + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
-                              <NameCell indent title={r.label}>{r.label}{yearInfo(r)}</NameCell>
+                              <NameCell indent title={r.label}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
                               <td className={td + GB}>—</td><td className={td}>{rub(y.rv)}</td>
                               <td className={td + GB}>—</td><td className={td}>{rub(y.uv)}</td>
                               <td className={td + GB}>—</td><td className={td}>{rub(y.mv)}</td>
@@ -189,6 +192,8 @@ function MoneyTds({ paid, due, bold }: { paid: number; due: number; bold?: boole
 
 /** Ключ строки аукциона — настоящее название партии закупки; служебные строки (без аукциона, шкуры подрядчика, не полученное) не ссылки. */
 const auctionLinkable = (key: string) => !key.startsWith("__") && key !== "hides" && !key.startsWith("unrecv|");
+/** Ссылка служебной строки на существующую страницу: «Без аукциона» — закупки с фильтром «Без аукциона»; «не получен» — закупки в статусе «Черновик / в пути». «Шкуры подрядчика» отдельной страницы не имеют — текст. Год берётся из шапки. */
+const serviceHref = (key: string): string | null => (key === "__none" ? "/purchases?auction=none" : key.startsWith("unrecv|") ? "/purchases?status=DRAFT" : null);
 
 const addCells = (list: Cells[]): Cells => {
   const s = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
@@ -196,7 +201,7 @@ const addCells = (list: Cells[]): Cells => {
   return { ...s, ra: r(s.rv, s.rq), ua: r(s.uv, s.uq), ma: r(s.mv, s.mq), uoa: r(s.uo, s.uq) };
 };
 
-export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: { rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
+export function RawTable({ rows, total, money, c4, info: _info, orderFilters, vatRates }: { vatRates?: { fur: VatTriple; lining: VatTriple }; rows: RawTableRow[]; total: CellsPair; money: { paid: number; due: number; unreceived: { paid: number; due: number; names: string[]; byFur: { label: string; names: string[]; paid: number; due: number }[] } }; c4: "on" | "off"; info: ModeInfo; orderFilters: boolean}) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<Set<string>>(new Set());
   const avg = false; // колонки цен убраны: цены — в окне по клику на «Цена» в блоке «Сырьё»
@@ -215,16 +220,18 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
   );
   const itemRows = (list: RawTableRow[], unit: string) =>
     list.map((r) => {
-      const isOpen = open.has(r.key);
+      // У ткани подкладки следующего уровня (аукционов) нет: название — ссылка на карточку лота / список лотов этой ткани.
+      const flat = r.kind === "lining" && !!r.lotIds && r.lotIds.length > 0;
+      const isOpen = !flat && open.has(r.key);
       return (
         <Fragment key={r.key}>
           <tr className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
-            <NameCell arrow={arrow(r.key, r.label)} title={r.label}>
+            <NameCell arrow={flat ? undefined : arrow(r.key, r.label)} title={r.label}>
               {r.kind === "lining" && r.lotIds && r.lotIds.length > 0 ? (
                 <Link href={r.lotIds.length === 1 ? `/analytics/raw/lot/${r.lotIds[0]}` : `/lots?tab=lining&lmat=${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={r.lotIds.length === 1 ? "Открыть карточку лота: закупка, остаток, списания по ТЗ" : `Открыть лоты подкладки «${r.label}» (${r.lotIds.length})`}>
-                  {r.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
                 </Link>
-              ) : <span className="font-medium">{r.label}</span>}
+              ) : <span className="font-medium">{shortMaterialName(r.label)}</span>}
             </NameCell>
             <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />
             <MoneyTds paid={r.paid} due={r.due} />
@@ -235,6 +242,10 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
                 {auctionLinkable(a.key) ? (
                   <Link href={`/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title="Открыть аукцион: счета, лоты и себестоимость">
                     {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  </Link>
+                ) : serviceHref(a.key) ? (
+                  <Link href={serviceHref(a.key)!} className="hover:underline focus-visible:underline" title="Открыть закупки: что куплено, оплачено и чего нет">
+                    {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">→</span>
                   </Link>
                 ) : a.label}
               </NameCell>
@@ -279,6 +290,8 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
             <p className="mt-1"><b>Средневзвешенная цена</b> = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано, куплено и остаток — без 4%.</p>
             <p className="mt-1">Год шапки и фильтры панели действуют. «Всего» складывает мех и подкладку только в рублях.</p>
             <p className="mt-1"><b>Куплено = использовано + остаток</b> по штукам и рублям, все колонки — без 4%.{orderFilters ? " Фильтр по ТЗ сужает только «Использовано»: тогда куплено − использовано ≠ остаток." : ""}</p>
+            <p className="mt-1"><b>Бобр</b> — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия». Поэтому в этой таблице по лотам его нет.</p>
+            {vatRates ? <VatTriplesHint fur={vatRates.fur} lining={vatRates.lining} /> : null}
           </InfoHint>
         </div>
       </div>
