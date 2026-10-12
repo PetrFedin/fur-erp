@@ -13,6 +13,7 @@ import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
+import { shortMaterialName } from "@/lib/material-name";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { RawTab } from "@/components/raw-tabs";
@@ -337,9 +338,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="lining-vat">
             <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">НДС в ТЗ по тканям</summary>
             <div className="border-t border-neutral-100 p-3">
-              <p className="mb-2 text-xs text-neutral-500">
-                Ставка, по которой считается ТЗ при выборе ткани: заданная у материала, иначе — ставка лота, на который списано (до 2026 — 20%, с 2026 — 22%). Правится в справочнике материалов.
-              </p>
+              <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">
+                Ставка НДС по ткани
+                <InfoHint label="Откуда берётся ставка НДС в ТЗ" wide>
+                  <p>Ставка, по которой считается ТЗ при выборе ткани: заданная у материала, иначе — ставка лота, на который списано (до 2026 — 20%, с 2026 — 22%). Правится в справочнике материалов.</p>
+                </InfoHint>
+              </div>
               <Table>
                 <Thead>
                   <Tr><Th>Ткань</Th><Th>НДС в ТЗ</Th></Tr>
@@ -350,7 +354,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                     .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
                     .map((m) => (
                       <Tr key={m.id}>
-                        <Td className="font-medium"><Link href={`/materials/${m.id}`} className="hover:underline">{m.name}</Link></Td>
+                        <Td className="font-medium"><Link href={`/materials/${m.id}`} className="hover:underline" title={m.name}>{shortMaterialName(m.name)}</Link></Td>
                         <Td className="text-xs">{liningVat?.get(m.id) ? <MaterialVatCell s={liningVat.get(m.id)!} /> : "—"}</Td>
                       </Tr>
                     ))}

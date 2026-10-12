@@ -194,7 +194,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       </Card>
 
       {/* Итоги движения: те же плитки и подписи, что на Главной (Куплено = Использовано + Остаток) */}
-      <WidgetRow id="lot" title="Лот — движение">
+      <WidgetRow id="lot" title="Лот — движение" headerEnd={l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-xs text-blue-700 hover:underline print:hidden">→ Закупка</Link> : undefined}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div className={TILE_BOX}>
           <TileHead>Куплено</TileHead>

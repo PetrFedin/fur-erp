@@ -11,6 +11,8 @@ import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
 import { escapeLike } from "@/lib/input";
 import { loadMaterialVat } from "@/lib/material-vat-server";
 import { MaterialVatCell } from "@/components/material-vat-cell";
+import { WidgetRow } from "@/components/widget-row";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "../dashboard/tile";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -78,6 +80,26 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
           ...(inactiveN > 0 || f.status.length > 0 ? [{ type: "multi" as const, name: "status", label: "Статус", options: [{ value: "active", label: "Активные" }, { value: "inactive", label: "Неактивные" }], allLabel: "Все" }] : []),
         ]}
       />
+
+      <WidgetRow id="materials" title="Материалы — состав" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3">
+          <div className={TILE_BOX}>
+            <TileHead>Материалов</TileHead>
+            <TileValue>{materials.length}</TileValue>
+            <TileCaption>{inactiveN > 0 ? `неактивных в справочнике: ${inactiveN}` : "по текущим фильтрам"}</TileCaption>
+          </div>
+          <div className={TILE_BOX}>
+            <TileHead>Мех</TileHead>
+            <TileValue>{materials.filter((m) => m.unit !== "M").length}</TileValue>
+            <TileCaption>позиций справочника</TileCaption>
+          </div>
+          <div className={TILE_BOX}>
+            <TileHead>Подкладка</TileHead>
+            <TileValue>{materials.filter((m) => m.unit === "M").length}</TileValue>
+            <TileCaption>тканей, в метрах</TileCaption>
+          </div>
+        </div>
+      </WidgetRow>
 
       <Table stickyHeader>
         <Thead>

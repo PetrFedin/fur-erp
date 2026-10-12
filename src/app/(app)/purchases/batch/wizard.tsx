@@ -255,7 +255,7 @@ export function BatchWizard({
   return (
     <div className="flex flex-col gap-3">
       {saved && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900" data-draft-banner>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900" data-draft-banner>
           <span>
             Найден черновик от {new Date(saved.savedAt).toLocaleString("ru-RU")}: строк {saved.rows.length}, шаг {saved.step}.
           </span>
@@ -506,7 +506,7 @@ function ReviewStep({
         </div>
       )}
       {(preview.newMaterials.length > 0 || preview.newColors.length > 0 || header.newAuction) && (
-        <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900">
+        <div className="rounded-lg bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900">
           Вместе с партией будет добавлено в справочники:
           <ul className="list-disc pl-5">
             {header.newAuction && <li>аукцион «{header.newAuction.name.trim()}»</li>}

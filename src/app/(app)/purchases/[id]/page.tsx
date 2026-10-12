@@ -571,7 +571,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </Card>
       )}
 
-      <WidgetRow id="purchase" title="Закупка — итоги">
+      <WidgetRow id="purchase" title="Закупка — итоги" headerEnd={<Link href={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         <SummaryCard
           label={<VatLabel base="Всего, ₽" />}
@@ -850,9 +850,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <Tr>
                   <Th>Статья</Th>
                   <Th>Описание</Th>
-                  <Th>Сумма (без НДС)</Th>
+                  <Th>Без НДС, ₽</Th>
                   <Th>НДС</Th>
-                  <Th>Сумма</Th>
+                  <Th>Сумма, ₽</Th>
                   {editable && <Th></Th>}
                 </Tr>
               </Thead>
@@ -883,6 +883,15 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     )}
                   </Tr>
                 ))}
+                {purchase.expenses.length > 1 && (
+                  <Tr className="row-total">
+                    <Td colSpan={2}><TotalLabel unit="₽" /></Td>
+                    <Td>{formatMoney(expensesTotalExclVat.toString())}</Td>
+                    <Td />
+                    <Td><Money incl={expensesTotalInclVat} excl={expensesTotalExclVat} /></Td>
+                    {editable && <Td />}
+                  </Tr>
+                )}
               </Tbody>
             </Table>
               }

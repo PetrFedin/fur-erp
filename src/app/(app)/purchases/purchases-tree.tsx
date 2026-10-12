@@ -57,15 +57,16 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
         </InfoHint>
       </div>
       <div className={SCROLL_BOX}>
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[820px] table-fixed text-sm">
+          <colgroup><col className="w-8" /><col /><col className="w-24" /><col className="w-32" /><col className="w-32" /><col className="w-32" /></colgroup>
           <thead>
             <tr className="border-b border-neutral-200">
               <th className={ARROW_TH} aria-label="Раскрыть" />
               <th className={TH_LEFT}>Год / партия / закупка</th>
               <th className={TH}>Кол-во</th>
-              <th className={TH + " border-l border-neutral-100"}>Сумма</th>
-              <th className={TH}>Оплачено</th>
-              <th className={TH}>Задолженность</th>
+              <th className={TH + " border-l border-neutral-100"}>Сумма, ₽</th>
+              <th className={TH}>Оплачено, ₽</th>
+              <th className={TH}>Долг, ₽</th>
             </tr>
           </thead>
           <tbody>
@@ -90,7 +91,7 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
                           <td className={`py-1.5 pr-2 text-left ${INDENT[0]}`} title={b.title}>
                             {b.label}
                             <span className="ml-1.5 text-xs text-neutral-500">{cnt(b.purchases.length, "закупка", "закупки", "закупок")}</span>
-                            {b.href ? <Link href={b.href} className="ml-2 text-xs text-blue-700 hover:underline">оплаты партии ›</Link> : null}
+                            {b.href ? <Link href={b.href} className="ml-2 text-xs text-blue-700 hover:underline" title="Открыть в «Оплатах» с этой партией">оплаты партии ↗</Link> : null}
                           </td>
                           {figs({ total: sum(b.purchases, "total"), paid: sum(b.purchases, "paid"), rest: sum(b.purchases, "rest") })}
                         </tr>
@@ -132,7 +133,7 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
                                         {gOpen && g === "items" ? p.items.map((x) => (
                                           <tr key={x.id} className={rowTone(3)}>
                                             <td className={ARROW_TD} />
-                                            <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}>{x.label}{x.lot ? <span className="ml-1.5 text-neutral-400">лот № {x.lot}</span> : null}{x.lotId ? <Link href={`/analytics/raw/lot/${x.lotId}`} className="ml-2 text-blue-700 hover:underline">карточка лота ›</Link> : null}</td>
+                                            <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}>{x.label}{x.lot ? <span className="ml-1.5 text-neutral-400">лот № {x.lot}</span> : null}{x.lotId ? <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" className="ml-2 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline">↗</Link> : null}</td>
                                             <td className={TD}>{x.qty}</td>
                                             <td className={TD + " border-l border-neutral-100"}>{m(x.sum)}</td>
                                             <td className={TD} /><td className={TD} />

@@ -298,13 +298,13 @@ function LotsControls({ scope }: { scope: string }) {
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           data-filter-toggle
-          className="inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50"
+          className="ui-field inline-flex h-8 items-center gap-1 rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium"
         >
           Фильтр{view.filterCount > 0 ? ` (${view.filterCount})` : ""} <span className="text-neutral-500">{open ? "▴" : "▾"}</span>
         </button>
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-50"
+          className="ui-field inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs"
           onClick={() => setSelected(view.visible.map((r) => r.id), !allVisibleSelected)}
         >
           {allVisibleSelected ? "Снять выбор" : "Выбрать все"}
@@ -349,11 +349,13 @@ function LotsControls({ scope }: { scope: string }) {
 
 function Legend() {
   return (
-    <p className="text-xs text-neutral-500">
-      «Всего, ₽» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср. взвеш.</b> — среднее
-      взвешенное по количеству шкур (курс — по сумме закупки в валюте; никогда не простое среднее), <b>уник.</b> — число разных значений. Цена в валюте и курс от режима
-      «С НДС / Без НДС» не зависят.
-    </p>
+    <InfoHint label="Как считаются итоги" wide>
+      <p>
+        «Всего, ₽» считается по выбранным лотам, а если выбора нет — по лотам, оставшимся после фильтров. <b>Σ</b> — сумма, <b>ср. взвеш.</b> — среднее
+        взвешенное по количеству шкур (курс — по сумме закупки в валюте; никогда не простое среднее), <b>уник.</b> — число разных значений. Цена в валюте и курс от режима
+        «С НДС / Без НДС» не зависят.
+      </p>
+    </InfoHint>
   );
 }
 
@@ -523,7 +525,7 @@ function LotRowView({
   const { selected, setSelected } = useLots();
   const checked = selected.has(r.id);
   return (
-    <Tr className={checked ? "bg-blue-50/60" : undefined} data-lot-row={r.id}>
+    <Tr className={checked ? "bg-[var(--ui-soft)]" : undefined} data-lot-row={r.id}>
       <Td className="w-10 sm:w-8">
         <label className="flex h-8 w-8 cursor-pointer items-center justify-center sm:h-auto sm:w-auto">
           <input type="checkbox" className="h-5 w-5 sm:h-4 sm:w-4" aria-label={`Выбрать лот ${r.lotNumber || r.material}`} checked={checked} onChange={() => setSelected([r.id], !checked)} />
@@ -623,7 +625,7 @@ function LotCardView({
   const checked = selected.has(r.id);
   return (
     <RowCard
-      className={checked ? "border-blue-300 bg-blue-50/60" : undefined}
+      className={checked ? "border-[var(--ui-accent)] bg-[var(--ui-soft)]" : undefined}
       badge={r.onStock ? undefined : <Badge>не принят</Badge>}
       title={
         <label className="flex cursor-pointer items-start gap-2">
@@ -714,7 +716,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
   const sum = lines.reduce((s, l) => s + val(l), 0);
   const roundingHidden = b.lines.some((l) => l.kind === "unresolved") && !lines.some((l) => l.kind === "unresolved");
   return (
-    <div className="rounded-md border border-neutral-200 bg-white p-3" data-cost-parts>
+    <div className="rounded-lg border border-neutral-200 bg-white p-3" data-cost-parts>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="text-sm font-semibold">{title ?? "Из чего складывается стоимость"}</p>
         <p className="text-xs text-neutral-500">
@@ -749,7 +751,7 @@ export function CostPartsBlock({ scope, title }: { scope: string; title?: string
             <span className="whitespace-nowrap tabular-nums" data-cost-total>
               {formatMoney(total)}
             </span>
-            <span className="w-14 text-right text-xs font-normal text-neutral-500">100 %</span>
+            <span className="w-14 text-right text-xs font-normal text-neutral-500">{formatPercent(100)}</span>
           </li>
           <li className="text-xs text-neutral-500">
             Сумма частей {formatMoney(sum)} {Math.abs(sum - total) < (roundingHidden ? 10 : 1) ? "= итогу" : "≠ итогу"}.
@@ -780,8 +782,8 @@ export function AuctionTotalsPanel() {
   const cur = view.totals.currencies.length === 1 ? symbol(view.totals.currencies[0]) : "вал.";
   const h = heads(cur);
   return (
-    <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" data-auction-totals>
-      <div>
+    <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3" data-auction-totals>
+      <div className="flex items-center gap-2">
         <h3 className="text-base font-semibold">Всего, ₽ по аукциону</h3>
         <Legend />
       </div>
@@ -870,8 +872,8 @@ export function FlatLotsPanel() {
     return <LotRowView key={r.id} row={r} fields={fields} hasEditCol={false} currency={r.currency} invoice={{ label: m?.label ?? "—", number: m?.number ?? "" }} />;
   };
   return (
-    <section className="flex flex-col gap-3 rounded-md border border-neutral-300 bg-white p-3" data-auction-flat>
-      <div>
+    <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3" data-auction-flat>
+      <div className="flex items-center gap-2">
         <h3 className="text-base font-semibold">Все лоты аукциона списком</h3>
         <Legend />
       </div>

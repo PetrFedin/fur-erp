@@ -191,7 +191,7 @@ export function LotsStep(p: Props) {
               <label key={f.key} className="flex flex-col gap-0.5 text-xs text-neutral-600">
                 {f.label}
                 <select
-                  className="h-8 rounded border border-neutral-300 bg-white px-1 text-xs text-neutral-900"
+                  className="ui-field h-8 rounded-lg border border-neutral-300 bg-white px-1.5 text-xs text-neutral-900"
                   value={info.mapping[f.key] ?? ""}
                   onChange={(e) => remap(f.key, e.target.value)}
                 >
@@ -206,7 +206,7 @@ export function LotsStep(p: Props) {
         </details>
       )}
       {hasCalc && (
-        <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-900">
+        <p className="rounded-lg bg-[var(--ui-soft)] px-3 py-2 text-xs text-neutral-900">
           В файле найдены столбцы расчёта (сбор, выделка, транспорт, брокерский): себестоимость лота будет рассчитана по ним — так же, как в «Править расчёт». Итоговые суммы смотрите на следующих шагах.
         </p>
       )}
@@ -222,7 +222,7 @@ export function LotsStep(p: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     aria-label={`Заменить мех «${u.text}» на`}
-                    className="h-8 rounded border border-neutral-300 bg-white px-1 text-xs"
+                    className="ui-field h-8 rounded-lg border border-neutral-300 bg-white px-1.5 text-xs"
                     value={d?.mode === "ref" ? d.id : ""}
                     onChange={(e) => e.target.value && setDecisions({ ...decisions, fur: { ...decisions.fur, [u.key]: { mode: "ref", id: e.target.value } satisfies FurDecision } })}
                   >
@@ -248,7 +248,7 @@ export function LotsStep(p: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     aria-label={`Заменить цвет «${u.text}» на`}
-                    className="h-8 rounded border border-neutral-300 bg-white px-1 text-xs"
+                    className="ui-field h-8 rounded-lg border border-neutral-300 bg-white px-1.5 text-xs"
                     value={d?.mode === "ref" ? d.id : ""}
                     onChange={(e) => e.target.value && setDecisions({ ...decisions, color: { ...decisions.color, [u.key]: { mode: "ref", id: e.target.value } satisfies ColorDecision } })}
                   >

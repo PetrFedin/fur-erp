@@ -229,7 +229,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       )}
 
       {/* Итоги */}
-      <WidgetRow id="raw" title="Аналитика сырья — итоги">
+      <WidgetRow id="raw" title="Аналитика сырья — итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"
@@ -291,7 +291,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <TileHead>% использовано</TileHead>
             <TileValue>{pctText(pctAll)}</TileValue>
             <div className="mt-2 flex h-2 overflow-hidden rounded bg-neutral-100" role="img" aria-label={`Использовано ${pctText(pctAll)}`}>
-              <div className="bg-slate-500" style={{ width: `${Math.min(100, pctAll ?? 0)}%` }} />
+              <div className="bg-neutral-500" style={{ width: `${Math.min(100, pctAll ?? 0)}%` }} />
             </div>
           </div>
           <div className="absolute right-3 top-3">
@@ -505,7 +505,7 @@ function Tile({ title, hint, q, incl, excl, extra, sub, unit, c4, avg }: { unit:
 function Legend() {
   return (
     <div className="flex gap-4 text-xs text-neutral-600">
-      <span className="inline-flex items-center gap-1"><i className="inline-block size-2.5 rounded-sm bg-slate-500" /> использовано</span>
+      <span className="inline-flex items-center gap-1"><i className="inline-block size-2.5 rounded-sm bg-neutral-500" /> использовано</span>
       <span className="inline-flex items-center gap-1"><i className="inline-block size-2.5 rounded-sm bg-teal-700" /> остаток</span>
     </div>
   );
@@ -525,7 +525,7 @@ function StackBar({ label, title, agg, max, unit, showPct }: { label: string; ti
         </span>
       </div>
       <div className="mt-0.5 flex h-3 gap-0.5" style={{ width: `${Math.max(w, 1)}%` }}>
-        {used > 0 && <div className="rounded-sm bg-slate-500" style={{ flexGrow: used }} />}
+        {used > 0 && <div className="rounded-sm bg-neutral-500" style={{ flexGrow: used }} />}
         {rem > 0 && <div className="rounded-sm bg-teal-700" style={{ flexGrow: rem }} />}
         {used <= 0 && rem <= 0 && <div className="flex-1 rounded-sm bg-neutral-200" />}
       </div>
