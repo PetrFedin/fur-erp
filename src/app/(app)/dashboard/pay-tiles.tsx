@@ -71,14 +71,14 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           </InfoHint>
         </div>
         <TileValue>{money(totalAll)}</TileValue>
-        <TileList items={list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod)} />
+        <TileList items={list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true)} />
       </div>
 
       <div className={TILE_BOX}>
         <TileHead>Оплачено</TileHead>
         <TileValue>{money(paidAll)}</TileValue>
         <div data-testid="paid-by-item">
-          <TileList items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid)} />
+          <TileList items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
         </div>
       </div>
 
