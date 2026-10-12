@@ -1,0 +1,105 @@
+/* Тема «Привычный стиль»: только оформление (палитра, шрифт, выделения). Разметка, расчёты и расположение виджетов не меняются.
+   Включается атрибутом data-theme="customer" на <html> (cookie uiTheme, см. src/lib/ui-theme.ts); «Текущий стиль» — без атрибута-темы.
+   Принцип: переопределяются токены Tailwind (--color-*, --radius-*) внутри темы, поэтому тема действует на всех разделах сразу.
+   Контраст (WCAG AA): текст #1B2A5C на белом ≈ 14:1, второстепенный #5A6A94 на белом ≈ 5,4:1 и на #F3F4F7 ≈ 4,9:1,
+   акцент под белым текстом #D93A0E ≈ 4,6:1, акцентная ссылка #B72F0A на белом ≈ 6,1:1 и на #FFE4DA ≈ 5,1:1.
+   Яркий #FF4A1C — только рамки, заливки без текста и декор. */
+html[data-theme="customer"] {
+  --cv-accent: #ff4a1c;
+  --cv-accent-strong: #d93a0e;
+  --cv-accent-deep: #b72f0a;
+  --cv-soft: #ffe4da;
+  --cv-mid: #ffb199;
+  --cv-navy: #1b2a5c;
+  --cv-muted: #5a6a94;
+  --cv-bg: #f3f4f7;
+
+  /* нейтральная шкала → сине-серая; 900 (активные кнопки, сегменты, рамки выбранного, фокус, чекбоксы) → акцент */
+  --color-neutral-50: #f3f4f7;
+  --color-neutral-100: #eaecf3;
+  --color-neutral-200: #dfe2ea;
+  --color-neutral-300: #cdd2df;
+  --color-neutral-400: #8793b3;
+  --color-neutral-500: #5a6a94;
+  --color-neutral-600: #4a5a86;
+  --color-neutral-700: #34436f;
+  --color-neutral-800: #26356a;
+  --color-neutral-900: #d93a0e;
+
+  /* «синий» (ссылки, выделения) → оранжево-красный */
+  --color-blue-50: #fff3ee;
+  --color-blue-100: #ffe4da;
+  --color-blue-200: #ffb199;
+  --color-blue-300: #ff8f6e;
+  --color-blue-400: #ff6a43;
+  --color-blue-500: #ff4a1c;
+  --color-blue-600: #c4340b;
+  --color-blue-700: #b72f0a;
+  --color-blue-800: #8f2408;
+  --color-blue-900: #6f1c06;
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+}
+
+html[data-theme="customer"] body {
+  font-family: var(--font-theme), var(--font-inter), Arial, Helvetica, sans-serif;
+  color: var(--cv-navy);
+  background: var(--cv-bg);
+  letter-spacing: -0.003em;
+}
+html[data-theme="customer"] :is(h1, h2, h3, h4) { color: var(--cv-navy); font-weight: 800; letter-spacing: -0.01em; }
+html[data-theme="customer"] :is(input, select, textarea, button) { font-family: inherit; }
+/* текст «почти чёрный» становится тёмно-синим (сам --color-neutral-900 занят под акцент) */
+html[data-theme="customer"] .text-neutral-900 { color: var(--cv-navy); }
+html[data-theme="customer"] .hover\:text-neutral-900:hover { color: var(--cv-accent-deep); }
+html[data-theme="customer"] .placeholder\:text-neutral-500::placeholder { color: var(--cv-muted); }
+/* наведение на основные кнопки / на активные — темнее акцент */
+html[data-theme="customer"] .hover\:bg-neutral-700:hover { background-color: var(--cv-accent-deep); }
+html[data-theme="customer"] .bg-neutral-900 { background-color: var(--cv-accent-strong); }
+html[data-theme="customer"] .border-neutral-900 { border-color: var(--cv-accent); }
+/* выбранное: подложка светлым акцентом и оранжевая обводка */
+html[data-theme="customer"] .bg-neutral-100.border-neutral-900, html[data-theme="customer"] .bg-white.border-neutral-900 { box-shadow: 0 0 0 1px var(--cv-accent); }
+
+/* фокус: заметное кольцо акцентного цвета везде */
+html[data-theme="customer"] :focus-visible { outline-color: var(--cv-accent-deep); }
+html[data-theme="customer"] :where(a, button, summary, [tabindex]):focus-visible { outline: 3px solid var(--cv-accent-deep); outline-offset: 2px; }
+html[data-theme="customer"] :where(input, select, textarea):focus-visible { outline: 3px solid var(--cv-accent-deep); outline-offset: 1px; }
+
+/* плитки: светло-серая подложка без рамки, подпись мелкая сине-серая, число крупнее и жирнее */
+html[data-theme="customer"] .tile-box {
+  background-color: var(--cv-bg);
+  border-color: transparent;
+  border-radius: 14px;
+  box-shadow: none;
+}
+html[data-theme="customer"] .tile-box:hover { border-color: var(--cv-mid); }
+html[data-theme="customer"] [data-comment-title] { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--cv-muted); }
+html[data-theme="customer"] .tile-box .text-xl { color: var(--cv-navy); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.015em; }
+html[data-theme="customer"] .tile-box .text-base { color: var(--cv-navy); font-size: 0.9rem; font-weight: 800; }
+html[data-theme="customer"] .tile-box .text-sm { font-weight: 700; }
+html[data-theme="customer"] .tile-box .text-xs, html[data-theme="customer"] .tile-box .text-\[11px\] { color: var(--cv-muted); }
+
+/* карточки и таблицы: светлые разделители, скругления 14px */
+html[data-theme="customer"] .rounded-lg.border { border-color: var(--cv-line, #dfe2ea); }
+html[data-theme="customer"] table thead th, html[data-theme="customer"] table thead td { color: var(--cv-muted); font-weight: 700; }
+html[data-theme="customer"] .tabular-nums { font-feature-settings: "tnum" 1; }
+html[data-theme="customer"] .font-semibold { font-weight: 700; }
+
+/* ссылки */
+html[data-theme="customer"] a.text-blue-700, html[data-theme="customer"] .text-blue-700 { color: var(--cv-accent-deep); }
+html[data-theme="customer"] a:hover.text-blue-700 { text-decoration: underline; }
+
+/* значок «i» и вторичные кнопки */
+html[data-theme="customer"] .info-i:hover { border-color: var(--cv-accent); color: var(--cv-accent-deep); }
+
+/* печать — как в текущем стиле: фон и палитра не меняются бумажной версии */
+@media print {
+  html[data-theme="customer"] body { background: #fff; }
+  html[data-theme="customer"] .tile-box { background: #fff; border-color: #dfe2ea; }
+}
+
+/* приглушённые подписи и прочерки «—»: не светлее AA */
+html[data-theme="customer"] :is(.text-neutral-300, .text-neutral-400) { color: var(--cv-muted); }

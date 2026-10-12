@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "./theme-toggle";
 import { NAV_LINKS, activeNavHref } from "./nav-links";
 
 export function Sidebar() {
@@ -29,6 +30,7 @@ export function Sidebar() {
           );
         })}
       </div>
+      <div className="mt-auto px-1 xl:hidden"><ThemeToggle className="w-full flex-col [&>button]:w-full" /></div>
     </nav>
   );
 }

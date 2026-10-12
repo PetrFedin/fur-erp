@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { VatToggle } from "@/components/vat-toggle";
 import { Commission4Toggle } from "@/components/commission4-toggle";
 import { YearToggle } from "@/components/year-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const QUERY = "(max-width: 399px)";
 
@@ -92,6 +93,10 @@ export function TopbarModes() {
           <div className="flex flex-col gap-1">
             <span className="text-xs text-neutral-500">4% к сырью: без или с 4%</span>
             <Commission4Toggle />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-neutral-500">Стиль оформления</span>
+            <ThemeToggle />
           </div>
         </div>
       )}

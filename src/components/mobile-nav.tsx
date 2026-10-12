@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -63,6 +64,7 @@ export function MobileNav() {
                 );
               })}
             </div>
+            <div className="mt-auto px-1"><ThemeToggle className="w-full flex-col [&>button]:w-full" /></div>
           </nav>
         </div>
       )}

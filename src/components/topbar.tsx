@@ -2,6 +2,7 @@ import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { TopbarModes } from "@/components/topbar-modes";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Владелец",
@@ -29,6 +30,7 @@ export function Topbar({
         <div className="truncate text-sm font-medium text-neutral-700">{organizationName}</div>
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <ThemeToggle className="hidden xl:flex" />
         <TopbarModes />
         <div className="hidden text-right text-sm sm:block">
           <div className="font-medium text-neutral-900">{userName}</div>
