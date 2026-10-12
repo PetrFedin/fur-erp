@@ -23,6 +23,7 @@ import { rowVersion, LOT_V } from "@/lib/concurrency";
 import { LotEditButton } from "@/components/lot-edit";
 import { TILE_BOX, TileHead, TileValue, TileList } from "../../../../dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
+import { LotUsageViz, type UsageSeg } from "@/components/lot-usage-bar";
 
 export const metadata = { title: "Карточка лота" };
 
@@ -67,6 +68,19 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     }),
     { qty: new Decimal(0), incl: new Decimal(0), excl: new Decimal(0), ei: new Decimal(0), ee: new Decimal(0), units: new Decimal(0), produced: new Decimal(0) },
   );
+  // Схема расхода: сегменты — ТЗ (по списаниям), «прочее списание» (получено − остаток − ТЗ, не через ТЗ) и остаток; Σ сегментов = куплено.
+  const zeroD = new Decimal(0);
+  const usageSegs: UsageSeg[] = [
+    ...orders.map((o): UsageSeg => ({
+      key: `tz-${o.orderId}`, kind: "order", label: `ТЗ ${o.number}`, sku: o.sku ?? o.modelName, href: `/production/${o.orderId}`,
+      qty: o.qty.toNumber(), date: o.orderDate ? formatDate(o.orderDate) : null,
+      cost: <CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} />,
+    })),
+    ...(l.otherOut.greaterThan(0)
+      ? [{ key: "other", kind: "other", label: "Прочее списание", qty: l.otherOut.toNumber(), cost: <Money incl={q2(l.otherOut.mul(l.unitIncl))} excl={q2(l.otherOut.mul(l.unitExcl))} /> } as UsageSeg]
+      : []),
+    { key: "rem", kind: "rem", label: "Остаток", qty: Decimal.max(l.rem, zeroD).toNumber(), cost: <Money incl={q2(remIncl)} excl={q2(remExcl)} /> },
+  ];
   const idle = l.usages.length === 0 && l.rem.greaterThan(0);
 
   const ok = (a: Decimal, b: Decimal) => a.equals(b);
@@ -215,6 +229,28 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
       </WidgetRow>
+
+      {/* Расход лота по ТЗ: схема + линия остатка + остаток по времени */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            Расход лота по ТЗ
+            <InfoHint label="Расход лота по ТЗ" wide>
+              <p>Полоса равна количеству лота при закупке ({qty(l.recv)}). Каждый цветной сегмент — одно ТЗ, ширина пропорциональна списанному из этого лота; последний сегмент с пунктиром — остаток. Оранжевая линия — граница «использовано | остаток».</p>
+              <p className="mt-1">«Прочее списание» — убыль не через ТЗ (корректировки, потери): получено − остаток − Σ ТЗ. Сумма сегментов всегда равна «Куплено». Деньги — «С НДС / Без НДС» из шапки; цвет не единственный признак — все данные есть в таблице под полосой.</p>
+            </InfoHint>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LotUsageViz
+            unit={unit}
+            recv={l.recv.toNumber()}
+            startDate={formatDate(l.date)}
+            segs={usageSegs}
+            totalCost={<Money incl={q2(l.recv.mul(l.unitIncl))} excl={q2(l.recv.mul(l.unitExcl))} />}
+          />
+        </CardContent>
+      </Card>
 
       {/* Из чего состоит цена лота */}
       {(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { LotUsageMini } from "@/components/lot-usage-bar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -263,6 +264,7 @@ export function FurSelectionTotal({
                     ))}
                   </div>
                 )}
+                {l.recv > 0 && <LotUsageMini recv={l.recv} used={l.used} unit={kind === "lining" ? "м" : "шт."} className="mt-1 w-full max-w-56" />}
                 {l.purchaseId && (
                   <div className="mt-0.5 text-xs text-neutral-500">
                     <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline" onClick={(e) => e.stopPropagation()}>
