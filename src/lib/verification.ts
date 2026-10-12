@@ -438,7 +438,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const t = templateDateIssue(o.number, o.workOrderDate);
         if (t) blockers.push({ text: t, href });
       }
-      if (!batch) blockers.push({ text: "партия не указана", href });
+      if (!batch && (o as { batchNotRequired?: boolean | null }).batchNotRequired !== true) blockers.push({ text: "партия не указана", href });
       if (!o.clientId) blockers.push({ text: "заказчик не указан", href });
       const qty = orderUnits(o);
       if (!(qty > 0)) blockers.push({ text: "количество не задано", href });

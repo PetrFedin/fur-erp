@@ -139,7 +139,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
           const ch = r.changes as Record<string, unknown> | null;
           if (!ch || typeof ch !== "object") return true;
           const keys = Object.keys(ch);
-          return !(keys.length > 0 && keys.every((k) => /^verif|^confirmed(At|By)?$|^updatedAt$/.test(k)));
+          return !(keys.length > 0 && keys.every((k) => /^verif|^confirmed(At|By)?$|^updatedAt$|^quantityRemaining$/.test(k)));
         })
         .map((r) => ({ model: r.model, recordId: r.recordId, at: r.at })),
     ).catch(() => []);

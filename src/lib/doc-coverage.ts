@@ -64,7 +64,7 @@ const OPT: CellRule = { need: "optional" };
  * Закупки с «аукционом», у которого счёта аукциона быть не может: ферма (КФХ), подкладка и доп. материалы по спецификации —
  * покупаются напрямую у поставщика. Только для правил покрытия: отображение «Без аукциона» (auction-names.ts) не затрагивается.
  */
-const NO_INVOICE_PREFIXES = ["кфх", "подкладка спец.", "доп. материалы спец."];
+const NO_INVOICE_PREFIXES = ["кфх", "подкладка", "доп. материалы"];
 export function noAuctionInvoice(auction: string | null | undefined): boolean {
   if (!auction) return false;
   const n = auction.replace(/\s+/g, " ").trim().toLowerCase().replace(/ё/g, "е");

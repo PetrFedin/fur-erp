@@ -2,7 +2,8 @@ import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { PrismaClient } from "@prisma/client";
-import { auctionName, loadAuctionSummaries, PAY_EPS } from "@/lib/auction-payments";
+import { auctionName, loadAuctionSummaries, PAY_EPS, STATUS_EPS } from "@/lib/auction-payments";
+import { isServiceAuction } from "@/lib/auction-names";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { cleanNote } from "@/lib/note-tags";
@@ -297,7 +298,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
       where: { organizationId, status: { not: "CANCELLED" } },
       select: {
         id: true, number: true, status: true, auctionSession: true, orderDate: true, receivedDate: true,
-        expectedDate: true, supplier: { select: { name: true } },
+        expectedDate: true, isContractorRaw: true, invoiceNumber: true, supplier: { select: { name: true } },
         payments: { where: { status: "COMPLETED" }, select: { amount: true } },
       },
       orderBy: { number: "asc" },
@@ -328,11 +329,14 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     flag("purchase", id, { title: `Закупка ${p.number}`, sub: `${p.supplier.name}${a ? `, ${a}` : ""}${p.status === "RECEIVED" ? "" : " · черновик"}`, href: pHref(id), year: p.orderDate ? p.orderDate.getUTCFullYear() : null }, problem);
   };
 
-  // Аукцион без аукциона / «Нет информации»
+  // Аукцион не указан / «Нет информации». Сырьё подрядчика (isContractorRaw) и закупка со своим счётом Веллмех
+  // (invoiceNumber: оплаты привязаны к самой закупке, не к аукциону) аукциона не имеют по природе — не пробел.
   for (const p of purchases) {
-    const n = auctionName(p.auctionSession);
-    if (!n || /^нет информации/i.test(n.trim()))
-      flagPurchase(p.id, { text: n ? "аукцион — «Нет информации»" : "аукцион не указан", priority: "yellow", group: n ? "no-auction-info" : "no-auction" });
+    const raw = p.auctionSession?.split(/\r?\n/)[0].trim() ?? "";
+    if (!auctionName(p.auctionSession) && !p.isContractorRaw) {
+      if (raw && isServiceAuction(raw)) flagPurchase(p.id, { text: `аукцион — «${raw}»`, priority: "yellow", group: "no-auction-info" });
+      else if (!raw && !p.invoiceNumber?.trim()) flagPurchase(p.id, { text: "аукцион не указан", priority: "yellow", group: "no-auction" });
+    }
     // Даты
     if (isImportDay(p.orderDate)) flagPurchase(p.id, { text: `дата заказа ${formatDate(p.orderDate)} — дата импорта`, priority: "yellow", group: "stub-lots" });
     if (p.status === "RECEIVED" && !p.receivedDate) flagPurchase(p.id, { text: "принята, но даты прихода нет", priority: "yellow", group: "stub-lots" });
@@ -399,7 +403,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     }
     // Переплата, зачтённая документом (расчёт AME по счёту №253), — не вопрос: те же правила в integrity/known.ts.
     const settledByDocs = /^(SAGA 03[-.]26|Подкладка 05[-.]26)$/i.test(a.name);
-    if (a.remaining.lessThan(PAY_EPS.neg()) && !settledByDocs)
+    if (a.remaining.lessThan(STATUS_EPS.neg()) && !settledByDocs)
       attach({ text: `оплачено больше стоимости аукциона на ${formatMoney(a.remaining.neg().toString())}`, priority: "yellow", group: "overpaid" });
   }
   // Закупки без аукциона: переплата считается по самой закупке.
@@ -410,7 +414,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
   const paidById = new Map(purchases.map((l) => [l.id, l.payments.reduce((s, x) => s.add(x.amount), new Decimal(0))]));
   for (const p of purchaseTotals) {
     const over = (paidById.get(p.id) ?? new Decimal(0)).sub(purchaseTotalInclVat(p));
-    if (over.greaterThan(PAY_EPS)) flagPurchase(p.id, { text: `оплачено больше стоимости на ${formatMoney(over.toString())}`, priority: "yellow", group: "overpaid" });
+    if (over.greaterThan(STATUS_EPS)) flagPurchase(p.id, { text: `оплачено больше стоимости на ${formatMoney(over.toString())}`, priority: "yellow", group: "overpaid" });
   }
 
   // --------------------------------------------------------- ПРОИЗВОДСТВО
