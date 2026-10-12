@@ -6,12 +6,30 @@ import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { TileCarousel } from "@/components/tile-carousel";
 import { PriceCompositionChart, useChartVat } from "@/components/price-composition";
-import { COMP_CATS, CAT_LABEL, sliceList, type CompCat } from "@/lib/price-composition";
+import { COMP_CATS, CAT_LABEL, COMP_COLOR, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import type { PCLot } from "@/lib/price-composition-server";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 
 const NCAT = COMP_CATS.length;
 const KEYS: string[] = [...COMP_CATS.map((c) => c.key), "nobd"];
+
+const OTHER_IDX = KEYS.indexOf("other");
+const NOBD_IDX = KEYS.indexOf("nobd");
+const OTHER_HINT = "Упаковка, округления и всё, что не разложено по статьям. У части лотов в расчёте нет разбивки — вся их сумма учтена здесь; такие лоты отмечены «без разбивки» в списке.";
+
+/** «Без разбивки в расчёте» — тоже неразложенный остаток: показываем одной строкой «Прочие расходы», детали — в списке лотов. */
+function mergeOther(list: CompSlice[]): CompSlice[] {
+  const nobd = list.find((s) => s.key === "nobd");
+  if (!nobd) return list.map((s) => (s.key === "other" ? { ...s, hint: OTHER_HINT } : s));
+  const hasOther = list.some((s) => s.key === "other");
+  return list
+    .filter((s) => (hasOther ? s.key !== "nobd" : true))
+    .map((s) => {
+      if (s.key === "other") return { ...s, value: s.value + nobd.value, hint: OTHER_HINT };
+      if (s.key === "nobd") return { ...s, key: "other", label: "Прочие расходы", color: COMP_COLOR.other, hint: OTHER_HINT };
+      return s;
+    });
+}
 
 type Agg = { cats: Record<CompCat, number>; nobd: number; vat: number; qty: number; unit: Record<string, number>; unitTotal: number; lots: PCLot[]; approx: number; nobdLots: number; planned: number };
 
@@ -67,14 +85,15 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
-  const slices = sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat });
+  const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }));
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;
   const total = withVat ? exclTotal + a.vat : exclTotal;
-  const unitVals = { ...a.unit, vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
+  const unitVals = { ...a.unit, other: (a.unit.other ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
   const unitTotal = withVat ? a.unitTotal + unitVals.vat : a.unitTotal;
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).length;
+    m.other = lots.filter((l) => l.excl[OTHER_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005).length;
     return m;
   }, [lots]);
   // Сколько шкур приходится на каждую составляющую: сумма шкур лотов, где эта составляющая есть (данные лотов, не расчёт).
@@ -83,7 +102,8 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
     m.vat = 0;
     for (const l of lots) {
       if (!(l.qty > 0)) continue;
-      KEYS.forEach((k, i) => { if (l.excl[i] > 0.005) m[k] += l.qty; });
+      KEYS.forEach((k, i) => { if (k !== "other" && l.excl[i] > 0.005) m[k] += l.qty; });
+      if (l.excl[OTHER_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005) m.other += l.qty;
       if (l.vat > 0.005) m.vat += l.qty;
     }
     return m;
@@ -92,19 +112,17 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const sel = (key: string) => { setOpener(document.activeElement as HTMLElement | null); setOpen(key); };
   const rows = openSlice
     ? lots
-        .map((l) => ({ l, v: openSlice.key === "vat" ? l.vat : l.excl[KEYS.indexOf(openSlice.key)], tot: l.excl.reduce((s, x) => s + x, 0) + (withVat ? l.vat : 0) }))
+        .map((l) => ({ l, v: openSlice.key === "vat" ? l.vat : openSlice.key === "other" ? l.excl[OTHER_IDX] + l.excl[NOBD_IDX] : l.excl[KEYS.indexOf(openSlice.key)], tot: l.excl.reduce((s, x) => s + x, 0) + (withVat ? l.vat : 0) }))
         .filter((r) => r.v > 0.005)
         .sort((x, y) => y.v - x.v)
     : [];
   const rowsSum = rows.reduce((s, r) => s + r.v, 0);
   const href = fur ? `/lots/fur/${encodeURIComponent(fur)}` : "/lots";
   return (
-    <div className="flex flex-col gap-3 pt-1">
+    <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-3 pt-1">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs text-neutral-500">
           {a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lots.filter((l) => l.kind === "lot").length} лот.
-          {a.planned > 0 ? ` · не получено: ${a.planned}` : ""}
-          {a.nobdLots > 0 ? ` · без разбивки: ${a.nobdLots} лот.` : ""}
         </span>
         {fur ? <Link href={href} className="ml-auto text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
@@ -133,7 +151,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
                   <tr key={l.id} className="border-b border-neutral-100">
                     <td className="py-1.5 pr-2">
                       {l.kind === "lot" ? <Link href={`/analytics/raw/lot/${l.id}`} className="text-blue-700 hover:underline">№ {l.num}</Link> : <span>{l.num}</span>}
-                      <div className="truncate text-[11px] text-neutral-500" title={l.auction}>{l.auction}</div>
+                      <div className="truncate text-[11px] text-neutral-500" title={l.auction}>{l.auction}{openSlice.key === "other" && l.excl[NOBD_IDX] > 0.005 ? " · без разбивки" : ""}</div>
                     </td>
                     <td className="truncate px-1.5 py-1.5 text-right text-xs" title={l.fur}>{l.fur}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{l.qty > 0 ? formatQty(l.qty) : "—"}</td>

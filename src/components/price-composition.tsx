@@ -93,13 +93,13 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
         <div id={`${uid}-legend`} className="w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0">
           <table className="w-full table-fixed text-left text-xs sm:text-sm">
             <caption className="sr-only">{ariaLabel}: составляющие, {qtyVals ? "количество шкур, " : ""}рубли всего, рубли за {unitName} и доля</caption>
-            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[8.5rem] sm:table-column" /><col className="w-[3.5rem] sm:w-[4.5rem]" /></colgroup>
+            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[6rem] sm:table-column" /><col className="w-[3.5rem] sm:w-[4.5rem]" /></colgroup>
             <thead>
               <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
                 <th scope="col" className="py-1.5 pr-2">Составляющая</th>
                 {qtyVals ? <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">Шкур, шт.</th> : null}
                 <th scope="col" className="px-1.5 py-1.5 text-right">₽ всего</th>
-                <th scope="col" title={qty > 0 ? "Средневзвешенная цена = Σ ₽ ÷ Σ шт. шкур" : undefined} className="hidden px-1.5 py-1.5 text-right leading-tight sm:table-cell">{qty > 0 ? "Средневзвеш. цена сырья, ₽/шт." : "₽ всего"}</th>
+                <th scope="col" title={qty > 0 ? "Средневзвешенная цена = Σ ₽ ÷ Σ шт. шкур" : undefined} className="hidden whitespace-nowrap px-1.5 py-1.5 text-right sm:table-cell">{qty > 0 ? "Цена, ₽/шт." : "₽ всего"}</th>
                 <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
               </tr>
             </thead>

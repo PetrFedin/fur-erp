@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
+import { PinSection } from "@/components/pin-section";
 import { VatTriplesHint } from "./vat-line";
 import { shortMaterialName } from "@/lib/material-name";
 import type { Cells, CellsPair, RawTableRow, VatTriple, YearRow } from "@/lib/dashboard-data";
@@ -64,10 +65,8 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
   const sum = (a: Cells, b: Cells): Cells => ({ rq: a.rq + b.rq, rv: a.rv + b.rv, ra: null, uq: a.uq + b.uq, uv: a.uv + b.uv, ua: null, mq: a.mq + b.mq, mv: a.mv + b.mv, ma: null, uo: a.uo + b.uo, uoa: null });
 
   return (
-    <section aria-labelledby="dash-years" className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-        <h2 id="dash-years" className="text-base font-semibold">Динамика по годам</h2>
+    <PinSection id="years-table" title="Динамика по годам" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
+      headerExtra={
           <InfoHint label="Как читать динамику по годам" wide>
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — всегда без 4% (надбавка 4% показана в виджетах «Сырьё» и «Себестоимость»).</p>
             <p className="mt-1">Строки «Мех», «Подкладка» и «Всего, ₽» — итоги за все годы; нажмите «›», чтобы увидеть разбивку по годам. Штуки — только мех, подкладка в метрах; в «Всего» количества не суммируются, суммируются рубли.</p>
@@ -77,8 +76,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             <p className="mt-1">Использовано — сырьё лотов, купленных в этом году (где бы ни было списано): мех, купленный в 2025, мог уйти в ТЗ 2026.</p>
             <p className="mt-1">Бобр — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия».</p>
           </InfoHint>
-        </div>
-      </div>
+      }>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className={TABLE_CLS}>
           <TableCols />
@@ -163,7 +161,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
           </tbody>
         </table>
       </div>
-    </section>
+    </PinSection>
   );
 }
 
@@ -285,10 +283,8 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
   );
 
   return (
-    <section aria-labelledby="dash-raw-table" className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-        <h2 id="dash-raw-table" className="text-base font-semibold">Динамика по сырью</h2>
+    <PinSection id="raw-table" title="Динамика по сырью" value={Array.from(open)} onRestore={(v) => setOpen(new Set(v))}
+      headerExtra={
           <InfoHint label="Как читать таблицу по сырью" wide>
             <p>Строка — вид меха или ткань подкладки («Лиса красная» — вид «Лиса», красная — цвет). Нажмите на вид — разбивка по аукционам.</p>
             <p className="mt-1"><b>Средневзвешенная цена</b> = Σ ₽ ÷ Σ шт. (подкладка — ÷ Σ м). Использовано, куплено и остаток — без 4%.</p>
@@ -297,8 +293,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             <p className="mt-1"><b>Бобр</b> — сырьё подрядчика, лотов закупки нет; изделия из бобра смотрите в «Производство» и «Изделия». Поэтому в этой таблице по лотам его нет.</p>
             {vatRates ? <VatTriplesHint fur={vatRates.fur} lining={vatRates.lining} /> : null}
           </InfoHint>
-        </div>
-      </div>
+      }>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className={TABLE_CLS}>
           <TableCols />
@@ -361,6 +356,6 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
           </tbody>
         </table>
       </div>
-    </section>
+    </PinSection>
   );
 }
