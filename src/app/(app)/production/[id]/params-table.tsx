@@ -240,9 +240,6 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         <Row label="Окончание" hint="Проставляется при завершении ТЗ; при необходимости правится вручную (от даты окончания зависит год ТЗ в сводках).">
           <TextCell value={d.endDateIso} type="date" onSave={save("endDate")} readOnly={ro} label="Дата окончания" />
         </Row>
-        <Row label="Склад сырья" hint="Откуда списывается сырьё.">
-          <SelectCell value={d.rawWarehouseId} options={o.warehouses} onSave={save("rawWarehouseId")} readOnly={ro} label="Склад сырья" />
-        </Row>
         <Row label="Примечание" wide>
           <AreaCell value={d.notes} onSave={save("notes")} readOnly={ro} label="Примечание" />
         </Row>

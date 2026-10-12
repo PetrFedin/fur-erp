@@ -18,6 +18,7 @@ import { PROPOSED_MARK, capitalizeColor, colorKey } from "@/lib/color-ref";
 import { furKey } from "@/lib/fur-ref";
 import { formatMoney } from "@/lib/utils";
 import { loadIntakeRefs, planBatch } from "@/lib/batch-intake-server";
+import { getDefaultWarehouseId } from "@/lib/default-warehouse";
 import {
   AMOUNT_KINDS,
   DOC_KINDS,
@@ -240,10 +241,11 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
   if (preview.newColors.length > 0 && !hasRole(role, ACCESS.colors)) return { error: "Добавлять новые цвета в справочник может владелец, администратор, закупщик или технолог." };
   const bad = await Promise.all([
     prisma.supplier.count({ where: { id: payload.header.supplierId, organizationId: orgId } }),
-    prisma.warehouse.count({ where: { id: payload.header.warehouseId, organizationId: orgId } }),
+    getDefaultWarehouseId(orgId),
   ]);
   if (bad[0] !== 1) return { error: "Поставщик не найден" };
-  if (bad[1] !== 1) return { error: "Склад не найден" };
+  if (!bad[1]) return { error: "Не удалось определить место прихода — обратитесь к администратору" };
+  const warehouseId = bad[1];
 
   // файлы документов — на диск ДО транзакции (при ошибке удаляются)
   const fileEntries = formData.getAll("files");
@@ -321,7 +323,7 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
           const transfer = ordered.length === 1 && upd ? `№ ${upd.number.trim()}${upd.date ? ` от ${dateRu(upd.date)} г.` : ""}` : null;
           const row = await tx.purchase.create({
             data: {
-              organizationId: orgId, number, supplierId: h.supplierId, warehouseId: h.warehouseId, currency: plan.currency,
+              organizationId: orgId, number, supplierId: h.supplierId, warehouseId, currency: plan.currency,
               exchangeRate: plan.currency === "RUB" ? 1 : plan.rate, auctionSession: plan.auctionName, auctionId,
               invoiceNumber: p.invoice || null, transferDocument: transfer, orderDate: new Date(h.orderDate),
               notes: h.notes.trim() || null, createdById: session.user.id,

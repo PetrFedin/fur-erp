@@ -173,10 +173,10 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       <Check key="c3" ok={otherOutLots.length === 0} text={otherOutLots.length === 0 ? "Остаток лота = получено − списано в ТЗ: у всех лотов." : `У ${otherOutLots.length} лотов остаток ≠ получено − списано в ТЗ (ушло не через ТЗ):`}>
             {otherOutLots.length > 0 && lotList(otherOutLots, (l) => `${ex(l.otherOut)}`)}
           </Check>,
-      <Check key="c4" ok={gapLots.length === 0} text={gapLots.length === 0 ? "Остаток склада = Σ лотов: журнал движений сходится с остатком у всех лотов." : `У ${gapLots.length} лотов остаток склада расходится с журналом движений:`}>
+      <Check key="c4" ok={gapLots.length === 0} text={gapLots.length === 0 ? "Остаток по журналу = Σ лотов: журнал движений сходится с остатком у всех лотов." : `У ${gapLots.length} лотов остаток расходится с журналом движений:`}>
             {gapLots.length > 0 && lotList(gapLots, (l) => `журнал − остаток = ${ex(l.movementGap)}`)}
           </Check>,
-      <Check key="c5" ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений склада без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />,
+      <Check key="c5" ok={data.movementsWithoutLot.count === 0} text={data.movementsWithoutLot.count === 0 ? "Списаний и приходов без лота нет." : `Движений без лота: ${data.movementsWithoutLot.count} (на ${ex(data.movementsWithoutLot.qty)}).`} />,
       <Check key="c6" ok={data.receivedItemsWithoutLot === 0} text={data.receivedItemsWithoutLot === 0 ? "У каждой позиции принятой закупки есть лот." : `Позиций принятых закупок без лота: ${data.receivedItemsWithoutLot}.`} />,
       <Check key="c7" ok={noGrade.length === 0} warn text={noGrade.length === 0 ? "У всех лотов указан сорт или цвет." : `Лотов без сорта и цвета: ${noGrade.length} из ${data.lots.length} — их нельзя разнести по «Сорт / цвет»:`}>
             {noGrade.length > 0 && lotList(noGrade)}
@@ -358,7 +358,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
                 <span className="inline-flex items-center gap-1">
                   В учёте
                   <InfoHint label="В учёте" wide>
-                    <p>Остаток по журналу движений склада: приход − списания в ТЗ − прочие списания. Должен совпадать с колонкой «Остаток» (остаток самого лота); если совпадает, показан значок ✓. Расхождение подсвечивается красным, подробности — в карточке лота и в «Сверке лотов».</p>
+                    <p>Остаток по журналу движений: приход − списания в ТЗ − прочие списания. Должен совпадать с колонкой «Остаток» (остаток самого лота); если совпадает, показан значок ✓. Расхождение подсвечивается красным, подробности — в карточке лота и в «Сверке лотов».</p>
                   </InfoHint>
                 </span>
                 <span>Остаток</span>
@@ -554,7 +554,7 @@ function Cells({ a, unit, c4 }: { a: Agg; unit: string; c4: "on" | "off" }) {
     <>
       <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(a.recv, unit)}</span>
       <span className="tabular-nums"><span className={lab}>Использовано</span>{qty(a.used, unit)}</span>
-      <span className={"tabular-nums " + (a.jrem.equals(a.rem) ? "text-neutral-600" : "font-medium text-red-700")} title={a.jrem.equals(a.rem) ? undefined : "Остаток по журналу склада не равен остатку лотов"}>
+      <span className={"tabular-nums " + (a.jrem.equals(a.rem) ? "text-neutral-600" : "font-medium text-red-700")} title={a.jrem.equals(a.rem) ? undefined : "Остаток по журналу движений не равен остатку лотов"}>
         <span className={lab}>В учёте</span>{a.jrem.equals(a.rem) ? <span aria-label="совпадает с остатком">✓</span> : qty(a.jrem, unit)}
       </span>
       <span className="font-medium tabular-nums"><span className={lab}>Остаток</span>{qty(a.rem, unit)}</span>

@@ -8,13 +8,9 @@ import { PurchaseCreateForm } from "./form";
 
 export default async function NewPurchasePage() {
   const session = await requireSession();
-  const [suppliers, warehouses, materials, lots, auctions] = await Promise.all([
+  const [suppliers, materials, lots, auctions] = await Promise.all([
     prisma.supplier.findMany({
       where: { organizationId: session.user.organizationId, isActive: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.warehouse.findMany({
-      where: { organizationId: session.user.organizationId },
       orderBy: { name: "asc" },
     }),
     prisma.rawMaterial.findMany({
@@ -43,7 +39,6 @@ export default async function NewPurchasePage() {
           <PurchaseCreateForm
             action={createPurchase}
             suppliers={suppliers}
-            warehouses={warehouses}
             materialNames={materials.map((m) => m.name)}
             existingLotNumbers={lots.map((l) => l.lotNumber as string)}
             auctions={auctions}

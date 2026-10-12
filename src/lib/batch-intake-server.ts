@@ -100,7 +100,6 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
   const vatDefault = h.vatDefault.trim() === "" ? 22 : num(h.vatDefault);
   if (!(vatDefault >= 0 && vatDefault <= 100)) blocking.push("НДС по умолчанию должен быть от 0 до 100 (шаг 1)");
   if (!h.supplierId || !refs.suppliers.some((s) => s.id === h.supplierId)) blocking.push("Выберите поставщика / посредника (шаг 1)");
-  if (!h.warehouseId || !refs.warehouses.some((w) => w.id === h.warehouseId)) blocking.push("Выберите склад (шаг 1)");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(h.orderDate) || Number.isNaN(Date.parse(h.orderDate))) blocking.push("Укажите дату закупки (шаг 1)");
 
   let auctionName = "";

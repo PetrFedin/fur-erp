@@ -18,7 +18,6 @@ type Option = { id: string; name: string; isDefault?: boolean };
 export function PurchaseCreateForm({
   action,
   suppliers,
-  warehouses,
   materialNames,
   existingLotNumbers,
   auctions,
@@ -29,7 +28,6 @@ export function PurchaseCreateForm({
   existingLotNumbers: string[];
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   suppliers: Option[];
-  warehouses: Option[];
   materialNames: string[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -120,28 +118,6 @@ export function PurchaseCreateForm({
           </div>
         ) : (
           suppliers[0] && <input type="hidden" name="supplierId" value={suppliers[0].id} />
-        )}
-        {warehouses.length > 1 ? (
-          <div className="sm:col-span-2">
-            <Label htmlFor="warehouseId">Склад поступления</Label>
-            <Select
-              id="warehouseId"
-              name="warehouseId"
-              required
-              defaultValue={warehouses.find((w) => w.isDefault)?.id ?? ""}
-            >
-              <option value="" disabled>
-                Выберите склад
-              </option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        ) : (
-          warehouses[0] && <input type="hidden" name="warehouseId" value={warehouses[0].id} />
         )}
       </div>
 

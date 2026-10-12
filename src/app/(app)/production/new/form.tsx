@@ -355,6 +355,8 @@ function FormBody({
     <form ref={keepRef} onSubmit={onSubmit} className="flex flex-col gap-5 pb-4" noValidate>
       <input type="hidden" name="productModelId" value={modelId} />
       <input type="hidden" name="draft" value={draft} />
+      {/* Склад в интерфейсе не указывается: подставляется склад по умолчанию (сервер при пустом значении берёт его сам). */}
+      <input type="hidden" name="rawWarehouseId" value={f.rawWarehouseId ?? defaultWarehouse} />
       <input type="hidden" name="finishedWarehouseId" value={f.rawWarehouseId ?? defaultWarehouse} />
 
       <header className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-1 py-2">
@@ -454,15 +456,10 @@ function FormBody({
         </div>
 
         <details className={cardCls}>
-          <summary className="cursor-pointer text-sm font-medium text-neutral-700">Дополнительно: материал и подкладка из ТЗ, даты, склад, заметки</summary>
+          <summary className="cursor-pointer text-sm font-medium text-neutral-700">Дополнительно: материал и подкладка из ТЗ, даты, заметки</summary>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field htmlFor="materialDescription" label="Материал продукции (как в ТЗ)"><Input id="materialDescription" name="materialDescription" placeholder="Соболь выделанный тонированный" value={f.materialDescription ?? ""} onChange={set("materialDescription")} /></Field>
             <Field htmlFor="lining" label="Подкладка (описание из ТЗ)"><Input id="lining" name="lining" placeholder="100% Шёлк, № LC1635" value={f.lining ?? ""} onChange={set("lining")} /></Field>
-            <Field htmlFor="rawWarehouseId" label="Склад сырья (списание)">
-              <Select id="rawWarehouseId" name="rawWarehouseId" value={f.rawWarehouseId ?? defaultWarehouse} onChange={set("rawWarehouseId")}>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </Select>
-            </Field>
             <Field htmlFor="startDate" label="Дата начала"><Input id="startDate" name="startDate" type="date" value={f.startDate ?? ""} onChange={set("startDate")} /></Field>
             <Field htmlFor="notes" label="Заметки" className="sm:col-span-2"><Textarea id="notes" name="notes" rows={2} value={f.notes ?? ""} onChange={set("notes")} /></Field>
           </div>

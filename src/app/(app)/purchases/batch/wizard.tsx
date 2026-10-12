@@ -184,7 +184,6 @@ export function BatchWizard({
     else if (clash) headerProblems.push(`Аукцион «${clash.name}» уже есть в справочнике — выберите его из списка`);
   }
   if (!header.supplierId) headerProblems.push("Выберите поставщика / посредника");
-  if (!header.warehouseId) headerProblems.push("Выберите склад");
   if (!header.orderDate) headerProblems.push("Укажите дату закупки");
   if (header.currency !== "RUB" && !(numOf(header.exchangeRate) > 0)) headerProblems.push(`Укажите курс ${header.currency} → RUB`);
 
@@ -340,13 +339,6 @@ export function BatchWizard({
                   <Select id="supplierId" value={header.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
                     <option value="">Выберите…</option>
                     {refs.suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="warehouseId">Склад</Label>
-                  <Select id="warehouseId" value={header.warehouseId} onChange={(e) => set("warehouseId", e.target.value)}>
-                    <option value="">Выберите…</option>
-                    {refs.warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </Select>
                 </div>
                 <div>
@@ -560,7 +552,7 @@ function ResultStep({ result, onRestart }: { result: BatchResult; onRestart: () 
           <Row key={s.material} label={`Остаток: ${s.material}, шт.`}>{fmt(s.before, 0)} → {fmt(s.after, 0)}</Row>
         ))}
         {!result.receiving && <Row label="Остаток меха">не изменился: закупки не приняты</Row>}
-        <p className="mt-1 text-xs text-neutral-500">Главная (Закуплено, Склад, Долг поставщику) и страница «Сырьё» уже показывают новые цифры. <Link href="/dashboard" className="underline">Открыть Сводку →</Link></p>
+        <p className="mt-1 text-xs text-neutral-500">Главная (Закуплено, Остаток, Долг поставщику) и страница «Сырьё» уже показывают новые цифры. <Link href="/dashboard" className="underline">Открыть Сводку →</Link></p>
       </div>
 
       <div>

@@ -72,7 +72,7 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
       </InfoHint></div>
         <div className="flex gap-3 text-sm">
           <Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link>
-          <Link href="/articles" className="text-neutral-500 hover:underline">Изделия (себестоимость, склад)</Link>
+          <Link href="/articles" className="text-neutral-500 hover:underline">Изделия (себестоимость, остаток)</Link>
         </div>
       </div>
       <ArticlesRefTable rows={rows} canEdit={canEdit} categories={categories} canCreateCategory={hasRole(session.user.role, ACCESS.categories)} initial={{ q: f.q, noSales: f.sales === "none", onlyActive: f.status.includes("active") }} />

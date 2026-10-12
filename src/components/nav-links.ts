@@ -13,7 +13,7 @@ export const NAV_LINKS = [
   // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history"] },
   // «Настройки» — только справочники и параметры.
-  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/materials", "/warehouses", "/expense-categories", "/users"] },
+  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/materials", "/expense-categories", "/users"] },
 ] as const;
 
 /**

@@ -138,7 +138,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const colorOptions = canEditRole ? await getColorOptions(session.user.organizationId) : [];
   const canAddColor = hasRole(session.user.role, ACCESS.colors);
 
-  const [materials, expenseCategories, suppliers, warehouses, existingLots] = editable
+  const [materials, expenseCategories, suppliers, existingLots] = editable
     ? await Promise.all([
         prisma.rawMaterial.findMany({
           where: { organizationId: session.user.organizationId, isActive: true },
@@ -153,16 +153,12 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           where: { organizationId: session.user.organizationId, isActive: true },
           orderBy: { name: "asc" },
         }),
-        prisma.warehouse.findMany({
-          where: { organizationId: session.user.organizationId },
-          orderBy: { name: "asc" },
-        }),
         prisma.rawMaterialLot.findMany({
           where: { organizationId: session.user.organizationId, lotNumber: { not: null } },
           select: { lotNumber: true },
         }),
       ])
-    : [[], [], [], [], []];
+    : [[], [], [], []];
 
   // The current supplier/warehouse must always be selectable even if it was
   // since deactivated — otherwise the edit form's <select> would silently
@@ -171,9 +167,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const supplierOptions = suppliers.some((s) => s.id === purchase.supplierId)
     ? suppliers
     : [purchase.supplier, ...suppliers];
-  const warehouseOptions = warehouses.some((w) => w.id === purchase.warehouseId)
-    ? warehouses
-    : [purchase.warehouse, ...warehouses];
 
   const auctionRefs = headerEditable
     ? await prisma.auction.findMany({
@@ -507,7 +500,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           <p className="text-sm text-neutral-500">
             {[
               purchase.supplier.name,
-              `склад «${purchase.warehouse.name}»`,
               formatDate(purchase.orderDate),
               purchase.auctionSession ? `партия ${purchase.auctionSession}` : null,
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,
@@ -525,7 +517,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 canCreateAuction={hasRole(session.user.role, ACCESS.auctions)}
                 version={rowVersion(purchase, PURCHASE_V)}
                 suppliers={supplierOptions}
-                warehouses={warehouseOptions}
                 defaults={{
                   supplierId: purchase.supplierId,
                   warehouseId: purchase.warehouseId,

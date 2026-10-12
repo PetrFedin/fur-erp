@@ -5,7 +5,6 @@ import { useKeepingForm } from "@/lib/use-keeping-form";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { writeOffFinishedGoods, type WriteOffState } from "./actions";
-import type { Warehouse } from "@prisma/client";
 
 const initialState: WriteOffState = {};
 
@@ -13,10 +12,8 @@ type ModelOption = { id: string; name: string };
 
 export function WriteOffForm({
   models,
-  warehouses,
 }: {
   models: ModelOption[];
-  warehouses: Warehouse[];
 }) {
   const [state, formAction, pending] = useActionState(writeOffFinishedGoods, initialState);
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending, true);
@@ -25,26 +22,13 @@ export function WriteOffForm({
     <form
       ref={keepRef}
       onSubmit={(e) => {
-        if (!window.confirm("Списать готовую продукцию со склада? Остаток уменьшится.")) {
+        if (!window.confirm("Списать готовую продукцию? Остаток уменьшится.")) {
           e.preventDefault();
           return;
         }
         keepSubmit(e);
       }}
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">
-      <div>
-        <label className="mb-1 block text-xs text-neutral-500">Склад</label>
-        <Select className="ui-field rounded-lg" name="warehouseId" required defaultValue="">
-          <option value="" disabled>
-            Выберите склад
-          </option>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </Select>
-      </div>
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-end gap-2">
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Модель</label>
         <Select className="ui-field rounded-lg" name="productModelId" required defaultValue="">
@@ -67,9 +51,9 @@ export function WriteOffForm({
         <Input className="ui-field rounded-lg" name="notes" placeholder="Продажа, брак..." />
       </div>
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
-        {pending ? "Списываем..." : "Списать со склада"}
+        {pending ? "Списываем..." : "Списать"}
       </Button>
-      {state.error && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="sm:col-span-2 lg:col-span-4 text-sm text-red-600">{state.error}</p>}
     </form>
   );
 }

@@ -32,8 +32,8 @@ export type FormState = { error?: string };
 
 const orderSchema = z.object({
   productModelId: z.string().min(1, "Выберите модель изделия"),
-  rawWarehouseId: z.string().min(1, "Выберите склад сырья"),
-  finishedWarehouseId: z.string().min(1, "Выберите склад готовой продукции"),
+  rawWarehouseId: z.string().min(1, "Не удалось определить место хранения"),
+  finishedWarehouseId: z.string().min(1, "Не удалось определить место хранения"),
   plannedQuantity: zNum("Плановое количество", { positive: true, max: MAX_QTY }),
   color: z.string().trim().max(200).optional(),
   size: z.string().trim().max(200).optional(),
@@ -458,8 +458,8 @@ async function consumeLiningForOrder(
 // invalidate.
 const editOrderSchema = z.object({
   productModelId: z.string().min(1, "Выберите модель изделия"),
-  rawWarehouseId: z.string().min(1, "Выберите склад сырья"),
-  finishedWarehouseId: z.string().min(1, "Выберите склад готовой продукции"),
+  rawWarehouseId: z.string().min(1, "Не удалось определить место хранения"),
+  finishedWarehouseId: z.string().min(1, "Не удалось определить место хранения"),
   plannedQuantity: zNum("Плановое количество", { positive: true, max: MAX_QTY }),
 });
 
@@ -474,7 +474,8 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
 
   const parsed = editOrderSchema.safeParse({
     productModelId: formData.get("productModelId"),
-    rawWarehouseId: formData.get("rawWarehouseId"),
+    // Склад в интерфейсе не выбирается: без поля остаётся прежний склад ТЗ.
+    rawWarehouseId: (formData.get("rawWarehouseId") as string | null) || order.rawWarehouseId,
     // Склад готовой продукции в интерфейсе не выбирается (склад один): без поля остаётся прежний склад ТЗ.
     finishedWarehouseId: (formData.get("finishedWarehouseId") as string | null) || order.finishedWarehouseId,
     plannedQuantity: formData.get("plannedQuantity"),

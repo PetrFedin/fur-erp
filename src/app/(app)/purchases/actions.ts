@@ -25,6 +25,7 @@ import { staleError, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_ED
 import { parseLotSizeGrade } from "@/lib/lot-size";
 import { resolveVatRate, vatRateForDate } from "@/lib/vat-by-date";
 import { invalidateFilterOptions } from "@/lib/filter-options";
+import { getDefaultWarehouseId } from "@/lib/default-warehouse";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -121,9 +122,9 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
   }
   let warehouseId = parsed.data.warehouseId;
   if (!warehouseId) {
-    const warehouses = await prisma.warehouse.findMany({ where: { organizationId: orgId }, select: { id: true } });
-    if (warehouses.length !== 1) return { error: "Выберите склад" };
-    warehouseId = warehouses[0].id;
+    const def = await getDefaultWarehouseId(orgId);
+    if (!def) return { error: "Не удалось определить место прихода — обратитесь к администратору" };
+    warehouseId = def;
   }
   const [supplierOk, warehouseOk] = await Promise.all([
     prisma.supplier.findFirst({ where: { id: supplierId, organizationId: orgId }, select: { id: true } }),
@@ -388,7 +389,7 @@ export async function updateCostPlanRate(purchaseId: string, formData: FormData)
 // and must be re-entered.
 const purchaseHeaderSchema = z.object({
   supplierId: z.string().min(1, "Выберите поставщика"),
-  warehouseId: z.string().min(1, "Выберите склад"),
+  warehouseId: z.string().optional(),
   currency: currencyField,
   auctionSession: z.string().trim().max(500).optional(),
   invoiceNumber: z.string().trim().max(200).optional(),
@@ -411,7 +412,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
 
   const parsed = purchaseHeaderSchema.safeParse({
     supplierId: formData.get("supplierId"),
-    warehouseId: formData.get("warehouseId"),
+    warehouseId: formData.get("warehouseId") || undefined,
     currency: formData.get("currency") || "RUB",
     auctionSession: formData.get("auctionSession") || undefined,
     invoiceNumber: formData.get("invoiceNumber") || undefined,
@@ -419,9 +420,11 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
     orderDate: formData.get("orderDate"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  // Склад в форме не выбирается: остаётся прежний склад закупки (иначе — по умолчанию).
+  const warehouseId = parsed.data.warehouseId || purchase.warehouseId || (await getDefaultWarehouseId(session.user.organizationId)) || "";
   const badRef = await checkOrgRefs(session.user.organizationId, {
     supplier: parsed.data.supplierId,
-    warehouse: parsed.data.warehouseId,
+    warehouse: warehouseId,
   });
   if (badRef) return { error: badRef };
 
@@ -439,7 +442,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
     where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
     data: {
       supplierId: parsed.data.supplierId,
-      warehouseId: parsed.data.warehouseId,
+      warehouseId,
       currency: parsed.data.currency,
       // Same pairing rule as createPurchase: RUB is always rate 1; a
       // currency change resets the rate to 1 so a stale rate from the old
@@ -1295,12 +1298,12 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
   if (!orderDate) return { error: "Некорректная дата" };
   const vatEmpty = String(formData.get("vatRate") ?? "").trim() === "";
 
-  const [suppliers, warehouses] = await Promise.all([
+  const [suppliers, defaultWarehouseId] = await Promise.all([
     prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true } }),
-    prisma.warehouse.findMany({ where: { organizationId: orgId }, select: { id: true } }),
+    getDefaultWarehouseId(orgId),
   ]);
   if (suppliers.length !== 1) return { error: "Не удалось определить поставщика: оформите закупку через раздел «Закупки»" };
-  if (warehouses.length !== 1) return { error: "Не удалось определить склад: оформите закупку через раздел «Закупки»" };
+  if (!defaultWarehouseId) return { error: "Не удалось определить место прихода: оформите закупку через раздел «Закупки»" };
 
   let material: { id: string } | null = null;
   let materialName = "";
@@ -1344,7 +1347,7 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
           organizationId: orgId,
           number,
           supplierId: suppliers[0].id,
-          warehouseId: warehouses[0].id,
+          warehouseId: defaultWarehouseId,
           currency: "RUB",
           exchangeRate: 1,
           auctionSession: "Подкладочные материалы",

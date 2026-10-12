@@ -55,7 +55,7 @@ export default async function ReconPage() {
       <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Сверка лотов</h1><YearNote year={year} />
         <Mode4Badge mode={c4} />
         <InfoHint label="О сверке" wide>
-          <p>Проверка качества учёта по всем лотам выбранного года (мех и подкладка): сходятся ли журнал движений склада, сам лот и списания в ТЗ; какие лоты купили, но не использовали; где использовано больше, чем куплено.</p>
+          <p>Проверка качества учёта по всем лотам выбранного года (мех и подкладка): сходятся ли журнал движений, сам лот и списания в ТЗ; какие лоты купили, но не использовали; где использовано больше, чем куплено.</p>
           <p className="mt-1">Год — общий, из шапки (по дате закупки лота). Всего лотов в проверке: {data.lots.length}.</p>
         </InfoHint></div>
 
@@ -65,14 +65,14 @@ export default async function ReconPage() {
           <CardTitle className="flex flex-wrap items-center gap-2">
             Учёт ≠ лот ≠ Σ ТЗ {badge(mismatch.length)}
             <InfoHint label="Расхождения" wide>
-              <p>У лота три остатка: по журналу склада, по самому лоту и «получено − списано в ТЗ». Лот попадает сюда, если они не равны, или не равны приход/списания по журналу и по лоту, или количество в закупке.</p>
+              <p>У лота три остатка: по журналу движений, по самому лоту и «получено − списано в ТЗ». Лот попадает сюда, если они не равны, или не равны приход/списания по журналу и по лоту, или количество в закупке.</p>
             </InfoHint>
             <span className="ml-auto">{csv("mismatch")}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {mismatch.length === 0 ? (
-            <p className="text-sm text-emerald-700">Расхождений нет: у всех {data.lots.length} лотов журнал склада, лот и списания ТЗ сходятся.</p>
+            <p className="text-sm text-emerald-700">Расхождений нет: у всех {data.lots.length} лотов журнал движений, лот и списания ТЗ сходятся.</p>
           ) : (
             <ResponsiveRows
               table={

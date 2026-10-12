@@ -22,7 +22,7 @@ export function LoginForm({ demoEmail, demoPassword }: { demoEmail?: string; dem
   return (
     <AuthShell
       title="Вход"
-      description="Закупки, склад и себестоимость"
+      description="Закупки, сырьё и себестоимость"
       footer={
         <>
           Нет аккаунта?{" "}

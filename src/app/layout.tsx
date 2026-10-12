@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "MVST FUR PRODUCTION", template: "%s — MVST FUR PRODUCTION" },
-  description: "Закупки, склад и себестоимость",
+  description: "Закупки, сырьё и себестоимость",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

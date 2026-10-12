@@ -116,7 +116,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <span className="inline-flex">
           <InfoHint label="О карточке" wide>
             <p>Всё про один лот: откуда он (аукцион, закупка), сколько куплено, в каких изделиях использован, сколько осталось и сходится ли учёт.</p>
-            <p className="mt-1">«В учёте» — журнал движений склада (приходы и списания). «По лоту» — сам лот (получено и остаток). «Σ ТЗ» — сумма списаний в техзаданиях. Если три источника не равны, строка подсвечивается красным.</p>
+            <p className="mt-1">«В учёте» — журнал движений (приходы и списания). «По лоту» — сам лот (получено и остаток). «Σ ТЗ» — сумма списаний в техзаданиях. Если три источника не равны, строка подсвечивается красным.</p>
             <p className="mt-1">Карточка показывает лот целиком, не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% (режим в шапке) добавляется только к списаниям, где оно применяется.</p>
           </InfoHint>
         </span>
@@ -157,7 +157,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             {!lining && dl("Размер", l.size === "Не указан" ? "не указан" : l.size)}
             {dl("Дата закупки", p.purchaseDate ? formatDate(p.purchaseDate) : null)}
             {dl("Дата прихода", formatDate(p.receivedDate))}
-            {dl("Склад", p.warehouse)}
             {dl("НДС", `${formatQty(p.vatRate.toString())}% · ${vatPeriodLabel(p.purchaseDate ?? p.receivedDate)}${Number(p.vatRate) !== vatRateForDate(p.purchaseDate ?? p.receivedDate) ? ` (по дате должна быть ${vatRateForDate(p.purchaseDate ?? p.receivedDate)}%)` : ""}`)}
             {dl(
               "Цена за единицу",
@@ -353,7 +352,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           <CardTitle className="flex flex-wrap items-center gap-2">
             Сходится ли учёт
             <InfoHint label="Сверка учёта" wide>
-              <p>Три источника по одному лоту: журнал движений склада («в учёте»), сам лот и списания в ТЗ. В норме цифры в каждой строке равны.</p>
+              <p>Три источника по одному лоту: журнал движений («в учёте»), сам лот и списания в ТЗ. В норме цифры в каждой строке равны.</p>
               <p className="mt-1">Сейчас: журнал — остаток {formatQty(bal.journal.toString())}, лот — {formatQty(bal.lot.toString())}, «получено − Σ ТЗ» — {formatQty(bal.calc.toString())} {unit}.</p>
             </InfoHint>
           </CardTitle>
@@ -364,7 +363,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
               <thead>
                 <tr className="text-left text-xs text-neutral-500">
                   <th className="py-1 pr-3 font-medium"> </th>
-                  <th className="py-1 pr-3 font-medium">В учёте (журнал склада)</th>
+                  <th className="py-1 pr-3 font-medium">В учёте (журнал движений)</th>
                   <th className="py-1 pr-3 font-medium">По лоту</th>
                   <th className="py-1 pr-3 font-medium">Закупка / Σ ТЗ</th>
                   <th className="py-1 font-medium">Сверка</th>

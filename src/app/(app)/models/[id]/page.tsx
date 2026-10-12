@@ -196,7 +196,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />
         <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />
         <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />
-        <SectionLink href="#stock" label="Склад / движения" count={movementsCount} />
+        <SectionLink href="#stock" label="Остаток / движения" count={movementsCount} />
         <SectionLink href="#docs" label="Документы" count={docs.length} />
       </nav>
 
@@ -378,7 +378,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       )}
 
       <details id="stock" className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={stocks.length > 0 || movements.length > 0}>
-        <summary className="cursor-pointer text-sm font-medium">Склад и движения ({movementsCount})</summary>
+        <summary className="cursor-pointer text-sm font-medium">Остаток и движения ({movementsCount})</summary>
         <div className="mt-2 flex flex-col gap-3">
           {stocks.length === 0 ? (
             <p className="text-sm text-neutral-500">На складе нет</p>

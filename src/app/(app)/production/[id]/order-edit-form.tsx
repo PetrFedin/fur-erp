@@ -17,7 +17,6 @@ type ClientOption = { id: string; name: string };
 export function OrderEditForm({
   action,
   models,
-  warehouses,
   clients,
   batches,
   modelLocked,
@@ -140,16 +139,6 @@ export function OrderEditForm({
           <div>
             <Label htmlFor="startDate">Дата начала</Label>
             <Input id="startDate" name="startDate" type="date" defaultValue={defaults.startDate} />
-          </div>
-          <div>
-            <Label htmlFor="rawWarehouseId">Склад сырья (списание)</Label>
-            <Select id="rawWarehouseId" name="rawWarehouseId" required defaultValue={defaults.rawWarehouseId}>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
           </div>
 
           <div className="sm:col-span-2 mt-2 border-t border-neutral-200 pt-4">

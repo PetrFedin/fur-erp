@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import type { FormState } from "../actions";
-import type { Supplier, Warehouse } from "@prisma/client";
+import type { Supplier } from "@prisma/client";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { AuctionSelect, type AuctionSelectOption } from "@/components/auction-select";
 
@@ -13,7 +13,6 @@ const initialState: FormState = {};
 export function PurchaseEditForm({
   action,
   suppliers,
-  warehouses,
   defaults,
   currencyLocked = false,
   version,
@@ -21,7 +20,7 @@ export function PurchaseEditForm({
   canCreateAuction = false,
   receivedMode = false,
 }: {
-  /** Принятая закупка: поставщик, склад и валюта не меняются (лоты уже посчитаны), правятся дата, аукцион, № счёта и УПД. */
+  /** Принятая закупка: поставщик и валюта не меняются (лоты уже посчитаны), правятся дата, аукцион, № счёта и УПД. */
   receivedMode?: boolean;
   auctions: AuctionSelectOption[];
   canCreateAuction?: boolean;
@@ -30,7 +29,6 @@ export function PurchaseEditForm({
   version?: string;
   action: (formData: FormData) => Promise<FormState>;
   suppliers: Supplier[];
-  warehouses: Warehouse[];
   defaults: {
     supplierId: string;
     warehouseId: string;
@@ -93,20 +91,6 @@ export function PurchaseEditForm({
       ) : (
         <input type="hidden" name="supplierId" value={defaults.supplierId} />
       )}
-      {receivedMode ? null : warehouses.length > 1 ? (
-        <div>
-          <Label htmlFor="warehouseId">Склад поступления</Label>
-          <Select id="warehouseId" name="warehouseId" required defaultValue={defaults.warehouseId}>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      ) : (
-        <input type="hidden" name="warehouseId" value={defaults.warehouseId} />
-      )}
       {!receivedMode && (<div>
         <Label htmlFor="currency">Валюта позиций</Label>
         {currencyLocked && <input type="hidden" name="currency" value={defaults.currency} />}
@@ -139,7 +123,7 @@ export function PurchaseEditForm({
       </div>
       <p className="sm:col-span-2 text-xs text-neutral-500">
         {receivedMode
-          ? "Закупка принята на склад: поставщик, склад, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта и УПД; подтверждение закупки сбросится."
+          ? "Закупка принята на склад: поставщик, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта и УПД; подтверждение закупки сбросится."
           : currencyLocked
           ? "Валюта и курс не меняются: в закупке есть позиции с расчётом из расчётного листа."
           : "При смене валюты курс сбрасывается на 1 — обновите его ниже."}
