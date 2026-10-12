@@ -89,27 +89,27 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
   const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).length, [lots]);
-  // «Прочие расходы» раскрываются по источникам: аукцион/партия (или «по плану закупки» для заказанного, но не полученного), сумма и шкуры.
+  // «Прочие расходы» раскрываются по сути: упаковка (строка расчёта) и остаток до цены лота (округления, не разложенное).
   const otherGroups = useMemo(() => {
-    const g = new Map<string, { label: string; value: number; unit: number; qty: number; n: number; hint: string }>();
+    const defs = [
+      { k: "other_g:pack", label: "Упаковка", hint: "Строка «Упаковка» в расчёте (за шкуру, в долларах × курс ЦБ): упаковка шкур для отправки." },
+      { k: "other_g:rest", label: "Округления и не разложенный остаток", hint: "Разница между ценой лота и суммой строк расчёта: копейки округления и мелочи, для которых в расчёте нет отдельной строки." },
+    ];
+    const g = defs.map((d) => ({ ...d, value: 0, unit: 0, qty: 0, n: 0 }));
     for (const l of lots) {
       const v = l.excl[OTHER_IDX];
       if (!(Math.abs(v) >= 0.005)) continue;
-      const planned = l.kind === "planned";
-      const k = "other_g:" + (planned ? "plan:" : "") + l.auction;
-      const e = g.get(k) ?? { label: planned ? `${l.auction} · по плану закупки` : l.auction, value: 0, unit: 0, qty: 0, n: 0, hint: planned ? "Заказано, не получено: упаковка и прочее из расчёта позиций закупки (costPlan)." : "Упаковка и прочие расходы, не разложенные по статьям, в лотах этого аукциона." };
-      e.value += v; e.n++;
-      if (l.qty > 0) { e.unit += v; e.qty += l.qty; }
-      g.set(k, e);
+      const parts = [l.pack, v - l.pack];
+      parts.forEach((x, i) => {
+        if (!(Math.abs(x) >= 0.005)) return;
+        g[i].value += x; g[i].n++;
+        if (l.qty > 0) { g[i].unit += x; g[i].qty += l.qty; }
+      });
     }
-    // Копеечные хвосты (меньше 1 ₽) — одна строка «Округления».
-    const big = [...g.entries()].filter(([, e]) => Math.abs(e.value) >= 1).sort((x, y) => y[1].value - x[1].value);
-    const tiny = [...g.values()].filter((e) => Math.abs(e.value) < 1);
-    if (tiny.length) big.push(["other_g:round", { label: "Округления", value: tiny.reduce((q, e) => q + e.value, 0), unit: tiny.reduce((q, e) => q + e.unit, 0), qty: tiny.reduce((q, e) => q + e.qty, 0), n: tiny.reduce((q, e) => q + e.n, 0), hint: "Копеечные остатки до цены лота (меньше 1 ₽ на аукцион)." }]);
-    return big;
+    return g.filter((e) => Math.abs(e.value) >= 0.005).map((e) => [e.k, e] as const);
   }, [lots]);
   const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }), nobdLotsN).map((sl) =>
-    sl.key === "other" && otherGroups.length > 1
+    sl.key === "other" && otherGroups.length > 0
       ? { ...sl, sub: otherGroups.map(([k, e]) => ({ key: k, label: `${e.label} (${e.n} ${lotsWord(e.n)})`, value: e.value, color: COMP_COLOR.other, hint: e.hint })) }
       : sl);
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;

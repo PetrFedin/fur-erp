@@ -17,6 +17,8 @@ export type PCLot = {
   auction: string;
   qty: number;
   excl: number[];
+  /** Часть «Прочих расходов» (без НДС), заданная строкой «Упаковка» расчёта; остальное — остаток до цены лота. */
+  pack: number;
   /** НДС лота, ₽ (цена с НДС − цена без НДС). */
   vat: number;
   kind: "lot" | "planned" | "hides";
@@ -41,13 +43,16 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
     const excl = new Array<number>(NCAT + 1).fill(0);
     let vat = l.recvIncl - l.recvExcl;
     let approx = false;
+    let pack = 0;
     if (comp) {
       const sp = splitVat(comp, l.vatRate, l.recvExcl);
       COMP_CATS.forEach((c, i) => { excl[i] = sp.excl[c.key]; });
       vat = sp.vat;
       approx = comp.approx;
+      const oi = COMP_CATS.findIndex((c) => c.key === "other");
+      pack = comp.incl.other > 0.005 ? excl[oi] * Math.min(1, comp.pack / comp.incl.other) : 0;
     } else excl[NCAT] = l.recvExcl;
-    out.push({ id: l.id, num: l.lotNumber, fur: l.item, auction: l.auctionLabel, qty: l.recv, excl, vat, kind: "lot", approx });
+    out.push({ id: l.id, num: l.lotNumber, fur: l.item, auction: l.auctionLabel, qty: l.recv, excl, pack, vat, kind: "lot", approx });
   }
 
   // Заказано, но не получено (рысь и др.): состав — по расчёту позиций закупки; доли переносятся на сумму «Куплено» этого вида (она уже масштабирована к счёту аукциона).
@@ -60,6 +65,7 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
     });
     for (const s of ordered) {
       const w = new Array<number>(NCAT + 1).fill(0);
+      let packW = 0;
       let approx = false;
       for (const it of items) {
         if ((canonicalFur(it.rawMaterial.name, furIdx)?.name ?? it.rawMaterial.name) !== s.item) continue;
@@ -69,12 +75,13 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
         if (comp) {
           const sp = splitVat(comp, vr);
           COMP_CATS.forEach((c, i) => { w[i] += sp.excl[c.key]; });
+          packW += comp.incl.other > 0.005 ? sp.excl.other * Math.min(1, comp.pack / comp.incl.other) : 0;
           approx = approx || comp.approx;
         } else w[NCAT] += it.subtotal.toNumber();
       }
       const tw = w.reduce((a, x) => a + x, 0);
       const excl = tw > 0 ? w.map((x) => (x / tw) * s.recvExcl) : (() => { const e = new Array<number>(NCAT + 1).fill(0); e[NCAT] = s.recvExcl; return e; })();
-      out.push({ id: s.id, num: "Закупка", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, vat: s.recvIncl - s.recvExcl, kind: "planned", approx });
+      out.push({ id: s.id, num: "Закупка", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, pack: tw > 0 ? (packW / tw) * s.recvExcl : 0, vat: s.recvIncl - s.recvExcl, kind: "planned", approx });
     }
   }
 
@@ -82,7 +89,7 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
   for (const s of d.syntheticLots.filter((l) => l.id.startsWith("hides:"))) {
     const excl = new Array<number>(NCAT + 1).fill(0);
     excl[NCAT] = s.recvExcl;
-    out.push({ id: s.id, num: `шкуры подрядчика ${s.year}`, fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, vat: s.recvIncl - s.recvExcl, kind: "hides", approx: false });
+    out.push({ id: s.id, num: `шкуры подрядчика ${s.year}`, fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, pack: 0, vat: s.recvIncl - s.recvExcl, kind: "hides", approx: false });
   }
   return { lots: out };
 }

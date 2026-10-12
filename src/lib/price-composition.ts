@@ -37,6 +37,8 @@ export type Composition = {
   approx: boolean;
   /** Строки расчёта, не вошедшие ни в один сектор (для отчёта). */
   unused: string[];
+  /** Часть «Прочих расходов» (incl), заданная строкой «Упаковка»; остальное — остаток до цены лота. */
+  pack: number;
 };
 
 export const emptyCats = (): Record<CompCat, number> => ({ raw: 0, fx: 0, transport: 0, dress: 0, dye: 0, agent: 0, mediator: 0, other: 0 });
@@ -90,6 +92,7 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
   const cats = emptyCats();
   let format: CompFormat;
   let approx = false;
+  let pack = 0;
 
   if (has("Стоимость молоток ЛОТ без НДС")) {
     format = "lot";
@@ -137,7 +140,8 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
       if (usd > 0 && (ref.currency === "USD" || inv > 0)) { cats.raw = usd * fix * q; approx = true; }
     }
     cats.agent += (v("Аукционный сбор") ?? 0) * fix * q;
-    cats.other += (v("Упаковка") ?? 0) * fix * q;
+    pack = (v("Упаковка") ?? 0) * fix * q;
+    cats.other += pack;
     cats.dress += ((v("Выделка/крашение/стрижка, $") ?? 0) + (v("Выделка/крашение/стрижка, ₽") ?? 0)) * q;
     cats.transport += ((v("Аванс на таможню (вкл. услуги перевозчика, 30,5%)") ?? 0) + (v("Доставка ФИН-КЛД-МСК (авиа)") ?? 0)) * q;
     cats.mediator += (v("Комиссия РМ, 4,5%") ?? 0) * q;
@@ -145,7 +149,8 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
     format = "cust";
     const fix = v("Курс ЦБ (фиксация)") ?? 0;
     cats.agent += (((v("Аукционный сбор") ?? 0) + (v("Брокерская комиссия, %") ?? 0)) * fix) * q;
-    cats.other += (v("Упаковка") ?? 0) * fix * q;
+    pack = (v("Упаковка") ?? 0) * fix * q;
+    cats.other += pack;
     cats.dress += (v("Выделка/крашение/стрижка, $") ?? 0) * q;
     cats.transport += ((v("Транспорт на выделку и обратно") ?? 0) + (v("Транспорт Выделка-Склад") ?? 0) + (v("Пошлина 5%") ?? 0)) * q;
     cats.mediator += (v("Комиссия РМ, 4,5%") ?? 0) * q;
@@ -170,7 +175,7 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
   }
   cats.other += rest;
   if (Math.abs(cats.other) < 0.005) cats.other = 0;
-  return { incl: cats, total, format, approx, unused: items.filter((x) => !used.has(x.label) && !INFO.test(x.label) && x.value !== 0).map((x) => x.label) };
+  return { incl: cats, total, format, approx, pack, unused: items.filter((x) => !used.has(x.label) && !INFO.test(x.label) && x.value !== 0).map((x) => x.label) };
 }
 
 /** Состав цены лота: по расчёту лота, а если его нет — по расчёту позиции закупки. null — разбивки нет. */
