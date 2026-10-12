@@ -237,7 +237,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
               {repair.orders.size > 0 ? (
                 <>
                   <tr className="border-b border-neutral-100">
-                    <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-[#1d4ed8] hover:underline">Ремонт ›</Link></td>
+                    <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="inline-flex items-center rounded-lg border border-[#1d4ed8] bg-white px-3 py-1 text-xs font-medium text-[#1d4ed8] hover:bg-[#EFF4FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]" title="Открыть раздел «Ремонт» со всеми ТЗ ремонта">Ремонт</Link></td>
                     {cells(repair, true, true)}
                   </tr>
                   <tr className="row-total">

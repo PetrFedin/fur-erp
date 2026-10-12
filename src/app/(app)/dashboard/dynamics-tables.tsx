@@ -232,10 +232,10 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
     <>
       {kindHead("Подкладка")}
       <tr className="border-b border-neutral-200 bg-neutral-50">
-        <td className={ARROW_TD}>{arrow(LIN, "подкладка")}</td>
+        <td className={ARROW_TD}>{lin.length > 0 ? arrow(LIN, "подкладка") : null}</td>
         <td className="px-2 py-1.5 text-left">Подкладка</td>
-        <CellsTds c={linSub} unit="м" bold avg={avg} />
-        <MoneyTds paid={lin.reduce((a, r) => a + r.paid, 0)} due={lin.reduce((a, r) => a + r.due, 0)} bold />
+        <CellsTds c={linSub} unit="м" avg={avg} />
+        <MoneyTds paid={lin.reduce((a, r) => a + r.paid, 0)} due={lin.reduce((a, r) => a + r.due, 0)} />
       </tr>
       {open.has(LIN) ? itemRows(lin, "м") : null}
     </>
