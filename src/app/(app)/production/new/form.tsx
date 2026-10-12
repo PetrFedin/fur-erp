@@ -13,6 +13,7 @@ import { createFurInline } from "@/app/(app)/settings/furs/actions";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { parseLotLines } from "@/lib/lot-lines";
 import { defaultCommission4, COMMISSION_RATE } from "@/lib/commission4-const";
+import { vatPeriodLabel } from "@/lib/vat-by-date";
 import { draftTotals, lineCalc, vatByRate, type CalcLine } from "@/lib/tz-calc";
 import { formatQty, formatMoney } from "@/lib/utils";
 import { LotPicker, type LotOpt } from "./lot-picker";
@@ -157,12 +158,18 @@ function FormBody({
   }, [fur, lining]);
 
   const vatOwn = vatSel === "other" ? (vatCustom.trim() === "" ? null : num(vatCustom)) : vatSel === "" ? null : Number(vatSel);
+  // Своя ставка строки: общая «НДС» ТЗ, иначе ставка материала по умолчанию (если она отличается от лота); null — как в лоте.
+  const ownVat = (lot: LotOpt): number | null => {
+    const v = vatOwn != null && Number.isFinite(vatOwn) ? vatOwn : lot.materialVat;
+    return v != null && v !== lot.vatRate ? v : null;
+  };
   const toCalc = (ls: Line[]): CalcLine[] =>
     ls.flatMap((l) => {
       const lot = lotById.get(l.lotId);
       const q = num(l.qty);
       if (!lot || !(q > 0)) return [];
-      return [{ lot: { unitCost: lot.unitCost, unitCostExcl: lot.unitCostExcl, vatRate: lot.vatRate }, qty: q, commission4: l.c4, vatRate: vatOwn != null && Number.isFinite(vatOwn) && vatOwn !== lot.vatRate ? vatOwn : null }];
+      const own = ownVat(lot);
+      return [{ lot: { unitCost: lot.unitCost, unitCostExcl: lot.unitCostExcl, vatRate: lot.vatRate }, qty: q, commission4: l.c4, vatRate: own }];
     });
   const furCalc = toCalc(fur);
   const liningCalc = toCalc(lining);
@@ -282,7 +289,7 @@ function FormBody({
           {ls.map((l, i) => {
             const lot = lotById.get(l.lotId);
             const q = num(l.qty);
-            const own = lot && vatOwn != null && Number.isFinite(vatOwn) && vatOwn !== lot.vatRate ? vatOwn : null;
+            const own = lot ? ownVat(lot) : null;
             const c = lot && q > 0 ? lineCalc({ lot: { unitCost: lot.unitCost, unitCostExcl: lot.unitCostExcl, vatRate: lot.vatRate }, qty: q, commission4: l.c4, vatRate: own }) : null;
             const over = lot && (taken[lot.id] ?? 0) > lot.remaining + 1e-9;
             return (
@@ -302,7 +309,7 @@ function FormBody({
                   {lot ? <><M incl={lot.unitCost} excl={lot.unitCostExcl} /><span className="block text-[11px] text-neutral-400">из лота</span></> : "—"}
                 </td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">
-                  {lot ? <>{own ?? lot.vatRate}%{own != null && <span className="block text-[11px] text-amber-700">в лоте {lot.vatRate}%</span>}</> : "—"}
+                  {lot ? <>{own ?? lot.vatRate}%{own != null && <span className="block text-[11px] text-amber-700">в лоте {lot.vatRate}%</span>}<span className="block text-[11px] text-neutral-400">{vatPeriodLabel(lot.purchaseDate)}</span></> : "—"}
                 </td>
                 <td className="px-2 py-1.5">
                   <Input

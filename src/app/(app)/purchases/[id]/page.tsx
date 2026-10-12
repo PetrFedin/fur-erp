@@ -17,6 +17,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
+import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
@@ -141,7 +142,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ? await Promise.all([
         prisma.rawMaterial.findMany({
           where: { organizationId: session.user.organizationId, isActive: true },
-          select: { id: true, name: true, unit: true },
+          select: { id: true, name: true, unit: true, defaultVatRate: true },
           orderBy: { name: "asc" },
         }),
         prisma.expenseCategory.findMany({
@@ -259,7 +260,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   // updatePurchaseItem. Only a cancelled purchase locks items down entirely.
   const itemsMutable = purchase.status !== "CANCELLED" && canEditRole;
 
-  const allMaterials = materials;
+  const allMaterials = materials.map((m) => ({ ...m, defaultVatRate: m.defaultVatRate?.toString() ?? null }));
   const showGradeColor = purchase.items.some((i) => i.grade || i.color);
   // Свои столбцы организации (общие с режимом «Аукцион»): здесь только показ значений.
   const customFields = await prisma.customField.findMany({
@@ -337,7 +338,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     fields: [
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
-                      { label: "НДС", value: `${item.vatRate.toString()}%` },
+                      { label: "НДС", value: `${item.vatRate.toString()}% · ${vatPeriodLabel(purchase.orderDate)}` },
                       ...(hasPlan ? [{ label: <VatLabel key="unit-label" base="Себестоимость ед." />, value: unitNode ?? "—" }] : []),
                       { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
@@ -423,7 +424,10 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
                       </Td>
                       <Td>{formatCurrency(item.unitPrice.toString(), purchase.currency)}</Td>
-                      <Td>{item.vatRate.toString()}%</Td>
+                      <Td>
+                        {item.vatRate.toString()}%
+                        <span className={`block text-[11px] ${Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? "text-neutral-400" : "text-amber-700"}`} title={Number(item.vatRate) === vatRateForDate(purchase.orderDate) ? undefined : `По дате закупки ${formatDate(purchase.orderDate)} должна быть ${vatRateForDate(purchase.orderDate)}%`}>{vatPeriodLabel(purchase.orderDate)}</span>
+                      </Td>
                       {planInfo ? (
                         <>
                           <Td className="whitespace-nowrap">
@@ -644,13 +648,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     materialNames={allMaterials.map((m) => m.name)}
                     existingLotNumbers={existingLots.map((l) => l.lotNumber as string)}
                     currency={purchase.currency}
+                    purchaseDate={purchase.orderDate.toISOString().slice(0, 10)}
                   />
                 </div>
               </details>
               <details className="rounded-md border border-neutral-200 px-3 py-2">
                 <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить одну позицию</summary>
                 <div className="mt-3">
-                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} colorOptions={colorOptions} canAddColor={canAddColor} />
+                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} colorOptions={colorOptions} canAddColor={canAddColor} purchaseDate={purchase.orderDate.toISOString().slice(0, 10)} />
                 </div>
               </details>
             </>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatQty } from "@/lib/utils";
+import { vatPeriodLabel } from "@/lib/vat-by-date";
 
 export type LotOpt = {
   id: string;
@@ -16,6 +17,10 @@ export type LotOpt = {
   /** Цена за единицу без НДС (lotUnitCostExclVat). */
   unitCostExcl: number;
   vatRate: number;
+  /** Ставка НДС по умолчанию у материала (null — «по лоту»). */
+  materialVat: number | null;
+  /** Дата закупки лота (YYYY-MM-DD) — по ней «куплено до 2026 / с 2026». */
+  purchaseDate: string;
   purchaseId: string | null;
   purchaseNumber: string | null;
   auction: string | null;
@@ -79,7 +84,7 @@ export function LotPicker({
                 >
                   <span className="font-medium">{lotTitle(l)}</span>
                   <span className="block text-xs text-neutral-500">
-                    ост. {formatQty(l.remaining)}{left !== l.remaining ? ` (свободно ${formatQty(left)})` : ""} · {formatQty(l.unitCost)} ₽/ед. · НДС {l.vatRate}%
+                    ост. {formatQty(l.remaining)}{left !== l.remaining ? ` (свободно ${formatQty(left)})` : ""} · {formatQty(l.unitCost)} ₽/ед. · НДС {l.materialVat != null && l.materialVat !== l.vatRate ? `${l.materialVat}% (в лоте ${l.vatRate}%)` : `${l.vatRate}%`} · {vatPeriodLabel(l.purchaseDate)}
                     {l.purchaseNumber ? ` · закупка ${l.purchaseNumber}` : ""}{l.auction ? ` · ${l.auction}` : ""}
                   </span>
                 </button>

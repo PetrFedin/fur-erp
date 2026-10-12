@@ -194,16 +194,16 @@ export async function createProductionOrder(
     else vatOwn = new Decimal(raw);
   }
   const draftLots = draft ? [...draft.fur, ...draft.lining] : [];
-  const lotInfo = new Map<string, { id: string; lotNumber: string | null; quantityRemaining: Decimal; vatRate: Decimal; unit: string }>();
+  const lotInfo = new Map<string, { id: string; lotNumber: string | null; quantityRemaining: Decimal; vatRate: Decimal; unit: string; materialVat: Decimal | null }>();
   if (draft) {
     const ids = [...new Set(draftLots.map((l) => l.lotId))];
     const rows = ids.length
       ? await prisma.rawMaterialLot.findMany({
           where: { id: { in: ids }, organizationId },
-          select: { id: true, lotNumber: true, quantityRemaining: true, vatRate: true, rawMaterial: { select: { unit: true } } },
+          select: { id: true, lotNumber: true, quantityRemaining: true, vatRate: true, rawMaterial: { select: { unit: true, defaultVatRate: true } } },
         })
       : [];
-    for (const r of rows) lotInfo.set(r.id, { id: r.id, lotNumber: r.lotNumber, quantityRemaining: r.quantityRemaining, vatRate: r.vatRate, unit: r.rawMaterial.unit });
+    for (const r of rows) lotInfo.set(r.id, { id: r.id, lotNumber: r.lotNumber, quantityRemaining: r.quantityRemaining, vatRate: r.vatRate, unit: r.rawMaterial.unit, materialVat: r.rawMaterial.defaultVatRate });
     const need = new Map<string, Decimal>();
     for (const l of draftLots) {
       const info = lotInfo.get(l.lotId);
@@ -315,7 +315,8 @@ export async function createProductionOrder(
               unitCost,
               totalCost,
               commission4: l.commission4,
-              vatRate: vatOwn && !vatOwn.eq(info.vatRate) ? vatOwn : null,
+              // Своя ставка: общая «НДС» ТЗ, иначе ставка материала по умолчанию (если задана и отличается от лота).
+              vatRate: ((): Decimal | null => { const v = vatOwn ?? info.materialVat; return v && !v.eq(info.vatRate) ? v : null; })(),
             },
           });
         }

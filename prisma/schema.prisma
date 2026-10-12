@@ -375,6 +375,9 @@ model RawMaterial {
   unit           MaterialUnit         @default(PIECE)
   minStockLevel  Decimal?             @db.Decimal(14, 3)
   description    String?
+  /// Ставка НДС материала по умолчанию (%, для НОВЫХ лотов/позиций закупки и строк списания в ТЗ).
+  /// null — «по лоту/по дате документа»: ставка берётся из лота, а для новых записей — по дате (до 2026 — 20, с 2026 — 22).
+  defaultVatRate Decimal?             @db.Decimal(5, 2)
   isActive       Boolean              @default(true)
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt

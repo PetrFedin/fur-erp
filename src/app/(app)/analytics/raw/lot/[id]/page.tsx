@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
 import { WidgetRow } from "@/components/widget-row";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { cleanNote } from "@/lib/note-tags";
@@ -143,7 +144,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             {dl("Дата закупки", p.purchaseDate ? formatDate(p.purchaseDate) : null)}
             {dl("Дата прихода", formatDate(p.receivedDate))}
             {dl("Склад", p.warehouse)}
-            {dl("НДС", `${formatQty(p.vatRate.toString())}%`)}
+            {dl("НДС", `${formatQty(p.vatRate.toString())}% · ${vatPeriodLabel(p.purchaseDate ?? p.receivedDate)}${Number(p.vatRate) !== vatRateForDate(p.purchaseDate ?? p.receivedDate) ? ` (по дате должна быть ${vatRateForDate(p.purchaseDate ?? p.receivedDate)}%)` : ""}`)}
             {dl(
               "Цена за единицу",
               <span className="tabular-nums">

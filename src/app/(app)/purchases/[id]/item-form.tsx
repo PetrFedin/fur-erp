@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
+import { resolveVatRate, vatPeriodLabel } from "@/lib/vat-by-date";
 import { addPurchaseItem } from "../actions";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import type { MaterialUnit } from "@prisma/client";
@@ -16,7 +17,7 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-type MaterialOption = { id: string; name: string; unit: MaterialUnit };
+type MaterialOption = { id: string; name: string; unit: MaterialUnit; defaultVatRate?: string | null };
 
 export function PurchaseItemForm({
   purchaseId,
@@ -24,18 +25,29 @@ export function PurchaseItemForm({
   currency,
   colorOptions,
   canAddColor,
+  purchaseDate,
 }: {
   purchaseId: string;
   materials: MaterialOption[];
   currency: string;
   colorOptions: ColorSelectOption[];
   canAddColor: boolean;
+  /** Дата закупки (YYYY-MM-DD): по ней подставляется ставка НДС (до 2026 — 20%, с 2026 — 22%). */
+  purchaseDate?: string | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [colorResetKey, setColorResetKey] = useState(0);
   const bound = addPurchaseItem.bind(null, purchaseId);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [materialId, setMaterialId] = useState("");
+  const [vat, setVat] = useState<string | null>(null); // null — ставка не правилась вручную
+  const auto = resolveVatRate(materials.find((m) => m.id === materialId)?.defaultVatRate ?? null, purchaseDate);
+  const vatShown = vat ?? String(auto.rate);
+  const vatNum = Number(vatShown.replace(",", "."));
+  const vatWarn = purchaseDate && Number.isFinite(vatNum) && vatNum !== auto.byDate
+    ? `Ставка ${vatNum}% не совпадает с датой закупки (${vatPeriodLabel(purchaseDate)} → ${auto.byDate}%)`
+    : auto.warning;
 
   // onSubmit вместо action: у <form action> React после действия сбрасывает поля даже при ошибке,
   // и введённое (материал, количество, цена) пропадало. Здесь поля сбрасываются только при успехе.
@@ -56,6 +68,8 @@ export function PurchaseItemForm({
               return;
             }
             form.reset();
+            setMaterialId("");
+            setVat(null);
             setColorResetKey((k) => k + 1);
           } catch {
             setError("Не удалось добавить позицию: пропала связь или сервер отклонил запрос.");
@@ -66,7 +80,7 @@ export function PurchaseItemForm({
     >
       <div className="col-span-2">
         <label className="mb-1 block text-xs text-neutral-500">Материал</label>
-        <Select name="rawMaterialId" required defaultValue="">
+        <Select name="rawMaterialId" required value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
           <option value="" disabled>
             Выберите материал
           </option>
@@ -87,7 +101,8 @@ export function PurchaseItemForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">НДС</label>
-        <VatInput name="vatRate" defaultValue="22" required />
+        <VatInput name="vatRate" value={vatShown} onChange={(e) => setVat(e.target.value)} required />
+        <p className={`mt-0.5 text-[11px] leading-tight ${vatWarn ? "text-amber-700" : "text-neutral-500"}`}>{vatWarn ?? `${vatPeriodLabel(purchaseDate)} · ${auto.source === "material" ? "из справочника" : "по дате"}`}</p>
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Лот (если есть)</label>

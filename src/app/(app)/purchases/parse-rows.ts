@@ -61,6 +61,8 @@ export function parsePasteRows(
   raw: string,
   knownMaterialNames: Iterable<string>,
   existingLotNumbers: Iterable<string> = [],
+  /** Ставка НДС для пустого «НДС%»: по дате закупки (vatRateForDate), иначе DEFAULT_PASTE_VAT_RATE. */
+  defaultVat: number = DEFAULT_PASTE_VAT_RATE,
 ): ParseResult {
   const known = new Set<string>();
   for (const n of knownMaterialNames) known.add(n.trim().toLowerCase());
@@ -107,7 +109,7 @@ export function parsePasteRows(
       else if (unitPrice > 999_999_999_999 || (Number.isFinite(quantity) && quantity * unitPrice >= 999_999_999_999))
         errors.push("сумма строки слишком велика");
 
-      let vatRate = DEFAULT_PASTE_VAT_RATE;
+      let vatRate = defaultVat;
       if (vatRaw) {
         vatRate = toNumber(vatRaw);
         if (!Number.isFinite(vatRate)) errors.push(`НДС «${vatRaw}» — не число`);
@@ -153,7 +155,7 @@ export function parsePasteRows(
       materialName,
       quantity: NaN,
       unitPrice: NaN,
-      vatRate: DEFAULT_PASTE_VAT_RATE,
+      vatRate: defaultVat,
       isNewMaterial: false,
       errors,
       warnings,

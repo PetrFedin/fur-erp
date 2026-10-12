@@ -33,7 +33,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     prisma.client.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.rawMaterialLot.findMany({
       where: { organizationId: orgId, quantityRemaining: { gt: 0 } },
-      include: { rawMaterial: { select: { name: true, unit: true } }, purchase: { select: { id: true, number: true, auction: { select: { name: true } } } } },
+      include: { rawMaterial: { select: { name: true, unit: true, defaultVatRate: true } }, purchase: { select: { id: true, number: true, orderDate: true, auction: { select: { name: true } } } } },
       orderBy: [{ receivedDate: "desc" }],
     }),
     prisma.productionOrder.findMany({
@@ -68,6 +68,8 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     unitCost: Number(l.unitCost),
     unitCostExcl: Number(lotUnitCostExclVat(l)),
     vatRate: Number(l.vatRate),
+    materialVat: l.rawMaterial.defaultVatRate != null ? Number(l.rawMaterial.defaultVatRate) : null,
+    purchaseDate: (l.purchase?.orderDate ?? l.receivedDate).toISOString().slice(0, 10),
     purchaseId: l.purchase?.id ?? null,
     purchaseNumber: l.purchase?.number ?? null,
     auction: l.purchase?.auction?.name ?? null,

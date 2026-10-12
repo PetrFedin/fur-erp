@@ -23,6 +23,7 @@ import { resolveAuction } from "@/lib/auction-ref";
 import { replaceFirstLine } from "@/lib/auction-key";
 import { staleError, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V, LOT_V } from "@/lib/concurrency";
 import { parseLotSizeGrade } from "@/lib/lot-size";
+import { resolveVatRate, vatRateForDate } from "@/lib/vat-by-date";
 import { invalidateFilterOptions } from "@/lib/filter-options";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
@@ -136,7 +137,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
   let issues: Issue[] = [];
   if (rawRows) {
     const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
-    const result = parsePasteRows(rawRows, materials.map((m) => m.name), await existingLotNumbers(orgId));
+    const result = parsePasteRows(rawRows, materials.map((m) => m.name), await existingLotNumbers(orgId), vatRateForDate(parsed.data.orderDate));
     issues = issueLines(result);
     if (result.errorCount > 0) {
       return { error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.`, issues };
@@ -522,6 +523,18 @@ export async function setPurchaseStatus(
 
 // ---------- Line items ----------
 
+/**
+ * Ставка НДС новой позиции: введённая вручную; пусто — ставка материала по умолчанию, иначе по дате закупки
+ * (до 01.01.2026 — 20%, с 2026 — 22%, см. src/lib/vat-by-date.ts).
+ */
+async function vatRateOrDefault(raw: FormDataEntryValue | null, materialId: FormDataEntryValue | null, orgId: string, date: Date): Promise<string | number> {
+  if (raw != null && String(raw).trim() !== "") return String(raw);
+  const m = typeof materialId === "string" && materialId
+    ? await prisma.rawMaterial.findFirst({ where: { id: materialId, organizationId: orgId }, select: { defaultVatRate: true } })
+    : null;
+  return resolveVatRate(m?.defaultVatRate?.toString() ?? null, date).rate;
+}
+
 const itemSchema = z.object({
   rawMaterialId: z.string().min(1, "Выберите материал"),
   quantity: zNum("Количество", { positive: true, max: MAX_QTY }),
@@ -541,7 +554,7 @@ export async function addPurchaseItem(purchaseId: string, formData: FormData): P
     rawMaterialId: formData.get("rawMaterialId"),
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
-    vatRate: formData.get("vatRate") ?? 20,
+    vatRate: await vatRateOrDefault(formData.get("vatRate"), formData.get("rawMaterialId"), session.user.organizationId, purchase.orderDate),
     lotNumber: formData.get("lotNumber") || undefined,
     grade: formData.get("grade") || undefined,
     color: formData.get("color") || undefined,
@@ -593,7 +606,7 @@ export async function addPurchaseItemsBulk(
   if (!raw) return { error: "Вставьте хотя бы одну строку" };
 
   const materials = await prisma.rawMaterial.findMany({ where: { organizationId: orgId }, select: { name: true } });
-  const result = parsePasteRows(raw, materials.map((m) => m.name), await existingLotNumbers(orgId));
+  const result = parsePasteRows(raw, materials.map((m) => m.name), await existingLotNumbers(orgId), vatRateForDate(purchase.orderDate));
   const issues = issueLines(result);
   if (result.errorCount > 0) {
     return { error: `Ничего не добавлено: ошибок в позициях — ${result.errorCount}.`, issues };
@@ -1268,7 +1281,8 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
     newNumber: formData.get("newNumber") || undefined,
     meters: formData.get("meters") ?? "",
     pricePerMeter: formData.get("pricePerMeter") ?? "",
-    vatRate: formData.get("vatRate") || 22,
+    // Пустая ставка — подставим по материалу/дате ниже (vatEmpty); 0 здесь — заглушка для схемы.
+    vatRate: formData.get("vatRate") || 0,
     date: formData.get("date") || "",
     invoiceNumber: formData.get("invoiceNumber") || undefined,
     notes: formData.get("notes") || undefined,
@@ -1279,6 +1293,7 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
   if (tooBig(new Decimal(d.meters).mul(d.pricePerMeter))) return { error: AMOUNT_TOO_BIG };
   const orderDate = parseDateInput(d.date);
   if (!orderDate) return { error: "Некорректная дата" };
+  const vatEmpty = String(formData.get("vatRate") ?? "").trim() === "";
 
   const [suppliers, warehouses] = await Promise.all([
     prisma.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true } }),
@@ -1290,14 +1305,16 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
   let material: { id: string } | null = null;
   let materialName = "";
   let createdMaterial = false;
+  let materialDefaultVat: string | null = null;
   if (d.materialId && d.materialId !== "__new") {
     const m = await prisma.rawMaterial.findFirst({
       where: { id: d.materialId, organizationId: orgId, unit: "M" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, defaultVatRate: true },
     });
     if (!m) return { error: "Ткань не найдена" };
     material = m;
     materialName = m.name;
+    materialDefaultVat = m.defaultVatRate?.toString() ?? null;
   } else {
     const num = (d.newNumber ?? "").replace(/^№\s*/, "").trim();
     if (!num) return { error: "Выберите ткань или укажите номер новой ткани" };
@@ -1305,9 +1322,11 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
     materialName = `Подкладочная ткань №${num}`;
     material = await prisma.rawMaterial.findFirst({
       where: { organizationId: orgId, unit: "M", name: { equals: materialName, mode: "insensitive" } },
-      select: { id: true },
+      select: { id: true, defaultVatRate: true },
     });
+    materialDefaultVat = (material as { defaultVatRate?: { toString(): string } | null } | null)?.defaultVatRate?.toString() ?? null;
   }
+  const itemVat = vatEmpty ? resolveVatRate(materialDefaultVat, orderDate).rate : d.vatRate;
 
   let purchaseId: string | null = null;
   try {
@@ -1342,7 +1361,7 @@ export async function addLiningPurchase(_prev: LiningPurchaseState, formData: Fo
           quantity: d.meters,
           unitPrice: d.pricePerMeter,
           subtotal: new Decimal(d.meters).mul(d.pricePerMeter),
-          vatRate: d.vatRate,
+          vatRate: itemVat,
         },
       });
       return purchase;

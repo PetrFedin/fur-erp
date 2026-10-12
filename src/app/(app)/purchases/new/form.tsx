@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState, Issue } from "../actions";
 import { parsePasteRows, issueLines } from "../parse-rows";
+import { vatRateForDate } from "@/lib/vat-by-date";
 import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 import { CbrRateButton } from "../cbr-rate-button";
 import { AuctionSelect, type AuctionSelectOption } from "@/components/auction-select";
@@ -47,7 +48,7 @@ export function PurchaseCreateForm({
         const fd = new FormData(e.currentTarget);
         setState({});
         if (rows.trim()) {
-          const result = parsePasteRows(rows, materialNames, existingLotNumbers);
+          const result = parsePasteRows(rows, materialNames, existingLotNumbers, vatRateForDate(String(fd.get("orderDate") ?? "")));
           if (result.errorCount > 0) {
             setClientIssues(issueLines(result));
             setState({ error: `Закупка не создана: ошибок в позициях — ${result.errorCount}. Исправьте строки ниже.` });

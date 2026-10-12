@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { MaterialFormState } from "./actions";
 import type { RawMaterial, RawMaterialCategory } from "@prisma/client";
 import { useKeepingForm } from "@/lib/use-keeping-form";
+import { VatInput } from "@/components/vat-input";
 
 const initialState: MaterialFormState = {};
 
@@ -17,8 +18,9 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-type SerializedMaterial = Omit<RawMaterial, "minStockLevel"> & {
+type SerializedMaterial = Omit<RawMaterial, "minStockLevel" | "defaultVatRate"> & {
   minStockLevel: string | null;
+  defaultVatRate: string | null;
 };
 
 export function MaterialForm({
@@ -37,6 +39,10 @@ export function MaterialForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const initialVat = material?.defaultVatRate != null ? Number(material.defaultVatRate) : null;
+  const [vatMode, setVatMode] = useState<"" | "20" | "22" | "custom">(
+    initialVat == null ? "" : initialVat === 20 ? "20" : initialVat === 22 ? "22" : "custom",
+  );
 
   return (
     <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -64,6 +70,23 @@ export function MaterialForm({
             </option>
           ))}
         </Select>
+      </div>
+      <div>
+        <Label htmlFor="vatMode">НДС в ТЗ и закупках</Label>
+        <Select id="vatMode" value={vatMode} onChange={(e) => setVatMode(e.target.value as typeof vatMode)}>
+          <option value="">По лоту / по дате документа</option>
+          <option value="20">20% (до 2026)</option>
+          <option value="22">22% (с 2026)</option>
+          <option value="custom">Своя ставка…</option>
+        </Select>
+        {vatMode === "custom" ? (
+          <VatInput name="defaultVatRate" defaultValue={initialVat != null && initialVat !== 20 && initialVat !== 22 ? String(initialVat) : ""} required className="mt-1" />
+        ) : (
+          <input type="hidden" name="defaultVatRate" value={vatMode} />
+        )}
+        <p className="mt-1 text-xs text-neutral-500">
+          Для новых закупок и строк ТЗ. Пусто — ставка берётся из лота (в ТЗ) и по дате документа (до 01.01.2026 — 20%, с 2026 — 22%).
+        </p>
       </div>
       <details
         className="col-span-full rounded-md border border-neutral-200"

@@ -9,6 +9,8 @@ import { formatQty } from "@/lib/utils";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick, splitNone } from "@/lib/filters";
 import { escapeLike } from "@/lib/input";
+import { loadMaterialVat } from "@/lib/material-vat-server";
+import { MaterialVatCell } from "@/components/material-vat-cell";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -46,10 +48,11 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
     prisma.rawMaterialCategory.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
   ]);
 
+  const vatBy = await loadMaterialVat(orgId);
   const showSku = materials.some((m) => m.sku);
   const showCategory = materials.some((m) => m.category);
   const showMin = materials.some((m) => m.minStockLevel);
-  const colCount = 3 + (showSku ? 1 : 0) + (showCategory ? 1 : 0) + (showMin ? 1 : 0);
+  const colCount = 4 + (showSku ? 1 : 0) + (showCategory ? 1 : 0) + (showMin ? 1 : 0);
 
   const inactiveN = await prisma.rawMaterial.count({ where: { organizationId: orgId, isActive: false } });
 
@@ -84,6 +87,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
             {showCategory && <Th>Категория</Th>}
             <Th>Ед. изм.</Th>
             {showMin && <Th>Мин. остаток</Th>}
+            <Th>НДС в ТЗ</Th>
             <Th>Статус</Th>
           </Tr>
         </Thead>
@@ -99,6 +103,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
               {showCategory && <Td>{m.category?.name ?? "—"}</Td>}
               <Td>{UNIT_LABELS[m.unit]}</Td>
               {showMin && <Td>{m.minStockLevel ? formatQty(m.minStockLevel.toString()) : "—"}</Td>}
+              <Td className="text-xs">{vatBy.get(m.id) ? <MaterialVatCell s={vatBy.get(m.id)!} /> : "—"}</Td>
               <Td>
                 <Badge variant={m.isActive ? "success" : "default"}>
                   {m.isActive ? "Активно" : "Неактивно"}

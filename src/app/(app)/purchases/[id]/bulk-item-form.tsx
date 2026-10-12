@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { addPurchaseItemsBulk, type BulkFormState } from "../actions";
 import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 import { parsePasteRows, issueLines } from "../parse-rows";
+import { vatRateForDate } from "@/lib/vat-by-date";
 
 // Paste rows from Excel into an existing draft. Same parser/format as the
 // "Новая закупка" form. All-or-nothing; the text stays if anything is wrong.
@@ -13,11 +14,14 @@ export function BulkItemForm({
   materialNames,
   existingLotNumbers,
   currency,
+  purchaseDate,
 }: {
   existingLotNumbers: string[];
   purchaseId: string;
   materialNames: string[];
   currency: string;
+  /** Дата закупки (YYYY-MM-DD): по ней подставляется ставка для пустого НДС%. */
+  purchaseDate: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [state, setState] = useState<BulkFormState>({});
@@ -27,7 +31,7 @@ export function BulkItemForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        const result = parsePasteRows(rows, materialNames, existingLotNumbers);
+        const result = parsePasteRows(rows, materialNames, existingLotNumbers, vatRateForDate(purchaseDate));
         if (result.errorCount > 0) {
           setState({
             error: `Ничего не добавлено: ошибок в позициях — ${result.errorCount}.`,

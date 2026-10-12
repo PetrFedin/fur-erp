@@ -34,7 +34,7 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
         <CardContent>
           <MaterialForm
             action={updateMaterial.bind(null, id)}
-            material={{ ...material, minStockLevel: material.minStockLevel?.toString() ?? null }}
+            material={{ ...material, minStockLevel: material.minStockLevel?.toString() ?? null, defaultVatRate: material.defaultVatRate?.toString() ?? null }}
             categories={categories}
           />
         </CardContent>

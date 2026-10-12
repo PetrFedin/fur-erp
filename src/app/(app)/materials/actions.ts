@@ -18,6 +18,8 @@ const materialSchema = z.object({
   categoryId: z.string().trim().optional(),
   minStockLevel: zNumOpt("Минимальный остаток", { max: MAX_QTY }),
   description: z.string().trim().max(5000).optional(),
+  // Ставка НДС по умолчанию, %: пусто — «по лоту / по дате документа».
+  defaultVatRate: z.number().min(0, "НДС: от 0 до 100").max(100, "НДС: от 0 до 100").nullable(),
 });
 
 export type MaterialFormState = { error?: string };
@@ -30,7 +32,15 @@ function parse(formData: FormData) {
     categoryId: formData.get("categoryId") || undefined,
     minStockLevel: formData.get("minStockLevel") || undefined,
     description: formData.get("description") || undefined,
+    defaultVatRate: parseVat(formData.get("defaultVatRate")),
   });
+}
+
+function parseVat(raw: FormDataEntryValue | null): number | null {
+  const t = String(raw ?? "").trim().replace(",", ".");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : Number.NaN;
 }
 
 export async function createMaterial(

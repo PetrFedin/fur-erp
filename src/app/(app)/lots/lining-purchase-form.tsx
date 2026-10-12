@@ -3,15 +3,28 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
+import { VatInput } from "@/components/vat-input";
+import { resolveVatRate, vatPeriodLabel } from "@/lib/vat-by-date";
 import { addLiningPurchase, type LiningPurchaseState } from "../purchases/actions";
 
 // «+ Купить ткань»: one quick form — fabric, metres, price per metre, date.
 // The metres are added to that fabric's single pool (no new row appears).
-export function LiningPurchaseForm({ materials }: { materials: { id: string; name: string }[] }) {
+export function LiningPurchaseForm({ materials }: { materials: { id: string; name: string; defaultVatRate?: number | null }[] }) {
   const [pending, startTransition] = useTransition();
   const [state, setState] = useState<LiningPurchaseState>({});
   const [materialId, setMaterialId] = useState(materials[0]?.id ?? "__new");
   const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  // Ставка: у ткани задана — она, иначе по дате закупки (до 2026 — 20%, с 2026 — 22%); правится вручную.
+  const [vatTouched, setVatTouched] = useState(false);
+  const [vat, setVat] = useState("");
+  const mat = materials.find((m) => m.id === materialId);
+  const auto = resolveVatRate(mat?.defaultVatRate ?? null, date || null);
+  const vatShown = vatTouched ? vat : String(auto.rate);
+  const vatNum = Number(vatShown.replace(",", "."));
+  const vatWarn = date && Number.isFinite(vatNum) && vatNum !== auto.byDate
+    ? `Ставка ${vatNum}% не совпадает с датой (${vatPeriodLabel(date)} → ${auto.byDate}%)`
+    : null;
 
   return (
     <details className="mb-4 rounded-md border border-neutral-200 bg-white">
@@ -29,6 +42,8 @@ export function LiningPurchaseForm({ materials }: { materials: { id: string; nam
             setState(res);
             if (res.ok) {
               form.reset();
+              setVatTouched(false);
+              setDate(today);
               setMaterialId(materials[0]?.id ?? "__new");
             }
           });
@@ -65,7 +80,7 @@ export function LiningPurchaseForm({ materials }: { materials: { id: string; nam
           </div>
           <div>
             <Label htmlFor="lp-date">Дата</Label>
-            <Input id="lp-date" name="date" type="date" defaultValue={today} required />
+            <Input id="lp-date" name="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
         </div>
         <details className="text-sm">
@@ -73,7 +88,9 @@ export function LiningPurchaseForm({ materials }: { materials: { id: string; nam
           <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <Label htmlFor="lp-vat">НДС, %</Label>
-              <Input id="lp-vat" name="vatRate" type="number" step="0.01" min="0" max="100" defaultValue={22} />
+              <VatInput id="lp-vat" name="vatRate" value={vatShown} onChange={(e) => { setVatTouched(true); setVat(e.target.value); }} required />
+              <p className="mt-1 text-[11px] text-neutral-500">{vatPeriodLabel(date)} · {auto.source === "material" ? "ставка из справочника" : "по дате закупки"}</p>
+              {vatWarn && <p className="mt-1 text-[11px] text-amber-700">{vatWarn}</p>}
             </div>
             <div>
               <Label htmlFor="lp-invoice">Счёт / накладная</Label>
