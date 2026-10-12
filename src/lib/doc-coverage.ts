@@ -60,9 +60,6 @@ export type RowRules = Partial<Record<ColKey, CellRule>>;
 const REQ: CellRule = { need: "required" };
 const OPT: CellRule = { need: "optional" };
 
-/** Метка закупки «сырьё подрядчика» (не отдельная закупка у поставщика, а шкуры, уже входящие в доплату партии). */
-export const CONTRACTOR_RAW_TAG = "[fix-structure:note]";
-
 /**
  * Закупки с «аукционом», у которого счёта аукциона быть не может: ферма (КФХ), подкладка и доп. материалы по спецификации —
  * покупаются напрямую у поставщика. Только для правил покрытия: отображение «Без аукциона» (auction-names.ts) не затрагивается.
@@ -258,7 +255,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
   const [purchases, pdocs, ddocs, payments, batches, orders, prodPayments, suppliers, clients] = await Promise.all([
     db.purchase.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
-      select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, notes: true, supplier: { select: { name: true } } },
+      select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, isContractorRaw: true, supplier: { select: { name: true } } },
       orderBy: { number: "asc" },
     }),
     db.purchaseDocument.findMany({
@@ -421,7 +418,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
         status: p.status,
         realAuction: !!auction && !isServiceAuction(auction) && !noAuctionInvoice(auction),
         hasPayments: pays.length > 0,
-        contractorRaw: !!p.notes?.includes(CONTRACTOR_RAW_TAG),
+        contractorRaw: p.isContractorRaw === true,
       }),
       [...own, ...fromPayments],
       { searchExtra: auction ?? "", registry: registryCell("purchases", p.number, p.orderDate) }

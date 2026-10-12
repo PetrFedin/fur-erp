@@ -37,6 +37,7 @@ import { articleMetrics } from "@/lib/article-metrics";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
+import { cleanNote } from "@/lib/note-tags";
 
 /** Тонкая вертикальная линия слева у первой колонки блока. */
 const BL = " border-l border-neutral-200";
@@ -183,7 +184,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           </InfoHint>
         </span>
         {canEditProduction(session.user.role) && model.isActive ? (
-          <Link href={newTzHref} className={buttonVariants({ size: "sm" }) + " ml-auto"}>+ Создать ТЗ на этот артикул</Link>
+          <Link href={newTzHref} className={buttonVariants({ size: "sm" }) + " btn-accent ml-auto print:hidden"}>+ Создать ТЗ на этот артикул</Link>
         ) : null}
       </div>
 
@@ -401,7 +402,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                     <Td>{MOVE_LABEL[m.type] ?? m.type}</Td>
                     <Td className="text-right tabular-nums">{formatQty(m.quantity.toString())}</Td>
                     <Td>{m.productionOrder ? <Link href={`/production/${m.productionOrder.id}`} className="text-blue-700 hover:underline">{orderLabel(m.productionOrder)}</Link> : "—"}</Td>
-                    <Td className="text-neutral-600">{m.notes ? truncate(m.notes, 80) : "—"}</Td>
+                    <Td className="text-neutral-600">{cleanNote(m.notes) ? truncate(cleanNote(m.notes)!, 80) : "—"}</Td>
                   </Tr>
                 ))}
               </Tbody>

@@ -56,6 +56,7 @@ async function overviewLeft(orgId: string) {
 import { loadClientDebt } from "@/lib/payment-alloc";
 import { PaymentLinesTable, PurchaseLinesTable, type PayLine, type PurchaseLine } from "./payment-lines";
 import { docCounts } from "@/lib/doc-links";
+import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
 
 // Баннер ?error= показываем только для известных кодов — произвольный текст из URL не выводим.
 const FLASH_ERRORS: Record<string, string> = {
@@ -243,6 +244,11 @@ export default async function PaymentsPage({
 
   // Имена посредников берём из данных аукционов (не хардкодим).
   const ppDocCnt = await docCounts(orgId, "productionPayment", clientPayments.map((p) => p.id));
+  // «Документы-основания» по каждой оплате (свёрнуто в строке): что названо в основании и что из этого уже загружено.
+  const srcDocs = await loadPaymentsSourceDocs(
+    { organizationId: orgId, role: session.user.role },
+    tab === "clients" ? { productionPayments: clientPayments.map((p) => p.id) } : { payments: payments.map((p) => p.id) },
+  );
   // Ближайшие сроки счетов (из документов Drive «срок дд.мм.гггг»), как на Главной.
   const deadlines = (debt?.byAuction ?? [])
     .filter((a) => a.dueInvoiced.greaterThan(0) && a.invoiceDocs)
@@ -556,6 +562,7 @@ export default async function PaymentsPage({
     hidesNote: /шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`),
     movedTo: /закупки\s+(З-[\d-]+)/.exec(p.docRef ?? "")?.[1] ?? null,
     docCount: ppDocCnt.get(p.id)?.total ?? 0,
+    sourceDocs: srcDocs[p.id],
     confirmed: p.confirmedAt != null,
     docTitle: `Оплата ${formatDate(p.paidAt)}`,
     verify: clientVerify[p.id],
@@ -597,7 +604,7 @@ export default async function PaymentsPage({
   const noAucLines: PurchaseLine[] = noAuc.map((p) => {
     const total = purchaseTotalInclVat(p);
     const paid = p.payments.reduce((acc, x) => acc.add(x.amount), new Decimal(0));
-    const note = /fix-drive:fox-209/.test(p.notes ?? "") ? "красная лиса, УПД №209" : /master-0|шкуры подрядчика/i.test(p.notes ?? "") ? "шкуры подрядчика" : null;
+    const note = p.listLabel ?? null;
     return { id: p.id, number: p.number, invoice: p.invoiceNumber ?? null, note, total: total.toString(), paid: paid.toString(), due: total.sub(paid).toString(), received: p.status === "RECEIVED" };
   });
   const noAucPayLines: PayLine[] = noAuc.flatMap((p) =>
@@ -612,6 +619,7 @@ export default async function PaymentsPage({
       confirmed: x.confirmedAt != null,
       status: "COMPLETED" as const,
       docCount: new Set(x.driveDocuments.map((d) => d.driveFileId)).size + (x.document ? 1 : 0),
+      sourceDocs: srcDocs[x.id],
     })),
   );
 
@@ -866,6 +874,7 @@ export default async function PaymentsPage({
                 status: p.status === "PENDING" ? "PENDING" : p.status === "COMPLETED" ? "COMPLETED" : "CANCELLED",
                 overdue: p.status === "PENDING" && p.paidAt.toISOString().slice(0, 10) < today,
                 docCount: new Set(p.driveDocuments.map((d) => d.driveFileId)).size + (p.document ? 1 : 0),
+                sourceDocs: srcDocs[p.id],
                 controls: own ? (canPay ? auctionPayControls(p, selected) : undefined) : p.purchaseId ? <Link href={`/purchases/${p.purchaseId}`} className="text-sm text-blue-700 hover:underline">Править в карточке закупки →</Link> : undefined,
               };
             });

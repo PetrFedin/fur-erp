@@ -5,7 +5,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { auctionName, loadAuctionSummaries } from "@/lib/auction-payments";
 import { isServiceAuction } from "@/lib/auction-names";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
-import { CONTRACTOR_RAW_TAG, PURCHASE_KIND_TO_TYPE, normTitle, noAuctionInvoice, purchaseRules, type Need } from "@/lib/doc-coverage";
+import { PURCHASE_KIND_TO_TYPE, normTitle, noAuctionInvoice, purchaseRules, type Need } from "@/lib/doc-coverage";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { auctionMentions, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
 import { buildPanelPay, isManualRef, type Panel, type PanelDoc, type PanelItem, type PanelMention, type PanelPayment, type UploadTarget } from "@/lib/doc-panel";
@@ -93,7 +93,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
   let units: { key: string; kind: "auction" | "purchase"; ids: string[] }[] = [];
   const base = await db.purchase.findMany({
     where: { organizationId, ...(opts.names ? { auctionSession: { not: null } } : opts.purchaseId ? { OR: [{ id: opts.purchaseId }] } : { auctionSession: { not: null } }) },
-    select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, notes: true, supplierId: true, invoiceNumber: true },
+    select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, isContractorRaw: true, supplierId: true, invoiceNumber: true },
     orderBy: [{ orderDate: "asc" }, { number: "asc" }],
   });
   type P = (typeof base)[number];
@@ -105,7 +105,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     if (an && !isServiceAuction(an)) {
       purchases = await db.purchase.findMany({
         where: { organizationId, auctionSession: { not: null } },
-        select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, notes: true, supplierId: true, invoiceNumber: true },
+        select: { id: true, number: true, status: true, auctionSession: true, orderDate: true, isContractorRaw: true, supplierId: true, invoiceNumber: true },
         orderBy: [{ orderDate: "asc" }, { number: "asc" }],
       });
       purchases = purchases.filter((p) => auctionName(p.auctionSession) === an);
@@ -266,7 +266,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     const needs: Record<string, Need> = { AUCTION_INVOICE: "na", UPD: "na", SPECIFICATION: "na", CALC_SHEET: "na" };
     let allContractor = live.length > 0;
     for (const p of live) {
-      const contractorRaw = !!p.notes?.includes(CONTRACTOR_RAW_TAG);
+      const contractorRaw = p.isContractorRaw === true;
       if (!contractorRaw) allContractor = false;
       const r = purchaseRules({ status: p.status, realAuction, hasPayments: completed.length > 0, contractorRaw });
       for (const k of ["AUCTION_INVOICE", "UPD", "SPECIFICATION", "CALC_SHEET"] as const) needs[k] = maxNeed(needs[k], r[k]?.need ?? "na");

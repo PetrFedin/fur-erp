@@ -5,6 +5,7 @@ import type { PrismaClient } from "@prisma/client";
 import { auctionName, loadAuctionSummaries, PAY_EPS } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { cleanNote } from "@/lib/note-tags";
 import { inYear, type YearFilter } from "@/lib/year-filter";
 import { orderDateOf } from "@/lib/year-scope";
 import { articleLabel } from "@/lib/article-label";
@@ -417,7 +418,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     db.productionOrder.findMany({
       where: { organizationId, status: { not: "CANCELLED" } },
       select: {
-        id: true, number: true, status: true, notes: true, materialDescription: true, workOrderDate: true,
+        id: true, number: true, status: true, notes: true, batchNotRequired: true, materialDescription: true, workOrderDate: true,
         endDate: true, startDate: true, batchId: true, clientId: true, contractNumber: true, productModelId: true,
         plannedQuantity: true, producedQuantity: true,
         productModel: { select: { name: true, category: true, salesCode: true, salesName: true } },
@@ -484,7 +485,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     if (o.materialUsages.length === 0) {
       const ns = NON_STOCK_RE.test(`${o.notes ?? ""} ${o.materialDescription ?? ""}`);
       flagTz(o, {
-        text: `списаний сырья нет${o.notes ? ` — «${cut(o.notes, 60)}»` : ""}`,
+        text: `списаний сырья нет${cleanNote(o.notes) ? ` — «${cut(cleanNote(o.notes)!, 60)}»` : ""}`,
         priority: ns ? "gray" : o.status === "PLANNED" ? "yellow" : "red",
         group: ns ? "no-usage" : "tz-requisites",
       });
@@ -500,8 +501,8 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     if (o.status === "COMPLETED" && (!o.endDate || isImportDay(o.endDate)))
       flagTz(o, { text: o.endDate ? `дата выпуска ${formatDate(o.endDate)} — дата импорта` : "даты выпуска нет", priority: "yellow", group: "tz-end-date" });
     // Реквизиты
-    // ТЗ 116/117 вне партий — документально (письмо Коношенко 10.07.2026, пометка в заметках ТЗ).
-    if (!o.batchId && !(o.notes ?? "").includes("[письма backup 2026-10-08, ТЗ 116/117]")) flagTz(o, { text: "партия не указана", priority: "yellow", group: "tz-requisites" });
+    // ТЗ 116/117 вне партий — документально (письмо Коношенко 10.07.2026); признак «партия не нужна» стоит у самого ТЗ.
+    if (!o.batchId && o.batchNotRequired !== true) flagTz(o, { text: "партия не указана", priority: "yellow", group: "tz-requisites" });
     if (!o.clientId) flagTz(o, { text: "заказчик не указан", priority: "yellow", group: "tz-requisites" });
     else if (!o.contractNumber?.trim()) flagTz(o, { text: "номер договора не указан", priority: "gray", group: "dict" });
     // Запланированные с нулевым остатком сырья

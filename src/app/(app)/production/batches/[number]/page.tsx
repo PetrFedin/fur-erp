@@ -17,6 +17,8 @@ import { ProductionTabs } from "@/components/production-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { DriveDocuments } from "@/components/drive-documents";
+import { SourceDocs } from "@/components/source-docs";
+import { loadBatchSourceDocs } from "@/lib/source-docs-server";
 import { docCounts } from "@/lib/doc-links";
 import { toDriveView } from "@/lib/drive-docs-server";
 import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
@@ -33,6 +35,7 @@ import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../../dashboard/tile";
 import { loadOrdersDrill } from "@/lib/orders-drill";
+import { cleanNote } from "@/lib/note-tags";
 
 const PAY_TYPE: Record<string, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательная" };
 
@@ -149,7 +152,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             .filter(Boolean)
             .join(" · ") || "—"}
         </p>
-        {batch.notes && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{batch.notes}</p>}
+        {cleanNote(batch.notes) && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{cleanNote(batch.notes)}</p>}
         {canEditProduction(session.user.role) && (
           <div className="mt-2">
             <BatchEditButton
@@ -341,25 +344,19 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       </Card>
       </details>
 
-      <Card>
-        <CardContent className="pt-4">
-          <DriveDocuments
-            docs={driveDocs}
-            entity="batch"
-            entityId={batch.id}
-            canEdit={canEditProduction(session.user.role)}
-            extraTargets={
-              ["OWNER", "ADMIN"].includes(session.user.role)
-                ? payments.map((x) => ({
-                    entity: "productionPayment" as const,
-                    id: x.p.id,
-                    label: `Оплата ${formatDate(x.p.paidAt)} · ${formatMoney(x.p.amount.toString())}`,
-                  }))
-                : undefined
-            }
-          />
-        </CardContent>
-      </Card>
+      <SourceDocs
+        data={await loadBatchSourceDocs({ organizationId: orgId, role: session.user.role }, batch.id)}
+        footer={
+          driveDocs.length > 0 ? (
+            <details className="rounded-md border border-neutral-200 px-3 py-2">
+              <summary className="cursor-pointer text-xs font-medium text-neutral-600">Все привязанные записи документов партии, её ТЗ и оплат ({driveDocs.length})</summary>
+              <div className="mt-2">
+                <DriveDocuments docs={driveDocs} entity="batch" entityId={batch.id} canEdit={canEditProduction(session.user.role)} title="Записи документов" />
+              </div>
+            </details>
+          ) : null
+        }
+      />
       <RecordHistory model="ProductionBatch" recordId={batch.id} />
       <RecordComments entityType="ProductionBatch" entityId={batch.id} />
     </div>

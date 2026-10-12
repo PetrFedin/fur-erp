@@ -259,7 +259,6 @@ model User {
   @@index([organizationId])
 }
 
-
 /// Machine-readable admission markers for deterministic rebuilds and production readiness.
 /// Values are operational metadata only; business facts remain in their domain tables.
 model SystemState {
@@ -451,6 +450,10 @@ model Purchase {
   expectedDate     DateTime?
   receivedDate     DateTime?
   notes            String?
+  /// Это не отдельная закупка, а сырьё подрядчика, оплаченное в составе счетов за пошив (проверка документов смотрит на этот признак, а не на текст примечания).
+  isContractorRaw  Boolean?
+  /// Короткая подпись строки в списке «Закупки без аукциона» (например «шкуры подрядчика»).
+  listLabel        String?
   createdById      String?
   createdBy        User?          @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
   createdAt        DateTime       @default(now())
@@ -773,6 +776,7 @@ model RawMaterialLot {
   usages         ProductionMaterialUsage[]
   attrs          RawMaterialLotAttr[]
   driveDocuments DriveDocument[]
+  documents      PurchaseDocument[]
 
   @@index([organizationId])
   @@index([warehouseId, rawMaterialId])
@@ -922,6 +926,8 @@ model ProductionOrder {
   startDate           DateTime?
   endDate             DateTime?
   notes               String?
+  /// ТЗ без партии по документам (отдельная поставка или переделка): «партия не указана» в «Внимании» не показывается.
+  batchNotRequired    Boolean?
   createdById         String?
   createdBy           User?                 @relation("ProductionOrderCreatedBy", fields: [createdById], references: [id])
 
@@ -1168,6 +1174,9 @@ model PurchaseDocument {
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchaseId     String?
   purchase       Purchase?            @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  /// Лот, к которому прикреплён документ (УПД, счёт, спецификация лота); purchaseId при этом тоже задан — документ виден и в закупке.
+  lotId          String?
+  lot            RawMaterialLot?      @relation(fields: [lotId], references: [id], onDelete: SetNull)
   batch          String?
   kind           PurchaseDocumentKind @default(OTHER)
   title          String
@@ -1180,6 +1189,7 @@ model PurchaseDocument {
 
   @@index([organizationId, batch])
   @@index([purchaseId])
+  @@index([lotId])
 }
 
 enum CustomFieldType {
@@ -1209,14 +1219,14 @@ model CustomField {
 // Партия поставки производства (в Google Drive — «поставка N»): группирует ТЗ.
 /// Цвет составного ТЗ: несколько цветов в одном приложении (NAVY ×2 (42, 46); BLACK ×1 (42)).
 model ProductionOrderColor {
-  id         String            @id @default(cuid())
+  id         String          @id @default(cuid())
   orderId    String
-  order      ProductionOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      ProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   colorRefId String
-  colorRef   ColorRef          @relation(fields: [colorRefId], references: [id])
+  colorRef   ColorRef        @relation(fields: [colorRefId], references: [id])
   quantity   Int?
   sizes      String?
-  createdAt  DateTime          @default(now())
+  createdAt  DateTime        @default(now())
 
   @@index([orderId])
   @@index([colorRefId])
@@ -1338,7 +1348,6 @@ model AuditLog {
   @@index([actorId])
 }
 
-
 // ---------- Комментарии к частям проекта («Оставить комментарий») ----------
 // Замечание/ошибка/идея/вопрос, привязанные к странице, записи, блоку или выделенному тексту; потом выгружаются списком задач на доработку.
 enum CommentStatus {
@@ -1412,7 +1421,6 @@ model CommentReply {
   @@index([organizationId])
 }
 
-
 // ---------- Справочник признаков меха («Седина 3», «Дикий», «Тонированный»…) ----------
 /// Признак/подвид меха: седина соболя (SIL.1…6), происхождение (дикий/клеточный/баргузинский), обработка, марка. Определяется по описаниям лотов и ТЗ
 /// (scripts/apply-fur-attrs.ts, src/lib/fur-attr.ts); лот и ТЗ могут иметь несколько признаков. Фильтр «Признак меха» — параметр attr.
@@ -1466,7 +1474,6 @@ model ProductionOrderAttr {
   @@id([orderId, attrId])
   @@index([attrId])
 }
-
 
 /// Версия бюджета (раздел «Бюджет»): прикидка расхода шкур, подкладки и работы по бюджету изделий.
 /// Версий на сезон может быть несколько. Параметры (надбавки в %) и дерево «тип сырья → категория → артикул» хранятся JSON — см. src/lib/budget-calc.ts.
