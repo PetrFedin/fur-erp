@@ -72,7 +72,7 @@ export function OrdersTree({
   const showPay = !!payBy;
   // «Прочее» (разница снимка ТЗ и строк) — отдельный столбец только если она есть; расходы ТЗ входят в «Работа».
   const showRes = Math.abs(grand.other - grand.exp) > 0.5;
-  const cols = 10 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0) + (showPay ? 2 : 0);
+  const cols = 12 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0) + (showPay ? 2 : 0);
 
   const figs = (s: Sum, opts: { qty?: boolean; pay?: { paid: number | undefined; work: number } } = {}) => {
     const q = qtyOf(s);
@@ -84,7 +84,9 @@ export function OrdersTree({
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : formatQty(q)}</td>
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : money(total / q)}</td>
         <td className={TD + " border-l border-neutral-200"}>{s.furQ > 0 ? formatQty(s.furQ) : <Dash />}</td>
+        <td className={TD}>{s.furQ > 0 ? money(s.fur / s.furQ) : <Dash />}</td>
         <td className={TD}>{s.liningQ > 0 ? formatQty(s.liningQ) : <Dash />}</td>
+        <td className={TD}>{s.liningQ > 0 ? money(s.lining / s.liningQ) : <Dash />}</td>
         <td className={TD + " border-l border-neutral-200"}>{money(total)}</td>
         <td className={TD}>{money(s.fur)}</td>
         <td className={TD}>{money(s.lining)}</td>
@@ -116,7 +118,9 @@ export function OrdersTree({
         <td className={`py-1.5 pr-2 text-left ${ind}`}>{label}{sub ? <div className="mt-0.5 text-[11px] leading-4 text-neutral-400">{sub}</div> : null}</td>
         <td className={TD} /><td className={TD} />
         <td className={TD + " border-l border-neutral-200"}>{qs?.fur ? formatQty(qs.fur) : <Dash />}</td>
+        <td className={TD}>{qs?.fur && s.fur ? money(s.fur / qs.fur) : <Dash />}</td>
         <td className={TD}>{qs?.lining ? formatQty(qs.lining) : <Dash />}</td>
+        <td className={TD}>{qs?.lining && s.lining ? money(s.lining / qs.lining) : <Dash />}</td>
         <td className={TD + " border-l border-neutral-200"}>{asWork ? <Dash /> : money((s.fur ?? 0) + (s.lining ?? 0) + (s.c4 ?? 0) + (s.res ?? 0))}</td>
         <td className={TD}>{asWork ? <Dash /> : money(s.fur ?? 0)}</td>
         <td className={TD}>{asWork ? <Dash /> : money(s.lining ?? 0)}</td>
@@ -273,7 +277,7 @@ export function OrdersTree({
               <th />
               <th />
               <THGroup colSpan={2} sep={false}>Выпуск</THGroup>
-              <THGroup colSpan={2}>Использовано</THGroup>
+              <THGroup colSpan={4}>Использовано</THGroup>
               <THGroup colSpan={5 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0)}>Себестоимость и состав</THGroup>
               {showPay ? <THGroup colSpan={2}>Оплата</THGroup> : null}
             </tr>
@@ -283,14 +287,16 @@ export function OrdersTree({
               <Head label="Изделий" unit="шт." align="right" />
               <Head label="На изделие" unit="₽/шт." align="right" />
               <Head label="Шкур" unit="шт." align="right" sep />
+              <Head label="Ср. цена" unit="₽/шт." align="right" />
               <Head label="Подкладка" unit="м" align="right" />
+              <Head label="Ср. цена" unit="₽/м" align="right" />
               <Head label="Себестоимость" unit="₽" align="right" sep />
               <Head label="Мех" unit="₽" align="right" />
               <Head label="Подкладка" unit="₽" align="right" />
               <Head label="Работа" unit="₽" align="right" />
               {c4 === "on" ? <Head label="4%" unit="₽" align="right" /> : null}
               {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
-              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате по работе" unit="₽" align="right" /></> : null}
+              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате" unit="₽" align="right" /></> : null}
             </tr>
           </thead>
           <tbody>
