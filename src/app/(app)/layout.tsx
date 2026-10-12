@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <VatDisplayProvider initialMode={vatMode}>
       <Commission4DisplayProvider initialMode={c4Mode}>
       <YearDisplayProvider initialYear={yearFilter} years={years}>
-      <div className="flex h-screen w-full overflow-hidden print:block print:h-auto print:overflow-visible">
+      <div className="flex h-dvh w-full overflow-hidden print:block print:h-auto print:overflow-visible">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
