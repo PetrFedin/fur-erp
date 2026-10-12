@@ -1,80 +1,137 @@
 import Link from "next/link";
-import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
-import { WidgetRow } from "@/components/widget-row";
-import { IntegrityBanner } from "@/components/integrity-banner";
-import { cleanNote } from "@/lib/note-tags";
 import { notFound } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
+import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
+import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { InfoHint } from "@/components/info-hint";
 import { Money } from "@/components/money";
-import { Ref4, Mode4Badge } from "@/components/c4-note";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { Mode4Badge } from "@/components/c4-note";
 import { formatCurrency, formatDate, formatMoney, formatQty } from "@/lib/utils";
-import { ageText, daysSince, lotBalances, lotIssues, loadLotUsage, pctText } from "@/lib/raw-analytics";
+import { loadLotUsage } from "@/lib/raw-analytics";
 import { CostCell } from "../../cost-cell";
 import { prisma } from "@/lib/prisma";
 import { ACCESS, hasRole } from "@/lib/access";
 import { getColorOptions } from "@/lib/colors";
-import { rowVersion, LOT_V } from "@/lib/concurrency";
-import { LotEditButton } from "@/components/lot-edit";
 import { TILE_BOX, TileHead, TileValue, TileList } from "../../../../dashboard/tile";
-import { TotalLabel } from "@/components/total-label";
+import { VatLine } from "../../../../dashboard/vat-line";
 import { LotUsageViz, type UsageSeg } from "@/components/lot-usage-bar";
 import { LotPriceComposition } from "@/components/price-composition";
 import { lotComposition, splitVat, CAT_LABEL, type CompCat } from "@/lib/price-composition";
 import { lotHammer, lotUsdPrice, USD_SOURCE_LABEL } from "@/lib/lot-hammer";
+import { shortMaterialName } from "@/lib/material-name";
+import { purchaseTotalInclVat } from "@/lib/purchase-totals";
+import { DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
+import { DOC_KIND_LABELS } from "@/lib/purchase-files";
+import { actorText, fmtAt, type LogRow } from "@/lib/audit-query";
+import { rawSheetItems, sheetRowsOf } from "@/lib/lot-sheet";
+import { LotPassport, type PassportSection } from "@/components/lot-passport";
+import { LotSheetTable } from "@/components/lot-sheet-table";
+import { LotProducts, type ProdModel } from "@/components/lot-products";
 
 export const metadata = { title: "Карточка лота" };
 
 const q2 = (d: Decimal) => d.toFixed(2);
+const H2 = "text-base font-semibold";
+const BLOCK = "flex flex-col gap-2 border-t border-neutral-200 pt-4";
 
 export default async function LotCardPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
+  const orgId = session.user.organizationId;
   const c4 = await getCommission4Mode();
-  const card = await loadLotUsage(id, session.user.organizationId);
+  const card = await loadLotUsage(id, orgId);
   if (!card) notFound();
   const { lot: l, passport: p, orders } = card;
-  // Правка безопасных полей лота (цвет, размер, сорт, номер, примечание).
-  const canEditLot = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"]);
-  const lotRow = canEditLot
-    ? await prisma.rawMaterialLot.findFirst({
-        where: { id, organizationId: session.user.organizationId },
-        select: { lotNumber: true, grade: true, sizeGrade: true, color: true, colorRefId: true, notes: true },
-      })
-    : null;
-  // Состав цены единицы: материал и доля расходов закупки (без НДС) — для блока «Из чего состоит цена лота».
-  const lotCost = await prisma.rawMaterialLot.findFirst({
-    where: { id, organizationId: session.user.organizationId },
-    select: { materialCostExclVat: true, expenseCostExclVat: true, costBreakdown: true },
+  const canEdit = hasRole(session.user.role, ["OWNER", "ADMIN", "PURCHASER", "WAREHOUSE"]);
+
+  const row = await prisma.rawMaterialLot.findFirst({
+    where: { id, organizationId: orgId },
+    select: {
+      lotNumber: true, grade: true, sizeGrade: true, color: true, colorRefId: true, notes: true, createdAt: true, costBreakdown: true,
+      materialCostExclVat: true, expenseCostExclVat: true,
+      rawMaterial: { select: { id: true, name: true, defaultVatRate: true } },
+      attrs: { select: { attrId: true } },
+      driveDocuments: { select: { id: true, title: true, docType: true, docNumber: true, storagePath: true } },
+      purchase: {
+        select: {
+          transferDocument: true, notes: true, exchangeRate: true,
+          documents: { select: { id: true, title: true, kind: true } },
+          driveDocuments: { select: { id: true, title: true, docType: true, docNumber: true, storagePath: true } },
+          items: { select: { subtotal: true, vatRate: true, quantity: true, costPlan: true } },
+          expenses: { select: { amount: true, vatRate: true } },
+          payments: { select: { amount: true, status: true } },
+        },
+      },
+    },
   });
-  const lotColorOptions = lotRow ? await getColorOptions(session.user.organizationId) : [];
-  // Расчёт позиций закупки лота (costPlan): запасной источник молотка, $ и состава цены, если в самом лоте расчёта нет.
+  if (!row) notFound();
   const planRows = await prisma.purchaseItem.findMany({ where: { lotId: id }, select: { costPlan: true } });
   const plans = planRows.map((r) => r.costPlan);
 
   const lining = l.unit === "M";
   const unit = lining ? "м" : "шт.";
+  const unitWord = lining ? "м" : "шт.";
   const qty = (d: Decimal) => `${formatQty(d.toString())} ${unit}`;
-  const issues = lotIssues(l);
-  const bal = lotBalances(l);
-  const k4 = new Decimal(0.04);
+  const vatRate = Number(p.vatRate);
+  const vatKey = String(vatRate);
   const remIncl = l.rem.mul(l.unitIncl);
   const remExcl = l.rem.mul(l.unitExcl);
+  const recvIncl = l.recv.mul(l.unitIncl);
+  const recvExcl = l.recv.mul(l.unitExcl);
   const usedPctV = l.recv.greaterThan(0) ? l.used.div(l.recv).mul(100).toNumber() : null;
+  const usedUnitIncl = l.used.greaterThan(0) ? l.usedIncl.div(l.used) : l.unitIncl;
+  const usedUnitExcl = l.used.greaterThan(0) ? l.usedExcl.div(l.used) : l.unitExcl;
 
-  const tot = orders.reduce(
-    (a, o) => ({
-      qty: a.qty.add(o.qty), incl: a.incl.add(o.incl), excl: a.excl.add(o.excl), ei: a.ei.add(o.extraIncl), ee: a.ee.add(o.extraExcl),
-      units: o.unitsFromLot ? a.units.add(o.unitsFromLot) : a.units, produced: a.produced.add(o.produced),
-    }),
-    { qty: new Decimal(0), incl: new Decimal(0), excl: new Decimal(0), ei: new Decimal(0), ee: new Decimal(0), units: new Decimal(0), produced: new Decimal(0) },
-  );
-  // Схема расхода: сегменты — ТЗ (по списаниям), «прочее списание» (получено − остаток − ТЗ, не через ТЗ) и остаток; Σ сегментов = куплено.
+  const hammerLot = lining ? null : lotHammer(row.costBreakdown, vatRate, plans);
+  const usdLot = lining ? null : lotUsdPrice(row.costBreakdown, plans, { vatRate, purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
+  const comp = lotComposition({ breakdown: row.costBreakdown, plans, vatRate, qty: l.recv.toNumber(), totalIncl: recvIncl.toNumber(), purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
+  const compSplit = comp ? splitVat(comp, vatRate) : null;
+
+  // Расчётный лист: собственный лота (правятся заметки) или расчёт позиции закупки (только чтение).
+  const ownItems = rawSheetItems(row.costBreakdown);
+  const planItems = ownItems.length ? [] : plans.map((pl) => rawSheetItems((pl as { costBreakdown?: unknown } | null)?.costBreakdown)).find((x) => x.length) ?? [];
+  const sheetSrc = ownItems.length ? "расчёт лота" : "расчёт позиции закупки";
+  const sheetRows = sheetRowsOf(ownItems.length ? ownItems : planItems, { qty: l.recv.toNumber(), vatRate, defaultSrc: sheetSrc });
+  const sheetTotalRow = sheetRows.find((r) => /^итого за готовое сырь/i.test(r.label));
+  const showPrice = !lining || sheetRows.length > 0;
+
+  // Платежи и документы закупки.
+  const pu = row.purchase;
+  const paid = pu ? pu.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0)) : null;
+  const purTotal = pu ? purchaseTotalInclVat({ exchangeRate: pu.exchangeRate, items: pu.items, expenses: pu.expenses }) : null;
+  const docMap = new Map<string, { href: string | null; text: string }>();
+  for (const d of [...(pu?.driveDocuments ?? []), ...row.driveDocuments]) docMap.set("d" + d.id, { href: d.storagePath ? `/api/drive-docs/${d.id}` : null, text: `${DRIVE_DOC_TYPE_LABELS[d.docType] ?? d.docType}${d.docNumber ? ` №${d.docNumber}` : ""} — ${d.title}` });
+  for (const d of pu?.documents ?? []) docMap.set("p" + d.id, { href: `/api/purchase-docs/${d.id}`, text: `${DOC_KIND_LABELS[d.kind] ?? d.kind} — ${d.title}` });
+  const docs = Array.from(docMap.values());
+
+  // Последняя правка из журнала (только для читающих журнал).
+  let lastEdit: LogRow | null = null;
+  if (!lining && hasRole(session.user.role, ACCESS.history) && "auditLog" in prisma) {
+    lastEdit = (await prisma.auditLog.findFirst({ where: { organizationId: orgId, model: "RawMaterialLot", recordId: id }, orderBy: { at: "desc" } })) as LogRow | null;
+  }
+
+  const colorOptions = canEdit ? await getColorOptions(orgId) : [];
+  const attrRefs = canEdit && !lining ? await prisma.furAttrRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, group: true }, orderBy: [{ group: "asc" }, { name: "asc" }] }) : [];
+  const attrNames = !lining && !canEdit && row.attrs.length ? await prisma.furAttrRef.findMany({ where: { id: { in: row.attrs.map((a) => a.attrId) } }, select: { name: true } }) : [];
+
+  // Изделия: данные только из базы на каждый заход (loadLotUsage → ProductionMaterialUsage по lotId).
+  const modelIds = Array.from(new Set(orders.map((o) => o.modelId)));
+  const groups = modelIds.length ? await prisma.productModel.findMany({ where: { id: { in: modelIds } }, select: { id: true, categoryRef: { select: { group: true } } } }) : [];
+  const groupOf = new Map(groups.map((g) => [g.id, g.categoryRef?.group ?? ""]));
+  const prodMap = new Map<string, ProdModel>();
+  for (const o of orders) {
+    let m = prodMap.get(o.modelId);
+    if (!m) prodMap.set(o.modelId, (m = { modelId: o.modelId, name: o.modelName, sku: o.sku, category: o.category, group: groupOf.get(o.modelId) ?? "", orders: [] }));
+    m.orders.push({
+      orderId: o.orderId, number: o.number, batchNumber: o.batchNumber, date: o.orderDate ? formatDate(o.orderDate) : null,
+      qty: o.qty.toNumber(), produced: o.produced.toNumber(),
+      incl: q2(o.incl), excl: q2(o.excl), incl4: q2(o.incl.add(o.extraIncl)), excl4: q2(o.excl.add(o.extraExcl)),
+    });
+  }
+  const prodModels = Array.from(prodMap.values());
+
   const zeroD = new Decimal(0);
   const usageSegs: UsageSeg[] = [
     ...orders.map((o): UsageSeg => ({
@@ -82,462 +139,226 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       qty: o.qty.toNumber(), date: o.orderDate ? formatDate(o.orderDate) : null,
       cost: <CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} />,
     })),
-    ...(l.otherOut.greaterThan(0)
+    ...(l.otherOut.greaterThan(0) && !lining
       ? [{ key: "other", kind: "other", label: "Прочее списание", qty: l.otherOut.toNumber(), cost: <Money incl={q2(l.otherOut.mul(l.unitIncl))} excl={q2(l.otherOut.mul(l.unitExcl))} /> } as UsageSeg]
       : []),
     { key: "rem", kind: "rem", label: "Остаток", qty: Decimal.max(l.rem, zeroD).toNumber(), cost: <Money incl={q2(remIncl)} excl={q2(remExcl)} /> },
   ];
-  const idle = l.usages.length === 0 && l.rem.greaterThan(0);
-  const hammerLot = lotHammer(lotCost?.costBreakdown, Number(p.vatRate), plans);
-  const usdLot = lotUsdPrice(lotCost?.costBreakdown, plans, { vatRate: Number(p.vatRate), purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
-  // Состав финальной цены лота (сектора графика): Σ секторов без НДС = цена лота без НДС.
-  const comp = lotComposition({ breakdown: lotCost?.costBreakdown, plans, vatRate: Number(p.vatRate), qty: l.recv.toNumber(), totalIncl: l.unitIncl.mul(l.recv).toNumber(), purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
-  const compSplit = comp ? splitVat(comp, Number(p.vatRate)) : null;
 
-  const ok = (a: Decimal, b: Decimal) => a.equals(b);
-  const cmp = (label: string, journal: Decimal | null, lotV: Decimal | null, third: Decimal | null, good: boolean, note?: string) => ({ label, journal, lotV, third, good, note });
-  const rows = [
-    cmp("Получено (куплено)", l.jIn, l.recv, l.itemsQty.greaterThan(0) ? l.itemsQty : null, ok(l.jIn, l.recv) && (l.itemsQty.isZero() || ok(l.itemsQty, l.recv)), "третья колонка — количество в позициях закупки"),
-    cmp("Использовано в ТЗ", l.jProdOut, null, l.used, ok(l.jProdOut, l.used), "третья колонка — Σ списаний в ТЗ"),
-    cmp("Списано иначе", l.jOtherOut, l.otherOut, null, ok(l.jOtherOut, l.otherOut), "по лоту: получено − остаток − ТЗ"),
-    cmp("Остаток", bal.journal, bal.lot, bal.calc, ok(bal.journal, bal.lot) && ok(bal.lot, bal.calc), "третья колонка — получено − Σ ТЗ"),
+  // ───────── Паспорт ─────────
+  const purLink = l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline">правится в закупке →</Link> : null;
+  const byDate = p.purchaseDate ?? p.receivedDate;
+  const vatDefault = vatRateForDate(byDate);
+  const vatTotalLot = recvIncl.sub(recvExcl);
+  const sizeText = l.size === "Не указан" ? "" : l.size;
+  const colorText = p.colorRef ? (p.color && p.color !== p.colorRef ? `${p.colorRef} (в закупке: ${p.color})` : p.colorRef) : (p.color ?? "");
+  const perUnit = <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />;
+  const sections: PassportSection[] = [
+    {
+      title: "Идентификация",
+      fields: [
+        { label: "№ лота", key: "lotNumber", value: row.lotNumber ?? "" },
+        ...(lining ? [] : [{ label: "Внутренний id", node: <span className="font-mono text-xs">{id}</span>, note: "только чтение" }]),
+        { label: lining ? "Ткань" : "Вид меха", node: lining ? <>{shortMaterialName(p.materialName)}<span className="block text-[11px] text-neutral-500">{p.materialName}</span></> : p.materialName, note: "после приёмки материал не меняется" },
+        { label: lining ? "Цвет / описание" : "Цвет", key: "color" as const, value: row.color ?? colorText, refId: row.colorRefId, node: colorText },
+        ...(lining ? [] : [{ label: "Размер", key: "sizeGrade" as const, value: row.sizeGrade ?? "", node: sizeText }]),
+        { label: lining ? "Описание" : "Сорт / описание", key: "grade", value: row.grade ?? "" },
+        ...(lining ? [] : [{ label: "Признак меха", key: "attrs" as const, node: attrNames.map((a) => a.name).join(", ") || "—", note: canEdit ? <>новый признак — в <Link href="/settings/fur-attrs" className="text-blue-700 hover:underline">справочнике признаков</Link></> : undefined }]),
+        { label: "Дата прихода", node: formatDate(p.receivedDate) },
+      ],
+    },
+    {
+      title: "Закупка",
+      fields: [
+        { label: "Партия закупки (аукцион)", node: l.auction !== "__none" ? <><Link href={`/lots?auction=${encodeURIComponent(l.auction)}`} className="text-blue-700 hover:underline">{l.auctionLabel}</Link></> : l.auctionLabel },
+        { label: "Закупка №", node: l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline">{l.purchaseNumber}</Link> : "—" },
+        { label: "Поставщик", node: p.supplier ?? "—", note: purLink },
+        { label: "Накладная / счёт №", node: p.invoiceNumber ?? "—" },
+        { label: "УПД №", node: pu?.transferDocument ?? "—" },
+        { label: "Дата закупки", node: p.purchaseDate ? formatDate(p.purchaseDate) : "—" },
+        ...(!lining || (p.currency && p.currency !== "RUB") ? [{ label: "Валюта · курс", node: p.currency ? `${p.currency}${p.exchangeRate ? ` · ${formatQty(p.exchangeRate.toString())}` : ""}` : "—" }] : []),
+        ...(lining && paid && purTotal ? (paid.lte(purTotal) ? [
+          { label: "Оплачено по закупке", node: <Money incl={q2(paid)} /> },
+          { label: "Долг по закупке", node: <Money incl={q2(Decimal.max(purTotal.sub(paid), zeroD))} />, note: <Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link> },
+        ] : [{ label: "Оплаты", node: "ведутся по партии целиком", note: <Link href="/payments" className="text-blue-700 hover:underline">→ Оплаты</Link> }]) : []),
+      ],
+    },
+    {
+      title: "Количество",
+      fields: [
+        { label: "Получено", node: qty(l.recv) },
+        { label: "Остаток", node: qty(l.rem), note: "считается из движений, только чтение" },
+        { label: "Единица", node: lining ? "метр" : "шкура (шт.)" },
+      ],
+    },
+    {
+      title: "Цена",
+      fields: [
+        { label: `Цена за ${unitWord}, ₽`, node: perUnit, note: <>с НДС / без НДС по режиму шапки · {purLink}</> },
+        { label: "Сумма лота, ₽", node: <Money incl={q2(recvIncl)} excl={q2(recvExcl)} /> },
+        { label: "НДС, %", node: `${formatQty(p.vatRate.toString())}%`, note: <>ставка лота; по дате документа {vatDefault}% ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. Ставка лота после приёмки правится в закупке.</p></InfoHint></> },
+        { label: "Сумма НДС, ₽", node: formatMoney(q2(vatTotalLot)) },
+        ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())}%`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
+        ...(lining ? [] : [
+          { label: "Цена в закупке (без НДС)", node: p.itemPrice && p.currency && p.currency !== "RUB" ? `${formatCurrency(p.itemPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}` : "—" },
+          { label: "Молоток, ₽/шт.", node: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—", note: hammerLot ? `источник: ${hammerLot.source}` : undefined },
+          { label: "Молоток, $/шт.", node: usdLot?.usd != null ? `$${usdLot.usd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—", note: usdLot?.usd != null ? USD_SOURCE_LABEL[usdLot.source] : undefined },
+          { label: "Итого цена лота, ₽/шт.", node: perUnit },
+        ]),
+      ],
+    },
+    {
+      title: "Документы-основания",
+      fields: [{
+        label: "УПД, счёт, спецификация",
+        node: docs.length ? (
+          <ul className="list-none space-y-0.5 p-0">
+            {docs.map((d, i) => <li key={i}>{d.href ? <a href={d.href} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">{d.text}</a> : d.text}</li>)}
+          </ul>
+        ) : "—",
+      }],
+    },
+    { title: "Примечания", fields: [{ label: "Примечание", key: "notes", value: row.notes ?? "" }] },
+    ...(lining ? [] : [{
+      title: "Системное",
+      fields: [
+        { label: "Создан", node: formatDate(row.createdAt) },
+        { label: "Последняя правка", node: lastEdit ? `${fmtAt(lastEdit.at)} · ${actorText(lastEdit)}` : "—", note: hasRole(session.user.role, ACCESS.history) ? <Link href={`/history?q=${id}`} className="text-blue-700 hover:underline">история изменений →</Link> : undefined },
+      ],
+    }]),
   ];
-  const cell = (d: Decimal | null) => (d ? qty(d) : <span className="text-neutral-300">—</span>);
 
-  const dl = (label: string, value: React.ReactNode) =>
-    value === null || value === undefined || value === "" ? null : (
-      <div className="min-w-0">
-        <dt className="text-xs text-neutral-500">{label}</dt>
-        <dd className="break-words text-sm">{value}</dd>
-      </div>
-    );
+  const sheetWithSplit = comp && compSplit;
+  const unitLbl = lining ? "за м" : "за шт.";
 
   return (
     <div className="flex flex-col gap-4">
-      <IntegrityBanner kind="lot" id={id} />
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Link href={`/analytics/raw${lining ? "?scope=lining" : ""}`} className="text-neutral-500 hover:underline">← Аналитика сырья</Link>
-        <Link href="/analytics/raw/recon" className="text-neutral-500 hover:underline">· Сверка лотов</Link>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
-        {/* Режим 4% и «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Лот … О карточке». */}
-        <h1 className="text-xl font-semibold">{lining ? "Подкладка" : "Лот"} {l.lotNumber}</h1>
+        <Link href={lining ? "/lots?tab=lining" : "/lots"} aria-label="Назад к сырью" className="text-lg leading-none text-neutral-500 hover:text-neutral-900">←</Link>
+        <h1 className="text-xl font-semibold">{lining ? `${shortMaterialName(p.materialName)} · ${l.auctionLabel}` : `Лот № ${row.lotNumber ?? "—"}`}</h1>
         <Mode4Badge mode={c4} />
-        <span className="inline-flex">
-          <InfoHint label="О карточке" wide>
-            <p>Всё про один лот: откуда он (аукцион, закупка), сколько куплено, в каких изделиях использован, сколько осталось и сходится ли учёт.</p>
-            <p className="mt-1">«В учёте» — журнал движений (приходы и списания). «По лоту» — сам лот (получено и остаток). «Σ ТЗ» — сумма списаний в техзаданиях. Если три источника не равны, строка подсвечивается красным.</p>
-            <p className="mt-1">Карточка показывает лот целиком, не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% (режим в шапке) добавляется только к списаниям, где оно применяется.</p>
-          </InfoHint>
-        </span>
-        <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (issues.length === 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
-          {issues.length === 0 ? "учёт сходится" : "расхождение учёта"}
-        </span>
-        {lotRow && (
-          <LotEditButton
-            lotId={id}
-            version={rowVersion(lotRow, LOT_V)}
-            defaults={{ lotNumber: lotRow.lotNumber ?? "", grade: lotRow.grade ?? "", sizeGrade: lotRow.sizeGrade ?? "", color: lotRow.color ?? "", colorRefId: lotRow.colorRefId, notes: lotRow.notes ?? "" }}
-            colorOptions={lotColorOptions}
-            canAddColor={hasRole(session.user.role, ACCESS.colors)}
-          />
-        )}
-        {idle && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">не использован, лежит {ageText(daysSince(l.date))}</span>}
+        <InfoHint label="О карточке" wide>
+          <p>Один купленный лот: сколько куплено, использовано и осталось, из чего состоит цена и в каких изделиях он участвует. Карточка не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% добавляется только к списаниям, где оно применяется.</p>
+        </InfoHint>
       </div>
 
-      {/* Паспорт */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Паспорт лота</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-4">
-            {dl("Партия закупки (аукцион)", <span title={l.auction}>
-              {l.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(l.auction)}`} className="text-blue-700 hover:underline">{l.auctionLabel}</Link> : l.auctionLabel}
-              {l.auction !== "__none" && l.auction !== l.auctionLabel ? <span className="block text-xs text-neutral-500">{l.auction}</span> : null}
-              {l.auction !== "__none" ? <Link href={`/payments?auction=${encodeURIComponent(l.auction)}#auction-block`} className="block text-xs text-blue-700 hover:underline">оплаты партии ›</Link> : null}
-            </span>)}
-            {dl("Закупка", l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline">{l.purchaseNumber}</Link> : "—")}
-            {dl("Поставщик", p.supplier)}
-            {dl("Накладная / инвойс", p.invoiceNumber)}
-            {dl("Номер лота", l.lotNumber)}
-            {dl(lining ? "Ткань" : "Вид меха", p.materialName)}
-            {dl("Сорт / описание", p.grade)}
-            {dl("Цвет", p.colorRef ? (p.color && p.color !== p.colorRef ? `${p.colorRef} (в закупке: ${p.color})` : p.colorRef) : p.color)}
-            {!lining && dl("Размер", l.size === "Не указан" ? "не указан" : l.size)}
-            {dl("Дата закупки", p.purchaseDate ? formatDate(p.purchaseDate) : null)}
-            {dl("Дата прихода", formatDate(p.receivedDate))}
-            {dl("НДС", `${formatQty(p.vatRate.toString())}% · ${vatPeriodLabel(p.purchaseDate ?? p.receivedDate)}${Number(p.vatRate) !== vatRateForDate(p.purchaseDate ?? p.receivedDate) ? ` (по дате должна быть ${vatRateForDate(p.purchaseDate ?? p.receivedDate)}%)` : ""}`)}
-            {dl(
-              `Итого цена лота, ₽/${lining ? "м" : "шт."}`,
-              <span className="tabular-nums">
-                <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> за {lining ? "м" : "шт."}
-                <Ref4 mode={c4} incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />
-                <InfoHint label="Цена лота" wide>
-                  <p>Себестоимость единицы на момент прихода: цена позиции + доля расходов закупки (аукционный сбор, выделка, доставка…), с НДС. «Без НДС» — та же цена без налога.</p>
-                  <p className="mt-1">Расчёт «+4%»: {formatMoney(q2(l.unitIncl))} × 1,04 = {formatMoney(q2(l.unitIncl.mul(new Decimal(1).add(k4))))} — применяется к строкам списания, где 4% включено.</p>
-                </InfoHint>
-              </span>,
+      {/* 1. Виджеты */}
+      <WidgetRow id="lot" title="Лот" headerEnd={l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-xs text-blue-700 hover:underline print:hidden">→ Закупка</Link> : undefined}>
+        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className={TILE_BOX}>
+            <TileHead>Куплено</TileHead>
+            <TileValue>{qty(l.recv)}</TileValue>
+            <TileList items={[
+              { k: "Сумма", v: <Money incl={q2(recvIncl)} excl={q2(recvExcl)} /> },
+              { k: `Цена за ${unitWord}`, v: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> },
+            ]} />
+            <VatLine v={{ [vatKey]: vatTotalLot.toNumber() }} minRem={1} />
+          </div>
+          <div className={TILE_BOX}>
+            <TileHead>Использовано</TileHead>
+            <TileValue>{qty(l.used)}</TileValue>
+            <TileList items={[
+              { k: "Сумма без 4%", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
+              { k: "с 4%", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, sub: true },
+              { k: `Цена за ${unitWord}`, v: <Money incl={q2(usedUnitIncl)} excl={q2(usedUnitExcl)} /> },
+            ]} />
+            <VatLine v={{ [vatKey]: l.usedIncl.sub(l.usedExcl).toNumber() }} minRem={1} />
+          </div>
+          <div className={TILE_BOX}>
+            <TileHead>Остаток</TileHead>
+            <TileValue>{qty(l.rem)}</TileValue>
+            <TileList items={[
+              { k: "Сумма", v: <Money incl={q2(remIncl)} excl={q2(remExcl)} />, share: l.recv.greaterThan(0) ? l.rem.div(l.recv).toNumber() : null },
+              { k: `Цена за ${unitWord}`, v: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> },
+            ]} />
+            <VatLine v={{ [vatKey]: remIncl.sub(remExcl).toNumber() }} minRem={1} />
+          </div>
+          <div className={TILE_BOX}>
+            <TileHead>{lining ? `Цена лота, ₽/${unitWord}` : "Итого цена лота, ₽/шт."}</TileHead>
+            <TileValue><Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /></TileValue>
+            {lining ? null : (
+              <TileList items={[
+                { k: "Молоток, ₽/шт.", v: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—" },
+                { k: "Молоток, $/шт.", v: usdLot?.usd != null ? `$${usdLot.usd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—" },
+              ]} />
             )}
-            {p.itemPrice && p.currency && p.currency !== "RUB"
-              ? dl("Цена в закупке (без НДС)", `${formatCurrency(p.itemPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}`)
-              : null}
-            {dl(
-              "Молоток, ₽/шт.",
-              hammerLot ? (
-                <span className="tabular-nums">
-                  <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} />
-                  <InfoHint label="Молоток, ₽/шт." wide>
-                    <p>Цена шкуры на аукционе до сборов, выделки, транспорта, брокера и комиссий. Источник: {hammerLot.source}.</p>
-                    {p.hammer.length > 0 && (
-                      <ul className="mt-1 list-disc pl-4">
-                        {p.hammer.map((h) => (
-                          <li key={h.label}>{h.label}: {formatMoney(h.value)}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </InfoHint>
-                </span>
-              ) : (
-                <span>—<InfoHint label="Нет молотка" wide><p>Нет цены в $/молотка в расчёте лота.</p></InfoHint></span>
-              ),
-            )}
-            {dl(
-              "Молоток, $/шт.",
-              usdLot.usd != null ? (
-                <span className="tabular-nums">
-                  ${usdLot.usd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  <InfoHint label="Молоток, $/шт." wide><p>Цена шкуры в долларах (молоток, до сборов): {USD_SOURCE_LABEL[usdLot.source]}.</p></InfoHint>
-                </span>
-              ) : (
-                <span>—<InfoHint label="Нет цены в $" wide><p>Нет цены в $/молотка в расчёте лота.</p></InfoHint></span>
-              ),
-            )}
-          </dl>
-          {cleanNote(p.notes) && <p className="mt-3 text-xs text-neutral-500">Примечание: {cleanNote(p.notes)}</p>}
-        </CardContent>
-      </Card>
-
-      {/* Итоги движения: те же плитки и подписи, что на Главной (Куплено = Использовано + Остаток) */}
-      <WidgetRow id="lot" title="Лот — движение" headerEnd={l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-xs text-blue-700 hover:underline print:hidden">→ Закупка</Link> : undefined}>
-      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <div className={TILE_BOX}>
-          <TileHead>Куплено</TileHead>
-          <TileValue>{qty(l.recv)}</TileValue>
-          <TileList items={[
-            { k: "Сумма", v: <Money incl={q2(l.recv.mul(l.unitIncl))} excl={q2(l.recv.mul(l.unitExcl))} /> },
-            { k: `Цена за ${lining ? "м" : "шт."}`, v: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> },
-          ]} />
+            <div className="mt-2 text-[11px] leading-4 text-neutral-500">ставка НДС лота {formatQty(String(vatRate))}%</div>
+          </div>
         </div>
-        <div className={TILE_BOX}>
-          <TileHead>Использовано</TileHead>
-          <TileValue>{qty(l.used)}</TileValue>
-          <TileList items={[
-            { k: "Сумма без 4%", v: <Money incl={q2(l.usedIncl)} excl={q2(l.usedExcl)} />, share: usedPctV != null ? usedPctV / 100 : null },
-            { k: "с 4%", v: <Money incl={q2(l.usedIncl.add(l.usedExtraIncl))} excl={q2(l.usedExcl.add(l.usedExtraExcl))} />, sub: true },
-            { k: "надбавка 4%", v: <Money incl={q2(l.usedExtraIncl)} excl={q2(l.usedExtraExcl)} />, sub: true },
-            { k: "ТЗ", v: String(orders.length) },
-          ]} />
-        </div>
-        <div className={TILE_BOX}>
-          <TileHead>Остаток</TileHead>
-          <TileValue>{qty(l.rem)}</TileValue>
-          <TileList items={[
-            { k: "Сумма", v: <Money incl={q2(remIncl)} excl={q2(remExcl)} />, share: l.recv.greaterThan(0) ? l.rem.div(l.recv).toNumber() : null },
-            { k: `Цена за ${lining ? "м" : "шт."}`, v: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} /> },
-          ]} />
-        </div>
-        <div className={TILE_BOX}>
-          <TileHead>Списано иначе</TileHead>
-          <TileValue className={l.otherOut.isZero() ? "" : "text-red-700"}>{qty(l.otherOut)}</TileValue>
-          <div className="mt-3 text-xs text-neutral-500">корректировки, потери — не через ТЗ</div>
-        </div>
-      </div>
       </WidgetRow>
 
-      {/* Расход лота по ТЗ: схема + линия остатка + остаток по времени */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            Расход лота по ТЗ
-            <InfoHint label="Расход лота по ТЗ" wide>
-              <p>Полоса равна количеству лота при закупке ({qty(l.recv)}). Каждый цветной сегмент — одно ТЗ, ширина пропорциональна списанному из этого лота; последний сегмент с пунктиром — остаток. Оранжевая линия — граница «использовано | остаток».</p>
-              <p className="mt-1">«Прочее списание» — убыль не через ТЗ (корректировки, потери): получено − остаток − Σ ТЗ. Сумма сегментов всегда равна «Куплено». Деньги — «С НДС / Без НДС» из шапки; цвет не единственный признак — все данные есть в таблице под полосой.</p>
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LotUsageViz
-            unit={unit}
-            recv={l.recv.toNumber()}
-            startDate={formatDate(l.date)}
-            segs={usageSegs}
-            totalCost={<Money incl={q2(l.recv.mul(l.unitIncl))} excl={q2(l.recv.mul(l.unitExcl))} />}
-          />
-        </CardContent>
-      </Card>
+      <div className={BLOCK}>
+        <h2 className={H2 + " flex items-center gap-2"}>
+          Расход лота по ТЗ
+          <InfoHint label="Расход лота по ТЗ" wide>
+            <p>Полоса равна количеству лота при закупке ({qty(l.recv)}). Цветной сегмент — одно ТЗ, ширина пропорциональна списанному; сегмент с пунктиром — остаток.</p>
+          </InfoHint>
+        </h2>
+        <LotUsageViz unit={unit} recv={l.recv.toNumber()} startDate={formatDate(l.date)} segs={usageSegs} totalCost={<Money incl={q2(recvIncl)} excl={q2(recvExcl)} />} />
+      </div>
 
-      {/* Из чего складывается финальная цена лота: кольцевая диаграмма, полоса и легенда по составляющим расчёта лота */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            Из чего складывается цена
-            <InfoHint label="Из чего складывается цена" wide>
-              <p>Финальная рублёвая цена лота по долям: сырьё (молоток), выделка и выкраска, транспорт, сборы аукциона и брокер, комиссия Веллмех, прочее. Составляющие взяты из расчётного листа лота; строки листа сведены в сектора по словарю названий (см. «Расчётный лист лота» ниже).</p>
-              <p className="mt-1">Суммы приведены к цене лота без НДС (делятся на 1 + ставка лота, как «цена без НДС» везде в системе); НДС показан отдельно или сектором в режиме «с НДС». Сумма секторов равна цене лота; то, что в листе не распознано, попадает в «Прочие расходы».</p>
-              {comp?.approx && <p className="mt-1">В этом листе молоток вычислен по цене из расчёта Drive × курсы, а брокерский процент — остаток до цены лота: доли приблизительные.</p>}
+      {/* 2. Паспорт */}
+      <div className={BLOCK}>
+        <h2 className={H2 + " flex items-center gap-2"}>
+          Паспорт лота
+          <InfoHint label="Паспорт лота" wide>
+            <p>Описание лота правится по месту: Enter или уход из поля — сохранить, Esc — отмена. Цена, количество, НДС, поставщик и накладные после приёмки правятся в закупке: пересчёта цены лота и списаний ТЗ после приёмки в приложении нет.</p>
+          </InfoHint>
+        </h2>
+        <LotPassport
+          lotId={id}
+          sections={sections}
+          canEdit={canEdit}
+          canAddColor={hasRole(session.user.role, ACCESS.colors)}
+          colorOptions={colorOptions}
+          attrOptions={attrRefs}
+          attrIds={row.attrs.map((a) => a.attrId)}
+        />
+      </div>
+
+      {/* 3. Из чего состоит цена */}
+      {showPrice && (
+        <div className={BLOCK}>
+          <h2 className={H2 + " flex items-center gap-2"}>
+            Из чего состоит цена лота
+            <InfoHint label="Из чего состоит цена лота" wide>
+              <p>Финальная цена лота по долям (график) и все строки расчётного листа (таблица). Суммы графика приведены к цене лота без НДС; НДС — отдельно. Нераспознанное попадает в «{CAT_LABEL.other}». 4% в цену лота не входит — оно начисляется при списании в ТЗ.</p>
+              {comp?.approx && <p className="mt-1">Молоток вычислен по цене из расчёта Drive × курсы, брокерский процент — остаток до цены лота: доли приблизительные.</p>}
             </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {comp && compSplit ? (
-            <LotPriceComposition cats={compSplit.excl as Record<CompCat, number>} vat={compSplit.vat} qty={l.recv.toNumber()} unitName={lining ? "метр" : "шкуру"} ariaLabel={`Состав цены лота ${l.lotNumber}`} />
+          </h2>
+          {sheetWithSplit ? (
+            <div className="rounded-lg border border-neutral-200 bg-white p-3">
+              <LotPriceComposition cats={compSplit.excl as Record<CompCat, number>} vat={compSplit.vat} qty={l.recv.toNumber()} unitName={lining ? "метр" : "шкуру"} ariaLabel={`Состав цены лота ${l.lotNumber ?? ""}`} />
+            </div>
+          ) : null}
+          {sheetRows.length > 0 ? (
+            <LotSheetTable
+              lotId={id}
+              rows={sheetRows}
+              canEdit={canEdit && ownItems.length > 0}
+              sheetTotal={sheetTotalRow ? sheetTotalRow.value : null}
+              lotTotal={recvIncl.toNumber()}
+              unitNode={<Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />}
+              lotNode={<Money incl={q2(recvIncl)} excl={q2(recvExcl)} />}
+              unitLabel={unitLbl}
+              purchaseLink={purLink}
+            />
           ) : (
-            <p className="py-4 text-center text-sm text-neutral-500">Нет разбивки цены в расчёте лота.</p>
+            <p className="rounded-lg border border-neutral-200 bg-white p-3 text-center text-sm text-neutral-500">Нет расчётного листа: цена лота {formatMoney(q2(l.unitIncl))} ₽ за {unitWord} без разбивки.</p>
           )}
-          {comp && comp.incl.other > 0.5 && <p className="mt-2 text-xs text-neutral-500">{CAT_LABEL.other}: остаток до цены лота, не распознанный в расчёте.</p>}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      {/* Из чего состоит цена лота */}
-      {(() => {
-        const unitIncl = l.unitIncl, unitExcl = l.unitExcl;
-        let material = lotCost?.materialCostExclVat ?? new Decimal(0);
-        let expenses = lotCost?.expenseCostExclVat ?? new Decimal(0);
-        const noSplit = material.add(expenses).isZero();
-        if (noSplit) { material = unitExcl; expenses = new Decimal(0); }
-        const vat = unitIncl.sub(unitExcl);
-        const sheet = ((lotCost?.costBreakdown as { items?: { label: string; value: number }[] } | null)?.items ?? []).filter((x) => x && typeof x.label === "string" && Number.isFinite(x.value));
-        const num = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(v);
-        // Расчётный лист лота: строки «молоток, услуги аукциона, выделка, перевозка, комиссия» складываются в «Итого за готовое сырьё».
-        // Если итог листа сходится с ценой лота — показываем состав по листу (и долю каждой статьи), иначе — общий состав (материал, расходы, НДС).
-        const lotTotal = unitIncl.mul(l.recv);
-        const sheetTotal = sheet.find((x) => /итого за готовое сырь/i.test(x.label));
-        const sheetOk = sheetTotal != null && lotTotal.greaterThan(0) && Math.abs(sheetTotal.value - lotTotal.toNumber()) / lotTotal.toNumber() < 0.01;
-        type RowC = { k: string; total: Decimal; unit: Decimal; share: boolean; strong?: boolean; note?: string };
-        const mk = (k: string, total: Decimal, o: Partial<RowC> = {}): RowC => ({ k, total, unit: l.recv.greaterThan(0) ? total.div(l.recv) : new Decimal(0), share: true, ...o });
-        let rowsC: RowC[];
-        if (sheetOk) {
-          const picks = [/молоток.*лот/i, /услуги аукцион/i, /выделк/i, /перевозк/i, /комисси/i];
-          const found = picks.map((rx) => sheet.find((x) => rx.test(x.label))).filter((x): x is { label: string; value: number } => x != null && x.value !== 0);
-          const sumFound = found.reduce((a, x) => a + x.value, 0);
-          const rest = lotTotal.toNumber() - sumFound;
-          rowsC = [
-            ...found.map((x) => mk(x.label, new Decimal(x.value))),
-            ...(Math.abs(rest) > 1 ? [mk("Прочее до итога расчётного листа (упаковка, брокерский %, округления)", new Decimal(rest))] : []),
-            mk("Цена лота: итого за готовое сырьё, с НДС", lotTotal, { strong: true, share: false }),
-          ];
-        } else {
-          rowsC = [
-            mk("Материал: цена лота без НДС", material.mul(l.recv), { note: p.itemPrice && p.currency && p.currency !== "RUB" ? `в закупке ${formatCurrency(p.itemPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}` : undefined }),
-            ...(expenses.isZero() ? [] : [mk("Расходы закупки (доля): аукционный сбор, выделка, перевозка, комиссия", expenses.mul(l.recv))]),
-            mk(`НДС ${formatQty(p.vatRate.toString())}%`, vat.mul(l.recv)),
-            mk("Цена лота за единицу, с НДС", lotTotal, { strong: true, share: false }),
-          ];
-        }
-        const shareOf = (v: Decimal) => (lotTotal.greaterThan(0) ? v.div(lotTotal).toNumber() : null);
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                Из чего состоит цена лота
-                <InfoHint label="Из чего состоит цена лота" wide>
-                  <p>Цена за единицу на момент прихода: материал (цена лота без НДС) плюс доля расходов закупки (аукционный сбор, выделка, перевозка, комиссия), плюс НДС. Расходы закупки распределяются по лотам пропорционально их стоимости. Сумма лота = цена × куплено; «Куплено» на Главной и в «Сырьё» — Σ таких сумм по лотам, всегда без 4%.</p>
-                  <p className="mt-1">4% сюда не входит: оно начисляется только при списании в ТЗ — {formatMoney(q2(l.unitIncl.mul(k4)))} на единицу, по лоту уже начислено {formatMoney(q2(l.usedExtraIncl))} (с НДС).</p>
-                </InfoHint>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <div className="table-scroll scroll-hint overflow-x-auto">
-                <table className="w-full min-w-[34rem] text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-                      <th className="px-2 py-1.5 text-left font-medium">Статья</th>
-                      <th className="px-1.5 py-1.5 text-right font-medium">За {lining ? "м" : "шт."}</th>
-                      <th className="px-1.5 py-1.5 text-right font-medium">За лот ({qty(l.recv)})</th>
-                      <th className="px-1.5 py-1.5 text-right font-medium">Доля</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rowsC.map((r) => (
-                      <tr key={r.k} className={r.strong ? "border-y-2 border-neutral-300 bg-neutral-50 font-semibold" : "border-b border-neutral-100"}>
-                        <td className="px-2 py-1.5">{r.k}{r.note ? <div className="text-xs font-normal text-neutral-500">{r.note}</div> : null}</td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(q2(r.unit))}</td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(q2(r.total))}</td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 text-right font-normal tabular-nums text-neutral-500">{r.share ? pctText((shareOf(r.total) ?? 0) * 100) : "100,0%"}</td>
-                      </tr>
-                    ))}
-                    <tr className="border-b border-neutral-100 text-xs text-neutral-500">
-                      <td className="px-2 py-1.5">4% при списании в ТЗ — в цену лота не входит</td>
-                      <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(q2(unitIncl.mul(k4)))}</td>
-                      <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">начислено по лоту {formatMoney(q2(l.usedExtraIncl))}</td>
-                      <td />
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              {sheet.length > 0 ? (
-                <details className="rounded-md border border-neutral-200">
-                  <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">Расчётный лист лота ({sheet.length} строк)</summary>
-                  <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-0.5 border-t border-neutral-100 px-3 py-2 text-sm sm:max-w-2xl">
-                    {sheet.map((b, i) => (
-                      <div key={i} className="contents">
-                        <dt className={/итого/i.test(b.label) ? "font-medium text-neutral-800" : "text-neutral-600"}>{b.label}</dt>
-                        <dd className="text-right tabular-nums">{num(b.value)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </details>
-              ) : null}
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* Учёт */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            Сходится ли учёт
-            <InfoHint label="Сверка учёта" wide>
-              <p>Три источника по одному лоту: журнал движений («в учёте»), сам лот и списания в ТЗ. В норме цифры в каждой строке равны.</p>
-              <p className="mt-1">Сейчас: журнал — остаток {formatQty(bal.journal.toString())}, лот — {formatQty(bal.lot.toString())}, «получено − Σ ТЗ» — {formatQty(bal.calc.toString())} {unit}.</p>
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-sm">
-              <thead>
-                <tr className="text-left text-xs text-neutral-500">
-                  <th className="py-1 pr-3 font-medium"> </th>
-                  <th className="py-1 pr-3 font-medium">В учёте (журнал движений)</th>
-                  <th className="py-1 pr-3 font-medium">По лоту</th>
-                  <th className="py-1 pr-3 font-medium">Закупка / Σ ТЗ</th>
-                  <th className="py-1 font-medium">Сверка</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.label} className={"border-t border-neutral-100 " + (r.good ? "" : "bg-red-50")}>
-                    <td className="py-1.5 pr-3 font-medium">{r.label}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{cell(r.journal)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{cell(r.lotV)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums" title={r.note}>{cell(r.third)}</td>
-                    <td className={"py-1.5 text-xs font-bold " + (r.good ? "text-emerald-700" : "text-red-600")}>{r.good ? "✓ сходится" : "✗ расходится"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {issues.length > 0 && (
-            <ul className="list-disc pl-5 text-sm text-red-700">
-              {issues.map((t) => <li key={t}>{t}</li>)}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Изделия */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            В каких изделиях участвует
-            <InfoHint label="Изделия лота" wide>
-              <p>Каждая строка — одно ТЗ, в котором списан этот лот: артикул (модель), категория, партия, дата, сколько произведено, сколько {lining ? "метров" : "шкур"} списано из лота и во сколько это обошлось.</p>
-              <p className="mt-1"><b>≈ из лота, шт.</b> = произведено в ТЗ × доля лота. Доля = списано из этого лота ÷ всего списано в ТЗ того же материала (в ТЗ может идти несколько лотов), поэтому число приблизительное. <b>На 1 изделие</b> = списано из лота ÷ произведено в ТЗ.</p>
-              <p className="mt-1">Деньги — по цене лота; в режиме «С 4%» ниже добавляется итог с надбавкой.</p>
-            </InfoHint>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {orders.length === 0 ? (
-            <p className="py-4 text-center text-sm text-neutral-500">Лот ещё не использован ни в одном ТЗ{l.rem.greaterThan(0) ? ` — на складе ${qty(l.rem)} (${formatMoney(q2(remIncl))} с НДС)` : ""}.</p>
-          ) : (
-            <ResponsiveRows
-              table={
-                <Table>
-                  <Thead>
-                    <Tr>
-                      <Th>ТЗ</Th>
-                      <Th>Артикул / модель</Th>
-                      <Th>Категория</Th>
-                      <Th>Партия</Th>
-                      <Th>Дата</Th>
-                      <Th className="text-right">Произведено в ТЗ</Th>
-                      <Th className="text-right">≈ из лота, шт.</Th>
-                      <Th className="text-right">Списано, {unit}</Th>
-                      <Th className="text-right">На 1 изделие, {unit}</Th>
-                      <Th className="text-right">Стоимость списания</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {orders.map((o) => (
-                      <Tr key={o.orderId}>
-                        <Td><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline">№ {o.number}</Link></Td>
-                        <Td>
-                          <Link href={`/models/${o.modelId}`} className="underline">{o.modelName}</Link>
-                          {o.sku && <span className="block text-xs text-neutral-500">{o.sku}</span>}
-                        </Td>
-                        <Td>{o.category}</Td>
-                        <Td>{o.batchNumber != null ? <Link href={`/production/batches/${o.batchNumber}`} className="underline">{o.batchNumber}</Link> : "—"}</Td>
-                        <Td className="whitespace-nowrap">{o.orderDate ? formatDate(o.orderDate) : "—"}</Td>
-                        <Td className="text-right tabular-nums">{formatQty(o.produced.toString())}{o.produced.isZero() && <span className="block text-xs text-neutral-500">план {formatQty(o.planned.toString())}</span>}</Td>
-                        <Td className="text-right tabular-nums">{o.unitsFromLot ? `≈ ${formatQty(o.unitsFromLot.toFixed(1))}` : "—"}{o.orderLots > 1 && <span className="block text-xs text-neutral-500">лотов в ТЗ: {o.orderLots}</span>}</Td>
-                        <Td className="text-right font-medium tabular-nums">{formatQty(o.qty.toString())}</Td>
-                        <Td className="text-right tabular-nums">{o.produced.greaterThan(0) ? formatQty(o.qty.div(o.produced).toFixed(2)) : "—"}</Td>
-                        <Td className="text-right tabular-nums"><CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} /></Td>
-                      </Tr>
-                    ))}
-                    <Tr className="row-total">
-                      <Td colSpan={5}><TotalLabel extra={`${orders.length} ТЗ`} /></Td>
-                      <Td className="text-right tabular-nums">{formatQty(tot.produced.toString())}</Td>
-                      <Td className="text-right tabular-nums">≈ {formatQty(tot.units.toFixed(1))}</Td>
-                      <Td className="text-right tabular-nums">{formatQty(tot.qty.toString())}</Td>
-                      <Td className="text-right tabular-nums">{tot.produced.greaterThan(0) ? formatQty(tot.qty.div(tot.produced).toFixed(2)) : "—"}</Td>
-                      <Td className="text-right tabular-nums"><CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} /></Td>
-                    </Tr>
-                    <Tr className="font-semibold">
-                      <Td colSpan={7}>Остаток лота</Td>
-                      <Td className="text-right tabular-nums">{formatQty(l.rem.toString())}</Td>
-                      <Td />
-                      <Td className="text-right tabular-nums"><Money incl={q2(remIncl)} excl={q2(remExcl)} /></Td>
-                    </Tr>
-                  </Tbody>
-                </Table>
-              }
-            >
-              {orders.map((o) => (
-                <RowCard
-                  key={o.orderId}
-                  title={`ТЗ № ${o.number}`}
-                  href={`/production/${o.orderId}`}
-                  subtitle={<><Link href={`/models/${o.modelId}`} className="underline">{o.modelName}</Link> · {o.category}</>}
-                  fields={[
-                    { label: "Списано", value: `${formatQty(o.qty.toString())} ${unit}`, strong: true },
-                    { label: "Стоимость", value: <CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} /> },
-                    { label: "Произведено в ТЗ", value: `${formatQty(o.produced.toString())} шт.${o.produced.isZero() ? ` (план ${formatQty(o.planned.toString())})` : ""}` },
-                    { label: "≈ из лота", value: o.unitsFromLot ? `≈ ${formatQty(o.unitsFromLot.toFixed(1))} шт.` : "—" },
-                  ]}
-                  details={[
-                    { label: "Партия", value: o.batchNumber != null ? String(o.batchNumber) : "—" },
-                    { label: "Дата", value: o.orderDate ? formatDate(o.orderDate) : "—" },
-                    { label: `На 1 изделие, ${unit}`, value: o.produced.greaterThan(0) ? formatQty(o.qty.div(o.produced).toFixed(2)) : "—" },
-                    { label: "Артикул", value: o.sku ?? "—" },
-                  ]}
-                />
-              ))}
-              <div className="row-total rounded-lg p-3 text-sm">
-                <TotalLabel unit={unit} />: {formatQty(tot.qty.toString())} {unit} · <CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} />
-                <div className="mt-1 text-xs font-normal text-neutral-600">
-                  Произведено в ТЗ: {formatQty(tot.produced.toString())} шт., ≈ из лота {formatQty(tot.units.toFixed(1))} шт. Остаток лота: {qty(l.rem)} · <Money incl={q2(remIncl)} excl={q2(remExcl)} />
-                </div>
-              </div>
-            </ResponsiveRows>
-          )}
-        </CardContent>
-      </Card>
+      {/* 4. Изделия */}
+      <div className={BLOCK}>
+        <h2 className={H2 + " flex items-center gap-2"}>
+          В каких изделиях участвует
+          <InfoHint label="Изделия лота" wide>
+            <p>Артикул › ТЗ, где списан этот лот. Данные берутся из базы при каждом открытии: новое ТЗ со списанием лота появляется здесь само. Доля лота = списано ÷ куплено. «На изделие» = списано ÷ произведено в ТЗ.</p>
+          </InfoHint>
+        </h2>
+        <LotProducts models={prodModels} recv={l.recv.toNumber()} unit={unit} />
+      </div>
     </div>
   );
 }
