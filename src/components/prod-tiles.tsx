@@ -14,9 +14,9 @@ const money = (v: number) => formatMoney(v.toFixed(2));
 /**
  * Плитки выпуска в формате Главной: «Произведено», «Себестоимость» (с работой и статьями), «На 1 изделие».
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
- * `extra` — дополнительные плитки страницы (оплаты партий, склад и т. п.).
+ * `extra` — дополнительные плитки страницы (оплаты партий, маркап и т. п.); `perUnit` — замена плитки «На 1 изделие» (карусель на «Изделиях»).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство" }: { id?: string; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit }: { id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
@@ -65,7 +65,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
           </InfoHint>
         </div>
       </div>
-      <div className="relative">
+      {perUnit ?? <div className="relative">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>На 1 изделие</TileHead>
           <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "—"}</TileValue>
@@ -84,7 +84,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
             <p>Σ себестоимость без ремонта ({money(totalOwn)}) ÷ Σ изделий ({formatQty(own.qty)} шт.). Не среднее по ТЗ, а общая сумма на общее количество.</p>
           </InfoHint>
         </div>
-      </div>
+      </div>}
       {extra ? <Fragment key="extra">{extra}</Fragment> : null}
     </div>
     </WidgetRow>

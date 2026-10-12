@@ -22,7 +22,7 @@ import { loadOrderRows } from "@/lib/analytics-orders";
 import { ArticleName } from "@/components/article-name";
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
-import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
+import { MarkupCarousel, PerUnitCarousel, type MarkupRow } from "./article-widgets";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
@@ -145,12 +145,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const totalStockQty = sum((r) => r.stockQty);
   const totalCostIncl = sum((r) => r.costIncl);
   const totalCostExcl = sum((r) => r.costExcl);
-  const stockIncl = sum((r) => r.stockIncl);
-  const stockExcl = sum((r) => r.stockExcl);
-  const wipQtyAll = sum((r) => r.wipQty);
-  const wipIncl = sum((r) => r.wipIncl);
-  const wipExcl = sum((r) => r.wipExcl);
-  const retailAll = sum((r) => r.retailStock ?? 0);
   const totalFurQty = sum((r) => r.met.fur.qty);
   const totalLiningQty = sum((r) => r.met.lining.qty);
   const sumPair = (pick: (r: (typeof rows)[number]) => { incl: number; excl: number }) => rows.reduce((a, r) => ({ incl: a.incl + pick(r).incl, excl: a.excl + pick(r).excl }), { incl: 0, excl: 0 });
@@ -187,7 +181,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const listedModelIds = new Set(rows.map((r) => r.id));
   const drill = allDrill.filter((o) => !isRepair(o) && listedModelIds.has(o.mid) && (!matchedIds || matchedIds.includes(o.id)));
   const repairDrill = tzActive || modelFilterOn ? [] : allDrill.filter(isRepair);
-  const mny = (v: number | string) => formatMoney(Number(v).toFixed(2));
+  const markupRows: MarkupRow[] = rows.map((r) => ({ fur: r.primaryFur, grp: r.group, price: r.sellingPrice, unit: r.unitIncl, qty: r.qty, orders: r.orderCount }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -245,46 +239,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         treeId="orders-tree"
         id="articles"
         title="Изделия — итоги"
-        extraCount={2}
-        extra={
-          <>
-            <div className="relative">
-              <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-                <TileHead>На складе</TileHead>
-                <TileValue>{totalStockQty > 0 ? `${formatQty(totalStockQty)} шт.` : "—"}</TileValue>
-                <TileCaption>готовая продукция · без ремонта</TileCaption>
-                <TileList items={[
-                  { k: "Стоимость остатка", v: totalStockQty > 0 ? <Money incl={stockIncl} excl={stockExcl} /> : "—" },
-                  { k: wipQtyAll > 0 ? `ТЗ в работе, ${formatQty(wipQtyAll)} шт.` : "ТЗ в работе", v: wipQtyAll > 0 ? <Money incl={wipIncl} excl={wipExcl} /> : "—" },
-                  { k: "В розничных ценах", v: retailAll > 0 ? mny(retailAll) : "—" },
-                ]} />
-              </div>
-              <div className="absolute right-3 top-3">
-                <InfoHint label="Как считается склад" wide align="right">
-                  <p><b>Стоимость остатка</b> = остаток × средняя себестоимость завершённых ТЗ артикула. <b>ТЗ в работе</b> — изделия, которых ещё нет на складе, но их себестоимость уже в «Себестоимости» слева. Склад + в работе = себестоимость изделий.</p>
-                  <p className="mt-1">Розничная стоимость — остаток × розничная цена артикула. Остаток текущий, от года не зависит.</p>
-                </InfoHint>
-              </div>
-            </div>
-            <div className="relative">
-              <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-                <TileHead>Маркап</TileHead>
-                <TileValue>{markupTotal ? fmtX(markupTotal.markup) : "—"}</TileValue>
-                <TileCaption>розница ÷ себестоимость, средневзвешенно</TileCaption>
-                <TileList items={[
-                  { k: "Ср. розничная цена", v: markupTotal ? formatMoney(markupTotal.price.toFixed(0)) : "—" },
-                  { k: "Артикулов с ценой", v: markupTotal ? String(markupTotal.n) : "—" },
-                  { k: "Без цены", v: rows.filter((r) => !r.sellingPrice && r.orderCount > 0).length || "—" },
-                ]} />
-              </div>
-              <div className="absolute right-3 top-3">
-                <InfoHint label="Как считается маркап" wide align="right">
-                  <p>Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск) по артикулам с розничной ценой. Подробно по меху и категориям — в таблице ниже.</p>
-                </InfoHint>
-              </div>
-            </div>
-          </>
-        }
+        extraCount={1}
+        perUnit={<PerUnitCarousel key="per-unit" orders={drill} c4={c4Mode} />}
+        extra={<MarkupCarousel key="markup" rows={markupRows} />}
       />
 
       <ResponsiveRows table={
