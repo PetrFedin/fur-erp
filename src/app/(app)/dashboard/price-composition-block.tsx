@@ -14,6 +14,7 @@ const NCAT = COMP_CATS.length;
 const KEYS: string[] = [...COMP_CATS.map((c) => c.key), "nobd"];
 
 const RAW_IDX = KEYS.indexOf("raw");
+const OTHER_IDX = KEYS.indexOf("other");
 const NOBD_IDX = KEYS.indexOf("nobd");
 
 const lotsWord = (n: number) => { const m = n % 100, d = n % 10; return m >= 11 && m <= 14 ? "лотов" : d === 1 ? "лот" : d >= 2 && d <= 4 ? "лота" : "лотов"; };
@@ -88,10 +89,32 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
   const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).length, [lots]);
-  const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }), nobdLotsN);
+  // «Прочие расходы» раскрываются по источникам: аукцион/партия (или «по плану закупки» для заказанного, но не полученного), сумма и шкуры.
+  const otherGroups = useMemo(() => {
+    const g = new Map<string, { label: string; value: number; unit: number; qty: number; n: number; hint: string }>();
+    for (const l of lots) {
+      const v = l.excl[OTHER_IDX];
+      if (!(Math.abs(v) >= 0.005)) continue;
+      const planned = l.kind === "planned";
+      const k = "other_g:" + (planned ? "plan:" : "") + l.auction;
+      const e = g.get(k) ?? { label: planned ? `${l.auction} · по плану закупки` : l.auction, value: 0, unit: 0, qty: 0, n: 0, hint: planned ? "Заказано, не получено: упаковка и прочее из расчёта позиций закупки (costPlan)." : "Упаковка и прочие расходы, не разложенные по статьям, в лотах этого аукциона." };
+      e.value += v; e.n++;
+      if (l.qty > 0) { e.unit += v; e.qty += l.qty; }
+      g.set(k, e);
+    }
+    // Копеечные хвосты (меньше 1 ₽) — одна строка «Округления».
+    const big = [...g.entries()].filter(([, e]) => Math.abs(e.value) >= 1).sort((x, y) => y[1].value - x[1].value);
+    const tiny = [...g.values()].filter((e) => Math.abs(e.value) < 1);
+    if (tiny.length) big.push(["other_g:round", { label: "Округления", value: tiny.reduce((q, e) => q + e.value, 0), unit: tiny.reduce((q, e) => q + e.unit, 0), qty: tiny.reduce((q, e) => q + e.qty, 0), n: tiny.reduce((q, e) => q + e.n, 0), hint: "Копеечные остатки до цены лота (меньше 1 ₽ на аукцион)." }]);
+    return big;
+  }, [lots]);
+  const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }), nobdLotsN).map((sl) =>
+    sl.key === "other" && otherGroups.length > 1
+      ? { ...sl, sub: otherGroups.map(([k, e]) => ({ key: k, label: `${e.label} (${e.n} ${lotsWord(e.n)})`, value: e.value, color: COMP_COLOR.other, hint: e.hint })) }
+      : sl);
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;
   const total = withVat ? exclTotal + a.vat : exclTotal;
-  const unitVals = { ...a.unit, raw_o: a.unit.raw ?? 0, raw: (a.unit.raw ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
+  const unitVals: Record<string, number> = { ...a.unit, ...Object.fromEntries(otherGroups.map(([k, e]) => [k, e.unit])), raw_o: a.unit.raw ?? 0, raw: (a.unit.raw ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
   const unitTotal = withVat ? a.unitTotal + unitVals.vat : a.unitTotal;
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -104,6 +127,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const qtyVals = useMemo(() => {
     const m: Record<string, number> = Object.fromEntries(KEYS.map((k) => [k, 0]));
     m.vat = 0; m.raw_o = 0;
+    for (const [k, e] of otherGroups) m[k] = e.qty;
     for (const l of lots) {
       if (!(l.qty > 0)) continue;
       if (l.excl[RAW_IDX] > 0.005) m.raw_o += l.qty;
@@ -112,7 +136,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
       if (l.vat > 0.005) m.vat += l.qty;
     }
     return m;
-  }, [lots]);
+  }, [lots, otherGroups]);
   const openSlice = open ? slices.find((s) => s.key === open) : null;
   const sel = (key: string) => { setOpener(document.activeElement as HTMLElement | null); setOpen(key); };
   const rows = openSlice
