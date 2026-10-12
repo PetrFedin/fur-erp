@@ -109,8 +109,7 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
   const usdNote = (have: number, qty: number) => (have > 0 && qty - have > 0.0005 ? <div className="text-[10px] font-normal text-neutral-500">по {formatQty(have)} из {formatQty(qty)}</div> : null);
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const perUnit = (qty: number, units: number) => (units > 0 ? qty / units : null);
-  const COLS = 17;
-
+  
   return (
     <section aria-labelledby="fur-orders" className="space-y-2">
       <div className="flex items-center gap-2">
@@ -148,33 +147,32 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
       </div>
 
       <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200">
-        <table className="w-full table-fixed text-sm" style={{ minWidth: 1720 }}>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: 1290 }}>
           <colgroup>
-            {[150, 110, 56, 150, 70, 96, 84, 66, 56, 70, 120, 120, 96, 110, 84, 100, 130].map((w, i) => <col key={i} style={{ width: w }} />)}
+            {[170, 130, 52, 76, 40, 66, 46, 46, 104, 80, 84, 50, 70, 90, 90].map((w, i) => <col key={i} style={{ width: w }} />)}
           </colgroup>
           <thead>
             <tr>
-              <th colSpan={6} className={block.replace("border-l ", "")}>ТЗ</th>
-              <th colSpan={4} className={block}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</th>
-              <th colSpan={4} className={block}>Стоимость</th>
+              <th colSpan={5} className={block.replace("border-l ", "") + " sticky left-0 z-[2] bg-white"}>ТЗ</th>
+              <th colSpan={7} className={block}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</th>
               <th colSpan={2} className={block}>На изделие</th>
               <th colSpan={1} className={block}>Остаток в лотах ТЗ</th>
             </tr>
             <tr className="border-b border-neutral-200">
-              {head("number", "№ ТЗ", true)}
-              <th className={cn(TH, "!text-left")}>Партия</th>
-              {head("year", "Год")}
-              <th className={cn(TH, "!text-left")}>Артикул / категория</th>
-              <th className={TH}>Изделий, шт.</th>
+              <th className={cn(TH, "sticky left-0 z-[2] bg-white !text-left")} aria-sort={sort.key === "number" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+                <button type="button" onClick={() => setSort((s) => ({ key: "number", dir: s.key === "number" && s.dir === "desc" ? "asc" : "desc" }))} className={cn("hover:underline", sort.key === "number" && "text-[var(--ui-accent-text)]")}>№ ТЗ / партия{sort.key === "number" ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}</button>
+              </th>
+              <th className={cn(TH, "!text-left")}>Артикул</th>
+              <th className={TH}>Изд., шт.</th>
               <th className={TH}>Статус</th>
+              {head("year", "Год")}
               {head("qty", `${kind === "lining" ? "Метров" : "Шкур"}, ${unit}`, false, true)}
-              <th className={TH}>Доля, %</th>
               <th className={TH}>Лотов</th>
               <th className={TH}>Аукц.</th>
-              {head("sum", <>Сумма без 4%, ₽<br /><span className="font-normal">с 4% — мелко</span></>, false, true)}
-              <th className={TH}>В т.ч. НДС, ₽</th>
-              {head("avg", `Ср. цена, ₽/${unit}`)}
-              <th className={TH}>Ср. цена, $/{unit}</th>
+              {head("sum", <>Сумма, ₽<br /><span className="font-normal">без 4%</span></>)}
+              {head("avg", <>Ср. цена, ₽/{unit}<InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint></>)}
+              <th className={TH}>Ср. цена, $/{unit}<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint></th>
+              <th className={TH}>Доля, %</th>
               {head("per", `${kind === "lining" ? "М" : "Шкур"} на изд.`, false, true)}
               <th className={TH}>Мех на изд., ₽</th>
               <th className={cn(TH, BL)}>{unit}, ₽</th>
@@ -188,42 +186,41 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
               const sum = base(r);
               return (
                 <Fragment key={r.orderId}>
-                  <tr className="border-t border-neutral-100">
-                    <td className="px-2 py-1.5 text-left">
+                  <tr className="border-t border-neutral-100 bg-white">
+                    <td className="sticky left-0 z-[1] bg-white px-2 py-1.5 text-left">
                       <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"} лоты ТЗ ${r.number}`} onClick={() => toggle(r.orderId)} className="mr-1 align-middle"><span aria-hidden className={cn("inline-block w-3 text-neutral-500 transition-transform", isOpen && "rotate-90")}>›</span></button>
-                      <Link href={`/production/${r.orderId}`} className="text-blue-700 hover:underline">ТЗ {r.number}</Link>
+                      <Link href={`/production/${r.orderId}`} className="whitespace-nowrap text-blue-700 hover:underline">ТЗ {r.number}</Link>
+                      <div className="truncate pl-4 text-[11px] text-neutral-500" title={info?.batch}>{info?.batch ?? " "}</div>
                     </td>
-                    <td className="truncate px-2 py-1.5 text-left text-xs" title={info?.batch}>{info?.batch || <D />}</td>
-                    <td className={TD + " text-xs"}>{info?.year ?? <D />}</td>
-                    <td className="truncate px-2 py-1.5 text-left text-xs" title={`${info?.article ?? ""} · ${info?.category ?? ""}`}>{info ? <>{info.article}<span className="text-neutral-500"> · {info.category}</span></> : <D />}</td>
+                    <td className="truncate px-2 py-1.5 text-left text-xs" title={`${info?.article ?? ""} · ${info?.category ?? ""}`}>{info ? <>{info.article.split(" · ")[0]}<div className="truncate text-[11px] text-neutral-500">{info.category}</div></> : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatQty(info.units) : <D />}</td>
                     <td className={TD + " text-xs"}>{info ? STATUS[info.status] : <D />}</td>
+                    <td className={TD + " text-xs"}>{info?.year ?? <D />}</td>
                     <td className={TD + BL}>{formatQty(r.qty)}</td>
-                    <td className={TD + " text-neutral-600"}>{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
                     <td className={TD}>{r.lots.size}</td>
                     <td className={TD}>{r.auctions.size}</td>
-                    <td className={TD + BL}>{money(sum)}<div className="text-[10px] font-normal text-neutral-500">с 4%: {money(withC4(r))}</div></td>
-                    <td className={TD}>{money(r.incl - r.excl)}</td>
+                    <td className={TD} title={`в т.ч. НДС: ${formatMoney(r.incl - r.excl)}`}>{money(sum)}<div className="text-[10px] font-normal text-neutral-500">с 4%: {money(withC4(r))}</div></td>
                     <td className={TD}>{r.qty > 0 ? formatMoney(Math.round((sum / r.qty) * 100) / 100) : <D />}</td>
                     <td className={TD}>{r.usdQty > 0 ? usd(r.usdSum / r.usdQty) : <D />}{usdNote(r.usdQty, r.qty)}</td>
+                    <td className={TD + " text-neutral-600"}>{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
                     <td className={TD + BL}>{pu != null ? formatQty(Math.round(pu * 100) / 100) : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatMoney(Math.round((sum / info.units) * 100) / 100) : <D />}</td>
                     <td className={TD + BL}>{r.remQty > 0.0005 ? <>{formatQty(r.remQty)}<div className="text-[10px] font-normal text-neutral-500">{formatMoney(vat === "excl" ? r.remExcl : r.remIncl)}</div></> : <D />}</td>
                   </tr>
                   {isOpen ? Array.from(r.lots.values()).sort((a, b) => b.qty - a.qty).map(({ lot, qty, excl, incl }) => (
                     <tr key={lot.id} className="border-t border-neutral-100 bg-neutral-50/40 text-[13px] text-neutral-700">
-                      <td className="px-2 py-1 pl-8 text-left" colSpan={3}>
-                        {lot.id.startsWith("hides") || lot.id.startsWith("ordered:") ? <span>лот № {lot.lotNumber}</span> : <Link href={`/analytics/raw/lot/${lot.id}`} className="text-blue-700 hover:underline">лот № {lot.lotNumber}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>}
+                      <td className="sticky left-0 z-[1] bg-white px-2 py-1 pl-8 text-left">
+                        {lot.id.startsWith("hides") || lot.id.startsWith("ordered:") ? <span>лот № {lot.lotNumber}</span> : <Link href={`/analytics/raw/lot/${lot.id}`} className="whitespace-nowrap text-blue-700 hover:underline">лот № {lot.lotNumber}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>}
                       </td>
-                      <td className="truncate px-2 py-1 text-left text-xs" colSpan={3}>
+                      <td className="truncate px-2 py-1 text-left text-xs" colSpan={4}>
                         {lot.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(lot.auction)}`} className="text-blue-700 hover:underline">{lot.auctionLabel}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link> : lot.auctionLabel}
                       </td>
                       <td className={TD + BL}>{formatQty(qty)}</td>
-                      <td className={TD} colSpan={3} />
-                      <td className={TD + BL}>{money(vat === "excl" ? excl : incl)}</td>
-                      <td className={TD}>{money(incl - excl)}</td>
+                      <td className={TD} colSpan={2} />
+                      <td className={TD}>{money(vat === "excl" ? excl : incl)}</td>
                       <td className={TD}>{qty > 0 ? formatMoney(Math.round(((vat === "excl" ? excl : incl) / qty) * 100) / 100) : <D />}</td>
                       <td className={TD}>{lot.usdPrice != null ? usd(lot.usdPrice) : <D />}</td>
+                      <td className={TD} />
                       <td className={TD + BL} colSpan={2} />
                       <td className={TD + BL}>{lot.rem > 0.0005 ? formatQty(lot.rem) : <D />}</td>
                     </tr>
@@ -231,18 +228,18 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
                 </Fragment>
               );
             })}
-            {shown.length === 0 ? <tr><td colSpan={COLS} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
+            {shown.length === 0 ? <tr><td colSpan={15} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
               <tr className="row-total">
-                <td className="px-2 py-2 text-left" colSpan={4}><TotalLabel unit="₽" avg /></td>
-                <td className={TD}>{T.units > 0 ? formatQty(T.units) : <D />}</td>
+                <td className="sticky left-0 z-[1] bg-inherit px-2 py-2 text-left"><TotalLabel unit="₽" avg /></td>
                 <td className={TD} />
-                <td className={TD + BL}>{formatQty(T.qty)}</td>
-                <td className={TD}>{T.qty > 0 ? formatPercent(100) : <D />}</td>
+                <td className={TD}>{T.units > 0 ? formatQty(T.units) : <D />}</td>
                 <td className={TD} /><td className={TD} />
-                <td className={TD + BL}>{money(totBase)}<div className="text-[10px] font-normal opacity-80">с 4%: {money(totC4)}</div></td>
-                <td className={TD}>{money(T.incl - T.excl)}</td>
+                <td className={TD + BL}>{formatQty(T.qty)}</td>
+                <td className={TD} /><td className={TD} />
+                <td className={TD} title={`в т.ч. НДС: ${formatMoney(T.incl - T.excl)}`}>{money(totBase)}<div className="text-[10px] font-normal opacity-80">с 4%: {money(totC4)}</div></td>
                 <td className={TD}>{T.qty > 0 ? formatMoney(Math.round((totBase / T.qty) * 100) / 100) : <D />}</td>
                 <td className={TD}>{T.usdQty > 0 ? usd(T.usdSum / T.usdQty) : <D />}{usdNote(T.usdQty, T.qty)}</td>
+                <td className={TD}>{T.qty > 0 ? formatPercent(100) : <D />}</td>
                 <td className={TD + BL}>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : <D />}</td>
                 <td className={TD}>{T.units > 0 ? formatMoney(Math.round((totBase / T.units) * 100) / 100) : <D />}</td>
                 <td className={TD + BL} title="Лот может быть у нескольких ТЗ — остатки не суммируются"><D /></td>
