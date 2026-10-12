@@ -13,6 +13,8 @@ import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
+import { PriceCompositionBlock } from "./price-composition-block";
+import { priceComposition } from "@/lib/price-composition-server";
 import { PageModes, type ModeInfo } from "./mode-line";
 
 export const metadata = { title: "Главная" };
@@ -45,6 +47,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const filtersOn = lotFiltersOn(f) || orderFiltersOn(f);
 
   const d = await loadDashboard(organizationId, year, f, c4Mode);
+  const pc = await priceComposition(organizationId, d);
   const yl = yearLabel(year);
   const search: Record<string, string[]> = { auction: f.auction, fur: f.fur, color: f.color, attr: f.attr, batch: f.batch, catgroup: f.catgroup, kind: f.kind ?? [] };
   const prodNums = (t: typeof d.prod.done) => ({ items: t.items, repairOrders: t.repairOrders, repairQty: t.repairQty, repairCostIncl: t.repairCostIncl, repairCostExcl: t.repairCostExcl, orders: t.orders, qty: t.qty, costIncl: t.costIncl, costExcl: t.costExcl, work: t.workSum, furIncl: t.furIncl, furExcl: t.furExcl, liningIncl: t.liningIncl, liningExcl: t.liningExcl, matIncl: t.furIncl + t.liningIncl, matExcl: t.furExcl + t.liningExcl, c4Incl: t.c4Incl, c4Excl: t.c4Excl });
@@ -117,6 +120,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
         <PayTiles d={d} c4Mode={c4Mode} year={year} />
       </section>
+
+      {/* ───────── Из чего складывается стоимость меха (в самом низу) ───────── */}
+      <PriceCompositionBlock lots={pc.lots} />
     </div>
   );
 }

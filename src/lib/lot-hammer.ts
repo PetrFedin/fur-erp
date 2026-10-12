@@ -15,7 +15,7 @@ export type Hammer = {
   /** $ за шкуру, если цена была в долларах. */
   usd: number | null;
   /** Откуда взято (для подсказки). */
-  source: "молоток в расчёте лота" | "цена × курс" | "расчётный лист";
+  source: "молоток в расчёте лота" | "цена × курс" | "расчётный лист" | "НДС на шкуры ÷ ставка НДС" | "цена из расчёта Drive × курсы";
 };
 
 type Item = { label?: unknown; value?: unknown };
@@ -56,14 +56,40 @@ function fromItems(items: Item[], vatRate: number): Hammer | null {
   return null;
 }
 
+/** Листы без готовой строки молотка: «НДС на шкуры» ÷ ставка НДС лота (лист с «Курс ЦБ (фиксация)»); цена в евро из расчёта Drive × курс инвойса × курс ЦБ (лист с «Валютный курс инвойса»). */
+function fromSheetFallbacks(items: Item[], vatRate: number, ref: { currency: "USD" | "EUR"; price: number } | null): Hammer | null {
+  if (items.length === 0) return null;
+  const k = 1 + (Number.isFinite(vatRate) ? vatRate : 0) / 100;
+  const usd = pick(items, "Цена за ед. (ам. долл.)") ?? pick(items, "Цена за ед., $");
+  const vatHides = pick(items, "НДС на шкуры");
+  if (vatHides != null && vatHides > 0 && vatRate > 0) {
+    const excl = vatHides / (vatRate / 100);
+    return { excl, incl: excl * k, usd, source: "НДС на шкуры ÷ ставка НДС" };
+  }
+  const inv = pick(items, "Валютный курс инвойса");
+  const fix = pick(items, "Курс ЦБ (фиксация)");
+  if (ref && ref.price > 0 && fix != null && fix > 0 && (ref.currency === "USD" || (inv != null && inv > 0))) {
+    const excl = (ref.currency === "EUR" ? ref.price * (inv ?? 0) : ref.price) * fix;
+    return { excl, incl: excl * k, usd, source: "цена из расчёта Drive × курсы" };
+  }
+  return null;
+}
+
 /** Молоток лота: из расчёта лота, а если его нет — из расчётного листа позиций закупки (costPlan). */
-export function lotHammer(costBreakdown: unknown, vatRate: number, planBreakdowns: unknown[] = []): Hammer | null {
+export function lotHammer(costBreakdown: unknown, vatRate: number, planBreakdowns: unknown[] = [], opts: { purchaseNumber?: string | null; lotNumber?: string | null } = {}): Hammer | null {
   const own = fromItems(itemsOf(costBreakdown), vatRate);
   if (own) return own;
   for (const p of planBreakdowns) {
     const cp = (p as { costBreakdown?: unknown } | null | undefined)?.costBreakdown;
     const h = fromItems(itemsOf(cp), vatRate);
     if (h) return h;
+  }
+  const ref = lotUsdRef(opts.purchaseNumber, opts.lotNumber);
+  const fb = fromSheetFallbacks(itemsOf(costBreakdown), vatRate, ref);
+  if (fb) return fb;
+  for (const p of planBreakdowns) {
+    const f2 = fromSheetFallbacks(itemsOf((p as { costBreakdown?: unknown } | null | undefined)?.costBreakdown), vatRate, ref);
+    if (f2) return f2;
   }
   return null;
 }

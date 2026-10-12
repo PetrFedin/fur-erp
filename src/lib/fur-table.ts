@@ -442,10 +442,11 @@ export function parseFilters(q: Q, kind: FurKind): FurFilters {
     f[k] = Array.from(new Set(vals));
   }
   f.rest = f.rest.filter((v) => v === "with" || v === "zero");
-  f.status = f.status.filter((v) => v in STATUS_LABELS);
-  f.pay = f.pay.filter((v) => v in PAY_LABELS);
+  // Фильтры по статусу закупки и оплате убраны из интерфейса: старые параметры адреса игнорируем.
+  f.status = [];
+  f.pay = [];
   f.usage = f.usage.filter((v) => v in USAGE_LABELS);
-  f.rate = f.rate.filter((v) => /^\d{1,2}$/.test(v));
+  f.rate = []; // фильтр «Ставка НДС» убран из интерфейса: старый параметр адреса игнорируем
   f.year = f.year.filter((v) => /^\d{4}$/.test(v));
   return f;
 }

@@ -1,0 +1,185 @@
+"use client";
+
+import { useId, useState, type ReactNode } from "react";
+import { formatMoney, formatPercent } from "@/lib/utils";
+import { sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
+import { useVatDisplay } from "@/lib/vat-display";
+
+// Состав цены: кольцевая диаграмма + горизонтальная составная полоса + таблица-легенда (она же текстовая альтернатива графику).
+// Наведение на сектор/полосу подсвечивает строку легенды (оранжевая граница, подложка #FFF1EB) и наоборот; клик по сектору/строке — onSelect.
+
+const R_OUT = 56, R_IN = 34, C = 60;
+
+function polar(r: number, a: number): [number, number] {
+  return [C + r * Math.cos(a), C + r * Math.sin(a)];
+}
+
+/** Дуга кольца от угла a0 до a1 (радианы, от 12 часов по часовой). */
+function ringPath(a0: number, a1: number): string {
+  const full = a1 - a0 >= Math.PI * 2 - 1e-6;
+  const s = a0 - Math.PI / 2;
+  const e = (full ? a0 + Math.PI * 2 - 0.0001 : a1) - Math.PI / 2;
+  const large = e - s > Math.PI ? 1 : 0;
+  const [x1, y1] = polar(R_OUT, s), [x2, y2] = polar(R_OUT, e), [x3, y3] = polar(R_IN, e), [x4, y4] = polar(R_IN, s);
+  return `M${x1.toFixed(3)} ${y1.toFixed(3)}A${R_OUT} ${R_OUT} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)}L${x3.toFixed(3)} ${y3.toFixed(3)}A${R_IN} ${R_IN} 0 ${large} 0 ${x4.toFixed(3)} ${y4.toFixed(3)}Z`;
+}
+
+const HOVER_ROW = "bg-[#FFF1EB] shadow-[inset_3px_0_0_var(--ui-accent,#ff4a1c)]";
+
+export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false }: {
+  slices: CompSlice[];
+  /** Итог для центра и строки «Всего»: сумма секторов, ₽. */
+  total: number;
+  /** Шкур в лоте/выборке — для колонки «₽ на шкуру». */
+  qty: number;
+  /** Части сумм, приходящиеся на строки с количеством шкур (по ключу сектора) и их итог: деньги без количества (шкуры подрядчика) в «₽ на шкуру» не входят. Нет — берётся вся сумма. */
+  unitVals?: Record<string, number>;
+  unitTotal?: number;
+  unitName?: string;
+  totalLabel: string;
+  /** Мелкая подпись под центром кольца. */
+  caption?: string;
+  onSelect?: (key: string) => void;
+  selectTitle?: string;
+  ariaLabel: string;
+  /** Подпись справа от названия строки (например, «по 12 лотам»). */
+  countLabel?: (key: string) => ReactNode;
+  compact?: boolean;
+}) {
+  const [hover, setHover] = useState<string | null>(null);
+  const uid = useId();
+  const pos = slices.filter((s) => s.value > 0);
+  const posTotal = pos.reduce((a, s) => a + s.value, 0);
+  const share = (v: number) => (total !== 0 ? (v / total) * 100 : 0);
+  const arcs = pos.map((s, i) => {
+    const frac = posTotal > 0 ? s.value / posTotal : 0;
+    const before = pos.slice(0, i).reduce((a, x) => a + (posTotal > 0 ? x.value / posTotal : 0), 0);
+    return { s, d: ringPath(before * Math.PI * 2, (before + frac) * Math.PI * 2), frac };
+  });
+  const drawn = [...arcs.filter((a) => a.s.key !== hover), ...arcs.filter((a) => a.s.key === hover)];
+  const perUnit = (v: number, key?: string) => (qty > 0 ? formatMoney((((key != null && unitVals ? unitVals[key] ?? 0 : v)) / qty).toFixed(2)) : "—");
+  const money = (v: number) => formatMoney(v.toFixed(2));
+  const interactive = !!onSelect;
+  const enter = (k: string) => () => setHover(k);
+  const leave = () => setHover(null);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className={"flex flex-wrap items-start gap-x-6 gap-y-3 " + (compact ? "" : "")}>
+        <div className="mx-auto shrink-0 sm:mx-0">
+          <svg viewBox="0 0 120 120" className="h-44 w-44" role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
+            <title>{ariaLabel}</title>
+            {arcs.length === 0 ? <circle cx={C} cy={C} r={(R_OUT + R_IN) / 2} fill="none" stroke="#e5e5e5" strokeWidth={R_OUT - R_IN} /> : null}
+            {drawn.map(({ s, d, frac }) => {
+              const hot = hover === s.key;
+              return (
+                <path key={s.key} d={d} fill={s.color}
+                  stroke={hot ? "var(--ui-accent, #ff4a1c)" : "#ffffff"} strokeWidth={hot ? 2.2 : 1.2} strokeLinejoin="round"
+                  className={interactive ? "cursor-pointer" : undefined}
+                  onMouseEnter={enter(s.key)} onMouseLeave={leave}
+                  onClick={interactive ? () => onSelect?.(s.key) : undefined}>
+                  <title>{`${s.label}: ${money(s.value)} ₽ · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} ₽ за ${unitName}` : ""}`}</title>
+                </path>
+              );
+            })}
+            <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(unitTotal ?? total) : money(total)}</text>
+            <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `₽ за ${unitName}` : "₽"}</text>
+            {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
+          </svg>
+        </div>
+
+        <div id={`${uid}-legend`} className="w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0">
+          <table className="w-full table-fixed text-left text-xs sm:text-sm">
+            <caption className="sr-only">{ariaLabel}: составляющие, рубли за {unitName}, рубли всего и доля</caption>
+            <colgroup><col /><col className="hidden w-[5.5rem] sm:table-column" /><col className="w-[5.5rem] sm:w-[6.5rem]" /><col className="w-[3rem] sm:w-[3.75rem]" /></colgroup>
+            <thead>
+              <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
+                <th scope="col" className="py-1.5 pr-2">Составляющая</th>
+                <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">₽/{qty > 0 ? "шт." : "всего"}</th>
+                <th scope="col" className="px-1.5 py-1.5 text-right">₽ всего</th>
+                <th scope="col" className="px-1.5 py-1.5 text-right">Доля</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slices.map((s) => {
+                const hot = hover === s.key;
+                const label = (
+                  <span className="flex items-center gap-2">
+                    <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
+                    <span className="min-w-0 break-words">{s.label}</span>
+                    {countLabel ? <span className="hidden shrink-0 text-[11px] text-neutral-500 sm:inline">{countLabel(s.key)}</span> : null}
+                  </span>
+                );
+                return (
+                  <tr key={s.key} title={s.hint} onMouseEnter={enter(s.key)} onMouseLeave={leave}
+                    className={"border-b border-neutral-100 transition-colors " + (hot ? HOVER_ROW : "") + (interactive ? " cursor-pointer" : "")}
+                    onClick={interactive ? () => onSelect?.(s.key) : undefined}>
+                    <td className="py-1.5 pr-2">
+                      {interactive ? (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); onSelect?.(s.key); }} onFocus={enter(s.key)} onBlur={leave} aria-haspopup="dialog" title={selectTitle}
+                          className="block w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{label}</button>
+                      ) : label}
+                    </td>
+                    <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(s.value, s.key)}</td>
+                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
+                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
+                  </tr>
+                );
+              })}
+              <tr className="row-total">
+                <td className="py-1.5 pr-2 text-sm font-semibold">{totalLabel}</td>
+                <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(unitTotal ?? total)}</td>
+                <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
+                <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {pos.length > 0 ? (
+        <div className="flex h-3.5 w-full overflow-hidden rounded-md border border-neutral-200" role="presentation" aria-hidden>
+          {arcs.map(({ s, frac }) => (
+            <div key={s.key} style={{ width: `${frac * 100}%`, background: s.color, boxShadow: hover === s.key ? "inset 0 0 0 2px var(--ui-accent, #ff4a1c)" : undefined }}
+              title={`${s.label}: ${formatPercent(frac * 100)}`} className={interactive ? "cursor-pointer" : undefined}
+              onMouseEnter={enter(s.key)} onMouseLeave={leave} onClick={interactive ? () => onSelect?.(s.key) : undefined} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Переключатель «без НДС | с НДС» (по умолчанию — режим шапки сайта). */
+export function useChartVat(): { withVat: boolean; toggle: ReactNode } {
+  const { mode } = useVatDisplay();
+  const [own, setOwn] = useState<boolean | null>(null);
+  const withVat = own ?? mode === "incl";
+  const seg = (on: boolean, label: string) => (
+    <button type="button" aria-pressed={withVat === on} onClick={() => setOwn(on)}
+      className={"px-2.5 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (withVat === on ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
+  );
+  const toggle = (
+    <div role="group" aria-label="Состав цены: без НДС или с НДС" className="inline-flex self-start overflow-hidden rounded-md border border-neutral-300 text-xs">
+      {seg(false, "без НДС")}{seg(true, "с НДС")}
+    </div>
+  );
+  return { withVat, toggle };
+}
+
+/** График состава цены одного лота: суммы за весь лот без НДС, НДС и режим. */
+export function LotPriceComposition({ cats, vat, qty, unitName, ariaLabel }: { cats: Record<CompCat, number>; vat: number; qty: number; unitName: string; ariaLabel: string }) {
+  const { withVat, toggle } = useChartVat();
+  const slices = sliceList(cats, { vat, withVat });
+  const exclTotal = Object.values(cats).reduce((a, v) => a + v, 0);
+  const total = withVat ? exclTotal + vat : exclTotal;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {toggle}
+        <span className="text-xs text-neutral-500">{withVat ? "сектора без НДС плюс НДС лота" : `НДС лота ${formatMoney(vat.toFixed(2))} ₽ в секторах не показан`}</span>
+      </div>
+      <PriceCompositionChart slices={slices} total={total} qty={qty} unitName={unitName} totalLabel={withVat ? "Цена лота, с НДС" : "Цена лота, без НДС"} ariaLabel={ariaLabel + (withVat ? ", с НДС" : ", без НДС")} />
+    </div>
+  );
+}
