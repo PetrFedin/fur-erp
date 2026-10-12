@@ -331,7 +331,7 @@ export function BudgetEditor(p: Props) {
   );
 
   const totalTiles = (
-    <div className="grid grid-cols-1 items-stretch gap-3 min-[560px]:grid-cols-2 lg:grid-cols-3 min-[1500px]:grid-cols-5 print:grid-cols-5">
+    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
       {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
