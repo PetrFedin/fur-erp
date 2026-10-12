@@ -147,16 +147,15 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
       </div>
 
       <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200">
-        <table className="w-full table-fixed text-sm" style={{ minWidth: 1290 }}>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: 1200 }}>
           <colgroup>
-            {[170, 130, 52, 76, 40, 66, 46, 46, 104, 80, 84, 50, 70, 90, 90].map((w, i) => <col key={i} style={{ width: w }} />)}
+            {[170, 130, 52, 76, 40, 66, 46, 46, 104, 80, 84, 50, 70, 90].map((w, i) => <col key={i} style={{ width: w }} />)}
           </colgroup>
           <thead>
             <tr>
               <th colSpan={5} className={block.replace("border-l ", "") + " sticky left-0 z-[2] bg-white"}>ТЗ</th>
               <th colSpan={7} className={block}>{kind === "lining" ? "Подкладка из этого ТЗ" : "Мех из этого ТЗ"}</th>
               <th colSpan={2} className={block}>На изделие</th>
-              <th colSpan={1} className={block}>Остаток в лотах ТЗ</th>
             </tr>
             <tr className="border-b border-neutral-200">
               <th className={cn(TH, "sticky left-0 z-[2] bg-white !text-left")} aria-sort={sort.key === "number" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
@@ -175,7 +174,6 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
               <th className={TH}>Доля, %</th>
               {head("per", `${kind === "lining" ? "М" : "Шкур"} на изд.`, false, true)}
               <th className={TH}>Мех на изд., ₽</th>
-              <th className={cn(TH, BL)}>{unit}, ₽</th>
             </tr>
           </thead>
           <tbody>
@@ -205,7 +203,6 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
                     <td className={TD + " text-neutral-600"}>{T.qty > 0 ? formatPercent((r.qty / T.qty) * 100) : <D />}</td>
                     <td className={TD + BL}>{pu != null ? formatQty(Math.round(pu * 100) / 100) : <D />}</td>
                     <td className={TD}>{info && info.units > 0 ? formatMoney(Math.round((sum / info.units) * 100) / 100) : <D />}</td>
-                    <td className={TD + BL}>{r.remQty > 0.0005 ? <>{formatQty(r.remQty)}<div className="text-[10px] font-normal text-neutral-500">{formatMoney(vat === "excl" ? r.remExcl : r.remIncl)}</div></> : <D />}</td>
                   </tr>
                   {isOpen ? Array.from(r.lots.values()).sort((a, b) => b.qty - a.qty).map(({ lot, qty, excl, incl }) => (
                     <tr key={lot.id} className="border-t border-neutral-100 bg-neutral-50/40 text-[13px] text-neutral-700">
@@ -222,13 +219,12 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
                       <td className={TD}>{lot.usdPrice != null ? usd(lot.usdPrice) : <D />}</td>
                       <td className={TD} />
                       <td className={TD + BL} colSpan={2} />
-                      <td className={TD + BL}>{lot.rem > 0.0005 ? formatQty(lot.rem) : <D />}</td>
                     </tr>
                   )) : null}
                 </Fragment>
               );
             })}
-            {shown.length === 0 ? <tr><td colSpan={15} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
+            {shown.length === 0 ? <tr><td colSpan={14} className="px-3 py-5 text-center text-neutral-500">{rows.length === 0 ? "В ТЗ не использовано." : "Нет ТЗ по выбранным условиям."}</td></tr> : (
               <tr className="row-total">
                 <td className="sticky left-0 z-[1] bg-inherit px-2 py-2 text-left"><TotalLabel unit="₽" avg /></td>
                 <td className={TD} />
@@ -242,7 +238,6 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
                 <td className={TD}>{T.qty > 0 ? formatPercent(100) : <D />}</td>
                 <td className={TD + BL}>{T.units > 0 ? formatQty(Math.round((T.qty / T.units) * 100) / 100) : <D />}</td>
                 <td className={TD}>{T.units > 0 ? formatMoney(Math.round((totBase / T.units) * 100) / 100) : <D />}</td>
-                <td className={TD + BL} title="Лот может быть у нескольких ТЗ — остатки не суммируются"><D /></td>
               </tr>
             )}
           </tbody>
