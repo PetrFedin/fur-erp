@@ -110,6 +110,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
 
+      {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
+      <PriceCompositionBlock lots={pc.lots} />
+
       <ProductionBlock vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
@@ -120,9 +123,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
         <PayTiles d={d} c4Mode={c4Mode} year={year} />
       </section>
-
-      {/* ───────── Из чего складывается стоимость меха (в самом низу) ───────── */}
-      <PriceCompositionBlock lots={pc.lots} />
     </div>
   );
 }

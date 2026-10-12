@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { formatMoney, formatPercent } from "@/lib/utils";
+import { TH as Head } from "@/components/table-head";
+import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import { useVatDisplay } from "@/lib/vat-display";
 
@@ -26,7 +27,7 @@ function ringPath(a0: number, a1: number): string {
 
 const HOVER_ROW = "bg-[#FFF1EB] shadow-[inset_3px_0_0_var(--ui-accent,#ff4a1c)]";
 
-export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false }: {
+export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, qtyVals, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false }: {
   slices: CompSlice[];
   /** Итог для центра и строки «Всего»: сумма секторов, ₽. */
   total: number;
@@ -35,6 +36,8 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   /** Части сумм, приходящиеся на строки с количеством шкур (по ключу сектора) и их итог: деньги без количества (шкуры подрядчика) в «₽ на шкуру» не входят. Нет — берётся вся сумма. */
   unitVals?: Record<string, number>;
   unitTotal?: number;
+  /** Сколько шкур приходится на каждую составляющую (по ключу сектора; шкуры лотов, где она есть). Есть — в таблице показывается колонка «Шкур»; итог — qty. */
+  qtyVals?: Record<string, number>;
   unitName?: string;
   totalLabel: string;
   /** Мелкая подпись под центром кольца. */
@@ -64,7 +67,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   const leave = () => setHover(null);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex max-w-[56rem] flex-col gap-3">
       <div className={"flex flex-wrap items-start gap-x-6 gap-y-3 " + (compact ? "" : "")}>
         <div className="mx-auto shrink-0 sm:mx-0">
           <svg viewBox="0 0 120 120" className="h-44 w-44" role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
@@ -90,14 +93,14 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
 
         <div id={`${uid}-legend`} className="w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0">
           <table className="w-full table-fixed text-left text-xs sm:text-sm">
-            <caption className="sr-only">{ariaLabel}: составляющие, рубли за {unitName}, рубли всего и доля</caption>
-            <colgroup><col /><col className="hidden w-[5.5rem] sm:table-column" /><col className="w-[5.5rem] sm:w-[6.5rem]" /><col className="w-[3rem] sm:w-[3.75rem]" /></colgroup>
+            <caption className="sr-only">{ariaLabel}: составляющие, {qtyVals ? "количество шкур, " : ""}рубли всего, рубли за {unitName} и доля</caption>
+            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[5.5rem] sm:table-column" /><col className="w-[3rem] sm:w-[3.75rem]" /></colgroup>
             <thead>
               <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
                 <th scope="col" className="py-1.5 pr-2">Составляющая</th>
                 <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">₽/{qty > 0 ? "шт." : "всего"}</th>
                 <th scope="col" className="px-1.5 py-1.5 text-right">₽ всего</th>
-                <th scope="col" className="px-1.5 py-1.5 text-right">Доля</th>
+                <Head label="Доля" unit="%" align="right" />
               </tr>
             </thead>
             <tbody>
@@ -120,16 +123,18 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
                           className="block w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{label}</button>
                       ) : label}
                     </td>
-                    <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(s.value, s.key)}</td>
+                    {qtyVals ? <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
+                    <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(s.value, s.key)}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
                   </tr>
                 );
               })}
               <tr className="row-total">
                 <td className="py-1.5 pr-2 text-sm font-semibold">{totalLabel}</td>
-                <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(unitTotal ?? total)}</td>
+                {qtyVals ? <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{qty > 0 ? formatQty(qty) : "—"}</td> : null}
                 <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
+                <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(unitTotal ?? total)}</td>
                 <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
               </tr>
             </tbody>

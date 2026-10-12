@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TH as Head } from "@/components/table-head";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { TileCarousel } from "@/components/tile-carousel";
@@ -76,6 +77,17 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
     for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).length;
     return m;
   }, [lots]);
+  // Сколько шкур приходится на каждую составляющую: сумма шкур лотов, где эта составляющая есть (данные лотов, не расчёт).
+  const qtyVals = useMemo(() => {
+    const m: Record<string, number> = Object.fromEntries(KEYS.map((k) => [k, 0]));
+    m.vat = 0;
+    for (const l of lots) {
+      if (!(l.qty > 0)) continue;
+      KEYS.forEach((k, i) => { if (l.excl[i] > 0.005) m[k] += l.qty; });
+      if (l.vat > 0.005) m.vat += l.qty;
+    }
+    return m;
+  }, [lots]);
   const openSlice = open ? slices.find((s) => s.key === open) : null;
   const sel = (key: string) => { setOpener(document.activeElement as HTMLElement | null); setOpen(key); };
   const rows = openSlice
@@ -97,7 +109,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
         {fur ? <Link href={href} className="ml-auto text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
       <PriceCompositionChart
-        slices={slices} total={total} qty={a.qty} unitVals={unitVals} unitTotal={unitTotal}
+        slices={slices} total={total} qty={a.qty} unitVals={unitVals} unitTotal={unitTotal} qtyVals={qtyVals}
         totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
         ariaLabel={`Из чего складывается стоимость меха: ${label}${withVat ? ", с НДС" : ", без НДС"}`}
         onSelect={sel} selectTitle="Показать лоты с этой составляющей"
@@ -113,7 +125,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
               <colgroup><col /><col className="w-[6rem]" /><col className="w-[4.5rem]" /><col className="w-[7rem]" /><col className="w-[4.5rem]" /></colgroup>
               <thead>
                 <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
-                  <th className="py-1.5 pr-2">Лот</th><th className="px-1.5 py-1.5 text-right">Вид</th><th className="px-1.5 py-1.5 text-right">Шт.</th><th className="px-1.5 py-1.5 text-right">{openSlice.label}, ₽</th><th className="px-1.5 py-1.5 text-right">Доля</th>
+                  <th className="py-1.5 pr-2">Лот</th><th className="px-1.5 py-1.5 text-right">Вид</th><Head label="Кол-во" unit="шт." align="right" className="px-1.5" /><th className="px-1.5 py-1.5 text-right">{openSlice.label}, ₽</th><Head label="Доля" unit="%" align="right" className="px-1.5" />
                 </tr>
               </thead>
               <tbody>
