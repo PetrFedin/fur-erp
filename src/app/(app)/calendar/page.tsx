@@ -33,7 +33,7 @@ export const metadata = { title: "Производственный календ�
 const CAL_FILTERS = defineFilters({
   ...pick(["season", "q"], { q: { label: "Артикул", aliases: ["article"], maxLen: 100 } }),
   action: { kind: "multi", label: "Действие" },
-  layers: { kind: "single", label: "Факты", role: "state", allowed: ["0", "1"] },
+  layers: { kind: "single", label: "Факты", role: "state", allowed: ["1"] },
   // Режимы «По месяцам» / «Стадии»: группа, вид меха, статус (стадия); cell — раскрытая ячейка, ord — открытая карточка ТЗ.
   grp: { kind: "multi", label: "Группа", maxLen: 40 },
   fur: { kind: "multi", label: "Вид меха", maxLen: 120 },
@@ -78,7 +78,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const weekStart = startOfWeek(weekStartParam || (today.startsWith(month) ? today : `${month}-01`));
   const cf = parseFilters(CAL_FILTERS, sp);
   const articleF = cf.q;
-  const layersOn = cf.layers !== "0";
+  const layersOn = cf.layers === "1";
   const eventId = cleanSearch(sp.event, 40);
   // ?day=ГГГГ-ММ-ДД — раскрытый день (старая ссылка ?new= открывает тот же день).
   const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(parseYmd(v).getTime());
@@ -200,7 +200,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
 
-  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
+  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "1" : "", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
   const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...params, ...patch })) {
@@ -328,7 +328,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             { type: "multi", name: "season", label: "Сезон", options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
             { type: "multi", name: "action", label: "Действие", options: CALENDAR_ACTIONS.map((a) => ({ value: a.label, label: a.label })), allLabel: "Все действия" },
             { type: "text", name: "q", label: "Артикул", aliases: ["article"], placeholder: "Артикул" },
-            { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Показывать факты", options: [{ value: "0", label: "Только мои события" }], hint: "Факты из ТЗ, отгрузок и примерок; «Только мои события» скрывает их" },
+            { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Только мои события", options: [{ value: "1", label: "Показывать факты" }], hint: "По умолчанию календарь пустой — только события, заведённые вручную. «Показывать факты» добавляет серым пунктиром даты из ТЗ, отгрузок и примерок (только чтение)" },
           ]}
           dropOnChange={["event", "new", "cell", "ord", "gp"]}
           footer={
