@@ -52,7 +52,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   stacked?: boolean;
 }) {
   const [hover, setHover] = useState<string | null>(null);
-  const [folded, setFolded] = useState<Set<string>>(new Set());
+  const [unfolded, setFolded] = useState<Set<string>>(new Set());
   const uid = useId();
   const pos = slices.filter((s) => s.value > 0);
   const posTotal = pos.reduce((a, s) => a + s.value, 0);
@@ -78,7 +78,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
     const hot = hover === sel.key;
     const isSub = parent != null;
     const hasSub = !isSub && (s.sub?.length ?? 0) > 0;
-    const isOpen = hasSub && !folded.has(s.key);
+    const isOpen = hasSub && unfolded.has(s.key);
     const label = (
       <span className="flex min-w-0 items-center gap-2">
         <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
@@ -167,7 +167,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
           </tr>
         </thead>
         <tbody>
-          {slices.flatMap((s) => [row(s, null), ...(s.sub && !folded.has(s.key) ? s.sub.map((c) => row(c, s)) : [])])}
+          {slices.flatMap((s) => [row(s, null), ...(s.sub && unfolded.has(s.key) ? s.sub.map((c) => row(c, s)) : [])])}
           <tr className="row-total h-9">
             <td className="py-1.5 pl-5 pr-2 text-sm font-semibold">{totalLabel}</td>
             {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "—"}</td> : null}
