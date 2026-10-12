@@ -489,14 +489,33 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               <p>Позиции сырья и подкладки, расходы закупки, оплаты и документы. Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года.</p>
             </InfoHint>
           </div>
-          <p className="text-sm text-neutral-500">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-neutral-500">
+            <span>{formatDate(purchase.orderDate)}</span>
+            <span aria-hidden>·</span>
+            <span>
+              поставщик{" "}
+              <Link href={`/suppliers/${purchase.supplierId}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{purchase.supplier.name}</Link>
+            </span>
+            {purchase.auctionSession ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>
+                  партия{" "}
+                  {batchName ? (
+                    <Link href={`/lots?auction=${encodeURIComponent(batchName)}`} className="text-blue-700 hover:underline" title="Аукцион-партия: все закупки и лоты партии">{purchase.auctionSession}</Link>
+                  ) : (
+                    purchase.auctionSession
+                  )}
+                </span>
+              </>
+            ) : null}
             {[
-              formatDate(purchase.orderDate),
-              purchase.auctionSession ? `партия ${purchase.auctionSession}` : null,
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
               isForeignCurrency ? `валюта позиций ${purchase.currency}` : null,
-            ].filter(Boolean).join(" · ")}
+            ].filter(Boolean).map((t) => (
+              <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
+            ))}
           </p>
           {headerEditable && (
             <div className="mt-2 max-w-md">
@@ -574,7 +593,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             />
             <SummaryCard
               label="Остаток по партии"
-              value={auctionPay.remaining.lessThan(-0.005) ? `переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.toString())}
+              value={auctionPay.remaining.lessThan(-0.005) ? `переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
               note={auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
               warn={auctionPay.remaining.greaterThan(0)}
             />
@@ -587,35 +606,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         )}
       </div>
       </WidgetRow>
-
-      <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
-
-      <details className="rounded-lg border border-neutral-200 bg-white">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>
-        <div className="border-t border-neutral-100 p-3">
-          <AuctionDocsPay
-            organizationId={session.user.organizationId}
-            purchaseId={id}
-            paymentActions={Object.fromEntries(
-              purchase.payments.map((p) => [
-                p.id,
-                canEditRole ? (
-                  <div key={p.id} className="flex flex-wrap gap-2">
-                    {payEdit(p)}
-                    <PaymentDeleteButton
-                      amountLabel={formatMoney(p.amount.toString())}
-                      action={async () => {
-                        "use server";
-                        await removePurchasePayment(id, p.id);
-                      }}
-                    />
-                  </div>
-                ) : null,
-              ]),
-            )}
-          />
-        </div>
-      </details>
 
       <Card>
         <CardHeader>
@@ -929,6 +919,35 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           )}
         </CardContent>
       </Card>
+
+      <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
+
+      <details className="rounded-lg border border-neutral-200 bg-white">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>
+        <div className="border-t border-neutral-100 p-3">
+          <AuctionDocsPay
+            organizationId={session.user.organizationId}
+            purchaseId={id}
+            paymentActions={Object.fromEntries(
+              purchase.payments.map((p) => [
+                p.id,
+                canEditRole ? (
+                  <div key={p.id} className="flex flex-wrap gap-2">
+                    {payEdit(p)}
+                    <PaymentDeleteButton
+                      amountLabel={formatMoney(p.amount.toString())}
+                      action={async () => {
+                        "use server";
+                        await removePurchasePayment(id, p.id);
+                      }}
+                    />
+                  </div>
+                ) : null,
+              ]),
+            )}
+          />
+        </div>
+      </details>
 
     </div>
     </ItemRowShared>

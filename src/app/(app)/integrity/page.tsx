@@ -19,7 +19,7 @@ function tone(c: CheckResult) {
   if (c.status === "known") return { dot: "bg-neutral-400", label: "известно", cls: "text-neutral-600" };
   if (c.severity === "error") return { dot: "bg-red-600", label: "не сходится", cls: "text-red-700" };
   if (c.severity === "warn") return { dot: "bg-amber-500", label: "внимание", cls: "text-amber-700" };
-  return { dot: "bg-sky-400", label: "справочно", cls: "text-sky-700" };
+  return { dot: "bg-neutral-400", label: "справочно", cls: "text-neutral-600" };
 }
 
 /** Величина расхождения по проверке: Σ|Δ| в ₽ либо число записей. */

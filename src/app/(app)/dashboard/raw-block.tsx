@@ -235,7 +235,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
-export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates }: { rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple } }) {
+export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates }: { rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   void info;
   const { mode: vat } = useVatDisplay();
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
@@ -261,7 +261,7 @@ export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters, vat:
     <section aria-labelledby="dash-raw">
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
       <WidgetRow id="raw" title="Сырьё" titleClass="text-sm font-semibold" headerExtra={extra}
-        headerEnd={<Link href="/lots" title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+        headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
         <div className="raw-row">
           {groups.map((g, i) => (
             <Fragment key={g.view}>

@@ -43,12 +43,14 @@ type THProps = Omit<ThHTMLAttributes<HTMLTableCellElement>, "children"> & {
 };
 
 export function TH({ label, unit, align = "right", sort, href, onSort, sep, after, className, children, ...rest }: THProps) {
-  const body = (
+  const interactive = Boolean(href || onSort);
+  // Подсказка «i» — кнопка: внутри ссылки или кнопки сортировки её вкладывать нельзя (button в button — ошибка гидратации), поэтому она рядом.
+  const body = (inner: ReactNode) => (
     <span className={cn("inline-flex flex-col leading-tight", ALIGN_STACK[align])}>
       <span className="inline-flex items-center gap-1">
         {label ?? children}
         {sort ? <SortMark dir={sort} /> : null}
-        {after}
+        {inner}
       </span>
       {unit ? <span className="text-[10px] font-normal opacity-80">{unit}</span> : null}
     </span>
@@ -68,12 +70,17 @@ export function TH({ label, unit, align = "right", sort, href, onSort, sep, afte
       )}
       {...rest}
     >
-      {href ? (
-        <Link href={href} className="hover:underline">{body}</Link>
-      ) : onSort ? (
-        <button type="button" onClick={onSort} className="hover:underline">{body}</button>
+      {interactive ? (
+        <span className={cn("inline-flex items-center gap-1", after ? "" : "contents")}>
+          {href ? (
+            <Link href={href} className="hover:underline">{body(null)}</Link>
+          ) : (
+            <button type="button" onClick={onSort} className="hover:underline">{body(null)}</button>
+          )}
+          {after}
+        </span>
       ) : (
-        body
+        body(after)
       )}
     </th>
   );

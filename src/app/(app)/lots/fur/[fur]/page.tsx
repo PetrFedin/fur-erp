@@ -21,6 +21,8 @@ import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../../dashboard/t
 import { formatMoney } from "@/lib/utils";
 import { RawCards } from "../../../dashboard/raw-block";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
+import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
+import { priceComposition } from "@/lib/price-composition-server";
 
 export const metadata = { title: "Вид меха" };
 
@@ -110,6 +112,10 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
     </div>
   );
 
+  // «Из чего складывается стоимость меха» — тот же расчёт и тот же блок, что на Главной, по лотам этого вида.
+  const pc = await priceComposition(orgId, dash);
+  const pcLots = pc.lots.filter((l) => l.fur === name);
+
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: name }]} />
@@ -125,6 +131,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
         </span>
       </div>
       <FurSelectionTotal lots={own} kind="fur" globalYear={year} initialQuery={sp} lockItem={name} orderInfo={orderInfo} raw={{ tiles, c4, fur: pair, lining: dash.raw.lining, headerEnd, rows: rawRowsFromLots(own) }} />
+      <PriceCompositionBlock lots={pcLots} onlyFur={name} />
     </div>
   );
 }

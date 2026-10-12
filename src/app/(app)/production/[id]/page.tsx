@@ -390,8 +390,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             Печать / PDF
           </Link>
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета">⋯</summary>
+            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета" aria-label="Ещё: документы, оплаты, история, Word, цвета">⋯</summary>
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
+              <a href="#drive" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Перейти к блоку «Документы-основания» внизу этой страницы">Документы-основания ↓</a>
               <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
               {order.client && <Link href="/payments?tab=clients" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Оплаты от заказчика, разнесение по ТЗ">Оплаты заказчика</Link>}
               <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
@@ -414,7 +415,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           )}
           {open && canEdit && (
             <details className="relative">
-              <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё">⋯</summary>
+              <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё: отмена ТЗ" aria-label="Ещё: отмена ТЗ">⋯</summary>
               <div className="absolute right-0 z-10 mt-1 rounded-md border border-neutral-200 bg-white p-2 shadow">
                 <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
               </div>
@@ -444,8 +445,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
-
-      <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />
 
       <section aria-label="Расчёт" id="calc" className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
@@ -582,6 +581,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </section>
 
       {drill ? <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} /> : null}
+
+      <div id="drive" className="scroll-mt-4">
+        <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />
+      </div>
     </div>
     </EditGuard>
   );

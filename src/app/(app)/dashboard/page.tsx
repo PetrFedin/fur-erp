@@ -54,6 +54,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const FILTER_NAMES: [keyof DashFilters, string][] = [["auction", "партия закупки"], ["fur", "вид меха"], ["color", "цвет"], ["attr", "признак меха"], ["batch", "партия пр-ва"], ["catgroup", "группа категорий"], ["kind", "тип"]];
   const activeFilters = FILTER_NAMES.filter(([k]) => (f[k]?.length ?? 0) > 0).map(([k, n]) => `${n} ×${f[k]?.length ?? 0}`).join(", ");
   const info: ModeInfo = { year: yl, filters: activeFilters || null };
+  // Ссылки «→ Сырьё» и «→ ТЗ» несут фильтры Главной, которые понимает целевая страница (год, НДС и 4% — общие, из шапки):
+  // «Сырьё» — вид меха, цвет, признак и партию закупки (в таблице «Мех» это параметр batch); «ТЗ» — партию закупки, вид меха, признак, партию производства и группу категорий.
+  const qs = (pairs: [string, string[]][]) => {
+    const p = new URLSearchParams();
+    for (const [k, vs] of pairs) for (const v of vs) p.append(k, v);
+    const s = p.toString();
+    return s ? `?${s}` : "";
+  };
+  const rawHref = "/lots" + qs([["fur", f.fur], ["color", f.color], ["attr", f.attr], ["batch", f.auction]]);
+  const prodHref = "/production" + qs([["auction", f.auction], ["fur", f.fur], ["attr", f.attr], ["batch", f.batch], ["catgroup", f.catgroup]]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -97,23 +107,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <InfoHint label="Что фильтруется на Главной" wide>
                 <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).</p>
                 <p className="mt-1">Партия закупки, вид меха, цвет и признак меха отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот; вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип (производство / ремонт) отбирают ТЗ (и «использовано» — только по ним). Ставки НДС показаны внутри карточек.</p>
-                <p className="mt-1">Сужают блоки «Сырьё» и «Производство», обе таблицы динамики и «Долг заказчиков». Долг и оплаты поставщику (по закупкам и оплатам года) от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
+                <p className="mt-1">Сужают блоки «Сырьё» и «Производство» и обе таблицы динамики. Долг и оплаты поставщику (по закупкам и оплатам года) от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
             </p>
           }
         />
       </div>
 
-      <RawBlock rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} />
+      <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} />
 
       <YearsTable rows={d.years} c4={c4Mode} info={info} />
 
       <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4Mode} info={info} orderFilters={orderFiltersOn(f)} vatRates={d.vat} />
 
       {/* ───────── Из чего складывается стоимость меха (сразу под «Динамикой по сырью») ───────── */}
-      <PriceCompositionBlock lots={pc.lots} />
+      <PriceCompositionBlock lots={pc.lots} href={rawHref} />
 
-      <ProductionBlock vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
+      <ProductionBlock href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
       <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />

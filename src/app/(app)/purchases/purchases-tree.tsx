@@ -169,6 +169,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
                                   <span className="font-medium text-neutral-900">{p.number}</span>
                                   <Link href={`/purchases/${p.id}`} className="ml-1.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть закупку" aria-label={`Открыть закупку ${p.number}`}>↗</Link>
                                   {p.invoice ? <span className="ml-1.5 text-[11px] text-neutral-500">счёт {p.invoice}</span> : null}
+                                  {p.upd ? <span className="ml-1.5 text-[11px] text-neutral-500" title={`УПД ${p.upd}`}>УПД {p.upd.replace(/^№\s*/, "№").replace(/\s+г\.?$/, "")}</span> : null}
                                   <div className="pl-5 text-[11px]">
                                     <Link href={`/purchases/${p.id}`} className={LINK}>закупка ›</Link>
                                     <Link href={p.auction ? `/payments?auction=${encodeURIComponent(p.auction)}#auction-block` : "/payments"} className={LINK + " ml-2"}>оплаты ›</Link>
@@ -351,6 +352,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
               { label: "Лотов", value: p.lots > 0 ? p.lots : null },
               { label: "Остаток", value: p.hasLots ? remText(p) : null },
               { label: "Счёт", value: p.invoice },
+              { label: "УПД", value: p.upd },
             ]}
           />
         ))}

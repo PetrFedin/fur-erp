@@ -119,7 +119,7 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
         <span className="min-w-0 flex-1 basis-56 font-medium">
           {db?.title ?? g.title}
           {db?.auctions?.length && !db.auctions.some((a) => (db.title ?? g.title).startsWith(a)) ? (
-            <span className="ml-2 rounded bg-sky-50 px-1.5 text-xs font-normal text-sky-700" title="Короткое имя аукциона в справочнике (Настройки → Аукционы)">{db.auctions.join(", ")}</span>
+            <span className="ml-2 rounded bg-neutral-100 px-1.5 text-xs font-normal text-neutral-600" title="Короткое имя аукциона в справочнике (Настройки → Аукционы)">{db.auctions.join(", ")}</span>
           ) : null}
           <span className="ml-2 text-xs font-normal text-neutral-500">{g.house}</span>
           {g.year ? <span className="ml-2 rounded bg-neutral-100 px-1.5 text-xs font-normal text-neutral-600">{g.year}</span> : null}
@@ -213,11 +213,11 @@ export default async function ReconciliationPage() {
       </div>
 
       {RECHECK ? (
-        <Card className="border-blue-200 bg-blue-50/60 p-3">
+        <Card className="border-neutral-200 bg-neutral-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold text-blue-950">Перепроверка по актуальной структуре Google Drive · {RECHECK.date}</div>
-              <div className="mt-1 text-xs text-blue-900/80">
+              <div className="text-sm font-semibold">Перепроверка по актуальной структуре Google Drive · {RECHECK.date}</div>
+              <div className="mt-1 text-xs text-neutral-600">
                 Подтверждено: {RECHECK.found.length} · не найдено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
                 {RECHECK.notFound.length > 0 && (
                   <InfoHint wide label="Что не найдено">
@@ -226,7 +226,7 @@ export default async function ReconciliationPage() {
                 )}
               </div>
             </div>
-            <Link href="/documents?gaps=1" className="rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-900 hover:bg-blue-100">
+            <Link href="/documents?gaps=1" className="btn-accent inline-flex h-7 items-center rounded-md border px-2 text-xs">
               Показать пробелы документов →
             </Link>
           </div>

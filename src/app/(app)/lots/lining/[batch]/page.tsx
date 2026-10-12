@@ -64,7 +64,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
   const sumAll = purchases.reduce((a, p) => a + purchaseTotalInclVat(p).toNumber(), 0);
   const paid = pay ? pay.paid.toNumber() : null;
   const dates = purchases.map((p) => p.orderDate.getTime());
-  const supplierNames = [...new Set(purchases.map((p) => p.supplier.name))];
+  const supplierLinks = [...new Map(purchases.map((p) => [p.supplierId, p.supplier.name] as [string, string])).entries()];
   const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   void auctionName;
 
@@ -87,7 +87,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         <h2 id="lb-pass" className="mb-2 text-base font-semibold">Партия</h2>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div><dt className="text-xs text-neutral-500">Дата закупки</dt><dd>{dates.length ? formatDate(new Date(Math.min(...dates))) : "—"}</dd></div>
-          <div><dt className="text-xs text-neutral-500">Поставщик</dt><dd>{supplierNames.join(", ") || "—"}</dd></div>
+          <div><dt className="text-xs text-neutral-500">Поставщик</dt><dd>{supplierLinks.length ? supplierLinks.map(([sid, sname], i) => <span key={sid}>{i > 0 ? ", " : ""}<Link href={`/suppliers/${sid}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{sname}</Link></span>) : "—"}</dd></div>
           <div>
             <dt className="text-xs text-neutral-500">{purchases.length > 1 ? "Закупки" : "Закупка"}</dt>
             <dd>{purchases.map((p, i) => <span key={p.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}<span aria-hidden className="ml-0.5 text-[10px] text-neutral-400">↗</span></Link></span>)}</dd>
@@ -102,9 +102,9 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         </dl>
       </section>
 
-      <SourceDocs data={await loadPurchasesSourceDocs({ organizationId: orgId, role: session.user.role }, purchaseIds)} />
       <LiningFabrics lots={lots} />
       <FurOrdersTable lots={lots} kind="lining" orderInfo={orderInfo} initialGrp={firstOf(sp.grp)} />
+      <SourceDocs data={await loadPurchasesSourceDocs({ organizationId: orgId, role: session.user.role }, purchaseIds)} />
     </div>
   );
 }

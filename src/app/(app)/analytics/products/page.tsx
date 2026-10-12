@@ -16,6 +16,7 @@ import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
 import {
   GROUPS,
   GROUP_KEYS,
@@ -73,6 +74,10 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   const sOwnDone = sumFor(applyStatus(ownRows, "done"));
   const sOwnWork = sumFor(applyStatus(ownRows, "work"));
   const repairUnits = sAll.m.units - sOwn.m.units;
+
+  // Шкуры подрядчика (оплачены в составе пошива): на Главной и в «ТЗ» они входят в мех и в себестоимость, здесь — только по списаниям лотов.
+  // Сумму показываем рядом, чтобы разница с Главной была объяснена (с НДС, по году оплаты — как в «Закупках»).
+  const contractorHides = (await loadPaymentsOverview(session.user.organizationId)).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0);
 
   // Качество данных — по всем ТЗ года.
   const undefCat = all.filter((r) => r.category === UNDEFINED_CATEGORY);
@@ -335,7 +340,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Себестоимость{c4}</TileHead>
             <TileValue><Money incl={sAll.m.costIncl} excl={sAll.m.costExcl} /></TileValue>
-            <TileCaption>сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}, без работы</TileCaption>
+            <TileCaption>сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}, без работы{contractorHides > 0.5 ? ` · без шкур подрядчика (${formatMoney(contractorHides.toFixed(2))} с НДС: на Главной входят в мех)` : ""}</TileCaption>
             <TileList items={[
               { k: "Сделано", v: <Money incl={sDone.m.costIncl} excl={sDone.m.costExcl} /> },
               { k: "В работе", v: <Money incl={sWork.m.costIncl} excl={sWork.m.costExcl} /> },

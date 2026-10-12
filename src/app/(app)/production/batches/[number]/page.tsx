@@ -298,9 +298,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
 
       <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" />
 
-      <BatchDocsPay batchNumber={batch.number} />
-
-      {/* Список оплат с покрываемыми ТЗ — справка; статус, платёжки и отметка оплаты — в блоке «Документы и оплата» выше. */}
+      {/* Список оплат с покрываемыми ТЗ — справка; статус, платёжки и отметка оплаты — в блоке «Документы и оплата» ниже. */}
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Какие ТЗ покрывает каждая оплата ({payments.length})</summary>
       <Card className="border-0 shadow-none">
@@ -343,6 +341,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </CardContent>
       </Card>
       </details>
+
+      <BatchDocsPay batchNumber={batch.number} />
 
       <SourceDocs
         data={await loadBatchSourceDocs({ organizationId: orgId, role: session.user.role }, batch.id)}

@@ -121,6 +121,14 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const auctionNames = [...new Set(found.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
   const auctionPays = new Map((auctionNames.length ? await loadAuctionSummaries(prisma, orgId, auctionNames) : []).map((a) => [a.name, a]));
 
+  // УПД из поля закупки; если поле пустое, но УПД приложен как документ — номер и дата берутся из него (данные документа, не расчёт).
+  const updFromDocs = new Map<string, string>();
+  const noUpd = found.filter((p) => !p.transferDocument?.trim()).map((p) => p.id);
+  if (noUpd.length > 0) {
+    for (const d of await prisma.driveDocument.findMany({ where: { organizationId: orgId, docType: "UPD", purchaseId: { in: noUpd }, docNumber: { not: null } }, select: { purchaseId: true, docNumber: true, docDate: true }, orderBy: { docDate: "asc" } })) {
+      if (d.purchaseId && !updFromDocs.has(d.purchaseId)) updFromDocs.set(d.purchaseId, `№ ${d.docNumber}${d.docDate ? ` от ${formatDate(d.docDate)}` : ""}`);
+    }
+  }
   // Строки закупок: один расчёт для дерева, списка и плиток (одинаковые итоги).
   const all: TreePurchase[] = found.map((p) => {
     const total = purchaseTotalInclVat(p);
@@ -149,7 +157,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     return {
       id: p.id, number: p.number, date: formatDate(p.orderDate), year: p.orderDate.getUTCFullYear(),
       batchKey: an ?? "none", batchLabel: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", auction: an,
-      supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null, status,
+      supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null, upd: p.transferDocument?.trim() || updFromDocs.get(p.id) || null, status,
       total: num(total), totalExcl: num(purchaseTotalExclVat(p)), paid: num(paidShare), rest: cancelled ? 0 : num(total.sub(paidShare)),
       paidBatch: num(paidShare.sub(own.length > 0 ? ownSum : 0)),
       lots: p.items.length, fur: items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0), lining: items.filter(unitIsM).reduce((a, i) => a + i.qty, 0),

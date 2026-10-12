@@ -77,7 +77,8 @@ function isPastRu(date: string): boolean {
 }
 
 function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
-  return r.lessThan(-0.005) ? `+${formatMoney(r.neg().toString())}` : formatMoney(r.toString());
+  // Остаток в пределах копейки — ноль, а не «-0 ₽».
+  return r.lessThan(-0.005) ? `+${formatMoney(r.neg().toString())}` : r.lessThan(0.005) ? formatMoney("0") : formatMoney(r.toString());
 }
 
 const FRESH_MS = 365 * 24 * 3600 * 1000;

@@ -8,7 +8,9 @@ export type Crumb = { label: string; href?: string };
  * Последний элемент без ссылки, жирным (aria-current). Короткий серый текст; на узком экране лента прокручивается внутри себя
  * (длинный путь не ломает страницу). Общий компонент: items — [{ label, href? }].
  */
-export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
+export function Breadcrumbs({ items: rawItems, className }: { items: Crumb[]; className?: string }) {
+  // Путь всегда начинается с «Главная» — так видно, откуда и куда ведёт каждая ступень.
+  const items: Crumb[] = rawItems[0]?.label === "Главная" ? rawItems : [{ label: "Главная", href: "/dashboard" }, ...rawItems];
   return (
     <nav aria-label="Путь" className={cn("print:hidden", className)}>
       <ol className="flex flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-xs text-neutral-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

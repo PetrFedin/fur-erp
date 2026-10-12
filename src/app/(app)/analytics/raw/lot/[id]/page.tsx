@@ -108,6 +108,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
 
   // Платежи и документы закупки.
   const pu = row.purchase;
+  const auctionHref = l.auction === NO_AUCTION_KEY ? undefined : l.auction.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : lining ? `/lots/lining/${encodeURIComponent(l.auction)}` : `/lots?auction=${encodeURIComponent(l.auction)}`;
   const paid = pu ? pu.payments.filter((x) => x.status === "COMPLETED").reduce((s, x) => s.add(x.amount), new Decimal(0)) : null;
   const purTotal = pu ? purchaseTotalInclVat({ exchangeRate: pu.exchangeRate, items: pu.items, expenses: pu.expenses }) : null;
   const docMap = new Map<string, { href: string | null; text: string }>();
@@ -184,7 +185,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       fields: [
         { label: "№ лота", key: "lotNumber", value: row.lotNumber ?? "" },
         { label: "Внутренний id", node: <span className="font-mono text-xs">{id}</span>, note: "служебный номер записи — только чтение" },
-        { label: lining ? "Ткань" : "Вид меха", node: lining ? <>{shortMaterialName(p.materialName)}<span className="block text-[11px] text-neutral-500">{p.materialName}</span></> : p.materialName, editor: canEdit ? <LotChoiceField key="e" lotId={id} kind="material" value={row.rawMaterial.id} options={materialOpts.map((m) => ({ value: m.id, label: m.name }))} label={lining ? "Ткань" : "Вид меха"} /> : undefined },
+        { label: lining ? "Ткань" : "Вид меха", node: lining ? <>{shortMaterialName(p.materialName)}<span className="block text-[11px] text-neutral-500">{p.materialName}</span></> : <Link href={`/lots/fur/${encodeURIComponent(l.kind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{p.materialName}</Link>, editor: canEdit ? <LotChoiceField key="e" lotId={id} kind="material" value={row.rawMaterial.id} options={materialOpts.map((m) => ({ value: m.id, label: m.name }))} label={lining ? "Ткань" : "Вид меха"} /> : undefined },
         { label: lining ? "Цвет / описание" : "Цвет", key: "color" as const, value: row.color ?? colorText, refId: row.colorRefId, node: colorText },
         ...(lining ? [] : [{ label: "Размер", key: "sizeGrade" as const, value: row.sizeGrade ?? "", node: sizeText }]),
         { label: lining ? "Описание" : "Сорт / описание", key: "grade", value: row.grade ?? "" },
@@ -195,9 +196,9 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     {
       title: "Закупка",
       fields: [
-        { label: "Партия закупки (аукцион)", node: l.auction !== "__none" ? <Link href={`/lots?auction=${encodeURIComponent(l.auction)}`} className="text-blue-700 hover:underline">{l.auctionLabel}</Link> : l.auctionLabel, editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="auction" value={pu.auctionId ?? ""} options={auctionOpts.map((a) => ({ value: a.id, label: a.name }))} label="Аукцион" emptyLabel="без аукциона" note={purchaseWide} /> : undefined },
+        { label: "Партия закупки (аукцион)", node: auctionHref ? <Link href={auctionHref} className="text-blue-700 hover:underline" title="Партия закупки: все лоты и закупки партии">{l.auctionLabel}</Link> : l.auctionLabel, editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="auction" value={pu.auctionId ?? ""} options={auctionOpts.map((a) => ({ value: a.id, label: a.name }))} label="Аукцион" emptyLabel="без аукциона" note={purchaseWide} /> : undefined },
         { label: "Закупка №", node: l.purchaseId ? <Link href={`/purchases/${l.purchaseId}`} className="text-blue-700 hover:underline">{l.purchaseNumber}</Link> : "—", editor: canEdit && l.purchaseId ? <LotChoiceField key="e" lotId={id} kind="purchase" value={l.purchaseId} options={purchaseOpts.map((x) => ({ value: x.id, label: x.number }))} label="Закупка-основание" /> : undefined },
-        { label: "Поставщик", node: p.supplier ?? "—", editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="supplier" value={pu.supplierId} options={supplierOpts.map((x) => ({ value: x.id, label: x.name }))} label="Поставщик" note={purchaseWide} /> : undefined },
+        { label: "Поставщик", node: pu && p.supplier ? <Link href={`/suppliers/${pu.supplierId}`} className="text-blue-700 hover:underline" title="Карточка поставщика">{p.supplier}</Link> : (p.supplier ?? "—"), editor: canEdit && pu ? <LotChoiceField key="e" lotId={id} kind="supplier" value={pu.supplierId} options={supplierOpts.map((x) => ({ value: x.id, label: x.name }))} label="Поставщик" note={purchaseWide} /> : undefined },
         { label: "Накладная / счёт №", node: p.invoiceNumber ?? "—", editor: canEdit && pu ? <LotPurchaseText key="e" lotId={id} kind="invoiceNumber" value={pu.invoiceNumber ?? ""} label="Накладная / счёт №" /> : undefined, note: canEdit && pu ? purchaseWide : undefined },
         { label: "УПД №", node: pu?.transferDocument ?? "—", editor: canEdit && pu ? <LotPurchaseText key="e" lotId={id} kind="transferDocument" value={pu.transferDocument ?? ""} label="УПД №" /> : undefined, note: canEdit && pu ? purchaseWide : undefined },
         { label: "Дата закупки", node: p.purchaseDate ? formatDate(p.purchaseDate) : "—", editor: canEdit && pu ? <LotDateField key="e" lotId={id} kind="order" value={isoDay(pu.orderDate)} label="Дата закупки" /> : undefined },
@@ -247,7 +248,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const unitLbl = lining ? "за м" : "за шт.";
 
   // Путь по иерархии «Сырьё»: вид меха → аукцион (у подкладки — партия) → лот.
-  const auctionHref = l.auction === NO_AUCTION_KEY ? undefined : l.auction.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : lining ? `/lots/lining/${encodeURIComponent(l.auction)}` : `/lots?auction=${encodeURIComponent(l.auction)}`;
   const crumbs: Crumb[] = lining
     ? [{ label: "Сырьё", href: "/lots" }, { label: "Подкладка", href: "/lots?tab=lining" }, ...(l.auction !== NO_AUCTION_KEY ? [{ label: l.auctionLabel, href: auctionHref }] : []), { label: shortMaterialName(p.materialName) }]
     : [{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: l.kind, href: `/lots/fur/${encodeURIComponent(l.kind)}` }, ...(l.auction !== NO_AUCTION_KEY ? [{ label: l.auctionLabel, href: auctionHref }] : []), { label: `Лот ${row.lotNumber ?? "—"}` }];
@@ -328,17 +328,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         />
       </div>
 
-      {/* Документы лота */}
-      <div className={BLOCK}>
-        <h2 className={H2 + " flex items-center gap-2"}>
-          Документы
-          <InfoHint label="Документы лота" wide>
-            <p>УПД, счёт и спецификацию пока не нужно заполнять — просто прикрепите файлы: перетащите на слот или нажмите «Загрузить файл» (PDF, XLSX, DOCX, JPEG, PNG до 25 МБ). Номера и суммы не требуются. Документы лота видны и в закупке-основании.</p>
-          </InfoHint>
-        </h2>
-        <LotDocuments lotId={id} docs={lotDocs} inherited={inheritedDocs} canEdit={canEdit} />
-      </div>
-
       {/* 3. Из чего состоит цена */}
       {showPrice && (
         <div className={BLOCK}>
@@ -392,6 +381,17 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           </InfoHint>
         </h2>
         <LotUsageViz unit={unit} recv={l.recv.toNumber()} startDate={formatDate(l.date)} segs={usageSegs} totalCost={<Money incl={q2(recvIncl)} excl={q2(recvExcl)} />} />
+      </div>
+
+      {/* Документы лота */}
+      <div className={BLOCK}>
+        <h2 className={H2 + " flex items-center gap-2"}>
+          Документы
+          <InfoHint label="Документы лота" wide>
+            <p>УПД, счёт и спецификацию пока не нужно заполнять — просто прикрепите файлы: перетащите на слот или нажмите «Загрузить файл» (PDF, XLSX, DOCX, JPEG, PNG до 25 МБ). Номера и суммы не требуются. Документы лота видны и в закупке-основании.</p>
+          </InfoHint>
+        </h2>
+        <LotDocuments lotId={id} docs={lotDocs} inherited={inheritedDocs} canEdit={canEdit} />
       </div>
     </div>
   );

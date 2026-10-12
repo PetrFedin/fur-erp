@@ -84,7 +84,7 @@ function Modal({ title, onClose, children, returnTo }: { title: string; onClose:
   );
 }
 
-function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | null; label: string; withVat: boolean }) {
+function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[]; fur: string | null; label: string; withVat: boolean; /** Страница самого вида меха: ссылка на себя не нужна. */ hideLink?: boolean }) {
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
@@ -159,7 +159,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
             <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lots.filter((l) => l.kind !== "hides").length} лот.</span>
           </div>
         </div>
-        {fur ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
+        {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
       <PriceCompositionChart
         slices={slices} total={total} qty={a.qty} unitVals={unitVals} unitTotal={unitTotal} qtyVals={qtyVals}
@@ -203,7 +203,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
             </table>
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">
-            <Link href={href} className="text-blue-700 hover:underline">{fur ? `→ Страница вида меха «${fur}»` : "→ Сырьё"}</Link>
+            {hideLink ? null : <Link href={href} className="text-blue-700 hover:underline">{fur ? `→ Страница вида меха «${fur}»` : "→ Сырьё"}</Link>}
           </div>
         </Modal>
       ) : null}
@@ -211,7 +211,8 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   );
 }
 
-export function PriceCompositionBlock({ lots }: { lots: PCLot[] }) {
+/** `onlyFur` — страница вида меха («Сырьё → Мех → Лиса»): тот же блок и те же лоты, что на Главной, но один слайд этого вида. */
+export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots: PCLot[]; onlyFur?: string; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   const { withVat, toggle } = useChartVat();
   const furs = useMemo(() => {
     const m = new Map<string, number>();
@@ -219,12 +220,12 @@ export function PriceCompositionBlock({ lots }: { lots: PCLot[] }) {
     return Array.from(m).sort((a, b) => b[1] - a[1]).map(([f]) => f);
   }, [lots]);
   if (lots.length === 0) return null;
-  const slides = [
+  const slides = onlyFur ? [{ key: `fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={onlyFur} withVat={withVat} hideLink /> }] : [
     { key: "total", label: "Тотал", body: <Slide lots={lots} fur={null} label="Тотал" withVat={withVat} /> },
     ...furs.map((f) => ({ key: `fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={f} withVat={withVat} /> })),
   ];
   return (
-    <WidgetRow id="price-comp" title="Из чего складывается стоимость меха" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+    <WidgetRow id="price-comp" title="Из чего складывается стоимость меха" headerEnd={onlyFur ? undefined : <Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3">
         <TileCarousel
           clickable twoUp

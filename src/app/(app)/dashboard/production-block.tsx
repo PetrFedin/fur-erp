@@ -23,7 +23,7 @@ const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.it
 
 type VatPair = { incl: number; excl: number };
 
-export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
+export function ProductionBlock({ href = "/production", vatCost, kind = "", hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
   const { mode: vat } = useVatDisplay();
   const [open, setOpen] = useState<null | "done" | "work" | "all">(null);
   const { data: drill } = useDrill(search);
@@ -58,7 +58,7 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
     <section aria-label="Производство" className="space-y-2">
       <WidgetRow id="prod" title="Производство"
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
-        headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
+        headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<>

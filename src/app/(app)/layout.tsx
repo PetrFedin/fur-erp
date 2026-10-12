@@ -12,6 +12,8 @@ import { YearDisplayProvider } from "@/lib/year-display";
 import { availableYears, parseYearCookie } from "@/lib/year-filter";
 import { prisma } from "@/lib/prisma";
 import { BlockHover } from "@/components/block-hover";
+import { FromTracker } from "@/components/from-tracker";
+import { BackLink } from "@/components/back-link";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
@@ -41,10 +43,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             userName={session.user.name}
             role={session.user.role}
           />
-          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">{children}</main>
+          <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">
+            <Suspense fallback={null}>
+              <BackLink />
+            </Suspense>
+            {children}
+          </main>
         </div>
       </div>
       <BlockHover />
+      <FromTracker />
       <div className="print:hidden">
         <Suspense fallback={null}>
           <CommentWidget />

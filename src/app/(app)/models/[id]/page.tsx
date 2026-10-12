@@ -434,35 +434,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </div>
       </details>
 
-      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={docs.length > 0}>
-        <summary className="cursor-pointer text-sm font-medium">Документы ТЗ артикула ({docs.length})</summary>
-        <div className="mt-2">
-          {docs.length === 0 ? (
-            <p className="text-sm text-neutral-500">Документов, привязанных к ТЗ этого артикула, пока нет</p>
-          ) : (
-            <Table>
-              <Thead><Tr><Th>Документ</Th><Th>Тип</Th><Th>Дата</Th><Th>ТЗ</Th></Tr></Thead>
-              <Tbody>
-                {docs.map((d) => {
-                  const o = d.productionOrderId ? orderById.get(d.productionOrderId) : undefined;
-                  return (
-                    <Tr key={d.id}>
-                      <Td>
-                        {d.storagePath ? <a href={`/api/drive-docs/${d.id}`} className="text-blue-700 hover:underline">{d.title}</a> : d.title}
-                        {d.docNumber ? <span className="ml-1 text-neutral-500">№{d.docNumber}</span> : null}
-                      </Td>
-                      <Td className="text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType}</Td>
-                      <Td>{d.docDate ? formatDate(d.docDate) : "—"}</Td>
-                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link> : "—"}</Td>
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
-          )}
-        </div>
-      </details>
-
       <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={fittings.length > 0}>
         <summary className="cursor-pointer text-sm font-medium">Примерки ({fittings.length})</summary>
         <div className="mt-2">
@@ -517,6 +488,35 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             </Table>
           )}
           {canEdit && <BomAddForm productModelId={id} materials={materials} />}
+        </div>
+      </details>
+
+      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={docs.length > 0}>
+        <summary className="cursor-pointer text-sm font-medium">Документы ТЗ артикула ({docs.length})</summary>
+        <div className="mt-2">
+          {docs.length === 0 ? (
+            <p className="text-sm text-neutral-500">Документов, привязанных к ТЗ этого артикула, пока нет</p>
+          ) : (
+            <Table>
+              <Thead><Tr><Th>Документ</Th><Th>Тип</Th><Th>Дата</Th><Th>ТЗ</Th></Tr></Thead>
+              <Tbody>
+                {docs.map((d) => {
+                  const o = d.productionOrderId ? orderById.get(d.productionOrderId) : undefined;
+                  return (
+                    <Tr key={d.id}>
+                      <Td>
+                        {d.storagePath ? <a href={`/api/drive-docs/${d.id}`} className="text-blue-700 hover:underline">{d.title}</a> : d.title}
+                        {d.docNumber ? <span className="ml-1 text-neutral-500">№{d.docNumber}</span> : null}
+                      </Td>
+                      <Td className="text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType}</Td>
+                      <Td>{d.docDate ? formatDate(d.docDate) : "—"}</Td>
+                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link> : "—"}</Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          )}
         </div>
       </details>
 
