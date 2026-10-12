@@ -199,7 +199,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3 print:break-inside-avoid">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Производство по {by === "cat" ? "группам и категориям — раскрыть по меху" : "меху — раскрыть по группам и категориям"}</h3>
+        <h3 className="text-sm font-semibold">Производство по {by === "cat" ? "группам и категориям" : "меху"}</h3>
         <div role="tablist" aria-label="Разрез таблицы" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
           {([["cat", "Категории → мех"], ["fur", "Мех → категории"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={by === id} onClick={() => { setBy(id); setOpen(new Set()); }}
@@ -237,12 +237,12 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
               {repair.orders.size > 0 ? (
                 <>
                   <tr className="border-b border-neutral-100">
-                    <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link></td>
+                    <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-[#1d4ed8] hover:underline">Ремонт ›</Link></td>
                     {cells(repair, true, true)}
                   </tr>
-                  <tr className="border-b border-neutral-100">
-                    <td className="py-1.5 pr-2 text-xs text-neutral-600">Всего с ремонтом, ₽</td>
-                    {cells(all, true, true)}
+                  <tr className="row-total">
+                    <td className="whitespace-nowrap py-1.5 pr-2 text-sm"><TotalLabel note="с ремонтом" /></td>
+                    {cells(all, false, true)}
                   </tr>
                 </>
               ) : null}
