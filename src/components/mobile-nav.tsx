@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS, activeNavHref } from "./nav-links";
+import { NAV_LINKS, SECONDARY_NAV_HREFS, activeNavHref } from "./nav-links";
 
 /** Гамбургер и выезжающее меню для узких экранов (<768px); на десктопе скрыто. */
 export function MobileNav() {
@@ -47,7 +47,7 @@ export function MobileNav() {
               </button>
             </div>
             <div className="flex flex-col gap-0.5">
-              {NAV_LINKS.map((link) => {
+              {NAV_LINKS.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
                 const active = activeNavHref(pathname) === link.href;
                 return (
                   <Link
@@ -65,7 +65,26 @@ export function MobileNav() {
                 );
               })}
             </div>
-            <div className="mt-auto px-1"><ThemeToggle className="w-full flex-col [&>button]:w-full" /></div>
+            <div className="mt-auto flex flex-col gap-0.5 border-t border-neutral-200 pt-3">
+              {NAV_LINKS.filter((l) => SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
+                const active = activeNavHref(pathname) === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setOpenAt(null)}
+                    className={cn(
+                      "rounded-md px-2 py-2 text-xs transition-colors",
+                      active ? "bg-neutral-900 text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="px-1"><ThemeToggle className="w-full flex-col [&>button]:w-full" /></div>
           </nav>
         </div>
       )}

@@ -272,9 +272,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   // Плитки-итоги: числа из calendar-table (те же, что в таблицах ниже); в «Детально» таблиц нет — берём все ТЗ года шапки без фильтров.
   const sumFilters: TableFilters = mode === "detail" ? { grp: [], fur: [], stage: [] } : tableFilters;
-  const sumGrand = mode === "months" ? buildMonthGrid(pipe, sumFilters, myEff).grand : buildMonthTable(pipe, sumFilters, true).grand;
+  // «Детально» без включённых фактов: календарь пуст, пока не заведены события — плитки по ТЗ обнулены (ТЗ видны в режимах «По месяцам» и «Стадии»).
+  const tilePipe = mode === "detail" && !layersOn ? [] : pipe;
+  const sumGrand = mode === "months" ? buildMonthGrid(tilePipe, sumFilters, myEff).grand : buildMonthTable(tilePipe, sumFilters, true).grand;
   const sumScope = mode === "months" ? myEff : "all";
-  const sumOverdue = pipe.filter((p) => p.overdue && inScope(p, sumScope) && Object.keys(unitsFor(p, sumFilters)).length > 0).length;
+  const sumOverdue = tilePipe.filter((p) => p.overdue && inScope(p, sumScope) && Object.keys(unitsFor(p, sumFilters)).length > 0).length;
   const stageActive = mode === "detail" ? [] : cf.stage;
   const stageHref = (k: Stage) => mode === "detail"
     ? href({ view: "months", stage: [k], w: "", event: "", new: "", cell: "", ord: "" })

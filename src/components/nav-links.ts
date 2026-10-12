@@ -30,3 +30,6 @@ export function activeNavHref(pathname: string): string | null {
   }
   return best?.href ?? null;
 }
+
+/** Служебные разделы: в меню стоят отдельно внизу, мельче и без заливки, как неосновные. */
+export const SECONDARY_NAV_HREFS: readonly string[] = ["/attention", "/settings"];
