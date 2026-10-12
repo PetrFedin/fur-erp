@@ -6,13 +6,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { formatPercent } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
+import { TileCarousel } from "@/components/tile-carousel";
+import { TotalLabel } from "@/components/total-label";
+import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 import {
-  autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, normKey, nowPerUnit, perUnit, reapplyParams, srcInfo, varPct,
+  autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, normKey, perUnit, reapplyParams, srcInfo, varPct,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, dateRu, money, pct, qty, share } from "./ui";
+import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, pct, qty, segBtn, share } from "./ui";
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
@@ -43,17 +46,8 @@ const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4:
 type NumKey = "pcs" | "hides" | "hidePrice" | "meters" | "meterPrice" | "work";
 type UpKey = "upFur" | "upLining" | "upWork";
 const KIND_LABEL = { fur: "тип сырья", cat: "категория", art: "артикул" } as const;
-const ICON_BTN = "inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-neutral-200 bg-white px-1.5 text-sm text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40 md:h-8 md:min-w-8";
+const ICON_BTN = "btn-accent inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-neutral-200 bg-white px-1.5 text-sm text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40 md:h-8 md:min-w-8";
 const DOT = { ok: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-red-500", manual: "bg-neutral-400" } as const;
-
-/** Краска Var: расход выше текущих цен — тёплая, ниже — зелёная. */
-function varTone(v: number | null): string {
-  if (v == null) return "text-neutral-400";
-  if (v >= 15) return "bg-red-50 text-red-700";
-  if (v >= 5) return "bg-amber-50 text-amber-800";
-  if (v <= -5) return "bg-emerald-50 text-emerald-700";
-  return "text-neutral-600";
-}
 
 /** Короткая подпись колонки + «i»-подсказка (title). */
 function Th({ children, tip, className = "" }: { children: ReactNode; tip: string; className?: string }) {
@@ -65,6 +59,9 @@ function Th({ children, tip, className = "" }: { children: ReactNode; tip: strin
 }
 
 const sepL = "border-l border-neutral-200";
+/** В таблицах нулевые значения — «—». */
+const mz = (v: number | null | undefined) => (v ? money(v) : "—");
+const qz = (v: number | null | undefined, d = 0) => (v ? qty(v, d) : "—");
 
 export function BudgetEditor(p: Props) {
   const router = useRouter();
@@ -243,7 +240,6 @@ export function BudgetEditor(p: Props) {
 
   // ---- Мелкие элементы строки
   const perT = perUnit(total);
-  const nowT = nowPerUnit(total);
   const leafOf = (n: BudgetNode) => n.kind !== "fur" && (kids.get(n.id) ?? []).length === 0;
 
   /** Индикатор качества данных: цветная точка с подсказкой; у категории-листа по клику выбирается источник статистики. */
@@ -272,10 +268,10 @@ export function BudgetEditor(p: Props) {
     <div className="flex items-center justify-end gap-1 print:hidden">
       {canEdit ? (
         <>
-          <button type="button" className={ICON_BTN + (n.locked ? " border-amber-300 bg-amber-50 text-amber-800" : "")} onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"}
+          <button type="button" className={ICON_BTN + (n.locked ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => toggleLock(n.id)} aria-pressed={n.locked} aria-label={n.locked ? "Замок закрыт" : "Замок открыт"}
             title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-400" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
           <button type="button" className={ICON_BTN} disabled={busy} onClick={() => runAuto(n.id)} aria-label="Автоматический расчёт для блока" title="Автоматический расчёт только для этого блока">↻</button>
-          <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-emerald-300 bg-emerald-50 text-emerald-700" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
+          <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
           {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"} title={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"}>＋</button> : null}
           <button type="button" className={ICON_BTN + " hover:text-red-700"} onClick={() => (hasKids || n.pcs > 0 ? setRemoving(n.id) : removeNode(n.id))} aria-label={`Удалить: ${n.name}`} title="Удалить">×</button>
         </>
@@ -289,78 +285,52 @@ export function BudgetEditor(p: Props) {
     return interactive && canEdit ? (
       <button type="button" onClick={() => toggleLock(n.id)} aria-pressed aria-label="Замок закрыт" data-touch-ok
         title="Замок закрыт: значения ручные, автоматический расчёт не трогает (в том числе всё внутри). Нажмите, чтобы открыть и вернуть автоматический расчёт"
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-50 text-[11px] text-amber-800">🔒</button>
+        className="btn-accent inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[11px]">🔒</button>
     ) : <span title="Замок: ручные значения, автоматический расчёт не трогает" aria-label="Замок закрыт" className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[11px]">🔒</span>;
   };
 
   const chevron = (n: BudgetNode, hasKids: boolean, open: boolean, size = "h-7 w-6") =>
-    n.kind !== "art" && (hasKids || n.kind === "fur") ? (
-      <button type="button" onClick={() => toggle(n.id)} aria-expanded={open} aria-label={open ? "Свернуть" : "Развернуть"} className={`inline-flex ${size} shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900`}>
+    n.kind !== "art" && hasKids ? (
+      <button type="button" onClick={() => toggle(n.id)} aria-expanded={open} aria-label={`${open ? "Свернуть" : "Развернуть"}: ${n.name}`} className={`inline-flex ${size} shrink-0 items-center justify-center text-neutral-500 hover:text-neutral-900`}>
         <span aria-hidden className={"inline-block transition-transform " + (open ? "rotate-90" : "")}>›</span>
       </button>
     ) : <span className="w-6 shrink-0" />;
 
-  // ---- Плитки
-  const carRef = useRef<HTMLDivElement>(null);
-  const [slideIdx, setSlideIdx] = useState(0);
-  const onCarScroll = () => { const el = carRef.current; if (el && el.clientWidth) setSlideIdx(Math.round(el.scrollLeft / el.clientWidth)); };
-  const goSlide = (i: number) => carRef.current?.scrollTo({ left: i * carRef.current.clientWidth, behavior: "smooth" });
-
-  // Компактные плитки: все одного размера; лента листается вправо-влево на любой ширине.
-  const tileStrip = "-mx-3 flex snap-x snap-mandatory items-stretch gap-2 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [scrollbar-width:thin]";
+  // ---- Плитки (как на Главной: TILE_BOX + Tile*, у всех по три строки — строки соседних плиток на одной горизонтали)
   const tile = (key: string, head: string, value: string, caption: string, items: { k: string; v: string }[]) => (
-    <div key={key} className="flex w-[176px] shrink-0 snap-start flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white p-2.5 shadow-sm sm:w-[205px]">
-      <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{head}</div>
-      <div className="mt-0.5 text-lg font-semibold leading-6 tabular-nums">{value}</div>
-      <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{caption}</div>
-      <dl className="mt-1 space-y-0.5 text-xs">
-        {items.map((it) => <div key={it.k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{it.k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{it.v}</dd></div>)}
-      </dl>
+    <div key={key} className={TILE_BOX + " shadow-sm print:shadow-none"}>
+      <TileHead>{head}</TileHead><TileValue>{value}</TileValue><TileCaption>{caption}</TileCaption>
+      <TileList items={items} />
     </div>
   );
-  // Виджет «Мех»: листается от «Тотал» до каждого типа меха; точки под ним переключают слайд.
-  const slides = [
-    { id: "mex", name: "Мех", a: total, share: 1 },
-    ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO, share: total.total > 0 ? (calc.get(f.id) ?? ZERO).total / total.total : 0 })),
-  ];
-  // Плитка «Мех» в общем ряду виджетов: того же размера, что остальные; внутри листается (тотал → всё сырьё меха → каждый тип), точки под ней.
+  // Плитка «Мех»: первым слайдом «Тотал», далее каждый тип меха.
+  const furSlides = [
+    { id: "mex", name: "Тотал", a: total },
+    ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO })),
+  ].map((sl) => {
+    const isMex = sl.id === "mex";
+    const items = [
+      { k: "Цена шкуры (ср.)", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
+      { k: "Шкур на изд. (ср.)", v: qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1) },
+      { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, total.total) },
+    ];
+    return {
+      key: sl.id, label: sl.name,
+      body: <><TileValue>{money(isMex ? sl.a.mex : sl.a.total)}</TileValue><TileCaption>{isMex ? `${qty(sl.a.hides, 0)} шкур` : `${qty(sl.a.pcs, 0)} изд. · ${qty(sl.a.hides, 0)} шкур`}</TileCaption><TileList items={items} /></>,
+    };
+  });
   const furTile = (
-    <div key="fur" className="flex w-[176px] shrink-0 snap-start flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm sm:w-[205px]">
-      <div ref={carRef} onScroll={onCarScroll} role="group" aria-roledescription="карусель" aria-label="Мех: тотал и типы меха"
-        className="flex flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {slides.map((sl, i) => {
-          const isMex = sl.id === "mex";
-          const rows: [string, string][] = isMex
-            ? [["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)], ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)], ["Доля", share(sl.a.mex, total.total)]]
-            : [["Цена шкуры (ср.)", money(sl.a.hides ? sl.a.mex / sl.a.hides : null)], ["Шкур на изд. (ср.)", qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1)]];
-          return (
-            <div key={sl.id} aria-hidden={i !== slideIdx} className="min-w-full snap-center p-2.5">
-              <div className="truncate text-[10px] font-semibold uppercase leading-4 tracking-wide text-neutral-500">{isMex ? "Мех" : `Мех · ${sl.name}`}</div>
-              <div className="mt-0.5 text-lg font-semibold leading-6 tabular-nums">{money(isMex ? sl.a.mex : sl.a.total)}</div>
-              <div className="min-h-4 text-[11px] leading-4 text-neutral-500">{isMex ? `${qty(sl.a.hides, 0)} шкур` : `${qty(sl.a.pcs, 0)} изд. · ${qty(sl.a.hides, 0)} шкур`}</div>
-              <dl className="mt-1 space-y-0.5 text-xs">
-                {rows.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-2"><dt className="truncate text-neutral-600">{k}</dt><dd className="whitespace-nowrap font-medium tabular-nums">{v}</dd></div>)}
-              </dl>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-center gap-1.5 pb-1.5" role="tablist" aria-label="Тип меха">
-        {slides.map((sl, i) => (
-          <button key={sl.id} type="button" role="tab" aria-selected={i === slideIdx} aria-label={sl.name} title={sl.name} onClick={() => goSlide(i)} data-touch-ok
-            className={"h-1.5 rounded-full transition-all " + (i === slideIdx ? "w-4 bg-neutral-900" : "w-1.5 bg-neutral-300 hover:bg-neutral-400")} />
-        ))}
-      </div>
-    </div>
+    <TileCarousel key="fur" title="Мех" hintLabel="Что показывает плитка «Мех»" hint={<p>Первый слайд — стоимость всего меха, далее каждый тип сырья: сколько изделий и шкур, средняя цена шкуры и доля в бюджете.</p>}
+      slides={furSlides} slidesLabel="слайды: тотал и типы меха" dotsLabel="Тип меха" />
   );
 
   const totalTiles = (
-    <div className={tileStrip}>
+    <div className="grid grid-cols-1 items-stretch gap-3 min-[560px]:grid-cols-2 lg:grid-cols-3 min-[1500px]:grid-cols-5 print:grid-cols-5">
       {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
-      {tile("w", "Работа", money(total.work), "пошив по бюджету изделий", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
-      {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Ставка", v: `${qty(params.c4, 1)}%` }, { k: "Доля", v: share(total.c4, total.total) }])}
+      {tile("w", "Работа", money(total.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
+      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Ставка", v: formatPercent(params.c4) }, { k: "Доля", v: share(total.c4, total.total) }])}
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
@@ -370,21 +340,21 @@ export function BudgetEditor(p: Props) {
     const sh = total.total > 0 ? a.total / total.total : 0;
     return (
       <tr key={key} className={`${o.bg} ${o.bold ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid`}>
-        <td className={`sticky left-0 z-10 min-w-[220px] max-w-[320px] border-r border-neutral-200 px-3 py-2 text-sm print:static ${o.bg}`}>{label}</td>
-        <td className={sumCell}>{qty(a.pcs, 0)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>
-        <td className={sumCell + " text-neutral-600"}>{qty(a.hides, 0)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
-        <td className={sumCell + " " + sepL}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
-        <td className={sumCell}>{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
-        <td className={sumCell}>{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-        <td className={sumCell + " text-neutral-500"}>{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
+        <td className={`sticky left-0 z-10 min-w-[220px] max-w-[320px] border-r border-neutral-200 px-3 py-2 text-sm bg-inherit print:static`}>{label}</td>
+        <td className={sumCell}>{qz(a.pcs)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>
+        <td className={sumCell + " text-neutral-600"}>{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
+        <td className={sumCell + " " + sepL}>{mz(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
+        <td className={sumCell}>{mz(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
+        <td className={sumCell}>{mz(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
+        <td className={sumCell + " text-neutral-500"}>{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
         <td className={sumCell + " min-w-[150px] text-base font-semibold " + sepL}>
-          {money(a.total)}
+          {mz(a.total)}
           <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-normal text-neutral-500">
             <span className="h-1 w-16 overflow-hidden rounded-full bg-neutral-200"><span className="block h-1 rounded-full bg-neutral-700" style={{ width: `${Math.min(100, sh * 100)}%` }} /></span>
             <span className="w-9 text-right">{share(a.total, total.total)}</span>
           </div>
         </td>
-        <td className={sumCell}>{money(perUnit(a))}<VarTag v={v} /></td>
+        <td className={sumCell}>{mz(perUnit(a))}<VarTag v={v} /></td>
       </tr>
     );
   };
@@ -417,8 +387,8 @@ export function BudgetEditor(p: Props) {
     meters: a.pcs > 0 ? a.meters / a.pcs : null, meterPrice: a.meters > 0 ? a.lining / a.meters : null, work: a.pcs > 0 ? a.work / a.pcs : null,
   });
 
-  const nameCell = (n: BudgetNode, depth: number, hasKids: boolean, open: boolean, bg: string) => (
-    <td className={`sticky left-0 z-10 min-w-[200px] max-w-[320px] border-r border-neutral-200 px-2 py-1.5 align-middle lg:min-w-[270px] ${bg}`}>
+  const nameCell = (n: BudgetNode, depth: number, hasKids: boolean, open: boolean) => (
+    <td className={`sticky left-0 z-10 min-w-[200px] max-w-[320px] border-r border-neutral-200 px-2 py-1.5 align-middle lg:min-w-[270px] bg-inherit`}>
       <div className="flex items-center gap-1" style={{ paddingLeft: depth * 18 }}>
         {chevron(n, hasKids, open)}
         {lockBtn(n)}
@@ -431,7 +401,7 @@ export function BudgetEditor(p: Props) {
         {canEdit && n.kind !== "art" ? (
           <button type="button" onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} data-touch-ok
             title={n.kind === "fur" ? "Добавить категорию в этот тип сырья" : "Добавить артикул в эту категорию: из списка системы или новый плановый"}
-            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:bg-blue-50 hover:underline">+ {n.kind === "fur" ? "категория" : "артикул"}</button>
+            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:underline">+ {n.kind === "fur" ? "категория" : "артикул"}</button>
         ) : null}
       </div>
     </td>
@@ -446,33 +416,33 @@ export function BudgetEditor(p: Props) {
       const open = !collapsed.has(n.id);
       const bg = n.kind === "fur" ? "bg-neutral-100" : hasKids ? "bg-neutral-50" : "bg-white";
       const av = avg(a);
-      const g = (v: number | null, d = 1) => <td className="px-2 text-right text-xs tabular-nums text-neutral-500">{qty(v, d)}</td>;
+      const g = (v: number | null, d = 1) => <td className="px-2 text-right text-xs tabular-nums text-neutral-500">{qz(v, d)}</td>;
       const gm = (v: number | null) => <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{v == null ? "—" : money(v)}</td>;
       const row = (
         <tr key={n.id} className={`${bg} ${n.kind === "fur" ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
-          {nameCell(n, depth, hasKids, open, bg)}
-          {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, <PcsShare pcs={a.pcs} all={total.pcs} />) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(a.pcs, 0)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>}
+          {nameCell(n, depth, hasKids, open)}
+          {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, <PcsShare pcs={a.pcs} all={total.pcs} />) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qz(a.pcs)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>}
           {leaf ? numCell(n, "hides", "Шкур на изделие", "w-[80px] min-w-[80px]") : g(av.hides)}
-          <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qty(a.hides, 0)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
+          <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
           {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "—" : money(av.hidePrice)}</td>}
           {leaf ? numCell(n, "meters", "Подкладка, м на изделие", "w-[84px] min-w-[84px]") : g(av.meters)}
           {leaf ? numCell(n, "meterPrice", "Цена подкладки за м", "w-[132px] min-w-[132px]", "upLining") : gm(av.meterPrice)}
           {leaf ? numCell(n, "work", "Работа на изделие", "w-[150px] min-w-[150px]", "upWork") : gm(av.work)}
-          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{money(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{money(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{money(a.total)}</td>
-          <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perUnit(a))}<VarTag v={varPct(a)} /></td>
-          <td className={`border-l border-neutral-200 px-1.5 py-1 lg:sticky lg:right-0 lg:z-10 ${bg}`}>{actions(n, hasKids)}</td>
+          <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{mz(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
+          <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{mz(a.total)}</td>
+          <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{mz(perUnit(a))}<VarTag v={varPct(a)} /></td>
+          <td className="border-l border-neutral-200 bg-inherit px-1.5 py-1 lg:sticky lg:right-0 lg:z-10">{actions(n, hasKids)}</td>
         </tr>
       );
       return [row, ...(open ? tableRows(n.id, depth + 1) : [])];
     });
 
   const totalRowDetail = (
-    <tr key="total" className="bg-neutral-200 font-semibold [&>td]:border-b [&>td]:border-neutral-300">
-      <td className="sticky left-0 z-10 border-r border-neutral-300 bg-neutral-200 px-3 py-2 text-sm">Тотал</td>
+    <tr key="total" className="row-total">
+      <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><TotalLabel /></td>
       <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}<div className="mt-0.5 text-right text-[10px] font-normal text-neutral-500">100,0% заказа</div></td>
       <td />
       <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
@@ -483,7 +453,7 @@ export function BudgetEditor(p: Props) {
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}<VarTag v={varPct(total)} /></td>
-      <td className="border-l border-neutral-300 bg-neutral-200 lg:sticky lg:right-0 lg:z-10" />
+      <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
 
@@ -535,7 +505,7 @@ export function BudgetEditor(p: Props) {
 
   const saveText = !canEdit ? (status === "APPROVED" ? "Утверждён: только просмотр" : "Только просмотр")
     : saveState === "saving" ? "Сохраняю…" : saveState === "saved" ? "Сохранено" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : "";
-  const grp = `${sepL} px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
+  const grp = `${sepL} border-b border-neutral-200 px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
   const upNode = upFor ? byId.get(upFor) : null;
 
   return (
@@ -588,18 +558,24 @@ export function BudgetEditor(p: Props) {
             ))}
           </div>
           <input value={comment} onChange={(e) => setComment(e.target.value)} disabled={!canEdit} maxLength={500} aria-label="Комментарий к версии" placeholder="Комментарий к версии"
-            className="h-7 min-w-[170px] flex-1 rounded-md border border-neutral-300 bg-white px-2 text-xs focus-visible:border-neutral-900 focus-visible:outline-none disabled:border-transparent disabled:bg-transparent" />
+            className="ui-field h-11 min-w-[170px] flex-1 rounded-lg border border-neutral-300 bg-white px-3 text-xs focus-visible:outline-none disabled:border-transparent disabled:bg-transparent" />
           {canEdit ? <button type="button" onClick={() => setUpAll(true)} className="self-center text-left text-xs text-blue-700 hover:underline">Надбавки по типам меха и категориям…</button> : null}
         </aside>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold">Состав бюджета</h2>
-          <div role="group" aria-label="Режим таблицы" className="inline-flex rounded-lg border border-neutral-300 bg-white p-0.5 text-sm">
+          <h2 className="text-base font-semibold">Состав бюджета
+            <InfoHint label="Как считается бюджет" wide>
+              <p>Изделий × (шкур × цена шкуры + подкладка, м × цена за м + работа) + {formatPercent(params.c4)} на мех и подкладку.</p>
+              <p className="mt-1">Var под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
+              <p className="mt-1">Точка у строки — качество данных: зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную. Закрытый замок — строка ручная.</p>
+            </InfoHint>
+          </h2>
+          <div role="group" aria-label="Режим таблицы" className={SEG_BOX}>
             {([["summary", "Сводка"], ["detail", "Детально"]] as const).map(([v, l]) => (
               <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
-                className={"min-h-10 rounded-md px-3 md:min-h-7 md:py-0.5 " + (view === v ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900")}>{l}</button>
+                className={segBtn(view === v)}>{l}</button>
             ))}
           </div>
         </div>
@@ -623,7 +599,7 @@ export function BudgetEditor(p: Props) {
               <thead className="sticky top-0 z-20 bg-white print:static">
                 <tr className="h-7">
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[220px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>
-                  <th colSpan={2} className="px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
+                  <th colSpan={2} className="border-b border-neutral-200 px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
                   <th colSpan={2} className={grp}>Прогноз</th>
                 </tr>
@@ -639,7 +615,7 @@ export function BudgetEditor(p: Props) {
                 </tr>
               </thead>
               <tbody>
-                {sumRow("total", <span className="text-base">Тотал</span>, total, { bg: "bg-neutral-200", bold: true })}
+                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true })}
                 {summaryRows(null, 0)}
               </tbody>
             </table>
@@ -680,7 +656,6 @@ export function BudgetEditor(p: Props) {
           <div className={(view === "detail" ? "md:hidden " : "hidden ") + "flex flex-col gap-2 print:hidden"}>{cards(null, 0)}</div>
         </>
       )}
-      <p className="text-xs text-neutral-500 print:hidden">Как считается: изделий × (шкур × цена шкуры + подкладка м × цена за м + работа) + {qty(params.c4, 1)}% на мех и подкладку. Var под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и 4% на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов. Точка у строки — качество данных (зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную), подробности в подсказке. Замок закрыт — строка ручная.</p>
 
       {renaming ? <EditCardDialog name={p.name} season={p.season} onClose={() => setRenaming(false)} onSave={async (name, seasonV) => { const r = await renameBudget(p.id, name, seasonV); if (r.ok) { setRenaming(false); router.refresh(); } return r.ok ? null : r.error ?? "Не удалось сохранить"; }} /> : null}
       {adding ? (
@@ -701,10 +676,10 @@ export function BudgetEditor(p: Props) {
       ) : null}
       {upAll ? (
         <Modal title="Надбавки по типам меха и категориям" onClose={() => setUpAll(false)} wide>
-          <p className="mb-3 text-xs text-neutral-500">Пустое поле — берётся с уровня выше (в подсказке то, что действует сейчас; общие надбавки версии — {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}). 0 — без надбавки. Строки с замком не пересчитываются.</p>
+          <p className="mb-3 text-xs text-neutral-500">Пустое поле — с уровня выше. Общие надбавки версии: {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки. Строки с замком не пересчитываются.</p></InfoHint></p>
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>
+              <thead className="sticky top-0 bg-white"><tr className="border-b border-neutral-200 text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>
               <tbody>
                 {nodes.filter((n) => n.kind === "fur" || n.kind === "cat").map((n) => {
                   const par = n.parentId ? byId.get(n.parentId) : undefined;
@@ -718,7 +693,7 @@ export function BudgetEditor(p: Props) {
                           <td key={k} className="px-1 py-0.5">
                             <input type="text" inputMode="decimal" defaultValue={typeof n[k] === "number" ? String(n[k]).replace(".", ",") : ""} placeholder={String(cur).replace(".", ",")} aria-label={`${n.name}: ${k === "upFur" ? "шкура" : k === "upLining" ? "подкладка" : "работа"}, %`}
                               onChange={(e) => { const t = e.target.value.trim().replace(",", "."); const x = Number(t); setUp(n.id, k, t === "" || !Number.isFinite(x) ? null : x); }}
-                              className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-right text-sm tabular-nums focus-visible:border-neutral-900 focus-visible:outline-none" />
+                              className="ui-field w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-right text-sm tabular-nums focus-visible:outline-none" />
                           </td>
                         );
                       })}
@@ -728,12 +703,12 @@ export function BudgetEditor(p: Props) {
               </tbody>
             </table>
           </div>
-          <div className="mt-4 flex justify-end"><button type="button" className={BTN_PRIMARY} onClick={() => setUpAll(false)}>Готово</button></div>
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUpAll(false)}>Готово</button></div>
         </Modal>
       ) : null}
       {upNode ? (
         <Modal title={`Надбавки: ${upNode.name}`} onClose={() => setUpFor(null)}>
-          <p className="mb-3 text-xs text-neutral-500">Для этой строки и всего, что внутри. Пустое поле — берётся с уровня выше (в подсказке то, что действует сейчас). 0 — без надбавки.</p>
+          <p className="mb-3 text-xs text-neutral-500">Для этой строки и всего, что внутри. Пустое поле — с уровня выше.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки.</p></InfoHint></p>
           <div className="grid grid-cols-3 gap-3">
             {([["upFur", "Шкура, %"], ["upLining", "Подкладка, %"], ["upWork", "Работа, %"]] as const).map(([k, label]) => {
               const parent = upNode.parentId ? byId.get(upNode.parentId) : undefined;
@@ -748,7 +723,7 @@ export function BudgetEditor(p: Props) {
               );
             })}
           </div>
-          <div className="mt-4 flex justify-end"><button type="button" className={BTN_PRIMARY} onClick={() => setUpFor(null)}>Готово</button></div>
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3"><button type="button" className={BTN_PRIMARY} onClick={() => setUpFor(null)}>Готово</button></div>
         </Modal>
       ) : null}
       {preview ? (
@@ -761,7 +736,7 @@ export function BudgetEditor(p: Props) {
           {preview.warnings.length ? <ul className="mt-2 list-disc pl-5 text-xs text-amber-700">{preview.warnings.slice(0, 5).map((w) => <li key={w}>{w}</li>)}</ul> : null}
           <div className="mt-3 max-h-[40vh] overflow-auto rounded-md border border-neutral-200">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-neutral-50 text-neutral-500"><tr><th className="px-2 py-1 text-left font-medium">Тип сырья</th><th className="px-2 py-1 text-left font-medium">Категория</th><th className="px-2 py-1 text-right font-medium">Бюджет, шт.</th><th className="px-2 py-1 text-left font-medium">Значения</th></tr></thead>
+              <thead className="sticky top-0 bg-white text-neutral-500 [&>tr]:border-b [&>tr]:border-neutral-200"><tr><th className="px-2 py-1 text-left font-medium">Тип сырья</th><th className="px-2 py-1 text-left font-medium">Категория</th><th className="px-2 py-1 text-right font-medium">Бюджет, шт.</th><th className="px-2 py-1 text-left font-medium">Значения</th></tr></thead>
               <tbody>
                 {preview.rows.map((r, i) => (
                   <tr key={i} className="border-t border-neutral-100"><td className="px-2 py-1">{r.fur}</td><td className="px-2 py-1">{r.cat}</td><td className="px-2 py-1 text-right tabular-nums">{r.pcs}</td>
@@ -770,7 +745,7 @@ export function BudgetEditor(p: Props) {
               </tbody>
             </table>
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3 gap-2">
             <button type="button" className={BTN} onClick={() => setPreview(null)}>Отмена</button>
             <button type="button" className={BTN_PRIMARY} onClick={applyImport}>Добавить {preview.rows.length} строк</button>
           </div>
@@ -779,7 +754,7 @@ export function BudgetEditor(p: Props) {
       {removing ? (
         <Modal title="Удалить строку?" onClose={() => setRemoving(null)}>
           <p className="text-sm text-neutral-700">«{byId.get(removing)?.name}» будет удалена{(kids.get(removing) ?? []).length ? " вместе со всеми вложенными строками" : ""}. Введённые значения пропадут.</p>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3 gap-2">
             <button type="button" className={BTN} onClick={() => setRemoving(null)}>Отмена</button>
             <button type="button" className="inline-flex min-h-10 items-center rounded-lg bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-800 md:min-h-8" onClick={() => removeNode(removing)}>Удалить</button>
           </div>

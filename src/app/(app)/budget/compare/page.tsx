@@ -6,6 +6,7 @@ import { WidgetRow } from "@/components/widget-row";
 import { DEFAULT_PARAMS, computeTree, furRank, grandTotal, parseNodes, perUnit, type Agg, type BudgetNode, type BudgetParams } from "@/lib/budget-calc";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "../../dashboard/tile";
 import { money, pct, qty } from "../format";
+import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 
 export const metadata = { title: "Сравнение бюджетов" };
@@ -56,11 +57,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     return (
       <tr key={(sub ? "c:" : "f:") + label + (sub ? x + "|" + y : "")} className={sub ? "text-xs text-neutral-600" : "bg-neutral-50 font-medium"}>
         <td className={"px-3 py-2 " + (sub ? "pl-8" : "")}>{label}</td>
-        <td className={cell}>{a ? qty(a.pcs, 0) : "—"}</td>
+        <td className={cell + " border-l border-neutral-200"}>{a ? qty(a.pcs, 0) : "—"}</td>
         <td className={cell}>{b ? qty(b.pcs, 0) : "—"}</td>
-        <td className={cell}>{a ? money(x) : "—"}</td>
+        <td className={cell + " border-l border-neutral-200"}>{a ? money(x) : "—"}</td>
         <td className={cell}>{b ? money(y) : "—"}</td>
-        <td className={cell + (y - x === 0 ? "" : " font-medium")}>{dRub(x, y)}</td>
+        <td className={cell + " border-l border-neutral-200" + (y - x === 0 ? "" : " font-medium")}>{dRub(x, y)}</td>
         <td className={cell}>{dPct(x, y)}</td>
       </tr>
     );
@@ -70,33 +71,36 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     <div className="flex flex-col gap-4">
       <div>
         <Link href="/budget" className="text-xs text-neutral-500 hover:underline">← Все бюджеты</Link>
-        <h1 className="mt-1 text-xl font-semibold">Сравнение версий</h1>
-        <p className="mt-0.5 text-xs text-neutral-500">Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Var — насколько Б больше или меньше А.</p>
+        <h1 className="mt-1 text-xl font-semibold">Сравнение версий
+          <InfoHint label="Как читать сравнение" wide>
+            <p>Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Var — насколько Б больше или меньше А.</p>
+          </InfoHint>
+        </h1>
       </div>
       <WidgetRow id="budget-compare" title="Итоги версий">
-        <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-1 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
           {[
             { h: `А · ${A.name}`, v: money(ta.total), c: `${qty(ta.pcs, 0)} изд. · на 1 изд. ${money(perUnit(ta))}` },
             { h: `Б · ${B.name}`, v: money(tb.total), c: `${qty(tb.pcs, 0)} изд. · на 1 изд. ${money(perUnit(tb))}` },
             { h: "Разница Б к А", v: dRub(ta.total, tb.total), c: `${dPct(ta.total, tb.total)} · изделий ${tb.pcs - ta.pcs > 0 ? "+" : ""}${qty(tb.pcs - ta.pcs, 0)}` },
           ].map((t) => (
-            <div key={t.h} className={TILE_BOX + " min-w-[250px] shrink-0 snap-start shadow-sm md:min-w-0"}>
+            <div key={t.h} className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>{t.h}</TileHead><TileValue>{t.v}</TileValue><TileCaption>{t.c}</TileCaption>
             </div>
           ))}
         </div>
       </WidgetRow>
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-[760px] text-sm">
+      <div className="scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white p-3">
+        <table className="w-full min-w-[760px] table-fixed text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-              <th rowSpan={2} className="px-3 py-2 text-left font-medium">Тип сырья / категория</th>
-              <th colSpan={2} className="px-3 pt-2 text-center font-medium">Изделий</th>
-              <th colSpan={2} className="px-3 pt-2 text-center font-medium">Всего, ₽</th>
-              <th colSpan={2} className="px-3 pt-2 text-center font-medium">Var (Б к А)</th>
+              <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Изделий, шт.</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Всего, ₽</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Var (Б к А)</th>
             </tr>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-              {["А", "Б", "А", "Б", "₽", "%"].map((h, i) => <th key={i} className="px-3 pb-2 text-right font-medium">{h}</th>)}
+              {["А", "Б", "А", "Б", "₽", "%"].map((h, i) => <th key={i} className={"px-3 pb-2 text-right font-medium" + (i % 2 === 0 ? " border-l border-neutral-200" : "")}>{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -107,9 +111,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             })}
             <tr className="row-total">
               <td className="px-3 py-2.5"><TotalLabel /></td>
-              <td className={cell}>{qty(ta.pcs, 0)}</td><td className={cell}>{qty(tb.pcs, 0)}</td>
-              <td className={cell}>{money(ta.total)}</td><td className={cell}>{money(tb.total)}</td>
-              <td className={cell}>{dRub(ta.total, tb.total)}</td><td className={cell}>{dPct(ta.total, tb.total)}</td>
+              <td className={cell + " border-l border-neutral-200"}>{qty(ta.pcs, 0)}</td><td className={cell}>{qty(tb.pcs, 0)}</td>
+              <td className={cell + " border-l border-neutral-200"}>{money(ta.total)}</td><td className={cell}>{money(tb.total)}</td>
+              <td className={cell + " border-l border-neutral-200"}>{dRub(ta.total, tb.total)}</td><td className={cell}>{dPct(ta.total, tb.total)}</td>
             </tr>
           </tbody>
         </table>

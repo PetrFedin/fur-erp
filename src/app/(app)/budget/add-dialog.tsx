@@ -51,13 +51,13 @@ export function AddDialog({ kind, names, articles, taken, catName, context, onCl
             + {t.custom}: «{q.trim()}»
           </button>
         ) : null}
-        <ul className="-mx-1 max-h-[50vh] overflow-y-auto">
+        <ul className="-mx-1 max-h-[50vh] divide-y divide-neutral-100 overflow-y-auto border-t border-neutral-200">
           {list.map((x) => {
             const used = isTaken(x);
             return (
               <li key={x.key}>
                 <button type="button" disabled={used} title={x.hint} onClick={() => onPick({ name: x.label, modelId: x.modelId })}
-                  className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-neutral-50 disabled:text-neutral-400 disabled:hover:bg-transparent">
+                  className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm ui-field border border-transparent hover:bg-neutral-50 disabled:text-neutral-400 disabled:hover:bg-transparent">
                   <span>{x.label}</span>{used ? <span className="text-[11px] text-neutral-400">уже добавлено</span> : null}
                 </button>
               </li>
@@ -65,7 +65,7 @@ export function AddDialog({ kind, names, articles, taken, catName, context, onCl
           })}
           {list.length === 0 ? <li className="px-2 py-3 text-xs text-neutral-500">{kind === "art" ? "Артикул не найден в системе — можно создать плановый." : "Нет в справочнике — можно добавить своё название."}</li> : null}
         </ul>
-        {kind === "art" ? <p className="text-[11px] text-neutral-500">Плановый артикул живёт только в этом бюджете и не создаёт изделие в каталоге.</p> : null}
+        {kind === "art" ? <p className="border-t border-neutral-200 pt-2 text-[11px] text-neutral-500">Плановый артикул живёт только в этом бюджете и не создаёт изделие в каталоге.</p> : null}
       </div>
     </Modal>
   );

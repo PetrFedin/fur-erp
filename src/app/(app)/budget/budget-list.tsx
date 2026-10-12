@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { InfoHint } from "@/components/info-hint";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, dateRu, money, pct, qty } from "./ui";
 import { createBudget, deleteBudget, duplicateBudget, renameBudget } from "./actions";
 
@@ -11,7 +12,7 @@ export type BudgetSummary = {
   total: number; pcs: number; hides: number; perUnit: number | null; nowPerUnit: number | null; varPct: number | null; updatedAt: string; updatedBy: string | null;
 };
 
-const ICON = "inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7";
+const ICON = "btn-accent inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7";
 
 type Dialog = { kind: "new" } | { kind: "rename"; b: BudgetSummary } | { kind: "delete"; b: BudgetSummary } | null;
 
@@ -37,14 +38,17 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Бюджет</h1>
-          <p className="mt-0.5 text-xs text-neutral-500">Версии бюджета расходов по меху: тип сырья → категория → артикул, расчёт идёт сам. Сделайте копию, чтобы сравнить варианты.</p>
+          <h1 className="text-xl font-semibold">Бюджет
+            <InfoHint label="Что такое бюджет" wide>
+              <p>Версии бюджета расходов по меху: тип сырья → категория → артикул, расчёт идёт сам. Сделайте копию, чтобы сравнить варианты.</p>
+            </InfoHint>
+          </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый бюджет</button> : null}
         </div>
       </div>
-      {error ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500">
@@ -53,7 +57,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
-            <li key={b.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 shadow-sm tile-click">
+            <li key={b.id} className="relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 tile-click">
               <Link href={`/budget/${b.id}`} className="absolute inset-0 z-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900" aria-label={`Открыть бюджет: ${b.name}`} />
               <div className="flex items-start justify-between gap-2">
                 <div className="pointer-events-none relative z-10 min-w-0">
@@ -87,7 +91,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
                 <div><dt className="text-neutral-500">Изделий</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.pcs, 0)}</dd></div>
                 <div><dt className="text-neutral-500">Шкур</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{qty(b.hides, 0)}</dd></div>
                 <div><dt className="text-neutral-500">К текущим ценам</dt><dd className="mt-0.5 text-sm font-medium tabular-nums">{pct(b.varPct)}</dd></div>
-                <div className="col-span-3"><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums">{money(b.total)}</dd></div>
+                <div className="col-span-3 border-t border-neutral-200 pt-2"><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 whitespace-nowrap text-xl font-semibold tabular-nums">{money(b.total)}</dd></div>
               </dl>
               {b.comment ? <p className="mt-2 line-clamp-2 text-xs text-neutral-500">{b.comment}</p> : null}
               <p className="mt-2 text-[11px] text-neutral-400">Изменён {dateRu(b.updatedAt)}{b.updatedBy ? ` · ${b.updatedBy}` : ""}</p>
