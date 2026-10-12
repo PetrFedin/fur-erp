@@ -119,6 +119,8 @@ export type DashboardData = {
   /** ID выбранных ТЗ (для окна «стоимость производства»). */
   orderIds: string[];
   furTotalLots: number;
+  /** Лоты меха выбранного года и фильтров (те же, что дают «Куплено» меха): для виджета «Из чего складывается стоимость меха». */
+  priceLots: FurLot[];
   /** «Мост» между блоками (пояснения у цифр): всё в рублях. */
   bridge: {
     /** Мех + подкладка, использованные по лотам Сводки, БЕЗ 4% (то, что сравнивается с сырьём в ТЗ). */
@@ -547,7 +549,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     usedIncl: used?.incl ?? 0, usedExcl: used?.excl ?? 0, usedExtraIncl: 0, usedExtraExcl: 0,
     remIncl: used ? 0 : o.incl, remExcl: used ? 0 : o.excl,
     vatRate: 22, usdPrice: null, usdSource: "none", usdQty: 0, usdSubtotal: 0, usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
-    usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0, usages: [],
+    usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0, hammerExcl: null, hammerIncl: null, hammerSource: null, hamQty: 0, hamSubExcl: 0, hamSubIncl: 0, usages: [],
     purchaseStatus: used ? "RECEIVED" : "DRAFT", paid: money.paid, due: money.due, usdPlanQty: plan?.q, usdPlanSubtotal: plan?.s,
   });
   const syntheticLots: FurLot[] = [
@@ -649,6 +651,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     noGroup: { repair: ordersAll.filter((o) => !o.categoryGroup && o.category === REPAIR_CATEGORY).length, other: ordersAll.filter((o) => !o.categoryGroup && o.category !== REPAIR_CATEGORY).length },
     orderIds: ordersYear.map((o) => o.id),
     furTotalLots: lotsYear.length,
+    priceLots: lotsYear.filter((l) => l.kind === "fur"),
     bridge: {
       usedBase: { incl: usedBaseOf("incl"), excl: usedBaseOf("excl") },
       usedComparable: year === "all" && !lotFiltersOn(f),

@@ -94,6 +94,14 @@ export type FurLot = {
   /** Строка-заглушка «заказано, не получено»: цена в $ из расчёта ПОЗИЦИЙ закупки (costPlan) — шт. и Σ $. В потоки/плитки не входит; показывается у вида меха без лотов с $ (рысь), как в окне «Цена по видам сырья» на Главной. */
   usdPlanQty?: number;
   usdPlanSubtotal?: number;
+  /** Молоток лота, ₽ за шкуру (без / с НДС) и откуда взят (lotHammer); нет цены молотка в расчёте — null. */
+  hammerExcl: number | null;
+  hammerIncl: number | null;
+  hammerSource: string | null;
+  /** Для средневзвешенного молотка: шт. лота с молотком и Σ шт. × молоток (без НДС / с НДС). Нет молотка — 0. */
+  hamQty: number;
+  hamSubExcl: number;
+  hamSubIncl: number;
 };
 
 // ───────────────────────────── суммы ─────────────────────────────
@@ -122,6 +130,12 @@ export type Flow = {
   usdQtyEur: number;
   usdQtyRub: number;
   usdQtyCalc: number;
+  /** Молоток: шт. лотов с молотком и Σ шт. × ₽ молотка (без НДС / с НДС). */
+  hamQty: number;
+  hamSubExcl: number;
+  hamSubIncl: number;
+  /** Сколько лотов с молотком. */
+  hamLots: number;
 };
 
 export const emptyFlow = (): Flow => ({
@@ -129,10 +143,11 @@ export const emptyFlow = (): Flow => ({
   usedExtraIncl: 0, usedExtraExcl: 0, remIncl: 0, remExcl: 0, usdQty: 0, usdSubtotal: 0,
   usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
   usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0,
+  hamQty: 0, hamSubExcl: 0, hamSubIncl: 0, hamLots: 0,
 });
 
 /** Числовая часть лота — всё, что нужно для сумм (общая для строки таблицы и лота аналитики сырья). */
-export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal" | "usdUsedQty" | "usdUsedSubtotal" | "usdRemQty" | "usdRemSubtotal" | "usdQtyDirect" | "usdQtyEur" | "usdQtyRub" | "usdQtyCalc">;
+export type FlowLot = Pick<FurLot, "recv" | "used" | "rem" | "recvIncl" | "recvExcl" | "usedIncl" | "usedExcl" | "usedExtraIncl" | "usedExtraExcl" | "remIncl" | "remExcl" | "usdQty" | "usdSubtotal" | "usdUsedQty" | "usdUsedSubtotal" | "usdRemQty" | "usdRemSubtotal" | "usdQtyDirect" | "usdQtyEur" | "usdQtyRub" | "usdQtyCalc" | "hamQty" | "hamSubExcl" | "hamSubIncl">;
 
 export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.lots += 1;
@@ -145,6 +160,7 @@ export function addLotToFlow(f: Flow, l: FlowLot): Flow {
   f.usdUsedQty += l.usdUsedQty; f.usdUsedSubtotal += l.usdUsedSubtotal;
   f.usdRemQty += l.usdRemQty; f.usdRemSubtotal += l.usdRemSubtotal;
   f.usdQtyDirect += l.usdQtyDirect; f.usdQtyEur += l.usdQtyEur; f.usdQtyRub += l.usdQtyRub; f.usdQtyCalc += l.usdQtyCalc;
+  f.hamLots += l.hamQty > 0 ? 1 : 0; f.hamQty += l.hamQty; f.hamSubExcl += l.hamSubExcl; f.hamSubIncl += l.hamSubIncl;
   return f;
 }
 
@@ -192,6 +208,12 @@ export type FlowFigures = {
   usdRemAvg: number | null;
   /** Из usdQty: по источникам цены в USD (шт.). */
   usdBySource: { direct: number; eur: number; rub: number; calc: number };
+  /** Средневзвешенный молоток, ₽/шт. в выбранном режиме НДС: по лотам, у которых молоток есть в расчёте (только они); нет ни у одного — null. */
+  hammerAvg: number | null;
+  /** Сколько из купленного шт. приходится на лоты с молотком (покрытие hammerAvg). */
+  hammerQty: number;
+  /** Лотов с молотком. */
+  hammerLots: number;
 };
 
 export function figures(f: Flow, mode: FlowMode): FlowFigures {
@@ -215,6 +237,9 @@ export function figures(f: Flow, mode: FlowMode): FlowFigures {
     usdUsedQty: round3(f.usdUsedQty), usdUsedAvg: safeRatio(f.usdUsedSubtotal, f.usdUsedQty),
     usdRemQty: round3(f.usdRemQty), usdRemAvg: safeRatio(f.usdRemSubtotal, f.usdRemQty),
     usdBySource: { direct: round3(f.usdQtyDirect), eur: round3(f.usdQtyEur), rub: round3(f.usdQtyRub), calc: round3(f.usdQtyCalc) },
+    hammerAvg: safeRatio(excl ? f.hamSubExcl : f.hamSubIncl, f.hamQty),
+    hammerQty: round3(f.hamQty),
+    hammerLots: f.hamLots,
   };
 }
 

@@ -11,7 +11,7 @@ import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
-import { activeCount, defineFilters, filterHref, parseFilters, pick, toWhere, dateRange } from "@/lib/filters";
+import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam, toWhere, dateRange } from "@/lib/filters";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { escapeLike } from "@/lib/input";
@@ -25,7 +25,7 @@ import { loadFurLots } from "@/lib/fur-table-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../dashboard/tile";
-import { PurchasesList, PurchasesTree } from "./purchases-tree";
+import { PurchasesList, PurchasesTree, type ExtraRow } from "./purchases-tree";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 function firstLine(v: string | null) {
@@ -42,6 +42,10 @@ const PURCHASE_FILTERS = defineFilters({
     vat: { label: "НДС" },
     sort: { allowed: ["number", "year", "batch", "supplier", "date", "status", "lots", "fur", "lining", "total", "paid", "rest", "used", "rem"] },
   }),
+});
+const PURCHASE_FILTERS_ALL = defineFilters({
+  ...PURCHASE_FILTERS.defs,
+  sec: stateParam("Раздел", { allowed: ["fur", "lining"] }),
 });
 const STATUS_OPTIONS = [
   { value: "DRAFT", label: "Черновик" },
@@ -79,13 +83,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const year = await getYearFilter();
   const canCreate = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
   const orgId = session.user.organizationId;
-  const f = parseFilters(PURCHASE_FILTERS, sp);
+  const f = parseFilters(PURCHASE_FILTERS_ALL, sp);
   const PAGE = 50;
   // Вид: «По годам и партиям» (дерево, по умолчанию) или «Списком» (плоская таблица с сортировкой и «Показать ещё»).
   const tree = f.view !== "list";
   const limitRaw = Number(f.limit || PAGE);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
-  const filtersOn = activeCount(PURCHASE_FILTERS, f) > 0;
+  const filtersOn = activeCount(PURCHASE_FILTERS_ALL, f) > 0;
 
   const auctionIds = f.auction.length ? await purchaseIdsByAuction(orgId, f.auction) : null;
   const furMaterialIds = f.fur.length ? await furMaterialIdsByKind(orgId, f.fur) : [];
@@ -205,10 +209,46 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
   const hidesAll = !filtersOn ? new Decimal((await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
   const hides = hidesAll.toNumber();
-  const boughtTotal = tot.total + hides;
-  const boughtExcl = tot.totalExcl + hides;
+
+  // Часть закупки по виду (мех / подкладка): кол-во и позиции вида; сумма, оплата и долг — по доле стоимости позиций вида (расходы — пропорционально).
+  // Закупка со смешанным составом попадает в обе секции своей частью; Σ секций = итог.
+  const partOf = (p: TreePurchase, kind: "fur" | "lining"): TreePurchase | null => {
+    const its = p.items.filter((i) => (i.unit === "м") === (kind === "lining"));
+    if (its.length === 0) return null;
+    const allSum = p.items.reduce((a, i) => a + i.sum, 0);
+    const sh = allSum > 0 ? its.reduce((a, i) => a + i.sum, 0) / allSum : its.length / p.items.length;
+    const ls = (lotsOf.get(p.id) ?? []).filter((l) => l.kind === kind);
+    return {
+      ...p, items: its, lots: its.length, fur: kind === "fur" ? p.fur : 0, lining: kind === "lining" ? p.lining : 0,
+      total: p.total * sh, totalExcl: p.totalExcl * sh, paid: p.paid * sh, rest: p.rest * sh, paidBatch: p.paidBatch * sh,
+      usedValue: ls.reduce((a, l) => a + l.usedIncl, 0), recvValue: ls.reduce((a, l) => a + l.recvIncl, 0), hasLots: ls.length > 0,
+      remFur: kind === "fur" ? ls.reduce((a, l) => a + l.rem, 0) : 0, remLining: kind === "lining" ? ls.reduce((a, l) => a + l.rem, 0) : 0,
+    };
+  };
+  // Округление: у лота цена за единицу хранится округлённой, поэтому Σ лотов (так считает Главная) чуть отличается от Σ закупок по документам.
+  // Без фильтров показываем разницу отдельной строкой — тогда «Всего» совпадает с Главной до рубля.
+  const roundOf = (kind: "fur" | "lining") => {
+    if (filtersOn) return 0;
+    const lotsSum = (kind === "fur" ? furLots : liningLots).filter((l) => l.purchaseId && all.some((p) => p.id === l.purchaseId && p.status !== "CANCELLED")).reduce((a, l) => a + l.recvIncl, 0);
+    const docs = all.filter((p) => p.status === "RECEIVED").reduce((a, p) => a + (partOf(p, kind)?.total ?? 0), 0);
+    const d = lotsSum - docs;
+    return Math.abs(d) < 0.005 ? 0 : d;
+  };
+  const roundFur = roundOf("fur"), roundLin = roundOf("lining");
+  const hidesRow: ExtraRow[] = hides > 0.5 ? [{
+    key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hides, paid: hides,
+    note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
+  }] : [];
+  const roundRow = (key: string, v: number): ExtraRow[] => (v !== 0 ? [{
+    key, label: "Округление", sum: v, paid: 0,
+    note: "Лоты хранят цену за единицу округлённой, поэтому сумма лотов (так считает Главная) отличается от суммы закупок по документам на копейки. Строка закрывает разницу: «Всего» = Главная.",
+  }] : []);
+  const furExtras = [...hidesRow, ...roundRow("round-fur", roundFur)];
+  const liningExtras = roundRow("round-lin", roundLin);
+  const boughtTotal = tot.total + hides + roundFur + roundLin;
+  const boughtExcl = tot.totalExcl + hides + roundFur + roundLin;
   const paidTotal = tot.paid + hides;
-  const restRaw = boughtTotal - paidTotal;
+  const restRaw = tot.rest;
   const restTotal = Math.abs(restRaw) <= 0.5 ? 0 : restRaw;
 
   // Дерево «год → партия → закупка → позиции / расходы / оплаты».
@@ -252,10 +292,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   });
   const listRows = sorted.slice(0, limit);
   const hasMore = sorted.length > limit;
+  const secOf = (kind: "fur" | "lining") => sorted.map((p) => partOf(p, kind)).filter((p): p is TreePurchase => p != null);
+  const sections = ([["fur", "Мех — закупки", "шт."], ["lining", "Подкладка — закупки", "м"]] as const).filter(([k]) => !f.sec || f.sec === k).map(([k, title, unit]) => ({ k, title, unit, all: secOf(k) }));
   const sortHrefs = Object.fromEntries(
-    Object.keys(SORT).map((k) => [k, filterHref(PURCHASE_FILTERS, "/purchases", f, { sort: k, dir: sortKey === k && sortDir === (k === "number" ? "desc" : "asc") ? (k === "number" ? "asc" : "desc") : k === "number" ? "desc" : "asc", limit: "" })]),
+    Object.keys(SORT).map((k) => [k, filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sort: k, dir: sortKey === k && sortDir === (k === "number" ? "desc" : "asc") ? (k === "number" ? "asc" : "desc") : k === "number" ? "desc" : "asc", limit: "" })]),
   );
-  const moreHref = filterHref(PURCHASE_FILTERS, "/purchases", f, { limit: String(limit + PAGE) });
+  const moreHref = filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { limit: String(limit + PAGE) });
 
   return (
     <div className="flex flex-col gap-4">
@@ -359,7 +401,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       <div role="tablist" aria-label="Вид таблицы закупок" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
         <span>Вид:</span>
         {([["tree", "По годам и партиям"], ["list", "Списком"]] as const).map(([id, label]) => (
-          <Link key={id} role="tab" aria-selected={(tree ? "tree" : "list") === id} href={filterHref(PURCHASE_FILTERS, "/purchases", f, { view: id === "tree" ? "" : "list", limit: "" })}
+          <Link key={id} role="tab" aria-selected={(tree ? "tree" : "list") === id} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { view: id === "tree" ? "" : "list", limit: "" })}
             className={"rounded-lg border px-3 py-1.5 text-xs " + ((tree ? "tree" : "list") === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
         ))}
       </div>
@@ -374,24 +416,48 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           )}
         </p>
       ) : tree ? (
-        <PurchasesTree years={treeYears} hides={hides} />
+        <PurchasesTree years={treeYears} extras={[...furExtras, ...liningExtras]} />
       ) : (
-        <PurchasesList
-          rows={listRows}
-          hides={hides}
-          sort={{ key: sortKey, dir: sortDir }}
-          sortHrefs={sortHrefs}
-          footer={
-            <div className="flex flex-col items-center gap-2">
-              {hasMore && (
-                <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                  Показать ещё {PAGE}
-                </Link>
-              )}
-              <div className="text-xs text-neutral-600">Показано закупок: {listRows.length}{hasMore ? ` из ${rows.length}` : ""}</div>
-            </div>
-          }
-        />
+        <>
+          <div role="tablist" aria-label="Раздел списка" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+            <span>Показать:</span>
+            {([["", "Мех и подкладка"], ["fur", "Мех"], ["lining", "Подкладка"]] as const).map(([v, label]) => (
+              <Link key={v} role="tab" aria-selected={(f.sec || "") === v} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sec: v, limit: "" })}
+                className={"rounded-lg border px-3 py-1.5 text-xs " + ((f.sec || "") === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
+            ))}
+            <InfoHint label="Как разделены мех и подкладка" wide>
+              <p>Закупки меха (шкуры, шт.) и подкладки (метры) — отдельные таблицы со своими единицами, итогом и сортировкой; фильтры общие. Закупка из меха и подкладки попадает в обе таблицы своей частью: кол-во и позиции вида, сумма, оплата и долг — по доле стоимости позиций вида. Σ таблиц = общий итог.</p>
+            </InfoHint>
+          </div>
+          {sections.map((sec) => {
+            const rowsSec = sec.all.slice(0, limit);
+            const a = aggregate(sec.all);
+            const ex = sec.k === "fur" ? furExtras : liningExtras;
+            const exSum = ex.reduce((x, e) => x + e.sum, 0);
+            const q = sec.k === "fur" ? a.fur : a.lining;
+            return (
+              <div key={sec.k} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid={`tiles-${sec.k}`}>
+                  <div className={TILE_BOX}><TileHead>Закупок</TileHead><TileValue compact>{a.purchases}</TileValue><TileCaption>{sec.k === "fur" ? "с мехом" : "с подкладкой"}</TileCaption></div>
+                  <div className={TILE_BOX}><TileHead>{sec.k === "fur" ? "Шкур, шт." : "Подкладка, м"}</TileHead><TileValue compact>{formatQty(q)}</TileValue><TileCaption>{a.lots} позиций</TileCaption></div>
+                  <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney((a.total + exSum).toFixed(2))}</TileValue><TileCaption>{ex.length ? "с шкурами подрядчика и округлением" : "с НДС"}</TileCaption></div>
+                  <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact className={a.rest > 0.5 ? "text-amber-700" : ""}>{formatMoney(a.rest.toFixed(2))}</TileValue><TileCaption>Сумма − оплачено</TileCaption></div>
+                </div>
+                <PurchasesList
+                  id={`pur-list-${sec.k}`}
+                  title={sec.title}
+                  unitLabel={sec.unit}
+                  rows={rowsSec}
+                  allRows={sec.all}
+                  extras={ex}
+                  sort={{ key: sortKey, dir: sortDir }}
+                  sortHrefs={sortHrefs}
+                  footer={sec.all.length > limit ? <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>Показать ещё {PAGE}</Link> : null}
+                />
+              </div>
+            );
+          })}
+        </>
       )}
       <span className="hidden">{live.length}</span>
     </div>

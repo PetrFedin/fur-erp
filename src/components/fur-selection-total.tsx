@@ -192,8 +192,11 @@ export function FurSelectionTotal({
     { key: "rem", title: "Остаток", what: "остатка", extra: "4% к остатку не применяется (оно начисляется при списании в ТЗ).", qty: (f: FlowFigures) => f.remQty, val: (f: FlowFigures) => f.remValue, avg: (f: FlowFigures) => f.remAvg, usd: (f: FlowFigures) => f.usdRemAvg },
   ] as const;
   // Средневзвешенные цены: ₽ — всегда; $ — только по лотам, у которых цена в $ записана в расчёте лота (lotUsdPrice); нет ни у одного — «—» (курс не придумываем).
-  const showUsd = true;
-  const perGroup = (showQty ? 1 : 0) + (showMoney ? 1 : 0) + 1 + (showUsd ? 1 : 0);
+  const showUsd = kind !== "lining"; // у подкладки цены в $ нет — колонок $ нет
+  // Молоток, ₽/шт. — отдельная колонка в блоке «Куплено» (цена шкуры на аукционе до сборов, выделки, транспорта, брокера и комиссий; lotHammer).
+  const showHam = true;
+  const colsOf = (key: string) => (showQty ? 1 : 0) + (showMoney ? 1 : 0) + 1 + (showUsd ? 1 : 0) + (showHam && key === "recv" ? 1 : 0);
+  const totalCols = GROUPS.reduce((a, g) => a + colsOf(g.key), 0);
   const priceUnit = kind === "lining" ? "м" : "шт.";
   const groupHead = (
     <tr>
@@ -201,7 +204,7 @@ export function FurSelectionTotal({
         <span>{group === "year" ? "Год закупки" : group === "auction" ? "Партия закупки (аукцион)" : kind === "lining" ? "Подкладка" : "Мех"}</span>
       </th>
       {GROUPS.map((g) => (
-        <th key={g.key} colSpan={perGroup} className="border-b border-l border-neutral-200 px-3 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{g.title}</th>
+        <th key={g.key} colSpan={colsOf(g.key)} className="border-b border-l border-neutral-200 px-3 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600">{g.title}</th>
       ))}
     </tr>
   );
@@ -211,13 +214,16 @@ export function FurSelectionTotal({
         <Fragment key={g.key}>
           {showQty && <Th first>Кол-во, {unit}</Th>}
           {showMoney && <Th first={!showQty}>Сумма, ₽</Th>}
-          <Th>Ср. цена, ₽/{priceUnit}</Th>
-          {showUsd && <Th>Ср. цена, $/{priceUnit}<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint></Th>}
+          {g.key === "recv" ? (
+            <Th>Итого цена лота, ₽/{priceUnit}<InfoHint label="Что такое итого цена лота" align="right">Финальная рублёвая цена шкуры в лоте: молоток + сборы аукциона, выделка, транспорт, брокер и комиссии (без 4%). Средневзвешенная: Σ сумма ÷ Σ шт.</InfoHint></Th>
+          ) : <Th>Ср. цена, ₽/{priceUnit}</Th>}
+          {showHam && g.key === "recv" && <Th>Молоток, ₽/{priceUnit}<InfoHint label="Что такое молоток" align="right">Цена шкуры на аукционе до сборов, выделки, транспорта, брокера и комиссий (в режиме «С НДС / Без НДС» шапки). Берётся из расчёта лота; средневзвешенная считается только по лотам, у которых молоток в расчёте есть. Лот без молотка — «—».</InfoHint></Th>}
+          {showUsd && <Th>{g.key === "recv" ? "Молоток" : "Ср. цена"}, $/{priceUnit}<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint></Th>}
         </Fragment>
       ))}
     </>
   );
-  const cells = (f: FlowFigures, o: { strong?: boolean; altUsed?: boolean; small?: boolean; usedBar?: number; plan?: number | null } = {}) => (
+  const cells = (f: FlowFigures, o: { strong?: boolean; altUsed?: boolean; small?: boolean; usedBar?: number; plan?: number | null; lot?: FurLot } = {}) => (
     <>
       {GROUPS.map((g) => (
         <Fragment key={g.key}>
@@ -245,6 +251,16 @@ export function FurSelectionTotal({
             )
           )}
           <Num strong={o.strong} small={o.small}>{A(g.avg(f))}</Num>
+          {showHam && g.key === "recv" && (
+            <Num strong={o.strong} small={o.small}>
+              {A(f.hammerAvg)}
+              {o.lot ? (
+                <InfoHint label="Источник молотка" align="right">{o.lot.hammerSource ? `Молоток: ${o.lot.hammerSource}.` : "Нет цены в $/молотка в расчёте лота."}</InfoHint>
+              ) : f.hammerAvg != null && f.hammerQty > 0 && f.recvQty - f.hammerQty > 0.0005 ? (
+                <div className="text-[10px] font-normal leading-tight text-neutral-500">по {f.hammerLots} из {f.lots} лот.</div>
+              ) : null}
+            </Num>
+          )}
           {showUsd && <Num strong={o.strong} small={o.small}>{U(g.key !== "used" && o.plan != null && g.usd(f) == null ? o.plan : g.usd(f))}{o.plan != null && g.usd(f) == null ? null : usdNote(g.key, f)}</Num>}
         </Fragment>
       ))}
@@ -256,9 +272,9 @@ export function FurSelectionTotal({
     const all = key === "recv" ? f.recvQty : key === "used" ? f.usedQty : f.remQty;
     return have > 0 && all - have > 0.0005 ? <div className="text-[10px] font-normal leading-tight text-neutral-500">по {formatQty(have)} из {formatQty(all)}</div> : null;
   };
-  const nCols = 1 + 3 * perGroup;
+  const nCols = 1 + totalCols;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
-  const widthClass = "min-w-[1380px]";
+  const widthClass = "min-w-[1500px]";
 
   // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
   // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
@@ -315,6 +331,7 @@ export function FurSelectionTotal({
               </Num>
             )}
             <Num small muted>{g.key === "used" && u.qty > 0 ? A(sumU / u.qty) : <span className="text-neutral-300">—</span>}</Num>
+            {showHam && g.key === "recv" && <Num small muted><span className="text-neutral-300">—</span></Num>}
             {showUsd && <Num small muted><span className="text-neutral-300">—</span></Num>}
           </Fragment>
         ))}
@@ -352,7 +369,7 @@ export function FurSelectionTotal({
             </div>
             <div className="truncate pl-4 text-[11px] text-neutral-500" title={[sub, purchaseTitle].filter(Boolean).join(" · ")}>{sub}</div>
           </td>
-          {cells(figures(flowOf([l]), mode), { small: true, usedBar: l.recv > 0 ? pct : undefined, plan: planUsdAvg([l], flowOf([l])) })}
+          {cells(figures(flowOf([l]), mode), { small: true, usedBar: l.recv > 0 ? pct : undefined, plan: planUsdAvg([l], flowOf([l])), lot: l })}
         </tr>
         {lOpen ? l.usages.map((u) => renderUsage(l, u, depth + 1)) : null}
       </Fragment>
@@ -362,10 +379,10 @@ export function FurSelectionTotal({
   /** Названия-ссылки: вид меха → страница вида (/lots/fur/…), ткань → её лоты, партия → страница аукциона (/lots?auction=…). */
   const nameHref = (level: Level, row: TableRow): string | null => {
     if (level === "item") return kind === "lining" ? `/lots?tab=lining&lmat=${encodeURIComponent(row.label)}` : `/lots/fur/${encodeURIComponent(row.label)}`;
-    if (level === "auction") return row.key === NO_AUCTION || row.key.startsWith("Шкуры") ? null : `/lots?auction=${encodeURIComponent(row.key)}`;
+    if (level === "auction") return row.key.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : row.key === NO_AUCTION ? null : `/lots?auction=${encodeURIComponent(row.key)}`;
     return null;
   };
-  const nameTitle = (level: Level, row: TableRow) => (level === "item" ? (kind === "lining" ? "Лоты этой ткани" : `Страница вида меха «${row.label}»`) : `Страница аукциона «${row.label}»`);
+  const nameTitle = (level: Level, row: TableRow) => (level === "item" ? (kind === "lining" ? "Лоты этой ткани" : `Страница вида меха «${row.label}»`) : row.key.startsWith("Шкуры подрядчика") ? "Шкуры подрядчика: детализация" : `Страница аукциона «${row.label}»`);
   const auctionSub = (row: TableRow) => {
     const dates = row.lots.map((l) => l.orderDate).filter((x): x is string => !!x).sort();
     const sup = [...new Set(row.lots.map((l) => l.supplier).filter((x): x is string => !!x))];
@@ -484,7 +501,6 @@ export function FurSelectionTotal({
               </InfoHint>
             </p>
           ) : null}
-          {raw.after}
         </>
       ) : null}
       {widgets}
@@ -511,7 +527,7 @@ export function FurSelectionTotal({
           <colgroup>
             {/* Первая колонка фиксированная, числовые — равные доли всей оставшейся ширины рамки (без пустого места справа). */}
             <col className="w-[230px] md:w-[250px]" />
-            {Array.from({ length: 3 * perGroup }, (_, i) => <col key={i} />)}
+            {Array.from({ length: totalCols }, (_, i) => <col key={i} />)}
           </colgroup>
           <thead className="bg-neutral-50 text-xs text-neutral-500">
             {groupHead}
@@ -532,6 +548,7 @@ export function FurSelectionTotal({
         </table>
       </div>
 
+      {raw?.after}
       {lockItem ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} /> : null}
     </div>
   );

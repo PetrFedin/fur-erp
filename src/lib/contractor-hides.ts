@@ -12,7 +12,7 @@ export const HIDES_ALLOC: { batch: string; payYear: number; vat: number; pin?: {
 ];
 
 export type HidesOrder = { id: string; number: string; batch: string; qty: number };
-export type HidesShare = { id: string; payYear: number; incl: number; excl: number };
+export type HidesShare = { id: string; payYear: number; incl: number; excl: number; /** Сумма закреплена за ТЗ по документу. */ pinned?: boolean };
 
 /** Шкуры подрядчика по выбранным ТЗ: сумма берётся из оплат по году платежа, делится по партиям и ТЗ (закреплённый ТЗ — по документам, остальные — по изделиям). */
 export function allocateHides(orders: HidesOrder[], hidesByPayYear: Map<number, number>, year: "all" | `${number}`): HidesShare[] {
@@ -24,7 +24,7 @@ export function allocateHides(orders: HidesOrder[], hidesByPayYear: Map<number, 
     if (total <= 0 || inBatch.length === 0) continue;
     const pinned = h.pin ? inBatch.find((o) => o.number === h.pin!.order) : undefined;
     const pinAmt = pinned ? Math.min(h.pin!.amount, total) : 0;
-    if (pinned) out.push({ id: pinned.id, payYear: h.payYear, incl: pinAmt, excl: pinAmt / h.vat });
+    if (pinned) out.push({ id: pinned.id, payYear: h.payYear, incl: pinAmt, excl: pinAmt / h.vat, pinned: true });
     const rest = total - pinAmt;
     const others = inBatch.filter((o) => o !== pinned);
     const qtySum = others.reduce((a, o) => a + o.qty, 0);

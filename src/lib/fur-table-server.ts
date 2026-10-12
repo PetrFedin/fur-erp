@@ -5,7 +5,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { canonicalFur, type FurIndex } from "./fur-ref";
 import { lotUnitCostExclVat } from "./purchase-totals";
 import { usageExclVat } from "./commission4";
-import { lotUsdPrice } from "./lot-hammer";
+import { lotHammer, lotUsdPrice } from "./lot-hammer";
 import { lotYear } from "./year-scope";
 import { COMMISSION_RATE } from "./commission4-const";
 import { NO_AUCTION_LABEL, auctionName, shortAuctionName } from "./auction-names";
@@ -85,6 +85,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     vatRate: Number(l.vatRate), purchaseNumber: l.purchase?.number, lotNumber: l.lotNumber,
   });
   const usdPrice = usdInfo.usd;
+  const hammer = lotHammer(l.costBreakdown, Number(l.vatRate), l.purchaseItems.map((i) => i.costPlan), { purchaseNumber: l.purchase?.number, lotNumber: l.lotNumber });
   const recvN = num(l.quantityReceived);
   const remN = num(l.quantityRemaining);
   const usedN = num(used);
@@ -132,6 +133,12 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     usdQtyEur: usdInfo.source === "eur×rate" ? recvN : 0,
     usdQtyRub: usdInfo.source === "rub÷rate" ? recvN : 0,
     usdQtyCalc: usdInfo.source === "calc" ? recvN : 0,
+    hammerExcl: hammer?.excl ?? null,
+    hammerIncl: hammer?.incl ?? null,
+    hammerSource: hammer?.source ?? null,
+    hamQty: hammer ? recvN : 0,
+    hamSubExcl: hammer ? recvN * hammer.excl : 0,
+    hamSubIncl: hammer ? recvN * hammer.incl : 0,
     purchaseStatus: l.purchase ? (l.purchase.status === "RECEIVED" ? "RECEIVED" : l.purchase.status === "CANCELLED" ? "CANCELLED" : "DRAFT") : "RECEIVED",
     orderDate: l.purchase?.orderDate ? l.purchase.orderDate.toISOString().slice(0, 10) : undefined,
     usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
@@ -188,6 +195,7 @@ export function flowOfRawLots(lots: RawLot[]): Flow {
       usdQtyEur: 0,
       usdQtyRub: 0,
       usdQtyCalc: 0,
+      hammerExcl: null, hammerIncl: null, hammerSource: null, hamQty: 0, hamSubExcl: 0, hamSubIncl: 0,
     })),
   );
 }
