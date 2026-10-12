@@ -3,17 +3,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { LiningPurchaseForm } from "./lining-purchase-form";
-import { loadMaterialVat } from "@/lib/material-vat-server";
-import { MaterialVatCell } from "@/components/material-vat-cell";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { YearsTable, RawTable } from "../dashboard/dynamics-tables";
 import { orderFiltersOn, parseDashFilters } from "@/lib/dashboard-calc";
 import { AuctionView, loadAuctions } from "./auction-view";
 import { getYearFilter } from "@/lib/year-filter";
 import { canonicalFur } from "@/lib/fur-ref";
 import { getFurIndex } from "@/lib/fur-ref-server";
-import { shortMaterialName } from "@/lib/material-name";
 import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { RawTab } from "@/components/raw-tabs";
@@ -59,7 +54,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     }),
     tab === "fur" ? loadAuctions(orgId, year) : Promise.resolve([]),
   ]);
-  const liningVat = tab === "lining" ? await loadMaterialVat(orgId, "M") : null;
   const aucOf = await auctionLabeler(orgId);
   const pyearOptions = (await getFilterOptions(orgId, year, ["pyear"])).pyear;
 
@@ -135,7 +129,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         </div>
         {await (async () => {
           // «Сводка по годам» — те же таблицы и подписи, что на Главной: динамика по годам и по сырью (год → мех / подкладка, вид → партия).
-          const sf = parseDashFilters(sp, { vat: true });
+          const sf = parseDashFilters(sp);
           const c4 = await getCommission4Mode();
           const d = await loadDashboard(orgId, year, sf, c4);
           const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
@@ -150,7 +144,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                   { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
                   { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета" },
                   ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки" }] : []),
-                  { type: "multi", name: "vat", label: "Ставка НДС", aliases: ["nds"], options: [{ value: "20", label: "20%" }, { value: "22", label: "22%" }], allLabel: "Любая" },
                 ]}
               />
               <YearsTable rows={d.years} c4={c4} info={info} />
@@ -291,18 +284,26 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </div>
           <Link href="/analytics/raw" className="mt-1 inline-block text-sm text-neutral-600 underline hover:text-neutral-900">Аналитика сырья →</Link>
         </div>
+        {/* Кнопки зависят от вкладки: «Подкладка» — одна «Купить подкладку» (вся закупка партии в одной форме); «Мех» — новая партия закупки и материал. */}
         <div className="flex flex-wrap gap-2">
-          {canEditDocs && (
-            <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
-              Новая партия закупки
-            </Link>
+          {tab === "lining" ? (
+            canEditDocs && (
+              <Link href="/purchases/lining/new" className={`${buttonVariants()} max-md:w-full`}>
+                Купить подкладку
+              </Link>
+            )
+          ) : (
+            <>
+              {canEditDocs && (
+                <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
+                  Новая партия закупки
+                </Link>
+              )}
+              <Link href="/materials/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
+                + Добавить материал
+              </Link>
+            </>
           )}
-          <Link
-            href={tab === "lining" ? "/materials/new?unit=M" : "/materials/new"}
-            className={`${buttonVariants()} max-md:order-first max-md:w-full`}
-          >
-            + Добавить материал
-          </Link>
         </div>
       </div>
 
@@ -341,48 +342,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             initialQuery={sp}
             raw={{
               tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable,
-              after: (
-<div key="raw-widgets" className="space-y-3">
-          <details className="rounded-lg border border-neutral-200 bg-white">
-            <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">+ Закупка подкладки</summary>
-            <div className="border-t border-neutral-100 p-3">
-              <LiningPurchaseForm
-                materials={materials
-                  .filter((m) => m.unit === "M")
-                  .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
-                  .map((m) => ({ id: m.id, name: m.name, defaultVatRate: liningVat?.get(m.id)?.defaultRate ?? null }))}
-              />
-            </div>
-          </details>
-          <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="lining-vat">
-            <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">НДС в ТЗ по тканям</summary>
-            <div className="border-t border-neutral-100 p-3">
-              <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">
-                Ставка НДС по ткани
-                <InfoHint label="Откуда берётся ставка НДС в ТЗ" wide>
-                  <p>Ставка, по которой считается ТЗ при выборе ткани: заданная у материала, иначе — ставка лота, на который списано (до 2026 — 20%, с 2026 — 22%). Правится в справочнике материалов.</p>
-                </InfoHint>
-              </div>
-              <Table>
-                <Thead>
-                  <Tr><Th>Ткань</Th><Th>НДС в ТЗ</Th></Tr>
-                </Thead>
-                <Tbody>
-                  {materials
-                    .filter((m) => m.unit === "M")
-                    .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
-                    .map((m) => (
-                      <Tr key={m.id}>
-                        <Td className="font-medium"><Link href={`/materials/${m.id}`} className="hover:underline" title={m.name}>{shortMaterialName(m.name)}</Link></Td>
-                        <Td className="text-xs">{liningVat?.get(m.id) ? <MaterialVatCell s={liningVat.get(m.id)!} /> : "—"}</Td>
-                      </Tr>
-                    ))}
-                </Tbody>
-              </Table>
-            </div>
-          </details>
-          </div>
-              ),
             }}
           />
         </section>
