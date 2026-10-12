@@ -220,7 +220,7 @@ export function CustomCell({ row, field, card = false }: { row: LotRow; field: C
           value={value === true ? "true" : value === false ? "false" : ""}
           disabled={pending}
           onChange={(e) => save(e.target.value === "" ? null : e.target.value === "true")}
-          className={card ? "h-9 rounded border border-neutral-300 bg-white px-2 text-sm" : "h-7 rounded border border-neutral-200 bg-white px-1 text-xs"}
+          className={card ? "ui-field h-9 rounded border border-neutral-300 bg-white px-2 text-sm" : "ui-field h-7 rounded border border-neutral-200 bg-white px-1 text-xs"}
         >
           <option value="">—</option>
           <option value="true">Да</option>

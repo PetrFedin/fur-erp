@@ -1,10 +1,12 @@
-import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ACCESS, hasRole } from "@/lib/access";
 import { createPurchase } from "../actions";
 import { PurchaseCreateForm } from "./form";
+
+export const metadata = { title: "Новая закупка" };
 
 export default async function NewPurchasePage() {
   const session = await requireSession();
@@ -30,12 +32,10 @@ export default async function NewPurchasePage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-sm"><Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link></div>
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: "Новая закупка" }]} />
+      <h1 className="text-xl font-semibold">Новая закупка</h1>
       <Card>
-        <CardHeader>
-          <CardTitle as="h1" className="text-xl">Новая закупка</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <PurchaseCreateForm
             action={createPurchase}
             suppliers={suppliers}

@@ -55,17 +55,10 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
   const active = open === "work" ? work : open === "all" ? fact : done;
 
   return (
-    <section aria-labelledby="dash-prod" className="space-y-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 id="dash-prod" className="text-base font-semibold">Производство</h2>
-          <ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />
-        </div>
-        <div className="flex items-center gap-3 text-xs text-neutral-500">
-          <Link href="/production" className="text-blue-700 hover:underline print:hidden">→ ТЗ</Link>
-        </div>
-      </div>
-      <WidgetRow id="prod" title="Производство">
+    <section aria-label="Производство" className="space-y-2">
+      <WidgetRow id="prod" title="Производство"
+        headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
+        headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<>

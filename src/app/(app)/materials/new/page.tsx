@@ -1,12 +1,14 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { MaterialForm } from "../material-form";
 import { CategoryQuickAdd } from "../category-quick-add";
 import { createMaterial } from "../actions";
 
 const VALID_UNITS = ["PIECE", "KG", "M2", "M", "SET"];
+
+export const metadata = { title: "Новый материал" };
 
 export default async function NewMaterialPage({ searchParams }: PageProps<"/materials/new">) {
   const session = await requireSession();
@@ -21,11 +23,9 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы", href: "/materials" }, { label: "Новый материал" }]} />
+      <h1 className="text-xl font-semibold">Новый материал</h1>
       <Card>
-        <CardHeader>
-          <CardTitle as="h1" className="text-xl">Новый материал</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <MaterialForm action={createMaterial} categories={categories} defaultUnit={defaultUnit} />
         </CardContent>
       </Card>

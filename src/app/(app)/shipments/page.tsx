@@ -115,7 +115,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             <p className="mt-1">Стоимости здесь нет — переключатель «С 4%» на эту страницу не влияет.</p>
           </InfoHint></div>
         {canEdit && !isEmpty && (
-          <Link href="/shipments/new" className={buttonVariants({ size: "lg" })}>
+          <Link href="/shipments/new" className={`${buttonVariants()} btn-accent`}>
             + Новая отгрузка
           </Link>
         )}
@@ -125,7 +125,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
           <p>Отгрузок пока нет.</p>
           {canEdit && (
-            <Link href="/shipments/new" className={buttonVariants()}>
+            <Link href="/shipments/new" className={`${buttonVariants()} btn-accent`}>
               + Новая отгрузка
             </Link>
           )}

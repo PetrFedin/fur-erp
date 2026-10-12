@@ -28,6 +28,8 @@ const MATERIAL_FILTERS = defineFilters({
   type: { kind: "multi", label: "Вид", allowed: ["fur", "lining"] },
 });
 
+export const metadata = { title: "Справочник материалов" };
+
 export default async function MaterialsPage({ searchParams }: PageProps<"/materials">) {
   const session = await requireSession();
   const canCreate = hasRole(session.user.role, ACCESS.materials);
@@ -59,7 +61,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы" }]} />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Справочник материалов</h1>
         {canCreate && (
           <Link href="/materials/new" className={buttonVariants()}>

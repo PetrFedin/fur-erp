@@ -11,7 +11,7 @@ export function Sidebar() {
   const activeHref = activeNavHref(pathname);
 
   return (
-    <nav className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 md:flex print:!hidden">
+    <nav aria-label="Основное меню" className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 md:flex print:!hidden">
       <div className="px-2 text-lg font-semibold">MVST FUR PRODUCTION</div>
       <div className="flex flex-col gap-0.5">
         {NAV_LINKS.map((link) => {
@@ -20,6 +20,7 @@ export function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "rounded-md px-2 py-1.5 text-sm transition-colors",
                 active ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100"

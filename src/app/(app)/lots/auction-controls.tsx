@@ -17,7 +17,7 @@ const KINDS: [string, string][] = [
   ["PAYMENT_PROOF", "Платёжный документ"],
   ["OTHER", "Другое"],
 ];
-const field = "h-8 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
+const field = "ui-field h-8 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
 
 /** «Свернуть / развернуть все закупки» — переключает все <details data-auction-purchase> на странице. */
 export function ToggleAllPurchases() {

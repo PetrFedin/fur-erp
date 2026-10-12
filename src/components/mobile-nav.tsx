@@ -39,7 +39,7 @@ export function MobileNav() {
       {open && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpenAt(null)} aria-hidden="true" />
-          <nav className="absolute inset-y-0 left-0 flex w-64 max-w-[80vw] flex-col gap-6 overflow-y-auto bg-white px-3 py-4 shadow-xl">
+          <nav aria-label="Основное меню" className="absolute inset-y-0 left-0 flex w-64 max-w-[80vw] flex-col gap-6 overflow-y-auto bg-white px-3 py-4 shadow-xl">
             <div className="flex items-center justify-between px-2">
               <span className="text-lg font-semibold">MVST FUR PRODUCTION</span>
               <button type="button" aria-label="Закрыть меню" onClick={() => setOpenAt(null)} className="text-neutral-500 hover:text-neutral-900">
@@ -53,6 +53,7 @@ export function MobileNav() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => setOpenAt(null)}
                     className={cn(
                       "rounded-md px-2 py-2 text-sm transition-colors",

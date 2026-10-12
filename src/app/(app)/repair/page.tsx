@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -51,13 +52,14 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
           </span>
         </div>
         <div className="flex gap-3 text-sm">
-          <Link href="/production/new" className="rounded-lg border border-neutral-300 px-3 py-1.5 hover:bg-neutral-50">+ Новое ТЗ на ремонт</Link>
-          <Link href="/articles" className="px-1 py-1.5 text-blue-700 hover:underline">← Изделия</Link>
+          <Link href="/production/new" className={`${buttonVariants({ variant: "outline" })} btn-accent print:hidden`}>+ Новое ТЗ на ремонт</Link>
+          <Link href="/articles" className="px-1 py-1.5 text-xs text-blue-700 hover:underline print:hidden">← Изделия</Link>
         </div>
       </div>
       <div className="print:hidden">
         <FilterBar
           oneRow
+          hideChips
           title="Фильтры ремонта"
           controls={[
             { type: "multi", name: "model", label: "Артикул", options: modelOpts },
