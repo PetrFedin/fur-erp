@@ -12,7 +12,11 @@ import type { FurKind, FurLot } from "@/lib/fur-table";
 export type OrderInfo = {
   number: string; article: string; category: string; batch: string; year: number | null;
   status: "PLANNED" | "IN_PROGRESS" | "COMPLETED"; units: number;
+  /** Группа категории артикула: «Одежда», «Аксессуары» или пусто (без группы, ремонт). */
+  group: string;
 };
+type Grp = "all" | "cloth" | "acc";
+const GRP_NAME: Record<Exclude<Grp, "all">, string> = { cloth: "Одежда", acc: "Аксессуары" };
 const STATUS: Record<OrderInfo["status"], string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "завершён" };
 
 type Row = {
@@ -38,7 +42,7 @@ type SortKey = "number" | "year" | "qty" | "sum" | "avg" | "per";
  * Шкуры, деньги без 4% и с 4%, средневзвешенные цены ₽ и $ (по лотам с ценой в $ — с охватом), на изделие, остаток в лотах ТЗ;
  * строка раскрывается до лотов и аукционов. Данные — те же списания (usages лотов), новых формул нет.
  */
-export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind: FurKind; orderInfo: Record<string, OrderInfo> }) {
+export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: FurLot[]; kind: FurKind; orderInfo: Record<string, OrderInfo>; initialGrp?: string }) {
   const { mode: vat } = useVatDisplay();
   const unit = kind === "lining" ? "м" : "шт.";
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -46,6 +50,16 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "sum", dir: "desc" });
   const [q, setQ] = useState("");
   const [yearSel, setYearSel] = useState<number | "all">("all");
+  // Группа ТЗ (Одежда / Аксессуары) — в адресе (?grp=cloth|acc): аксессуары расходуют мало шкур и занижают средние, поэтому группы смотрим отдельно.
+  const [grp, setGrpState] = useState<Grp>(initialGrp === "cloth" || initialGrp === "acc" ? initialGrp : "all");
+  const setGrp = (g: Grp) => {
+    setGrpState(g);
+    try {
+      const url = new URL(window.location.href);
+      if (g === "all") url.searchParams.delete("grp"); else url.searchParams.set("grp", g);
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    } catch { /* адресная строка недоступна */ }
+  };
 
   const rows = useMemo(() => {
     const m = new Map<string, Row>();
@@ -68,9 +82,19 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
   const base = (r: Pick<Row, "incl" | "excl">) => (vat === "excl" ? r.excl : r.incl);
   const withC4 = (r: Row) => base(r) + (vat === "excl" ? r.extraExcl : r.extraIncl);
   const needle = q.trim().toLowerCase();
+  const inGrp = useMemo(() => rows.filter((r) => grp === "all" || r.info?.group === GRP_NAME[grp]), [rows, grp]);
+  // Сводка по обеим группам — всегда видна (не зависит от выбранной группы), чтобы сравнивать.
+  const gsum = useMemo(() => {
+    const f = (name: string) => {
+      const l = rows.filter((r) => r.info?.group === name);
+      const qty = l.reduce((a, r) => a + r.qty, 0), units = l.reduce((a, r) => a + (r.info?.units ?? 0), 0), sum = l.reduce((a, r) => a + (vat === "excl" ? r.excl : r.incl), 0);
+      return { n: l.length, qty, per: units > 0 ? qty / units : null, price: qty > 0 ? sum / qty : null };
+    };
+    return { cloth: f("Одежда"), acc: f("Аксессуары") };
+  }, [rows, vat]);
   const years = useMemo(() => Array.from(new Set(rows.map((r) => r.info?.year).filter((y): y is number => y != null))).sort((a, b) => b - a), [rows]);
   const shown = useMemo(() => {
-    const list = rows.filter((r) => (yearSel === "all" || r.info?.year === yearSel) && (!needle || [r.number, r.info?.article, r.info?.category, r.info?.batch].some((x) => (x ?? "").toLowerCase().includes(needle))));
+    const list = inGrp.filter((r) => (yearSel === "all" || r.info?.year === yearSel) && (!needle || [r.number, r.info?.article, r.info?.category, r.info?.batch].some((x) => (x ?? "").toLowerCase().includes(needle))));
     const val = (r: Row): number | string => {
       switch (sort.key) {
         case "number": return r.number;
@@ -88,7 +112,7 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
       return sort.dir === "asc" ? c : -c;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, needle, yearSel, sort, vat]);
+  }, [inGrp, needle, yearSel, sort, vat]);
   const list = all ? shown : shown.slice(0, 10);
 
   const T = shown.reduce((a, r) => ({
@@ -130,6 +154,20 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
         <div className={TILE_BOX}><TileHead>Сумма с 4%, ₽</TileHead><TileValue compact>{formatMoney(totC4)}</TileValue><TileCaption>надбавка {formatMoney(totC4 - totBase)}</TileCaption></div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-neutral-500">
+        <div role="tablist" aria-label="Группа ТЗ" className="flex items-center gap-1 print:hidden">
+          <span>Группа ТЗ:</span>
+          {([["all", "Все"], ["cloth", "Одежда"], ["acc", "Аксессуары"]] as const).map(([g, label]) => (
+            <button key={g} type="button" role="tab" aria-selected={grp === g} onClick={() => setGrp(g)} className={"rounded-lg border px-3 py-1 text-xs " + (grp === g ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
+          ))}
+        </div>
+        <span data-testid="grp-summary" className="tabular-nums">
+          Одежда: {formatQty(gsum.cloth.qty)} {unit}{gsum.cloth.per != null ? ` · ${formatQty(Math.round(gsum.cloth.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.cloth.price != null ? ` · ${formatMoney(Math.round(gsum.cloth.price))}/${unit}` : ""}
+          {"; "}
+          Аксессуары: {formatQty(gsum.acc.qty)} {unit}{gsum.acc.per != null ? ` · ${formatQty(Math.round(gsum.acc.per * 100) / 100)} ${unit}/изд.` : ""}{gsum.acc.price != null ? ` · ${formatMoney(Math.round(gsum.acc.price))}/${unit}` : ""}
+          <InfoHint label="Почему группы смотрят отдельно" wide>Аксессуары расходуют мало шкур на изделие, поэтому общие средние (шкур на изделие, цена меха на изделие) занижены; смотрите группы отдельно. ТЗ без группы категории (ремонт и прочие) — только в «Все».</InfoHint>
+        </span>
+      </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 print:hidden">
         <label className="flex items-center gap-1.5">
           <span>Поиск:</span>
@@ -171,7 +209,7 @@ export function FurOrdersTable({ lots, kind, orderInfo }: { lots: FurLot[]; kind
               {head("sum", <>Сумма, ₽<br /><span className="font-normal">без 4%</span></>)}
               {head("avg", <>Ср. цена, ₽/{unit}<InfoHint label="Что такое средневзвешенная цена" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ.</InfoHint></>)}
               <th className={TH}>Ср. цена, $/{unit}<InfoHint label="Что такое средневзвешенная цена в долларах" align="right">Средневзвешенное значение: сумма ÷ {kind === "lining" ? "метры" : "шкуры"} по лотам этого ТЗ — только по лотам с ценой в $ (охват «по N из M»).</InfoHint></th>
-              <th className={TH}>Доля, %</th>
+              <th className={TH}>Доля{grp === "all" ? "" : " от группы"}, %</th>
               {head("per", `${kind === "lining" ? "М" : "Шкур"} на изд.`, false, true)}
               <th className={TH}>Мех на изд., ₽</th>
             </tr>

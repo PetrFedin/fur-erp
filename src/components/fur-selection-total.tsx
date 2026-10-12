@@ -146,12 +146,10 @@ export function FurSelectionTotal({
     () => Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>,
     [baseLots, filters],
   );
-  const hasMoney = useMemo(() => lots.some((l) => l.paid != null), [lots]);
   // Основные: партия, вид, год, цвет, размер, признак, остаток, поиск. Остальные — «Ещё фильтры» (раскрыты сами, если в них есть выбор).
-  const shownKeys0: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest", "supplier", "status", "usage", "rate"] : ["auction", "item", "year", "color", "size", "attr", "rest", "supplier", "status", "usage", "rate"];
-  if (hasMoney) shownKeys0.push("pay");
+  const shownKeys0: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest", "supplier", "usage", "rate"] : ["auction", "item", "year", "color", "size", "attr", "rest", "supplier", "usage", "rate"];
   const shownKeys = lockItem ? shownKeys0.filter((k) => k !== "item") : shownKeys0;
-  const MORE_KEYS: FilterKey[] = ["supplier", "status", "pay", "usage", "rate"];
+  const MORE_KEYS: FilterKey[] = ["supplier", "usage", "rate"];
 
 
   const setFilter = (k: FilterKey, v: string[]) => setFilters((f) => ({ ...f, [k]: v }));
@@ -365,7 +363,6 @@ export function FurSelectionTotal({
               {l.purchaseId ? (
                 <Link href={`/purchases/${l.purchaseId}`} onClick={(e) => e.stopPropagation()} className="ml-0.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title={`Закупка ${purchaseTitle}`} aria-label={`Открыть закупку ${l.purchaseNumber ?? ""}`}>↗</Link>
               ) : null}
-              {l.usages.length === 0 && l.purchaseId ? <span className="ml-1 rounded-full bg-neutral-100 px-1.5 text-[10px] leading-4 text-neutral-500" title="В ТЗ не использован">не в ТЗ</span> : null}
             </div>
             <div className="truncate pl-4 text-[11px] text-neutral-500" title={[sub, purchaseTitle].filter(Boolean).join(" · ")}>{sub}</div>
           </td>
@@ -443,8 +440,6 @@ export function FurSelectionTotal({
       allLabel: FILTER_LABELS[k].all,
       options: options[k],
       ...(MORE_KEYS.includes(k) ? { more: true } : {}),
-      ...(k === "pay" ? { hint: "Оплата партии закупки, в которой лот: оплачено полностью / частично / не оплачено" } : {}),
-      ...(k === "status" ? { hint: "Принята на склад — по закупке созданы лоты; Черновик — заказано, но ещё не получено" } : {}),
       ...(k === "attr" ? { hint: "Седина (SIL), дикий / клеточный, тонированный… — справочник «Признаки меха» в Настройках" } : {}),
       ...(k === "auction" && kind === "fur" ? { hint: "Одна партия — откроются её счета и лоты (режим «Аукцион»); несколько — таблица сузится по ним" } : {}),
     })),
@@ -549,7 +544,7 @@ export function FurSelectionTotal({
       </div>
 
       {raw?.after}
-      {lockItem ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} /> : null}
+      {lockItem ? <FurOrdersTable lots={table.filteredLots} kind={kind} orderInfo={orderInfo ?? {}} initialGrp={firstOf(initialQuery.grp)} /> : null}
     </div>
   );
 }
