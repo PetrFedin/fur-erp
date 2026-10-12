@@ -59,7 +59,7 @@ const cellsPair = (lots: FurLot[], _c4: C4Kind): CellsPair => {
 
 /** Заказано, но ещё не получено (состав закупки): шт. и сумма с НДС / без НДС. */
 export type Ordered = { qty: number; incl: number; excl: number };
-export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; /** Оплачено и долг по виду: оплаты и остаток аукционов делятся по доле вида в стоимости лотов аукциона. */ paid: number; due: number; /** Средняя цена в долларах (куплено / использовано / остаток); у подкладки нет. */ usd: { bought: number | null; used: number | null; rem: number | null }; auctions: { key: string; label: string; cells: CellsPair; paid: number; due: number }[]; /** Те же цифры по годам закупки лота (для окон цен). */ years: { year: number; cells: CellsPair; usd: { bought: number | null; used: number | null; rem: number | null } }[]; lots: number };
+export type RawTableRow = { key: string; label: string; kind: "fur" | "lining"; cells: CellsPair; /** Оплачено и долг по виду: оплаты и остаток аукционов делятся по доле вида в стоимости лотов аукциона. */ paid: number; due: number; /** Средняя цена в долларах (куплено / использовано / остаток); у подкладки нет. */ usd: { bought: number | null; used: number | null; rem: number | null }; auctions: { key: string; label: string; cells: CellsPair; paid: number; due: number }[]; /** Те же цифры по годам закупки лота (для окон цен). */ years: { year: number; cells: CellsPair; usd: { bought: number | null; used: number | null; rem: number | null } }[]; lots: number; /** Id лотов ткани подкладки — для перехода в карточку лота (у меха не заполняется). */ lotIds?: string[] };
 export type YearRow = {
   key: string;
   label: string;
@@ -321,7 +321,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       byAuc.set(l.auction, g);
     }
     rawTable.push({
-      key: k, label: ls[0].item, kind: ls[0].kind, cells: cellsPair(ls, c4k), lots: ls.length,
+      key: k, label: ls[0].item, kind: ls[0].kind, cells: cellsPair(ls, c4k), lots: ls.length, ...(ls[0].kind === "lining" ? { lotIds: ls.map((l) => l.id) } : {}),
       ...((): { paid: number; due: number } => { let paid = 0, due = 0; for (const [au, g] of byAuc) { const m = moneyOf(au, g.lots); paid += m.paid; due += m.due; } return { paid, due }; })(),
       usd: (() => { const f = figures(flowOf(ls), { vat: "incl", c4: c4k }); return { bought: f.usdAvg, used: f.usdUsedAvg, rem: f.usdRemAvg }; })(),
       years: Array.from(new Set(ls.map((l) => l.year))).sort((a, b) => a - b).map((y) => {

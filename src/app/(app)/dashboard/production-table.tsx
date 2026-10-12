@@ -7,6 +7,8 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { groupRank } from "@/lib/category-groups";
 import { REPAIR_CATEGORY } from "@/lib/dashboard-calc";
+import { NO_GROUP } from "@/lib/category-groups";
+import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
 
@@ -177,15 +179,33 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const depthMax = LEVELS[by].length - 1;
   const sortKids = (m: Map<string, Agg>, depth: number) =>
     Array.from(m.values()).sort(cmpFor(LEVELS[by][depth]));
-  const renderRows = (nodes: Agg[], depth: number, path: string): React.ReactNode =>
+  // Переход из листа дерева в «Изделия» (/articles): группа, категория и вид меха строки; общий год берётся из шапки (cookie),
+  // цвет и партия Главной переносятся. Лист «Категории → мех» — вид меха, лист «Мех → категории» — категория.
+  const articlesHref = (trail: Agg[]) => {
+    const lv = LEVELS[by];
+    const p = new URLSearchParams();
+    trail.forEach((n, i) => {
+      if (lv[i] === "grp") p.set("catgroup", n.key === NO_GROUP ? "none" : n.key);
+      else if (lv[i] === "cat") p.set("category", n.key === UNDEFINED_CATEGORY ? "none" : n.key);
+      else if (lv[i] === "furl") p.set("fur", n.key);
+    });
+    for (const k of ["color", "batch"]) for (const v of search[k] ?? []) p.append(k, v);
+    return "/articles?" + p.toString();
+  };
+  const renderRows = (nodes: Agg[], depth: number, path: string, trail: Agg[] = []): React.ReactNode =>
     nodes.map((r) => {
       const pk = path + "/" + r.key;
+      const here = [...trail, r];
       const canOpen = depth < depthMax && r.children.size > 0;
       const isOpen = open.has(pk);
       const label = canOpen ? (
         <button type="button" onClick={() => toggle(pk)} aria-expanded={isOpen} aria-label={`Раскрыть: ${r.label}`} className="flex items-center gap-1 text-left">
           <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (isOpen ? "rotate-90" : "")}>›</span>{r.label}
         </button>
+      ) : depth === depthMax ? (
+        <span className="inline-block w-4">
+          <Link href={articlesHref(here)} className="whitespace-nowrap hover:underline focus-visible:underline" title="Открыть в «Изделиях» с этими фильтрами">{r.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+        </span>
       ) : <span className={depth > 0 ? "inline-block w-4" : ""}>{depth > 0 ? "" : null}{r.label}</span>;
       return (
         <Fragment key={pk}>
@@ -193,7 +213,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
             <td className={depth === 0 ? "py-1.5 pr-2 text-sm font-semibold" : "py-1 pr-2 text-xs " + (depth === 1 && canOpen && isOpen ? "text-neutral-900" : "text-neutral-700")} style={{ paddingLeft: depth * 16 }}>{label}</td>
             {cells(r, depth > 0, false, depth === 1 && canOpen && isOpen)}
           </tr>
-          {canOpen && isOpen ? renderRows(sortKids(r.children, depth + 1), depth + 1, pk) : null}
+          {canOpen && isOpen ? renderRows(sortKids(r.children, depth + 1), depth + 1, pk, here) : null}
         </Fragment>
       );
     });

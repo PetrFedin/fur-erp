@@ -14,14 +14,42 @@ const rub0 = (v: number) => formatMoney(Math.round(v));
 
 const th = "whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-medium text-neutral-500";
 const td = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
+/** Вертикальная граница слева от блока колонок (Куплено | Использовано | Остаток | Оплачено) — одинаковая в обеих таблицах. */
+const GB = " border-l border-neutral-100";
 
 function Chevron({ open }: { open: boolean }) {
   return <span aria-hidden className={"inline-block w-4 text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>›</span>;
 }
 
-/** Узкая колонка со стрелкой раскрытия: у всех строк на одной вертикали; у строк без раскрытия — пустая ячейка той же ширины. */
-const ARROW_TD = "w-6 py-1.5 pl-2 pr-0 text-left align-middle";
-const ARROW_TH = "w-6 px-0";
+/**
+ * Общая раскладка обеих таблиц («по годам» и «по сырью»): table-fixed, первая колонка (стрелка + название с отступом уровня) —
+ * узкая и закреплена при горизонтальной прокрутке, 8 числовых колонок (Куплено шт./₽, Использовано шт./₽, Остаток шт./₽, Оплачено, Задолженность)
+ * — равной ширины, поэтому колонки и вертикальные линии обеих таблиц стоят на одних и тех же местах.
+ */
+const NAME_W = 160;
+const TABLE_CLS = "w-full table-fixed text-sm min-w-[960px]";
+function TableCols() {
+  return (
+    <colgroup>
+      <col style={{ width: NAME_W }} />
+      {Array.from({ length: 8 }, (_, i) => <col key={i} />)}
+    </colgroup>
+  );
+}
+const NAME_TH = "sticky left-0 z-[2] bg-white px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
+
+/** Первая ячейка строки: стрелка раскрытия (или пустое место той же ширины) и название; уровни — отступом. Длинное название обрезается с «…». */
+function NameCell({ arrow, indent = 0, children, title, className = "" }: { arrow?: React.ReactNode; indent?: boolean | number; children: React.ReactNode; title?: string; className?: string }) {
+  const pad = indent === true ? 20 : indent || 0;
+  return (
+    <td className={"sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left " + className} title={title}>
+      <div className="flex min-w-0 items-center" style={{ paddingLeft: pad }}>
+        <span className="inline-flex w-5 shrink-0 items-center">{arrow ?? null}</span>
+        <span className="min-w-0 truncate">{children}</span>
+      </div>
+    </td>
+  );
+}
 
 // ───────────────────────────── Динамика по годам ─────────────────────────────
 
@@ -49,11 +77,11 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
         </div>
       </div>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className={TABLE_CLS}>
+          <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <th rowSpan={2} className={ARROW_TH} aria-label="Раскрыть" />
-              <th rowSpan={2} className="px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Сырьё / год</th>
+              <th rowSpan={2} className={NAME_TH}>Сырьё / год</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Куплено</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
@@ -81,24 +109,17 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                     const c = kd.pick(all), m = kd.money(all), isOpen = open.has(kd.k);
                     return (
                       <Fragment key={kd.k}>
-                        <tr className="border-b border-neutral-100">
-                          <td className={ARROW_TD}><button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button></td>
-                          <td className="px-2 py-1.5 text-left font-semibold">{kd.label}</td>
-                          <td className={td}>{formatQty(c.rq)} {kd.unit}</td><td className={td}>{rub(c.rv)}</td>
-                          <td className={td}>{formatQty(c.uq)} {kd.unit}</td><td className={td}>{rub(c.uv)}</td>
-                          <td className={td}>{formatQty(c.mq)} {kd.unit}</td><td className={td}>{rub(c.mv)}</td>
-                          <td className={td + " border-l border-neutral-100"}>{rub0(m.paid)}</td>
-                          <td className={td + (m.debt > 0 ? " text-amber-700" : "")}>{rub0(m.debt)}</td>
+                        <tr className="border-b border-neutral-100 bg-white">
+                          <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button>}>{kd.label}</NameCell>
+                          <CellsTds c={c} unit={kd.unit} avg={false} />
+                          <MoneyTds paid={m.paid} due={m.debt} />
                         </tr>
                         {isOpen ? yrs.map((r) => {
                           const y = kd.pick(r), ym = kd.money(r);
                           return (
-                            <tr key={kd.k + r.key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
-                              <td className={ARROW_TD} />
-                              <td className="py-1.5 pr-2 pl-0">{r.label}{yearInfo(r)}</td>
-                              <td className={td}>{formatQty(y.rq)} {kd.unit}</td><td className={td}>{rub(y.rv)}</td>
-                              <td className={td}>{formatQty(y.uq)} {kd.unit}</td><td className={td}>{rub(y.uv)}</td>
-                              <td className={td}>{formatQty(y.mq)} {kd.unit}</td><td className={td}>{rub(y.mv)}</td>
+                            <tr key={kd.k + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+                              <NameCell indent title={r.label}>{r.label}{yearInfo(r)}</NameCell>
+                              <CellsTds c={y} unit={kd.unit} avg={false} />
                               <MoneyTds paid={ym.paid} due={ym.debt} />
                             </tr>
                           );
@@ -111,25 +132,22 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                     return (
                       <Fragment>
                         <tr className="row-total">
-                          <td className={ARROW_TD}><button type="button" onClick={() => toggle("all")} aria-expanded={isOpen} aria-label="Раскрыть по годам: Всего, ₽ мех+подкладка"><Chevron open={isOpen} /></button></td>
-                          <td className="px-2 py-1.5 text-left font-semibold">Всего, ₽ <span className="text-xs font-normal opacity-80">мех+подкладка</span></td>
-                          <td className={td}>—</td><td className={td}>{rub(t.rv)}</td>
-                          <td className={td}>—</td><td className={td}>{rub(t.uv)}</td>
-                          <td className={td}>—</td><td className={td}>{rub(t.mv)}</td>
-                          <td className={td}>{rub0(all.paid)}</td>
+                          <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle("all")} aria-expanded={isOpen} aria-label="Раскрыть по годам: Всего, ₽ мех+подкладка"><Chevron open={isOpen} /></button>}>Всего, ₽ <span className="block text-xs font-normal opacity-80">мех+подкладка</span></NameCell>
+                          <td className={td + GB}>—</td><td className={td}>{rub(t.rv)}</td>
+                          <td className={td + GB}>—</td><td className={td}>{rub(t.uv)}</td>
+                          <td className={td + GB}>—</td><td className={td}>{rub(t.mv)}</td>
+                          <td className={td + " border-l border-neutral-300"}>{rub0(all.paid)}</td>
                           <td className={td + (all.debt > 0 ? " text-amber-700" : "")}>{rub0(all.debt)}</td>
                         </tr>
                         {isOpen ? yrs.map((r) => {
                           const y = sum(r.fur[vat], r.lining[vat]);
                           return (
-                            <tr key={"all" + r.key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
-                              <td className={ARROW_TD} />
-                              <td className="py-1.5 pr-2 pl-0">{r.label}{yearInfo(r)}</td>
-                              <td className={td}>—</td><td className={td}>{rub(y.rv)}</td>
-                              <td className={td}>—</td><td className={td}>{rub(y.uv)}</td>
-                              <td className={td}>—</td><td className={td}>{rub(y.mv)}</td>
-                              <td className={td + " border-l border-neutral-100"}>{rub0(r.paid)}</td>
-                              <td className={td + (r.debt > 0 ? " text-amber-700" : "")}>{rub0(r.debt)}</td>
+                            <tr key={"all" + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+                              <NameCell indent title={r.label}>{r.label}{yearInfo(r)}</NameCell>
+                              <td className={td + GB}>—</td><td className={td}>{rub(y.rv)}</td>
+                              <td className={td + GB}>—</td><td className={td}>{rub(y.uv)}</td>
+                              <td className={td + GB}>—</td><td className={td}>{rub(y.mv)}</td>
+                              <MoneyTds paid={r.paid} due={r.debt} />
                             </tr>
                           );
                         }) : null}
@@ -169,6 +187,9 @@ function MoneyTds({ paid, due, bold }: { paid: number; due: number; bold?: boole
   );
 }
 
+/** Ключ строки аукциона — настоящее название партии закупки; служебные строки (без аукциона, шкуры подрядчика, не полученное) не ссылки. */
+const auctionLinkable = (key: string) => !key.startsWith("__") && key !== "hides" && !key.startsWith("unrecv|");
+
 const addCells = (list: Cells[]): Cells => {
   const s = list.reduce((a, c) => ({ rq: a.rq + c.rq, rv: a.rv + c.rv, uq: a.uq + c.uq, uv: a.uv + c.uv, mq: a.mq + c.mq, mv: a.mv + c.mv, uo: a.uo + c.uo }), { rq: 0, rv: 0, uq: 0, uv: 0, mq: 0, mv: 0, uo: 0 });
   const r = (v: number, q: number) => (q > 0 ? v / q : null);
@@ -187,7 +208,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
   const T = total[vat];
 
   const kindHead = (kindLabel: string) => (
-    <tr className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={avg ? 13 : 10} className="px-2 py-1">{kindLabel}</td></tr>
+    <tr className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={9} className="px-2 py-1">{kindLabel}</td></tr>
   );
   const arrow = (k: string, label: string) => (
     <button type="button" onClick={() => toggle(k)} aria-expanded={open.has(k)} aria-label={`Раскрыть: ${label}`}><Chevron open={open.has(k)} /></button>
@@ -197,18 +218,26 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
       const isOpen = open.has(r.key);
       return (
         <Fragment key={r.key}>
-          <tr className="border-b border-neutral-100 hover:bg-neutral-50">
-            <td className={ARROW_TD}>{arrow(r.key, r.label)}</td>
-            <td className="px-2 py-1.5 text-left">
-              <span className="font-medium">{r.label}</span>
-            </td>
+          <tr className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
+            <NameCell arrow={arrow(r.key, r.label)} title={r.label}>
+              {r.kind === "lining" && r.lotIds && r.lotIds.length > 0 ? (
+                <Link href={r.lotIds.length === 1 ? `/analytics/raw/lot/${r.lotIds[0]}` : `/lots?tab=lining&lmat=${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={r.lotIds.length === 1 ? "Открыть карточку лота: закупка, остаток, списания по ТЗ" : `Открыть лоты подкладки «${r.label}» (${r.lotIds.length})`}>
+                  {r.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                </Link>
+              ) : <span className="font-medium">{r.label}</span>}
+            </NameCell>
             <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />
             <MoneyTds paid={r.paid} due={r.due} />
           </tr>
           {isOpen ? r.auctions.map((a) => (
-            <tr key={r.key + a.key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
-              <td className={ARROW_TD} />
-              <td className="px-2 py-1.5 text-left">{a.label}</td>
+            <tr key={r.key + a.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+              <NameCell indent title={a.label}>
+                {auctionLinkable(a.key) ? (
+                  <Link href={`/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title="Открыть аукцион: счета, лоты и себестоимость">
+                    {a.label}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  </Link>
+                ) : a.label}
+              </NameCell>
               <CellsTds c={a.cells[vat]} unit={unit} avg={avg} />
               <MoneyTds paid={a.paid} due={a.due} />
             </tr>
@@ -222,7 +251,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
       {kindHead("Мех")}
       {itemRows(fur, "шт.")}
       {fur.length > 1 ? (
-        <tr className="row-total"><td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="мех" avg={avg} /></td><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
+        <tr className="row-total"><NameCell><TotalLabel note="мех" avg={avg} /></NameCell><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
       ) : null}
     </>
   );
@@ -232,8 +261,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
     <>
       {kindHead("Подкладка")}
       <tr className="border-b border-neutral-200 bg-neutral-50">
-        <td className={ARROW_TD}>{lin.length > 0 ? arrow(LIN, "подкладка") : null}</td>
-        <td className="px-2 py-1.5 text-left">Подкладка</td>
+        <NameCell arrow={lin.length > 0 ? arrow(LIN, "подкладка") : null}>Подкладка</NameCell>
         <CellsTds c={linSub} unit="м" avg={avg} />
         <MoneyTds paid={lin.reduce((a, r) => a + r.paid, 0)} due={lin.reduce((a, r) => a + r.due, 0)} />
       </tr>
@@ -255,11 +283,11 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
         </div>
       </div>
       <div className="table-scroll scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className={"w-full text-sm " + (avg ? "min-w-[1080px]" : "min-w-[900px]")}>
+        <table className={TABLE_CLS}>
+          <TableCols />
           <thead>
             <tr className="border-b border-neutral-200">
-              <th rowSpan={2} className={ARROW_TH} aria-label="Раскрыть" />
-              <th rowSpan={2} className="px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Вид</th>
+              <th rowSpan={2} className={NAME_TH}>Вид</th>
               <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Куплено</th>
               <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
               <th colSpan={avg ? 3 : 2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
@@ -284,21 +312,18 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
                 <>
                   {u.byFur.map((g) => (
                     <tr key={g.label} className="border-b border-neutral-100 text-[13px] text-neutral-700">
-                      <td className={ARROW_TD} />
                       <td className="px-2 py-1.5 text-left" colSpan={7}>{g.label} — ещё не получен ({g.names.join(", ")})</td>
                       <MoneyTds paid={g.paid} due={g.due} />
                     </tr>
                   ))}
                   {show(u.paid - u.byFur.reduce((a, g) => a + g.paid, 0), u.due - u.byFur.reduce((a, g) => a + g.due, 0)) ? (
-                    <tr className="border-b border-neutral-100 text-[13px] text-neutral-700">
-                      <td className={ARROW_TD} />
+                    <tr className="border-b border-neutral-100 bg-white text-[13px] text-neutral-700">
                       <td className="px-2 py-1.5 text-left" colSpan={7}>Мех ещё не получен: прочие закупки без лотов</td>
                       <MoneyTds paid={u.paid - u.byFur.reduce((a, g) => a + g.paid, 0)} due={u.due - u.byFur.reduce((a, g) => a + g.due, 0)} />
                     </tr>
                   ) : null}
                   {show(restPaid, restDue) ? (
-                    <tr className="border-b border-neutral-100 text-[13px] text-neutral-700">
-                      <td className={ARROW_TD} />
+                    <tr className="border-b border-neutral-100 bg-white text-[13px] text-neutral-700">
                       <td className="px-2 py-1.5 text-left" colSpan={7}>Прочее: мех без аукциона, шкуры подрядчика, зачёты и поправки</td>
                       <MoneyTds paid={restPaid} due={restDue} />
                     </tr>
@@ -306,10 +331,10 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters }: 
                 </>
               );
             })()}
-            {rows.length === 0 ? <tr><td colSpan={avg ? 13 : 10} className="px-3 py-6 text-center text-sm text-neutral-500">По выбранным фильтрам лотов нет.</td></tr> : null}
+            {rows.length === 0 ? <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-neutral-500">По выбранным фильтрам лотов нет.</td></tr> : null}
             {rows.length > 0 ? (
               <tr className="row-total">
-                <td className="w-6" /><td className="px-2 py-2 text-left"><TotalLabel /></td>
+                <NameCell><TotalLabel /></NameCell>
                 <td className={td}>—</td><td className={td}>{rub(T.rv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.uv)}</td>{avg ? <td className={td}>—</td> : null}
                 <td className={td}>—</td><td className={td}>{rub(T.mv)}</td>{avg ? <td className={td}>—</td> : null}
