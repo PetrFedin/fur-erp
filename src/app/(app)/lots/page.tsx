@@ -250,10 +250,18 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const dash = await loadDashboard(orgId, year, parseDashFilters({}), c4Mode);
   const furTabLots = tab === "fur" ? [...tableLots, ...dash.syntheticLots] : tableLots;
   const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
+  // Один ряд виджетов: «Сырьё | Оплаты» — шесть плиток в строку на мониторе, тонкая линия между группами (как на Главной).
   const tiles = (
-    <div className="space-y-3" data-raw-tiles>
-      <RawCards view={tab === "lining" ? "lining" : "fur"} rows={dash.rawTable} fur={dash.raw.fur} lining={dash.raw.lining} c4={c4Mode} />
-      <PayTiles d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />
+    <div key="raw-tiles" data-raw-tiles>
+      <RawCards
+        view={tab === "lining" ? "lining" : "fur"}
+        rows={dash.rawTable}
+        fur={dash.raw.fur}
+        lining={dash.raw.lining}
+        c4={c4Mode}
+        headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}
+        pay={<PayTiles bare d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />}
+      />
     </div>
   );
 
@@ -309,20 +317,27 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex items-center gap-2">
             <h2 id="raw-fur" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки сырья" wide>
-              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Ниже: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
+              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Справа за тонкой линией: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
             </InfoHint>
           </div>
-          {tiles}
-          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} />
+          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={tiles} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 id="raw-lining" className="text-base font-semibold">{kindTitle}</h2>
             <InfoHint label="Как читать плитки подкладки" wide>
-              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (в метрах и в ₽, без 4%). 4% начисляется только при списании в ТЗ. Ниже: Оплачено и К оплате по подкладке (с НДС).</p>
+              <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (в метрах и в ₽, без 4%). 4% начисляется только при списании в ТЗ. Справа за тонкой линией: Оплачено и К оплате по подкладке (с НДС).</p>
             </InfoHint>
           </div>
+          {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}
+          <FurSelectionTotal
+            lots={tableLots}
+            kind="lining"
+            globalYear={year}
+            initialQuery={sp}
+            widgets={
+<div key="raw-widgets" className="space-y-3">
           {tiles}
           <details className="rounded-lg border border-neutral-200 bg-white">
             <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">+ Закупка подкладки</summary>
@@ -362,7 +377,9 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               </Table>
             </div>
           </details>
-          <FurSelectionTotal lots={tableLots} kind="lining" globalYear={year} initialQuery={sp} />
+          </div>
+            }
+          />
         </section>
       )}
     </div>

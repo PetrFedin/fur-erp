@@ -182,3 +182,9 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
   .raw-tiles::-webkit-scrollbar { display: none; }
   .raw-tiles > * { flex: 0 0 172px; min-width: 0; scroll-snap-align: start; }
 }
+
+/* «Сырьё | Оплаты» (страница «Сырьё»): в узких плитках «Общая стоимость» занимает две строки — резервируем две строки у всех шести,
+   чтобы цифры стояли на одном уровне. На широком экране (≥1600) и на планшете подпись в одну строку — запас не нужен. */
+@media (min-width: 1280px) and (max-width: 1599px), (max-width: 767px) {
+  .raw-row-pay .tile-box [data-comment-title] { min-height: 2rem; }
+}

@@ -71,16 +71,38 @@ function Duo({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
-/** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»). */
-export function RawCards({ view, rows, fur, lining, c4, vatRates }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
+/** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»).
+ *  Если передан pay (три плитки оплат), они встают в ТОТ ЖЕ ряд: «Сырьё | Оплаты» — шесть плиток в одну строку на мониторе, тонкая линия между группами. */
+export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd }: { view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
+  const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null;
+  if (pay) {
+    return (
+      <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка"} headerEnd={headerEnd}>
+        <div className="raw-row raw-row-pay">
+          <div className="raw-group" role="group" aria-label="Сырьё">
+            <div className="raw-group-label">Сырьё</div>
+            <div className="raw-tiles">
+              <RawTriple view={view} fur={fur} lining={lining} c4={c4} compact onOpen={setPriceCol} vatRates={vatRates} />
+            </div>
+          </div>
+          <div className="raw-divider" aria-hidden />
+          <div className="raw-group" role="group" aria-label="Оплаты">
+            <div className="raw-group-label">Оплаты</div>
+            <div className="raw-tiles raw-pay">{pay}</div>
+          </div>
+        </div>
+        {modal}
+      </WidgetRow>
+    );
+  }
   return (
-    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"}>
+    <WidgetRow id={`raw-${view}`} title={view === "fur" ? "Сырьё — мех" : "Сырьё — подкладка"} headerEnd={headerEnd}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
         <RawTriple view={view} fur={fur} lining={lining} c4={c4} onOpen={setPriceCol} vatRates={vatRates} />
       </div>
-      {priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null}
+      {modal}
     </WidgetRow>
   );
 }

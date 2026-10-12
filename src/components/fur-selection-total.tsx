@@ -25,6 +25,9 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   rest: { kind: { fur: "Остаток", lining: "Остаток" }, all: "Любой" },
 };
 
+/** Карточка /analytics/raw/lot/<id> есть только у настоящих лотов: строки «заказано, не получено» (ordered:…) и «шкуры подрядчика» (hides) — заглушки без лота в БД (404). */
+const hasLotCard = (l: FurLot) => !l.id.startsWith("ordered:") && l.id !== "hides";
+
 const Q = (n: number | null) => (n == null || Math.abs(n) < 0.005 ? "—" : formatQty(n));
 const R = (n: number | null) => (n == null || Math.abs(n) < 0.5 ? "—" : formatMoney(n));
 
@@ -38,7 +41,10 @@ export function FurSelectionTotal({
   kind = "fur",
   globalYear = "all",
   initialQuery = {},
+  widgets,
 }: {
+  /** Ряд виджетов (плитки сырья и оплат): стоит под панелью фильтров и над таблицей. */
+  widgets?: ReactNode;
   lots: FurLot[];
   kind?: FurKind;
   /** Общий год из шапки (cookie yearFilter): лоты уже отфильтрованы им; локальный «Год закупки» сужает внутри. */
@@ -115,7 +121,6 @@ export function FurSelectionTotal({
   }, [selectedHere, allChecked]);
 
   const t = table.totalFigures;
-  const usdNote = kind === "fur" && t.usdAvg != null ? `$${t.usdAvg.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}` : null;
   const vatWord = vat === "excl" ? "без НДС" : "с НДС";
   const c4Word = c4 === "on" ? "с 4%" : "без 4%";
 
@@ -177,7 +182,7 @@ export function FurSelectionTotal({
   );
   const nCols = 1 + 3 * perGroup;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
-  const widthClass = "min-w-[1000px]";
+  const widthClass = "min-w-[960px]";
 
   // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
   // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
@@ -252,7 +257,15 @@ export function FurSelectionTotal({
               <div className="min-w-0">
                 <div>
                   {canOpen ? <button type="button" aria-expanded={lOpen} aria-label={`Раскрыть ТЗ лота ${l.lotNumber}`} onClick={(e) => { e.stopPropagation(); toggleExp(lk); }} className="text-left">№ {l.lotNumber}</button> : <>№ {l.lotNumber}</>}
-                  <Link href={`/analytics/raw/lot/${l.id}`} onClick={(e) => e.stopPropagation()} className="ml-2 text-xs text-blue-700 hover:underline" title="Карточка лота">карточка ›</Link>
+                  {hasLotCard(l) ? (
+                    <Link href={`/analytics/raw/lot/${l.id}`} onClick={(e) => e.stopPropagation()} className="ml-2 text-xs text-blue-700 hover:underline" title="Карточка лота">карточка ›</Link>
+                  ) : (
+                    // Карточки нет (строка-заглушка «заказано, не получено» / «шкуры подрядчика»): не ссылка, а приглушённый «—» с пояснением в «i».
+                    <span className="ml-2 inline-flex items-center gap-1 align-middle text-xs text-neutral-400" onClick={(e) => e.stopPropagation()}>
+                      <span aria-disabled="true" role="link" title="Карточки нет">—</span>
+                      <InfoHint label="Почему нет карточки лота" align="left">{l.id === "hides" ? "Шкуры подрядчика: отдельной карточки лота нет, списания — в ТЗ." : "Лот не использован — детализации списаний нет."}</InfoHint>
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-neutral-500">
                   {[l.materialName !== parentLabel ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year)].filter(Boolean).join(" · ")}
@@ -353,6 +366,8 @@ export function FurSelectionTotal({
         onReset={() => { setFilters(emptyFilters()); setQ(""); }}
       />
 
+      {widgets}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
         <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
           <span>Строки по:</span>
@@ -367,22 +382,15 @@ export function FurSelectionTotal({
             <button type="button" onClick={() => { setSelected([]); setOnlySelected(false); }} className="ml-2 underline">снять выбор</button>
           </span>
         )}
-        {usdNote && <span className="inline-flex items-center gap-1">Цена в $: <b className="text-neutral-900">{usdNote}</b>/{unit}
-          <InfoHint label="Как считается цена в $" align="left">Средняя по {t.usdQty.toLocaleString("ru-RU")} из {t.recvQty.toLocaleString("ru-RU")} шт. — только лоты с ценой в USD: в долларах в расчёте, евро × курс из расчёта, молоток ₽ ÷ курс USD/RUB из расчёта.</InfoHint></span>}
       </div>
 
       {/* Шапка (обе строки) остаётся на месте при прокрутке: таблица листается внутри рамки, до 75% высоты экрана. */}
       <div className="scroll-hint max-h-[75vh] overflow-auto rounded-xl border border-neutral-200 [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20">
         <table className={cn("w-full table-fixed text-sm tabular-nums", widthClass)}>
           <colgroup>
-            <col className="w-[190px] md:w-[330px]" />
-            {[0, 1, 2].map((i) => (
-              <Fragment key={i}>
-                {showQty && <col style={{ width: 100 }} />}
-                {showMoney && <col style={{ width: 152 }} />}
-                {showMoney && <col style={{ width: 108 }} />}
-              </Fragment>
-            ))}
+            {/* Первая колонка фиксированная, числовые — равные доли всей оставшейся ширины рамки (без пустого места справа). */}
+            <col className="w-[190px] md:w-[200px]" />
+            {Array.from({ length: 3 * perGroup }, (_, i) => <col key={i} />)}
           </colgroup>
           <thead className="bg-neutral-50 text-xs text-neutral-500">
             {groupHead}

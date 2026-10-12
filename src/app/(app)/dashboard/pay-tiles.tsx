@@ -18,7 +18,7 @@ function isPastRu(date: string): boolean {
  * Три плитки оплат: «Общая стоимость», «Оплачено», «К оплате» — одни и те же цифры на Главной и в «Оплаты → Все».
  * Всегда с НДС; 4% отдельной суммой не добавляются (оплачены в составе оплат ТЗ).
  */
-export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd }: { /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
+export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false }: { /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
   const { debt } = d;
   const mln = (v: number) => formatCompactMoney(v);
   const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
@@ -59,10 +59,9 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
     ...(inWork ? [{ k: "Работа", v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];
 
-  return (
-    <WidgetRow headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
-    <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-      <div className={TILE_BOX}>
+  const tiles = (
+    <>
+      <div key="total" className={TILE_BOX}>
         <TileHead>Общая стоимость</TileHead>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое общая стоимость" align="right">
@@ -70,19 +69,19 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
             <p className="mt-1">Общая стоимость = Оплачено + К оплате. Доля — от общей стоимости.</p>
           </InfoHint>
         </div>
-        <TileValue>{money(totalAll)}</TileValue>
-        <TileList items={list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true)} />
+        <TileValue compact={bare}>{money(totalAll)}</TileValue>
+        <TileList stack={bare} items={list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true)} />
       </div>
 
-      <div className={TILE_BOX}>
+      <div key="paid" className={TILE_BOX}>
         <TileHead>Оплачено</TileHead>
-        <TileValue>{money(paidAll)}</TileValue>
+        <TileValue compact={bare}>{money(paidAll)}</TileValue>
         <div data-testid="paid-by-item">
-          <TileList items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
+          <TileList stack={bare} items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
         </div>
       </div>
 
-      <div className={TILE_BOX} data-testid="debt-bridge">
+      <div key="left" className={TILE_BOX} data-testid="debt-bridge">
         <TileHead>К оплате</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
@@ -91,8 +90,8 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
-        <TileValue className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
-        <TileList items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true)} />
+        <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
+        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true)} />
         {d.invoiceDeadlines.length > 0 && !only ? (
           <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
             <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>
@@ -103,7 +102,12 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           </div>
         ) : null}
       </div>
-    </div>
+    </>
+  );
+  if (bare) return tiles;
+  return (
+    <WidgetRow headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
+      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">{tiles}</div>
     </WidgetRow>
   );
 }
