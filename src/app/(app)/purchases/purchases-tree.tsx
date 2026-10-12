@@ -1,72 +1,123 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
-import { formatMoney } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { Fragment, useState, type ReactNode } from "react";
+import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
-import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { Chevron, Dash, SCROLL_BOX, TD, TH, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
+import { LotUsageMini } from "@/components/lot-usage-bar";
+import { RowCard } from "@/components/responsive-rows";
+import { shortMaterialName } from "@/lib/material-name";
+import { aggregate, type Agg, type PurchaseStatus, type TreeBatch, type TreeItem, type TreePurchase, type TreeYear } from "./purchases-agg";
 
-export type TreeItem = { id: string; lotId: string | null; label: string; lot: string | null; qty: string; sum: number };
-export type TreeExpense = { id: string; label: string; sum: number };
-export type TreePay = { id: string; date: string; amount: number; doc: string | null };
-export type TreePurchase = {
-  id: string; number: string; date: string; supplier: string; invoice: string | null; cancelled: boolean; received: boolean;
-  total: number; paid: number; rest: number;
-  /** Часть «Оплачено», пришедшая из оплат партии целиком (не привязанных к закупке). */
-  paidBatch: number;
-  items: TreeItem[]; expenses: TreeExpense[]; pays: TreePay[];
-};
-export type TreeBatch = { key: string; label: string; title?: string; href?: string; purchases: TreePurchase[] };
-export type TreeYear = { year: number; batches: TreeBatch[] };
+export type { PurchaseStatus, TreeBatch, TreePurchase, TreeYear } from "./purchases-agg";
 
-const m = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
-const sum = (list: TreePurchase[], k: "total" | "paid" | "rest") => list.reduce((a, p) => a + (p.cancelled ? 0 : p[k]), 0);
+// ───────────────────────────── общие расчёты и ячейки ─────────────────────────────
+
+const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
+const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatQty(v));
 const restCls = (v: number) => (v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
+const BL = " border-l border-neutral-200";
+const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? few : many}`;
+const usedPct = (a: Pick<Agg, "usedValue" | "recvValue" | "hasLots">) => (a.hasLots && a.recvValue > 0.5 ? (a.usedValue / a.recvValue) * 100 : null);
+const remText = (a: Pick<Agg, "remFur" | "remLining" | "hasLots">) => {
+  if (!a.hasLots) return <Dash />;
+  const parts = [a.remFur > 0.0005 ? `${formatQty(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatQty(a.remLining)} м` : null].filter(Boolean);
+  return parts.length ? parts.join(" · ") : <Dash />;
+};
+function StatusCell({ status, draft }: { status?: PurchaseStatus; draft?: number }) {
+  if (status === "CANCELLED") return <span className="text-neutral-500">отменена</span>;
+  if (status === "DRAFT" || (draft ?? 0) > 0) return <span className="text-amber-700">{status ? "черновик" : `черновик: ${draft}`}</span>;
+  return <span>принята</span>;
+}
 
-/**
- * Закупки по годам и партиям: год → партия закупки (аукцион) → закупка → позиции / расходы / оплаты.
- * Те же суммы, что в списке и в карточке закупки; итог совпадает с плитками (шкуры подрядчика — отдельной строкой).
- */
+/** Заголовок блока колонок: подпись, нижняя линия, вертикальная линия слева. */
+const blockTh = "border-b border-neutral-200 px-1.5 pb-1 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
+
+function useSum() {
+  const { mode } = useVatDisplay();
+  return { word: mode === "excl" ? "без НДС" : "с НДС", pick: (a: { total: number; totalExcl: number }) => (mode === "excl" ? a.totalExcl : a.total) };
+}
+
+function HelpHint() {
+  return (
+    <InfoHint label="Как читать таблицу закупок" wide>
+      <p><b>Год → партия закупки (аукцион) → закупка → позиции (лоты), расходы, оплаты.</b> Год — по дате заказа закупки. Нажмите ›, чтобы раскрыть вглубь; ↗ ведёт в карточку закупки или лота.</p>
+      <p className="mt-1"><b>Сумма</b> — позиции плюс расходы закупки (режим «с НДС / без НДС» из шапки); <b>Оплачено</b> — оплаты закупки и её доля в оплатах партии (пропорционально сумме); <b>Долг</b> = Сумма с НДС − Оплачено. Оплата и долг всегда с НДС; 4% к закупкам не применяется.</p>
+      <p className="mt-1"><b>Использовано, %</b> — доля стоимости лотов закупки, списанных в ТЗ (без 4%); <b>Остаток</b> — шкуры (шт.) и подкладка (м) на складе. У закупок без лотов (черновик) — «—».</p>
+      <p className="mt-1">«Всего, ₽» совпадает с плитками выше и с Главной. Отменённые закупки в итог не входят.</p>
+    </InfoHint>
+  );
+}
+
+// ───────────────────────────── дерево «По годам и партиям» ─────────────────────────────
+
+const TREE_COLS = [250, 118, 84, 92, 64, 60, 84, 88, 116, 116, 104, 104, 112];
+const NAME_CELL = "sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left align-top";
+const LINK = "text-blue-700 hover:underline";
+
 export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: number }) {
+  const { word, pick } = useSum();
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<string>>(new Set());
   const flip = (set: Set<string>, k: string) => { const n = new Set(set); if (n.has(k)) n.delete(k); else n.add(k); return n; };
   const arrow = (isOpen: boolean, onClick: () => void, label: string) => (
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
-  const figs = (v: { total: number; paid: number; rest: number }, qty?: string) => (
+  const all = years.flatMap((y) => y.batches.flatMap((b) => b.purchases));
+  const tot = aggregate(all);
+
+  /** Ячейки строки уровня «год / партия / закупка» по агрегату. */
+  const cells = (a: Agg, o: { supplier?: ReactNode; date?: ReactNode; status?: ReactNode } = {}) => (
     <>
-      <td className={TD + " text-neutral-500"}>{qty ?? ""}</td>
-      <td className={TD + " border-l border-neutral-100"}>{m(v.total)}</td>
-      <td className={TD}>{m(v.paid)}</td>
-      <td className={TD + restCls(v.rest)}>{m(v.rest)}</td>
+      <td className={TD + BL + " truncate text-left text-xs"}>{o.supplier ?? (a.suppliers.length === 1 ? a.suppliers[0] : a.suppliers.length > 1 ? `${a.suppliers.length} поставщ.` : <Dash />)}</td>
+      <td className={TD + " text-xs"}>{o.date ?? <Dash />}</td>
+      <td className={TD + " text-xs"}>{o.status ?? <StatusCell draft={a.draft} />}</td>
+      <td className={TD}>{a.purchases > 0 ? a.purchases : <Dash />}</td>
+      <td className={TD}>{a.lots > 0 ? a.lots : <Dash />}</td>
+      <td className={TD}>{qty(a.fur)}</td>
+      <td className={TD}>{qty(a.lining)}</td>
+      <td className={TD}>{money(pick(a))}</td>
+      <td className={TD + BL}>{money(a.paid)}</td>
+      <td className={TD + restCls(a.rest)}>{money(a.rest)}</td>
+      <td className={TD + BL}>{usedPct(a) != null ? formatPercent(usedPct(a)) : <Dash />}</td>
+      <td className={TD + " text-xs"}>{remText(a)}</td>
     </>
   );
-  const all = years.flatMap((y) => y.batches.flatMap((b) => b.purchases));
-  const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n < 5 ? few : many}`;
+  const empty = (n: number) => Array.from({ length: n }, (_, i) => <td key={i} className={TD} />);
 
   return (
     <section aria-labelledby="pur-tree" className="space-y-2">
       <div className="flex items-center gap-2">
         <h2 id="pur-tree" className="text-base font-semibold">Закупки по годам и партиям</h2>
-        <InfoHint label="Как читать таблицу закупок" wide>
-          <p><b>Год → партия закупки (аукцион) → закупка → позиции, расходы, оплаты.</b> Год — по дате заказа закупки. Нажмите ›, чтобы раскрыть вглубь; номер закупки ведёт в её карточку, а оттуда — к лотам и оплатам.</p>
-          <p className="mt-1"><b>Сумма</b> — позиции с НДС плюс расходы закупки; <b>Оплачено</b> — оплаты закупки и её доля в оплатах партии (пропорционально сумме); <b>Задолженность</b> = Сумма − Оплачено. Всегда с НДС; 4% к закупкам не применяется.</p>
-          <p className="mt-1">«Всего, ₽» совпадает с плитками выше и с Главной. Отменённые закупки в итог не входят.</p>
-        </InfoHint>
+        <HelpHint />
       </div>
       <div className={SCROLL_BOX}>
-        <table className="w-full min-w-[820px] table-fixed text-sm">
-          <colgroup><col className="w-8" /><col /><col className="w-24" /><col className="w-32" /><col className="w-32" /><col className="w-32" /></colgroup>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: TREE_COLS.reduce((a, b) => a + b, 0) }}>
+          <colgroup>{TREE_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <thead>
+            <tr>
+              <th rowSpan={2} className="sticky left-0 z-[2] bg-white px-2 py-1.5 text-left align-bottom text-xs font-medium text-neutral-500">Год / партия / закупка / лот</th>
+              <th colSpan={8} className={blockTh + BL}>Закупка</th>
+              <th colSpan={2} className={blockTh + BL}>Оплата</th>
+              <th colSpan={2} className={blockTh + BL}>Использование</th>
+            </tr>
             <tr className="border-b border-neutral-200">
-              <th className={ARROW_TH} aria-label="Раскрыть" />
-              <th className={TH_LEFT}>Год / партия / закупка</th>
-              <th className={TH}>Кол-во</th>
-              <th className={TH + " border-l border-neutral-100"}>Сумма, ₽</th>
-              <th className={TH}>Оплачено, ₽</th>
+              <th className={TH + BL + " !text-left"}>Поставщик</th>
+              <th className={TH}>Дата</th>
+              <th className={TH}>Статус</th>
+              <th className={TH}>Закупок, шт.</th>
+              <th className={TH}>Лотов, шт.</th>
+              <th className={TH}>Шкур, шт.</th>
+              <th className={TH}>Подкладка, м</th>
+              <th className={TH}>Сумма, ₽ <span className="font-normal">({word})</span></th>
+              <th className={TH + BL}>Оплачено, ₽</th>
               <th className={TH}>Долг, ₽</th>
+              <th className={TH + BL}>Использовано, %</th>
+              <th className={TH}>Остаток</th>
             </tr>
           </thead>
           <tbody>
@@ -77,44 +128,51 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
               return (
                 <Fragment key={yk}>
                   <tr className={rowTone(0) + " font-semibold"}>
-                    <td className={ARROW_TD}>{arrow(yOpen, () => setClosed((s) => flip(s, yk)), String(y.year))}</td>
-                    <td className="px-2 py-1.5 text-left">{y.year}<span className="ml-1.5 text-xs font-normal text-neutral-500">{cnt(list.filter((p) => !p.cancelled).length, "закупка", "закупки", "закупок")}</span></td>
-                    {figs({ total: sum(list, "total"), paid: sum(list, "paid"), rest: sum(list, "rest") })}
+                    <td className={NAME_CELL}><span className="mr-1 inline-block align-middle">{arrow(yOpen, () => setClosed((s) => flip(s, yk)), String(y.year))}</span>{y.year}<span className="ml-1.5 text-xs font-normal text-neutral-500">{cnt(y.batches.length, "партия", "партии", "партий")}</span></td>
+                    {cells(aggregate(list))}
                   </tr>
                   {yOpen ? y.batches.map((b) => {
                     const bk = `${yk}:${b.key}`;
                     const bOpen = open.has(bk);
+                    const ba = aggregate(b.purchases);
                     return (
                       <Fragment key={bk}>
                         <tr className={rowTone(1, bOpen)}>
-                          <td className={ARROW_TD}>{arrow(bOpen, () => setOpen((s) => flip(s, bk)), b.label)}</td>
-                          <td className={`py-1.5 pr-2 text-left ${INDENT[0]}`} title={b.title}>
-                            {b.label}
-                            <span className="ml-1.5 text-xs text-neutral-500">{cnt(b.purchases.length, "закупка", "закупки", "закупок")}</span>
-                            {b.href ? <Link href={b.href} className="ml-2 text-xs text-blue-700 hover:underline" title="Открыть в «Оплатах» с этой партией">оплаты партии ↗</Link> : null}
+                          <td className={NAME_CELL + " pl-5"} title={b.title}>
+                            <span className="mr-1 inline-block align-middle">{arrow(bOpen, () => setOpen((s) => flip(s, bk)), b.label)}</span>{b.label}
+                            {b.href ? <Link href={b.href} className="ml-1.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть в «Оплатах» с этой партией" aria-label={`Оплаты партии ${b.label}`}>↗</Link> : null}
+                            <div className="pl-5 text-[11px] text-neutral-500">
+                              {b.href ? <Link href={b.href} className={LINK}>оплаты ›</Link> : null}
+                              {b.docsHref ? <Link href={b.docsHref} className={cn(LINK, b.href && "ml-2")}>документы ›</Link> : null}
+                            </div>
                           </td>
-                          {figs({ total: sum(b.purchases, "total"), paid: sum(b.purchases, "paid"), rest: sum(b.purchases, "rest") })}
+                          {cells(ba, { date: b.purchases[0]?.date })}
                         </tr>
                         {bOpen ? b.purchases.map((p) => {
                           const pk = `${bk}:${p.id}`;
                           const pOpen = open.has(pk);
+                          const pa = aggregate([p]);
+                          const cancelled = p.status === "CANCELLED";
                           return (
                             <Fragment key={pk}>
-                              <tr className={rowTone(2, pOpen) + (p.cancelled ? " opacity-60" : "")}>
-                                <td className={ARROW_TD}>{arrow(pOpen, () => setOpen((s) => flip(s, pk)), p.number)}</td>
-                                <td className={`py-1.5 pr-2 text-left ${INDENT[1]}`}>
-                                  <Link href={`/purchases/${p.id}`} className="text-blue-700 hover:underline">{p.number}</Link>
-                                  <span className="ml-2 tabular-nums text-neutral-500">{p.date}</span>
-                                  {multiSupplier(all) ? <span className="ml-2 text-neutral-500">{p.supplier}</span> : null}
-                                  {p.invoice ? <span className="ml-2 text-neutral-500">счёт {p.invoice}</span> : null}
-                                  {p.cancelled ? <span className="ml-2 text-neutral-500">отменена</span> : !p.received ? <span className="ml-2 text-amber-700">черновик</span> : null}
+                              <tr className={rowTone(2, pOpen) + (cancelled ? " opacity-60" : "")}>
+                                <td className={NAME_CELL + " pl-9"}>
+                                  <span className="mr-1 inline-block align-middle">{arrow(pOpen, () => setOpen((s) => flip(s, pk)), p.number)}</span>
+                                  <span className="font-medium text-neutral-900">{p.number}</span>
+                                  <Link href={`/purchases/${p.id}`} className="ml-1.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline" title="Открыть закупку" aria-label={`Открыть закупку ${p.number}`}>↗</Link>
+                                  {p.invoice ? <span className="ml-1.5 text-[11px] text-neutral-500">счёт {p.invoice}</span> : null}
+                                  <div className="pl-5 text-[11px]">
+                                    <Link href={`/purchases/${p.id}`} className={LINK}>закупка ›</Link>
+                                    <Link href={p.auction ? `/payments?auction=${encodeURIComponent(p.auction)}#auction-block` : "/payments"} className={LINK + " ml-2"}>оплаты ›</Link>
+                                    <Link href={p.auction ? `/documents?auction=${encodeURIComponent(p.auction)}` : `/purchases/${p.id}`} className={LINK + " ml-2"}>документы ›</Link>
+                                  </div>
                                 </td>
-                                {figs(p.cancelled ? { total: 0, paid: 0, rest: 0 } : p)}
+                                {cells(cancelled ? { ...pa, total: 0, totalExcl: 0, paid: 0, rest: 0 } : pa, { supplier: p.supplier, date: p.date, status: <StatusCell status={p.status} /> })}
                               </tr>
                               {pOpen ? (
                                 <>
                                   {([
-                                    ["items", "Позиции", p.items.length, p.items.reduce((a, x) => a + x.sum, 0), null],
+                                    ["items", "Позиции (лоты)", p.items.length, p.items.reduce((a, x) => a + x.sum, 0), null],
                                     ["exp", "Расходы закупки", p.expenses.length, p.expenses.reduce((a, x) => a + x.sum, 0), null],
                                     ["pay", "Оплаты", p.pays.length + (Math.abs(p.paidBatch) > 0.5 ? 1 : 0), null, p.paid],
                                   ] as const).map(([g, label, n, total, paid]) => {
@@ -123,47 +181,34 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
                                     return (
                                       <Fragment key={gk}>
                                         <tr className={rowTone(2, gOpen)}>
-                                          <td className={ARROW_TD}>{n > 0 ? arrow(gOpen, () => setOpen((s) => flip(s, gk)), label) : null}</td>
-                                          <td className={`py-1.5 pr-2 text-left ${INDENT[2]}`}>{label}<span className="ml-1.5 text-neutral-500">{n > 0 ? n : "нет"}</span></td>
-                                          <td className={TD} />
-                                          <td className={TD + " border-l border-neutral-100"}>{total != null ? m(total) : <Dash />}</td>
-                                          <td className={TD}>{paid != null ? m(paid) : <Dash />}</td>
-                                          <td className={TD} />
+                                          <td className={NAME_CELL + " pl-14"}>
+                                            <span className="mr-1 inline-block w-4 align-middle">{n > 0 ? arrow(gOpen, () => setOpen((s) => flip(s, gk)), label) : null}</span>
+                                            {label}<span className="ml-1.5 text-neutral-500">{n > 0 ? n : "нет"}</span>
+                                          </td>
+                                          {empty(8)}
+                                          <td className={TD}>{total != null ? money(total) : <Dash />}</td>
+                                          <td className={TD + BL}>{paid != null ? money(paid) : <Dash />}</td>
+                                          {empty(3)}
                                         </tr>
-                                        {gOpen && g === "items" ? p.items.map((x) => (
-                                          <tr key={x.id} className={rowTone(3)}>
-                                            <td className={ARROW_TD} />
-                                            <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}>{x.label}{x.lot ? <span className="ml-1.5 text-neutral-400">лот № {x.lot}</span> : null}{x.lotId ? <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" className="ml-2 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline">↗</Link> : null}</td>
-                                            <td className={TD}>{x.qty}</td>
-                                            <td className={TD + " border-l border-neutral-100"}>{m(x.sum)}</td>
-                                            <td className={TD} /><td className={TD} />
-                                          </tr>
-                                        )) : null}
+                                        {gOpen && g === "items" ? p.items.map((x) => <ItemRows key={x.id} x={x} open={open} flip={(k) => setOpen((s) => flip(s, k))} pk={gk} />) : null}
                                         {gOpen && g === "exp" ? p.expenses.map((x) => (
                                           <tr key={x.id} className={rowTone(3)}>
-                                            <td className={ARROW_TD} />
-                                            <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}>{x.label}</td>
-                                            <td className={TD} />
-                                            <td className={TD + " border-l border-neutral-100"}>{m(x.sum)}</td>
-                                            <td className={TD} /><td className={TD} />
+                                            <td className={NAME_CELL + " pl-20"}>{x.label}</td>
+                                            {empty(8)}<td className={TD}>{money(x.sum)}</td>{empty(4)}
                                           </tr>
                                         )) : null}
                                         {gOpen && g === "pay" ? (
                                           <>
                                             {p.pays.map((x) => (
                                               <tr key={x.id} className={rowTone(3)}>
-                                                <td className={ARROW_TD} />
-                                                <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}><span className="tabular-nums">{x.date}</span>{x.doc ? <span className="ml-2 text-neutral-500">{x.doc}</span> : null}</td>
-                                                <td className={TD} /><td className={TD + " border-l border-neutral-100"} />
-                                                <td className={TD}>{m(x.amount)}</td><td className={TD} />
+                                                <td className={NAME_CELL + " pl-20"}><span className="tabular-nums">{x.date}</span>{x.doc ? <span className="ml-2 text-neutral-500">{x.doc}</span> : null}</td>
+                                                {empty(9)}<td className={TD + BL}>{money(x.amount)}</td>{empty(3)}
                                               </tr>
                                             ))}
                                             {Math.abs(p.paidBatch) > 0.5 ? (
                                               <tr className={rowTone(3)}>
-                                                <td className={ARROW_TD} />
-                                                <td className={`py-1.5 pr-2 text-left ${INDENT[3]}`}>Остальные оплаты партии<span className="ml-1.5 text-neutral-400">доля закупки, пропорционально сумме</span></td>
-                                                <td className={TD} /><td className={TD + " border-l border-neutral-100"} />
-                                                <td className={TD}>{m(p.paidBatch)}</td><td className={TD} />
+                                                <td className={NAME_CELL + " pl-20"}>Остальные оплаты партии<div className="text-[11px] text-neutral-400">доля закупки, пропорционально сумме</div></td>
+                                                {empty(9)}<td className={TD + BL}>{money(p.paidBatch)}</td>{empty(3)}
                                               </tr>
                                             ) : null}
                                           </>
@@ -182,22 +227,17 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
                 </Fragment>
               );
             })}
-            {years.length === 0 ? <tr><td colSpan={6} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
+            {years.length === 0 ? <tr><td colSpan={13} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
             {hides > 0.5 ? (
               <tr className={rowTone(1)}>
-                <td className={ARROW_TD} />
-                <td className={`py-1.5 pr-2 text-left ${INDENT[0]}`}>Шкуры подрядчика<span className="ml-1.5 text-neutral-500">оплачены в составе счетов за пошив</span></td>
-                <td className={TD} />
-                <td className={TD + " border-l border-neutral-100"}>{m(hides)}</td>
-                <td className={TD}>{m(hides)}</td>
-                <td className={TD}><Dash /></td>
+                <td className={NAME_CELL + " pl-5"}>Шкуры подрядчика<div className="text-[11px] text-neutral-500">оплачены в составе счетов за пошив</div></td>
+                {empty(8)}<td className={TD}>{money(hides)}</td><td className={TD + BL}>{money(hides)}</td><td className={TD}><Dash /></td>{empty(2)}
               </tr>
             ) : null}
             {years.length > 0 ? (
               <tr className="row-total">
-                <td className={ARROW_TD} />
-                <td className="px-2 py-1.5 text-left"><TotalLabel /></td>
-                {figs({ total: sum(all, "total") + hides, paid: sum(all, "paid") + hides, rest: sum(all, "rest") })}
+                <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left"><TotalLabel /></td>
+                {cells({ ...tot, total: tot.total + hides, totalExcl: tot.totalExcl + hides, paid: tot.paid + hides }, { supplier: <Dash />, date: <Dash />, status: <Dash /> })}
               </tr>
             ) : null}
           </tbody>
@@ -207,6 +247,193 @@ export function PurchasesTree({ years, hides }: { years: TreeYear[]; hides: numb
   );
 }
 
-function multiSupplier(all: TreePurchase[]) {
-  return new Set(all.map((p) => p.supplier)).size > 1;
+/** Строка лота (позиции закупки): вид меха / ткань, цвет, размер, цена ₽/$, сумма, использовано и остаток; раскрывается до ТЗ-потребителей. */
+function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip: (k: string) => void; pk: string }) {
+  const key = `${pk}:${x.id}`;
+  const isOpen = open.has(key);
+  const canOpen = x.usages.length > 0;
+  const detail = [x.color, x.size ?? x.grade].filter(Boolean).join(" · ");
+  const prices = [x.priceRub != null ? `${formatMoney(x.priceRub.toFixed(2))}/${x.unit}` : null, x.priceUsd != null ? `$${x.priceUsd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null].filter(Boolean).join(" · ");
+  const isFur = x.unit === "шт.";
+  return (
+    <>
+      <tr className={rowTone(3, isOpen)}>
+        <td className={NAME_CELL + " pl-20"}>
+          <span className="mr-1 inline-block w-4 align-middle">{canOpen ? <button type="button" onClick={() => flip(key)} aria-expanded={isOpen} aria-label={`Раскрыть ТЗ лота ${x.lot ?? ""}`}><Chevron open={isOpen} /></button> : null}</span>
+          <span className="text-neutral-800" title={x.material}>{shortMaterialName(x.material)}</span>
+          {x.lot ? <span className="ml-1.5 text-neutral-500">лот № {x.lot}</span> : null}
+          {x.lotId ? (
+            <Link href={`/analytics/raw/lot/${x.lotId}`} title="Открыть карточку лота" aria-label={`Карточка лота ${x.lot ?? ""}`} className="ml-1.5 text-[10px] text-neutral-400 hover:text-blue-700 hover:underline">↗</Link>
+          ) : (
+            <span className="ml-1.5 text-[10px] text-neutral-300" title="Лота на складе ещё нет: закупка не принята" aria-label="Карточки лота нет">—</span>
+          )}
+          {detail || prices ? <div className="pl-5 text-[11px] text-neutral-500">{[detail, prices].filter(Boolean).join(" · ")}</div> : null}
+        </td>
+        <td className={TD} />
+        <td className={TD} />
+        <td className={TD} />
+        <td className={TD} />
+        <td className={TD}>1</td>
+        <td className={TD}>{isFur ? formatQty(x.qty) : <Dash />}</td>
+        <td className={TD}>{!isFur ? formatQty(x.qty) : <Dash />}</td>
+        <td className={TD}>{money(x.sum)}</td>
+        <td className={TD + BL} />
+        <td className={TD} />
+        <td className={TD + BL}>
+          {x.recv != null && x.recv > 0 ? <LotUsageMini recv={x.recv} used={x.used} unit={x.unit} className="ml-auto w-full max-w-24" /> : <Dash />}
+        </td>
+        <td className={TD + " text-xs"}>{x.recv != null && x.rem > 0.0005 ? `${formatQty(x.rem)} ${x.unit}` : <Dash />}</td>
+      </tr>
+      {isOpen ? x.usages.map((u) => (
+        <tr key={u.orderId} className={rowTone(3)}>
+          <td className={NAME_CELL + " pl-28"}><Link href={`/production/${u.orderId}`} className={LINK}>ТЗ {u.number}</Link></td>
+          <td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} />
+          <td className={TD}>{isFur ? formatQty(u.qty) : <Dash />}</td>
+          <td className={TD}>{!isFur ? formatQty(u.qty) : <Dash />}</td>
+          <td className={TD}>{money(u.sum)}</td>
+          <td className={TD + BL} /><td className={TD} /><td className={TD + BL} /><td className={TD} />
+        </tr>
+      )) : null}
+    </>
+  );
+}
+
+// ───────────────────────────── «Списком»: плоская таблица закупок ─────────────────────────────
+
+export type ListSort = { key: string; dir: "asc" | "desc" };
+const LIST_COLS = [150, 62, 130, 118, 84, 92, 60, 84, 88, 116, 116, 104, 104, 112];
+
+export function PurchasesList({ rows, hides, sort, sortHrefs, footer }: { rows: TreePurchase[]; hides: number; sort: ListSort; sortHrefs: Record<string, string>; footer?: ReactNode }) {
+  const router = useRouter();
+  const { word, pick } = useSum();
+  const tot = aggregate(rows);
+  const head = (k: string, label: ReactNode, o: { left?: boolean; bl?: boolean } = {}) => {
+    const active = sort.key === k;
+    return (
+      <th aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={cn(TH, o.left && "!text-left", o.bl && BL)}>
+        <Link href={sortHrefs[k] ?? "#"} className={cn("inline-flex items-center gap-0.5 hover:underline", active && "text-[var(--ui-accent-text)]")} title="Сортировать по этому столбцу">
+          {label}{active ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
+        </Link>
+      </th>
+    );
+  };
+  return (
+    <section aria-labelledby="pur-list" className="space-y-2">
+      <div className="flex items-center gap-2">
+        <h2 id="pur-list" className="text-base font-semibold">Закупки списком</h2>
+        <HelpHint />
+      </div>
+      {/* Телефон: карточки-строки с ключевыми полями. */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {rows.map((p) => (
+          <RowCard
+            key={p.id}
+            title={p.number}
+            href={`/purchases/${p.id}`}
+            subtitle={[p.supplier, p.batchLabel, p.date].join(" · ")}
+            badge={<span className="text-xs"><StatusCell status={p.status} /></span>}
+            fields={[
+              { label: `Сумма (${word})`, value: money(pick(p)), strong: true },
+              { label: "Оплачено", value: p.status === "CANCELLED" ? <Dash /> : money(p.paid) },
+              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{money(p.rest)}</span> },
+              { label: "Использовано", value: usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash /> },
+            ]}
+            details={[
+              { label: "Лотов", value: p.lots > 0 ? p.lots : null },
+              { label: "Шкур, шт.", value: p.fur > 0 ? formatQty(p.fur) : null },
+              { label: "Подкладка, м", value: p.lining > 0 ? formatQty(p.lining) : null },
+              { label: "Остаток", value: p.hasLots ? remText(p) : null },
+              { label: "Счёт", value: p.invoice },
+            ]}
+          />
+        ))}
+        {rows.length === 0 ? <p className="py-6 text-center text-sm text-neutral-500">Закупок нет.</p> : null}
+      </div>
+      <div className={cn(SCROLL_BOX, "hidden md:block")}>
+        <table className="w-full table-fixed text-sm" style={{ minWidth: LIST_COLS.reduce((a, b) => a + b, 0) }}>
+          <colgroup>{LIST_COLS.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+          <thead>
+            <tr>
+              <th rowSpan={2} className="sticky left-0 z-[2] bg-white px-2 py-1.5 text-left align-bottom text-xs font-medium text-neutral-500" aria-sort={sort.key === "number" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+                <Link href={sortHrefs.number ?? "#"} className={cn("inline-flex items-center gap-0.5 hover:underline", sort.key === "number" && "text-[var(--ui-accent-text)]")}>
+                  № закупки{sort.key === "number" ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
+                </Link>
+              </th>
+              <th colSpan={9} className={blockTh + BL}>Закупка</th>
+              <th colSpan={2} className={blockTh + BL}>Оплата</th>
+              <th colSpan={2} className={blockTh + BL}>Использование</th>
+            </tr>
+            <tr className="border-b border-neutral-200">
+              {head("year", "Год", { bl: true })}
+              {head("batch", "Партия", { left: true })}
+              {head("supplier", "Поставщик", { left: true })}
+              {head("date", "Дата")}
+              {head("status", "Статус")}
+              {head("lots", "Лотов, шт.")}
+              {head("fur", "Шкур, шт.")}
+              {head("lining", "Подкладка, м")}
+              {head("total", <>Сумма, ₽ <span className="font-normal">({word})</span></>)}
+              {head("paid", "Оплачено, ₽", { bl: true })}
+              {head("rest", "Долг, ₽")}
+              {head("used", "Использовано, %", { bl: true })}
+              {head("rem", "Остаток")}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => {
+              const cancelled = p.status === "CANCELLED";
+              return (
+                <tr
+                  key={p.id}
+                  onClick={() => router.push(`/purchases/${p.id}`)}
+                  className={cn("cursor-pointer border-b border-neutral-100 hover:bg-neutral-50", cancelled && "opacity-60")}
+                >
+                  <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left font-medium">
+                    <Link href={`/purchases/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.number}</Link>
+                    <span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                  </td>
+                  <td className={TD + BL}>{p.year}</td>
+                  <td className={TD + " truncate !text-left text-xs"} title={p.batchLabel}>{p.batchLabel}</td>
+                  <td className={TD + " truncate !text-left text-xs"} title={p.supplier}>{p.supplier}</td>
+                  <td className={TD + " text-xs"}>{p.date}</td>
+                  <td className={TD + " text-xs"}><StatusCell status={p.status} /></td>
+                  <td className={TD}>{p.lots > 0 ? p.lots : <Dash />}</td>
+                  <td className={TD}>{qty(p.fur)}</td>
+                  <td className={TD}>{qty(p.lining)}</td>
+                  <td className={TD}>{cancelled ? <Dash /> : money(pick(p))}</td>
+                  <td className={TD + BL}>{cancelled ? <Dash /> : money(p.paid)}</td>
+                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : money(p.rest)}</td>
+                  <td className={TD + BL}>{usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash />}</td>
+                  <td className={TD + " text-xs"}>{remText(p)}</td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 ? <tr><td colSpan={14} className="px-3 py-6 text-center text-sm text-neutral-500">Закупок нет.</td></tr> : null}
+            {hides > 0.5 ? (
+              <tr className="border-b border-neutral-100 bg-neutral-50/70 text-[13px]">
+                <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left">Шкуры подрядчика</td>
+                <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} />
+                <td className={TD}>{money(hides)}</td><td className={TD + BL}>{money(hides)}</td><td className={TD}><Dash /></td><td className={TD + BL} /><td className={TD} />
+              </tr>
+            ) : null}
+            {rows.length > 0 ? (
+              <tr className="row-total">
+                <td className="sticky left-0 z-[1] bg-inherit px-2 py-1.5 text-left"><TotalLabel /></td>
+                <td className={TD + BL} /><td className={TD} /><td className={TD} /><td className={TD} /><td className={TD} />
+                <td className={TD}>{tot.lots}</td>
+                <td className={TD}>{qty(tot.fur)}</td>
+                <td className={TD}>{qty(tot.lining)}</td>
+                <td className={TD}>{money(pick(tot) + hides)}</td>
+                <td className={TD + BL}>{money(tot.paid + hides)}</td>
+                <td className={TD + restCls(tot.rest)}>{money(tot.rest)}</td>
+                <td className={TD + BL}>{usedPct(tot) != null ? formatPercent(usedPct(tot)) : <Dash />}</td>
+                <td className={TD + " text-xs"}>{remText(tot)}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+      {footer ? <div key="footer">{footer}</div> : null}
+    </section>
+  );
 }

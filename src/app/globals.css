@@ -57,8 +57,8 @@ body {
 
 /* Панель фильтров (src/components/filters): пока страница пересчитывается, всё после панели чуть бледнее. */
 html[data-filtering="1"] [data-filter-bar] ~ * {
-  opacity: 0.55;
-  transition: opacity 0.15s ease;
+  opacity: 0.7;
+  transition: opacity 0.15s ease 0.1s; /* короткие пересчёты не мигают; раскладка при этом не меняется */
 }
 
 /* Комментарии (src/components/comments): подсветка блока при «Открыть место» и в режиме «Указать блок». */
@@ -187,4 +187,6 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
    чтобы цифры стояли на одном уровне. На широком экране (≥1600) и на планшете подпись в одну строку — запас не нужен. */
 @media (min-width: 1280px) and (max-width: 1599px), (max-width: 767px) {
   .raw-row-pay .tile-box [data-comment-title] { min-height: 2rem; }
+  /* Плитки оплат: сумма сразу под названием, без резерва второй строки (иначе под «Оплачено» остаётся пустое место). */
+  .raw-row-pay .raw-pay .tile-box [data-comment-title] { min-height: 0; }
 }

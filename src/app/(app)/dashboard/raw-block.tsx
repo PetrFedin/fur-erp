@@ -177,7 +177,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
                 {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
               </Duo>
-              {vatRates ? <VatLine v={vatRates.recv} minRem={compact ? 3 : 1} /> : null}
+              {vatRates ? <VatLine v={vatRates.recv} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
           )}
         </Card>
@@ -202,7 +202,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} v={usedQtyNow > 0 ? rub(usedNo4 / usedQtyNow) : "—"} sub={compact ? <SubLines n={1} lines={usedQtyNow > 0 ? [`с 4%: ${rub(usedWith4 / usedQtyNow)}`] : []} /> : usedQtyNow > 0 ? `с 4%: ${rub(usedWith4 / usedQtyNow)}` : undefined} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdUsedAvg != null ? usd(F.usdUsedAvg) : "нет данных в USD"} /> : null}
               </Duo>
-              {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} /> : null}
+              {vatRates ? <VatLine v={vatRates.used} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
           )}
         </Card>
@@ -225,7 +225,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.remAvg != null ? rub(cur.remAvg) : "—"} />
                 {usdTile ? <Row k="Цена, $/шт." v={F.usdRemAvg != null ? usd(F.usdRemAvg) : "нет данных в USD"} /> : null}
               </Duo>
-              {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} /> : null}
+              {vatRates ? <VatLine v={vatRates.rem} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
           )}
         </Card>
@@ -373,7 +373,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                   {part.map((x) => (
                     <Fragment key={x.r.key}>
                     <tr data-block={k} className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
-                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{shortMaterialName(x.r.label)}</td>
+                      <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{k === "fur" && (x.r.lots > 0 || x.q > 0) ? <Link href={`/lots/fur/${encodeURIComponent(x.r.label)}`} onClick={(e) => e.stopPropagation()} className="hover:underline focus-visible:underline" title={`Страница вида меха «${x.r.label}»`}>{shortMaterialName(x.r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link> : shortMaterialName(x.r.label)}</td>
                       {shareCell(x.q, x.rq)}
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(x.q)} {unit}</td>
                       <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(x.v)}</td>

@@ -84,6 +84,16 @@ export type FurLot = {
   usdQtyRub: number;
   usdQtyCalc: number;
   usages: FurLotUsage[];
+  /** Статус закупки лота: RECEIVED (принята на склад — лот создан), DRAFT (заказано, не получено), CANCELLED. Нет значения — RECEIVED. */
+  purchaseStatus?: "RECEIVED" | "DRAFT" | "CANCELLED";
+  /** Дата заказа закупки (yyyy-mm-dd) — для фильтра «Дата с / по»; у строк-заглушек нет. */
+  orderDate?: string;
+  /** Оплачено и к оплате по лоту, ₽ с НДС: доля оплат и долга аукциона пропорционально стоимости лота (как в таблице «по сырью» Главной). Проставляет страница «Сырьё»; нет — фильтр «Оплата» не показывается. */
+  paid?: number;
+  due?: number;
+  /** Строка-заглушка «заказано, не получено»: цена в $ из расчёта ПОЗИЦИЙ закупки (costPlan) — шт. и Σ $. В потоки/плитки не входит; показывается у вида меха без лотов с $ (рысь), как в окне «Цена по видам сырья» на Главной. */
+  usdPlanQty?: number;
+  usdPlanSubtotal?: number;
 };
 
 // ───────────────────────────── суммы ─────────────────────────────
@@ -219,16 +229,31 @@ export function flowIssues(f: Flow, tolQty = 0.0005, tolMoney = 0.5): string[] {
 
 // ───────────────────────────── фильтры ─────────────────────────────
 
-export type FilterKey = "item" | "year" | "color" | "size" | "attr" | "auction" | "rest";
+export type FilterKey = "item" | "year" | "color" | "size" | "attr" | "auction" | "rest" | "supplier" | "status" | "pay" | "usage" | "rate";
 export type FurFilters = Record<FilterKey, string[]>;
-export const FILTER_KEYS: FilterKey[] = ["item", "year", "color", "size", "attr", "auction", "rest"];
-export const emptyFilters = (): FurFilters => ({ item: [], year: [], color: [], size: [], attr: [], auction: [], rest: [] });
+export const FILTER_KEYS: FilterKey[] = ["item", "year", "color", "size", "attr", "auction", "rest", "supplier", "status", "pay", "usage", "rate"];
+export const emptyFilters = (): FurFilters => ({ item: [], year: [], color: [], size: [], attr: [], auction: [], rest: [], supplier: [], status: [], pay: [], usage: [], rate: [] });
+
+/** Служебное значение фильтра «Поставщик»: у строки нет поставщика (заказано без закупки, шкуры подрядчика). */
+export const NO_SUPPLIER = "none";
 
 /** Служебное значение фильтра «Признак меха»: у лота нет признаков. */
 export const NO_ATTR = "none";
 export const hasFilters = (f: FurFilters) => FILTER_KEYS.some((k) => f[k].length > 0);
 
 export const REST_LABELS: Record<string, string> = { with: "С остатком", zero: "Исчерпан" };
+export const STATUS_LABELS: Record<string, string> = { RECEIVED: "Принята на склад", DRAFT: "Черновик (заказано, не получено)", CANCELLED: "Отменена" };
+export const PAY_LABELS: Record<string, string> = { paid: "Оплачено", partial: "Оплачено частично", unpaid: "Не оплачено" };
+export const USAGE_LABELS: Record<string, string> = { used: "Использован в ТЗ", unused: "Не использован" };
+const FIXED_ORDER: Partial<Record<FilterKey, string[]>> = { status: ["RECEIVED", "DRAFT", "CANCELLED"], pay: ["paid", "partial", "unpaid"], usage: ["used", "unused"] };
+
+/** Оплата лота: «Оплачено» — долга нет, «Не оплачено» — оплат нет, иначе «Частично». Без данных об оплате (paid/due не заданы) — null. */
+export function payState(l: Pick<FurLot, "paid" | "due">): "paid" | "partial" | "unpaid" | null {
+  if (l.paid == null || l.due == null) return null;
+  if (l.due < 0.5) return "paid";
+  if (l.paid < 0.5) return "unpaid";
+  return "partial";
+}
 
 export function lotValue(l: FurLot, key: FilterKey): string {
   switch (key) {
@@ -239,6 +264,11 @@ export function lotValue(l: FurLot, key: FilterKey): string {
     case "attr": return l.attrs[0] ?? NO_ATTR;
     case "auction": return l.auction;
     case "rest": return l.rem > 0 ? "with" : "zero";
+    case "supplier": return l.supplier?.trim() || NO_SUPPLIER;
+    case "status": return l.purchaseStatus ?? "RECEIVED";
+    case "pay": return payState(l) ?? "paid";
+    case "usage": return l.used > 0 || l.usedIncl > 0 ? "used" : "unused";
+    case "rate": return String(l.vatRate);
   }
 }
 
@@ -279,12 +309,14 @@ export function filterOptions(lots: FurLot[], filters: FurFilters, key: FilterKe
     if (!counts.has(v)) {
       counts.set(v, 0);
       const sample = lots.find((l) => lotValues(l, key).includes(v));
-      labels.set(v, sample ? labelOf(sample, key, v) : v === NO_AUCTION ? "Без аукциона" : REST_LABELS[v] ?? v);
+      labels.set(v, sample ? labelOf(sample, key, v) : v === NO_AUCTION ? "Без аукциона" : REST_LABELS[v] ?? STATUS_LABELS[v] ?? PAY_LABELS[v] ?? USAGE_LABELS[v] ?? v);
     }
   }
   const out = Array.from(counts, ([value, count]) => ({ value, label: labels.get(value) ?? value, count }));
   if (key === "year") out.sort((a, b) => Number(b.value) - Number(a.value));
   else if (key === "rest") out.sort((a, b) => (a.value === "with" ? -1 : 1) - (b.value === "with" ? -1 : 1));
+  else if (FIXED_ORDER[key]) out.sort((a, b) => FIXED_ORDER[key]!.indexOf(a.value) - FIXED_ORDER[key]!.indexOf(b.value));
+  else if (key === "rate") out.sort((a, b) => Number(a.value) - Number(b.value));
   // «не указан в документах» — отдельной строкой в конце списка (с числом лотов).
   else out.sort((a, b) => Number(a.value === NOT_SET || a.value === NO_ATTR) - Number(b.value === NOT_SET || b.value === NO_ATTR) || collator.compare(a.label, b.label));
   return out;
@@ -293,6 +325,11 @@ export function filterOptions(lots: FurLot[], filters: FurFilters, key: FilterKe
 function labelOf(l: FurLot, key: FilterKey, v: string): string {
   if (key === "auction") return l.auctionLabel;
   if (key === "rest") return REST_LABELS[v] ?? v;
+  if (key === "status") return STATUS_LABELS[v] ?? v;
+  if (key === "pay") return PAY_LABELS[v] ?? v;
+  if (key === "usage") return USAGE_LABELS[v] ?? v;
+  if (key === "rate") return `${v}%`;
+  if (key === "supplier" && v === NO_SUPPLIER) return "Без поставщика";
   if (v === NO_ATTR && key === "attr") return "Без признака";
   if (v === NOT_SET && key === "size") return "Размер не указан в документах";
   if (v === NOT_SET && key === "color") return "Цвет не указан в документах";
@@ -364,8 +401,8 @@ type Q = Record<string, string | string[] | undefined>;
 /** Имена параметров URL: у меха `fur`, `pyear` (старые `year`, `py`), `color`, `size`, `batch`, `rest`; у подкладки — то же с префиксом `l` (`lmat`, `lyear`…). */
 export function paramNames(kind: FurKind): Record<FilterKey, string[]> {
   return kind === "fur"
-    ? { item: ["fur", "kind", "species"], year: ["pyear", "py", "year", "years"], color: ["color"], size: ["size"], attr: ["attr"], auction: ["batch", "auc"], rest: ["rest"] }
-    : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], attr: ["lattr"], auction: ["lbatch"], rest: ["lrest"] };
+    ? { item: ["fur", "kind", "species"], year: ["pyear", "py", "year", "years"], color: ["color"], size: ["size"], attr: ["attr"], auction: ["batch", "auc"], rest: ["rest"], supplier: ["supplier"], status: ["pstatus"], pay: ["pay"], usage: ["usage"], rate: ["rate"] }
+    : { item: ["lmat", "lining"], year: ["lyear"], color: ["lcolor"], size: ["lsize"], attr: ["lattr"], auction: ["lbatch"], rest: ["lrest"], supplier: ["lsupplier"], status: ["lpstatus"], pay: ["lpay"], usage: ["lusage"], rate: ["lrate"] };
 }
 
 const asList = (v: string | string[] | undefined): string[] =>
@@ -380,6 +417,10 @@ export function parseFilters(q: Q, kind: FurKind): FurFilters {
     f[k] = Array.from(new Set(vals));
   }
   f.rest = f.rest.filter((v) => v === "with" || v === "zero");
+  f.status = f.status.filter((v) => v in STATUS_LABELS);
+  f.pay = f.pay.filter((v) => v in PAY_LABELS);
+  f.usage = f.usage.filter((v) => v in USAGE_LABELS);
+  f.rate = f.rate.filter((v) => /^\d{1,2}$/.test(v));
   f.year = f.year.filter((v) => /^\d{4}$/.test(v));
   return f;
 }
@@ -398,3 +439,14 @@ export function allParamNames(kind: FurKind): string[] {
 }
 
 export const FOUR_PERCENT = COMMISSION_RATE;
+
+/**
+ * Цена в $ вида меха без лотов с ценой в $ (рысь: закупка заказана, лотов нет) — по расчёту позиций закупки; у вида с лотами остаётся цена по лотам
+ * (как rawTable.usd на Главной). Возвращает среднюю $ за шт. или null. Итоговые строки и плитки её не включают.
+ */
+export function planUsdAvg(lots: FurLot[], flow: Flow): number | null {
+  if (flow.usdQty > 0) return null;
+  let q = 0, sum = 0;
+  for (const l of lots) { q += l.usdPlanQty ?? 0; sum += l.usdPlanSubtotal ?? 0; }
+  return q > 0 ? sum / q : null;
+}

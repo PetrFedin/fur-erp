@@ -248,9 +248,12 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
   const c4Mode = await getCommission4Mode();
   const dash = await loadDashboard(orgId, year, parseDashFilters({}), c4Mode);
-  const furTabLots = tab === "fur" ? [...tableLots, ...dash.syntheticLots] : tableLots;
+  // Деньги по лотам (доля аукциона по стоимости лота) — для фильтра «Оплата» и плиток оплат при фильтрах таблицы.
+  const withMoney = (l: (typeof tableLots)[number]) => ({ ...l, paid: dash.lotMoney[l.id]?.paid ?? 0, due: dash.lotMoney[l.id]?.due ?? 0 });
+  const furTabLots = tab === "fur" ? [...tableLots.map(withMoney), ...dash.syntheticLots] : tableLots.map(withMoney);
   const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
   // Один ряд виджетов: «Сырьё | Оплаты» — шесть плиток в строку на мониторе, тонкая линия между группами (как на Главной).
+  const tilesHeaderEnd = <Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>;
   const tiles = (
     <div key="raw-tiles" data-raw-tiles>
       <RawCards
@@ -259,7 +262,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         fur={dash.raw.fur}
         lining={dash.raw.lining}
         c4={c4Mode}
-        headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}
+        headerEnd={tilesHeaderEnd}
         pay={<PayTiles bare d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />}
       />
     </div>
@@ -320,7 +323,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Справа за тонкой линией: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
             </InfoHint>
           </div>
-          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} widgets={tiles} />
+          <FurSelectionTotal lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable }} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">
@@ -332,13 +335,14 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           </div>
           {/* Порядок: фильтры → ряд виджетов (плитки + формы подкладки) → таблица — это задаёт FurSelectionTotal. */}
           <FurSelectionTotal
-            lots={tableLots}
+            lots={furTabLots}
             kind="lining"
             globalYear={year}
             initialQuery={sp}
-            widgets={
+            raw={{
+              tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable,
+              after: (
 <div key="raw-widgets" className="space-y-3">
-          {tiles}
           <details className="rounded-lg border border-neutral-200 bg-white">
             <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">+ Закупка подкладки</summary>
             <div className="border-t border-neutral-100 p-3">
@@ -378,7 +382,8 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             </div>
           </details>
           </div>
-            }
+              ),
+            }}
           />
         </section>
       )}

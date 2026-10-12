@@ -4,18 +4,15 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/components/money";
-import { docCounts } from "@/lib/doc-links";
 import { VatLabel } from "@/components/vat-label";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, toWhere, dateRange } from "@/lib/filters";
 import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/lib/filter-options";
-import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { loadAuctionSummaries, auctionName, PAY_EPS } from "@/lib/auction-payments";
 import { escapeLike } from "@/lib/input";
 import { getYearFilter } from "@/lib/year-filter";
@@ -24,10 +21,13 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { PurchasesTabs } from "@/components/raw-tabs";
 import { loadPaymentsOverview } from "@/lib/payments-overview";
+import { loadFurLots } from "@/lib/fur-table-server";
+import { getFurIndex } from "@/lib/fur-ref-server";
+import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../dashboard/tile";
-import { PurchasesTree, type TreeBatch, type TreeYear } from "./purchases-tree";
+import { PurchasesList, PurchasesTree } from "./purchases-tree";
+import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 
-// Two states in the UI (existing ORDERED / IN_TRANSIT rows show as a draft).
 function firstLine(v: string | null) {
   return (v ?? "").split(/\r?\n/)[0].trim();
 }
@@ -35,11 +35,12 @@ function firstLine(v: string | null) {
 export const metadata = { title: "Закупки" };
 
 const PURCHASE_FILTERS = defineFilters({
-  ...pick(["auction", "status", "supplier", "fur", "verified", "vat", "pyear", "q", "from", "to", "view"], {
+  ...pick(["auction", "status", "supplier", "fur", "color", "size", "attr", "rest", "usage", "pay", "verified", "vat", "pyear", "q", "from", "to", "view", "sort", "dir"], {
     view: { allowed: ["tree", "list"] },
-    status: { allowed: ["DRAFT", "RECEIVED", "CANCELLED"] },
+    status: { allowed: ["DRAFT", "RECEIVED", "CANCELLED"], label: "Статус закупки" },
     verified: { allowed: ["yes", "no"], label: "Подтверждение" },
     vat: { label: "НДС" },
+    sort: { allowed: ["number", "year", "batch", "supplier", "date", "status", "lots", "fur", "lining", "total", "paid", "rest", "used", "rem"] },
   }),
 });
 const STATUS_OPTIONS = [
@@ -56,6 +57,21 @@ const VAT_OPTIONS = [
   { value: "22", label: "Только 22%" },
   { value: "mixed", label: "Смешанные (20% и 22%)" },
 ];
+const REST_OPTIONS = [
+  { value: "with", label: "Есть остаток" },
+  { value: "zero", label: "Остатка нет (исчерпан)" },
+];
+const USAGE_OPTIONS = [
+  { value: "used", label: "Использована в ТЗ" },
+  { value: "unused", label: "Не использована" },
+];
+const PAY_OPTIONS = [
+  { value: "paid", label: "Оплачена" },
+  { value: "partial", label: "Оплачена частично" },
+  { value: "unpaid", label: "Не оплачена" },
+];
+
+const num = (d: Decimal) => d.toNumber();
 
 export default async function PurchasesPage({ searchParams }: PageProps<"/purchases">) {
   const session = await requireSession();
@@ -65,15 +81,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const orgId = session.user.organizationId;
   const f = parseFilters(PURCHASE_FILTERS, sp);
   const PAGE = 50;
-  // Вид: «По годам и партиям» (дерево, по умолчанию) или «Списком» (плоская таблица с постраничным «Показать ещё»).
+  // Вид: «По годам и партиям» (дерево, по умолчанию) или «Списком» (плоская таблица с сортировкой и «Показать ещё»).
   const tree = f.view !== "list";
   const limitRaw = Number(f.limit || PAGE);
-  const limit = tree ? 2000 : Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
   const filtersOn = activeCount(PURCHASE_FILTERS, f) > 0;
 
-  // Партия закупки: точное название (как в списке) либо — для старых ссылок — вхождение в название; none — «Без аукциона».
   const auctionIds = f.auction.length ? await purchaseIdsByAuction(orgId, f.auction) : null;
-  // Вид меха: закупки с позицией, чей материал относится к выбранному виду.
   const furMaterialIds = f.fur.length ? await furMaterialIdsByKind(orgId, f.fur) : [];
   const vatKinds = new Set(f.vat.map((v) => (v === "mix" ? "mixed" : v)));
   const vatWhere = (k: string): Prisma.PurchaseWhereInput =>
@@ -83,10 +97,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const where: Prisma.PurchaseWhereInput = {
     organizationId: orgId,
     AND: [
-      // Общий год — по дате заказа закупки (дальше сужают «год закупки» и «с / по»).
       purchaseYear(year),
       ...toWhere<typeof f, Prisma.PurchaseWhereInput>(f, {
-        // Two states in the UI: everything not received/cancelled is a draft.
         status: (v) => ({
           OR: v.map((x) =>
             x === "RECEIVED" ? { status: "RECEIVED" as const } : x === "CANCELLED" ? { status: "CANCELLED" as const } : { status: { notIn: ["RECEIVED" as const, "CANCELLED" as const] } },
@@ -111,100 +123,149 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       }),
     ],
   };
-  const purchases = await prisma.purchase.findMany({
-    where,
-    include: {
-      supplier: true,
-      items: { include: { rawMaterial: true } },
-      expenses: { include: { category: true } },
-      payments: true,
-    },
-    // Numbers are З-YYYY-NNNN (zero-padded), so a string sort is numeric.
-    orderBy: { number: "desc" },
-    take: limit + 1, // +1 — чтобы понять, есть ли ещё
-  });
-  const hasMore = purchases.length > limit;
-  if (hasMore) purchases.length = limit;
-  // Поставщик в списке — только если их несколько (иначе колонка повторяет одно и то же).
-  const multiSupplier = new Set(purchases.map((p) => p.supplier.id)).size > 1;
-  const moreHref = filterHref(PURCHASE_FILTERS, "/purchases", f, { limit: String(limit + PAGE) });
+  const furIdx = await getFurIndex(orgId);
+  const [found, furLots, liningLots, opts, sizeRows] = await Promise.all([
+    prisma.purchase.findMany({
+      where,
+      include: { supplier: true, items: { include: { rawMaterial: true } }, expenses: { include: { category: true } }, payments: true },
+      orderBy: { number: "desc" },
+    }),
+    loadFurLots(prisma, orgId, { kind: "fur", year: "all", furIdx }),
+    loadFurLots(prisma, orgId, { kind: "lining", year: "all", furIdx }),
+    getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur", "color", "attr"]),
+    prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
+  ]);
+  const lotsOf = new Map<string, FurLot[]>();
+  const lotById = new Map<string, FurLot>();
+  for (const l of [...furLots, ...liningLots]) {
+    lotById.set(l.id, l);
+    if (l.purchaseId) lotsOf.set(l.purchaseId, [...(lotsOf.get(l.purchaseId) ?? []), l]);
+  }
+  const sizeOptions = [...new Set(sizeRows.flatMap((r) => (r.sizeGrade ?? "").split(/[\s,]+/).map((x) => x.trim()).filter(Boolean)))]
+    .sort((a, b) => a.localeCompare(b, "ru", { numeric: true }))
+    .map((v) => ({ value: v, label: v }));
 
   // Оплаты по закупкам с аукционом ведутся по аукциону целиком — «оплачено» берём оттуда.
-  const pageAuctionNames = [...new Set(purchases.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
-  const auctionPays = new Map(
-    (pageAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, pageAuctionNames) : []).map((a) => [a.name, a]),
-  );
+  const auctionNames = [...new Set(found.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
+  const auctionPays = new Map((auctionNames.length ? await loadAuctionSummaries(prisma, orgId, auctionNames) : []).map((a) => [a.name, a]));
 
+  // Строки закупок: один расчёт для дерева, списка и плиток (одинаковые итоги).
+  const all: TreePurchase[] = found.map((p) => {
+    const total = purchaseTotalInclVat(p);
+    const own = p.payments.filter((x) => x.status === "COMPLETED");
+    const ownSum = own.reduce((a, x) => a.add(x.amount), new Decimal(0));
+    const cancelled = p.status === "CANCELLED";
+    const an = auctionName(p.auctionSession);
+    const ap = auctionPays.get(an ?? "");
+    const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : ownSum;
+    const ls = lotsOf.get(p.id) ?? [];
+    const status: PurchaseStatus = cancelled ? "CANCELLED" : p.status === "RECEIVED" ? "RECEIVED" : "DRAFT";
+    const items = p.items.map((i) => {
+      const lot = i.lotId ? lotById.get(i.lotId) : undefined;
+      const q = num(i.quantity);
+      const sum = num(itemTotalInclVat(i, p.exchangeRate));
+      const unit = i.rawMaterial.unit === "M" ? ("м" as const) : ("шт." as const);
+      return {
+        id: i.id, lotId: i.lotId, material: i.rawMaterial.name, unit, qty: q, lot: i.lotNumber,
+        color: lot && lot.color !== NOT_SET ? lot.color : null, size: lot && lot.size !== NOT_SET ? lot.size : null, grade: lot?.grade || null,
+        sum, priceRub: q > 0 ? sum / q : null, priceUsd: lot?.usdPrice ?? null,
+        recv: lot ? lot.recv : null, used: lot?.used ?? 0, rem: lot?.rem ?? 0,
+        usages: (lot?.usages ?? []).map((u) => ({ orderId: u.orderId, number: u.number, qty: u.qty, sum: u.incl })),
+      };
+    });
+    const unitIsM = (i: (typeof items)[number]) => i.unit === "м";
+    return {
+      id: p.id, number: p.number, date: formatDate(p.orderDate), year: p.orderDate.getUTCFullYear(),
+      batchKey: an ?? "none", batchLabel: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", auction: an,
+      supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null, status,
+      total: num(total), totalExcl: num(purchaseTotalExclVat(p)), paid: num(paidShare), rest: cancelled ? 0 : num(total.sub(paidShare)),
+      paidBatch: num(paidShare.sub(own.length > 0 ? ownSum : 0)),
+      lots: p.items.length, fur: items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0), lining: items.filter(unitIsM).reduce((a, i) => a + i.qty, 0),
+      usedValue: ls.reduce((a, l) => a + l.usedIncl, 0), recvValue: ls.reduce((a, l) => a + l.recvIncl, 0), hasLots: ls.length > 0,
+      remFur: ls.filter((l) => l.kind === "fur").reduce((a, l) => a + l.rem, 0), remLining: ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0),
+      items,
+      expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(grossUp(e.amount, e.vatRate)) })),
+      pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: num(x.amount), doc: x.docRef?.trim() || null })),
+    };
+  });
 
-  const opts = await getFilterOptions(orgId, year, ["auction", "pyear", "supplier", "fur"]);
+  // Фильтры по лотам и оплате — в памяти: закупка подходит, если ЕЁ лот подходит под все выбранные признаки лота (цвет, размер, признак меха, остаток, использование).
+  const lotFilter = { ...emptyFilters(), color: f.color, size: f.size, attr: f.attr, rest: f.rest, usage: f.usage };
+  const lotFilterOn = f.color.length + f.size.length + f.attr.length + f.rest.length + f.usage.length > 0;
+  const payOf = (p: TreePurchase): "paid" | "partial" | "unpaid" => (p.rest <= 0.005 ? "paid" : p.paid <= 0.005 ? "unpaid" : "partial");
+  const rows = all.filter((p) => {
+    if (lotFilterOn && filterLots(lotsOf.get(p.id) ?? [], lotFilter).length === 0) return false;
+    if (f.pay.length && (p.status === "CANCELLED" || !f.pay.includes(payOf(p)))) return false;
+    return true;
+  });
 
-  // Итоги — по ВСЕМ закупкам выборки (а не только по показанным строкам): куплено, оплачено, остаток.
-  const allPurchases = await prisma.purchase.findMany({ where, include: { items: true, expenses: true, payments: true } });
-  const allAuctionNames = [...new Set(allPurchases.map((p) => auctionName(p.auctionSession)).filter((n): n is string => !!n))];
-  const allAuctionPays = new Map((allAuctionNames.length ? await loadAuctionSummaries(prisma, session.user.organizationId, allAuctionNames) : []).map((a) => [a.name, a]));
-  let bought = new Decimal(0), boughtExcl = new Decimal(0), paidAll = new Decimal(0);
-  for (const p of allPurchases) {
-    if (p.status === "CANCELLED") continue;
-    const t = purchaseTotalInclVat(p);
-    const ap = allAuctionPays.get(auctionName(p.auctionSession) ?? "");
-    bought = bought.add(t);
-    boughtExcl = boughtExcl.add(purchaseTotalExclVat(p));
-    paidAll = paidAll.add(ap && ap.total.greaterThan(0) ? ap.paid.mul(t).div(ap.total) : p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0)));
-  }
+  // Итоги — по ВСЕМ закупкам выборки (не только по показанным строкам).
+  const tot = aggregate(rows);
+  const live = rows.filter((p) => p.status !== "CANCELLED");
   // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
   const hidesAll = !filtersOn ? new Decimal((await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
-  const boughtTotal = bought.add(hidesAll);
-  const paidTotal = paidAll.add(hidesAll);
-  const restTotal = boughtTotal.sub(paidTotal);
+  const hides = hidesAll.toNumber();
+  const boughtTotal = tot.total + hides;
+  const boughtExcl = tot.totalExcl + hides;
+  const paidTotal = tot.paid + hides;
+  const restRaw = boughtTotal - paidTotal;
+  const restTotal = Math.abs(restRaw) <= 0.5 ? 0 : restRaw;
 
-  // Дерево «год → партия → закупка → позиции / расходы / оплаты»: те же суммы, что в списке.
+  // Дерево «год → партия → закупка → позиции / расходы / оплаты».
   const treeYears: TreeYear[] = [];
   if (tree) {
-    const byYear = new Map<number, Map<string, TreeBatch & { first: number }>>();
-    for (const p of purchases) {
-      const total = purchaseTotalInclVat(p);
-      const own = p.payments.filter((x) => x.status === "COMPLETED");
-      const ownSum = own.reduce((a, x) => a.add(x.amount), new Decimal(0));
-      const cancelled = p.status === "CANCELLED";
-      const an = auctionName(p.auctionSession);
-      const ap = auctionPays.get(an ?? "");
-      const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : ownSum;
-      const y = p.orderDate.getUTCFullYear();
-      const bk = an ?? "none";
-      const batches = byYear.get(y) ?? new Map();
-      const b = batches.get(bk) ?? { key: bk, label: an ? shortAuctionName(firstLine(p.auctionSession)) : "Без аукциона", title: an ?? undefined, href: ap ? `/payments?auction=${encodeURIComponent(ap.name)}#auction-block` : undefined, purchases: [], first: p.orderDate.getTime() };
-      b.first = Math.min(b.first, p.orderDate.getTime());
-      b.purchases.push({
-        id: p.id, number: p.number, date: formatDate(p.orderDate), supplier: p.supplier.name, invoice: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null,
-        cancelled, received: p.status === "RECEIVED",
-        total: total.toNumber(), paid: paidShare.toNumber(), rest: cancelled ? 0 : total.sub(paidShare).toNumber(),
-        paidBatch: paidShare.sub(own.length > 0 ? ownSum : 0).toNumber(),
-        items: p.items.map((i) => ({ id: i.id, lotId: i.lotId, label: i.rawMaterial.name, lot: i.lotNumber, qty: `${formatQty(i.quantity.toString())} ${i.rawMaterial.unit === "M" ? "м" : "шт."}`, sum: itemTotalInclVat(i, p.exchangeRate).toNumber() })),
-        expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: grossUp(e.amount, e.vatRate).toNumber() })),
-        pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: x.amount.toNumber(), doc: x.docRef?.trim() || null })),
-      });
-      batches.set(bk, b);
-      byYear.set(y, batches);
+    const byYear = new Map<number, Map<string, TreeBatch & { first: string }>>();
+    for (const p of rows) {
+      const batches = byYear.get(p.year) ?? new Map();
+      const ap = auctionPays.get(p.auction ?? "");
+      const b = batches.get(p.batchKey) ?? {
+        key: p.batchKey, label: p.batchLabel, title: p.auction ?? undefined,
+        href: ap ? `/payments?auction=${encodeURIComponent(ap.name)}#auction-block` : undefined,
+        docsHref: p.auction ? `/documents?auction=${encodeURIComponent(p.auction)}` : undefined,
+        purchases: [], first: "",
+      };
+      b.purchases.push(p);
+      batches.set(p.batchKey, b);
+      byYear.set(p.year, batches);
     }
-    for (const [year, batches] of [...byYear].sort((a, b) => a[0] - b[0])) {
-      const list = [...batches.values()].sort((a, b) => Number(a.key === "none") - Number(b.key === "none") || a.first - b.first || a.label.localeCompare(b.label, "ru", { numeric: true }));
-      for (const b of list) b.purchases.sort((x, y2) => x.number.localeCompare(y2.number, "ru", { numeric: true }));
-      treeYears.push({ year, batches: list.map(({ first: _f, ...rest }) => rest) });
+    for (const [y, batches] of [...byYear].sort((a, b) => a[0] - b[0])) {
+      const list = [...batches.values()];
+      for (const b of list) b.purchases.sort((x, z) => x.number.localeCompare(z.number, "ru", { numeric: true }));
+      list.sort((a, b) => Number(a.key === "none") - Number(b.key === "none") || a.purchases[0].number.localeCompare(b.purchases[0].number, "ru", { numeric: true }));
+      treeYears.push({ year: y, batches: list.map(({ first: _f, ...rest }) => rest) });
     }
   }
 
-  // Сумма аукциона одна на все его закупки: полностью — в первой строке аукциона, дальше короткая подпись.
+  // «Списком»: сортировка по клику на заголовок (параметры sort / dir), по умолчанию — № закупки по убыванию.
+  const sortKey = f.sort || "number";
+  const sortDir: "asc" | "desc" = f.dir === "asc" ? "asc" : f.dir === "desc" ? "desc" : sortKey === "number" ? "desc" : "asc";
+  const usedPct = (p: TreePurchase) => (p.hasLots && p.recvValue > 0.5 ? p.usedValue / p.recvValue : -1);
+  const SORT: Record<string, (p: TreePurchase) => number | string> = {
+    number: (p) => p.number, year: (p) => p.year, batch: (p) => p.batchLabel, supplier: (p) => p.supplier, date: (p) => p.date.split(".").reverse().join(""), status: (p) => p.status,
+    lots: (p) => p.lots, fur: (p) => p.fur, lining: (p) => p.lining, total: (p) => p.total, paid: (p) => p.paid, rest: (p) => p.rest, used: usedPct, rem: (p) => p.remFur + p.remLining,
+  };
+  const collator = new Intl.Collator("ru", { numeric: true });
+  const sorted = [...rows].sort((a, b) => {
+    const x = (SORT[sortKey] ?? SORT.number)(a), y = (SORT[sortKey] ?? SORT.number)(b);
+    const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
+    return (sortDir === "asc" ? c : -c) || collator.compare(b.number, a.number);
+  });
+  const listRows = sorted.slice(0, limit);
+  const hasMore = sorted.length > limit;
+  const sortHrefs = Object.fromEntries(
+    Object.keys(SORT).map((k) => [k, filterHref(PURCHASE_FILTERS, "/purchases", f, { sort: k, dir: sortKey === k && sortDir === (k === "number" ? "desc" : "asc") ? (k === "number" ? "asc" : "desc") : k === "number" ? "desc" : "asc", limit: "" })]),
+  );
+  const moreHref = filterHref(PURCHASE_FILTERS, "/purchases", f, { limit: String(limit + PAGE) });
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        {/* Значок «i» и метка года — рядом с заголовком, а не внутри него: иначе название заголовка читается как «Закупки О странице…». */}
         <div className="flex flex-wrap items-center">
           <h1 className="text-xl font-semibold">Закупки</h1>
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
           <InfoHint label="О странице «Закупки»" wide>
-            <p>Список закупок сырья и подкладки: поставщик, партия закупки, счёт, сумма и оплата. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
+            <p>Закупки сырья и подкладки: поставщик, партия закупки, счёт, сумма и оплата, использование лотов в ТЗ. Откройте закупку, чтобы увидеть позиции, расходы, расчёт цены и документы.</p>
             <p className="mt-1">
               Год ({year === "all" ? "все годы" : year}): по дате заказа закупки. Поля «с / по» сужают выбор внутри года.
             </p>
@@ -215,65 +276,84 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </InfoHint>
           </span>
         </div>
-        {/* Телефон: главное действие — первым и на всю ширину, второстепенные ниже в ряд. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/payments" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>
-            Оплаты
-          </Link>
-          {canCreate && (
-            <>
-              <Link href="/purchases/batch" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>
-                Новая партия (мастер)
-              </Link>
-              <Link href="/purchases/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
-                + Новая закупка
-              </Link>
-            </>
-          )}
-        </div>
       </div>
 
       <PurchasesTabs />
 
-      <FilterBar
-        title="Фильтры закупок"
-        controls={[
-          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
-          { type: "multi", name: "status", label: "Статус", options: STATUS_OPTIONS, allLabel: "Все статусы" },
-          { type: "multi", name: "supplier", label: "Поставщик", options: opts.supplier },
-          { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
-          { type: "multi", name: "verified", label: "Подтверждение", options: VERIFIED_OPTIONS, allLabel: "Любое" },
-          { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка" },
-          { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
-          { type: "date", name: "from", label: "Дата с" },
-          { type: "date", name: "to", label: "Дата по" },
-        ]}
-      />
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры закупок"
+          oneRow
+          hideChips
+          controls={[
+            { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: opts.pyear, allLabel: "Все годы", hint: "Дополнительно к году в шапке: сужает выбор внутри него" },
+            { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
+            { type: "multi", name: "supplier", label: "Поставщик", options: opts.supplier, allLabel: "Все поставщики" },
+            { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur, allLabel: "Все виды" },
+            { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", hint: "Закупка подходит, если у неё есть лот этого цвета" },
+            { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", hint: "Закупка подходит, если у неё есть лот этого размера" },
+            { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
+            { type: "multi", name: "status", label: "Статус закупки", options: STATUS_OPTIONS, allLabel: "Все статусы", more: true },
+            { type: "multi", name: "pay", label: "Оплата", options: PAY_OPTIONS, allLabel: "Любая", more: true, hint: "Оплата закупки с учётом доли оплат её партии" },
+            { type: "multi", name: "usage", label: "Использование", options: USAGE_OPTIONS, allLabel: "Любое", more: true, hint: "Закупка подходит, если есть лот, использованный (не использованный) в ТЗ" },
+            { type: "multi", name: "rest", label: "Остаток", options: REST_OPTIONS, allLabel: "Любой", more: true, hint: "Закупка подходит, если есть лот с остатком (или исчерпанный)" },
+            { type: "multi", name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true },
+            { type: "multi", name: "verified", label: "Подтверждение", options: VERIFIED_OPTIONS, allLabel: "Любое", more: true },
+            { type: "multi", name: "vat", label: "НДС", aliases: ["nds"], options: VAT_OPTIONS, allLabel: "Любая ставка", more: true },
+            { type: "date", name: "from", label: "Дата с", more: true },
+            { type: "date", name: "to", label: "Дата по", more: true },
+          ]}
+          resetExtra={["sort", "dir"]}
+        />
+      </div>
 
       <WidgetRow id="purchases" title="Закупки — итоги" headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-testid="purchases-totals">
-        <div className={TILE_BOX}>
-          <TileHead><VatLabel base="Куплено" /></TileHead>
-          <div className="absolute right-3 top-3">
-            <InfoHint label="О «Куплено»" align="right">
-              <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
-            </InfoHint>
+        <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_10rem]" data-testid="purchases-totals">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:col-span-6 xl:grid-cols-6 print:grid-cols-6">
+            <div className={TILE_BOX}>
+              <TileHead>Закупок</TileHead>
+              <TileValue compact>{tot.purchases}</TileValue>
+              <TileCaption>{tot.draft > 0 ? `из них черновиков: ${tot.draft}` : "все приняты на склад"}</TileCaption>
+            </div>
+            <div className={TILE_BOX}>
+              <TileHead>Лотов</TileHead>
+              <TileValue compact>{tot.lots}</TileValue>
+              <TileCaption>позиций закупок</TileCaption>
+            </div>
+            <div className={TILE_BOX}>
+              <TileHead>Шкур, шт.</TileHead>
+              <TileValue compact>{formatQty(tot.fur)}</TileValue>
+              <TileCaption>{tot.lining > 0 ? `подкладка: ${formatQty(tot.lining)} м` : "подкладки нет"}</TileCaption>
+            </div>
+            <div className={TILE_BOX}>
+              <TileHead><VatLabel base="Куплено" /></TileHead>
+              <div className="absolute right-3 top-3">
+                <InfoHint label="О «Куплено»" align="right">
+                  <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
+                </InfoHint>
+              </div>
+              <TileValue compact><Money incl={boughtTotal.toFixed(2)} excl={boughtExcl.toFixed(2)} /></TileValue>
+              <TileCaption>{hides > 0.5 ? `с шкурами подрядчика ${formatMoney(hides.toFixed(2))}` : "позиции + расходы"}</TileCaption>
+            </div>
+            <div className={TILE_BOX}>
+              <TileHead>Оплачено</TileHead>
+              <TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue>
+              <TileCaption>{boughtTotal > 0 ? `${formatPercent((paidTotal / boughtTotal) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
+            </div>
+            <div className={TILE_BOX}>
+              <TileHead>К оплате</TileHead>
+              <TileValue compact className={restTotal > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(restTotal.toFixed(2))}</TileValue>
+              <TileCaption>{boughtTotal > 0 ? `${formatPercent((restTotal / boughtTotal) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
+            </div>
           </div>
-          <TileValue><Money incl={boughtTotal} excl={boughtExcl.add(hidesAll)} /></TileValue>
-          <TileCaption>{allPurchases.filter((p) => p.status !== "CANCELLED").length} закупок{hidesAll.greaterThan(0) ? ` · с шкурами подрядчика ${formatMoney(hidesAll.toFixed(2))}` : ""}</TileCaption>
+          {/* Колонка действий справа. */}
+          <div className="flex flex-row flex-wrap items-stretch gap-2 print:hidden xl:flex-col xl:flex-nowrap" aria-label="Действия">
+            {canCreate ? <Link href="/purchases/new" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>+ Новая закупка</Link> : null}
+            {canCreate ? <Link href="/purchases/batch" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Новая партия (мастер)</Link> : null}
+            <Link href="/payments" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Оплаты</Link>
+            <Link href="/analytics/raw" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Аналитика сырья</Link>
+          </div>
         </div>
-        <div className={TILE_BOX}>
-          <TileHead>Оплачено</TileHead>
-          <TileValue>{formatMoney(paidTotal.toFixed(2))}</TileValue>
-          <TileCaption>{boughtTotal.greaterThan(0) ? `${formatPercent(paidTotal.div(boughtTotal).mul(100).toNumber())} от куплено · всегда с НДС` : "всегда с НДС"}</TileCaption>
-        </div>
-        <div className={TILE_BOX}>
-          <TileHead>К оплате</TileHead>
-          <TileValue className={restTotal.greaterThan(PAY_EPS) ? "text-amber-700" : ""}>{formatMoney(restTotal.toFixed(2))}</TileValue>
-          <TileCaption>{boughtTotal.greaterThan(0) ? `${formatPercent(restTotal.div(boughtTotal).mul(100).toNumber())} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
-        </div>
-      </div>
       </WidgetRow>
 
       <div role="tablist" aria-label="Вид таблицы закупок" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
@@ -284,134 +364,36 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ))}
       </div>
 
-      {tree ? <PurchasesTree years={treeYears} hides={hidesAll.toNumber()} /> : (
-      <ResponsiveRows
-        table={
-      <Table anchor="table:purchases" label="Таблица закупок" stickyHeader>
-        <Thead>
-          <Tr>
-            <Th>№</Th>
-            {multiSupplier && <Th>Поставщик</Th>}
-            <Th>Партия закупки</Th>
-            <Th>Счёт</Th>
-            <Th>Дата</Th>
-            <Th className="text-right">Сумма</Th>
-            <Th className="text-right">
-              Оплачено
-              <InfoHint label="Как читать «Оплачено»" align="right">
-                Оплаты ведутся по партии закупки (аукциону) целиком. У закупки в партии показана её доля: оплачено партии × (сумма закупки ÷ сумма партии). Нажмите — откроется оплата партии.
-              </InfoHint>
-            </Th>
-            <Th className="text-right">Остаток</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {purchases.map((p) => {
-            const total = purchaseTotalInclVat(p);
-            const totalExclVat = purchaseTotalExclVat(p);
-            const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-            const cancelled = p.status === "CANCELLED";
-            const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
-            // Доля оплаты партии, приходящаяся на закупку; без партии — её собственные оплаты.
-            const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : paid;
-            const rest = cancelled ? new Decimal(0) : total.sub(paidShare);
-            return (
-              <Tr key={p.id} className={cancelled ? "text-neutral-400" : ""}>
-                <Td className="font-medium">
-                  <Link href={`/purchases/${p.id}`} className="hover:underline">
-                    {p.number}
-                  </Link>
-                  {cancelled && <span className="ml-2 text-xs font-normal">отменена</span>}
-                </Td>
-                {multiSupplier && <Td>{p.supplier.name}</Td>}
-                <Td className="max-w-[220px] truncate text-neutral-500" title={p.auctionSession ?? undefined}>
-                  {p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : "—"}
-                </Td>
-                <Td className="text-neutral-500">{p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : "—"}</Td>
-                <Td>{formatDate(p.orderDate)}</Td>
-                <Td className="text-right tabular-nums">
-                  <Money incl={total} excl={totalExclVat} />
-                </Td>
-                <Td className="whitespace-nowrap text-right tabular-nums">
-                  {cancelled ? "—" : ap ? (
-                    <Link href={`/payments?auction=${encodeURIComponent(ap.name)}#auction-block`} className="hover:underline" title={`Оплаты ведутся по партии закупки «${ap.name}» целиком`}>
-                      {formatMoney(paidShare.toFixed(2))}
-                    </Link>
-                  ) : (
-                    formatMoney(paidShare.toFixed(2))
-                  )}
-                </Td>
-                <Td className={"whitespace-nowrap text-right tabular-nums " + (!cancelled && rest.greaterThan(PAY_EPS) ? "text-amber-700" : rest.lessThan(0) ? "text-emerald-700" : "")} title={rest.lessThan(-PAY_EPS) ? "Оплачено больше стоимости закупки (переплата)" : undefined}>
-                  {cancelled || rest.abs().lessThanOrEqualTo(PAY_EPS) ? "—" : rest.lessThan(0) ? `+${formatMoney(rest.abs().toFixed(2))}` : formatMoney(rest.toFixed(2))}
-                </Td>
-              </Tr>
-            );
-          })}
-          {purchases.length === 0 && (
-            <Tr>
-              <Td colSpan={multiSupplier ? 9 : 8} className="py-8 text-center text-neutral-600">
-                {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
-                {filtersOn && (
-                  <Link href="/purchases" className="ml-2 font-medium text-neutral-900 underline underline-offset-4">
-                    Сбросить фильтры
-                  </Link>
-                )}
-              </Td>
-            </Tr>
+      {rows.length === 0 ? (
+        <p className="rounded-lg border border-neutral-200 bg-white py-8 text-center text-neutral-600">
+          {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
+          {filtersOn && (
+            <Link href="/purchases" className="ml-2 font-medium text-neutral-900 underline underline-offset-4">
+              Сбросить фильтры
+            </Link>
           )}
-        </Tbody>
-      </Table>
-        }
-      >
-        {purchases.map((p) => {
-          const total = purchaseTotalInclVat(p);
-          const totalExclVat = purchaseTotalExclVat(p);
-          const paid = p.payments.filter((pay) => pay.status === "COMPLETED").reduce((s, pay) => s.add(pay.amount), new Decimal(0));
-          const cancelled = p.status === "CANCELLED";
-          const ap = auctionPays.get(auctionName(p.auctionSession) ?? "");
-          const paidShare = cancelled ? new Decimal(0) : ap && ap.total.greaterThan(0) ? ap.paid.mul(total).div(ap.total) : paid;
-          const rest = cancelled ? new Decimal(0) : total.sub(paidShare);
-          return (
-            <RowCard
-              key={p.id}
-              title={p.number}
-              href={`/purchases/${p.id}`}
-              subtitle={p.supplier.name}
-              fields={[
-                { label: <VatLabel base="Сумма" />, value: <Money incl={total} excl={totalExclVat} />, strong: true },
-                { label: "Оплачено", value: cancelled ? "—" : formatMoney(paidShare.toFixed(2)) },
-                { label: "Остаток", value: cancelled || rest.abs().lessThanOrEqualTo(PAY_EPS) ? "—" : formatMoney(rest.toFixed(2)) },
-                { label: "Дата", value: formatDate(p.orderDate) },
-              ]}
-              details={[
-                { label: "Партия закупки", value: p.auctionSession ? shortAuctionName(firstLine(p.auctionSession)) : null },
-                { label: "Счёт", value: p.invoiceNumber && !isServiceAuction(p.invoiceNumber) ? p.invoiceNumber : null },
-              ]}
-            />
-          );
-        })}
-        {purchases.length === 0 && (
-          <p className="py-8 text-center text-neutral-600">
-            {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
-            {filtersOn && (
-              <Link href="/purchases" className="ml-2 inline-block py-2 font-medium text-neutral-900 underline underline-offset-4">
-                Сбросить фильтры
-              </Link>
-            )}
-          </p>
-        )}
-      </ResponsiveRows>
+        </p>
+      ) : tree ? (
+        <PurchasesTree years={treeYears} hides={hides} />
+      ) : (
+        <PurchasesList
+          rows={listRows}
+          hides={hides}
+          sort={{ key: sortKey, dir: sortDir }}
+          sortHrefs={sortHrefs}
+          footer={
+            <div className="flex flex-col items-center gap-2">
+              {hasMore && (
+                <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                  Показать ещё {PAGE}
+                </Link>
+              )}
+              <div className="text-xs text-neutral-600">Показано закупок: {listRows.length}{hasMore ? ` из ${rows.length}` : ""}</div>
+            </div>
+          }
+        />
       )}
-      {!tree && hasMore && (
-        <div className="flex justify-center">
-          <Link href={moreHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Показать ещё {PAGE}
-          </Link>
-        </div>
-      )}
-      <div className={"flex items-center gap-1 text-xs text-neutral-600" + (tree ? " hidden" : "")}>
-        Показано закупок: {purchases.length}{hasMore ? " из " + allPurchases.length : ""}
-      </div>
+      <span className="hidden">{live.length}</span>
     </div>
   );
 }

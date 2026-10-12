@@ -10,16 +10,10 @@ export function TileHead({ children }: { children: ReactNode }) {
   return <div data-comment-title className="flex min-h-5 items-start gap-1.5 pr-6 text-xs font-semibold uppercase leading-4 tracking-wide text-neutral-500">{children}</div>;
 }
 
-export function TileValue({ children, className = "", compact = false }: { children: ReactNode; className?: string; /** Узкая плитка (ряд из шести): цифра text-base с подписью «Сумма», как в плитках сырья. */ compact?: boolean }) {
+export function TileValue({ children, className = "", compact = false }: { children: ReactNode; className?: string; /** Узкая плитка оплат в ряду «Сырьё | Оплаты»: цифра text-base сразу под названием. */ compact?: boolean }) {
   if (compact) {
-    // Пустая строка высотой с «Количество» в плитках сырья: суммы ₽ сырья и оплат стоят на одной горизонтали.
-    return (
-      <div>
-        <div aria-hidden className="h-[60px]" />
-        <div className="min-h-4 text-[11px] leading-4 text-neutral-500">Сумма</div>
-        <div className={"min-h-6 whitespace-nowrap text-base font-semibold leading-6 tabular-nums " + className}>{children}</div>
-      </div>
-    );
+    // Узкая плитка оплат: крупная сумма сразу под названием, без пустой строки-резерва сверху (плитки сырья рядом выше и растянуты по высоте ряда).
+    return <div className={"mt-2 min-h-6 whitespace-nowrap text-base font-semibold leading-6 tabular-nums " + className}>{children}</div>;
   }
   return <div className={"mt-1 flex min-h-7 items-center text-xl font-semibold leading-7 tabular-nums " + className}>{children}</div>;
 }

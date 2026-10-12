@@ -36,7 +36,7 @@ const LOT_SELECT = {
   rawMaterial: { select: { name: true, unit: true } },
   colorRef: { select: { name: true } },
   attrs: { select: { attr: { select: { name: true } } }, orderBy: { attr: { name: "asc" as const } } },
-  purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, currency: true, supplier: { select: { name: true } } } },
+  purchase: { select: { id: true, number: true, auctionSession: true, orderDate: true, currency: true, status: true, supplier: { select: { name: true } } } },
   purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
   usages: {
     where: { productionOrder: { status: { not: "CANCELLED" as const } } },
@@ -132,6 +132,8 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     usdQtyEur: usdInfo.source === "eur×rate" ? recvN : 0,
     usdQtyRub: usdInfo.source === "rub÷rate" ? recvN : 0,
     usdQtyCalc: usdInfo.source === "calc" ? recvN : 0,
+    purchaseStatus: l.purchase ? (l.purchase.status === "RECEIVED" ? "RECEIVED" : l.purchase.status === "CANCELLED" ? "CANCELLED" : "DRAFT") : "RECEIVED",
+    orderDate: l.purchase?.orderDate ? l.purchase.orderDate.toISOString().slice(0, 10) : undefined,
     usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
   };
 }

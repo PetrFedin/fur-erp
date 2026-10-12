@@ -231,6 +231,10 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
                 <Link href={r.lotIds.length === 1 ? `/analytics/raw/lot/${r.lotIds[0]}` : `/lots?tab=lining&lmat=${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={r.lotIds.length === 1 ? "Открыть карточку лота: закупка, остаток, списания по ТЗ" : `Открыть лоты подкладки «${r.label}» (${r.lotIds.length})`}>
                   {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
                 </Link>
+              ) : r.kind === "fur" && (r.lots > 0 || r.cells.incl.rq > 0) ? (
+                <Link href={`/lots/fur/${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={`Страница вида меха «${r.label}»: аукционы, лоты, ТЗ`}>
+                  {shortMaterialName(r.label)}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span>
+                </Link>
               ) : <span className="font-medium">{shortMaterialName(r.label)}</span>}
             </NameCell>
             <CellsTds c={r.cells[vat]} unit={unit} avg={avg} />

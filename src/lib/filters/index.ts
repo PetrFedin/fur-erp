@@ -260,6 +260,12 @@ export const FILTER_CATALOG = {
   /** Группа категорий справочника: «Одежда», «Аксессуары»; none — без группы. */
   catgroup: { kind: "multi", label: "Группа категорий" },
   size: { kind: "multi", label: "Размер" },
+  /** Остаток лотов закупки: with — есть, zero — исчерпан. */
+  rest: { kind: "multi", label: "Остаток", allowed: ["with", "zero"] },
+  /** Использование лотов закупки в ТЗ. */
+  usage: { kind: "multi", label: "Использование", allowed: ["used", "unused"] },
+  /** Оплата закупки: оплачено полностью / частично / не оплачено. */
+  pay: { kind: "multi", label: "Оплата", allowed: ["paid", "partial", "unpaid"] },
   season: { kind: "multi", label: "Сезон" },
   vat: { kind: "multi", label: "Ставка НДС", aliases: ["nds"], allowed: ["20", "22", "mixed", "mix"] },
   model: { kind: "multi", label: "Модель" },
