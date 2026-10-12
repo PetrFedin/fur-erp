@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы", href: "/materials" }, { label: "Новый материал" }]} />
       <Card>
         <CardHeader>
           <CardTitle as="h1" className="text-xl">Новый материал</CardTitle>

@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -283,6 +284,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Календарь", href: "/calendar" }, { label: mode === "months" ? "По месяцам" : mode === "stages" ? "Стадии" : `Детально · ${title}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
           <h1 className="text-xl font-semibold">Производственный календарь</h1>

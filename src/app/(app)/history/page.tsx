@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
@@ -68,6 +69,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "История" }]} />
       <ControlTabs active="history" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>

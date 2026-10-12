@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { ControlTabs } from "@/components/control-tabs";
@@ -33,6 +34,7 @@ export default async function CommentsPage({ searchParams }: PageProps<"/comment
   if (!("comment" in prisma)) {
     return (
       <div className="flex flex-col gap-3">
+        <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Комментарии" }]} />
         <ControlTabs active="comments" />
         <h1 className="text-xl font-semibold">Комментарии</h1>
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">Комментарии ещё не подключены к работающему серверу: после обновления схемы сервер нужно перезапустить.</p>
@@ -66,6 +68,7 @@ export default async function CommentsPage({ searchParams }: PageProps<"/comment
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Комментарии" }]} />
       <ControlTabs active="comments" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>

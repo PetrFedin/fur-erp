@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueOrderCount } from "@/lib/tz-key";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -187,6 +188,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Изделия" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Изделия О странице…». */}
         <div className="flex flex-wrap items-center">

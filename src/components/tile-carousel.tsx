@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useSlideWindow } from "@/components/slide-window";
 import { InfoHint } from "@/components/info-hint";
 import { grpBlock } from "@/lib/block-hover";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
@@ -31,7 +32,9 @@ export const CAROUSEL_ARROW = "inline-flex h-8 w-8 shrink-0 items-center justify
  * Плитка-карусель: слайды листаются жестом (прокрутка со «прилипанием»), стрелками ‹ › и точками.
  * Слайд «Тотал» — первый; в заголовке подпись текущего слайда. Механика как у «Среднее на изделие» на Главной.
  */
-export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха", hoverBlocks = false }: {
+export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха", hoverBlocks = false, twoUp = false }: {
+  /** На экране от 1024px показывать два соседних слайда; стрелки сдвигают окно на один слайд. */
+  twoUp?: boolean;
   /** Плитки выпуска: при наведении подсвечиваются строки таблицы «Производство…» (Тотал — «Всего», группа — её строка). */
   hoverBlocks?: boolean;
   title: string;
@@ -44,38 +47,33 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
   slidesLabel?: string;
   dotsLabel?: string;
 }) {
-  const [idx, setIdx] = useState(0);
-  const scroller = useRef<HTMLDivElement>(null);
   const last = slides.length - 1;
-  const cur = Math.min(idx, last);
-  const goTo = (i: number) => {
-    const el = scroller.current;
-    if (el) el.scrollTo({ left: Math.max(0, Math.min(last, i)) * el.clientWidth, behavior: "smooth" });
-  };
-  const onScroll = () => { const el = scroller.current; if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / el.clientWidth)); };
+  const sw = useSlideWindow(slides.length, "(min-width: 1024px)", twoUp ? 2 : 1);
+  const { scroller, perView, cur, maxStart, goTo, onScroll } = sw;
+  const inWin = (i: number) => i >= cur && i < cur + perView;
   const arrow = CAROUSEL_ARROW;
   return (
     <div className="relative">
       <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
-        <TileHead>{title} · {slides[cur]?.label}</TileHead>
+        <TileHead>{title} · {perView > 1 ? slides.slice(cur, cur + perView).map((x) => x.label).join(" · ") : slides[cur]?.label}</TileHead>
         {toolbar}
         <div ref={scroller} onScroll={onScroll} tabIndex={0}
           onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); goTo(cur + 1); } else if (e.key === "ArrowLeft") { e.preventDefault(); goTo(cur - 1); } }}
-          className="-mx-1 mt-1 flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"
+          className="-mx-1 mt-1 flex snap-x snap-mandatory items-stretch overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"
           role="group" aria-roledescription="карусель" aria-label={`${title}: ${slidesLabel}`}>
           {slides.map((s, i) => (
-            <div key={s.key} className="min-w-full snap-center px-1" aria-hidden={i !== cur} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`}>{s.body}</div>
+            <div key={s.key} className={"snap-start px-1 " + (twoUp ? "min-w-full lg:min-w-[50%]" : "min-w-full")} aria-hidden={!inWin(i)} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`}>{s.body}</div>
           ))}
         </div>
         <div className="mt-auto flex items-center justify-center gap-2 pt-3">
           <button type="button" className={arrow} onClick={() => goTo(cur - 1)} disabled={cur === 0} aria-label="Предыдущий слайд">‹</button>
           <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5" role="tablist" aria-label={dotsLabel}>
             {slides.map((s, i) => (
-              <button key={s.key} type="button" role="tab" aria-selected={i === cur} aria-label={s.label} title={s.label} onClick={() => goTo(i)}
-                className={"h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (i === cur ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+              <button key={s.key} type="button" role="tab" aria-selected={inWin(i)} aria-label={s.label} title={s.label} onClick={() => goTo(i)}
+                className={"h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (inWin(i) ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
             ))}
           </div>
-          <button type="button" className={arrow} onClick={() => goTo(cur + 1)} disabled={cur === last} aria-label="Следующий слайд">›</button>
+          <button type="button" className={arrow} onClick={() => goTo(cur + 1)} disabled={cur >= maxStart} aria-label="Следующий слайд">›</button>
         </div>
       </div>
       <div className="absolute right-3 top-3">

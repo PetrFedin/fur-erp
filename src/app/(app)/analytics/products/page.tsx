@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
@@ -250,6 +251,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: "Аналитика" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Что произведено</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />

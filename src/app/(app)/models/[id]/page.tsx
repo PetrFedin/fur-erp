@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { notFound } from "next/navigation";
@@ -171,9 +172,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href="/articles" className="text-sm text-neutral-500 hover:underline">← Изделия</Link>
-      </div>
+      <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: model.name }]} />
       <div className="flex flex-wrap items-center gap-y-2">
         <h1 className="text-xl font-semibold"><ArticleName model={model} /></h1>
         <YearNote year={year} />

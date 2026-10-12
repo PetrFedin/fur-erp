@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
@@ -192,6 +193,7 @@ export default async function ReconciliationPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Сверка" }]} />
       <ControlTabs active="reconciliation" />
       <div>
         <div className="flex flex-wrap items-center gap-2">

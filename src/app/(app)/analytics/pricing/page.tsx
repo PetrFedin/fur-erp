@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
@@ -485,6 +486,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: "Цены" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Себестоимость и цены</h1><YearNote year={year} />
           <Mode4Badge mode={c4Mode} />

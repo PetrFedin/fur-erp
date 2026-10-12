@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -15,6 +16,7 @@ export default async function EditWarehousePage({ params }: PageProps<"/warehous
 
   return (
     <div className="max-w-md">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Склады", href: "/warehouses" }, { label: warehouse.name }]} className="mb-3" />
       <Card>
         <CardHeader>
           <CardTitle as="h1" className="text-xl">Редактировать склад</CardTitle>

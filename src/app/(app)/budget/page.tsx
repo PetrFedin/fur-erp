@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PARAMS, grandTotal, nowPerUnit, parseNodes, perUnit, varPct, type BudgetParams } from "@/lib/budget-calc";
@@ -24,5 +25,10 @@ export default async function BudgetListPage() {
       updatedAt: r.updatedAt.toISOString(), updatedBy: r.updatedBy,
     };
   });
-  return <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Бюджет" }]} />
+      <BudgetList items={items} canEdit={EDIT_ROLES.includes(session.user.role)} />
+    </div>
+  );
 }

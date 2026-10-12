@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,8 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Статьи расходов" }]} />
       <div>
-        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <h1 className="text-xl font-semibold">Статьи расходов</h1>
       </div>
       {flashError && (

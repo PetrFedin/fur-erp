@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
@@ -62,6 +63,7 @@ export default async function DocumentAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Анализ документов" }]} />
       <ControlTabs active="analysis" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

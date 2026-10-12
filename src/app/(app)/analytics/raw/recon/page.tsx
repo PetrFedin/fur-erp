@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { requireSession } from "@/lib/session";
@@ -51,7 +52,7 @@ export default async function ReconPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm"><Link href="/analytics/raw" className="text-neutral-500 hover:underline">← Аналитика сырья</Link></div>
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Аналитика", href: "/analytics/raw" }, { label: "Сверка лотов" }]} />
       <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Сверка лотов</h1><YearNote year={year} />
         <Mode4Badge mode={c4} />
         <InfoHint label="О сверке" wide>

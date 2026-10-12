@@ -1,5 +1,6 @@
 "use client";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -24,6 +25,7 @@ export default function NewUserPage() {
 
   return (
     <div className="max-w-md">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Пользователи", href: "/users" }, { label: "Новый пользователь" }]} className="mb-3" />
       <Card>
         <CardHeader>
           <CardTitle as="h1" className="text-xl">Новый пользователь</CardTitle>

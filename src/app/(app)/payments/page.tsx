@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment } from "react";
 import Link from "next/link";
@@ -616,6 +617,17 @@ export default async function PaymentsPage({
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs
+        items={
+          tab === "all"
+            ? [{ label: "Оплаты" }]
+            : tab === "clients"
+              ? [{ label: "Оплаты", href: "/payments" }, { label: "За производство" }]
+              : showNoAuction
+                ? [{ label: "Оплаты", href: "/payments" }, { label: "За сырьё", href: "/payments?tab=suppliers" }, { label: "Закупки без аукциона" }]
+                : [{ label: "Оплаты", href: "/payments" }, { label: "За сырьё" }]
+        }
+      />
       {/* «i» и метка года — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Оплаты О странице оплат». */}
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">Оплаты</h1>

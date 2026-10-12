@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { UserNameEdit } from "./name-edit";
 import { rowVersion } from "@/lib/concurrency";
 import Link from "next/link";
@@ -48,6 +49,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Пользователи" }]} />
       <div className="-mb-2 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Пользователи</h1>

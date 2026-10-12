@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -19,7 +19,7 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-sm"><Link href="/clients" className="text-neutral-500 hover:underline">← Заказчики</Link></div>
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Заказчики", href: "/clients" }, { label: client.name }]} />
       <Card>
         <CardHeader>
           <CardTitle as="h1" className="text-xl">Редактировать заказчика</CardTitle>

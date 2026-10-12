@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -42,7 +43,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mb-2 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Заказчики" }]} />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Заказчики</h1>
         {canCreate && (

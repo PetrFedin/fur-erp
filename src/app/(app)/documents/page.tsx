@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { auctionLabeler } from "@/lib/filter-options";
 import { WidgetRow } from "@/components/widget-row";
 import Link from "next/link";
@@ -112,6 +113,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Документы" }]} />
       <ControlTabs active="documents" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="max-w-3xl">

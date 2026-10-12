@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -40,6 +41,7 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: "Ремонт" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
           <h1 className="text-xl font-semibold">Ремонт</h1>

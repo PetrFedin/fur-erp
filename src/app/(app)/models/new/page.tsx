@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ArticleForm } from "../article-form";
 import { saveArticleForm } from "../actions";
 import { requireSession } from "@/lib/session";
@@ -10,11 +11,14 @@ export default async function NewModelPage() {
   const session = await requireSession();
   const categories = await getCategoryOptions(session.user.organizationId);
   return (
+    <div className="flex flex-col gap-4">
+    <Breadcrumbs items={[{ label: "Изделия", href: "/articles" }, { label: "Новый артикул" }]} />
     <ArticleForm
       mode="new"
       action={saveArticleForm.bind(null, null)}
       categories={categories}
       canCreateCategory={hasRole(session.user.role, ACCESS.categories)}
     />
+    </div>
   );
 }

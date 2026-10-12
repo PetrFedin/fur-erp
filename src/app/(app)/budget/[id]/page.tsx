@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +37,8 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
   const bp: BudgetParams = { ...DEFAULT_PARAMS, ...(row.params as Partial<BudgetParams>) };
   const furNames = Array.from(new Set([...furs.map((f) => f.name), "Норка+Соболь"]));
   return (
+    <div className="flex flex-col gap-4">
+    <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: row.name }]} />
     <BudgetEditor
       id={row.id}
       name={row.name}
@@ -53,5 +56,6 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
       savedBy={row.updatedBy}
       createdAt={row.createdAt.toISOString()}
     />
+    </div>
   );
 }

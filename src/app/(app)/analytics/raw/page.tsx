@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -186,6 +187,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   ];
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Аналитика" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Аналитика сырья</h1><YearNote year={year} />
           <Mode4Badge mode={c4} />

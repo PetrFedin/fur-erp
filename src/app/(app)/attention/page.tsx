@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -59,6 +60,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Задачи" }]} />
       <ControlTabs active="tasks" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>

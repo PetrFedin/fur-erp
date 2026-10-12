@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
@@ -38,6 +39,7 @@ export default async function IntegrityPage() {
   const groups = [...new Set(attention.map((c) => c.group))];
   return (
     <div className="space-y-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Самопроверка" }]} />
       <ControlTabs active="integrity" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">

@@ -9,7 +9,8 @@ import { InfoHint } from "@/components/info-hint";
 import { Money } from "@/components/money";
 import { Mode4Badge } from "@/components/c4-note";
 import { formatCurrency, formatDate, formatMoney, formatQty } from "@/lib/utils";
-import { loadLotUsage } from "@/lib/raw-analytics";
+import { loadLotUsage, NO_AUCTION_KEY } from "@/lib/raw-analytics";
+import { Breadcrumbs, type Crumb } from "@/components/breadcrumbs";
 import { CostCell } from "../../cost-cell";
 import { prisma } from "@/lib/prisma";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -231,8 +232,15 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const sheetWithSplit = comp && compSplit;
   const unitLbl = lining ? "за м" : "за шт.";
 
+  // Путь по иерархии «Сырьё»: вид меха → аукцион (у подкладки — партия) → лот.
+  const auctionHref = l.auction === NO_AUCTION_KEY ? undefined : l.auction.startsWith("Шкуры подрядчика") ? "/lots/contractor-hides" : lining ? `/lots/lining/${encodeURIComponent(l.auction)}` : `/lots?auction=${encodeURIComponent(l.auction)}`;
+  const crumbs: Crumb[] = lining
+    ? [{ label: "Сырьё", href: "/lots" }, { label: "Подкладка", href: "/lots?tab=lining" }, ...(l.auction !== NO_AUCTION_KEY ? [{ label: l.auctionLabel, href: auctionHref }] : []), { label: shortMaterialName(p.materialName) }]
+    : [{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: l.kind, href: `/lots/fur/${encodeURIComponent(l.kind)}` }, ...(l.auction !== NO_AUCTION_KEY ? [{ label: l.auctionLabel, href: auctionHref }] : []), { label: `Лот ${row.lotNumber ?? "—"}` }];
+
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={crumbs} />
       <div className="flex flex-wrap items-center gap-2">
         <Link href={lining ? "/lots?tab=lining" : "/lots"} aria-label="Назад к сырью" className="text-lg leading-none text-neutral-500 hover:text-neutral-900">←</Link>
         <h1 className="text-xl font-semibold">{lining ? `${shortMaterialName(p.materialName)} · ${l.auctionLabel}` : `Лот № ${row.lotNumber ?? "—"}`}</h1>

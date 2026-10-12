@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
@@ -76,6 +77,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Подтверждения" }]} />
       <ControlTabs active="verify" />
       <div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Подтвердить</h1><YearNote year={year} />

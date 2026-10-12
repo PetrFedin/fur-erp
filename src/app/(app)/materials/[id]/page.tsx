@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -22,6 +23,7 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы", href: "/materials" }, { label: material.name }]} />
       <Card>
         <CardContent className="pt-4">
           <CategoryQuickAdd />

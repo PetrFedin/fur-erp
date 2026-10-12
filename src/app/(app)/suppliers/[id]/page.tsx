@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -20,7 +20,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-sm"><Link href="/suppliers" className="text-neutral-500 hover:underline">← Поставщики</Link></div>
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Поставщики", href: "/suppliers" }, { label: supplier.name }]} />
       <Card>
         <CardHeader>
           <CardTitle as="h1" className="text-xl">Редактировать поставщика</CardTitle>
