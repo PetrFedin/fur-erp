@@ -95,7 +95,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     : [];
   const sameTzCount = siblings.length;
   const posIndex = siblings.findIndex((x) => x.id === order.id);
-  const tzTitle = order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
+  const tzTitle = order.workOrderNumber ? `ТЗ ${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
   const tzPositions = sameTzCount > 1 && posIndex >= 0
     ? {
         index: posIndex + 1,
@@ -373,7 +373,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         items={[
           { label: "ТЗ", href: "/production" },
           ...(order.batch ? [{ label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${order.batch.number}`, href: `/production/batches/${order.batch.number}` }] : []),
-          { label: order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · позиция ${posIndex + 1} из ${sameTzCount}` : ""}` : `Заказ ${order.number}` },
+          { label: order.workOrderNumber ? `ТЗ ${order.workOrderNumber}${sameTzCount > 1 ? ` · позиция ${posIndex + 1} из ${sameTzCount}` : ""}` : `Заказ ${order.number}` },
         ]}
       />
       <IntegrityBanner kind="order" id={order.id} />

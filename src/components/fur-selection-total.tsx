@@ -495,14 +495,14 @@ export function FurSelectionTotal({
   // лоты загружены целиком, варианты каскадные, поэтому значения считаются здесь, а адрес обновляется без перезагрузки.
   // Управление слайдами: ‹ › (CAROUSEL_ARROW), точки, подпись; клавиши ←/→; свайп на телефоне.
   const slideCtl = slideKeys.length > 0 ? (
-    <div role="group" aria-label="Слайды ряда: тотал и виды" tabIndex={0} className="inline-flex items-center gap-1 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 print:hidden"
+    <div role="group" aria-label="Слайды ряда: все виды и по видам" tabIndex={0} className="inline-flex items-center gap-1 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 print:hidden"
       onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); goSlide(slideIdx - 1); } else if (e.key === "ArrowRight") { e.preventDefault(); goSlide(slideIdx + 1); } }}
       onTouchStart={(e) => { (e.currentTarget as HTMLElement).dataset.x = String(e.touches[0].clientX); }}
       onTouchEnd={(e) => { const x0 = Number((e.currentTarget as HTMLElement).dataset.x ?? 0); const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) goSlide(slideIdx + (dx < 0 ? 1 : -1)); }}>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" onClick={() => goSlide(slideIdx - 1)}>‹</button>
       <div className="flex items-center gap-1" role="tablist" aria-label="Вид">
         {["", ...slideKeys].map((k, i) => (
-          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={k || "Тотал"} title={k || "Тотал"} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={k || "Все виды"} title={k || "Все виды"} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
         ))}
       </div>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" onClick={() => goSlide(slideIdx + 1)}>›</button>

@@ -1,6 +1,6 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { THGroup } from "@/components/table-head";
-import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { WidgetRow } from "@/components/widget-row";
@@ -45,7 +45,20 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   };
   const A = toSide(sp.a);
   const B = toSide(sp.b);
-  if (!A || !B || sp.a === sp.b) notFound();
+  if (!A || !B || sp.a === sp.b) {
+    // Без параметров (или с неверными) — понятное сообщение вместо 404.
+    return (
+      <div className="flex flex-col gap-4">
+        <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение бюджетов" }]} />
+        <h1 className="text-xl font-semibold">Сравнение бюджетов</h1>
+        <div role="status" className="rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-700">
+          <p className="font-medium text-neutral-900">Выберите две версии бюджета</p>
+          <p className="mt-1">{sp.a || sp.b ? "Одна из версий не найдена или выбрана одна и та же. " : ""}Откройте список бюджетов, отметьте две версии и нажмите «Сравнить».</p>
+          <Link href="/budget" className="mt-3 inline-block text-blue-700 hover:underline">→ К списку бюджетов</Link>
+        </div>
+      </div>
+    );
+  }
   const fa = byFur(A);
   const fb = byFur(B);
   const ta = grandTotal(A.nodes, A.params);
@@ -74,7 +87,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       <div>
         <h1 className="text-xl font-semibold">Сравнение версий
           <InfoHint label="Как читать сравнение" wide>
-            <p>Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Var — насколько Б больше или меньше А.</p>
+            <p>Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Отклонение — насколько Б больше или меньше А.</p>
           </InfoHint>
         </h1>
       </div>
@@ -98,7 +111,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
               <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория</th>
               <THGroup colSpan={2}>Изделий, шт.</THGroup>
               <THGroup colSpan={2}>Всего, ₽</THGroup>
-              <THGroup colSpan={2}>Var (Б к А)</THGroup>
+              <THGroup colSpan={2}>Отклонение (Б к А)</THGroup>
             </tr>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               {["А", "Б", "А", "Б", "₽", "%"].map((h, i) => <th key={i} className={"px-3 pb-2 text-right font-medium" + (i % 2 === 0 ? " border-l border-neutral-200" : "")}>{h}</th>)}

@@ -27,7 +27,9 @@ import { USAGE_COLS, perUnit } from "./usage-rows";
 import { CostCell } from "./cost-cell";
 import { MonthlyChart, type MonthPoint } from "./monthly-chart";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
-import { figures } from "@/lib/fur-table";
+import { figures, flowOf, mergeFlows } from "@/lib/fur-table";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
@@ -44,9 +46,11 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const year = await getYearFilter();
   const c4 = await getCommission4Mode();
   const { f, by } = parseFilters(sp);
-  const [data, usage] = await Promise.all([
+  const [data, usage, dash] = await Promise.all([
     loadRawData(session.user.organizationId, year),
     isUsageBy(by) ? loadUsageRows(session.user.organizationId, year) : Promise.resolve([] as Awaited<ReturnType<typeof loadUsageRows>>),
+    // Те же расчёты, что на Главной (loadDashboard): заказано-не-получено и шкуры подрядчика — «строки без лота» из syntheticLots.
+    loadDashboard(session.user.organizationId, year, parseDashFilters({}), c4),
   ]);
   const unit = f.scope === "lining" ? "м" : "шт.";
 
@@ -55,8 +59,30 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const total = aggOf(lots);
   // Средневзвешенные цены (как основные цифры плиток — без 4%) — общий расчёт с таблицей «Мех / Подкладка» (src/lib/fur-table.ts): Σ ₽ ÷ Σ шт. (м).
   const flow = flowOfRawLots(lots);
-  const fIncl = figures(flow, { vat: "incl", c4: "off" });
-  const fExcl = figures(flow, { vat: "excl", c4: "off" });
+  // Плитки руководителя = «все лоты», как на Главной: лоты склада + заказанное, но не полученное (остаток) + шкуры подрядчика (использовано).
+  // Строки без лота подчиняются тем же фильтрам, что и лоты (вид меха, партия, год закупки, «только с остатком»); фильтры по размеру,
+  // признаку, номеру лота и изделию к ним неприменимы — тогда плитки показывают только лоты склада.
+  const synthOn = f.scope !== "lining" && !(f.size.length || f.attr.length || f.q || f.model);
+  const synth = synthOn
+    ? dash.syntheticLots.filter((l) =>
+        (!f.kind.length || f.kind.includes(l.item)) && (!f.auction.length || f.auction.includes(l.auction)) &&
+        (!f.pyear.length || f.pyear.includes(String(l.year))) && (!f.onlyRem || l.rem > 0))
+    : [];
+  const synthOrdered = synth.filter((l) => l.id.startsWith("ordered:"));
+  const synthHides = synth.filter((l) => l.id.startsWith("hides:"));
+  const flowLots = flow;
+  const flowAll = mergeFlows([flowLots, flowOf(synth)]);
+  const bLots = { incl: figures(flowLots, { vat: "incl", c4: "off" }), excl: figures(flowLots, { vat: "excl", c4: "off" }) };
+  const fIncl = figures(flowAll, { vat: "incl", c4: "off" });
+  const fExcl = figures(flowAll, { vat: "excl", c4: "off" });
+  const synthSum = (ls: typeof synth) => ({ qty: ls.reduce((a, l) => a + l.recv, 0), incl: ls.reduce((a, l) => a + l.recvIncl, 0), excl: ls.reduce((a, l) => a + l.recvExcl, 0) });
+  const ordSum = synthSum(synthOrdered);
+  const hidSum = { incl: synthHides.reduce((a, l) => a + l.usedIncl, 0), excl: synthHides.reduce((a, l) => a + l.usedExcl, 0) };
+  const D = (n: number) => new Decimal(n);
+  const dashFur = dash.raw.fur;
+  const matchesDash = synthOn && !(f.kind.length || f.auction.length || f.pyear.length || f.onlyRem) && f.scope !== "lining";
+  const dashOk = matchesDash && Math.abs(fIncl.recvQty - dashFur.incl.recvQty) < 0.001 && Math.abs(fIncl.recvValue - dashFur.incl.recvValue) < 0.5 && Math.abs(fIncl.usedValue - dashFur.incl.usedValue) < 0.5 && Math.abs(fIncl.remQty - dashFur.incl.remQty) < 0.001 && Math.abs(fIncl.remValue - dashFur.incl.remValue) < 0.5;
+  const pctAllQty = fIncl.recvQty > 0 ? (fIncl.usedQty / fIncl.recvQty) * 100 : null;
   const groups = isUsageBy(by) ? [] : groupLots(lots, by as LotGroupBy);
   const usageGroups: UsageGroup[] = isUsageBy(by)
     ? (() => {
@@ -121,8 +147,25 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   const exportQs = new URLSearchParams(entries).toString();
 
   // ───── графики ─────
+  // Диаграммы — тоже «все лоты»: к лотам склада добавлены заказанное, но не полученное (по виду меха / аукциону).
+  type Bar = { key: string; label: string; title?: string; n: { recv: number; used: number; rem: number } };
+  const barsOf = (groups: Group[], match: (l: (typeof synth)[number], g: Group) => boolean, extraKey: (l: (typeof synth)[number]) => string, extraLabel: (l: (typeof synth)[number]) => string): Bar[] => {
+    const out: Bar[] = groups.map((g) => {
+      const sl = synth.filter((l) => match(l, g));
+      return { key: g.key, label: g.label, title: g.title, n: { recv: g.agg.recv.toNumber() + sl.reduce((a, l) => a + l.recv, 0), used: g.agg.used.toNumber(), rem: g.agg.rem.toNumber() + sl.reduce((a, l) => a + l.rem, 0) } };
+    });
+    for (const l of synth) {
+      if (l.recv <= 0 || groups.some((g) => match(l, g))) continue;
+      const k = extraKey(l);
+      const cur = out.find((b) => b.key === k);
+      if (cur) { cur.n.recv += l.recv; cur.n.rem += l.rem; } else out.push({ key: k, label: extraLabel(l), n: { recv: l.recv, used: 0, rem: l.rem } });
+    }
+    return out;
+  };
   const byKind = groupLots(lots, "kind");
-  const byAuction = groupLots(lots, "auction").sort((a, b) => b.agg.recv.comparedTo(a.agg.recv)).slice(0, 12);
+  const kindBars = barsOf(byKind, (l, g) => l.item === g.label, (l) => `k:${l.item}`, (l) => l.item);
+  const byAuctionAll = groupLots(lots, "auction");
+  const auctionBars = barsOf(byAuctionAll, (l, g) => l.auction === g.key, (l) => `a:${l.auction}`, (l) => l.auctionLabel).sort((a, b) => b.n.recv - a.n.recv).slice(0, 12);
   const months = new Map<string, MonthPoint>();
   for (const l of lots) {
     const m = months.get(l.month) ?? { month: l.month, qty: 0, incl: 0, excl: 0 };
@@ -165,7 +208,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
     </ul>
   );
 
-  const pctAll = usedPct(total);
+  const pctAll = pctAllQty;
   const ex = (l: Decimal) => formatQty(l.toString());
 
   const checkEls = [
@@ -236,27 +279,28 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         <Tile unit={unit} c4={c4}
           title="Куплено"
           avg={{ incl: fIncl.recvAvg, excl: fExcl.recvAvg, what: "закупки" }}
-          q={total.recv}
-          incl={total.recvIncl}
-          excl={total.recvExcl}
+          q={D(fIncl.recvQty)}
+          incl={D(fIncl.recvValue)}
+          excl={D(fExcl.recvValue)}
+          sub={synth.length > 0 ? <div className="text-xs text-neutral-500">лоты склада {qty(total.recv, unit)} + заказано, не получено {formatQty(String(ordSum.qty))} {unit}</div> : null}
           hint={
             <>
-              <p>Σ «получено» по лотам. Стоимость = Σ(кол-во лота × цена лота за единицу).</p>
-              <p className="mt-1">Сейчас: {qty(total.recv, unit)} в {lots.length} лотах. Сверка с закупками в статусе «Принята» — в блоке «Качество данных».</p>
+              <p>Всё купленное — как «Куплено» на Главной: Σ «получено» по лотам склада (стоимость = Σ кол-во лота × цена лота за единицу) плюс заказанное, но ещё не полученное (закупки без лотов), плюс стоимость шкур подрядчика.</p>
+              <p className="mt-1">Сейчас: {qty(total.recv, unit)} в {lots.length} лотах склада{synth.length > 0 ? ` + ${formatQty(String(ordSum.qty))} ${unit} заказано, не получено` : ""}. Мост к Главной — в блоке «Сверка с Главной» ниже; сверка лотов с закупками «Принята» — в «Качестве данных».</p>
             </>
           }
         />
         <Tile unit={unit} c4={c4}
           title="Использовано"
           avg={{ incl: fIncl.usedAvg, excl: fExcl.usedAvg, what: "использованного" }}
-          q={total.used}
-          incl={total.usedIncl}
-          excl={total.usedExcl}
-          extra={{ incl: total.usedExtraIncl, excl: total.usedExtraExcl }}
+          q={D(fIncl.usedQty)}
+          incl={D(fIncl.usedValue)}
+          excl={D(fExcl.usedValue)}
+          extra={{ incl: D(flowAll.usedExtraIncl), excl: D(flowAll.usedExtraExcl) }}
           hint={
             <>
-              <p>Σ списаний сырья в ТЗ по этим лотам; стоимость — по цене лота на момент списания.</p>
-              <p className="mt-1">Сейчас: {qty(total.used, unit)} = {pctText(pctAll)} от купленного.</p>
+              <p>Σ списаний сырья в ТЗ по лотам; стоимость — по цене лота на момент списания. К сумме добавлены шкуры подрядчика (оплачены в составе пошива, лотов нет): {hidSum.incl > 0 ? rub(D(hidSum.incl)) : "нет"} — как «Использовано» на Главной.</p>
+              <p className="mt-1">Сейчас: {qty(D(fIncl.usedQty), unit)} = {pctText(pctAll)} от купленного ({qty(D(fIncl.recvQty), unit)}).</p>
               <p className="mt-1">4% начисляется только на списания, где оно применяется (флаг строки), — строка «с 4%».</p>
             </>
           }
@@ -277,14 +321,15 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
         <Tile unit={unit} c4={c4}
           title="Остаток"
           avg={{ incl: fIncl.remAvg, excl: fExcl.remAvg, what: "остатка" }}
-          q={total.rem}
-          incl={total.remIncl}
-          excl={total.remExcl}
-          extra={{ incl: total.remIncl.mul(k4.sub(1)), excl: total.remExcl.mul(k4.sub(1)) }}
+          q={D(fIncl.remQty)}
+          incl={D(fIncl.remValue)}
+          excl={D(fExcl.remValue)}
+          extra={{ incl: D(flowAll.remIncl * (k4.toNumber() - 1)), excl: D(flowAll.remExcl * (k4.toNumber() - 1)) }}
+          sub={synth.length > 0 ? <div className="text-xs text-neutral-500">лоты склада {qty(total.rem, unit)} + заказано, не получено {formatQty(String(ordSum.qty))} {unit}</div> : null}
           hint={
             <>
-              <p>Σ остатков лотов. Стоимость = Σ(остаток лота × цена лота за единицу) — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>
-              <p className="mt-1">Сейчас: {qty(total.rem, unit)} × средняя цена {avgPrice(total) ? rub(avgPrice(total)!.incl) : "—"} ≈ {rub(total.remIncl)} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
+              <p>Σ остатков лотов + заказанное, но не полученное (оно лежит в остатке, как на Главной). Стоимость = Σ(остаток лота × цена лота за единицу) — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>
+              <p className="mt-1">Сейчас: лоты склада {qty(total.rem, unit)} на {rub(total.remIncl)}{synth.length > 0 ? ` + заказано, не получено ${formatQty(String(ordSum.qty))} ${unit} на ${rub(D(ordSum.incl))}` : ""} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
             </>
           }
         />
@@ -299,12 +344,67 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           <div className="absolute right-3 top-3">
             <InfoHint label="% использовано" align="right">
               <p>Использовано ÷ куплено × 100.</p>
-              <p className="mt-1">Сейчас: {ex(total.used)} ÷ {ex(total.recv)} = {pctText(pctAll)}.</p>
+              <p className="mt-1">Сейчас: {formatQty(String(fIncl.usedQty))} ÷ {formatQty(String(fIncl.recvQty))} = {pctText(pctAll)}.</p>
             </InfoHint>
           </div>
         </div>
       </div>
       </WidgetRow>
+
+      {/* Мост «лоты склада → Главная» */}
+      {f.scope !== "lining" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              Сверка с Главной
+              {matchesDash && (
+                <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (dashOk ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
+                  {dashOk ? "плитки = Главная" : "не сходится с Главной"}
+                </span>
+              )}
+              <InfoHint label="Сверка с Главной" wide>
+                <p>Плитки сверху считают «все лоты» так же, как Главная. Сводная таблица ниже и диаграммы по умолчанию показывают лоты склада; в плитки сверху к ним добавлены две статьи, у которых лота нет:</p>
+                <p className="mt-1"><b>Заказано, не получено</b> — закупки в статусе «Черновик»: мех заказан и оплачивается, но на склад ещё не принят, поэтому лота нет. Он считается купленным и лежащим в остатке.</p>
+                <p className="mt-1"><b>Шкуры подрядчика</b> — шкуры, оплаченные в составе счетов за пошив: лота нет, они сразу «куплены» и «использованы» (в количестве шт. не учтены, только в рублях), остаток 0.</p>
+                {!matchesDash && <p className="mt-1">При фильтрах сверху эти статьи тоже отбираются по виду меха, партии и году закупки; цифры Главной относятся к полному набору без фильтров.</p>}
+              </InfoHint>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto text-sm">
+            <table className="w-full min-w-[640px] text-left tabular-nums">
+              <thead className="text-xs font-medium text-neutral-500">
+                <tr>
+                  <th className="py-1 pr-3 font-medium"> </th>
+                  <th className="py-1 pr-3 font-medium">Лоты склада ({lots.length})</th>
+                  <th className="py-1 pr-3 font-medium">+ Заказано, не получено</th>
+                  <th className="py-1 pr-3 font-medium">+ Шкуры подрядчика</th>
+                  <th className="py-1 font-medium">= Плитки сверху{matchesDash ? " (как на Главной)" : ""}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {([
+                  { t: "Куплено", q: [bLots.incl.recvQty, ordSum.qty, 0, fIncl.recvQty], i: [bLots.incl.recvValue, ordSum.incl, hidSum.incl, fIncl.recvValue], e: [bLots.excl.recvValue, ordSum.excl, hidSum.excl, fExcl.recvValue] },
+                  { t: "Использовано", q: [bLots.incl.usedQty, 0, 0, fIncl.usedQty], i: [bLots.incl.usedValue, 0, hidSum.incl, fIncl.usedValue], e: [bLots.excl.usedValue, 0, hidSum.excl, fExcl.usedValue] },
+                  { t: "Остаток", q: [bLots.incl.remQty, ordSum.qty, 0, fIncl.remQty], i: [bLots.incl.remValue, ordSum.incl, 0, fIncl.remValue], e: [bLots.excl.remValue, ordSum.excl, 0, fExcl.remValue] },
+                ]).map((r) => (
+                  <tr key={r.t} className="border-t border-neutral-100 align-top">
+                    <td className="py-1.5 pr-3 font-medium">{r.t}</td>
+                    {[0, 1, 2, 3].map((c) => (
+                      <td key={c} className={"py-1.5 pr-3 " + (c === 3 ? "font-medium" : "")}>
+                        {c === 2 && r.q[c] === 0 ? <span className="text-neutral-400">шт. не считаются</span> : `${formatQty(String(r.q[c]))} шт.`}
+                        <div className="text-xs text-neutral-600"><Money incl={q2(D(r.i[c]))} excl={q2(D(r.e[c]))} /></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-neutral-500">
+              Строк без лота в расчёте: {synth.length} (заказано, не получено: {synthOrdered.length}; шкуры подрядчика по годам оплаты: {synthHides.length}). Сводная таблица и список лотов ниже — только лоты склада, поэтому её итог = первый столбец.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Фильтры */}
       <FilterBar
@@ -374,7 +474,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               ))}
               {groups.length > 0 && (
                 <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${LOT_COLS}`}>
-                  <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${lots.length} лотов`} /></span>
+                  <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${lots.length} лотов склада`} /></span>
                   <Cells a={total} unit={unit} c4={c4} />
                 </div>
               )}
@@ -391,18 +491,18 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               Остаток по видам меха
               <InfoHint label="Остаток по видам" wide>
                 <p>Длина полосы — сколько куплено; тёмная часть — использовано, зелёная — остаток. Видно, какого меха осталось больше всего.</p>
-                {byKind[0] && <p className="mt-1">Например, «{byKind[0].label}»: куплено {ex(byKind[0].agg.recv)}, использовано {ex(byKind[0].agg.used)}, остаток {ex(byKind[0].agg.rem)} {unit}.</p>}
+                {kindBars[0] && <p className="mt-1">Например, «{kindBars[0].label}»: куплено {formatQty(String(kindBars[0].n.recv))}, использовано {formatQty(String(kindBars[0].n.used))}, остаток {formatQty(String(kindBars[0].n.rem))} {unit} (с заказанным, но не полученным — как на Главной).</p>}
               </InfoHint>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Legend />
             <div className="mt-2 flex flex-col gap-2">
-              {byKind.map((g) => {
-                const max = Math.max(...byKind.map((x) => x.agg.recv.toNumber()), 1);
-                return <StackBar key={g.key} label={g.label} agg={g.agg} max={max} unit={unit} />;
+              {kindBars.map((g) => {
+                const max = Math.max(...kindBars.map((x) => x.n.recv), 1);
+                return <StackBar key={g.key} label={g.label} n={g.n} max={max} unit={unit} />;
               })}
-              {byKind.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
+              {kindBars.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
             </div>
           </CardContent>
         </Card>
@@ -418,11 +518,11 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
           <CardContent>
             <Legend />
             <div className="mt-2 flex flex-col gap-2">
-              {byAuction.map((g) => {
-                const max = Math.max(...byAuction.map((x) => x.agg.recv.toNumber()), 1);
-                return <StackBar key={g.key} label={g.label} title={g.title} agg={g.agg} max={max} unit={unit} showPct />;
+              {auctionBars.map((g) => {
+                const max = Math.max(...auctionBars.map((x) => x.n.recv), 1);
+                return <StackBar key={g.key} label={g.label} title={g.title} n={g.n} max={max} unit={unit} showPct />;
               })}
-              {byAuction.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
+              {auctionBars.length === 0 && <p className="text-sm text-neutral-500">Нет данных.</p>}
             </div>
           </CardContent>
         </Card>
@@ -513,17 +613,15 @@ function Legend() {
   );
 }
 
-function StackBar({ label, title, agg, max, unit, showPct }: { label: string; title?: string; agg: Agg; max: number; unit: string; showPct?: boolean }) {
-  const recv = agg.recv.toNumber();
-  const used = agg.used.toNumber();
-  const rem = agg.rem.toNumber();
+function StackBar({ label, title, n, max, unit, showPct }: { label: string; title?: string; n: { recv: number; used: number; rem: number }; max: number; unit: string; showPct?: boolean }) {
+  const { recv, used, rem } = n;
   const w = (recv / max) * 100;
   return (
     <div title={`${title ?? label}: куплено ${formatQty(recv)}, использовано ${formatQty(used)}, остаток ${formatQty(rem)} ${unit}`}>
       <div className="flex justify-between gap-2 text-xs">
         <span className="truncate font-medium text-neutral-800">{label}</span>
         <span className="shrink-0 tabular-nums text-neutral-600">
-          {showPct ? `${pctText(usedPct(agg))} · ` : ""}ост. {formatQty(rem)} {unit}
+          {showPct ? `${pctText(recv > 0 ? (used / recv) * 100 : null)} · ` : ""}ост. {formatQty(rem)} {unit}
         </span>
       </div>
       <div className="mt-0.5 flex h-3 gap-0.5" style={{ width: `${Math.max(w, 1)}%` }}>

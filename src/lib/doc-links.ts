@@ -71,7 +71,7 @@ async function batchScopes(orgId: string, batchIds: string[]) {
   for (const o of orders) {
     if (!o.batchId) continue;
     batchOfOrder.set(o.id, o.batchId);
-    out.get(o.batchId)?.orders.set(o.id, `ТЗ №${o.workOrderNumber ?? o.number}`);
+    out.get(o.batchId)?.orders.set(o.id, `ТЗ ${o.workOrderNumber ?? o.number}`);
   }
   for (const a of allocs) {
     const b = batchOfOrder.get(a.productionOrderId);

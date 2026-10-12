@@ -83,7 +83,7 @@ export function LotUsageViz({
   const rowStyle = (k: string) => (active === k ? { background: HOVER_BG } : undefined);
 
   const cells = (s: UsageSeg) => ({
-    title: s.kind === "order" ? (s.href ? <Link href={s.href} className="text-blue-700 hover:underline">{s.label.replace("ТЗ ", "ТЗ № ")}</Link> : s.label) : s.kind === "rem" ? <b>Остаток</b> : "Прочее списание (не через ТЗ)",
+    title: s.kind === "order" ? (s.href ? <Link href={s.href} className="text-blue-700 hover:underline">{s.label}</Link> : s.label) : s.kind === "rem" ? <b>Остаток</b> : "Прочее списание (не через ТЗ)",
     sku: s.kind === "order" ? (s.sku ?? "—") : "—",
     date: s.kind === "order" ? (s.date ?? "—") : "—",
   });

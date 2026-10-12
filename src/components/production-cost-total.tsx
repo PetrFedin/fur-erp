@@ -89,7 +89,7 @@ export function ProductionCostTotal({
                 <div className="relative size-64 rounded-full" style={{ background: gradient }}>
                   <div className="absolute inset-[54px] flex items-center justify-center rounded-full bg-white text-center shadow-inner">
                     <div>
-                      <div className="text-xs text-neutral-500">Тотал</div>
+                      <div className="text-xs text-neutral-500">Всего</div>
                       <div className="mt-1 text-lg font-semibold">{money(total)}</div>
                     </div>
                   </div>

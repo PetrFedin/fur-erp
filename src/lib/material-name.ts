@@ -6,4 +6,7 @@ const SHORT: Record<string, string> = {
   "премиальная шерсть с альпакой и шёлком": "Шерсть · альпака · шёлк",
   "кожа натуральная": "Кожа нат.",
 };
-export const shortMaterialName = (name: string): string => SHORT[name.trim().toLowerCase()] ?? name.replace(/^Подкладочная ткань\s+/i, "Ткань ");
+export const shortMaterialName = (name: string): string => SHORT[name.trim().toLowerCase()] ?? spacedLotName(name.replace(/^Подкладочная ткань\s+/i, "Ткань "));
+
+/** Слепленное «Рысьлот 70101» на экране показываем как «Рысь лот 70101». Только отображение: в данных название не меняется. */
+export const spacedLotName = (name: string): string => name.replace(/([A-Za-zА-Яа-яЁё])(лот)(?=\s*\d)/i, "$1 $2");

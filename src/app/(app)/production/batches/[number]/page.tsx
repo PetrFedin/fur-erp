@@ -36,6 +36,7 @@ import { ProdTiles } from "@/components/prod-tiles";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../../dashboard/tile";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { cleanNote } from "@/lib/note-tags";
+import { loadClientPayBridge } from "@/lib/client-pay-bridge";
 
 const PAY_TYPE: Record<string, string> = { ADVANCE: "Аванс", PARTIAL: "Доплата", FINAL: "Окончательная" };
 
@@ -126,6 +127,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   const payBy: Record<string, number> = { [`batch:${batch.number}`]: Number(t.paid) };
   for (const [id, v] of paidByOrder) payBy[`order:${id}`] = Number(v);
   const mny = (v: number) => formatMoney(v.toFixed(2));
+  const payBridge = await loadClientPayBridge(orgId, "all");
   const workN = Number(t.work);
   const paidN = Number(t.paid);
 
@@ -179,12 +181,15 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               <TileCaption>{overpaid ? "оплачено сверх работы" : "задолженность: работа − оплачено"}</TileCaption>
               <TileList items={[
                 { k: "Работа заказчику", v: mny(workN) },
-                { k: "Оплачено", v: mny(paidN), share: workN ? paidN / workN : null },
+                { k: "Оплачено (разнесено на партию)", v: mny(paidN), share: workN ? paidN / workN : null },
+                { k: "Оплачено заказчиком всего (Главная)", v: mny(payBridge.paid), sub: true },
+                { k: "из них не разнесено на ТЗ (аванс)", v: mny(payBridge.advance), sub: true },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата" wide align="right">
-                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>Остаток</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
+                <p><b>Оплачено (разнесено на партию)</b> — оплаты заказчика, закреплённые за ТЗ этой партии (каждая один раз). <b>Остаток</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
+                <p className="mt-1"><b>Оплачено заказчиком всего</b> — все оплаты по всем партиям, как на Главной и в «Оплатах»; часть из них — авансы, ещё не разнесённые по ТЗ. Сводный мост по всем партиям — на странице <Link href="/production/batches" className="underline">«Партии пошива»</Link>.</p>
               </InfoHint>
             </div>
           </div>

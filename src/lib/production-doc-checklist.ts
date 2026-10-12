@@ -47,7 +47,7 @@ async function loadRaw(db: Db, organizationId: string) {
   return { batches, orders, docs };
 }
 
-const orderTitle = (o: { workOrderNumber: string | null; number: string }) => (o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`);
+const orderTitle = (o: { workOrderNumber: string | null; number: string }) => (o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`);
 
 const toDoc = (d: DocRow): PanelDoc => ({
   id: d.id,

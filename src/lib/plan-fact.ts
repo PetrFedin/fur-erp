@@ -105,7 +105,7 @@ export async function loadPlanFacts(organizationId: string, plans: PlanKey[], mo
       const produced = producedUnits(o);
       const fo: FactOrder = {
         id: o.id,
-        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+        label: o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`,
         status: o.status as FactOrder["status"],
         planned,
         produced,
@@ -134,7 +134,7 @@ export async function loadOffPlan(organizationId: string, seasonId: string, plan
   });
   return orders.map((o) => ({
     id: o.id,
-    label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+    label: o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`,
     model: articleLabel(o.productModel),
     produced: producedUnits(o),
     planned: Number(o.plannedQuantity),

@@ -6,6 +6,9 @@ import Link from "next/link";
 import { cleanNote } from "@/lib/note-tags";
 import { InfoHint } from "@/components/info-hint";
 import { notFound } from "next/navigation";
+import { spacedLotName } from "@/lib/material-name";
+import { canonicalFur } from "@/lib/fur-ref";
+import { getFurIndex } from "@/lib/fur-ref-server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +69,13 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const p = await prisma.purchase.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { number: true } });
+  return { title: p ? `Закупка ${p.number}` : "Закупка" };
+}
+
 export default async function PurchaseDetailPage({ params }: PageProps<"/purchases/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -82,6 +92,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     },
   });
   if (!purchase) notFound();
+  const furIdx = await getFurIndex(session.user.organizationId);
 
   // Документы партии (спецификация, расчётный лист, счёт на аванс) лежат на
   // аукционе целиком: показываем их на каждой закупке с тем же auctionSession.
@@ -319,7 +330,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     <Money key="total" incl={subtotalInclVatRub} excl={subtotalExclVatRub} />
                   );
                   const card = {
-                    title: item.rawMaterial.name,
+                    title: spacedLotName(item.rawMaterial.name),
                     subtitle: [item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера", [item.grade, item.color].filter(Boolean).join(" / ")].filter(Boolean).join(" · "),
                     fields: [
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
@@ -403,7 +414,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         version: rowVersion(item, PURCHASE_ITEM_V),
                       }}
                     >
-                      <Td>{item.rawMaterial.name}</Td>
+                      <Td>{(() => { const kind = canonicalFur(item.rawMaterial.name, furIdx)?.name; const nm = spacedLotName(item.rawMaterial.name); return kind ? <Link href={`/lots/fur/${encodeURIComponent(kind)}`} className="text-blue-700 hover:underline" title={`Страница вида меха «${kind}»`}>{nm}</Link> : nm; })()}</Td>
                       <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "—")}</Td>
                       {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
                       <Td>
@@ -601,7 +612,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         ) : (
           <>
             <SummaryCard label="Оплачено" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
-            <SummaryCard label="Остаток к оплате" value={formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+            <SummaryCard label={balanceDue.lessThan(-0.005) ? "Переплата" : "Остаток к оплате"} value={formatMoney(balanceDue.lessThan(-0.005) ? balanceDue.abs().toString() : balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
           </>
         )}
       </div>
@@ -722,7 +733,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <details key={item.id} className="rounded-md border border-neutral-200">
                   <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
                     <span className="col-span-2 sm:col-span-1">
-                      <span className="font-medium">{item.rawMaterial.name}</span>
+                      <span className="font-medium">{spacedLotName(item.rawMaterial.name)}</span>
                       <span className="ml-2 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
                     </span>
                     <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
@@ -796,7 +807,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 </p>
               </InfoHint>
             </div>
-            {canEditPlan && (
+            {canEditPlan && purchase.currency !== "RUB" && (
               <CostPlanRateForm
                 key={purchase.exchangeRate.toString()}
                 purchaseId={id}

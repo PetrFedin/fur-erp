@@ -88,7 +88,7 @@ export function GroupedByBatch({
                 return (
                   <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                     <Link href={`/production/${o.id}`} className="font-medium hover:underline">
-                      {o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`}
+                      {o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`}
                     </Link>
                     <span className="text-neutral-700"><ArticleName model={o.productModel} /></span>
                     <span className="text-xs text-neutral-500">{formatQty(s.qty.toString())} шт.</span>

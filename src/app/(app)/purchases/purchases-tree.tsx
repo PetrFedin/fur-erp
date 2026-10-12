@@ -24,12 +24,13 @@ export type ExtraRow = { key: string; label: string; sub?: string; href?: string
 
 const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
 const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatQty(v));
-const restCls = (v: number) => (v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
+const restCls = (v: number) => (v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-sky-700" : "");
+/** Долг; отрицательный долг — это переплата: «Переплата N ₽» (расчёт не меняется, только подпись). */
+const debt = (v: number) => (v < -0.5 ? `Переплата ${formatMoney((-v).toFixed(2))}` : money(v));
 const BL = " border-l border-neutral-200";
 const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? few : many}`;
 const usedPct = (a: Pick<Agg, "usedValue" | "recvValue" | "hasLots">) => (a.hasLots && a.recvValue > 0.5 ? (a.usedValue / a.recvValue) * 100 : null);
-const remText = (a: Pick<Agg, "remFur" | "remLining" | "hasLots">) => {
-  if (!a.hasLots) return <Dash />;
+const remText = (a: Pick<Agg, "remFur" | "remLining">) => {
   const parts = [a.remFur > 0.0005 ? `${formatQty(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatQty(a.remLining)} м` : null].filter(Boolean);
   return parts.length ? parts.join(" · ") : <Dash />;
 };
@@ -94,7 +95,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
       <td className={TD + BL}>{usedPct(a) != null ? formatPercent(usedPct(a)) : <Dash />}</td>
       <td className={TD + " text-xs"}>{remText(a)}</td>
       <td className={TD + BL}>{money(a.paid)}</td>
-      <td className={TD + restCls(a.rest)}>{money(a.rest)}</td>
+      <td className={TD + restCls(a.rest)}>{debt(a.rest)}</td>
     </>
   );
   const empty = (n: number) => Array.from({ length: n }, (_, i) => <td key={i} className={TD} />);
@@ -346,11 +347,11 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
               { label: `Кол-во, ${unitLabel}`, value: qty(qtyOf(p)) },
               { label: "Использовано", value: usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash /> },
               { label: "Оплачено", value: p.status === "CANCELLED" ? <Dash /> : money(p.paid) },
-              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{money(p.rest)}</span> },
+              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{debt(p.rest)}</span> },
             ]}
             details={[
               { label: "Лотов", value: p.lots > 0 ? p.lots : null },
-              { label: "Остаток", value: p.hasLots ? remText(p) : null },
+              { label: "Остаток", value: p.hasLots || p.remFur + p.remLining > 0 ? remText(p) : null },
               { label: "Счёт", value: p.invoice },
               { label: "УПД", value: p.upd },
             ]}
@@ -403,7 +404,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   <td className={TD + BL}>{usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash />}</td>
                   <td className={TD + " text-xs"}>{remText(p)}</td>
                   <td className={TD + BL}>{cancelled ? <Dash /> : money(p.paid)}</td>
-                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : money(p.rest)}</td>
+                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : debt(p.rest)}</td>
                 </tr>
               );
             })}
@@ -427,7 +428,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                 <td className={TD + BL}>{usedPct(tot) != null ? formatPercent(usedPct(tot)) : <Dash />}</td>
                 <td className={TD + " text-xs"}>{remText(tot)}</td>
                 <td className={TD + BL}>{money(tot.paid + exPaid)}</td>
-                <td className={TD + restCls(tot.rest)}>{money(tot.rest)}</td>
+                <td className={TD + restCls(tot.rest)}>{debt(tot.rest)}</td>
               </tr>
             ) : null}
           </tbody>

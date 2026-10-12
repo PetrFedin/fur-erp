@@ -150,6 +150,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
           return (
             <>
+              <p className="text-xs text-neutral-600">Те же таблицы, что на Главной (динамика по годам и по сырью). <Link href="/dashboard" className="text-blue-700 hover:underline">→ Главная</Link></p>
               <FilterBar
                 title="Фильтры сводки"
                 oneRow

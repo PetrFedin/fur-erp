@@ -127,6 +127,15 @@ export function detailLines(r: Pick<LogRow, "action" | "changes">): string[] {
   return [];
 }
 
+/** Снимок записи по-человечески: строки «поле: значение» вместо сырого JSON. */
+export function snapshotLines(changes: unknown): string[] {
+  if (changes == null || typeof changes !== "object" || Array.isArray(changes)) return changes == null ? [] : [showValue(changes)];
+  return Object.entries(changes as Ch).map(([k, v]) => `${fieldLabel(k)}: ${isPair(v) ? `${showValue(v[0])} → ${showValue(v[1])}` : showValue(v)}`);
+}
+
+/** Тестовая запись (в названии «ТЕСТ …») — на странице помечается бейджем «тест». Данные не меняются. */
+export const isTestLabel = (label: string | null | undefined) => !!label && /^\s*тест\b/i.test(label);
+
 export function snapshotText(changes: unknown): string {
   return JSON.stringify(changes, null, 2);
 }

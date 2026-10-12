@@ -64,7 +64,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
         </>
       }
       toolbar={<GroupSwitch value={group} onChange={setGroup} label={`Группа изделий: ${GROUP_NOUN[group]}`} />}
-      slides={[{ key: "total", label: "Тотал", body: slide(null) }, ...furs.map((f) => ({ key: f, label: f, body: slide(f) }))]}
+      slides={[{ key: "total", label: "Все виды меха", body: slide(null) }, ...furs.map((f) => ({ key: f, label: f, body: slide(f) }))]}
     />
   );
 }
@@ -82,7 +82,7 @@ function aggOf(list: MarkupRow[]) {
   return { n: priced.length, price: retail / sumW, markup: cost > 0 ? retail / cost : 0 };
 }
 
-/** «Маркап»: Тотал + слайды по основному виду меха артикула (как в таблице «Маркап по меху и категориям»); тот же переключатель «Одежда / Аксессуары». */
+/** «Наценка»: Тотал + слайды по основному виду меха артикула (как в таблице «Маркап по меху и категориям»); тот же переключатель «Одежда / Аксессуары». */
 export function MarkupCarousel({ rows }: { rows: MarkupRow[] }) {
   const [group, setGroup] = useState<GroupSel>("all");
   const furs = useMemo(() => {
@@ -118,8 +118,8 @@ export function MarkupCarousel({ rows }: { rows: MarkupRow[] }) {
 
   return (
     <TileCarousel
-      title="Маркап"
-      hintLabel="Как считается маркап"
+      title="Наценка"
+      hintLabel="Как считается наценка"
       hint={
         <>
           <p>Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск) по артикулам с розничной ценой. «Тотал» — все артикулы списка; слайды — по основному виду меха артикула (тому, на который списано больше всего меха). Подробно по меху и категориям — в таблице ниже.</p>
@@ -127,7 +127,7 @@ export function MarkupCarousel({ rows }: { rows: MarkupRow[] }) {
         </>
       }
       toolbar={<GroupSwitch value={group} onChange={setGroup} label={`Группа изделий: ${GROUP_NOUN[group]}`} />}
-      slides={[{ key: "total", label: "Тотал", body: slide(null) }, ...furs.map((f) => ({ key: f, label: f, body: slide(f) }))]}
+      slides={[{ key: "total", label: "Все виды меха", body: slide(null) }, ...furs.map((f) => ({ key: f, label: f, body: slide(f) }))]}
     />
   );
 }

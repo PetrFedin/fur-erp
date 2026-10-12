@@ -1,12 +1,13 @@
 import Link from "next/link";
+import { isModuleHidden } from "@/lib/hidden-modules";
 
 const TABS = [
   { key: "orders", href: "/production", label: "ТЗ" },
   { key: "batches", href: "/production/batches", label: "Партии пошива" },
-  { key: "shipments", href: "/shipments", label: "Отгрузки" },
-  { key: "fittings", href: "/fittings", label: "Примерки" },
-  { key: "plan", href: "/plan", label: "План заказа" },
-  { key: "supply", href: "/supply-plan", label: "План поставок" },
+  { key: "shipments", module: "shipments", href: "/shipments", label: "Отгрузки" },
+  { key: "fittings", module: "fittings", href: "/fittings", label: "Примерки" },
+  { key: "plan", module: "plan", href: "/plan", label: "План заказа" },
+  { key: "supply", module: "supply-plan", href: "/supply-plan", label: "План поставок" },
 ] as const;
 
 export type ProductionTab = (typeof TABS)[number]["key"];
@@ -15,7 +16,7 @@ export type ProductionTab = (typeof TABS)[number]["key"];
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
     <nav aria-label="Разделы ТЗ" className="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">
-      {TABS.map((t) => (
+      {TABS.filter((t) => !("module" in t) || !isModuleHidden(t.module) || t.key === active).map((t) => (
         <Link
           key={t.key}
           href={t.href}

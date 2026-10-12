@@ -13,7 +13,7 @@ export type SizeRow = { size: string; quantity: string };
 
 /** «ТЗ №141» или, если номера ТЗ нет, «Заказ П-2026-0141». */
 export function orderLabel(o: { workOrderNumber: string | null; number: string }) {
-  return o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`;
+  return o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`;
 }
 
 /** Числовой № ТЗ для сортировки; ТЗ без числового номера идут в конец. */

@@ -32,6 +32,8 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { TotalLabel } from "@/components/total-label";
 import { Dash } from "@/components/tree-table";
 import { Decimal } from "@prisma/client/runtime/library";
+import { loadClientPayBridge } from "@/lib/client-pay-bridge";
+import { ClientPayBridgeCard } from "@/components/client-pay-bridge";
 
 export const metadata = { title: "Партии пошива" };
 
@@ -89,6 +91,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     for (const o of r.b.orders) payBy[`order:${o.id}`] = o.payShares.reduce((a, x) => (x.productionPayment.status === "CANCELLED" ? a : a + Number(x.amount)), 0);
   }
   const payRest = payWork - payPaid;
+  // Мост «Оплачено всего → разнесено на партии → не разнесено (аванс)»: по всем партиям года (фильтры «нужно» и «пустые» на него не влияют).
+  const bridge = modelSel.length === 0 ? await loadClientPayBridge(orgId, year, drillAll.map((o) => o.id)) : null;
+  const bridgeInBatches = allRows.reduce((a, r) => a + Number(r.t.paid), 0);
+  const bridgeWorkInBatches = allRows.reduce((a, r) => a + Number(r.t.work), 0);
   // Итог таблицы — только показанные партии (как строки выше); ТЗ каждой партии свои, двойного счёта нет.
   const sumOrders = rows.reduce((a, r) => a + r.t.orders, 0);
   const sumItems = rows.reduce((a, r) => a + r.t.items, 0);
@@ -157,19 +163,23 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <TileValue className={payRest > 0.5 ? "text-amber-700" : ""}>{money(Math.max(payRest, 0))}</TileValue>
               <TileCaption>задолженность: работа − оплачено</TileCaption>
               <TileList items={[
-                { k: "Работа", v: money(payWork) },
-                { k: "Оплачено", v: money(payPaid), share: payWork ? payPaid / payWork : null },
+                { k: "Работа (в партиях)", v: money(payWork) },
+                { k: "Оплачено (разнесено на партии)", v: money(payPaid), share: payWork ? payPaid / payWork : null },
+                ...(bridge ? [{ k: "Оплачено всего (Главная, Оплаты)", v: money(bridge.paid), sub: true }, { k: "Не разнесено на партии (аванс)", v: money(bridge.paid - bridgeInBatches), sub: true }] : []),
                 ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата работы" wide align="right">
-                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>Задолженность</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
+                <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, закреплённые за ТЗ партий (каждая оплата один раз, отменённые не входят). <b>Задолженность</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
+                <p className="mt-1"><b>Оплачено всего</b> на Главной и в «Оплатах» больше: туда входят ещё авансы, не разнесённые по ТЗ. Мост — в блоке «Оплаты работы» ниже.</p>
               </InfoHint>
             </div>
           </div>
         }
       />
+
+      {bridge && <ClientPayBridgeCard b={bridge} inBatches={bridgeInBatches} workInBatches={bridgeWorkInBatches} />}
 
       <div className="print:hidden">
         <FilterBar
@@ -198,7 +208,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
             <Th className="hidden md:table-cell" unit="₽">Работа</Th>
-            <Th className="hidden lg:table-cell" unit="₽">Оплачено</Th>
+            <Th className="hidden lg:table-cell" unit="₽">
+              Оплачено (на партии)
+              <InfoHint label="Оплачено (разнесено на партии)" wide>Оплаты заказчика, разнесённые на ТЗ этой партии. «Оплачено всего» на Главной и в «Оплатах» больше на неразнесённые авансы — см. блок «Оплаты работы» выше.</InfoHint>
+            </Th>
             <Th unit="₽">Остаток</Th>
             <Th className="hidden lg:table-cell">
               Документы и оплата

@@ -1,4 +1,4 @@
-import { actorText, ACTION_LABEL, detailLines, fmtAt, summaryLines, snapshotText, type LogRow } from "@/lib/audit-query";
+import { actorText, ACTION_LABEL, detailLines, fmtAt, summaryLines, snapshotLines, type LogRow } from "@/lib/audit-query";
 import { MODEL_TITLES } from "@/lib/audit-core";
 import { Badge } from "@/components/ui/badge";
 
@@ -32,7 +32,9 @@ export function ChangeCell({ row, compact }: { row: LogRow; compact?: boolean })
       {row.action !== "update" && (
         <details>
           <summary className="cursor-pointer text-neutral-500">{row.action === "delete" ? "Показать снимок" : "Показать данные"}</summary>
-          <pre className="mt-1 max-h-72 max-w-xl overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-50 p-2 text-[11px] leading-snug">{snapshotText(row.changes)}</pre>
+          <ul className="mt-1 max-h-72 max-w-xl list-disc overflow-auto break-words rounded bg-neutral-50 p-2 pl-6 text-[11px] leading-snug">
+            {snapshotLines(row.changes).map((l, i) => <li key={i}>{l}</li>)}
+          </ul>
           {row.action === "delete" && !compact && <p className="mt-1 text-[11px] text-neutral-500">Снимок для ручного восстановления; автоматически запись не возвращается.</p>}
         </details>
       )}

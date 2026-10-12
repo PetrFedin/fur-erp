@@ -9,7 +9,9 @@ import { loadDashboard } from "@/lib/dashboard-data";
 import { CATEGORY_GROUPS, noGroupLabelFor } from "@/lib/category-groups";
 import { KIND_LABELS, lotFiltersOn, orderFiltersOn, parseDashFilters, type DashFilters } from "@/lib/dashboard-calc";
 import { RawBlock } from "./raw-block";
-import { PayTiles } from "./pay-tiles";
+import { PayTiles, isPastRu } from "./pay-tiles";
+import { MainStrip } from "./main-strip";
+import { ReliabilityBlock } from "./reliability-block";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
@@ -65,6 +67,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const rawHref = "/lots" + qs([["fur", f.fur], ["color", f.color], ["attr", f.attr], ["batch", f.auction]]);
   const prodHref = "/production" + qs([["auction", f.auction], ["fur", f.fur], ["attr", f.attr], ["batch", f.batch], ["catgroup", f.catgroup]]);
 
+  // Полоса «Главное»: деньги — те же числа, что в плитках «Оплаты» ниже.
+  const lateDeadlines = d.invoiceDeadlines.filter((x) => isPastRu(x.date));
+  const stripPay = {
+    workPaid: d.paidByItem.work, workLeft: d.left.prod,
+    rawPaid: d.paidByItem.fur + d.paidByItem.lining, rawLeft: d.left.fur + d.left.lining,
+    totalLeft: d.left.fur + d.left.lining + d.left.prod,
+    overdueCount: lateDeadlines.length, overdueSum: lateDeadlines.reduce((a, x) => a + x.amount, 0),
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <style>{PRINT_CSS}</style>
@@ -85,6 +96,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           Недостаточно прав для этого действия
         </div>
       )}
+
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+        <MainStrip fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} prod={{ done: prodNums(d.prod.done), work: prodNums(d.prod.work), all: prodNums(d.prod.all) }} hides={d.hides} pay={stripPay} hrefs={{ fur: rawHref, lining: "/lining", prod: prodHref, pay: "/payments" }} />
+        <ReliabilityBlock year={year} control={d.control} />
+      </div>
 
       <div className="print:hidden">
         <FilterBar

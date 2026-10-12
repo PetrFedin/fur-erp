@@ -15,7 +15,7 @@ export function isFittingStatus(v: unknown): v is keyof typeof FITTING_STATUS {
 
 /** «ТЗ №132» либо «Заказ П-2026-0141», если у ТЗ нет номера. */
 export function orderLabel(o: { workOrderNumber: string | null; number: string }) {
-  return o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`;
+  return o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`;
 }
 
 /** Дата примерки хранится в полдень UTC, чтобы не «прыгала» по часовым поясам. */

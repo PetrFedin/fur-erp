@@ -534,7 +534,7 @@ export function groupUsage(rows: UsageRow[], by: UsageGroupBy): UsageGroup[] {
     if (!g) {
       g = {
         key,
-        label: by === "article" ? r.modelName : `ТЗ № ${r.orderNumber}`,
+        label: by === "article" ? r.modelName : `ТЗ ${r.orderNumber}`,
         sub: by === "article" ? `${r.sku ? `${r.sku} · ` : ""}${r.category}` : `${r.modelName} · ${r.category}${r.batchNumber != null ? ` · партия ${r.batchNumber}` : ""}`,
         orders: 0, lots: 0, produced: zero(), qty: zero(), incl: zero(), excl: zero(), extraIncl: zero(), extraExcl: zero(), rows: [],
         _o: new Set(), _l: new Set(),

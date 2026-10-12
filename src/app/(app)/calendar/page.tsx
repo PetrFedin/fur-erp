@@ -1,3 +1,4 @@
+import { isModuleHidden } from "@/lib/hidden-modules";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -59,6 +60,14 @@ type Ev = {
   seasonCode: string | null;
   orderId: string | null;
 };
+
+const FACT_MODULE: Record<string, string> = { shipment: "shipments", fitting: "fittings", supply: "supply-plan" };
+/** Факт календаря: ссылка на карточку, а у скрытого модуля (см. hidden-modules) — просто подпись без перехода. */
+function FactLink({ kind, href, className, title, children }: { kind: string; href: string; className?: string; title?: string; children: React.ReactNode }) {
+  const m = FACT_MODULE[kind];
+  if (m && isModuleHidden(m)) return <span title={title} className={className}>{children}</span>;
+  return <Link href={href} title={title} className={className}>{children}</Link>;
+}
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const session = await requireSession();
@@ -195,7 +204,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     : [];
   const formOrders = orderOptions.map((o) => {
     const pi = pipeBy.get(o.id);
-    return { id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, fur: pi?.fur ?? null, articleCode: o.productModel.name };
+    return { id: o.id, label: `${o.workOrderNumber ? `ТЗ ${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, fur: pi?.fur ?? null, articleCode: o.productModel.name };
   });
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
@@ -238,7 +247,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     const fur = p?.fur;
     const href2 = f.orderId && f.kind === "order" ? href({ ord: f.orderId, event: "" }) + "#card" : f.href;
     return (
-      <Link key={f.id} href={href2} title={`${st.label}: ${f.title}${f.qty != null ? ` × ${f.qty}` : ""}${fur ? ` · ${fur}` : ""} — ${f.label}${p?.expected ? ` · ${p.status === "COMPLETED" ? "дата" : "ждём"} ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}`}
+      <FactLink key={f.id} kind={f.kind} href={href2} title={`${st.label}: ${f.title}${f.qty != null ? ` × ${f.qty}` : ""}${fur ? ` · ${fur}` : ""} — ${f.label}${p?.expected ? ` · ${p.status === "COMPLETED" ? "дата" : "ждём"} ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}`}
         className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${st.chip} ${p?.overdue && f.kind === "order" ? "ring-1 ring-red-500" : ""}`}>
         <span className="block truncate">{f.title}{f.qty != null ? ` ×${f.qty}` : ""}{fur ? ` · ${fur}` : ""}</span>
         <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">
@@ -246,7 +255,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           {p && f.kind === "order" && <StageChip stage={p.stage} word={p.stageWord} />}
           {p?.expected && f.kind === "order" && <span className="text-[10px] opacity-70">{p.expected.source}</span>}
         </span>
-      </Link>
+      </FactLink>
     );
   };
   const dayBlock = (d: string, compact: boolean) => {
@@ -301,8 +310,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Link href="/plan" className={BTN}>План заказа</Link>
-          <Link href="/supply-plan" className={BTN}>План поставок</Link>
+          {!isModuleHidden("plan") && <Link href="/plan" className={BTN}>План заказа</Link>}
+          {!isModuleHidden("supply-plan") && <Link href="/supply-plan" className={BTN}>План поставок</Link>}
         </div>
       </div>
 
@@ -413,7 +422,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="План поставок без точной даты">
           <h3 className="mb-2 text-sm font-semibold">План поставок на {monthTitle(month)} (без точной даты) <InfoHint>Записи из раздела «План поставок», у которых указан только месяц. Только чтение.</InfoHint></h3>
           <div className="flex flex-wrap gap-2 text-xs">
-            {layer.monthLevel.map((m) => <Link key={m.id} href="/supply-plan" className={`rounded border px-1.5 py-0.5 ${LAYER_STYLES.supply.chip}`}>{m.title} ×{formatQty(m.qty)} · {m.label}</Link>)}
+            {layer.monthLevel.map((m) => isModuleHidden("supply-plan") ? <span key={m.id} className={`rounded border px-1.5 py-0.5 ${LAYER_STYLES.supply.chip}`}>{m.title} ×{formatQty(m.qty)} · {m.label}</span> : <Link key={m.id} href="/supply-plan" className={`rounded border px-1.5 py-0.5 ${LAYER_STYLES.supply.chip}`}>{m.title} ×{formatQty(m.qty)} · {m.label}</Link>)}
           </div>
         </section>
       )}
@@ -489,10 +498,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                     const st = LAYER_STYLES[f.kind];
                     const pi = f.orderId ? pipeBy.get(f.orderId) : undefined;
                     return (
-                      <Link key={f.id} href={f.href} className={`block rounded-lg border px-2 py-1.5 text-sm ${st.chip}`}>
+                      <FactLink key={f.id} kind={f.kind} href={f.href} className={`block rounded-lg border px-2 py-1.5 text-sm ${st.chip}`}>
                         <span className="block break-words font-medium">{f.title}{f.qty != null ? ` ×${formatQty(f.qty)}` : ""}{pi ? ` · ${pi.fur}` : ""}</span>
                         <span className="flex flex-wrap items-center gap-x-1.5 text-xs opacity-90">{st.label} · {f.label}{pi && f.kind === "order" && <StageChip stage={pi.stage} word={pi.stageWord} />}{pi?.expected && f.kind === "order" && <span className="opacity-70">{pi.expected.source}</span>}</span>
-                      </Link>
+                      </FactLink>
                     );
                   })}
                 </section>

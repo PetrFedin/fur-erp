@@ -17,6 +17,7 @@ import { BomRemoveButton } from "./bom-remove-button";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { orderLabel, truncate } from "@/lib/fittings";
+import { isModuleHidden } from "@/lib/hidden-modules";
 import { summarizeLines } from "@/lib/shipments";
 import { ArticleName } from "@/components/article-name";
 import { ProdTiles } from "@/components/prod-tiles";
@@ -191,10 +192,10 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       <nav aria-label="Разделы артикула" className="flex flex-wrap gap-2">
         <SectionLink href={`/production?model=${id}`} label="ТЗ артикула" count={orders.filter((o) => o.status !== "CANCELLED").length} />
         <SectionLink href={`/production/batches?model=${id}`} label="Партии" count={batchCount} />
-        <SectionLink href={`/shipments?model=${id}`} label="Отгрузки" count={shipmentsCount} />
-        <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />
-        <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />
-        <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />
+        {!isModuleHidden("shipments") && <SectionLink href={`/shipments?model=${id}`} label="Отгрузки" count={shipmentsCount} />}
+        {!isModuleHidden("fittings") && <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />}
+        {!isModuleHidden("plan") && <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />}
+        {!isModuleHidden("supply-plan") && <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />}
         <SectionLink href="#stock" label="Остаток / движения" count={movementsCount} />
         <SectionLink href="#docs" label="Документы" count={docs.length} />
       </nav>

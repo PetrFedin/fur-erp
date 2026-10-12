@@ -78,7 +78,7 @@ function isPastRu(date: string): boolean {
 
 function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
   // Остаток в пределах копейки — ноль, а не «-0 ₽».
-  return r.lessThan(-0.005) ? `+${formatMoney(r.neg().toString())}` : r.lessThan(0.005) ? formatMoney("0") : formatMoney(r.toString());
+  return r.lessThan(-0.005) ? `Переплата ${formatMoney(r.neg().toString())}` : r.lessThan(0.005) ? formatMoney("0") : formatMoney(r.toString());
 }
 
 const FRESH_MS = 365 * 24 * 3600 * 1000;
@@ -126,6 +126,8 @@ function payComment(docRef: string | null, dateText: string): string {
     .filter((x) => !/^п\/п\s*№?\s*\d+/i.test(x) && !INVOICE_RX.test(x))
     .join(" · ");
 }
+
+export const metadata = { title: "Оплаты" };
 
 export default async function PaymentsPage({
   searchParams,
@@ -281,7 +283,7 @@ export default async function PaymentsPage({
         <Td
           className={
             "whitespace-nowrap text-right font-semibold " +
-            (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-emerald-700" : "")
+            (a.remaining.greaterThan(0.005) ? "text-amber-700" : a.remaining.lessThan(-0.005) ? "text-sky-700" : "")
           }
         >
           {fmtRemaining(a.remaining)}
@@ -366,7 +368,7 @@ export default async function PaymentsPage({
       <Td className={"whitespace-nowrap text-right font-semibold " + (e.rem.greaterThan(0.005) ? "text-amber-700" : "")}>{fmtRemaining(e.rem)}</Td>
     </Tr>
   );
-  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-emerald-700" : "");
+  const remClass = (r: Decimal) => (r.greaterThan(0.005) ? "text-amber-700" : r.lessThan(-0.005) ? "text-sky-700" : "");
   const auctionCard = (a: (typeof auctions)[number]) => {
     const href = `${auctionHref(a.name)}#auction-block`;
     return (

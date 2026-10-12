@@ -1,6 +1,8 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { tzCountText } from "@/lib/tz-key";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
@@ -19,8 +21,10 @@ const money = (v: number) => formatMoney(v.toFixed(2));
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
  * `extra` — дополнительные плитки страницы (оплаты партий, маркап и т. п.); `perUnit` — замена плитки «На 1 изделие» (карусель на «Изделиях»).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd }: { headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd, defaultCollapsed }: { /** Свернуть плитки до строки-итога со ссылкой на Главную. По умолчанию — на «Партиях пошива» и «Изделиях», где эти же цифры уже есть на Главной и в ТЗ. */ defaultCollapsed?: boolean; headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
+  const path = usePathname();
+  const collapsedByDefault = defaultCollapsed ?? /^\/(production\/batches|articles)(\/|$)/.test(path);
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
   const total = sumTotal(all);
@@ -56,13 +60,17 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     </>
   );
   return (
-    <WidgetRow id={id} title={title} headerEnd={headerEnd}>
+    <WidgetRow id={id} title={title} headerEnd={headerEnd} defaultCollapsed={collapsedByDefault}
+      headerExtra={collapsedByDefault ? <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-xs text-neutral-600">
+        <span>Произведено <b className="tabular-nums">{formatQty(own.qty)} шт.</b> · Себестоимость <b className="tabular-nums">{money(total)}</b></span>
+        <Link href="/dashboard" className="text-blue-700 hover:underline print:hidden">→ на Главной</Link>
+      </span> : undefined}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
       {carousel ? (
-        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Тотал» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал без ремонта). Ремонт — только в тотале и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+          hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал без ремонта). Ремонт — только в тотале и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
-            { key: "total", label: "Тотал", body: <a href={`#${treeId}`} className={slideLink} aria-label="Произведено — перейти к составу">{producedTotal}</a> },
+            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Произведено — перейти к составу">{producedTotal}</a> },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Произведено: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
           ]} />
       ) : (
@@ -79,10 +87,10 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       </div>
       )}
       {carousel ? (
-        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Тотал» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+          hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Всего» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
-            { key: "total", label: "Тотал", body: <a href={`#${treeId}`} className={slideLink} aria-label="Себестоимость — перейти к составу">{costTotal}</a> },
+            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Себестоимость — перейти к составу">{costTotal}</a> },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Себестоимость: ${g} — перейти к составу`}><GroupCostSlide all={orders} grp={g} vat={vat} c4={c4} /></a> })),
           ]} />
       ) : (

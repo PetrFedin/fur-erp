@@ -333,7 +333,7 @@ export async function loadAllocEditorData(
       .filter((o) => linked.has(o.id) || (p.clientId != null && o.clientId === p.clientId))
       .map((o) => ({
         id: o.id,
-        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
+        label: o.workOrderNumber ? `ТЗ ${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
         linked: linked.has(o.id),
         workCents: orderWorkCents(o),
         otherCents: allocs.filter((a) => a.productionOrderId === o.id && a.productionPaymentId !== p.id).reduce((s, a) => s + toCents(a.amount), 0),

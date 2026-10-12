@@ -363,7 +363,7 @@ export async function createProductionOrder(
         await tx.productionOrder.update({ where: { id: order.id }, data: { status: "IN_PROGRESS" } });
       }
 
-      return { id: order.id, label: parsed.data.workOrderNumber ? `ТЗ №${parsed.data.workOrderNumber}` : number };
+      return { id: order.id, label: parsed.data.workOrderNumber ? `ТЗ ${parsed.data.workOrderNumber}` : number };
     });
   } catch (e) {
     return { errors: [e instanceof Error ? e.message : "Не удалось создать ТЗ"] };

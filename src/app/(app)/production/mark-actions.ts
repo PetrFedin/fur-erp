@@ -107,7 +107,7 @@ export async function saveProductionPaymentAllocation(paymentId: string, formDat
       })
       .filter((x) => x.extra > 1);
     if (over.length) {
-      const names = over.slice(0, 3).map((x) => `ТЗ №${x.o.workOrderNumber ?? x.o.number} (+${fromCents(x.extra)} ₽)`).join(", ");
+      const names = over.slice(0, 3).map((x) => `ТЗ ${x.o.workOrderNumber ?? x.o.number} (+${fromCents(x.extra)} ₽)`).join(", ");
       return { confirm: `Разнесено больше работы по ТЗ: ${names}${over.length > 3 ? " и др." : ""}. Остаток по этим ТЗ станет отрицательным (переплата). Сохранить?` };
     }
   }

@@ -9,7 +9,7 @@ import { BridgeHint } from "./mode-line";
 import { formatCompactMoney } from "./compact";
 
 /** Срок «дд.мм.гггг» уже прошёл (конец дня). */
-function isPastRu(date: string): boolean {
+export function isPastRu(date: string): boolean {
   const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(date);
   return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 23, 59, 59).getTime() < Date.now() : false;
 }
@@ -28,7 +28,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   // Детализация меха и подкладки: остаток на складе, использовано (без 4%) и надбавка 4% (оплачена в составе оплат ТЗ, доплаты нет).
   const detail = (x: typeof d.raw.fur.incl) => ({ stock: x.remValue, used: c4Mode === "on" ? x.usedValueOther : x.usedValue, c4: Math.abs(x.usedValue - x.usedValueOther) });
   const furD = detail(d.raw.fur.incl), linD = detail(d.raw.lining.incl);
-  // Оплачено и к оплате делятся на «за использованное» и «за остаток (сток)» пропорционально их стоимости; 4% оплачены в составе оплат ТЗ (доплаты нет).
+  // Оплачено и к оплате делятся на «за использованное» и «за остаток на складе» пропорционально их стоимости; 4% оплачены в составе оплат ТЗ (доплаты нет).
   const split = (D: ReturnType<typeof detail>, amount: number) => {
     const base = D.used + D.stock;
     const u = base > 0 ? D.used / base : 0;
@@ -46,15 +46,15 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
-      { k: "остаток (сток)", v: dash(furSplit.stock), sub: !only },
+      { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
       { k: "использовано", v: dash(furSplit.used), sub: !only },
-      { k: "4%", v: dash(furC4), sub: !only },
+      { k: <>4% <InfoHint label="Что такое 4%">надбавка 4% к сырью</InfoHint></>, v: dash(furC4), sub: !only },
     ] : []),
     ...(inLin ? [
       ...(only ? [] : [{ k: "Подкладка", v: money(lin), share: part(lin, whole), tone: warn && lin > 0 ? "text-amber-700" : undefined }]),
-      { k: "остаток (сток)", v: dash(linSplit.stock), sub: !only },
+      { k: "остаток на складе", v: dash(linSplit.stock), sub: !only },
       { k: "использовано", v: dash(linSplit.used), sub: !only },
-      { k: "4%", v: dash(linC4), sub: !only },
+      { k: <>4% <InfoHint label="Что такое 4%">надбавка 4% к сырью</InfoHint></>, v: dash(linC4), sub: !only },
     ] : []),
     ...(inWork ? [{ k: "Работа", v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];

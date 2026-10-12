@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { MODEL_TITLES } from "@/lib/audit-core";
-import { PAGE_SIZE, actorText, fmtAt, historyWhere, parseHistoryFilters, recordHref, type LogRow } from "@/lib/audit-query";
+import { PAGE_SIZE, actorText, fmtAt, historyWhere, parseHistoryFilters, recordHref, isTestLabel, type LogRow } from "@/lib/audit-query";
 import { ActionBadge, ChangeCell, entityTitle } from "@/components/audit-change";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
@@ -131,6 +131,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
                   ) : (
                     <span>{r.label ?? r.recordId}</span>
                   )}
+                  {isTestLabel(r.label) && <span className="ml-1.5 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-700" title="Тестовая запись: проверка работы журнала">тест</span>}
                 </Td>
                 <Td>
                   <ActionBadge action={r.action} />

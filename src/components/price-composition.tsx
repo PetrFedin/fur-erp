@@ -124,7 +124,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
             className={interactive ? "cursor-pointer" : undefined}
             onMouseEnter={enter(s.key)} onMouseLeave={leave}
             onClick={interactive ? () => onSelect?.(s.key) : undefined}>
-            <title>{`${s.label}: ${money(s.value)} ₽ · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} ₽ за ${unitName}` : ""}`}</title>
+            <title>{`${s.label}: ${money(s.value)} · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} ₽ за ${unitName}` : ""}`}</title>
           </path>
         );
       })}
@@ -228,7 +228,7 @@ export function LotPriceComposition({ cats, vat, qty, unitName, ariaLabel }: { c
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         {toggle}
-        <span className="text-xs text-neutral-500">{withVat ? "сектора без НДС плюс НДС лота" : `НДС лота ${formatMoney(vat.toFixed(2))} ₽ в секторах не показан`}</span>
+        <span className="text-xs text-neutral-500">{withVat ? "сектора без НДС плюс НДС лота" : `НДС лота ${formatMoney(vat.toFixed(2))} в секторах не показан`}</span>
       </div>
       <PriceCompositionChart stacked slices={slices} total={total} qty={qty} unitName={unitName} totalLabel={withVat ? "Цена лота, с НДС" : "Цена лота, без НДС"} ariaLabel={ariaLabel + (withVat ? ", с НДС" : ", без НДС")} />
     </div>

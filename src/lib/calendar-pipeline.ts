@@ -147,4 +147,4 @@ export async function loadPipeline(orgId: string, year: YearFilter, today: strin
   return out;
 }
 
-export const pipeTitle = (p: PipeItem) => (p.wo ? `ТЗ №${p.wo}` : `ТЗ ${p.number}`);
+export const pipeTitle = (p: PipeItem) => (p.wo ? `ТЗ ${p.wo}` : `ТЗ ${p.number}`);

@@ -21,6 +21,15 @@ export type ProdBridge = { usedBase: { incl: number; excl: number }; comparable:
 
 const addNums = (a: ProdNums, b: ProdNums): ProdNums => ({ items: a.items + b.items, repairOrders: a.repairOrders + b.repairOrders, repairQty: a.repairQty + b.repairQty, repairCostIncl: a.repairCostIncl + b.repairCostIncl, repairCostExcl: a.repairCostExcl + b.repairCostExcl, orders: a.orders + b.orders, qty: a.qty + b.qty, costIncl: a.costIncl + b.costIncl, costExcl: a.costExcl + b.costExcl, work: a.work + b.work, furIncl: a.furIncl + b.furIncl, furExcl: a.furExcl + b.furExcl, liningIncl: a.liningIncl + b.liningIncl, liningExcl: a.liningExcl + b.liningExcl, matIncl: a.matIncl + b.matIncl, matExcl: a.matExcl + b.matExcl, c4Incl: a.c4Incl + b.c4Incl, c4Excl: a.c4Excl + b.c4Excl });
 
+/** Итоги «Произведено / Себестоимость / На изделие» для полосы «Главное» — те же формулы, что в ProductionBlock ниже (факт по всем ТЗ, шкуры подрядчика входят в мех). */
+export function prodSummary(done: ProdNums, work: ProdNums, all: ProdNums, hides: { incl: number; excl: number }, vat: "incl" | "excl") {
+  const fact = { ...addNums(done, work), orders: all.orders, items: all.items, repairOrders: all.repairOrders };
+  const cost = vat === "incl" ? fact.costIncl : fact.costExcl;
+  const repairCost = vat === "incl" ? fact.repairCostIncl : fact.repairCostExcl;
+  const costAll = cost + (vat === "incl" ? hides.incl : hides.excl);
+  return { qty: fact.qty, total: costAll + fact.work, avg: fact.qty > 0 ? (cost - repairCost) / fact.qty : null };
+}
+
 type VatPair = { incl: number; excl: number };
 
 export function ProductionBlock({ href = "/production", vatCost, kind = "", hides, c4Parts, years, done, work, all, c4, search, info, bridge }: { /** «→ ТЗ» с фильтрами Главной. */ href?: string; hides: VatPair; vatCost: VatByRate; kind?: string; c4Parts: { fur: VatPair; lining: VatPair }; years: { label: string; qty: number }[]; done: ProdNums; work: ProdNums; /** Все ТЗ (уникальные номера ТЗ по всему набору, а не сумма двух частей). */ all: ProdNums; c4: "on" | "off"; search: Record<string, string[]>; info: ModeInfo; bridge: ProdBridge }) {
@@ -60,13 +69,13 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p><b>Произведено</b> — изделия по всем ТЗ (завершённые и в работе): учитывается фактическое списание сырья, отметка «Завершён» не важна. Ремонт в штуки не входит — он считается отдельно (страница «Ремонт»). ТЗ без списаний и в плане входят плановым количеством.</p>
             <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
-            { key: "total", label: "Тотал", body: (
+            { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={SLIDE_BTN}>
                 <TileValue>{formatQty(fact.qty)} шт.</TileValue>
                 <TileCaption>{kind === "repair" ? `Ремонт: ${fact.repairOrders} ТЗ` : `${fact.orders} ТЗ${fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}`}</TileCaption>
@@ -84,14 +93,14 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
                 <GroupProducedSlide all={drillOrders} grp={g} vat={vat} loading={!drill} compact />
               </button>) })),
           ]} />
-        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость» без работы: <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
-            <p className="mt-1">«Тотал» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы. Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
+            <p className="mt-1">«Всего» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы. Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
-            { key: "total", label: "Тотал", body: (
+            { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={SLIDE_BTN}>
                 <TileValue>{money(total)}</TileValue>
                 <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - D.c4)} без 4%` : null}</div>
