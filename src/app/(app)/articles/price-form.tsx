@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/utils";
 import { updateSellingPrice } from "../models/actions";
@@ -42,7 +42,13 @@ export function ArticlePriceForm({
   const [focused, setFocused] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const dirty = value !== saved;
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = setTimeout(() => setJustSaved(false), 3000);
+    return () => clearTimeout(t);
+  }, [justSaved]);
 
   if (!canEdit) {
     return <span>{sellingPrice ? formatMoney(sellingPrice) : "—"}</span>;
@@ -67,9 +73,12 @@ export function ArticlePriceForm({
         const res = await bound(formData);
         setPending(false);
         if (res?.error) setError(res.error);
-        else setSaved(value.trim());
+        else {
+          setSaved(value.trim());
+          setJustSaved(true);
+        }
       }}
-      className="flex flex-wrap items-center gap-1"
+      className="flex flex-wrap items-center justify-end gap-1"
     >
       <input type="hidden" name="sellingPrice" value={value} />
       <Input
@@ -90,11 +99,14 @@ export function ArticlePriceForm({
         title="Цена применяется к незавершённым ТЗ (в плане и в работе); у завершённых не меняется"
         className="h-8 w-36"
       />
+      {dirty && !pending ? (
+        <button type="submit" className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-xs font-medium hover:bg-neutral-50">Сохранить</button>
+      ) : null}
       <span
-        role={error ? "alert" : undefined}
-        className={`text-xs ${error ? "text-red-600" : pending || dirty || saved ? "text-neutral-500" : "text-amber-700"}`}
+        role={error ? "alert" : "status"}
+        className={`text-xs ${error ? "text-red-600" : justSaved ? "text-emerald-700" : "text-neutral-500"}`}
       >
-        {error ?? (pending ? "Сохраняю…" : dirty ? "Enter — сохранить; цена применяется к незавершённым ТЗ" : saved ? "Задана" : "Не задана")}
+        {error ?? (pending ? "Сохраняю…" : justSaved ? "✓ Сохранено" : dirty ? "Не сохранено" : saved ? "" : "Не задана")}
       </span>
     </form>
   );

@@ -68,6 +68,8 @@ const cardCls = "rounded-lg border border-neutral-200 bg-white p-3";
 const th = "px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
 
 export function ProductionCreateForm(props: {
+  /** Предзаполнение артикула: /production/new?article=… (кнопка «Создать ТЗ на этот артикул» в карточке). */
+  initialArticleId?: string;
   action: (prev: CreateOrderState, formData: FormData) => Promise<CreateOrderState>;
   models: ModelOption[];
   warehouses: { id: string; name: string; isDefault: boolean }[];
@@ -108,14 +110,14 @@ export function ProductionCreateForm(props: {
 }
 
 function FormBody({
-  models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, expenseCategories, furs,
+  initialArticleId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, expenseCategories, furs,
   state, formAction, pending,
 }: Parameters<typeof ProductionCreateForm>[0] & { state: CreateOrderState; formAction: (fd: FormData) => void; pending: boolean }) {
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
   const today = new Date().toISOString().slice(0, 10);
   const defaultWarehouse = warehouses.find((w) => w.isDefault)?.id ?? warehouses[0]?.id ?? "";
 
-  const [modelId, setModelId] = useState("");
+  const [modelId, setModelId] = useState(initialArticleId ?? "");
   const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today, rawWarehouseId: defaultWarehouse });
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const [clientId, setClientId] = useState("");
@@ -366,7 +368,7 @@ function FormBody({
       <Step n={1} title="Параметры" id="params" hint={<><p>Что заведено в ТЗ — те же поля, что на карточке. Артикул, цвет, вид меха, партия, заказчик выбираются из справочников или вносятся новые.</p><p className="mt-1">Количество → «Произведено» и «Изделия»; работа ₽/ед. × количество → себестоимость и оплаты заказчика; партия → «Партии пошива»; артикул → категория, группа и цена продажи.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field label="Артикул *" className="sm:col-span-2" hint="Выберите артикул из справочника или «+ Ввести новый артикул» — он сразу сохранится в справочник артикулов.">
-            <ArticleSelect name="articleText" onlyActive onChange={(a) => setModelId(a?.id ?? "")} />
+            <ArticleSelect name="articleText" onlyActive defaultValue={initialArticleId || undefined} onChange={(a) => setModelId(a?.id ?? "")} />
             {model ? (
               <p className="mt-1 text-xs text-neutral-500">
                 {model.category ? `${model.category}${model.group && model.group !== "Без группы" ? ` · ${model.group}` : ""}` : "Категория не задана — укажите на карточке"}

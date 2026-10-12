@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { categoryKey, suggestCategoryRef } from "@/lib/category-ref";
 import { createCategoryInline } from "@/app/(app)/settings/categories/actions";
 
-export type CategorySelectOption = { id: string; name: string; aliases: string[]; proposed?: boolean };
+export type CategorySelectOption = { id: string; name: string; aliases: string[]; proposed?: boolean; group?: string | null };
 
 
 /**

@@ -27,6 +27,9 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { isRepair, sumOrders, sumTotal } from "@/lib/orders-sum";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { articleMetrics } from "@/lib/article-metrics";
+import { CostTwo } from "@/components/cost-two";
+import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 
 export const metadata = { title: "Изделия" };
 
@@ -34,7 +37,7 @@ export const metadata = { title: "Изделия" };
 // подходящее под ВСЕ выбранные условия; её ср. взвеш. себестоимость и число ТЗ считаются только по таким ТЗ.
 // «Год ТЗ» (tzyear) — дополнительный фильтр внутри общего года из шапки (cookie), общий год не заменяет.
 const ARTICLE_FILTERS = defineFilters({
-  ...pick(["q", "category", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" } }),
+  ...pick(["q", "category", "catgroup", "model", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, model: { label: "Артикул" } }),
   lining: { kind: "multi", label: "Подкладка", allowed: ["yes", "no"] },
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
@@ -52,7 +55,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const canCreate = hasRole(session.user.role, ACCESS.models);
   const orgId = session.user.organizationId;
   const stocks = await prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId }, select: { productModelId: true, quantity: true, avgUnitCost: true } });
-  const articleOpts = await getFilterOptions(orgId, year, ["category"]);
+  const articleOpts = await getFilterOptions(orgId, year, ["category", "model"]);
 
   // ТЗ общего года (без отменённых) со значениями для фильтров: вид меха, цвет, размер, сезон, партия — как в аналитике.
   const [orderRows, liningTexts] = await Promise.all([
@@ -60,6 +63,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     prisma.productionOrder.findMany({ where: { organizationId: orgId }, select: { id: true, lining: true } }),
   ]);
   const liningById = new Map(liningTexts.map((o) => [o.id, hasLiningText(o.lining)]));
+  const colorsByOrder = new Map(orderRows.map((r) => [r.id, r.colors]));
   const tzActive = isTzFilterActive(f);
   const matchedIds = matchedOrderIds(orderRows, liningById, f);
   const tzOpts = tzOptions(orderRows);
@@ -67,7 +71,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
     where: { AND: [articleModelWhere(orgId, f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
-    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, isActive: true },
+    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
 
@@ -104,14 +108,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const wipIncl = sumTotal(sumOrders(wip, "incl"));
     const wipExcl = sumTotal(sumOrders(wip, "excl"));
     const price = m.sellingPrice ? m.sellingPrice.toNumber() : null;
-    // Основной вид меха — тот, на который списано больше всего меха в ТЗ артикула (для таблицы «мех × категория»).
-    const furCost = new Map<string, number>();
-    for (const o of os) for (const l of o.lines) if (l.k === "f" && l.fu) furCost.set(l.fu, (furCost.get(l.fu) ?? 0) + l.i);
-    const primaryFur = Array.from(furCost.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    // Показатели из тех же ТЗ: шкуры, подкладка, средневзвешенное, НДС, основной вид меха (src/lib/article-metrics.ts).
+    const met = articleMetrics(os);
+    const colors = Array.from(new Set(os.flatMap((o) => colorsByOrder.get(o.id) ?? []))).sort((a, b) => a.localeCompare(b, "ru"));
     return {
       id: m.id,
       name: m.name,
       model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
+      group: groupOf(m.categoryRef?.group),
       isActive: m.isActive,
       orderCount: os.length,
       qty, wipQty, wipIncl, wipExcl, stockQty, stockIncl, stockExcl,
@@ -119,7 +123,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       sellingPrice: price,
       retailStock: price ? price * stockQty : null,
       markup: price && unitIncl && unitIncl > 0 ? price / unitIncl : null,
-      primaryFur,
+      primaryFur: met.primaryFur,
+      met,
+      colors,
     };
   });
 
@@ -128,7 +134,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются артикулы, у которых есть подходящие ТЗ.
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0) : rows0.filter((r) => r.orderCount > 0);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
-  const modelFilterOn = !!q || f.category.length > 0 || f.price.length > 0;
+  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.price.length > 0;
   const rows = (tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
@@ -145,6 +151,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const wipIncl = sum((r) => r.wipIncl);
   const wipExcl = sum((r) => r.wipExcl);
   const retailAll = sum((r) => r.retailStock ?? 0);
+  const totalFurQty = sum((r) => r.met.fur.qty);
+  const totalLiningQty = sum((r) => r.met.lining.qty);
+  const sumPair = (pick: (r: (typeof rows)[number]) => { incl: number; excl: number }) => rows.reduce((a, r) => ({ incl: a.incl + pick(r).incl, excl: a.excl + pick(r).excl }), { incl: 0, excl: 0 });
+  const perItem = (q: number, n: number) => formatQty(Math.round((q / n) * 100) / 100);
 
   // Таблица «мех × категория»: число артикулов, средняя розничная цена и средняя наценка (артикулы с ценой и себестоимостью).
   type Agg = { n: number; price: number; markup: number };
@@ -214,16 +224,18 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         title="Фильтры изделий"
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
+          { type: "multi", name: "model", label: "Артикул", options: articleOpts.model },
+          { type: "multi", name: "catgroup", label: "Группа", options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g === NO_GROUP ? "none" : g, label: g })) },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: articleOpts.category, noneLabel: "Без категории" },
-          { type: "multi", name: "fur", label: "Вид (тип) меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },
+          { type: "multi", name: "fur", label: "Тип меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },
+          { type: "multi", name: "color", label: "Цвет", options: tzOpts.color },
+          { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz },
+          { type: "multi", name: "tzyear", label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear, hint: "год ТЗ; дополнительно к общему году в шапке" },
+          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии" },
           { type: "multi", name: "lining", label: "Подкладка", more: true, options: [{ value: "yes", label: "Да — есть подкладка" }, { value: "no", label: "Нет подкладки" }], hint: "по ТЗ: подкладка указана или списана" },
-          { type: "multi", name: "tzyear", label: year === "all" ? "Год ТЗ" : `Год ТЗ (внутри ${year})`, options: tzOpts.tzyear, hint: "дополнительно к общему году в шапке", more: true },
-          { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz, more: true },
-          { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии", more: true },
-          { type: "multi", name: "color", label: "Цвет", options: tzOpts.color, more: true },
           { type: "multi", name: "size", label: "Размер", options: tzOpts.size, more: true },
           { type: "multi", name: "season", label: "Сезон", options: tzOpts.season, noneLabel: "Без сезона", more: true },
-          { type: "multi", name: "price", label: "Цена", options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
+          { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
         ]}
       />
 
@@ -276,33 +288,53 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       />
 
       <ResponsiveRows table={
-      <Table anchor="table:articles" label="Таблица изделий" stickyHeader>
+      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1500px]">
         <Thead>
           <Tr>
             <Th>Артикул</Th>
-            <Th>Категория</Th>
-            <Th>
+            <Th>Категория / группа</Th>
+            <Th>Мех</Th>
+            <Th>Цвет</Th>
+            <Th className="text-right">
               Произведено, шт.
               <InfoHint label="Что такое произведено">Все ТЗ артикула без отменённых: завершённые и в работе (как на Главной).</InfoHint>
             </Th>
-            <Th>
+            <Th className="text-right">
               На складе, шт.
-              <InfoHint label="Что такое остаток">Готовая продукция на складах сейчас. Разница с «Произведено» — изделия в ТЗ, которые ещё в работе.</InfoHint>
+              <InfoHint label="Что такое остаток">Готовая продукция сейчас. Разница с «Произведено» — изделия в ТЗ, которые ещё в работе.</InfoHint>
+            </Th>
+            <Th className="text-right">
+              Шкур, шт.
+              <InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ произведено).</InfoHint>
+            </Th>
+            <Th className="text-right">
+              Шкуры, сумма
+              <InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4%, мелко — без 4%. Включена в «Себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>
+            </Th>
+            <Th className="text-right">Подкладка, м</Th>
+            <Th className="text-right">Подкладка, сумма</Th>
+            <Th className="text-right">Работа</Th>
+            <Th className="text-right">
+              Себестоимость итого
+              <InfoHint label="Из чего складывается">Шкуры + подкладка + 4% + расходы + работа по всем ТЗ артикула. Итог равен «Себестоимости» изделий (без ремонта) на Главной. Основная цифра — с 4%, мелко — без 4%.</InfoHint>
+            </Th>
+            <Th className="text-right">
+              За ед.
+              <InfoHint label="Себестоимость единицы">Себестоимость итого ÷ произведено.</InfoHint>
             </Th>
             <Th>
-              Себестоимость за ед.
-              <InfoHint label="Как считается себестоимость единицы">Себестоимость всех ТЗ артикула (мех, подкладка, 4%, расходы, работа, шкуры подрядчика) ÷ произведено. Состав по лотам — в дереве выше и в карточке артикула.</InfoHint>
+              НДС
+              <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
             </Th>
-            <Th>
-              Себестоимость всего
-              <InfoHint label="Из чего складывается">Склад + ТЗ в работе. Итог равен «Себестоимости» изделий (без ремонта) на Главной.</InfoHint>
+            <Th className="text-right">
+              Цена, с НДС
+              <InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>
             </Th>
-            <Th>Розничная цена</Th>
-            <Th>
+            <Th className="text-right">
               Наценка
-              <InfoHint label="Как считается наценка">Розничная цена ÷ себестоимость за ед. Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>
+              <InfoHint label="Как считается наценка">Розничная цена ÷ себестоимость за ед. (с НДС, с 4%). Пример: цена 10 000 ₽ при себестоимости 4 000 ₽ — ×2,50.</InfoHint>
             </Th>
-            <Th>ТЗ</Th>
+            <Th className="text-right">ТЗ</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -313,16 +345,39 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                   <ArticleName model={r.model} compact />
                 </Link>
               </Td>
-              <Td className="text-neutral-700">{r.model.category?.trim() || "—"}</Td>
-              <Td>{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
-              <Td>{r.stockQty > 0 ? formatQty(r.stockQty) : "—"}</Td>
-              <Td>{r.unitIncl != null ? <Money incl={r.unitIncl.toFixed(2)} excl={r.unitExcl?.toFixed(2)} /> : "—"}</Td>
-              <Td>{r.costIncl > 0 ? <Money incl={r.costIncl.toFixed(2)} excl={r.costExcl.toFixed(2)} /> : "—"}</Td>
-              <Td>
+              <Td className="text-neutral-700">
+                <div>{r.model.category?.trim() || "—"}</div>
+                {r.group !== NO_GROUP ? <div className="text-[11px] text-neutral-400">{r.group}</div> : null}
+              </Td>
+              <Td className="text-neutral-700" title={r.met.furNames.join(", ")}>
+                {r.primaryFur ?? "—"}
+                {r.met.furNames.length > 1 ? <span className="text-[11px] text-neutral-400"> +{r.met.furNames.length - 1}</span> : null}
+              </Td>
+              <Td className="text-neutral-700" title={r.colors.join(", ")}>
+                {r.colors.length ? r.colors.slice(0, 2).join(", ") : "—"}
+                {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
+              </Td>
+              <Td className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
+              <Td className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "—"}</Td>
+              <Td className="text-right tabular-nums">
+                {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
+                {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
+              </Td>
+              <Td className="text-right"><CostTwo on={r.met.fur.on} off={r.met.fur.off} /></Td>
+              <Td className="text-right tabular-nums">
+                {r.met.lining.qty > 0 ? formatQty(Math.round(r.met.lining.qty * 100) / 100) : "—"}
+                {r.met.lining.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.lining.qty, r.qty)} м/изд.</div> : null}
+              </Td>
+              <Td className="text-right"><CostTwo on={r.met.lining.on} off={r.met.lining.off} /></Td>
+              <Td className="text-right tabular-nums">{r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—"}</Td>
+              <Td className="text-right"><CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /></Td>
+              <Td className="text-right"><CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /></Td>
+              <Td className="whitespace-nowrap tabular-nums text-neutral-700" title="Ставки НДС в строках списания">{r.met.vatRates.length ? r.met.vatRates.map((v) => `${v}%`).join(", ") : "—"}</Td>
+              <Td className="text-right">
                 <ArticlePriceForm modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </Td>
-              <Td>{r.markup ? fmtX(r.markup) : "—"}</Td>
-              <Td>
+              <Td className="text-right tabular-nums">{r.markup ? fmtX(r.markup) : "—"}</Td>
+              <Td className="text-right tabular-nums">
                 {r.orderCount > 0 ? (
                   <Link href={`/production?model=${r.id}`} className="text-blue-700 hover:underline" title="ТЗ этого артикула">
                     {r.orderCount}
@@ -336,17 +391,22 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           {rows.length > 0 && (
             <Tr className="border-t-2 border-neutral-300 bg-neutral-50 font-semibold">
               <Td>Итого</Td>
-              <Td />
-              <Td>{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
-              <Td>{totalStockQty > 0 ? formatQty(totalStockQty) : "—"}</Td>
-              <Td>{totalQty > 0 ? <Money incl={(totalCostIncl / totalQty).toFixed(2)} excl={(totalCostExcl / totalQty).toFixed(2)} /> : "—"}</Td>
-              <Td><Money incl={totalCostIncl.toFixed(2)} excl={totalCostExcl.toFixed(2)} /></Td>
               <Td /><Td /><Td />
+              <Td className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
+              <Td className="text-right tabular-nums">{totalStockQty > 0 ? formatQty(totalStockQty) : "—"}</Td>
+              <Td className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
+              <Td className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
+              <Td className="text-right tabular-nums">{totalLiningQty > 0 ? formatQty(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
+              <Td className="text-right"><CostTwo on={sumPair((r) => r.met.lining.on)} off={sumPair((r) => r.met.lining.off)} /></Td>
+              <Td className="text-right tabular-nums"><Money incl={sum((r) => r.met.work).toFixed(2)} excl={sum((r) => r.met.work).toFixed(2)} /></Td>
+              <Td className="text-right"><CostTwo on={totalQty > 0 || totalCostIncl > 0 ? sumPair((r) => r.met.total.on) : null} off={sumPair((r) => r.met.total.off)} /></Td>
+              <Td className="text-right">{totalQty > 0 ? <CostTwo on={{ incl: totalCostIncl / totalQty, excl: totalCostExcl / totalQty }} off={{ incl: sumPair((r) => r.met.total.off).incl / totalQty, excl: sumPair((r) => r.met.total.off).excl / totalQty }} /> : "—"}</Td>
+              <Td /><Td /><Td /><Td />
             </Tr>
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={9} className="py-8 text-center text-neutral-500">
+              <Td colSpan={17} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по артикулам", "") : emptyCount > 0 ? "Нет артикулов с ТЗ и остатком" : "Артикулов пока нет"}
               </Td>
             </Tr>
@@ -359,19 +419,27 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             key={r.id}
             className={r.isActive ? "" : "opacity-60"}
             title={<ArticleName model={r.model} compact />}
-            subtitle={r.model.category?.trim() || undefined}
+            subtitle={[r.model.category?.trim(), r.group !== NO_GROUP ? r.group : null, r.primaryFur, r.colors.slice(0, 2).join(", ") || null].filter(Boolean).join(" · ") || undefined}
             href={`/models/${r.id}`}
             fields={[
               { label: "Произведено, шт.", value: r.qty > 0 ? formatQty(r.qty) : "—", strong: true },
               { label: "На складе, шт.", value: r.stockQty > 0 ? formatQty(r.stockQty) : "—" },
-              { label: "Себестоимость за ед.", value: r.unitIncl != null ? <Money incl={r.unitIncl.toFixed(2)} excl={r.unitExcl?.toFixed(2)} /> : "—" },
-              { label: "Себестоимость всего", value: r.costIncl > 0 ? <Money incl={r.costIncl.toFixed(2)} excl={r.costExcl.toFixed(2)} /> : "—" },
+              { label: "Себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
+              { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
               { label: "Наценка", value: r.markup ? fmtX(r.markup) : "—" },
               { label: "ТЗ", value: r.orderCount > 0 ? <Link href={`/production?model=${r.id}`} className="underline">{r.orderCount}</Link> : "—" },
             ]}
+            details={[
+              { label: "Шкур, шт.", value: r.met.fur.qty > 0 ? `${formatQty(Math.round(r.met.fur.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.fur.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Шкуры, сумма", value: <CostTwo on={r.met.fur.on} off={r.met.fur.off} /> },
+              { label: "Подкладка, м", value: r.met.lining.qty > 0 ? `${formatQty(Math.round(r.met.lining.qty * 100) / 100)}${r.qty > 0 ? ` (${perItem(r.met.lining.qty, r.qty)}/изд.)` : ""}` : "—" },
+              { label: "Подкладка, сумма", value: <CostTwo on={r.met.lining.on} off={r.met.lining.off} /> },
+              { label: "Работа", value: r.met.work > 0 ? <Money incl={r.met.work.toFixed(2)} excl={r.met.work.toFixed(2)} /> : "—" },
+              { label: "НДС в списаниях", value: r.met.vatRates.length ? r.met.vatRates.map((v) => `${v}%`).join(", ") : "—" },
+            ]}
             extra={
               <div>
-                <div className="mb-1 text-xs text-neutral-500">Розничная цена</div>
+                <div className="mb-1 text-xs text-neutral-500">Розничная цена, с НДС</div>
                 <ArticlePriceForm mobile modelId={r.id} sellingPrice={r.sellingPrice?.toString() ?? ""} canEdit={canCreate} />
               </div>
             }

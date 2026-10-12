@@ -9,7 +9,12 @@ import { ACCESS } from "@/lib/access";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { staleError, MODEL_V } from "@/lib/concurrency";
 import { resolveCategoryInput } from "@/lib/categories";
-import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation } from "@/lib/input";
+import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation, normalizeNumberInput } from "@/lib/input";
+import { loadArticleList } from "@/lib/article-ref";
+import { articleKey, parseAliases } from "@/lib/article-key";
+import { articleConflict } from "@/lib/article-conflict";
+import { CATEGORY_GROUPS } from "@/lib/category-groups";
+import { hasRole } from "@/lib/access";
 
 const EDIT_ROLES = ACCESS.models;
 
@@ -164,4 +169,96 @@ export async function removeBomLine(productModelId: string, lineId: string) {
   // Строка удаляется только если она принадлежит этой (своей) модели.
   await prisma.productModelMaterial.deleteMany({ where: { id: lineId, productModelId: model.id } });
   revalidateAll(session.user.organizationId);
+}
+
+// ───────────────────────── единая форма артикула (новый + правка по месту) ─────────────────────────
+
+export type ArticleSaveState = {
+  error?: string;
+  /** Ошибки по полям (имя поля формы → сообщение). */
+  fields?: Record<string, string>;
+  /** Правка сохранена. */
+  saved?: { at: number };
+  /** Новый артикул заведён (intent=again — остаёмся на форме). */
+  created?: { id: string; name: string; at: number };
+};
+
+const one = (v: FormDataEntryValue | null, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+
+/**
+ * Сохранение артикула одной формой. id = null — новый артикул (intent «open» ведёт в карточку, «again» оставляет пустую форму).
+ * Правка возможна в любом состоянии артикула. Категория — из справочника или своя (если права позволяют, сразу заводится в справочник
+ * с выбранной группой). Цена продажи при изменении переносится на ТЗ в плане и в работе (как «Розничная цена» в списке).
+ */
+export async function saveArticleForm(id: string | null, _prev: ArticleSaveState, formData: FormData): Promise<ArticleSaveState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const fields: Record<string, string> = {};
+
+  const name = one(formData.get("name"), 100);
+  const salesCode = one(formData.get("salesCode"), 100);
+  const salesName = one(formData.get("salesName"), 500);
+  const category = one(formData.get("category"), 100);
+  const group = one(formData.get("group"), 40);
+  const description = String(formData.get("description") ?? "").trim().slice(0, 5000);
+  const aliases = parseAliases(String(formData.get("aliases") ?? "")).filter((a) => articleKey(a) !== articleKey(name));
+  const rawPrice = normalizeNumberInput(formData.get("sellingPrice"));
+  if (name.length < 2) fields.name = "Укажите код артикула (не короче 2 символов)";
+  let price: number | null = null;
+  if (rawPrice !== undefined) {
+    if (typeof rawPrice !== "number" || !Number.isFinite(rawPrice) || rawPrice <= 0 || rawPrice > 999_999_999_999) fields.sellingPrice = "Цена продажи: число больше 0 (или оставьте пустой)";
+    else price = rawPrice;
+  }
+  if (Object.keys(fields).length) return { error: Object.values(fields)[0], fields };
+
+  const list = await loadArticleList(orgId);
+  if (id && !list.some((a) => a.id === id)) return { error: "Артикул не найден" };
+  const bad = articleConflict(list, id, { name, salesCode, aliases });
+  if (bad) return { error: bad, fields: { name: bad } };
+
+  // Категория: выбранная из справочника либо своя (текст; сопоставляется со справочником по названию/синониму).
+  // Группа (верхний уровень) принадлежит категории: если у выбранной категории группы ещё нет, а в форме она выбрана — записываем её.
+  const catInput = await resolveCategoryInput(prisma, orgId, { category, categoryRefId: String(formData.get("categoryRefId") ?? "") || null });
+  if (catInput.categoryRefId && (CATEGORY_GROUPS as readonly string[]).includes(group) && hasRole(session.user.role, ACCESS.categories)) {
+    await prisma.categoryRef.updateMany({ where: { id: catInput.categoryRefId, organizationId: orgId, group: null }, data: { group } });
+  }
+
+  const data = {
+    name,
+    salesCode: salesCode || null,
+    salesName: salesName || null,
+    aliases,
+    category: catInput.category,
+    categoryRefId: catInput.categoryRefId,
+    sellingPrice: price,
+    description: description || null,
+    ...(id ? { isActive: formData.get("isActive") !== "0" } : {}),
+  };
+  let savedId = id;
+  try {
+    if (id) {
+      const before = await prisma.productModel.findFirst({ where: { id, organizationId: orgId }, select: { sellingPrice: true } });
+      const r = await prisma.productModel.updateMany({ where: { id, organizationId: orgId }, data });
+      if (r.count === 0) return { error: "Артикул не найден" };
+      const was = before?.sellingPrice ? before.sellingPrice.toNumber() : null;
+      if (was !== price) {
+        await prisma.productionOrder.updateMany({
+          where: { productModelId: id, organizationId: orgId, status: { in: ["PLANNED", "IN_PROGRESS"] } },
+          data: { retailPrice: price },
+        });
+      }
+    } else {
+      const m = await prisma.productModel.create({ data: { organizationId: orgId, ...data } });
+      savedId = m.id;
+    }
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: "Артикул с таким кодом уже есть", fields: { name: "Артикул с таким кодом уже есть" } };
+    throw e;
+  }
+  revalidateAll(orgId);
+  if (!id) {
+    if (formData.get("intent") === "again") return { created: { id: savedId!, name, at: Date.now() } };
+    redirect(`/models/${savedId}`);
+  }
+  return { saved: { at: Date.now() } };
 }

@@ -41,7 +41,7 @@ export const metadata = { title: "План поставок" };
 
 // Фильтры плана: артикул (поиск), статус записи, год (по месяцу плана; дополнительно к году в шапке).
 const SUPPLY_FILTERS = defineFilters({
-  ...pick(["q", "status", "year"], { q: { label: "Артикул" }, status: { allowed: Object.keys(STATUS_LABELS) }, year: { label: "Год плана" } }),
+  ...pick(["q", "status", "year", "model"], { model: { label: "Артикул (точно)" }, q: { label: "Артикул" }, status: { allowed: Object.keys(STATUS_LABELS) }, year: { label: "Год плана" } }),
 });
 
 export default async function SupplyPlanPage({ searchParams }: PageProps<"/supply-plan">) {
@@ -67,6 +67,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
   const entries = allEntries.filter(
     (e) =>
       (pf.status.length === 0 || pf.status.includes(e.status)) &&
+      (pf.model.length === 0 || pf.model.includes(e.productModelId)) &&
       (pf.year.length === 0 || pf.year.includes(String(new Date(e.month).getFullYear()))) &&
       (!needle || normCode(`${e.productModel.name} ${e.notes ?? ""}`.toLowerCase()).includes(needle)),
   );
@@ -189,6 +190,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
         title="Фильтры плана поставок"
         controls={[
           { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
+          { type: "multi", name: "model", label: "Артикул (точно)", options: allModels.map((m) => ({ value: m.id, label: m.name })) },
           { type: "multi", name: "status", label: "Статус", options: (Object.keys(STATUS_LABELS) as SupplyPlanStatusValue[]).map((k) => ({ value: k, label: STATUS_LABELS[k] })), allLabel: "Все статусы" },
           { type: "multi", name: "year", label: "Год плана", options: yearOptions, hint: "По месяцу плана; дополнительно к году в шапке" },
         ]}

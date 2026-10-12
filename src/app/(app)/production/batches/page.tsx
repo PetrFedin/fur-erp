@@ -35,7 +35,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   const session = await requireSession();
   const c4Mode = await getCommission4Mode();
   const year = await getYearFilter();
-  const allBatches = await loadBatchesWithOrders(session.user.organizationId);
+  const modelSel = (Array.isArray(sp.model) ? sp.model : sp.model ? [sp.model] : []).filter((v) => /^[\w-]{1,40}$/.test(v));
+  const modelInfo = modelSel.length === 1 ? await prisma.productModel.findFirst({ where: { id: modelSel[0], organizationId: session.user.organizationId }, select: { name: true } }) : null;
+  const allBatchesRaw = await loadBatchesWithOrders(session.user.organizationId);
+  // ?model=… — партии, в которых есть ТЗ выбранного артикула (из карточки артикула); суммы партий считаются по всем ТЗ партии.
+  const allBatches = modelSel.length ? allBatchesRaw.filter((b) => b.orders.some((o) => o.status !== "CANCELLED" && modelSel.includes(o.productModelId))) : allBatchesRaw;
   // Общий год: ТЗ партии отбираются по дате ТЗ (дата ТЗ → конец → начало → год партии); партия без ТЗ за год не показывается.
   const batches =
     year === "all"
@@ -106,6 +110,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="batches" />
+      {modelSel.length > 0 && (
+        <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
+          Партии с ТЗ артикула {modelInfo ? <b>{modelInfo.name}</b> : "(выбранного)"} — суммы по партиям целиком.{" "}
+          {modelSel.length === 1 && <Link href={`/models/${modelSel[0]}`} className="text-blue-700 hover:underline">К артикулу →</Link>}{" "}
+          <Link href="/production/batches" className="text-blue-700 hover:underline">Показать все партии</Link>
+        </p>
+      )}
       <div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Партии пошива</h1><YearNote year={year} />
           <InfoHint label="Что такое партия пошива" wide>

@@ -5,12 +5,12 @@ import { capitalizeCategory, categoryKey, matchCategoryRef } from "@/lib/categor
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-export type CategoryOption = { id: string; name: string; aliases: string[]; proposed: boolean };
+export type CategoryOption = { id: string; name: string; aliases: string[]; proposed: boolean; group: string | null };
 
 /** Категории справочника организации для выпадающего списка (CategorySelect). */
 export async function getCategoryOptions(organizationId: string): Promise<CategoryOption[]> {
   const rows = await prisma.categoryRef.findMany({ where: { organizationId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
-  return rows.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases, proposed: !r.confirmed }));
+  return rows.map((r) => ({ id: r.id, name: r.name, aliases: r.aliases, proposed: !r.confirmed, group: r.group }));
 }
 
 /**

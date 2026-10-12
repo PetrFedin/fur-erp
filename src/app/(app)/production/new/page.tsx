@@ -11,7 +11,9 @@ import { batchLabel } from "@/lib/batch-label";
 
 export const metadata = { title: "Новое ТЗ" };
 
-export default async function NewProductionOrderPage() {
+export default async function NewProductionOrderPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const articleParam = Array.isArray(sp.article) ? sp.article[0] : sp.article;
   const session = await requireSession();
   if (!canEditProduction(session.user.role)) {
     return (
@@ -74,6 +76,7 @@ export default async function NewProductionOrderPage() {
   return (
     <ProductionCreateForm
       action={createProductionOrder}
+      initialArticleId={articleParam && models.some((m) => m.id === articleParam) ? articleParam : ""}
       models={models.map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null, category: m.category ?? null, group: m.categoryRef?.group ?? null }))}
       warehouses={warehouses.map((w) => ({ id: w.id, name: w.name, isDefault: w.isDefault }))}
       clients={clients}

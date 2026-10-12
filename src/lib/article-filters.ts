@@ -72,8 +72,9 @@ export function matchedOrderIds(rows: TzRow[], liningText: Map<string, boolean>,
 }
 
 /** Условие Prisma для моделей (уровень модели). Пустые фильтры — пустое условие. */
-export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q" | "category" | "price">): Prisma.ProductModelWhereInput {
+export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q" | "category" | "price"> & { model?: string[]; catgroup?: string[] }): Prisma.ProductModelWhereInput {
   const cat = splitNone(f.category);
+  const grp = splitNone(f.catgroup ?? []);
   const q = f.q;
   return {
     organizationId: orgId,
@@ -88,9 +89,9 @@ export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q
           ],
         }
       : {}),
-    ...(f.category.length
-      ? {
-          AND: [
+    AND: [
+      ...(f.category.length
+        ? [
             {
               OR: [
                 // Каноническое название справочника категорий; текст category у привязанных моделей совпадает с ним, у остальных — как записан.
@@ -98,9 +99,21 @@ export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q
                 ...(cat.none ? [{ categoryRefId: null, category: null }] : []),
               ],
             },
-          ],
-        }
-      : {}),
+          ]
+        : []),
+      // Группа — верхний уровень справочника категорий (CategoryRef.group); «Без группы» — нет категории из справочника или у неё пустая группа.
+      ...(f.catgroup?.length
+        ? [
+            {
+              OR: [
+                ...(grp.rest.length ? [{ categoryRef: { group: { in: grp.rest } } }] : []),
+                ...(grp.none ? [{ categoryRefId: null }, { categoryRef: { group: null } }] : []),
+              ],
+            },
+          ]
+        : []),
+    ],
+    ...(f.model?.length ? { id: { in: f.model } } : {}),
     ...(f.price.length === 1 ? { sellingPrice: f.price[0] === "yes" ? { not: null } : null } : {}),
   };
 }

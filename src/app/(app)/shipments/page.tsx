@@ -18,7 +18,8 @@ import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRang
 export const metadata = { title: "Отгрузки" };
 
 const SHIPMENT_FILTERS = defineFilters({
-  ...pick(["q", "status", "year", "from", "to"], {
+  ...pick(["q", "status", "year", "from", "to", "model"], {
+    model: { label: "Артикул" },
     status: { allowed: Object.keys(SHIPMENT_STATUS) },
     from: { label: "Плановая дата с" },
     to: { label: "Плановая дата по" },
@@ -51,6 +52,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         : []),
     ],
     ...(f.status.length ? { status: { in: f.status as Array<"PLANNED"> } } : {}),
+    ...(f.model.length ? { lines: { some: { productionOrder: { productModelId: { in: f.model } } } } } : {}),
   };
   const include = {
     client: { select: { name: true } },
@@ -65,7 +67,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
   const weekEndIso = isoDay(weekEnd);
 
-  const [shipments, upcoming, allDates] = await Promise.all([
+  const [shipments, upcoming, allDates, articleOpts] = await Promise.all([
     prisma.shipment.findMany({ where, include }),
     prisma.shipment.findMany({
       where: {
@@ -76,6 +78,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
       select: { lines: { select: { quantity: true } } },
     }),
     prisma.shipment.findMany({ where: { organizationId: orgId }, select: { plannedDate: true } }),
+    prisma.productModel.findMany({ where: { organizationId: orgId, productionOrders: { some: { shipmentLines: { some: {} } } } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const upcomingQty = upcoming.reduce((s, sh) => s + sh.lines.reduce((a, l) => a + l.quantity, 0), 0);
 
@@ -87,7 +90,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     const d = a.plannedDate.getTime() - b.plannedDate.getTime();
     return rank(a.status) === 0 ? d : -d;
   });
-  const hasFilters = Boolean(f.status.length || f.year.length || f.q || f.from || f.to);
+  const hasFilters = Boolean(f.status.length || f.year.length || f.q || f.from || f.to || f.model.length);
   const isEmpty = rows.length === 0 && !hasFilters && year === "all";
 
   return (
@@ -130,6 +133,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
           { type: "multi", name: "status", label: "Статус", options: Object.entries(SHIPMENT_STATUS).map(([k, v]) => ({ value: k, label: v.label })), allLabel: "Все статусы" },
+          { type: "multi", name: "model", label: "Артикул", options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
           { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
           { type: "date", name: "from", label: "Плановая дата с" },
           { type: "date", name: "to", label: "Плановая дата по" },
