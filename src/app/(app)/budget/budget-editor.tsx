@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { formatPercent } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import {
@@ -29,13 +30,13 @@ function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string
 function PcsShare({ pcs, all }: { pcs: number; all: number }) {
   if (!(all > 0) || !(pcs > 0)) return null;
   const v = (pcs / all) * 100;
-  return <div className="mt-0.5 text-right text-[10px] font-normal leading-tight text-neutral-500">{v.toLocaleString("ru-RU", { maximumFractionDigits: v < 10 ? 1 : 0 })}% заказа</div>;
+  return <div className="mt-0.5 text-right text-[10px] font-normal leading-tight text-neutral-500">{formatPercent(v)} заказа</div>;
 }
 
 function VarTag({ v }: { v: number | null }) {
   if (v == null || !Number.isFinite(v)) return null;
   const tone = v >= 15 ? "text-red-700" : v >= 5 ? "text-amber-700" : v <= -5 ? "text-emerald-700" : "text-neutral-500";
-  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Var {v > 0 ? "+" : ""}{v.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%</div>;
+  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Var {formatPercent(v, { sign: true })}</div>;
 }
 
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
@@ -262,7 +263,7 @@ export function BudgetEditor(p: Props) {
     const v = k === "upFur" ? e.fur : k === "upLining" ? e.lining : e.work;
     const own = k === "upFur" ? e.ownFur : k === "upLining" ? e.ownLining : e.ownWork;
     if (!v) return <span className="w-9 shrink-0" />;
-    return <span title={own ? "Надбавка задана на этой строке" : "Надбавка унаследована от уровня выше"} className={"w-9 shrink-0 text-right text-[10px] leading-none text-emerald-600 " + (own ? "font-bold underline" : "")}>{v > 0 ? "+" : ""}{qty(v, 1)}%</span>;
+    return <span title={own ? "Надбавка задана на этой строке" : "Надбавка унаследована от уровня выше"} className={"w-11 shrink-0 text-right text-[10px] leading-none text-emerald-600 " + (own ? "font-bold underline" : "")}>{formatPercent(v, { sign: true })}</span>;
   };
 
   const hasOwnUp = (n: BudgetNode) => [n.upFur, n.upLining, n.upWork].some((v) => typeof v === "number");
@@ -355,10 +356,10 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className={tileStrip}>
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100%" }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
-      {tile("w", "Работа", money(total.work), "пошив по бюджету изделий", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: `${qty(params.upWork, 1)}%` }, { k: "Доля", v: share(total.work, total.total) }])}
+      {tile("w", "Работа", money(total.work), "пошив по бюджету изделий", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
       {tile("c", `Надбавка ${qty(params.c4, 1)}%`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Ставка", v: `${qty(params.c4, 1)}%` }, { k: "Доля", v: share(total.c4, total.total) }])}
     </div>
   );
@@ -472,7 +473,7 @@ export function BudgetEditor(p: Props) {
   const totalRowDetail = (
     <tr key="total" className="bg-neutral-200 font-semibold [&>td]:border-b [&>td]:border-neutral-300">
       <td className="sticky left-0 z-10 border-r border-neutral-300 bg-neutral-200 px-3 py-2 text-sm">Тотал</td>
-      <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}<div className="mt-0.5 text-right text-[10px] font-normal text-neutral-500">100% заказа</div></td>
+      <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}<div className="mt-0.5 text-right text-[10px] font-normal text-neutral-500">100,0% заказа</div></td>
       <td />
       <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
       <td className={sepL} colSpan={4} />
@@ -509,7 +510,7 @@ export function BudgetEditor(p: Props) {
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-2">
               <span className="text-xl font-semibold tabular-nums">{money(a.total)}</span>
-              <span className="text-xs text-neutral-500 tabular-nums">{qty(a.pcs, 0)} изд.{total.pcs > 0 && a.pcs > 0 ? ` (${((a.pcs / total.pcs) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% заказа)` : ""} · на 1 изд. {money(perUnit(a))}</span>
+              <span className="text-xs text-neutral-500 tabular-nums">{qty(a.pcs, 0)} изд.{total.pcs > 0 && a.pcs > 0 ? ` (${formatPercent((a.pcs / total.pcs) * 100)} заказа)` : ""} · на 1 изд. {money(perUnit(a))}</span>
             </div>
             {leaf ? (
               <>
@@ -700,7 +701,7 @@ export function BudgetEditor(p: Props) {
       ) : null}
       {upAll ? (
         <Modal title="Надбавки по типам меха и категориям" onClose={() => setUpAll(false)} wide>
-          <p className="mb-3 text-xs text-neutral-500">Пустое поле — берётся с уровня выше (в подсказке то, что действует сейчас; общие надбавки версии — {qty(params.upFur, 1)}% / {qty(params.upLining, 1)}% / {qty(params.upWork, 1)}%). 0 — без надбавки. Строки с замком не пересчитываются.</p>
+          <p className="mb-3 text-xs text-neutral-500">Пустое поле — берётся с уровня выше (в подсказке то, что действует сейчас; общие надбавки версии — {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}). 0 — без надбавки. Строки с замком не пересчитываются.</p>
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>

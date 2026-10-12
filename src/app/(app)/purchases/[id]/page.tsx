@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatCurrency, formatQty, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
@@ -928,9 +928,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               {expensePerUnit
                 ? `${formatMoney(expensePerUnit.toFixed(2))} за 1 ${UNIT_LABELS[singleUnit!]}`
                 : expensePct
-                  ? `+${expensePct.toFixed(1)}% к цене каждой единицы`
+                  ? `+${formatPercent(expensePct.toString())} к цене каждой единицы`
                   : "—"}
-              {expensePct && expensePerUnit && ` (+${expensePct.toFixed(1)}% к стоимости позиций)`}
+              {expensePct && expensePerUnit && ` (+${formatPercent(expensePct.toString())} к стоимости позиций)`}
               <InfoHint label="Как распределяются расходы">Справочно: при приёме на склад расходы распределяются по позициям пропорционально их сумме.</InfoHint>
             </div>
           )}

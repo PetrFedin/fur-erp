@@ -112,7 +112,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                     const c = kd.pick(all), m = kd.money(all), isOpen = open.has(kd.k);
                     return (
                       <Fragment key={kd.k}>
-                        <tr className="border-b border-neutral-100 bg-white">
+                        <tr data-block={kd.k} className="border-b border-neutral-100 bg-white">
                           <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button>}>{shortMaterialName(kd.label)}</NameCell>
                           <CellsTds c={c} unit={kd.unit} avg={false} />
                           <MoneyTds paid={m.paid} due={m.debt} />
@@ -120,7 +120,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                         {isOpen ? yrs.map((r) => {
                           const y = kd.pick(r), ym = kd.money(r);
                           return (
-                            <tr key={kd.k + r.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+                            <tr key={kd.k + r.key} data-block={kd.k} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
                               <NameCell indent title={r.label}>{shortMaterialName(r.label)}{yearInfo(r)}</NameCell>
                               <CellsTds c={y} unit={kd.unit} avg={false} />
                               <MoneyTds paid={ym.paid} due={ym.debt} />
@@ -212,8 +212,8 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
   const linSub = addCells(lin.map((r) => r.cells[vat]));
   const T = total[vat];
 
-  const kindHead = (kindLabel: string) => (
-    <tr className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={9} className="px-2 py-1">{kindLabel}</td></tr>
+  const kindHead = (kindLabel: string, block: string) => (
+    <tr data-hover-block={block} data-block={block} className="bg-neutral-100/70 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={9} className="px-2 py-1">{kindLabel}</td></tr>
   );
   const arrow = (k: string, label: string) => (
     <button type="button" onClick={() => toggle(k)} aria-expanded={open.has(k)} aria-label={`Раскрыть: ${label}`}><Chevron open={open.has(k)} /></button>
@@ -225,7 +225,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
       const isOpen = !flat && open.has(r.key);
       return (
         <Fragment key={r.key}>
-          <tr className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
+          <tr data-block={r.kind} className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
             <NameCell arrow={flat ? undefined : arrow(r.key, r.label)} title={r.label}>
               {r.kind === "lining" && r.lotIds && r.lotIds.length > 0 ? (
                 <Link href={r.lotIds.length === 1 ? `/analytics/raw/lot/${r.lotIds[0]}` : `/lots?tab=lining&lmat=${encodeURIComponent(r.label)}`} className="font-medium hover:underline focus-visible:underline" title={r.lotIds.length === 1 ? "Открыть карточку лота: закупка, остаток, списания по ТЗ" : `Открыть лоты подкладки «${r.label}» (${r.lotIds.length})`}>
@@ -237,7 +237,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
             <MoneyTds paid={r.paid} due={r.due} />
           </tr>
           {isOpen ? r.auctions.map((a) => (
-            <tr key={r.key + a.key} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
+            <tr key={r.key + a.key} data-block={r.kind} className="border-b border-neutral-100 bg-neutral-50 text-[13px] text-neutral-700">
               <NameCell indent title={a.label}>
                 {auctionLinkable(a.key) ? (
                   <Link href={`/lots?auction=${encodeURIComponent(a.key)}`} className="hover:underline focus-visible:underline" title="Открыть аукцион: счета, лоты и себестоимость">
@@ -259,7 +259,7 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
 
   const furBlock = (
     <>
-      {kindHead("Мех")}
+      {kindHead("Мех", "fur")}
       {itemRows(fur, "шт.")}
       {fur.length > 1 ? (
         <tr className="row-total"><NameCell><TotalLabel note="мех" avg={avg} /></NameCell><CellsTds c={furSub} unit="шт." bold avg={avg} /><MoneyTds paid={fur.reduce((a, r) => a + r.paid, 0)} due={fur.reduce((a, r) => a + r.due, 0)} bold /></tr>
@@ -270,8 +270,8 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
   const LIN = "__lining";
   const linBlock = (
     <>
-      {kindHead("Подкладка")}
-      <tr className="border-b border-neutral-200 bg-neutral-50">
+      {kindHead("Подкладка", "lining")}
+      <tr data-block="lining" className="border-b border-neutral-200 bg-neutral-50">
         <NameCell arrow={lin.length > 0 ? arrow(LIN, "подкладка") : null}>Подкладка</NameCell>
         <CellsTds c={linSub} unit="м" avg={avg} />
         <MoneyTds paid={lin.reduce((a, r) => a + r.paid, 0)} due={lin.reduce((a, r) => a + r.due, 0)} />

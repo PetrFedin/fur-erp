@@ -11,6 +11,7 @@
  *
  * Суммы закупки здесь НЕ считаются: их считает src/lib/purchase-totals.ts (серверное действие подставляет позиции).
  */
+import { formatPercent } from "@/lib/utils";
 import { colorKey, matchColorRef, splitColorCode, suggestColorRef, type ColorRefLite } from "@/lib/color-ref";
 import { canonicalFur, furKey, type FurIndex } from "@/lib/fur-ref";
 import { buildCostPlanJson, computeCostPlan, DEFAULT_VAT, roundPrice, roundQty, roundRate, roundVat } from "@/lib/cost-plan";
@@ -659,7 +660,7 @@ export function reconcileAmount(docAmount: number, t: ReconTotals, tol = DOC_TOL
     }
   }
   const pct = t.inclVat > 0 ? (diff / t.inclVat) * 100 : 0;
-  if (reasons.length === 0) reasons.push(`Причина неясна: разница ${rub(diff)} (${pct.toFixed(2)}%). Проверьте количество и цены лотов, не пропущен ли лот, и ставку НДС.`);
+  if (reasons.length === 0) reasons.push(`Причина неясна: разница ${rub(diff)} (${formatPercent(pct)}). Проверьте количество и цены лотов, не пропущен ли лот, и ставку НДС.`);
   return {
     ok: false,
     diff,

@@ -13,7 +13,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatDate } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 import { ACCESS, hasRole } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { isServiceAuction, shortAuctionName } from "@/lib/auction-names";
@@ -66,8 +66,7 @@ const FLASH_ERRORS: Record<string, string> = {
 
 /** Процент с нужной точностью: малые доли не округляем до нуля. */
 function fmtPct(v: number): string {
-  if (v > 0 && v < 0.01) return "<0,01 %";
-  return `${v.toLocaleString("ru-RU", { maximumFractionDigits: v < 1 ? 2 : 1 })} %`;
+  return formatPercent(v);
 }
 
 /** Остаток: отрицательный — «переплата X ₽». */
@@ -372,7 +371,7 @@ export default async function PaymentsPage({
   const ovRows = tab === "suppliers" ? (await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)) : [];
   const rawPaidAll = ovRows.reduce((a, r) => a + r.fur + r.lining, 0);
   // Мех / подкладка в плитках — те же числа, что на Главной (одна функция).
-  const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, await getCommission4Mode()) : null;
+  const supDash = tab === "suppliers" ? await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode()) : null;
   // Сводная строка «Без аукциона»: все служебные группы + закупки без аукциона — чтобы Σ строк сходилась с «Остатком к оплате».
   const zeroD = new Decimal(0);
   const svcAll = auctions.filter((a) => isServiceAuction(a.name));
@@ -716,7 +715,7 @@ export default async function PaymentsPage({
         />
         {await (async () => {
           // Плитки — те же, что на Главной (одна и та же функция): Общая стоимость / Оплачено / К оплате. Год — из шапки.
-          const dash = await loadDashboard(orgId, year, parseFilters(DASH_FILTERS, {}) as unknown as DashFilters, await getCommission4Mode());
+          const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
           const lf = await overviewLeft(orgId);
           const yearsLeft = Object.entries(lf.byYear).filter(([y]) => year === "all" || Number(y) === Number(year));
           const left = { byYear: Object.fromEntries(yearsLeft), raw: yearsLeft.reduce((a, [, v]) => a + v.raw, 0), prod: yearsLeft.reduce((a, [, v]) => a + v.prod, 0) };

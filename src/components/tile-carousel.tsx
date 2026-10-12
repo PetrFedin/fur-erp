@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { InfoHint } from "@/components/info-hint";
+import { grpBlock } from "@/lib/block-hover";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
 
 export type GroupSel = "all" | "Одежда" | "Аксессуары";
@@ -30,7 +31,9 @@ export const CAROUSEL_ARROW = "inline-flex h-8 w-8 shrink-0 items-center justify
  * Плитка-карусель: слайды листаются жестом (прокрутка со «прилипанием»), стрелками ‹ › и точками.
  * Слайд «Тотал» — первый; в заголовке подпись текущего слайда. Механика как у «Среднее на изделие» на Главной.
  */
-export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха" }: {
+export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickable = false, slidesLabel = "слайды по типам меха", dotsLabel = "Тип меха", hoverBlocks = false }: {
+  /** Плитки выпуска: при наведении подсвечиваются строки таблицы «Производство…» (Тотал — «Всего», группа — её строка). */
+  hoverBlocks?: boolean;
   title: string;
   hintLabel: string;
   hint: ReactNode;
@@ -53,7 +56,7 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
   const arrow = CAROUSEL_ARROW;
   return (
     <div className="relative">
-      <div className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
+      <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
         <TileHead>{title} · {slides[cur]?.label}</TileHead>
         {toolbar}
         <div ref={scroller} onScroll={onScroll} tabIndex={0}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal } from "@/lib/orders-sum";
@@ -13,7 +13,7 @@ import { TotalLabel } from "@/components/total-label";
 const TH = "whitespace-nowrap px-2 py-1.5 text-xs font-medium text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5";
 const money = (v: number) => (Math.abs(v) < 0.5 ? <Dash /> : formatMoney(Math.round(v)));
-const pct = (v: number) => (v > 0 ? `${(v * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "");
+const pct = (v: number) => (v > 0 ? formatShare(v) : "");
 
 type Row = {
   key: string;
@@ -30,6 +30,8 @@ type Row = {
   vat: number;
   c4: number;
   total: number;
+  /** Сумма стоит в столбце «Работа» (работа, доп. расходы ТЗ), а в «Всего» — «—». */
+  asWork?: boolean;
 };
 
 /**
@@ -71,10 +73,16 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
   });
   const hides = incl ? o.hI : o.hE;
   if (Math.abs(hides) > 0.5) rows.push({ key: "h", kind: "Шкуры подрядчика", what: <span className="text-neutral-500">оплачены в составе счетов за пошив, в ТЗ не списаны</span>, base: hides, vat: 0, c4: 0, total: hides });
-  if (Math.abs(o.exp) > 0.5) rows.push({ key: "e", kind: "Расходы ТЗ", what: <span className="text-neutral-500">без НДС и без 4%</span>, base: o.exp, vat: 0, c4: 0, total: o.exp });
+  // Доп. расходы ТЗ — по статьям; как и работа, стоят в столбце «Работа».
+  if (Math.abs(o.exp) > 0.5) {
+    const xs = (o.xs ?? []).filter((x) => Math.abs(x.a) > 0.005);
+    const rest = o.exp - xs.reduce((a, x) => a + x.a, 0);
+    xs.forEach((x, i) => rows.push({ key: `e${i}`, kind: `Доп. расходы · ${x.n}`, what: <span className="text-neutral-500">без НДС и без 4%</span>, base: 0, vat: 0, c4: 0, total: x.a, asWork: true }));
+    if (Math.abs(rest) > 0.5 || xs.length === 0) rows.push({ key: "e", kind: "Доп. расходы", what: <span className="text-neutral-500">без НДС и без 4%</span>, base: 0, vat: 0, c4: 0, total: rest, asWork: true });
+  }
   const res = incl ? o.resI : o.resE;
   if (Math.abs(res) > 0.5) rows.push({ key: "r", kind: "Прочее", what: <span className="text-neutral-500">разница между итогом ТЗ и суммой строк</span>, base: res, vat: 0, c4: 0, total: res });
-  if (Math.abs(o.work) > 0.5) rows.push({ key: "w", kind: "Работа заказчику", what: <span className="text-neutral-500">{qty > 0 ? <>{formatMoney(Math.round(o.work / qty))} за изделие × {formatQty(qty)} шт.</> : "цена работы × количество"}</span>, base: o.work, vat: 0, c4: 0, total: o.work });
+  if (Math.abs(o.work) > 0.5) rows.push({ key: "w", kind: "Работа заказчику", what: <span className="text-neutral-500">{qty > 0 ? <>{formatMoney(Math.round(o.work / qty))} за изделие × {formatQty(qty)} шт.</> : "цена работы × количество"}</span>, base: 0, vat: 0, c4: 0, total: o.work, asWork: true });
 
   const modeLabel = incl ? "с НДС" : "без НДС";
   return (
@@ -83,7 +91,7 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
         <h2 className="text-base font-semibold">{title}</h2>
         <InfoHint label={`Как читать: ${title}`} wide>
           <p>Каждая строка — одно списание лота в этом ТЗ: <b>лот</b> и <b>закупка</b> (ссылки), <b>аукцион</b> — партия закупки, <b>материал</b> и вид меха, <b>кол-во</b> (шкуры или метры), <b>цена за ед.</b> ({modeLabel}, без 4%), <b>ставка НДС</b> лота, <b>сумма</b> без 4%, <b>НДС</b> внутри суммы, <b>4%</b> отдельно, <b>всего</b> = сумма + 4%, <b>доля</b> в себестоимости ТЗ.</p>
-          <p className="mt-1">Шкуры подрядчика, расходы и работа (цена работы × количество) — отдельными строками. Итог равен «Всего себестоимость» выше и совпадает с окном «Стоимость производства» на Главной и с разделом «Изделия». Режимы «С НДС / Без НДС» и «С 4% / Без 4%» — общие переключатели шапки.</p>
+          <p className="mt-1">Шкуры подрядчика, доп. расходы ТЗ и работа (цена работы × количество) — отдельными строками; их суммы стоят в столбце «Работа» (в «Всего» у них «—», в итог они входят). Итог равен «Всего себестоимость» выше и совпадает с окном «Стоимость производства» на Главной и с разделом «Изделия». Режимы «С НДС / Без НДС» и «С 4% / Без 4%» — общие переключатели шапки.</p>
         </InfoHint>
       </div>
       <div className={SCROLL_BOX}>
@@ -98,16 +106,17 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
               <th className={TH + " text-right"}>Кол-во</th>
               <th className={TH + " text-right"}>Цена за ед., {modeLabel}</th>
               <th className={TH + " text-right"}>Ставка НДС</th>
-              <th className={TH + " border-l border-neutral-100 text-right"}>Сумма, {modeLabel}</th>
+              <th className={TH + " border-l border-neutral-200 text-right"}>Сумма, {modeLabel}</th>
               <th className={TH + " text-right"}>в т.ч. НДС</th>
               {c4 === "on" ? <th className={TH + " text-right"}>4%</th> : null}
-              <th className={TH + " border-l border-neutral-100 text-right"}>Всего, ₽</th>
+              <th className={TH + " border-l border-neutral-200 text-right"}>Всего, ₽</th>
+              <th className={TH + " text-right"}>Работа</th>
               <th className={TH + " text-right"}>Доля</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={c4 === "on" ? 13 : 12} className="px-3 py-6 text-center text-neutral-500">Списаний и расходов нет</td></tr>
+              <tr><td colSpan={c4 === "on" ? 14 : 13} className="px-3 py-6 text-center text-neutral-500">Списаний и расходов нет</td></tr>
             ) : rows.map((r) => (
               <tr key={r.key} className="border-b border-neutral-100 hover:bg-neutral-50/60">
                 <td className={TD + " font-medium"}>{r.kind}</td>
@@ -121,7 +130,8 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
                 <td className={TD + " border-l border-neutral-100 text-right tabular-nums"}>{money(r.base)}</td>
                 <td className={TD + " text-right tabular-nums text-neutral-600"}>{money(r.vat)}</td>
                 {c4 === "on" ? <td className={TD + " text-right tabular-nums"}>{money(r.c4)}</td> : null}
-                <td className={TD + " border-l border-neutral-100 text-right font-medium tabular-nums"}>{money(r.total)}</td>
+                <td className={TD + " border-l border-neutral-200 text-right font-medium tabular-nums"}>{r.asWork ? <Dash /> : money(r.total)}</td>
+                <td className={TD + " text-right tabular-nums"}>{r.asWork ? money(r.total) : <Dash />}</td>
                 <td className={TD + " text-right tabular-nums text-neutral-500"}>{grand ? pct(r.total / grand) : ""}</td>
               </tr>
             ))}
@@ -132,17 +142,18 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
               <td className={TD + " text-right tabular-nums"}>{qty > 0 ? <>{formatQty(qty)} <span className="text-xs font-normal text-neutral-500">шт.</span></> : <Dash />}</td>
               <td className={TD + " text-right tabular-nums"}>{qty > 0 ? <><span className="text-xs font-normal text-neutral-500">на изд. </span>{money(grand / qty)}</> : <Dash />}</td>
               <td className={TD} />
-              <td className={TD + " border-l border-neutral-100 text-right tabular-nums"}>{money(rows.reduce((a, r) => a + r.base, 0))}</td>
+              <td className={TD + " border-l border-neutral-200 text-right tabular-nums"}>{money(rows.reduce((a, r) => a + r.base, 0))}</td>
               <td className={TD + " text-right tabular-nums"}>{money(rows.reduce((a, r) => a + r.vat, 0))}</td>
               {c4 === "on" ? <td className={TD + " text-right tabular-nums"}>{money(rows.reduce((a, r) => a + r.c4, 0))}</td> : null}
-              <td className={TD + " border-l border-neutral-100 text-right tabular-nums"}>{money(grand)}</td>
-              <td className={TD + " text-right tabular-nums text-neutral-500"}>{grand ? "100%" : ""}</td>
+              <td className={TD + " border-l border-neutral-200 text-right tabular-nums"}>{money(grand)}</td>
+              <td className={TD + " text-right tabular-nums"}>{money(s.work + s.exp)}</td>
+              <td className={TD + " text-right tabular-nums text-neutral-500"}>{grand ? "100,0%" : ""}</td>
             </tr>
           </tfoot>
         </table>
       </div>
       <p className="text-xs text-neutral-500">
-        Мех {money(s.fur)} · подкладка {money(s.lining)}{c4 === "on" ? <> · 4% {money(s.c4)}</> : null} · расходы и прочее {money(s.other)} · работа {money(s.work)}
+        Мех {money(s.fur)} · подкладка {money(s.lining)}{c4 === "on" ? <> · 4% {money(s.c4)}</> : null} · прочее {money(s.other - s.exp)} · работа и доп. расходы {money(s.work + s.exp)}
       </p>
     </section>
   );

@@ -1,3 +1,4 @@
+import { formatPercent } from "@/lib/utils";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
@@ -106,7 +107,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const rawFields: [string, string][] = [
       ["Дата оплаты", ruDate(p.paidAt)],
       ["Сумма", money(amount)],
-      ["Вид", whatRaw + (p.percent ? ` · ${Number(p.percent.toString()).toLocaleString("ru-RU", { maximumFractionDigits: 3 })} % от суммы партии` : "")],
+      ["Вид", whatRaw + (p.percent ? ` · ${formatPercent(Number(p.percent.toString()))} от суммы партии` : "")],
       ["Статья", `мех ${money(amount - lining)}` + (lining > 0.005 ? ` · подкладка ${money(lining)}` : "")],
       ["Кому", p.supplier.name],
       ["За что", au ? `Партия «${au}»${p.purchase ? ` · закупка ${p.purchase.number}` : ""}` : p.purchase ? `Закупка ${p.purchase.number}` : "Без привязки к закупке (аванс)"],

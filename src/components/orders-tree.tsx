@@ -10,6 +10,7 @@ import { articlesWord, orderKey, tzCountText, tzLabel, uniqueOrderCount } from "
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
+import { pathBlock } from "@/lib/block-hover";
 
 export type TreeDim = "year" | "batch" | "article" | "category" | "group" | "fur" | "order";
 export type TreeMode = { id: string; label: string; dims: TreeDim[] };
@@ -69,7 +70,9 @@ export function OrdersTree({
   const nonRepair = useMemo(() => sumOrders(orders.filter((o) => !isRepair(o)), v), [orders, v]);
   const repair = useMemo(() => sumOrders(orders.filter(isRepair), v), [orders, v]);
   const showPay = !!payBy;
-  const cols = 9 + (c4 === "on" ? 1 : 0) + (showPay ? 2 : 0);
+  // «Прочее» (разница снимка ТЗ и строк) — отдельный столбец только если она есть; расходы ТЗ входят в «Работа».
+  const showRes = Math.abs(grand.other - grand.exp) > 0.5;
+  const cols = 10 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0) + (showPay ? 2 : 0);
 
   const figs = (s: Sum, opts: { qty?: boolean; pay?: { paid: number | undefined; work: number } } = {}) => {
     const q = qtyOf(s);
@@ -80,15 +83,17 @@ export function OrdersTree({
       <>
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : formatQty(q)}</td>
         <td className={TD}>{opts.qty === false || q === 0 ? <Dash /> : money(total / q)}</td>
-        <td className={TD + " border-l border-neutral-100"}>{money(total)}</td>
+        <td className={TD + " border-l border-neutral-200"}>{s.furQ > 0 ? formatQty(s.furQ) : <Dash />}</td>
+        <td className={TD}>{s.liningQ > 0 ? formatQty(s.liningQ) : <Dash />}</td>
+        <td className={TD + " border-l border-neutral-200"}>{money(total)}</td>
         <td className={TD}>{money(s.fur)}</td>
         <td className={TD}>{money(s.lining)}</td>
-        <td className={TD}>{money(s.work)}</td>
+        <td className={TD}>{money(s.work + s.exp)}</td>
         {c4 === "on" ? <td className={TD}>{money(s.c4)}</td> : null}
-        <td className={TD}>{money(s.other)}</td>
+        {showRes ? <td className={TD}>{money(s.other - s.exp)}</td> : null}
         {showPay ? (
           <>
-            <td className={TD + " border-l border-neutral-100"}>{paid == null ? <Dash /> : money(paid)}</td>
+            <td className={TD + " border-l border-neutral-200"}>{paid == null ? <Dash /> : money(paid)}</td>
             <td className={TD + (left != null && left > 0.5 ? " text-amber-700" : left != null && left < -0.5 ? " text-emerald-700" : "")}>{left == null ? <Dash /> : Math.abs(left) < 0.5 ? <Dash /> : left < 0 ? <>сверх {formatMoney(Math.round(-left))}</> : formatMoney(Math.round(left))}</td>
           </>
         ) : null}
@@ -100,21 +105,25 @@ export function OrdersTree({
     <button type="button" onClick={() => flip(path)} aria-expanded={open} aria-label={`Раскрыть: ${label}`}><Chevron open={open} /></button>
   );
 
-  const lineRows = (o: DrillOrder, depth: number) => {
+  const lineRows = (o: DrillOrder, depth: number, anc: string[]) => {
     const tone = rowTone(3);
     const ind = INDENT[Math.min(depth, 3)];
-    const cell = (label: ReactNode, sub: ReactNode, s: Partial<Sum>, key: string) => (
-      <tr key={key} className={tone}>
+    // work — сумма «Работы» строки (работа и доп. расходы ТЗ): стоит в столбце «Работа», а в «Себестоимость» у такой строки «—».
+    // Себестоимость узла (ТЗ, партии) от этого не меняется: она считается по Sum (мех + подкладка + 4% + расходы + работа).
+    const cell = (label: ReactNode, sub: ReactNode, s: Partial<Sum> & { res?: number }, key: string, qs?: { fur?: number; lining?: number }, asWork = false) => (
+      <tr key={key} className={tone} data-block={anc.join(" ") || undefined}>
         <td className={ARROW_TD} />
         <td className={`py-1.5 pr-2 text-left ${ind}`}>{label}{sub ? <div className="mt-0.5 text-[11px] leading-4 text-neutral-400">{sub}</div> : null}</td>
         <td className={TD} /><td className={TD} />
-        <td className={TD + " border-l border-neutral-100"}>{money((s.fur ?? 0) + (s.lining ?? 0) + (s.c4 ?? 0) + (s.other ?? 0) + (s.work ?? 0))}</td>
-        <td className={TD}>{money(s.fur ?? 0)}</td>
-        <td className={TD}>{money(s.lining ?? 0)}</td>
+        <td className={TD + " border-l border-neutral-200"}>{qs?.fur ? formatQty(qs.fur) : <Dash />}</td>
+        <td className={TD}>{qs?.lining ? formatQty(qs.lining) : <Dash />}</td>
+        <td className={TD + " border-l border-neutral-200"}>{asWork ? <Dash /> : money((s.fur ?? 0) + (s.lining ?? 0) + (s.c4 ?? 0) + (s.res ?? 0))}</td>
+        <td className={TD}>{asWork ? <Dash /> : money(s.fur ?? 0)}</td>
+        <td className={TD}>{asWork ? <Dash /> : money(s.lining ?? 0)}</td>
         <td className={TD}>{money(s.work ?? 0)}</td>
-        {c4 === "on" ? <td className={TD}>{money(s.c4 ?? 0)}</td> : null}
-        <td className={TD}>{money(s.other ?? 0)}</td>
-        {showPay ? <><td className={TD + " border-l border-neutral-100"} /><td className={TD} /></> : null}
+        {c4 === "on" ? <td className={TD}>{asWork ? <Dash /> : money(s.c4 ?? 0)}</td> : null}
+        {showRes ? <td className={TD}>{money(s.res ?? 0)}</td> : null}
+        {showPay ? <><td className={TD + " border-l border-neutral-200"} /><td className={TD} /></> : null}
       </tr>
     );
     const out: ReactNode[] = [];
@@ -136,27 +145,35 @@ export function OrdersTree({
         </>,
         l.k === "l" ? { lining: base, c4: c } : { fur: base, c4: c },
         `l${i}`,
+        l.k === "l" ? { lining: l.q } : { fur: l.q },
       ));
     });
     const h = v === "incl" ? o.hI : o.hE;
     if (Math.abs(h) > 0.5) out.push(cell("Шкуры подрядчика", "оплачены в составе счетов за пошив, в ТЗ не списаны", { fur: h }, "h"));
-    if (Math.abs(o.exp) > 0.5) out.push(cell("Расходы ТЗ", "без НДС и без 4%", { other: o.exp }, "e"));
+    // Доп. расходы ТЗ — отдельными строками по статьям, их суммы стоят в столбце «Работа» (вместе с работой).
+    if (Math.abs(o.exp) > 0.5) {
+      const xs = (o.xs ?? []).filter((x) => Math.abs(x.a) > 0.005);
+      const rest = o.exp - xs.reduce((a, x) => a + x.a, 0);
+      xs.forEach((x, i) => out.push(cell(`Доп. расходы · ${x.n}`, "без НДС и без 4%", { work: x.a }, `e${i}`, undefined, true)));
+      if (Math.abs(rest) > 0.5 || xs.length === 0) out.push(cell("Доп. расходы", "без НДС и без 4%", { work: rest }, "e", undefined, true));
+    }
     const res = v === "incl" ? o.resI : o.resE;
-    if (Math.abs(res) > 0.5) out.push(cell("Прочее", "разница между итогом ТЗ и суммой строк", { other: res }, "r"));
-    if (Math.abs(o.work) > 0.5) out.push(cell("Работа заказчику", o.qty > 0 ? <>{formatMoney(Math.round(o.work / o.qty))} за изделие × {formatQty(o.qty)} шт.</> : "цена работы × количество", { work: o.work }, "w"));
+    if (Math.abs(res) > 0.5) out.push(cell("Прочее", "разница между итогом ТЗ и суммой строк", { res }, "r"));
+    if (Math.abs(o.work) > 0.5) out.push(cell("Работа заказчику", o.qty > 0 ? <>{formatMoney(Math.round(o.work / o.qty))} за изделие × {formatQty(o.qty)} шт.</> : "цена работы × количество", { work: o.work }, "w", undefined, true));
     if (out.length === 0) out.push(<tr key="none" className={tone}><td className={ARROW_TD} /><td colSpan={cols - 1} className={`py-1.5 pr-2 text-left text-neutral-400 ${ind}`}>Списаний и расходов нет</td></tr>);
     return out;
   };
 
   // Позиции многопозиционного ТЗ: артикул × количество, каждая раскрывается в состав (как отдельное ТЗ).
-  const positionRows = (list: DrillOrder[], depth: number, path: string): ReactNode =>
+  const positionRows = (list: DrillOrder[], depth: number, path: string, anc: string[]): ReactNode =>
     [...list].sort((a, b) => naturalSort.compare(a.number, b.number)).map((o) => {
       const p = `${path}/${o.id}`;
       const open = isOpen(p, depth);
       const s = sumOrders([o], v);
+      const tok = pathBlock(p);
       return (
         <Fragment key={p}>
-          <tr className={rowTone(2, open)}>
+          <tr className={rowTone(2, open)} data-hover-block={tok} data-block={anc.join(" ") || undefined}>
             <td className={ARROW_TD}>{arrow(open, `${o.ml} (${o.number})`, p)}</td>
             <td className={`py-1.5 pr-2 text-left ${INDENT[Math.min(depth, 3)]}`}>
               <Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.ml}</Link>
@@ -165,7 +182,7 @@ export function OrdersTree({
             </td>
             {figs(s, { pay: payBy ? { paid: payBy[`order:${o.id}`], work: s.work } : undefined })}
           </tr>
-          {open ? lineRows(o, depth + 1) : null}
+          {open ? lineRows(o, depth + 1, [...anc, tok]) : null}
         </Fragment>
       );
     });
@@ -187,7 +204,7 @@ export function OrdersTree({
     return any ? t : undefined;
   };
 
-  const level = (os: DrillOrder[], depth: number, path: string): ReactNode => {
+  const level = (os: DrillOrder[], depth: number, path: string, anc: string[] = []): ReactNode => {
     const dim = dims[depth];
     const map = new Map<string, [string, string, DrillOrder[]]>();
     for (const o of os) {
@@ -204,10 +221,11 @@ export function OrdersTree({
       const href = hrefOf(dim, key, list);
       const isOrder = dim === "order";
       const o = list[0];
+      const tok = pathBlock(p);
       const paid = payBy ? (dim === "batch" ? payBy[`batch:${key}`] : isOrder ? sumPaid(list) : undefined) : undefined;
       return (
         <Fragment key={p}>
-          <tr className={rowTone(tone, open) + (depth === 0 ? " font-semibold" : "")}>
+          <tr className={rowTone(tone, open) + (depth === 0 ? " font-semibold" : "")} data-hover-block={tok} data-block={anc.join(" ") || undefined}>
             <td className={ARROW_TD}>{arrow(open, label, p)}</td>
             <td className={`py-1.5 pr-2 text-left ${INDENT[Math.min(depth, 3)]}`}>
               {href ? <Link href={href} className="text-blue-700 hover:underline">{label}</Link> : label}
@@ -224,7 +242,7 @@ export function OrdersTree({
             </td>
             {figs(s, { pay: payBy ? { paid, work: s.work } : undefined })}
           </tr>
-          {open ? (depth + 1 < dims.length ? level(list, depth + 1, p) : isOrder && list.length > 1 ? positionRows(list, depth + 1, p) : lineRows(o, depth + 1)) : null}
+          {open ? (depth + 1 < dims.length ? level(list, depth + 1, p, [...anc, tok]) : isOrder && list.length > 1 ? positionRows(list, depth + 1, p, [...anc, tok]) : lineRows(o, depth + 1, [...anc, tok])) : null}
         </Fragment>
       );
     });
@@ -237,8 +255,8 @@ export function OrdersTree({
           <h2 id={id} className="text-base font-semibold">{title}</h2>
           <InfoHint label={`Как читать: ${title}`} wide>
             {hint}
-            <p className="mt-1">Нажмите ›, чтобы раскрыть вглубь: группа → ТЗ → состав (мех и подкладка по лотам со ссылками на лот и закупку, шкуры подрядчика, расходы, работа). Номер ТЗ ведёт в карточку ТЗ.</p>
-            <p className="mt-1"><b>Всего</b> = мех + подкладка + работа + 4%{c4 === "on" ? "" : " (сейчас «Без 4%»)"} + расходы ТЗ и прочее. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
+            <p className="mt-1">Нажмите ›, чтобы раскрыть вглубь: группа → ТЗ → состав (мех и подкладка по лотам со ссылками на лот и закупку, шкуры подрядчика, работа и доп. расходы). Номер ТЗ ведёт в карточку ТЗ.</p>
+            <p className="mt-1"><b>Себестоимость</b> = мех + подкладка + 4%{c4 === "on" ? "" : " (сейчас «Без 4%»)"} + работа. В столбце «Работа» — работа и доп. расходы ТЗ («Доп. расходы · статья»); у таких строк состава «Себестоимость» — «—», а в итог узла они входят как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
           </InfoHint>
         </div>
         {modes.length > 1 ? (
@@ -251,20 +269,30 @@ export function OrdersTree({
         ) : null}
       </div>
       <div className={SCROLL_BOX}>
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[1120px] text-sm">
           <thead>
+            <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              <th />
+              <th />
+              <th colSpan={2} className="border-b border-neutral-200 px-2 pb-1 text-left">Выпуск</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Использовано</th>
+              <th colSpan={5 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0)} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Себестоимость и состав</th>
+              {showPay ? <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th> : null}
+            </tr>
             <tr className="border-b border-neutral-200">
               <th className={ARROW_TH} aria-label="Раскрыть" />
               <th className={TH_LEFT}>{mode.label}</th>
               <th className={TH}>Изд., шт.</th>
               <th className={TH}>На изделие</th>
-              <th className={TH + " border-l border-neutral-100"}>Всего</th>
+              <th className={TH + " border-l border-neutral-200"}>Шкур, шт.</th>
+              <th className={TH}>Подкладка, м</th>
+              <th className={TH + " border-l border-neutral-200"}>Себестоимость</th>
               <th className={TH}>Мех</th>
               <th className={TH}>Подкладка</th>
               <th className={TH}>Работа</th>
               {c4 === "on" ? <th className={TH}>4%</th> : null}
-              <th className={TH}>Расходы и прочее</th>
-              {showPay ? <><th className={TH + " border-l border-neutral-100"}>Оплачено</th><th className={TH}>К оплате по работе</th></> : null}
+              {showRes ? <th className={TH}>Прочее</th> : null}
+              {showPay ? <><th className={TH + " border-l border-neutral-200"}>Оплачено</th><th className={TH}>К оплате по работе</th></> : null}
             </tr>
           </thead>
           <tbody>

@@ -1,3 +1,4 @@
+import { formatPercent } from "@/lib/utils";
 import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -419,7 +420,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   };
 }
 
-export const pctText = (p: number | null) => (p == null ? "—" : `${p.toFixed(1).replace(".", ",")}%`);
+export const pctText = (p: number | null) => (p == null ? "—" : formatPercent(p));
 
 // ───────────── списания по изделиям и ТЗ ─────────────
 

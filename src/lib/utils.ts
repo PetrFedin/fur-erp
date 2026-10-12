@@ -46,6 +46,25 @@ export function formatQty(value: number | string) {
   return qtyFormatter.format(Number(value));
 }
 
+const pctFormatter = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** Процент всегда с одним знаком после запятой: 12,3% / 90,0% / 0,0%. Положительное меньше 0,1 → «<0,1%». v — уже в процентах (12.3). */
+export function formatPercent(v: number | string | null | undefined, opts?: { sign?: boolean }): string {
+  if (v == null) return "—";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  if (n > 0 && n < 0.1) return "<0,1%";
+  const r = Math.round(Math.abs(n) * 10) / 10;
+  const body = pctFormatter.format(r);
+  const neg = n < 0 && r !== 0;
+  return `${neg ? "−" : opts?.sign && r !== 0 ? "+" : ""}${body}%`;
+}
+
+/** Доля (0.123 → «12,3%»). */
+export function formatShare(fraction: number | null | undefined, opts?: { sign?: boolean }): string {
+  return fraction == null ? "—" : formatPercent(fraction * 100, opts);
+}
+
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
   month: "2-digit",

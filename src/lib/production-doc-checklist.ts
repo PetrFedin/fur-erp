@@ -8,7 +8,7 @@ import { batchRules, normTitle, paymentRules, tzRules, uniq, type CovDoc, type N
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { batchMentions, mentionDocText, mentionPayText, type MentionDocKind } from "@/lib/doc-mentions";
 import { buildPanelPay, isManualRef, overallTone, payShort, type Panel, type PanelDoc, type PanelItem, type PanelMention, type PanelPay, type PanelPayment, type Tone, type UploadTarget } from "@/lib/doc-panel";
-import { formatDate, formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 
 /**
  * ОДНА функция «что подгрузить и что оплачено» для производства: партия, ТЗ и список ТЗ.
@@ -343,7 +343,7 @@ export function indicatorOf(m: Model, o: OrderRow, ctx: Ctx): OrderIndicator {
   const p = orderPieces(m, o, ctx);
   const missing = orderMissing(o, p.own, p.viaBatch, p.rules);
   const scope: "batch" | "order" = p.batch ? "batch" : "order";
-  const pct = `${Math.round(p.pay.percent)}%`;
+  const pct = formatPercent(p.pay.percent);
   const payText = p.pay.state === "NOBASE" ? "цена работы не задана" : `${scope === "batch" ? "партия: " : ""}${p.pay.state === "PARTIAL" ? `оплата ${pct}` : payShort(p.pay)}`;
   return {
     orderId: o.id,

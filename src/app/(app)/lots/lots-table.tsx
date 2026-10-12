@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Money } from "@/components/money";
 import { RowCard } from "@/components/responsive-rows";
-import { formatCurrency, formatMoney, formatQty } from "@/lib/utils";
+import { formatCurrency, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { useCommission4Display } from "@/lib/commission4-display";
 import { COMMISSION_RATE, COMMISSION4_HINT } from "@/lib/commission4-const";
@@ -697,7 +697,7 @@ function LotCardView({
 const pct = (v: number, total: number) => {
   if (Math.abs(total) < 0.005) return "—";
   const p = Math.round((v / total) * 1000) / 10;
-  return `${(p === 0 ? 0 : p).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  return formatPercent(p);
 };
 
 /** «Из чего складывается стоимость»: вертикальный список частей с долями; сумма частей = полной стоимости. */

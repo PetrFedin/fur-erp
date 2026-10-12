@@ -1,3 +1,4 @@
+import { formatPercent } from "@/lib/utils";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
@@ -77,13 +78,13 @@ export default async function DocumentAnalysisPage() {
       <section className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Google Drive · «Мех»</TileHead>
-          <TileValue>{driveSyncSnapshot.meaningfulCoveragePct}%</TileValue>
+          <TileValue>{formatPercent(driveSyncSnapshot.meaningfulCoveragePct)}</TileValue>
           <TileCaption>файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></TileCaption>
           <div className={"mt-2 text-xs " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Документы на месте</TileHead>
-          <TileValue>{coverage.total.percent == null ? "—" : `${coverage.total.percent}%`}</TileValue>
+          <TileValue>{coverage.total.percent == null ? "—" : formatPercent(coverage.total.percent)}</TileValue>
           <TileCaption>документы есть<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p></InfoHint></TileCaption>
           <div className="mt-2 text-xs text-amber-700">Записей с пробелами: {coverage.total.rowsWithGaps}</div>
         </div>
@@ -115,7 +116,7 @@ export default async function DocumentAnalysisPage() {
             return (
               <Link key={key} href={href} className={TILE_BOX + " shadow-sm tile-click print:shadow-none"}>
                 <TileHead>{label}</TileHead>
-                <TileValue>{s?.percent == null ? "—" : `${s.percent}%`}</TileValue>
+                <TileValue>{s?.percent == null ? "—" : formatPercent(s.percent)}</TileValue>
                 <div className={"text-xs " + (gaps ? "text-amber-700" : "text-emerald-700")}>{gaps ? `Пробелы: ${gaps}` : "Пробелов нет"}</div>
               </Link>
             );

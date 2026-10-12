@@ -28,7 +28,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const years = new Map<string, number>();
   for (const o of orders) if (o.cat !== "Ремонт") { const k = o.y == null ? "Без года" : String(o.y); years.set(k, (years.get(k) ?? 0) + o.qty); }
   const share = (v: number, t: number) => (t ? v / t : null);
-  const link = (href: string) => ({ href, className: TILE_BOX + " w-full text-left shadow-sm tile-click focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none" });
+  const link = (href: string) => ({ href, "data-hover-block": "prod", className: TILE_BOX + " w-full text-left shadow-sm tile-click focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 print:shadow-none" });
   const slideLink = "block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700";
   const producedTotal = (
     <>
@@ -59,7 +59,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     <WidgetRow id={id} title={title}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
       {carousel ? (
-        <TileCarousel clickable title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Тотал» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал без ремонта). Ремонт — только в тотале и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Тотал", body: <a href={`#${treeId}`} className={slideLink} aria-label="Произведено — перейти к составу">{producedTotal}</a> },
@@ -79,7 +79,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       </div>
       )}
       {carousel ? (
-        <TileCarousel clickable title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Тотал» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Тотал", body: <a href={`#${treeId}`} className={slideLink} aria-label="Себестоимость — перейти к составу">{costTotal}</a> },

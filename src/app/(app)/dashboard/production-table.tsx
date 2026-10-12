@@ -12,6 +12,7 @@ import { furKindsOfOrder } from "@/lib/order-fur";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
 import { atomsOf, type DrillData, type DrillOrder } from "@/lib/dashboard-drill";
 import { loadProductionDrill } from "./actions";
+import { grpBlock, pathBlock } from "@/lib/block-hover";
 
 export type Agg = {
   key: string;
@@ -195,10 +196,11 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
     for (const k of ["color", "batch"]) for (const v of search[k] ?? []) p.append(k, v);
     return "/articles?" + p.toString();
   };
-  const renderRows = (nodes: Agg[], depth: number, path: string, trail: Agg[] = []): React.ReactNode =>
+  const renderRows = (nodes: Agg[], depth: number, path: string, trail: Agg[] = [], anc: string[] = []): React.ReactNode =>
     nodes.map((r) => {
       const pk = path + "/" + r.key;
       const here = [...trail, r];
+      const tok = pathBlock(pk);
       const canOpen = depth < depthMax && r.children.size > 0;
       const isOpen = open.has(pk);
       const label = canOpen ? (
@@ -212,11 +214,11 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
       ) : <span className={depth > 0 ? "inline-block w-4" : ""}>{depth > 0 ? "" : null}{r.label}</span>;
       return (
         <Fragment key={pk}>
-          <tr className={"border-b border-neutral-100 " + (depth > 0 ? "bg-neutral-50/70" : "")}>
+          <tr data-hover-block={canOpen ? tok : undefined} data-block={[...anc, depth === 0 && by === "cat" ? grpBlock(r.key) : ""].filter(Boolean).join(" ") || undefined} className={"border-b border-neutral-100 " + (depth > 0 ? "bg-neutral-50/70" : "")}>
             <td className={depth === 0 ? "py-1.5 pr-2 text-sm font-semibold" : "py-1 pr-2 text-xs " + (depth === 1 && canOpen && isOpen ? "text-neutral-900" : "text-neutral-700")} style={{ paddingLeft: depth * 16 }}>{label}</td>
             {cells(r, depth > 0, false, depth === 1 && canOpen && isOpen)}
           </tr>
-          {canOpen && isOpen ? renderRows(sortKids(r.children, depth + 1), depth + 1, pk, here) : null}
+          {canOpen && isOpen ? renderRows(sortKids(r.children, depth + 1), depth + 1, pk, here, [...anc, tok]) : null}
         </Fragment>
       );
     });
@@ -261,7 +263,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
             </thead>
             <tbody>
               {renderRows(rows, 0, "")}
-              <tr className="row-total">
+              <tr className="row-total" data-block="prod">
                 <td className="py-1.5 pr-2 text-sm"><TotalLabel /></td>
                 {cells(total, false)}
               </tr>
@@ -271,7 +273,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                     <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="inline-flex items-center rounded-lg border border-[#1d4ed8] bg-white px-3 py-1 text-xs font-medium text-[#1d4ed8] hover:bg-[#EFF4FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]" title="Открыть раздел «Ремонт» со всеми ТЗ ремонта">Ремонт</Link></td>
                     {cells(repair, true, true)}
                   </tr>
-                  <tr className="row-total">
+                  <tr className="row-total" data-block="prod">
                     <td className="whitespace-nowrap py-1.5 pr-2 text-sm"><TotalLabel note="с ремонтом" /></td>
                     {cells(all, false, true)}
                   </tr>

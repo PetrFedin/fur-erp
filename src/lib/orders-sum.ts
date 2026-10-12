@@ -18,13 +18,19 @@ export type Sum = {
   fur: number;
   lining: number;
   c4: number;
-  /** Расходы ТЗ и прочее (разница снимка и строк). */
+  /** Расходы ТЗ и прочее (разница снимка и строк) = exp + остаток снимка. */
   other: number;
+  /** Из other: расходы ТЗ (ProductionExpense, «доп. расходы»). Остаток снимка = other − exp. */
+  exp: number;
+  /** Использовано по лотам: шкуры меха, шт. */
+  furQ: number;
+  /** Использовано по лотам: подкладка, м. */
+  liningQ: number;
   work: number;
 };
 
 export const isRepair = (o: DrillOrder) => o.cat === REPAIR_CATEGORY;
-export const blankSum = (): Sum => ({ orders: 0, repairOrders: 0, items: 0, repairItems: 0, qty: 0, repairQty: 0, fur: 0, lining: 0, c4: 0, other: 0, work: 0 });
+export const blankSum = (): Sum => ({ orders: 0, repairOrders: 0, items: 0, repairItems: 0, qty: 0, repairQty: 0, fur: 0, lining: 0, c4: 0, other: 0, exp: 0, furQ: 0, liningQ: 0, work: 0 });
 /** Себестоимость вместе с работой — как «Себестоимость» на Главной. */
 export const sumTotal = (s: Sum) => s.fur + s.lining + s.c4 + s.other + s.work;
 
@@ -36,7 +42,9 @@ function addTo(s: Sum, o: DrillOrder, vat: VatSel): Sum {
     const c = vat === "incl" ? a.ci : a.ce;
     if (a.k === "f" || a.k === "h") s.fur += v - c;
     else if (a.k === "l") s.lining += v - c;
-    else s.other += v;
+    else { s.other += v; if (a.k === "e") s.exp += v; }
+    if (a.k === "f") s.furQ += a.q;
+    else if (a.k === "l") s.liningQ += a.q;
     if (a.k === "f" || a.k === "l") s.c4 += c;
   }
   return s;

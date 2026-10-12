@@ -4,7 +4,7 @@ import { TotalLabel } from "@/components/total-label";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { formatCompactMoney } from "./compact";
 import { loadProductionDrill } from "./actions";
@@ -17,7 +17,7 @@ const TONE: Record<string, string> = {
 const BAR = "#2a78d6";
 const BAR_ACTIVE = "#184f95";
 
-const sharePct = (part: number, whole: number) => (whole ? `${((part / whole) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—");
+const sharePct = (part: number, whole: number) => (whole ? formatShare(part / whole) : "—");
 
 /** Ячейка состава: сумма и рядом аккуратная доля от себестоимости строки. */
 function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean }) {
@@ -29,7 +29,7 @@ function PartCell({ v, whole, hide }: { v: number; whole: number; hide?: boolean
   );
 }
 
-const pct = (v: number) => `${(v * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`;
+const pct = (v: number) => formatShare(v);
 
 export function ProductionModal({
   scope, search, totals, onClose, title, hides, workTotal,
@@ -116,7 +116,7 @@ export function ProductionModal({
             <div className="mt-0.5 text-xs text-neutral-500">
               {vat === "incl" ? "С НДС" : "Без НДС"} · {data?.c4 === "on" ? "с 4%" : "без 4%"} · с работой
               <InfoHint label="Что в столбцах" wide>
-                <p><b>Столбец = себестоимость</b> ТЗ: мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ. <b>Работа</b> в себестоимость не входит и показана отдельно («стоимость = себестоимость + работа»).</p>
+                <p><b>Себестоимость</b> = мех + подкладка + надбавка 4% (в режиме «С 4%») + работа. Столбец <b>«Работа»</b> показывает работу и доп. расходы ТЗ («Доп. расходы · статья»): у строки состава, которая сама является работой или доп. расходом, «Себестоимость» — «—», а в итог уровня она входит как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям.</p>
                 <p className="mt-1">{scope === "all" ? "Здесь все ТЗ — завершённые и в работе: учитывается фактическое списание меха и подкладки, работа и 4%, отметка о завершении ТЗ не важна." : scope === "done" ? "Здесь только ТЗ в статусе «Завершён» (выпуск)." : "Здесь только ТЗ «В работе» и «Запланировано» (план; сырьё — по списаниям на сегодня)."}</p>
                 <p className="mt-1">Сумма столбцов каждого уровня равна родительскому столбцу; на первом уровне — итогу плитки. Режимы НДС, 4% и год — те же, что в шапке.</p>
               </InfoHint>
@@ -160,7 +160,7 @@ export function ProductionModal({
                   <span className="ml-2 text-xs text-neutral-500">{level.title} · {level.orders} ТЗ</span>
                 </div>
                 <div className="text-xs text-neutral-600">
-                  {level.totalWork != null && level.totalWork !== 0 ? <>в том числе работа <b className="tabular-nums">{formatMoney(level.totalWork)}</b></> : null}
+                  {level.totalWork != null && level.totalWork !== 0 ? <>в том числе «Работа» <b className="tabular-nums">{formatMoney(level.totalWork)}</b></> : null}
                 </div>
               </div>
 
@@ -210,19 +210,38 @@ export function ProductionModal({
                 {(() => {
                   const rich = level.kind === "dim" && level.items.some((i) => i.parts);
                   const perUnit = level.kind === "dim" && level.items.some((i) => i.qty && !i.outside);
-                  const showOther =level.items.some((i) => Math.abs(i.parts?.other ?? 0) > 0.005);
-                  const sumP = (k: "fur" | "lining" | "c4" | "other") => level.items.reduce((x, i) => x + (i.parts?.[k] ?? 0), 0);
+                  // Столбец «Работа» есть → в нём работа + доп. расходы ТЗ, а «Прочее» — только разница снимка ТЗ и строк.
+                  const workCol = level.totalWork != null;
+                  const othOf = (i: Item) => (i.parts ? i.parts.other - (workCol ? i.parts.exp : 0) : 0);
+                  const showOther = level.items.some((i) => Math.abs(othOf(i)) > 0.005);
+                  const workOf = (i: Item) => (i.asWork ? i.value : (i.work ?? 0) + (i.parts?.exp ?? 0));
+                  const sumP = (k: "fur" | "lining" | "c4") => level.items.reduce((x, i) => x + (i.parts?.[k] ?? 0), 0);
+                  const sumOther = level.items.reduce((x, i) => x + othOf(i), 0);
+                  const showFurQ = level.items.some((i) => (i.furQ ?? 0) > 0);
+                  const showLinQ = level.items.some((i) => (i.liningQ ?? 0) > 0);
+                  const GL = " border-l border-neutral-200";
+                  const nq = (v?: number) => (v && v > 0 ? formatQty(v) : "—");
                   return (
                     <table className={"w-full text-sm " + (rich ? "min-w-[900px]" : "min-w-[520px]")}>
                       <thead>
+                        {(rich || showFurQ || showLinQ || workCol) ? (
+                          <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                            <th colSpan={2 + (perUnit ? 1 : 0)} />
+                            {showFurQ || showLinQ ? <th colSpan={(showFurQ ? 1 : 0) + (showLinQ ? 1 : 0)} className={"border-b border-neutral-200 px-2 pb-1 text-left" + GL}>Использовано</th> : null}
+                            <th colSpan={1 + (rich ? 3 + (showOther ? 1 : 0) : 0) + (workCol ? 1 : 0)} className={"border-b border-neutral-200 px-2 pb-1 text-left" + GL}>Себестоимость и состав</th>
+                            <th className={GL} />
+                          </tr>
+                        ) : null}
                         <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
                           <th className="min-w-[150px] py-1.5 pr-2 font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
                           <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
                           {perUnit ? <th className="px-2 py-1.5 text-right font-medium">1 изд.</th> : null}
-                          <th className="px-2 py-1.5 text-right font-medium">Себестоимость</th>
-                          {rich ? <><th className="px-2 py-1.5 text-right font-medium">Мех</th><th className="px-2 py-1.5 text-right font-medium">Подкладка</th><th className="px-2 py-1.5 text-right font-medium">4%</th>{showOther ? <th className="px-2 py-1.5 text-right font-medium">Расходы и прочее</th> : null}</> : null}
-                          {level.totalWork != null ? <th className="px-2 py-1.5 text-right font-medium">в т.ч. работа</th> : null}
-                          <th className="px-2 py-1.5 text-right font-medium">Доля уровня</th>
+                          {showFurQ ? <th className={"px-2 py-1.5 text-right font-medium" + GL}>Шкур, шт.</th> : null}
+                          {showLinQ ? <th className={"px-2 py-1.5 text-right font-medium" + (showFurQ ? "" : GL)}>Подкладка, м</th> : null}
+                          <th className={"px-2 py-1.5 text-right font-medium" + GL}>Себестоимость</th>
+                          {rich ? <><th className="px-2 py-1.5 text-right font-medium">Мех</th><th className="px-2 py-1.5 text-right font-medium">Подкладка</th><th className="px-2 py-1.5 text-right font-medium">4%</th>{showOther ? <th className="px-2 py-1.5 text-right font-medium">{workCol ? "Прочее" : "Расходы и прочее"}</th> : null}</> : null}
+                          {workCol ? <th className="px-2 py-1.5 text-right font-medium">Работа</th> : null}
+                          <th className={"px-2 py-1.5 text-right font-medium" + GL}>Доля уровня</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -239,17 +258,19 @@ export function ProductionModal({
                             </td>
                             <td className="whitespace-nowrap px-2 py-1.5 text-right text-neutral-600">{it.qtyText}</td>
                             {perUnit ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.qty && !it.outside ? formatMoney(it.value / it.qty) : "—"}</td> : null}
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{formatMoney(it.value)}</td>
+                            {showFurQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + GL}>{nq(it.furQ)}</td> : null}
+                            {showLinQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700" + (showFurQ ? "" : GL)}>{nq(it.liningQ)}</td> : null}
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + GL}>{it.asWork ? <span className="font-normal text-neutral-400">—</span> : formatMoney(it.value)}</td>
                             {rich ? (
                               <>
                                 <PartCell v={it.parts?.fur ?? 0} whole={it.value} hide={!it.parts} />
                                 <PartCell v={it.parts?.lining ?? 0} whole={it.value} hide={!it.parts} />
                                 <PartCell v={it.parts?.c4 ?? 0} whole={it.value} hide={!it.parts} />
-                                {showOther ? <PartCell v={it.parts?.other ?? 0} whole={it.value} hide={!it.parts} /> : null}
+                                {showOther ? <PartCell v={othOf(it)} whole={it.value} hide={!it.parts} /> : null}
                               </>
                             ) : null}
-                            {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{it.work ? formatMoney(it.work) : "—"}</td> : null}
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600">{it.outside ? "—" : pct(it.share)}</td>
+                            {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{workOf(it) ? formatMoney(workOf(it)) : "—"}</td> : null}
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-600" + GL}>{it.outside ? "—" : pct(it.share)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -258,17 +279,19 @@ export function ProductionModal({
                           <td className="py-1.5 pr-2"><TotalLabel /></td>
                           <td />
                           {perUnit ? <td /> : null}
-                          <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.total)}</td>
+                          {showFurQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + GL}>{nq(level.items.reduce((x, i) => x + (i.furQ ?? 0), 0))}</td> : null}
+                          {showLinQ ? <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showFurQ ? "" : GL)}>{nq(level.items.reduce((x, i) => x + (i.liningQ ?? 0), 0))}</td> : null}
+                          <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + GL}>{formatMoney(level.total)}</td>
                           {rich ? (
                             <>
                               <PartCell v={sumP("fur")} whole={level.total} />
                               <PartCell v={sumP("lining")} whole={level.total} />
                               <PartCell v={sumP("c4")} whole={level.total} />
-                              {showOther ? <PartCell v={sumP("other")} whole={level.total} /> : null}
+                              {showOther ? <PartCell v={sumOther} whole={level.total} /> : null}
                             </>
                           ) : null}
-                          {level.totalWork != null ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatMoney(level.totalWork)}</td> : null}
-                          <td className="px-2 py-1.5 text-right">100%</td>
+                          {workCol ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{level.items.reduce((x, i) => x + workOf(i), 0) ? formatMoney(level.items.reduce((x, i) => x + workOf(i), 0)) : "—"}</td> : null}
+                          <td className={"px-2 py-1.5 text-right" + GL}>100,0%</td>
                         </tr>
                       </tfoot>
                     </table>

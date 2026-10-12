@@ -1,5 +1,5 @@
 import { InfoHint } from "@/components/info-hint";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, formatMoney, formatPercent } from "@/lib/utils";
 import {
   BASIS_LABEL,
   CONFIRM_LABEL,
@@ -14,7 +14,7 @@ import type { GroupDb, InvDb } from "./live";
 
 export const money = (v: number | null | undefined) => (v == null ? "—" : formatMoney(v));
 const dmy = (d: string | null, approx?: boolean) => (d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}${approx ? " (≈)" : ""}` : "дата не найдена");
-const pct = (v: number) => `${v >= 99.95 || v <= 0.05 ? Math.round(v) : v.toFixed(1).replace(".", ",")} %`;
+const pct = (v: number) => formatPercent(v);
 
 export const INV_TONE: Record<InvStatus, { cls: string; dot: string; bar: string }> = {
   closed: { cls: "bg-emerald-50 text-emerald-800 border-emerald-200", dot: "bg-emerald-500", bar: "bg-emerald-500" },

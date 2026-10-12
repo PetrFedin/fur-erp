@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatDate, formatQty } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -266,12 +266,12 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         <div className={TILE_BOX}>
           <TileHead>Оплачено</TileHead>
           <TileValue>{formatMoney(paidTotal.toFixed(2))}</TileValue>
-          <TileCaption>{boughtTotal.greaterThan(0) ? `${paidTotal.div(boughtTotal).mul(100).toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% от куплено · всегда с НДС` : "всегда с НДС"}</TileCaption>
+          <TileCaption>{boughtTotal.greaterThan(0) ? `${formatPercent(paidTotal.div(boughtTotal).mul(100).toNumber())} от куплено · всегда с НДС` : "всегда с НДС"}</TileCaption>
         </div>
         <div className={TILE_BOX}>
           <TileHead>К оплате</TileHead>
           <TileValue className={restTotal.greaterThan(PAY_EPS) ? "text-amber-700" : ""}>{formatMoney(restTotal.toFixed(2))}</TileValue>
-          <TileCaption>{boughtTotal.greaterThan(0) ? `${restTotal.div(boughtTotal).mul(100).toNumber().toLocaleString("ru-RU", { maximumFractionDigits: 1 })}% от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
+          <TileCaption>{boughtTotal.greaterThan(0) ? `${formatPercent(restTotal.div(boughtTotal).mul(100).toNumber())} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
         </div>
       </div>
       </WidgetRow>

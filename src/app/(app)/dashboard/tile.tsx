@@ -1,3 +1,4 @@
+import { formatShare } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 // Общая вертикальная раскладка плиток Сводки: заголовок, крупная цифра, подпись и список стоят на одном уровне у всех плиток ряда.
@@ -27,7 +28,7 @@ export type TileItem = {
   tone?: string;
 };
 
-const pct = (s: number) => (s > 0 && s < 0.001 ? "<0,1%" : `${(s * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`);
+const pct = (s: number) => formatShare(s);
 
 /** Список «статья — сумма — доля %» под крупной цифрой плитки (как в плитках Оплат на Главной). */
 export function TileList({ items }: { items: TileItem[] }) {

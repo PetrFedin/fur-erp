@@ -153,6 +153,8 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
   }, [onClose]);
 
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  // Тонкие вертикальные линии между блоками колонок: «Изделие» | «Мех и подкладка» | «Работа и надбавка».
+  const BL = " border-l border-neutral-200";
   const cells = (g: Agg, cls: string) => {
     const a = avgs(g);
     const c = "whitespace-nowrap px-2 text-right tabular-nums " + cls;
@@ -160,12 +162,12 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
       <>
         <td className={c}>{formatQty(a.q)}</td>
         <td className={c + " font-medium"}>{m(a.cost)}</td>
-        <td className={c}>{m(a.fur)}</td>
+        <td className={c + BL}>{m(a.fur)}</td>
         <td className={c}>{n1(a.hides)}</td>
         <td className={c}>{m(a.hidePrice)}</td>
         <td className={c}>{nz(a.meters)}</td>
         <td className={c}>{m(a.meterPrice)}</td>
-        <td className={c}>{m(a.work)}</td>
+        <td className={c + BL}>{m(a.work)}</td>
         <td className={c}>{m(a.c4)}</td>
       </>
     );
@@ -221,16 +223,22 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead>
+                <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                  <th />
+                  <th colSpan={2} className="border-b border-neutral-200 px-2 pb-1 text-left">Изделие</th>
+                  <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Мех и подкладка</th>
+                  <th colSpan={2} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Работа и надбавка</th>
+                </tr>
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                   <th className="py-1.5 pr-2 font-medium">Строка</th>
                   <th className={th}>Изделий, шт.</th>
                   <th className={th}>Себестоимость изделия</th>
-                  <th className={th}>Мех на изделие</th>
+                  <th className={th + BL}>Мех на изделие</th>
                   <th className={th}>Шкур на изделие</th>
                   <th className={th}>Ср. цена шкуры</th>
                   <th className={th}>Подкладки на изделие, м</th>
                   <th className={th}>Ср. цена подкладки, ₽/м</th>
-                  <th className={th}>Работа на изделие</th>
+                  <th className={th + BL}>Работа на изделие</th>
                   <th className={th}>4% на изделие</th>
                 </tr>
               </thead>

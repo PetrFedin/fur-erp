@@ -107,3 +107,46 @@ html[data-theme="customer"] .info-i:hover { border-color: var(--cv-accent); colo
 
 /* приглушённые подписи и прочерки «—»: не светлее AA */
 html[data-theme="customer"] :is(.text-neutral-300, .text-neutral-400) { color: var(--cv-muted); }
+
+/* ───────── Блоки-заголовки и вложенные строки: вместо серо-синих полос — оранжевые и белые ─────────
+   • строка-заголовок блока (МЕХ / ПОДКЛАДКА, год в окнах): светлая оранжевая заливка и тёмно-оранжевый текст;
+   • вложенные строки (раскрытый уровень): белый фон и тонкая оранжевая полоса 3px слева;
+   • при наведении любая такая строка становится БЕЛОЙ с ОРАНЖЕВОЙ границей (outline внутрь — раскладка не сдвигается).
+   Итоговые строки .row-total и цвета стадий календаря не затрагиваются. */
+html[data-theme="customer"] tr:is(.bg-neutral-100, .bg-neutral-100\/70):not(.row-total) {
+  background-color: var(--ui-soft);
+  color: var(--ui-accent-text);
+}
+html[data-theme="customer"] tr:is(.bg-neutral-50, .bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total) {
+  background-color: #fff;
+}
+html[data-theme="customer"] tr:is(.bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total) > :first-child,
+html[data-theme="customer"] tr.bg-neutral-50:not(.row-total):not(.font-semibold) > :first-child {
+  box-shadow: inset 3px 0 0 var(--ui-accent);
+}
+html[data-theme="customer"] :is(thead, tfoot).bg-neutral-50 { background-color: #fff; }
+html[data-theme="customer"] tr:is(.bg-neutral-100, .bg-neutral-100\/70, .bg-neutral-50, .bg-neutral-50\/70, .bg-neutral-50\/60):not(.row-total):hover {
+  background-color: #fff;
+  outline: 1px solid var(--ui-accent);
+  outline-offset: -1px;
+}
+/* «синие» информационные чипы (sky) → в тон акцента; насыщенные sky-400/500 (заливки диаграмм) не трогаем */
+html[data-theme="customer"] {
+  --color-sky-50: #fff3ee;
+  --color-sky-100: #ffe4da;
+  --color-sky-200: #ffd0c0;
+  --color-sky-300: #ffb199;
+  --color-sky-700: #b72f0a;
+  --color-sky-800: #8f2408;
+  --color-sky-900: #6f1c06;
+}
+
+/* ───────── Подсветка связанных строк при наведении на блок (плитку, заголовок блока) ─────────
+   data-hover-block="K" на плитке / строке-заголовке → у всех data-block~="K" класс .block-hl (src/components/block-hover.tsx). */
+tr.block-hl, .block-hl {
+  background-color: #fff1eb !important;
+  outline: 1px solid var(--ui-accent, #ff4a1c);
+  outline-offset: -1px;
+}
+tr.block-hl > td, tr.block-hl > th { background-color: #fff1eb; }
+@media print { .block-hl { outline: none; background: transparent !important; } }

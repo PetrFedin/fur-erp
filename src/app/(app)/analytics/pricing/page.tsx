@@ -14,7 +14,7 @@ import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { YearNote } from "@/components/year-note";
 import { Mode4Badge } from "@/components/c4-note";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import {
   VIEW_LABEL,
@@ -45,7 +45,7 @@ import { MetricCell, MobileSort, SortTh, ViewBar, colLabel, pct0, q2, sortHref }
 export const metadata = { title: "Себестоимость и цены" };
 
 const rub = (x: number) => formatMoney(x.toFixed(2));
-const pct1 = (x: number) => `${x.toFixed(1).replace(".", ",")}%`;
+const pct1 = (x: number) => formatPercent(x);
 const orderLabel = (r: { workOrderNumber: string | null; number: string }) => r.number;
 
 type Seg = { key: string; label: string; value: number; cls: string };
@@ -67,13 +67,13 @@ function Bar({ a }: { a: PriceAgg }) {
   if (total <= 0) return <span className="text-neutral-500">—</span>;
   return (
     <div className="min-w-32">
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-100" role="img" aria-label={segs.map((s) => `${s.label} ${((s.value / total) * 100).toFixed(0)}%`).join(", ")}>
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-100" role="img" aria-label={segs.map((s) => `${s.label} ${formatShare(s.value / total)}`).join(", ")}>
         {segs.map((s) => (
-          <span key={s.key} className={s.cls} style={{ width: `${(s.value / total) * 100}%` }} title={`${s.label}: ${((s.value / total) * 100).toFixed(1)}%`} />
+          <span key={s.key} className={s.cls} style={{ width: `${(s.value / total) * 100}%` }} title={`${s.label}: ${formatShare(s.value / total)}`} />
         ))}
       </div>
       <div className="mt-0.5 text-[11px] leading-tight text-neutral-500">
-        {segs.map((s) => `${s.label} ${((s.value / total) * 100).toFixed(0)}%`).join(" · ")}
+        {segs.map((s) => `${s.label} ${formatShare(s.value / total)}`).join(" · ")}
       </div>
     </div>
   );
@@ -329,7 +329,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     if (a.modelId) {
       items.push(
         ["Цена", a.price ? formatMoney(a.price.toFixed(2)) : <span className="text-amber-700">не задана</span>],
-        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{Math.round(c.markupPct ?? 0)}%), маржа {pct1(c.marginPct ?? 0)}</> : dash],
+        ["Наценка", c.markupX != null ? <>×{c.markupX.toFixed(2).replace(".", ",")} (+{formatPercent(c.markupPct ?? 0)}), маржа {pct1(c.marginPct ?? 0)}</> : dash],
         ["Рекомендуемая цена", r ? <><Money incl={r.incl} excl={r.excl} /> <span className="text-neutral-500">(при наценке {target}%, не факт)</span></> : dash],
       );
     }
@@ -504,7 +504,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             </p>
             {exampleModel && exCalc && exCalc.baseIncl && exampleModel.price && (
               <p className="mt-1">
-                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{Math.round(exCalc.markupPct!)}%, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "—"}% рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
+                Пример — модель {exampleModel.label}: цена {formatMoney(exampleModel.price.toFixed(2))} ÷ себестоимость {formatMoney(exCalc.baseIncl.toFixed(2))} = ×{exCalc.markupX!.toFixed(2).replace(".", ",")}, наценка +{formatPercent(exCalc.markupPct!)}, маржа {pct1(exCalc.marginPct!)}. При целевой наценке {target ?? "—"}% рекомендуемая цена = себестоимость × {(1 + (target ?? 0) / 100).toFixed(2).replace(".", ",")}, округлённая до 100 ₽.
               </p>
             )}
             <p className="mt-1">Целевая наценка по умолчанию — средневзвешенная по моделям, у которых цена уже есть (вес — себестоимость партии). <b>Рекомендация — расчёт, а не факт</b>: рынок и скидки в нём не учтены.</p>

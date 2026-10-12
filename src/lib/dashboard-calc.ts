@@ -166,6 +166,6 @@ export function toDrillOrder(o: OrderRow, c4: "on" | "off", auctionShort: (name:
   return {
     id: o.id, number: o.number, wo: o.workOrderNumber, bk: o.batchNumber == null ? "none" : String(o.batchNumber),
     bl: o.batchText ?? "Без партии", y: o.year, st: o.status, cat: o.category, grp: o.category === REPAIR_CATEGORY ? "Ремонт (отдельно)" : o.categoryGroup || NO_GROUP, mid: o.modelId, ml: o.modelLabel, fur: o.fur,
-    qty: o.qty, work: o.work, exp: o.expenses, hI: 0, hE: 0, resI: r2(o.costIncl - sumI - o.expenses), resE: r2(o.costExcl - sumE - o.expenses), lines,
+    qty: o.qty, work: o.work, exp: o.expenses, xs: o.expenseList, hI: 0, hE: 0, resI: r2(o.costIncl - sumI - o.expenses), resE: r2(o.costExcl - sumE - o.expenses), lines,
   };
 }

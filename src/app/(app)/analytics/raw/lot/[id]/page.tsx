@@ -317,7 +317,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
                         <td className="px-2 py-1.5">{r.k}{r.note ? <div className="text-xs font-normal text-neutral-500">{r.note}</div> : null}</td>
                         <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(q2(r.unit))}</td>
                         <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{formatMoney(q2(r.total))}</td>
-                        <td className="whitespace-nowrap px-1.5 py-1.5 text-right font-normal tabular-nums text-neutral-500">{r.share ? pctText((shareOf(r.total) ?? 0) * 100) : "100%"}</td>
+                        <td className="whitespace-nowrap px-1.5 py-1.5 text-right font-normal tabular-nums text-neutral-500">{r.share ? pctText((shareOf(r.total) ?? 0) * 100) : "100,0%"}</td>
                       </tr>
                     ))}
                     <tr className="border-b border-neutral-100 text-xs text-neutral-500">

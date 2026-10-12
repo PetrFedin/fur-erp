@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { ProductionModal } from "./production-modal";
 import { ProductionTable } from "./production-table";
 import { AveragesTile, useDrill } from "./averages";
@@ -67,7 +67,7 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
       </div>
       <WidgetRow id="prod" title="Производство">
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <TileCarousel clickable title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p><b>Произведено</b> — изделия по всем ТЗ (завершённые и в работе): учитывается фактическое списание сырья, отметка «Завершён» не важна. Ремонт в штуки не входит — он считается отдельно (страница «Ремонт»). ТЗ без списаний и в плане входят плановым количеством.</p>
             <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
@@ -81,7 +81,7 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
                   {years.filter((y) => y.qty !== 0).map((y) => (
                     <div key={y.label} className="flex items-baseline justify-between gap-3">
                       <dt className="text-neutral-600">{y.label}</dt>
-                      <dd className="whitespace-nowrap font-medium tabular-nums">{formatQty(y.qty)} шт.<span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? `${((y.qty / fact.qty) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</span></dd>
+                      <dd className="whitespace-nowrap font-medium tabular-nums">{formatQty(y.qty)} шт.<span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{fact.qty ? formatShare(y.qty / fact.qty) : "—"}</span></dd>
                     </div>
                   ))}
                 </dl>
@@ -91,7 +91,7 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
                 <GroupProducedSlide all={drillOrders} grp={g} vat={vat} loading={!drill} compact />
               </button>) })),
           ]} />
-        <TileCarousel clickable title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость» без работы: <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
@@ -109,7 +109,7 @@ export function ProductionBlock({ vatCost, kind = "", hides, c4Parts, years, don
                       <dt className="text-neutral-600">{p.k}</dt>
                       <dd className="text-right font-medium tabular-nums">
                         {money(p.v)}
-                        <span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? `${((p.v / total) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</span>
+                        <span className="ml-1.5 inline-block w-12 text-right text-[11px] font-normal text-neutral-500">{total ? formatShare(p.v / total) : "—"}</span>
                       </dd>
                     </div>
                   ))}

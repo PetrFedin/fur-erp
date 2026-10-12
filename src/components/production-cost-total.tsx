@@ -1,5 +1,6 @@
 "use client";
 
+import { formatPercent } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 
 type Detail = { label: string; value: number; qty?: number };
@@ -109,7 +110,7 @@ export function ProductionCostTotal({
                         <span className={["bg-neutral-900","bg-neutral-400","bg-neutral-300"][i] + " size-3 shrink-0 rounded-full"} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-medium">{s.label}</span>
-                          <span className="block text-xs text-neutral-500">{pct.toFixed(1).replace(".", ",")}% от общей стоимости</span>
+                          <span className="block text-xs text-neutral-500">{formatPercent(pct)} от общей стоимости</span>
                         </span>
                         <span className="font-semibold tabular-nums">{money(s.value)}</span>
                         <span className="w-4 text-neutral-500">{s.expandable ? (isOpen ? "−" : "+") : ""}</span>

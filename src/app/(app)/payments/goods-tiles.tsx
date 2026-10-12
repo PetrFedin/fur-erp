@@ -2,7 +2,7 @@
 
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatPercent } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileValue, TileCaption, TileList, type TileItem } from "../dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
@@ -38,10 +38,15 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] text-sm">
         <thead>
+          <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <th />
+            <th className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Расчёт</th>
+            <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th>
+          </tr>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Партия</th>
-            <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
-            <th className="px-2 py-1.5 text-right font-medium">Оплачено</th>
+            <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Стоимость</th>
+            <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Оплачено</th>
             <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
           </tr>
         </thead>
@@ -56,8 +61,8 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
                 {list.map((r) => (
                   <tr key={r.key} className="border-b border-neutral-100">
                     <td className="py-1.5 pr-2">{r.label}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(r.work)}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(r.paid)}</td>
+                    <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(r.work)}</td>
+                    <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(r.paid)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rest(r.work, r.paid)}</td>
                   </tr>
                 ))}
@@ -67,8 +72,8 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
           {advances > 0.5 ? (
             <tr className="border-b border-neutral-100">
               <td className="py-1.5 pr-2">Авансы без привязки к ТЗ</td>
-              <td className="px-2 py-1.5 text-right text-neutral-400">—</td>
-              <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(advances)}</td>
+              <td className="border-l border-neutral-200 px-2 py-1.5 text-right text-neutral-400">—</td>
+              <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(advances)}</td>
               <td className="px-2 py-1.5 text-right text-neutral-400">—</td>
             </tr>
           ) : null}
@@ -76,8 +81,8 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
         <tfoot>
           <tr className="row-total">
             <td className="py-1.5 pr-2"><TotalLabel /></td>
-            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(work)}</td>
-            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(paid)}</td>
+            <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(work)}</td>
+            <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(paid)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rest(work, paid)}</td>
           </tr>
         </tfoot>
@@ -118,8 +123,8 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
       <WidgetRow id="goods" title="Оплата работы — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
         <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} note="работа по ТЗ" />
-        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${Math.round((paid / total) * 1000) / 10} % от стоимости`.replace(".", ",") : undefined} />
-        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} note={total > 0.5 ? `${Math.round((balance / total) * 1000) / 10} % от стоимости`.replace(".", ",") : undefined} />
+        <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${formatPercent((paid / total) * 100)} от стоимости` : undefined} />
+        <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} note={total > 0.5 ? `${formatPercent((balance / total) * 100)} от стоимости` : undefined} />
       </div>
       </WidgetRow>
       {open && (
@@ -154,13 +159,18 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
+            <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              <th colSpan={3} className="border-b border-neutral-200 px-2 pb-1 text-left">Заказ</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Количество и расчёт</th>
+              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th>
+            </tr>
             <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
               <th className="py-1.5 pr-2 font-medium">ТЗ</th>
               <th className="px-2 py-1.5 font-medium">Артикул</th>
               <th className="px-2 py-1.5 font-medium">Мех</th>
-              <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
+              <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Кол-во</th>
               <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
-              <th className="px-2 py-1.5 text-right font-medium">Оплачено</th>
+              <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Оплачено</th>
               <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
             </tr>
           </thead>
@@ -173,9 +183,9 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
                 <Fragment key={b ?? "none"}>
                   <tr className="bg-neutral-100 font-semibold">
                     <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Без партии"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
+                    <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(w)}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(p)}</td>
+                    <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(p)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-amber-700">{rub(w - p)}</td>
                   </tr>
                   {list.map((o) => (
@@ -183,9 +193,9 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
                       <td className="whitespace-nowrap py-1.5 pr-2"><a href={`/production/${o.id}`} className="text-blue-700 hover:underline">ТЗ {o.label} ›</a></td>
                       <td className="whitespace-nowrap px-2 py-1.5">{o.article}</td>
                       <td className="px-2 py-1.5 text-neutral-600">{o.fur}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{o.qty.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{o.qty.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(o.work)}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(o.paid)}</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(o.paid)}</td>
                       <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums text-amber-700">{rub(left(o))}</td>
                     </tr>
                   ))}

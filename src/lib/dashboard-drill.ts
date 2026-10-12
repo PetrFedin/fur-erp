@@ -50,6 +50,8 @@ export type DrillOrder = {
   work: number;
   /** Расходы ТЗ (одинаково с НДС и без). */
   exp: number;
+  /** Расходы ТЗ по статьям («Фурнитура», «Прочие расходы»…): Σ a = exp. */
+  xs?: { n: string; a: number }[];
   /** Шкуры подрядчика, отнесённые к ТЗ (с НДС / без НДС): оплачены в составе пошива, в ТЗ не списаны. */
   hI: number;
   hE: number;
@@ -137,7 +139,12 @@ export type Item = {
   href?: string;
   sub?: string;
   /** Состав себестоимости столбца: мех, подкладка, 4%, расходы ТЗ и прочее (Σ = value). */
-  parts?: { fur: number; lining: number; c4: number; other: number; work: number };
+  parts?: { fur: number; lining: number; c4: number; other: number; work: number; /** Из other: расходы ТЗ (ProductionExpense) — в таблицах показываются в столбце «Работа». */ exp: number };
+  /** Использовано по списаниям: шкуры меха, шт. и подкладка, м. */
+  furQ?: number;
+  liningQ?: number;
+  /** Сумма строки стоит в столбце «Работа» (работа, доп. расходы), а в «Себестоимость» — «—»; в итог уровня входит как раньше. */
+  asWork?: boolean;
   /** Количество изделий (для строки таблицы). */
   qty?: number;
   /** Столбец «Работа» — вне суммы. */
@@ -222,6 +229,7 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
           label: `${l.n} · лот ${l.ln ?? "без номера"}`,
           sub: `${l.au}${l.pn ? ` · закупка ${l.pn}` : ""} · ${nf(g.q)} ${l.k === "l" ? "м" : "шк."}`,
           value: g.v, share: 0, qtyText: `${nf(g.q)} ${l.k === "l" ? "м" : "шк."}`, work: null, drillable: false,
+          furQ: sel === "fur" ? g.q : undefined, liningQ: sel === "lining" ? g.q : undefined,
           href: `/analytics/raw/lot/${lotId}`, tone: sel === "c4" ? "c4" : sel,
         };
       }).sort((x, y) => y.value - x.value);
@@ -240,20 +248,29 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
     const expV = sum((a) => val(a, vat), (a) => a.k === "e");
     const resV = sum((a) => val(a, vat), (a) => a.k === "r");
     const hidesV = sum((a) => val(a, vat), (a) => a.k === "h");
+    const furQ = sum((a) => a.q, (a) => a.k === "f");
+    const linQ = sum((a) => a.q, (a) => a.k === "l");
     const items: Item[] = [
-      mk("fur", "Мех", "fur", furV, true, "по лотам"),
-      mk("lining", "Подкладка", "lining", linV, true, "по лотам"),
+      { ...mk("fur", "Мех", "fur", furV, true, "по лотам"), furQ, qtyText: furQ ? `${nf(furQ)} шк.` : "" },
+      { ...mk("lining", "Подкладка", "lining", linV, true, "по лотам"), liningQ: linQ, qtyText: linQ ? `${nf(linQ)} м` : "" },
       mk("hides", HIDES_LABEL, "fur", hidesV, false, "оплачены в составе пошива, в ТЗ не списаны"),
       mk("c4", "Надбавка 4%", "c4", c4V, c4V !== 0, c4V !== 0 ? "по лотам" : "режим «Без 4%» или не применяется"),
-      mk("exp", "Расходы ТЗ", "exp", expV, false),
       mk("res", "Прочее (снимок ТЗ ≠ строки)", "res", resV, false, "разница между итогом ТЗ и суммой строк"),
     ].filter((i) => i.value !== 0 || i.key === "fur");
+    // Доп. расходы ТЗ — отдельными строками по статьям; как и работа, стоят в столбце «Работа» («Себестоимость» у строки «—»).
+    if (expV !== 0) {
+      const xs = (o?.xs ?? []).filter((x) => Math.abs(x.a) > 0.005);
+      const rest = expV - xs.reduce((q, x) => q + x.a, 0);
+      xs.forEach((x, i) => items.push({ ...mk(`exp${i}`, `Доп. расходы · ${x.n}`, "exp", x.a, false, "без НДС и без 4%"), asWork: true }));
+      if (Math.abs(rest) > 0.005 || xs.length === 0) items.push({ ...mk("exp", "Доп. расходы", "exp", rest, false, "без НДС и без 4%"), asWork: true });
+    }
     const work = auctionLocked || !o ? null : o.work;
-    if (work != null && work !== 0) items.push({ key: "work", label: "Работа", value: work, share: 0, qtyText: "", work: null, drillable: false, tone: "work", sub: "цена работы × кол-во" });
+    if (work != null && work !== 0) items.push({ key: "work", label: "Работа", value: work, share: 0, qtyText: "", work: null, drillable: false, tone: "work", sub: "цена работы × кол-во", asWork: true });
     const total = items.reduce((s, i) => s + i.value, 0);
     items.forEach((i) => (i.share = total ? i.value / total : 0));
+    const workCol = (work ?? 0) + expV;
     return {
-      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.number} (с работой)` : "Состав", items, total, totalWork: work, orders: orderCount,
+      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.number} (с работой)` : "Состав", items, total, totalWork: work != null || expV !== 0 ? workCol : null, orders: orderCount,
       links: o ? [{ label: `Открыть ТЗ ${o.number}`, href: `/production/${o.id}` }] : [],
     };
   }
@@ -284,7 +301,9 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
         c4: part((a) => a.k === "f" || a.k === "l", (a) => c4val(a, vat)),
         other: part((a) => a.k === "e" || a.k === "r", (a) => val(a, vat)),
         work: whole ? work : 0,
+        exp: part((a) => a.k === "e", (a) => val(a, vat)),
       },
+      furQ: part((a) => a.k === "f", (a) => a.q), liningQ: part((a) => a.k === "l", (a) => a.q),
       // Ремонт — не изделия: количество и «1 изд.» не показываем.
       qty: dim === "fur" || dim === "auction" || g.atoms.every((x) => x.o.cat === "Ремонт") ? undefined : Array.from(qtyOrders.values()).reduce((x, y) => x + y, 0),
       key, label: g.label, value: v, share: 0, qtyText: qtyTextOf(g.atoms, dim), work: whole ? work : null, drillable: true,

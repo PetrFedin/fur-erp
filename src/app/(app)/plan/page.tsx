@@ -7,7 +7,7 @@ import { cleanSearch, escapeLike } from "@/lib/input";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { getColorOptions } from "@/lib/colors";
-import { formatQty } from "@/lib/utils";
+import { formatPercent, formatQty } from "@/lib/utils";
 import { compareModelNames } from "@/lib/model-code";
 import { classifyProduct } from "@/lib/product-category";
 import { compareSizeLabels } from "@/lib/plan-sizes";
@@ -227,7 +227,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                 ))}
               </div>
               </WidgetRow>
-              <div className="h-2 overflow-hidden rounded-full bg-neutral-100" title={`${pct(totals.produced, totals.plan)}%`}>
+              <div className="h-2 overflow-hidden rounded-full bg-neutral-100" title={formatPercent(pct(totals.produced, totals.plan))}>
                 <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, pct(totals.produced, totals.plan))}%` }} />
               </div>
               <div className="grid gap-4 lg:grid-cols-3">
@@ -306,7 +306,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                 key={p.id}
                 title={facts.get(p.id)?.modelId && modelById.get(facts.get(p.id)!.modelId!) ? articleLabel(modelById.get(facts.get(p.id)!.modelId!)!) : p.articleCode}
                 subtitle={[p.articleName, p.color, p.furType, seasonId === "" ? p.season?.code : null].filter(Boolean).join(" · ")}
-                badge={<Badge variant={pct(f.produced, plan) >= 100 ? "success" : "info"}>{pct(f.produced, plan)}%</Badge>}
+                badge={<Badge variant={pct(f.produced, plan) >= 100 ? "success" : "info"}>{formatPercent(pct(f.produced, plan))}</Badge>}
                 fields={[
                   { label: "План", value: formatQty(plan), strong: true },
                   { label: "Произведено", value: formatQty(f.produced) },

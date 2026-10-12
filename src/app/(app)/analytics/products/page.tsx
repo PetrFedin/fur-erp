@@ -414,7 +414,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
                   <Td><TotalLabel /></Td>
                   {cols.map((c) => (
                     <Td key={c} className="text-right tabular-nums">
-                      {c === "share" ? "100%" : <MetricCell col={c} m={total} total={total} />}
+                      {c === "share" ? "100,0%" : <MetricCell col={c} m={total} total={total} />}
                     </Td>
                   ))}
                 </Tr>

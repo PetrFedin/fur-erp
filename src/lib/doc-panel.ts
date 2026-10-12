@@ -1,5 +1,5 @@
 import { Decimal } from "@prisma/client/runtime/library";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatPercent } from "@/lib/utils";
 
 /**
  * Общая «панель документов и оплаты» для аукционов (закупок) и производства (партий, ТЗ).
@@ -187,7 +187,7 @@ export function buildPanelPay(
     ...base,
     state: "PARTIAL",
     tone: "warn",
-    label: `Оплачено частично ${base.percent.toLocaleString("ru-RU", { maximumFractionDigits: base.percent >= 99 ? 2 : 1 })}% (${base.paidText} из ${base.totalText})`,
+    label: `Оплачено частично ${formatPercent(base.percent)} (${base.paidText} из ${base.totalText})`,
     note: proofNote,
   };
 }
@@ -202,7 +202,7 @@ export function payShort(p: Pick<PanelPay, "state" | "percent">): string {
     case "UNPAID":
       return "не оплачено";
     case "PARTIAL":
-      return `оплата ${p.percent.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}%`;
+      return `оплата ${formatPercent(p.percent)}`;
     default:
       return "оплата не определена";
   }

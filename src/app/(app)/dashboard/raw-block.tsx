@@ -3,7 +3,7 @@
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty, formatShare } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
 import { InfoHint } from "@/components/info-hint";
 import type { FlowFigures } from "@/lib/fur-table";
@@ -19,9 +19,9 @@ type Pair = { incl: FlowFigures; excl: FlowFigures };
 const usd = (v: number) => `$${v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const rub = (v: number) => formatMoney(v.toFixed(2));
 
-function Card({ title, children, hint, onOpen }: { title: string; children: React.ReactNode; hint?: React.ReactNode; onOpen?: () => void }) {
+function Card({ title, children, hint, onOpen, block }: { block?: string; title: string; children: React.ReactNode; hint?: React.ReactNode; onOpen?: () => void }) {
   return (
-    <div className={TILE_BOX + (onOpen ? " tile-click" : "")} onClick={onOpen} role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined} aria-haspopup={onOpen ? "dialog" : undefined} title={onOpen ? "Показать цены по видам сырья" : undefined}>
+    <div data-hover-block={block} className={TILE_BOX + (onOpen ? " tile-click" : "")} onClick={onOpen} role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } } : undefined} aria-haspopup={onOpen ? "dialog" : undefined} title={onOpen ? "Показать цены по видам сырья" : undefined}>
       <TileHead>{title}</TileHead>
       {hint ? <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{hint}</div> : null}
       {children}
@@ -109,7 +109,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
     ].filter(Boolean).join("; ");
     return {
       main: `${usd(F.usdAvg)} / шт.`,
-      note: `по ${formatQty(F.usdQty)} из ${formatQty(F.recvQty)} шт. с ценой в USD (${share.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}%)`,
+      note: `по ${formatQty(F.usdQty)} из ${formatQty(F.recvQty)} шт. с ценой в USD (${formatPercent(share)})`,
       hint: `Источники цены, шт.: ${parts || "—"}. Остальные лоты — без цены в USD (только рубли или нет курса в документах).`,
     };
   })();
@@ -125,7 +125,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   // Невидимая строка высотой с «с 4%» в «Использовано»: цены во всех трёх плитках стоят на одном уровне.
   const ghost = <span aria-hidden className="invisible">{`с 4%: ${rub(usedWith4)} · надбавка ${rub(usedWith4 - usedNo4)}`}</span>;
   // Доля от купленного: сколько ушло в ТЗ и сколько лежит на складе.
-  const share = (part: number, whole: number) => (whole > 0 ? `${((part / whole) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : null);
+  const share = (part: number, whole: number) => (whole > 0 ? formatShare(part / whole) : null);
   const lab = (base: string, part: number, whole: number) => (compact && whole > 0 ? `${base} · ${share(part, whole)}` : base);
   const withShare = (part: number, whole: number, text: string) => compact ? text : (
     <>
@@ -136,7 +136,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
 
   return (
     <CompactCtx.Provider value={compact}>
-        <Card title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
+        <Card block={view} title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
           <InfoHint label="О «Куплено»" align="right">
             <p>Сумма — всегда без 4%. Цена — средневзвешенная.</p>
             {usdTile && usdBought ? <p className="mt-1">Цена $: {usdBought.note}.</p> : null}
@@ -160,7 +160,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           )}
         </Card>
 
-        <Card title="Использовано" onOpen={() => setPriceCol("used")} hint={
+        <Card block={view} title="Использовано" onOpen={() => setPriceCol("used")} hint={
           <InfoHint label="О «Использовано»" align="right">
             <p>Показаны обе суммы: без 4% и под ней с 4% (надбавка начисляется при списании в ТЗ). Режим шапки на эти две строки не влияет.</p>
             {usdTile && F.usdUsedAvg != null ? <p className="mt-1">Цена $ — {px(F.usdUsedQty, F.usedQty)} с ценой в USD.</p> : null}
@@ -185,7 +185,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           )}
         </Card>
 
-        <Card title="Остаток" onOpen={() => setPriceCol("rem")} hint={all ? undefined : (
+        <Card block={view} title="Остаток" onOpen={() => setPriceCol("rem")} hint={all ? undefined : (
           <InfoHint label="Об «Остатке»" align="right">
             <p>На складе по цене закупки лотов; всегда без 4%.</p>
             {usdTile && F.usdRemAvg != null ? <p className="mt-1">Цена $ — {px(F.usdRemQty, F.remQty)} с ценой в USD.</p> : null}
@@ -278,7 +278,9 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
   const showUsd = rows.some((r) => r.kind === "fur");
   const showShare = col !== "recv";
   const cols = (showUsd ? 5 : 4) + (showShare ? 1 : 0);
-  const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500`}>{rq > 0 ? `${((q / rq) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—"}</td> : null;
+  // Тонкие вертикальные линии между блоками колонок: «Количество» | «Сумма» | «Цена».
+  const BL = " border-l border-neutral-200";
+  const shareCell = (q: number, rq: number, cls = "px-2 py-1.5") => showShare ? <td className={`whitespace-nowrap ${cls} text-right tabular-nums text-neutral-500${BL}`}>{rq > 0 ? formatShare(q / rq) : "—"}</td> : null;
   // Итого по виду: количество, сумма, средневзвешенная цена ₽ и $ (как в карточке).
   const total = (f: FlowFigures | null) =>
     !f ? null : col === "recv" ? { q: f.recvQty, v: f.recvValue, a: f.recvAvg, d: f.usdAvg, rq: f.recvQty } : col === "used" ? { q: f.usedQty, v: f.usedValue, a: f.usedAvg, d: f.usdUsedAvg, rq: f.recvQty } : { q: f.remQty, v: f.remValue, a: f.remAvg, d: f.usdRemAvg, rq: f.recvQty };
@@ -294,12 +296,18 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
         </div>
         <table className="w-full text-sm">
           <thead>
+            <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              <th />
+              <th colSpan={showShare ? 2 : 1} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Количество</th>
+              <th className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Сумма</th>
+              <th colSpan={showUsd ? 2 : 1} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Цена</th>
+            </tr>
             <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
               <th className="py-1.5 pr-2 font-medium">Вид</th>
-              {showShare ? <th className="px-2 py-1.5 text-right font-medium">Доля от купленного</th> : null}
-              <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
-              <th className="px-2 py-1.5 text-right font-medium">Сумма</th>
-              <th className="px-2 py-1.5 text-right font-medium">Цена, ₽</th>
+              {showShare ? <th className={"px-2 py-1.5 text-right font-medium" + BL}>Доля от купленного</th> : null}
+              <th className={"px-2 py-1.5 text-right font-medium" + (showShare ? "" : BL)}>Кол-во</th>
+              <th className={"px-2 py-1.5 text-right font-medium" + BL}>Сумма</th>
+              <th className={"px-2 py-1.5 text-right font-medium" + BL}>Цена, ₽</th>
               {showUsd ? <th className="px-2 py-1.5 text-right font-medium">Цена, $</th> : null}
             </tr>
           </thead>
@@ -310,7 +318,7 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
               const unit = k === "lining" ? "м" : "шт.";
               return (
                 <Fragment key={k}>
-                  <tr className="bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={cols} className="px-2 py-1">{k === "fur" ? "Мех" : "Подкладка"}</td></tr>
+                  <tr data-hover-block={k} data-block={k} className="bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-neutral-600"><td colSpan={cols} className="px-2 py-1">{k === "fur" ? "Мех" : "Подкладка"}</td></tr>
                   {k === "lining" ? (() => {
                     // Подкладка: сначала по годам и итого, потом — по видам ткани.
                     const byYear = new Map<number, { q: number; v: number; rq: number }>();
@@ -319,21 +327,21 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                     return (
                       <>
                         {Array.from(byYear.entries()).sort((a, b) => a[0] - b[0]).map(([yr, c]) => (
-                          <tr key={`y${yr}`} className="border-b border-neutral-100">
+                          <tr key={`y${yr}`} data-block={k} className="border-b border-neutral-100">
                             <td className="py-1.5 pr-2 font-medium">{yr}</td>
                             {shareCell(c.q, c.rq)}
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(c.q)} {unit}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(c.v)}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{c.q > 0 ? rub(c.v / c.q) : "—"}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(c.q)} {unit}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(c.v)}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{c.q > 0 ? rub(c.v / c.q) : "—"}</td>
                           </tr>
                         ))}
                         {t ? (
-                          <tr className="row-total">
+                          <tr data-block={k} className="row-total">
                             <td className="py-1.5 pr-2"><TotalLabel avg /></td>
                             {shareCell(t.q, t.rq)}
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>
-                            <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.a != null ? rub(t.a) : "—"}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(t.q)} {unit}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(t.v)}</td>
+                            <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "—"}</td>
                           </tr>
                         ) : null}
                         <tr className="text-xs text-neutral-500"><td colSpan={cols} className="px-2 pb-1 pt-2">По видам ткани (нажмите — разбивка по годам)</td></tr>
@@ -342,21 +350,21 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                   })() : null}
                   {part.map((x) => (
                     <Fragment key={x.r.key}>
-                    <tr className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
+                    <tr data-block={k} className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => toggle(x.r.key)} aria-expanded={open.has(x.r.key)}>
                       <td className="py-1.5 pr-2"><span aria-hidden className="mr-1 inline-block w-3 text-neutral-400">{open.has(x.r.key) ? "▾" : "▸"}</span>{shortMaterialName(x.r.label)}</td>
                       {shareCell(x.q, x.rq)}
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(x.q)} {unit}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(x.v)}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums">{x.a != null ? rub(x.a) : "—"}</td>
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(x.q)} {unit}</td>
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(x.v)}</td>
+                      <td className={"whitespace-nowrap px-2 py-1.5 text-right font-medium tabular-nums" + BL}>{x.a != null ? rub(x.a) : "—"}</td>
                       {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-neutral-700">{x.d != null ? usd(x.d) : "—"}</td> : null}
                     </tr>
                     {open.has(x.r.key) ? x.r.years.map((y) => ({ y, p: pickYear(y.cells, y.usd) })).filter((z) => z.p.q > 0).map(({ y, p }) => (
-                      <tr key={y.year} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
+                      <tr key={y.year} data-block={k} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
                         <td className="py-1 pl-7 pr-2">{y.year}</td>
                         {shareCell(p.q, p.rq, "px-2 py-1")}
-                        <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{formatQty(p.q)} {unit}</td>
-                        <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{rub(p.v)}</td>
-                        <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{p.a != null ? rub(p.a) : "—"}</td>
+                        <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(p.q)} {unit}</td>
+                        <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + BL}>{rub(p.v)}</td>
+                        <td className={"whitespace-nowrap px-2 py-1 text-right tabular-nums" + BL}>{p.a != null ? rub(p.a) : "—"}</td>
                         {showUsd ? <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{p.d != null ? usd(p.d) : "—"}</td> : null}
                       </tr>
                     )) : null}
@@ -368,9 +376,9 @@ function PriceModal({ col, rows, vat, fur, lining, onClose }: { col: "recv" | "u
                       <tr className="row-total">
                         <td className="py-1.5 pr-2"><TotalLabel avg /></td>
                         {shareCell(t.q, t.rq)}
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{formatQty(t.q)} {unit}</td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(t.v)}</td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.a != null ? rub(t.a) : "—"}</td>
+                        <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + (showShare ? "" : BL)}>{formatQty(t.q)} {unit}</td>
+                        <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{rub(t.v)}</td>
+                        <td className={"whitespace-nowrap px-2 py-1.5 text-right tabular-nums" + BL}>{t.a != null ? rub(t.a) : "—"}</td>
                         {showUsd ? <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{t.d != null ? usd(t.d) : "—"}</td> : null}
                       </tr>
                     ) : null;

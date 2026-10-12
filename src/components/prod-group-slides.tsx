@@ -1,7 +1,7 @@
 "use client";
 
 import { tzCountText } from "@/lib/tz-key";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import type { DrillOrder } from "@/lib/dashboard-drill";
 import { sumOrders, sumTotal, type VatSel } from "@/lib/orders-sum";
 import { TileCaption, TileList, TileValue } from "@/app/(app)/dashboard/tile";
@@ -11,7 +11,7 @@ export const PROD_GROUPS = ["Одежда", "Аксессуары"] as const;
 
 const money = (v: number) => formatMoney(v.toFixed(2));
 const share = (v: number, t: number) => (t ? v / t : null);
-const pctText = (v: number, t: number) => (t ? `${((v / t) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%` : "—");
+const pctText = (v: number, t: number) => (t ? formatShare(v / t) : "—");
 
 const Empty = ({ loading }: { loading?: boolean }) => (
   <>

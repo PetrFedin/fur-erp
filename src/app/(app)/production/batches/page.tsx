@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatQty } from "@/lib/utils";
+import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { batchExtraName, batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
@@ -273,7 +273,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                       tone={panelByNumber.get(b.number)!.tone}
                       missing={panelByNumber.get(b.number)!.panel.missingCount}
                       noDocs={panelByNumber.get(b.number)!.unmatched}
-                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${Math.round(panelByNumber.get(b.number)!.panel.pay.percent)}%` : payShort(panelByNumber.get(b.number)!.panel.pay)}
+                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${formatPercent(panelByNumber.get(b.number)!.panel.pay.percent)}` : payShort(panelByNumber.get(b.number)!.panel.pay)}
                       proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
                     />
                   </Link>
@@ -325,7 +325,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                       tone={panelByNumber.get(b.number)!.tone}
                       missing={panelByNumber.get(b.number)!.panel.missingCount}
                       noDocs={panelByNumber.get(b.number)!.unmatched}
-                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${Math.round(panelByNumber.get(b.number)!.panel.pay.percent)}%` : payShort(panelByNumber.get(b.number)!.panel.pay)}
+                      payText={panelByNumber.get(b.number)!.panel.pay.state === "PARTIAL" ? `оплата ${formatPercent(panelByNumber.get(b.number)!.panel.pay.percent)}` : payShort(panelByNumber.get(b.number)!.panel.pay)}
                       proofMissing={panelByNumber.get(b.number)!.panel.proofMissing}
                     />
                   ) : null,

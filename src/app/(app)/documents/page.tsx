@@ -30,7 +30,7 @@ import {
 } from "@/lib/drive-doc-list";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { REGISTRY_UPDATE_CMD, registryCoverage, type RegStat } from "@/lib/registry-coverage";
-import { formatDate, formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
@@ -323,7 +323,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
       className={cn(TILE_BOX, "shadow-sm tile-click print:shadow-none", strong && "border-neutral-400")}
     >
       <TileHead>{title}</TileHead>
-      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : `${stat.percent}%`}</div>
+      <div className={cn("mt-1 text-2xl font-semibold leading-9 tabular-nums", pctTone(stat.percent))}>{stat.percent === null ? "—" : formatPercent(stat.percent)}</div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-100">
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>
@@ -482,7 +482,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
 
 // ------------------------------------------------------------------ реестр
 
-const fmtPct = (p: number) => `${String(p).replace(".", ",")}%`;
+const fmtPct = (p: number) => formatPercent(p);
 const regDate = (iso: string) => formatDate(new Date(iso));
 
 function RegStatTile({ s }: { s: RegStat }) {

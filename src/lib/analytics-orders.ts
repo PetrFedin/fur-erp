@@ -106,6 +106,8 @@ export type OrderRow = {
   /** Надбавка 4%, которую добавил бы режим «С 4%» (для подсказок), с НДС. */
   c4PotIncl: number;
   expenses: number;
+  /** Расходы ТЗ по статьям (Σ = expenses). */
+  expenseList: { n: string; a: number }[];
   work: number;
   /** Себестоимость системы: материалы + 4% (по режиму) + расходы; с НДС / без НДС. */
   costIncl: number;
@@ -200,7 +202,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
             },
           },
         },
-        expenses: { select: { amount: true } },
+        expenses: { select: { amount: true, description: true, category: { select: { name: true } } } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -352,6 +354,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       c4LiningExcl: Number(ls.extraExcl),
       c4PotIncl: Number(c4Pot),
       expenses: Number(exp),
+      expenseList: o.expenses.map((e) => ({ n: [e.category.name, e.description].filter(Boolean).join(" · "), a: Number(e.amount) })),
       work,
       costIncl: Number(costIncl),
       costExcl: Number(costExcl),
