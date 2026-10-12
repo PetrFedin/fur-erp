@@ -88,7 +88,7 @@ export function AveragesTile({ data }: { data: DrillData | null }) {
               <button key={g.name} type="button" onClick={() => setModal(g.name)} aria-haspopup="dialog" aria-label={`Среднее на изделие: ${g.name} — открыть детализацию`} aria-hidden={i !== idx} tabIndex={i === idx ? 0 : -1}
                 className="min-w-full snap-center px-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">
                 <TileValue>{data ? m(a.cost) : "…"}</TileValue>
-                <TileCaption>себестоимость с работой · {formatQty(a.q)} шт. · детализация →</TileCaption>
+                <TileCaption>{formatQty(a.q)} шт.</TileCaption>
                 <dl className="mt-1 space-y-0.5 text-xs">
                   {[
                     ["Шкур на изделие", `${n1(a.hides)} шт.`],
