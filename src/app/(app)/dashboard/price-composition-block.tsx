@@ -125,7 +125,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
               <colgroup><col /><col className="w-[6rem]" /><col className="w-[4.5rem]" /><col className="w-[7rem]" /><col className="w-[4.5rem]" /></colgroup>
               <thead>
                 <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
-                  <th className="py-1.5 pr-2">Лот</th><th className="px-1.5 py-1.5 text-right">Вид</th><Head label="Кол-во" unit="шт." align="right" className="px-1.5" /><th className="px-1.5 py-1.5 text-right">{openSlice.label}, ₽</th><Head label="Доля" unit="%" align="right" className="px-1.5" />
+                  <th className="py-1.5 pr-2">Лот</th><th className="px-1.5 py-1.5 text-right">Вид</th><Head label="Кол-во" unit="шт." align="right" className="px-1.5" /><th className="px-1.5 py-1.5 text-right">{openSlice.label}, ₽</th><th className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
                 </tr>
               </thead>
               <tbody>

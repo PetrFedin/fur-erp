@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { TH as Head } from "@/components/table-head";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -69,8 +68,8 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   return (
     <div className="flex max-w-[56rem] flex-col gap-3">
       <div className={"flex flex-wrap items-start gap-x-6 gap-y-3 " + (compact ? "" : "")}>
-        <div className="mx-auto shrink-0 sm:mx-0">
-          <svg viewBox="0 0 120 120" className="h-44 w-44" role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
+        <div className="mx-auto shrink-0 sm:mx-0 sm:self-center">
+          <svg viewBox="0 0 120 120" className="h-44 w-44 sm:h-60 sm:w-60" role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
             <title>{ariaLabel}</title>
             {arcs.length === 0 ? <circle cx={C} cy={C} r={(R_OUT + R_IN) / 2} fill="none" stroke="#e5e5e5" strokeWidth={R_OUT - R_IN} /> : null}
             {drawn.map(({ s, d, frac }) => {
@@ -94,13 +93,14 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
         <div id={`${uid}-legend`} className="w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0">
           <table className="w-full table-fixed text-left text-xs sm:text-sm">
             <caption className="sr-only">{ariaLabel}: составляющие, {qtyVals ? "количество шкур, " : ""}рубли всего, рубли за {unitName} и доля</caption>
-            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[5.5rem] sm:table-column" /><col className="w-[3rem] sm:w-[3.75rem]" /></colgroup>
+            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[8.5rem] sm:table-column" /><col className="w-[3.5rem] sm:w-[4.5rem]" /></colgroup>
             <thead>
               <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
                 <th scope="col" className="py-1.5 pr-2">Составляющая</th>
-                <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">₽/{qty > 0 ? "шт." : "всего"}</th>
+                {qtyVals ? <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">Шкур, шт.</th> : null}
                 <th scope="col" className="px-1.5 py-1.5 text-right">₽ всего</th>
-                <Head label="Доля" unit="%" align="right" />
+                <th scope="col" title={qty > 0 ? "Средневзвешенная цена = Σ ₽ ÷ Σ шт. шкур" : undefined} className="hidden px-1.5 py-1.5 text-right leading-tight sm:table-cell">{qty > 0 ? "Средневзвеш. цена сырья, ₽/шт." : "₽ всего"}</th>
+                <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
               </tr>
             </thead>
             <tbody>
