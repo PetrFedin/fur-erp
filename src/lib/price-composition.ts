@@ -35,8 +35,16 @@ export type Composition = {
   format: CompFormat;
   /** Часть сумм вычислена (не строкой расчёта): молоток из справочника Drive / остаток. */
   approx: boolean;
-  /** Строки расчёта, не вошедшие ни в один сектор (для отчёта). */
+  /** Строки расчёта, не вошедшие ни в один сектор и не справочные (для отчёта). Должен быть пустым. */
   unused: string[];
+  /** Строки-детализации: уже входят в другую строку листа (родитель), в сектора отдельно не попадают. */
+  detail: { label: string; parent: string }[];
+  /** Сумма секторов до остатка «до цены лота» (с НДС), ₽: по ней считается, как правка строки меняет цену лота. */
+  explicit: number;
+  /** Сектора до остатка (с НДС), ₽. */
+  explicitCats: Record<CompCat, number>;
+  /** Лист «lot»: НДС молотка включён в сектор «Сырьё» (определён по остатку). */
+  hvat: boolean;
   /** Часть «Прочих расходов» (incl), заданная строкой «Упаковка»; остальное — остаток до цены лота. */
   pack: number;
 };
@@ -45,12 +53,16 @@ export const emptyCats = (): Record<CompCat, number> => ({ raw: 0, fx: 0, transp
 
 type Item = { label?: unknown; value?: unknown };
 
-export function itemsOfBreakdown(b: unknown): { label: string; value: number }[] {
+export type CompRow = { label: string; value: number; /** Категория сектора, выбранная вручную (перекрывает авто). */ cat?: CompCat | null };
+
+const CAT_SET = new Set<string>(COMP_CATS.map((c) => c.key));
+
+export function itemsOfBreakdown(b: unknown): CompRow[] {
   const items = (b as { items?: unknown } | null | undefined)?.items;
   if (!Array.isArray(items)) return [];
-  return (items as Item[])
+  return (items as (Item & { cat?: unknown })[])
     .filter((x) => x && typeof x.label === "string" && Number.isFinite(Number(x.value)))
-    .map((x) => ({ label: (x.label as string).trim(), value: Number(x.value) }));
+    .map((x) => ({ label: (x.label as string).trim(), value: Number(x.value), cat: typeof x.cat === "string" && CAT_SET.has(x.cat) ? (x.cat as CompCat) : null }));
 }
 
 export type CompInput = {
@@ -68,11 +80,19 @@ export type CompInput = {
   lotNumber?: string | null;
 };
 
-const INFO = /^(курс|валютный курс|итого|нду?с(?![а-яa-z])|оплачено|расчётный$|расчетный$|корректировка|цена за ед|стоимость молоток за ед|стоимость молоток лот|расчётная цена|расчетная цена|цена закупка|брокерская комиссия, %|курс в гтд)/i;
+export const INFO = /^(курс|валютный курс|итого|нду?с(?![а-яa-z])|оплачено|расчётный$|расчетный$|корректировка|цена за ед|стоимость молоток за ед|стоимость молоток лот|расчётная цена|расчетная цена|цена закупка|брокерская комиссия, %|курс в гтд)/i;
+
+/** Строки-детализации листа «lot»: суммы, из которых уже сложена другая строка (она учтена в секторе). */
+const DETAIL_RULES: { re: RegExp; parent: string }[] = [
+  { re: /^(аукционный сбор|маркетинговый сбор|сбор за доставку)$/i, parent: "Услуги Аукциона в т.ч. НДС" },
+  { re: /^(упаковка|брок\. % 3|расч[её]тный аванс на таможню|транспорт fi-lv|там\.сбор|доставка )/i, parent: "Перевозка в т.ч. НДС" },
+];
 
 const fixOk = (items: { label: string; value: number }[]) => items.some((x) => x.label === "Курс ЦБ (фиксация)" && x.value > 0);
 
-function decodeItems(items: { label: string; value: number }[], c: CompInput): Composition | null {
+type DecodeOpt = { hvat?: boolean; noOverride?: boolean };
+
+function decodeItems(items: CompRow[], c: CompInput, opt: DecodeOpt = {}): Composition | null {
   if (items.length === 0) return null;
   const used = new Set<string>();
   const v = (label: string): number | null => {
@@ -93,6 +113,7 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
   let format: CompFormat;
   let approx = false;
   let pack = 0;
+  let hvat = false;
 
   if (has("Стоимость молоток ЛОТ без НДС")) {
     format = "lot";
@@ -120,7 +141,9 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
     }
     // НДС на молоток (в части листов не выписан строкой): входит в цену лота и относится к молотку.
     const rest0 = c.totalIncl - Object.values(cats).reduce((a, x) => a + x, 0);
-    if (k > 0 && hammer > 0 && Math.abs(rest0 - hammer * k) <= Math.max(c.totalIncl * 0.01, 5)) { cats.raw += rest0; }
+    if (opt.hvat === undefined) {
+      if (k > 0 && hammer > 0 && Math.abs(rest0 - hammer * k) <= Math.max(c.totalIncl * 0.01, 5)) { cats.raw += rest0; hvat = true; }
+    } else if (opt.hvat && k > 0 && hammer > 0) { cats.raw += hammer * k; hvat = true; }
   } else if (has("НДС на шкуры") && has("Комиссия РМ, 4,5%") && !has("Валютный курс инвойса")) {
     format = "fx";
     const vatHides = v("НДС на шкуры") ?? 0;
@@ -164,7 +187,15 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
     cats.mediator += vStarts("Брокерский %") * q;
   } else return null;
 
+  const detail: { label: string; parent: string }[] = [];
+  if (format === "lot") {
+    for (const x of items) {
+      const r = DETAIL_RULES.find((d) => d.re.test(x.label));
+      if (r && !used.has(x.label)) { used.add(x.label); detail.push({ label: x.label, parent: r.parent }); }
+    }
+  }
   const sum = Object.values(cats).reduce((a, x) => a + x, 0);
+  const explicitCats = { ...cats };
   const total = c.totalIncl > 0 ? c.totalIncl : sum;
   let rest = total - sum;
   if (format === "cust" && fixOk(items)) { cats.raw += rest; rest = 0; }
@@ -174,8 +205,60 @@ function decodeItems(items: { label: string; value: number }[], c: CompInput): C
     else if (Math.abs(rest) <= total * 0.05) { cats.agent += rest; rest = 0; }
   }
   cats.other += rest;
+  // Ручная категория строки: вклад строки в сектора (разность с листом без неё) целиком уходит в выбранный сектор.
+  if (!opt.noOverride && items.some((x) => x.cat)) {
+    items.forEach((x, i) => {
+      if (!x.cat) return;
+      const vec = rowVector(items, i, c, hvat);
+      const tot = Object.values(vec).reduce((a, y) => a + y, 0);
+      for (const cat of COMP_CATS) cats[cat.key] -= vec[cat.key];
+      cats[x.cat] += tot;
+    });
+  }
   if (Math.abs(cats.other) < 0.005) cats.other = 0;
-  return { incl: cats, total, format, approx, pack, unused: items.filter((x) => !used.has(x.label) && !INFO.test(x.label) && x.value !== 0).map((x) => x.label) };
+  return { incl: cats, total, format, approx, pack, hvat, explicit: sum, explicitCats, detail, unused: items.filter((x) => !used.has(x.label) && !INFO.test(x.label) && x.value !== 0).map((x) => x.label) };
+}
+
+/** Вклад строки i листа в сектора (с НДС, ₽): разность секторов «до остатка» с ней и без неё. */
+function rowVector(items: CompRow[], i: number, c: CompInput, hvat: boolean): Record<CompCat, number> {
+  const a = decodeItems(items, c, { hvat, noOverride: true });
+  const b = decodeItems(items.map((x, j) => (j === i ? { ...x, value: 0 } : x)), c, { hvat, noOverride: true });
+  const out = emptyCats();
+  if (!a || !b) return out;
+  for (const cat of COMP_CATS) out[cat.key] = a.explicitCats[cat.key] - b.explicitCats[cat.key];
+  return out;
+}
+
+/** Для таблицы расчёта: авто-сектор каждой строки (по вкладу в состав цены) и вошла ли строка в состав, детализация или справочная. */
+export function analyzeRows(items: CompRow[], c: CompInput): { cat: CompCat | null; kind: "sector" | "detail" | "info" | "unused" }[] | null {
+  const base = decodeItems(items, c);
+  if (!base) return null;
+  const clean = items.map((x) => ({ ...x, cat: null }));
+  const auto = decodeItems(clean, c, { noOverride: true });
+  const hv = auto?.hvat ?? false;
+  const detailLabels = new Set(base.detail.map((d) => d.label));
+  return items.map((x, i) => {
+    const vec = rowVector(clean, i, c, hv);
+    let best: CompCat | null = null, bv = 1e-9;
+    for (const cat of COMP_CATS) if (Math.abs(vec[cat.key]) > bv) { bv = Math.abs(vec[cat.key]); best = cat.key; }
+    if (best) return { cat: best, kind: "sector" as const };
+    if (detailLabels.has(x.label)) return { cat: null, kind: "detail" as const };
+    if (INFO.test(x.label) || x.value === 0) return { cat: null, kind: "info" as const };
+    return { cat: null, kind: base.unused.includes(x.label) ? ("unused" as const) : ("info" as const) };
+  });
+}
+
+/**
+ * Как правка листа меняет цену лота: Δ суммы секторов (с НДС, ₽) между листами «до» и «после»
+ * при тех же количестве и ставке (НДС молотка берётся по состоянию «до»). null — лист не распознан.
+ */
+export function sheetDelta(before: CompRow[], after: CompRow[], c: CompInput): number | null {
+  const a = decodeItems(before, c);
+  if (!a) return null;
+  const b = decodeItems(after, c, { hvat: a.hvat, noOverride: true });
+  const a2 = decodeItems(before, c, { hvat: a.hvat, noOverride: true });
+  if (!b || !a2) return null;
+  return b.explicit - a2.explicit;
 }
 
 /** Состав цены лота: по расчёту лота, а если его нет — по расчёту позиции закупки. null — разбивки нет. */

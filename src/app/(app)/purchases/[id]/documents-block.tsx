@@ -16,6 +16,8 @@ export type FileDocRow = {
   sizeBytes: number;
   createdAt: Date;
   batch: boolean;
+  /** Документ прикреплён к лоту — управляется в карточке лота (первоисточник). */
+  lotId?: string | null;
 };
 export type DriveDocRow = { view: DriveDocView; fileId: string; createdAt: Date };
 
@@ -85,12 +87,13 @@ export function PurchaseDocumentsList({
           </a>
           <span className="ml-2 text-xs text-neutral-500">
             {DOC_KIND_LABELS[d.kind as keyof typeof DOC_KIND_LABELS]}
-            {d.batch ? ` · вся партия ${batchName}` : " · эта закупка"} · {formatDate(d.createdAt)}
+            {d.batch ? ` · вся партия ${batchName}` : d.lotId ? "" : " · эта закупка"} · {formatDate(d.createdAt)}
+            {d.lotId ? <> · <a href={`/analytics/raw/lot/${d.lotId}`} className="text-blue-700 hover:underline">документ лота — править в карточке лота</a></> : null}
           </span>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
-          {canEdit && (
+          {canEdit && !d.lotId && (
             <form
               action={async () => {
                 "use server";

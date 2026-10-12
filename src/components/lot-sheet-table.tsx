@@ -10,6 +10,8 @@ import type { SheetRow } from "@/lib/lot-sheet";
 import { saveLotSheetNotes } from "@/app/(app)/analytics/raw/lot/[id]/actions";
 import { formatMoney } from "@/lib/utils";
 import { useInlineSave, SaveStatus } from "@/components/lot-inline";
+import { useLotChange } from "@/components/lot-edit-fields";
+import type { RowEdit } from "@/lib/lot-sheet-calc";
 
 const nf = (max: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: max });
 const num2 = nf(2);
@@ -18,12 +20,14 @@ const num4 = nf(4);
 const FIELD = "w-full rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs outline-none hover:border-neutral-400 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-300 disabled:opacity-60";
 const money = (v: number | null) => (v == null || Math.abs(v) < 0.005 ? "—" : formatMoney(v.toFixed(2)));
 
-type Draft = { title: string; cat: string; src: string };
+type Draft = { title: string; cat: string; src: string; value: string };
+
+const valStr = (v: number) => String(Math.round(v * 1e6) / 1e6);
 
 /**
- * Таблица всех строк расчётного листа лота. Правятся названия для показа, категории сектора и источники (заметки к расчёту):
- * значения и цена лота не меняются — после приёмки в приложении нет безопасного пересчёта цены лота и списаний ТЗ,
- * цена и состав правятся в закупке до приёмки.
+ * Таблица всех строк расчётного листа лота — первоисточник расчёта. Правятся значения, названия для показа, категории сектора и источники.
+ * Правка значения пересчитывает состав цены, молоток, $ и цену лота (lot-reprice) после окна «что изменится»;
+ * названия, категории и источники — пометки, суммы не меняют.
  */
 export function LotSheetTable({
   lotId, rows, canEdit, sheetTotal, lotTotal, unitNode, lotNode, unitLabel, purchaseLink,
@@ -40,22 +44,36 @@ export function LotSheetTable({
   unitLabel: string;
   purchaseLink?: ReactNode;
 }) {
-  const orig = useMemo(() => new Map<number, Draft>(rows.map((r) => [r.idx, { title: r.title === r.label ? "" : r.title, cat: r.cat ?? "", src: r.src }])), [rows]);
+  const orig = useMemo(() => new Map<number, Draft>(rows.map((r) => [r.idx, { title: r.title === r.label ? "" : r.title, cat: r.cat ?? "", src: r.src, value: valStr(r.value) }])), [rows]);
   const [draft, setDraft] = useState<Record<number, Draft>>({});
   const s = useInlineSave();
+  const lc = useLotChange(lotId);
   const { ask, node } = useConfirm();
+  const numOf = (v: string) => Number(v.replace(/[\s\u00a0]/g, "").replace(",", "."));
   const cur = (r: SheetRow): Draft => draft[r.idx] ?? orig.get(r.idx)!;
   const changed = rows.filter((r) => {
     const d = draft[r.idx];
     const o = orig.get(r.idx)!;
-    return d && (d.title !== o.title || d.cat !== o.cat || d.src !== o.src);
+    return d && (d.title !== o.title || d.cat !== o.cat || d.src !== o.src || numOf(d.value) !== numOf(o.value));
   });
   const patch = (r: SheetRow, k: keyof Draft, v: string) => setDraft((p) => ({ ...p, [r.idx]: { ...cur(r), [k]: v } }));
   const reset = () => setDraft({});
   const save = async () => {
-    const ok = await ask(`Сохранить заметки к расчёту (строк: ${changed.length})? Цена лота ${unitLabel} и списания в ТЗ не изменятся: правятся только названия, категории и источники строк.`, { ok: "Сохранить" });
+    const valueEdits = changed.filter((r) => Number.isFinite(numOf(draft[r.idx].value)) && numOf(draft[r.idx].value) !== r.value);
+    const badNum = changed.find((r) => !Number.isFinite(numOf(draft[r.idx].value)));
+    if (badNum) return s.run(async () => ({ error: `Строка «${badNum.label}»: значение должно быть числом` }));
+    if (valueEdits.length > 0) {
+      const sheet: RowEdit[] = changed.map((r) => {
+        const d = draft[r.idx];
+        return { idx: r.idx, value: numOf(d.value) !== r.value ? numOf(d.value) : undefined, title: d.title, cat: d.cat, src: d.src };
+      });
+      const ok = await lc.run({ sheet }, `Изменить строки расчёта (${valueEdits.length})`);
+      if (ok) reset();
+      return;
+    }
+    const ok = await ask(`Сохранить заметки к расчёту (строк: ${changed.length})? Цена лота ${unitLabel} и списания в ТЗ не изменятся: меняются только названия, категории и источники строк.`, { ok: "Сохранить" });
     if (!ok) return;
-    s.run(() => saveLotSheetNotes(lotId, changed.map((r) => ({ idx: r.idx, ...(draft[r.idx] as Draft) }))), undefined);
+    s.run(() => saveLotSheetNotes(lotId, changed.map((r) => ({ idx: r.idx, title: draft[r.idx].title, cat: draft[r.idx].cat, src: draft[r.idx].src }))), undefined);
     reset();
   };
   const diff = sheetTotal != null ? sheetTotal - lotTotal : null;
@@ -94,15 +112,19 @@ export function LotSheetTable({
                   <td className="px-1.5 py-1.5">
                     {canEdit ? (
                       <select aria-label={`Категория: ${r.label}`} className={FIELD} value={d.cat} onChange={(e) => patch(r, "cat", e.target.value)}>
-                        <option value="">{r.autoCat ? `${CAT_LABEL[r.autoCat]} (авто)` : "справочно (авто)"}</option>
+                        <option value="">{r.autoCat ? `${CAT_LABEL[r.autoCat]} (авто)` : r.kind === "detail" ? "входит в другую строку (авто)" : "справочно (авто)"}</option>
                         {COMP_CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                       </select>
                     ) : (
-                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : "справочно"}</span>
+                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : r.kind === "detail" ? "входит в другую строку" : "справочно"}</span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">
-                    {r.unit === "курс" ? num4.format(r.value) : r.unit === "%" ? `${num2.format(r.value)}%` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}
+                  <td className="px-1.5 py-1.5 text-right tabular-nums">
+                    {canEdit ? (
+                      <input aria-label={`Значение: ${r.label}`} inputMode="decimal" className={FIELD + " text-right tabular-nums"} value={d.value} onChange={(e) => patch(r, "value", e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") patch(r, "value", orig.get(r.idx)!.value); }} />
+                    ) : (
+                      <span className="whitespace-nowrap">{r.unit === "курс" ? num4.format(r.value) : r.unit === "%" ? `${num2.format(r.value)}%` : `${num2.format(r.value)}${r.unit === "$" ? " $" : ""}`}</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(r.perUnit)}</td>
                   <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(r.perLot)}</td>
@@ -134,19 +156,20 @@ export function LotSheetTable({
       <div className="flex flex-wrap items-center gap-2 text-xs print:hidden">
         {canEdit ? (
           <>
-            <button type="button" disabled={changed.length === 0 || s.pending} onClick={save} className="btn-accent h-7 rounded-md border px-2 text-xs disabled:opacity-40">Сохранить заметки к расчёту{changed.length ? ` (${changed.length})` : ""}</button>
-            <button type="button" disabled={changed.length === 0 || s.pending} onClick={reset} className="h-7 rounded-md border border-neutral-300 px-2 text-xs disabled:opacity-40">Отменить</button>
+            <button type="button" disabled={changed.length === 0 || s.pending || lc.busy} onClick={save} className="btn-accent h-7 rounded-md border px-2 text-xs disabled:opacity-40">Сохранить правки расчёта{changed.length ? ` (${changed.length})` : ""}</button>
+            <button type="button" disabled={changed.length === 0 || s.pending || lc.busy} onClick={reset} className="h-7 rounded-md border border-neutral-300 px-2 text-xs disabled:opacity-40">Отменить</button>
           </>
         ) : null}
-        <SaveStatus pending={s.pending} saved={s.saved} error={s.error} />
+        <SaveStatus pending={s.pending || lc.busy} saved={s.saved || lc.saved} error={s.error ?? lc.error} />
         <InfoHint label="Что можно править в расчёте" wide>
-          <p>Правятся названия для показа, категория сектора и источник строки. Значения, цена лота и списания ТЗ здесь не меняются: после приёмки в приложении нет безопасного пересчёта цены лота и себестоимости списаний, поэтому добавить или удалить статью нельзя.</p>
-          <p className="mt-1">Цена, количество и состав расчёта правятся в закупке (пока она не принята и лот не списан). Категория вручную — пометка к таблице; график состава считается по расчёту.</p>
-          <p className="mt-1">«На шкуру» и «Всего по лоту» определены по названию строки: в расчётных листах вперемешку суммы за лот и за шкуру. Для строк в $, курсов и процентов рублёвые столбцы пусты.</p>
+          <p>Правятся значения строк, названия для показа, категория сектора и источник. Правка значения пересчитывает состав цены, молоток, $ и цену лота, а вместе с ней — стоимость списаний по ТЗ и себестоимость затронутых ТЗ; перед записью показывается окно «что изменится».</p>
+          <p className="mt-1">Связанные строки листа (молоток за шкуру, НДС на товар, «Итого …») сдвигаются вместе с изменённой. Строки-детализации («входит в другую строку») отдельно в цену не входят. Категория, выбранная вручную, переносит вклад строки в другой сектор — сумма цены лота не меняется.</p>
+          <p className="mt-1">«На шкуру» и «Всего по лоту» определены по названию строки: в расчётных листах вперемешку суммы за лот и за шкуру. Для строк в $, курсов и процентов рублёвые столбцы пусты. Добавить или удалить статью нельзя.</p>
         </InfoHint>
         {purchaseLink}
       </div>
       {node}
+      {lc.node}
     </div>
   );
 }

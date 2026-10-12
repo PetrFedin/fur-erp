@@ -14,6 +14,8 @@ export type PassportField = {
   refId?: string | null;
   /** Показ в режиме чтения. */
   node?: ReactNode;
+  /** Редактор по месту (клиентский компонент, собранный страницей): поле правится в карточке лота — первоисточнике. */
+  editor?: ReactNode;
   /** Мелкая строка под значением: почему не правится / куда идти. */
   note?: ReactNode;
 };
@@ -87,7 +89,7 @@ function AttrsEditor({ lotId, current, options }: { lotId: string; current: stri
 
 /**
  * «Паспорт лота»: таблица «поле → значение» блоками. Поля с key правятся по месту (Enter или уход из поля — сохранить, Esc — отмена),
- * остальные — только чтение с указанием, где они правятся.
+ * остальные (внутренний id, создан, последняя правка — записи журнала) — только чтение.
  */
 export function LotPassport({
   lotId, sections, canEdit, canAddColor, colorOptions, attrOptions, attrIds,
@@ -132,12 +134,12 @@ function PassportBlock({ sec, canEdit, edit }: { sec: PassportSection; canEdit: 
         <th colSpan={2} className="border-t border-neutral-200 bg-neutral-50/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 first:border-t-0">{sec.title}</th>
       </tr>
       {sec.fields.map((f) => {
-        const editable = canEdit && f.key;
+        const editable = canEdit && (f.key || f.editor);
         return (
           <tr key={f.label} className="border-t border-neutral-100 align-top">
             <th scope="row" className="w-[40%] px-3 py-1.5 text-xs font-medium text-neutral-500 sm:w-56">{f.label}</th>
             <td className="min-w-0 break-words px-2 py-1 text-sm">
-              {editable ? edit(f) : <span className="block px-1.5 py-0.5 tabular-nums">{f.node ?? (f.value ? f.value : "—")}</span>}
+              {editable ? (f.editor ?? edit(f)) : <span className="block px-1.5 py-0.5 tabular-nums">{f.node ?? (f.value ? f.value : "—")}</span>}
               {f.note ? <span className="block px-1.5 text-[11px] leading-4 text-neutral-500">{f.note}</span> : null}
             </td>
           </tr>

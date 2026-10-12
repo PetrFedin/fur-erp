@@ -1,8 +1,8 @@
 // Расчётный лист лота для карточки: строки RawMaterialLot.costBreakdown.items (или costPlan позиции закупки) в виде таблицы
 // «статья → значение → на шкуру → всего по лоту → категория сектора → источник».
-// Значения строк НЕ пересчитываются и не правятся: в листе вперемешку суммы «за лот» и «за шкуру», курсы и проценты, и безопасной
-// функции пересчёта цены лота после приёмки в приложении нет (цену лота правит только закупка до приёмки). Правятся только
-// заметки: название для показа (title), категория сектора (cat), источник (src) — они лежат рядом со строкой и на цену не влияют.
+// Значения, названия, категории и источники строк правятся в карточке лота (первоисточник): правка значения пересчитывает состав цены,
+// молоток, $ и цену лота через lot-reprice (см. lot-sheet-calc.ts). В листе вперемешку суммы «за лот» и «за шкуру», курсы и проценты:
+// колонки «на шкуру» / «всего по лоту» определяются по названию строки.
 import { COMP_CATS, type CompCat } from "@/lib/price-composition";
 import { SERVICE_VAT } from "@/lib/cost-plan";
 
@@ -29,6 +29,8 @@ export type SheetRow = {
   src: string;
   /** Подытог / справочная строка: не входит в сумму статей. */
   info: boolean;
+  /** sector — входит в сектор состава цены; detail — уже входит в другую строку листа; info — справочная; unused — не учтена (не должно быть). */
+  kind: "sector" | "detail" | "info" | "unused";
 };
 
 const CAT_KEYS = new Set<string>(COMP_CATS.map((c) => c.key));
@@ -64,7 +66,7 @@ function unitOf(label: string): SheetUnit {
  * «Лотовый» лист (есть «Стоимость молоток ЛОТ без НДС»): суммы «за лот», кроме строк «за ед.», упаковки и «Брок. %».
  * Остальные листы: рублёвые строки — за шкуру.
  */
-export function sheetRowsOf(items: SheetItem[], o: { qty: number; vatRate: number; defaultSrc: string }): SheetRow[] {
+export function sheetRowsOf(items: SheetItem[], o: { qty: number; vatRate: number; defaultSrc: string; auto?: { cat: CompCat | null; kind: SheetRow["kind"] }[] | null }): SheetRow[] {
   const lotSheet = items.some((x) => x.label.trim().toLowerCase() === "стоимость молоток лот без ндс");
   const q = o.qty > 0 ? o.qty : 0;
   return items.map((it, idx) => {
@@ -83,10 +85,11 @@ export function sheetRowsOf(items: SheetItem[], o: { qty: number; vatRate: numbe
       if (/в т\.ч\. ндс/.test(s) && !/молоток/.test(s)) vat = (perLot * SERVICE_VAT) / (1 + SERVICE_VAT);
       else if (/стоимость молоток лот/.test(s) && o.vatRate > 0) vat = (perLot * o.vatRate) / 100;
     }
-    const autoCat = autoCatOfLabel(label);
+    const a = o.auto?.[idx];
+    const autoCat = a ? a.cat : autoCatOfLabel(label);
     return {
       idx: it.orig ?? idx, label, title: it.title?.trim() || label, value: it.value, unit, basis, perUnit, perLot, vat, autoCat,
-      cat: isCompCat(it.cat) ? it.cat : null, src: it.src?.trim() || o.defaultSrc, info: autoCat == null,
+      cat: isCompCat(it.cat) ? it.cat : null, src: it.src?.trim() || o.defaultSrc, info: autoCat == null, kind: a ? a.kind : autoCat ? "sector" : "info",
     };
   });
 }

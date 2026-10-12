@@ -230,7 +230,7 @@ export function LotPriceComposition({ cats, vat, qty, unitName, ariaLabel }: { c
         {toggle}
         <span className="text-xs text-neutral-500">{withVat ? "сектора без НДС плюс НДС лота" : `НДС лота ${formatMoney(vat.toFixed(2))} ₽ в секторах не показан`}</span>
       </div>
-      <PriceCompositionChart slices={slices} total={total} qty={qty} unitName={unitName} totalLabel={withVat ? "Цена лота, с НДС" : "Цена лота, без НДС"} ariaLabel={ariaLabel + (withVat ? ", с НДС" : ", без НДС")} />
+      <PriceCompositionChart stacked slices={slices} total={total} qty={qty} unitName={unitName} totalLabel={withVat ? "Цена лота, с НДС" : "Цена лота, без НДС"} ariaLabel={ariaLabel + (withVat ? ", с НДС" : ", без НДС")} />
     </div>
   );
 }
