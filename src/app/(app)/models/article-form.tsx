@@ -196,16 +196,16 @@ function Body({
       <Step n={1} title="Артикул" hint={<><p>Код — наш артикул (как в ТЗ и документах). Код и название в системе продаж и другие написания нужны, чтобы артикул находился по любому из них — в ТЗ, плане, закупках и отчётах.</p><p className="mt-1">Каждое написание принадлежит только одному артикулу: если оно уже записано у другого, форма покажет у какого.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field htmlFor="name" label="Код артикула *" error={fe.name} hint="Наш код: M012, МН-02… Латиница и кириллица в похожих буквах считаются одним написанием.">
-            <Input id="name" name="name" value={f.name} onChange={set("name")} placeholder="M012" disabled={!canEdit} aria-invalid={fe.name ? true : undefined} />
+            <Input className="ui-field rounded-lg" id="name" name="name" value={f.name} onChange={set("name")} placeholder="M012" disabled={!canEdit} aria-invalid={fe.name ? true : undefined} />
           </Field>
           <Field htmlFor="salesCode" label="Код в продажах" hint="Код этого же изделия в системе продаж. Уходит в сверку продаж и поиск артикула.">
-            <Input id="salesCode" name="salesCode" value={f.salesCode} onChange={set("salesCode")} disabled={!canEdit} />
+            <Input className="ui-field rounded-lg" id="salesCode" name="salesCode" value={f.salesCode} onChange={set("salesCode")} disabled={!canEdit} />
           </Field>
           <Field htmlFor="salesName" label="Название в продажах" className="sm:col-span-2">
-            <Input id="salesName" name="salesName" value={f.salesName} onChange={set("salesName")} placeholder="Шуба норковая «Милан»" disabled={!canEdit} />
+            <Input className="ui-field rounded-lg" id="salesName" name="salesName" value={f.salesName} onChange={set("salesName")} placeholder="Шуба норковая «Милан»" disabled={!canEdit} />
           </Field>
           <Field htmlFor="aliases" label="Другие написания (синонимы)" className="sm:col-span-2 lg:col-span-4" hint="Через запятую или с новой строки. По ним артикул находится в поиске и подбирается при импорте.">
-            <Input id="aliases" name="aliases" value={f.aliases} onChange={set("aliases")} placeholder="М012, M-012" disabled={!canEdit} />
+            <Input className="ui-field rounded-lg" id="aliases" name="aliases" value={f.aliases} onChange={set("aliases")} placeholder="М012, M-012" disabled={!canEdit} />
           </Field>
         </div>
       </Step>
@@ -229,7 +229,7 @@ function Body({
             />
           </Field>
           <Field label="Группа" hint={refGroup ? "Группа берётся из категории; менять её — в справочнике категорий." : catKnown ? "У категории группа ещё не задана — выберите: она запишется в категорию." : "Для новой категории выберите группу."}>
-            <Select
+            <Select className="ui-field rounded-lg"
               aria-label="Группа"
               value={groupValue}
               disabled={!canEdit || !!refGroup || (!canCreateCategory && catKnown)}
@@ -246,7 +246,7 @@ function Body({
       <Step n={3} title="Цена и описание" hint={<><p>Розничная цена — с НДС. Меняется сразу и у ТЗ в плане и в работе; у завершённых ТЗ не меняется. Уходит в наценку «Изделий», «Ценообразования» и Главной.</p><p className="mt-1">Вид меха, цвет и НДС в строках списания задаются в ТЗ — артикул показывает их по своим ТЗ.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field htmlFor="sellingPrice" label="Розничная цена, ₽ (с НДС)" error={fe.sellingPrice}>
-            <Input id="sellingPrice" name="sellingPrice" inputMode="decimal" value={f.sellingPrice} onChange={set("sellingPrice")} placeholder="не задана" disabled={!canEdit} aria-invalid={fe.sellingPrice ? true : undefined} />
+            <Input className="ui-field rounded-lg" id="sellingPrice" name="sellingPrice" inputMode="decimal" value={f.sellingPrice} onChange={set("sellingPrice")} placeholder="не задана" disabled={!canEdit} aria-invalid={fe.sellingPrice ? true : undefined} />
           </Field>
           {mode === "edit" && (
             <Field label="Использование" hint="Неиспользуемый артикул скрыт в выборе при создании ТЗ и плана, но остаётся в отчётах.">
@@ -257,7 +257,7 @@ function Body({
             </Field>
           )}
           <Field htmlFor="description" label="Описание" className="sm:col-span-2 lg:col-span-4">
-            <Textarea id="description" name="description" rows={2} value={f.description} onChange={set("description")} disabled={!canEdit} />
+            <Textarea className="ui-field rounded-lg" id="description" name="description" rows={2} value={f.description} onChange={set("description")} disabled={!canEdit} />
           </Field>
         </div>
       </Step>

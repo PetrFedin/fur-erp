@@ -97,7 +97,7 @@ export function ArticlePriceForm({
         aria-label="Розничная цена"
         aria-invalid={error ? true : undefined}
         title="Цена применяется к незавершённым ТЗ (в плане и в работе); у завершённых не меняется"
-        className="h-8 w-36"
+        className="ui-field h-8 w-36 rounded-lg text-right tabular-nums"
       />
       {dirty && !pending ? (
         <button type="submit" className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-xs font-medium hover:bg-neutral-50">Сохранить</button>

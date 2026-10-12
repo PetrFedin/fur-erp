@@ -24,6 +24,8 @@ import { Money } from "@/components/money";
 import { CostTwo } from "@/components/cost-two";
 import { InfoHint } from "@/components/info-hint";
 import { YearNote } from "@/components/year-note";
+import { TotalLabel } from "@/components/total-label";
+import { Dash, TD, TH } from "@/components/tree-table";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../dashboard/tile";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { getYearFilter } from "@/lib/year-filter";
@@ -34,6 +36,9 @@ import { articleMetrics } from "@/lib/article-metrics";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
+
+/** Тонкая вертикальная линия слева у первой колонки блока. */
+const BL = " border-l border-neutral-200";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -201,6 +206,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         treeId="model-tree"
         id="model"
         title="Артикул — итоги"
+        headerEnd={<Link href={`/production?model=${id}`} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ артикула</Link>}
         extraCount={1}
         extra={
           <div className="relative">
@@ -225,7 +231,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-1">
+          <CardTitle as="h2" className="flex items-center gap-1 text-base">
             Показатели по ТЗ
             <InfoHint label="Показатели" wide>
               <p>Считаются по ТЗ артикула теми же функциями, что в карточке ТЗ и на Главной. Основная цифра — с 4% (так мы платим), мелко под ней — без 4%; «с НДС / без НДС» — по переключателю в шапке.</p>
@@ -240,60 +246,65 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           ) : (
             <>
               <div className="table-scroll overflow-x-auto">
-                <table className="w-full min-w-[620px] text-sm">
+                <table className="w-full min-w-[640px] table-fixed text-left text-sm">
+                  <colgroup><col className="w-[170px]" /><col /><col /><col /><col /></colgroup>
                   <thead>
-                    <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                      <th className="py-1.5 pr-3 font-medium">Материал</th>
-                      <th className="px-3 py-1.5 text-right font-medium">Списано</th>
-                      <th className="px-3 py-1.5 text-right font-medium">Сумма</th>
-                      <th className="px-3 py-1.5 text-right font-medium">Средняя цена</th>
-                      <th className="py-1.5 pl-3 text-right font-medium">На 1 изделие</th>
+                    <tr>
+                      <th />
+                      <th className="border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Расход</th>
+                      <th colSpan={2} className={"border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500" + BL}>Стоимость</th>
+                      <th className={"border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500" + BL}>На изделие</th>
+                    </tr>
+                    <tr className="border-b border-neutral-200">
+                      <th className="py-1.5 pr-2 text-xs font-medium text-neutral-500">Материал</th>
+                      <th className={TH}>Списано</th>
+                      <th className={TH + BL}>Сумма, ₽</th>
+                      <th className={TH}>Ср. цена, ₽</th>
+                      <th className={TH + BL}>Расход</th>
                     </tr>
                   </thead>
                   <tbody>
                     {met.furKinds.map((k) => (
                       <tr key={k.fur} className="border-b border-neutral-100 align-top">
-                        <td className="py-1.5 pr-3">{k.fur}<Src href="/settings/furs" title="Справочник видов меха" /></td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{formatQty(Math.round(k.qty * 100) / 100)} шк.</td>
-                        <td className="px-3 py-1.5 text-right"><CostTwo on={k.on} off={k.off} /></td>
-                        <td className="px-3 py-1.5 text-right">{k.qty > 0 ? <CostTwo on={{ incl: k.on.incl / k.qty, excl: k.on.excl / k.qty }} off={{ incl: k.off.incl / k.qty, excl: k.off.excl / k.qty }} suffix="/шк." /> : "—"}</td>
-                        <td className="py-1.5 pl-3 text-right tabular-nums">{perItem(k.qty)} шк.</td>
+                        <td className="py-1.5 pr-2">{k.fur}<Src href="/settings/furs" title="Справочник видов меха" /></td>
+                        <td className={TD}>{formatQty(Math.round(k.qty * 100) / 100)} шк.</td>
+                        <td className={TD + BL}><CostTwo on={k.on} off={k.off} /></td>
+                        <td className={TD}>{k.qty > 0 ? <CostTwo on={{ incl: k.on.incl / k.qty, excl: k.on.excl / k.qty }} off={{ incl: k.off.incl / k.qty, excl: k.off.excl / k.qty }} suffix="/шк." /> : <Dash />}</td>
+                        <td className={TD + BL}>{perItem(k.qty)} шк.</td>
                       </tr>
                     ))}
                     {met.lining.qty > 0 && (
                       <tr className="border-b border-neutral-100 align-top">
-                        <td className="py-1.5 pr-3">Подкладка<Src href="/lining" title="Подкладка: лоты и закупки" /></td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{formatQty(Math.round(met.lining.qty * 100) / 100)} м</td>
-                        <td className="px-3 py-1.5 text-right"><CostTwo on={met.lining.on} off={met.lining.off} /></td>
-                        <td className="px-3 py-1.5 text-right"><CostTwo on={{ incl: met.lining.on.incl / met.lining.qty, excl: met.lining.on.excl / met.lining.qty }} off={{ incl: met.lining.off.incl / met.lining.qty, excl: met.lining.off.excl / met.lining.qty }} suffix="/м" /></td>
-                        <td className="py-1.5 pl-3 text-right tabular-nums">{perItem(met.lining.qty)} м</td>
+                        <td className="py-1.5 pr-2">Подкладка<Src href="/lining" title="Подкладка: лоты и закупки" /></td>
+                        <td className={TD}>{formatQty(Math.round(met.lining.qty * 100) / 100)} м</td>
+                        <td className={TD + BL}><CostTwo on={met.lining.on} off={met.lining.off} /></td>
+                        <td className={TD}><CostTwo on={{ incl: met.lining.on.incl / met.lining.qty, excl: met.lining.on.excl / met.lining.qty }} off={{ incl: met.lining.off.incl / met.lining.qty, excl: met.lining.off.excl / met.lining.qty }} suffix="/м" /></td>
+                        <td className={TD + BL}>{perItem(met.lining.qty)} м</td>
                       </tr>
                     )}
                     {met.furKinds.length === 0 && met.lining.qty === 0 && (
                       <tr><td colSpan={5} className="py-2 text-neutral-500">Сырьё в ТЗ ещё не списано</td></tr>
                     )}
+                    <tr className="row-total align-top">
+                      <td className="py-1.5 pl-1.5 pr-2 text-left"><TotalLabel unit="₽" note="с работой, 4% и расходами" /></td>
+                      <td className={TD}><Dash /></td>
+                      <td className={TD + BL}><CostTwo on={met.total.on} off={met.total.off} /></td>
+                      <td className={TD}><Dash /></td>
+                      <td className={TD + BL}><CostTwo on={met.unit?.on ?? null} off={met.unit?.off ?? null} /></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-neutral-100 pt-3 sm:grid-cols-4">
-                <div>
-                  <div className="text-xs text-neutral-500">Себестоимость итого</div>
-                  <div className="text-base font-semibold"><CostTwo on={met.total.on} off={met.total.off} /></div>
-                  <div className="text-[11px] text-neutral-400">шкуры + подкладка + 4% + расходы + работа</div>
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-500">На 1 изделие</div>
-                  <div className="font-medium"><CostTwo on={met.unit?.on ?? null} off={met.unit?.off ?? null} /></div>
-                </div>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div>
                   <div className="text-xs text-neutral-500">Работа</div>
                   <div className="font-medium tabular-nums">{met.work > 0 ? <Money incl={met.work.toFixed(2)} excl={met.work.toFixed(2)} /> : "—"}</div>
-                  <div className="text-[11px] text-neutral-400">без 4%, НДС не начисляется</div>
+                  <div className="text-[11px] text-neutral-500">без 4%, НДС не начисляется</div>
                 </div>
                 <div>
                   <div className="text-xs text-neutral-500">Добавляют 4%</div>
                   <div className="font-medium tabular-nums">{met.extra4 > 0.5 ? formatMoney(met.extra4.toFixed(0)) : "—"}</div>
-                  <div className="text-[11px] text-neutral-400">с НДС</div>
+                  <div className="text-[11px] text-neutral-500">с НДС</div>
                 </div>
               </div>
               <div className="flex flex-wrap items-baseline gap-x-3 text-xs text-neutral-500">
@@ -310,7 +321,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-1">Реквизиты и цена</CardTitle>
+          <CardTitle as="h2" className="flex items-center gap-1 text-base">Реквизиты и цена</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <ArticleForm
@@ -373,24 +384,24 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             <p className="text-sm text-neutral-500">На складе нет</p>
           ) : (
             <Table>
-              <Thead><Tr><Th>Остаток, шт.</Th><Th>Учётная себестоимость за ед.</Th></Tr></Thead>
+              <Thead><Tr><Th className="text-right">Остаток, шт.</Th><Th className="text-right">Учётная себестоимость за ед., ₽</Th></Tr></Thead>
               <Tbody>
                 <Tr>
-                  <Td>{stockQty > 0 ? formatQty(String(stockQty)) : "—"}</Td>
-                  <Td>{stockQty > 0 && legacy > 0 ? formatMoney((legacy / stockQty).toFixed(2)) : "—"}</Td>
+                  <Td className="text-right tabular-nums">{stockQty > 0 ? formatQty(String(stockQty)) : <Dash />}</Td>
+                  <Td className="text-right tabular-nums">{stockQty > 0 && legacy > 0 ? formatMoney((legacy / stockQty).toFixed(2)) : <Dash />}</Td>
                 </Tr>
               </Tbody>
             </Table>
           )}
           {movements.length > 0 && (
             <Table>
-              <Thead><Tr><Th>Дата</Th><Th>Операция</Th><Th>Шт.</Th><Th>ТЗ</Th><Th>Примечание</Th></Tr></Thead>
+              <Thead><Tr><Th>Дата</Th><Th>Операция</Th><Th className="text-right">Шт.</Th><Th>ТЗ</Th><Th>Примечание</Th></Tr></Thead>
               <Tbody>
                 {movements.map((m) => (
                   <Tr key={m.id}>
                     <Td>{formatDate(m.date)}</Td>
                     <Td>{MOVE_LABEL[m.type] ?? m.type}</Td>
-                    <Td>{formatQty(m.quantity.toString())}</Td>
+                    <Td className="text-right tabular-nums">{formatQty(m.quantity.toString())}</Td>
                     <Td>{m.productionOrder ? <Link href={`/production/${m.productionOrder.id}`} className="text-blue-700 hover:underline">{orderLabel(m.productionOrder)}</Link> : "—"}</Td>
                     <Td className="text-neutral-600">{m.notes ? truncate(m.notes, 80) : "—"}</Td>
                   </Tr>
@@ -492,7 +503,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
               <Thead>
                 <Tr>
                   <Th>Материал</Th>
-                  <Th>Норма на 1 изделие</Th>
+                  <Th className="text-right">Норма на 1 изделие</Th>
                   <Th></Th>
                 </Tr>
               </Thead>
@@ -500,7 +511,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                 {model.materials.map((line) => (
                   <Tr key={line.id}>
                     <Td>{line.rawMaterial.name}</Td>
-                    <Td>
+                    <Td className="text-right tabular-nums">
                       {formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}
                     </Td>
                     <Td>{canEdit ? <BomRemoveButton modelId={id} lineId={line.id} name={line.rawMaterial.name} /> : null}</Td>

@@ -43,7 +43,7 @@ export function BomAddForm({
     >
       <div className="flex-1">
         <label className="mb-1 block text-xs text-neutral-500">Материал</label>
-        <Select name="rawMaterialId" required defaultValue="">
+        <Select className="ui-field rounded-lg" name="rawMaterialId" required defaultValue="">
           <option value="" disabled>
             Выберите материал
           </option>
@@ -56,7 +56,7 @@ export function BomAddForm({
       </div>
       <div className="w-40">
         <label className="mb-1 block text-xs text-neutral-500">Норма на изделие</label>
-        <Input name="quantityPerUnit" type="number" step="0.001" min="0" required />
+        <Input className="ui-field rounded-lg" name="quantityPerUnit" type="number" step="0.001" min="0" required />
       </div>
       <Button type="submit" variant="outline">
         Добавить

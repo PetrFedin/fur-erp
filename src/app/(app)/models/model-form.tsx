@@ -35,11 +35,11 @@ export function ModelForm({
       {version && <input type="hidden" name="_v" value={version} />}
       <div className="col-span-full">
         <Label htmlFor="name">Название модели</Label>
-        <Input id="name" name="name" required defaultValue={model?.name} placeholder="Шуба норковая «Милан»" />
+        <Input className="ui-field rounded-lg" id="name" name="name" required defaultValue={model?.name} placeholder="Шуба норковая «Милан»" />
       </div>
       <div>
         <Label htmlFor="sku">Артикул</Label>
-        <Input id="sku" name="sku" defaultValue={model?.sku ?? ""} />
+        <Input className="ui-field rounded-lg" id="sku" name="sku" defaultValue={model?.sku ?? ""} />
       </div>
       <div>
         <Label htmlFor="category">Категория</Label>
@@ -47,7 +47,7 @@ export function ModelForm({
       </div>
       <div className="col-span-full">
         <Label htmlFor="description">Описание</Label>
-        <Textarea id="description" name="description" rows={2} defaultValue={model?.description ?? ""} />
+        <Textarea className="ui-field rounded-lg" id="description" name="description" rows={2} defaultValue={model?.description ?? ""} />
       </div>
       {state.error && (
         <p className="col-span-full rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

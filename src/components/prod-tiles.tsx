@@ -19,7 +19,7 @@ const money = (v: number) => formatMoney(v.toFixed(2));
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
  * `extra` — дополнительные плитки страницы (оплаты партий, маркап и т. п.); `perUnit` — замена плитки «На 1 изделие» (карусель на «Изделиях»).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false }: { carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd }: { headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
@@ -56,7 +56,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     </>
   );
   return (
-    <WidgetRow id={id} title={title}>
+    <WidgetRow id={id} title={title} headerEnd={headerEnd}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
       {carousel ? (
         <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"

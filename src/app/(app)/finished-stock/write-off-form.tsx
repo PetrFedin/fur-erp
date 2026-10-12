@@ -34,7 +34,7 @@ export function WriteOffForm({
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-end gap-2">
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Склад</label>
-        <Select name="warehouseId" required defaultValue="">
+        <Select className="ui-field rounded-lg" name="warehouseId" required defaultValue="">
           <option value="" disabled>
             Выберите склад
           </option>
@@ -47,7 +47,7 @@ export function WriteOffForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Модель</label>
-        <Select name="productModelId" required defaultValue="">
+        <Select className="ui-field rounded-lg" name="productModelId" required defaultValue="">
           <option value="" disabled>
             Выберите модель
           </option>
@@ -60,11 +60,11 @@ export function WriteOffForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Количество</label>
-        <Input name="quantity" type="number" step="1" min="1" required />
+        <Input className="ui-field rounded-lg" name="quantity" type="number" step="1" min="1" required />
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Причина</label>
-        <Input name="notes" placeholder="Продажа, брак..." />
+        <Input className="ui-field rounded-lg" name="notes" placeholder="Продажа, брак..." />
       </div>
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Списываем..." : "Списать со склада"}

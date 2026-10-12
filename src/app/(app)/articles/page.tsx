@@ -241,6 +241,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         treeId="orders-tree"
         id="articles"
         title="Изделия — итоги"
+        headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}
         extraCount={1}
         carousel
         perUnit={<PerUnitCarousel key="per-unit" orders={drill} c4={c4Mode} />}
