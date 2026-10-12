@@ -6,6 +6,7 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
+import { articlesWord, orderKey, tzCountText, tzLabel, uniqueOrderCount } from "@/lib/tz-key";
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
@@ -24,7 +25,8 @@ function keyLabel(dim: TreeDim, o: DrillOrder): [string, string] {
     case "category": return [o.cat, o.cat];
     case "group": return [o.grp, o.grp];
     case "fur": return [o.fur || "none", o.fur || "Мех не указан"];
-    case "order": return [o.id, `ТЗ ${o.wo ?? o.number}`];
+    // Узел ТЗ — по номеру ТЗ из документа: артикулы одного ТЗ лежат внутри одного узла.
+    case "order": return [orderKey(o), `ТЗ ${tzLabel(o)}`];
   }
 }
 
@@ -146,14 +148,44 @@ export function OrdersTree({
     return out;
   };
 
+  // Позиции многопозиционного ТЗ: артикул × количество, каждая раскрывается в состав (как отдельное ТЗ).
+  const positionRows = (list: DrillOrder[], depth: number, path: string): ReactNode =>
+    [...list].sort((a, b) => naturalSort.compare(a.number, b.number)).map((o) => {
+      const p = `${path}/${o.id}`;
+      const open = isOpen(p, depth);
+      const s = sumOrders([o], v);
+      return (
+        <Fragment key={p}>
+          <tr className={rowTone(2, open)}>
+            <td className={ARROW_TD}>{arrow(open, `${o.ml} (${o.number})`, p)}</td>
+            <td className={`py-1.5 pr-2 text-left ${INDENT[Math.min(depth, 3)]}`}>
+              <Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.ml}</Link>
+              <span className="ml-2 font-normal text-neutral-500">{formatQty(o.qty)} шт. · {o.number}</span>
+              {STATUS_TEXT[o.st] ? <span className="ml-2 font-normal text-amber-700">{STATUS_TEXT[o.st]}</span> : null}
+            </td>
+            {figs(s, { pay: payBy ? { paid: payBy[`order:${o.id}`], work: s.work } : undefined })}
+          </tr>
+          {open ? lineRows(o, depth + 1) : null}
+        </Fragment>
+      );
+    });
+
   const sortGroups = (dim: TreeDim, groups: [string, string, DrillOrder[]][]) => {
     if (dim === "year" || dim === "batch") return groups.sort((a, b) => (a[0] === "none" ? 1 : b[0] === "none" ? -1 : Number(a[0]) - Number(b[0])));
     if (dim === "order") return groups.sort((a, b) => naturalSort.compare(a[1], b[1]));
     return groups.sort((a, b) => sumTotal(sumOrders(b[2], v)) - sumTotal(sumOrders(a[2], v)));
   };
 
-  const hrefOf = (dim: TreeDim, key: string): string | null =>
-    dim === "batch" && key !== "none" ? `/production/batches/${key}` : dim === "article" ? `/models/${key}` : dim === "order" ? `/production/${key}` : null;
+  const hrefOf = (dim: TreeDim, key: string, list: DrillOrder[]): string | null =>
+    dim === "batch" && key !== "none" ? `/production/batches/${key}` : dim === "article" ? `/models/${key}` : dim === "order" && list.length === 1 ? `/production/${list[0].id}` : null;
+
+  // Оплачено по ТЗ: сумма по позициям (записям) этого ТЗ.
+  const sumPaid = (list: DrillOrder[]): number | undefined => {
+    if (!payBy) return undefined;
+    let any = false, t = 0;
+    for (const x of list) { const v = payBy[`order:${x.id}`]; if (v != null) { any = true; t += v; } }
+    return any ? t : undefined;
+  };
 
   const level = (os: DrillOrder[], depth: number, path: string): ReactNode => {
     const dim = dims[depth];
@@ -169,10 +201,10 @@ export function OrdersTree({
       const open = isOpen(p, depth);
       const s = sumOrders(list, v);
       const tone = Math.min(depth, 2) as 0 | 1 | 2;
-      const href = hrefOf(dim, key);
+      const href = hrefOf(dim, key, list);
       const isOrder = dim === "order";
       const o = list[0];
-      const paid = payBy ? (dim === "batch" ? payBy[`batch:${key}`] : isOrder ? payBy[`order:${key}`] : undefined) : undefined;
+      const paid = payBy ? (dim === "batch" ? payBy[`batch:${key}`] : isOrder ? sumPaid(list) : undefined) : undefined;
       return (
         <Fragment key={p}>
           <tr className={rowTone(tone, open) + (depth === 0 ? " font-semibold" : "")}>
@@ -181,18 +213,18 @@ export function OrdersTree({
               {href ? <Link href={href} className="text-blue-700 hover:underline">{label}</Link> : label}
               {isOrder ? (
                 <>
-                  <span className="ml-2 font-normal text-neutral-500">{o.ml}</span>
+                  <span className="ml-2 font-normal text-neutral-500">{list.length > 1 ? `${list.length} ${articlesWord(list.length)}` : o.ml}</span>
                   {isRepair(o) && !countRepairQty ? <span className="ml-2 font-normal text-neutral-400">ремонт</span> : null}
                   {STATUS_TEXT[o.st] ? <span className="ml-2 font-normal text-amber-700">{STATUS_TEXT[o.st]}</span> : null}
                   {dims.includes("batch") ? null : <span className="ml-2 font-normal text-neutral-400">{o.bl}</span>}
                 </>
               ) : (
-                <span className="ml-1.5 text-xs font-normal text-neutral-500">{s.orders + s.repairOrders} ТЗ</span>
+                <span className="ml-1.5 text-xs font-normal text-neutral-500">{tzCountText(uniqueOrderCount(list), list.length)}</span>
               )}
             </td>
             {figs(s, { pay: payBy ? { paid, work: s.work } : undefined })}
           </tr>
-          {open ? (depth + 1 < dims.length ? level(list, depth + 1, p) : lineRows(o, depth + 1)) : null}
+          {open ? (depth + 1 < dims.length ? level(list, depth + 1, p) : isOrder && list.length > 1 ? positionRows(list, depth + 1, p) : lineRows(o, depth + 1)) : null}
         </Fragment>
       );
     });

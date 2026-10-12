@@ -140,6 +140,23 @@ html:root .tile-click:is(:hover, :active, :focus-visible) {
   outline: none;
 }
 
+/* Единые оранжевые (в «Текущем стиле» нейтральные) рамки: поля фильтров и любые кнопки.
+   Меняется только цвет рамки / тонкая тень (ширина рамки постоянна), раскладка не сдвигается. */
+:root { --ui-field-bg: #f5f5f4; }
+.ui-field { transition: border-color 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease; }
+html:root .ui-field:is(:hover, :focus, :focus-visible, :focus-within, [data-active]),
+html:root details[open] > .ui-field {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 0.5px var(--ui-accent);
+}
+html:root .ui-field[data-active] { background-color: var(--ui-field-bg); }
+.btn-accent { transition: border-color 0.14s ease, box-shadow 0.14s ease; }
+html:root .btn-accent:not(:disabled):is(:hover, :active, :focus-visible) { box-shadow: 0 0 0 0.5px var(--ui-accent); }
+/* любые кнопки и ссылки-кнопки с рамкой: при наведении, нажатии и фокусе с клавиатуры рамка акцентная */
+html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disabled="true"], [data-no-accent]):is(:hover, :active, :focus-visible) {
+  border-color: var(--ui-accent);
+}
+
 /* Главная, «Сырьё»: шесть плиток в одном ряду (мех | подкладка). */
 .raw-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
 .raw-group { display: flex; min-width: 0; flex-direction: column; gap: 0.25rem; }

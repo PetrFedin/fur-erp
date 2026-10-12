@@ -1,3 +1,4 @@
+import { itemsSuffix } from "@/lib/tz-key";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -53,7 +54,7 @@ export default async function BatchPrintPage({
     const y = parseInt(b.workOrderNumber ?? "", 10);
     return (Number.isNaN(x) ? 1e9 : x) - (Number.isNaN(y) ? 1e9 : y);
   });
-  const cancelled = batch.orders.length - t.orders;
+  const cancelled = batch.orders.length - t.items;
   const overpaid = t.remaining.lessThan(-0.005);
   const extra = batchExtraName(batch.name);
   const q = (c4: string) => `/production/batches/${number}/print?c4=${c4}`;
@@ -79,7 +80,7 @@ export default async function BatchPrintPage({
         </p>
 
         <h2 className="mb-1 mt-5 text-sm font-semibold">
-          ТЗ партии ({t.orders}
+          ТЗ партии ({t.orders}{itemsSuffix(t.orders, t.items)}
           {cancelled > 0 ? ` + ${cancelled} отменено` : ""})
         </h2>
         <table className="w-full border-collapse text-xs">
@@ -134,7 +135,7 @@ export default async function BatchPrintPage({
           <tbody>
             <tr>
               <td className={td}>ТЗ</td>
-              <td className={tdr}>{t.orders}</td>
+              <td className={tdr}>{t.orders}{itemsSuffix(t.orders, t.items)}</td>
             </tr>
             <tr>
               <td className={td}>Произведено (все ТЗ без ремонта)</td>

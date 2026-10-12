@@ -5,6 +5,8 @@
 // (разница между снимком totalCost ТЗ и суммой строк + расходов). Σ атомов ТЗ = себестоимость ТЗ (как в «ТЗ», «Партиях», аналитике).
 // Работа (цена работы × кол-во) в себестоимость НЕ входит: показывается отдельно и в сумму столбцов не входит.
 
+import { orderKey, uniqueOrderCount } from "@/lib/tz-key";
+
 export type VatSel = "incl" | "excl";
 
 export type DrillLine = {
@@ -196,7 +198,7 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
 
   // Состав выбранного ТЗ / «лоты» выбранной части состава
   if (dimSteps.length >= chain.length) {
-    const orderCount = new Set(atoms.map((a) => a.o.id)).size;
+    const orderCount = new Set(atoms.map((a) => orderKey(a.o))).size; // уникальные ТЗ (по номеру из документа)
     const o = atoms[0]?.o;
     const mk = (key: string, label: string, tone: Item["tone"], v: number, drill: boolean, sub?: string): Item => ({
       key, label, value: v, share: 0, qtyText: "", work: null, drillable: drill, tone, sub,
@@ -303,7 +305,7 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
   const seenO = new Set(atoms.map((a) => a.o.id));
   const totalWork = auctionLocked || dim === "auction" || dim === "fur" ? null : Array.from(seenO).reduce((s, id) => s + (atoms.find((a) => a.o.id === id)?.o.work ?? 0), 0);
   void totalWork;
-  return { kind: "dim", dim, title: DIM_TITLE[dim], items, total, totalWork, orders: seenO.size, links: [] };
+  return { kind: "dim", dim, title: DIM_TITLE[dim], items, total, totalWork, orders: new Set(atoms.map((a) => orderKey(a.o))).size, links: [] };
 }
 
 /** Итог по всем ТЗ окна — то, что должна показывать плитка. */
@@ -312,6 +314,6 @@ export function drillTotals(orders: DrillOrder[], vat: VatSel) {
     cost: orders.reduce((s, o) => s + orderCost(o, vat) + o.work, 0),
     work: orders.reduce((s, o) => s + o.work, 0),
     qty: orders.reduce((s, o) => s + o.qty, 0),
-    orders: orders.length,
+    orders: uniqueOrderCount(orders),
   };
 }

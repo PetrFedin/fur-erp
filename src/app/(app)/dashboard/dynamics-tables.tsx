@@ -28,21 +28,10 @@ const ARROW_TH = "w-6 px-0";
 export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "off"; info: ModeInfo }) {
   void info;
   const { mode: vat } = useVatDisplay();
-  // По умолчанию все годы развёрнуты на мех и подкладку; храним только свёрнутые вручную.
-  const [closed, setClosed] = useState<Set<string>>(new Set());
-  const toggle = (k: string) => setClosed((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  // По умолчанию видны три тотала (Мех, Подкладка, Всего); по клику на «›» строка раскрывается по годам.
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const sum = (a: Cells, b: Cells): Cells => ({ rq: a.rq + b.rq, rv: a.rv + b.rv, ra: null, uq: a.uq + b.uq, uv: a.uv + b.uv, ua: null, mq: a.mq + b.mq, mv: a.mv + b.mv, ma: null, uo: a.uo + b.uo, uoa: null });
-
-  const sub = (label: string, c: Cells, unit: string, key: string, m: { paid: number; debt: number }) => (
-    <tr key={key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
-      <td className={ARROW_TD} />
-      <td className="py-1.5 pr-2 pl-0">{label}</td>
-      <td className={td}>{formatQty(c.rq)} {unit}</td><td className={td}>{rub(c.rv)}</td>
-      <td className={td}>{formatQty(c.uq)} {unit}</td><td className={td}>{rub(c.uv)}</td>
-      <td className={td}>{formatQty(c.mq)} {unit}</td><td className={td}>{rub(c.mv)}</td>
-      <MoneyTds paid={m.paid} due={m.debt} />
-    </tr>
-  );
 
   return (
     <section aria-labelledby="dash-years" className="space-y-2">
@@ -51,7 +40,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
         <h2 id="dash-years" className="text-base font-semibold">Динамика по годам</h2>
           <InfoHint label="Как читать динамику по годам" wide>
             <p><b>Закуплено / использовано / остаток</b> — по году закупки лота: в каждой строке закуплено − использовано = остаток. Использовано — всегда без 4% (надбавка 4% показана в виджетах «Сырьё» и «Себестоимость»).</p>
-            <p className="mt-1">Штуки — только мех; подкладка (метры) — в раскрытой строке, а в рублях она учтена. </p>
+            <p className="mt-1">Строки «Мех», «Подкладка» и «Всего, ₽» — итоги за все годы; нажмите «›», чтобы увидеть разбивку по годам. Штуки — только мех, подкладка в метрах; в «Всего» количества не суммируются, суммируются рубли.</p>
                         <p className="mt-1"><b>Оплачено</b> и <b>задолженность</b> (поставщику) — по закупкам этого года, как в «Оплатах»; в раскрытой строке — отдельно по меху и подкладке. Фильтры панели действуют и на эти колонки.</p>
             <p className="mt-1"><b>Всего, ₽</b> — сумма строк по каждой колонке (задолженность: года 1 + года 2 = общая). Год шапки таблицу не меняет; фильтры панели действуют на сырьё и производство.</p>
             <p className="mt-1"><b>Использовано</b> — всегда без 4%, поэтому куплено = использовано + остаток. Оплачено и задолженность — всегда с НДС, не зависят от 4%.</p>
@@ -64,7 +53,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
           <thead>
             <tr className="border-b border-neutral-200">
               <th rowSpan={2} className={ARROW_TH} aria-label="Раскрыть" />
-              <th rowSpan={2} className="px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Год</th>
+              <th rowSpan={2} className="px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Сырьё / год</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Куплено</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Использовано</th>
               <th colSpan={2} className={th + " border-l border-neutral-100 text-center"}>Остаток</th>
@@ -76,33 +65,80 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
-              const f = r.fur[vat], l = r.lining[vat];
-              const t = sum(f, l);
-              const isOpen = !closed.has(r.key);
-              const total = r.key === "all";
+            {(() => {
+              // Три тотала (Мех, Подкладка, Всего) — каждый раскрывается по годам. Цифры те же, что раньше, только перегруппированы.
+              const all = rows.find((r) => r.key === "all");
+              const yrs = rows.filter((r) => r.key !== "all");
+              if (!all) return null;
+              const yearInfo = (r: YearRow) => r.key === "none" ? <InfoHint label="Что такое «Без даты»" className="ml-1"><p>ТЗ без даты и без года партии: в базе нет ни даты ТЗ, ни даты начала/выпуска, ни года партии. Их выпуск не отнесён ни к одному году.</p></InfoHint> : null;
+              const kinds: { k: string; label: string; unit: string; pick: (r: YearRow) => Cells; money: (r: YearRow) => { paid: number; debt: number } }[] = [
+                { k: "fur", label: "Мех", unit: "шт.", pick: (r) => r.fur[vat], money: (r) => r.money.fur },
+                { k: "lining", label: "Подкладка", unit: "м", pick: (r) => r.lining[vat], money: (r) => r.money.lining },
+              ];
               return (
-                <Fragment key={r.key}>
-                  <tr className={total ? "row-total" : "border-b border-neutral-100"}>
-                    <td className={ARROW_TD}>
-                      <button type="button" onClick={() => toggle(r.key)} aria-expanded={isOpen} aria-label={`Раскрыть: ${r.label}`}><Chevron open={isOpen} /></button>
-                    </td>
-                    <td className="px-2 py-1.5 text-left font-semibold">{r.label}{r.key === "none" ? <InfoHint label="Что такое «Без даты»" className="ml-1"><p>ТЗ без даты и без года партии: в базе нет ни даты ТЗ, ни даты начала/выпуска, ни года партии. Их выпуск не отнесён ни к одному году.</p></InfoHint> : null}</td>
-                    <td className={td}>{formatQty(f.rq)} шт.</td><td className={td}>{rub(t.rv)}</td>
-                    <td className={td}>{formatQty(f.uq)} шт.</td><td className={td}>{rub(t.uv)}</td>
-                    <td className={td}>{formatQty(f.mq)} шт.</td><td className={td}>{rub(t.mv)}</td>
-                    <td className={td}>{rub0(r.paid)}</td>
-                    <td className={td + (r.debt > 0 ? " text-amber-700" : "")}>{rub0(r.debt)}</td>
-                  </tr>
-                  {isOpen ? (
-                    <>
-                      {sub("Мех", f, "шт.", r.key + "f", r.money.fur)}
-                      {sub("Подкладка", l, "м", r.key + "l", r.money.lining)}
-                    </>
-                  ) : null}
-                </Fragment>
+                <>
+                  {kinds.map((kd) => {
+                    const c = kd.pick(all), m = kd.money(all), isOpen = open.has(kd.k);
+                    return (
+                      <Fragment key={kd.k}>
+                        <tr className="border-b border-neutral-100">
+                          <td className={ARROW_TD}><button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button></td>
+                          <td className="px-2 py-1.5 text-left font-semibold">{kd.label}</td>
+                          <td className={td}>{formatQty(c.rq)} {kd.unit}</td><td className={td}>{rub(c.rv)}</td>
+                          <td className={td}>{formatQty(c.uq)} {kd.unit}</td><td className={td}>{rub(c.uv)}</td>
+                          <td className={td}>{formatQty(c.mq)} {kd.unit}</td><td className={td}>{rub(c.mv)}</td>
+                          <td className={td + " border-l border-neutral-100"}>{rub0(m.paid)}</td>
+                          <td className={td + (m.debt > 0 ? " text-amber-700" : "")}>{rub0(m.debt)}</td>
+                        </tr>
+                        {isOpen ? yrs.map((r) => {
+                          const y = kd.pick(r), ym = kd.money(r);
+                          return (
+                            <tr key={kd.k + r.key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
+                              <td className={ARROW_TD} />
+                              <td className="py-1.5 pr-2 pl-0">{r.label}{yearInfo(r)}</td>
+                              <td className={td}>{formatQty(y.rq)} {kd.unit}</td><td className={td}>{rub(y.rv)}</td>
+                              <td className={td}>{formatQty(y.uq)} {kd.unit}</td><td className={td}>{rub(y.uv)}</td>
+                              <td className={td}>{formatQty(y.mq)} {kd.unit}</td><td className={td}>{rub(y.mv)}</td>
+                              <MoneyTds paid={ym.paid} due={ym.debt} />
+                            </tr>
+                          );
+                        }) : null}
+                      </Fragment>
+                    );
+                  })}
+                  {(() => {
+                    const t = sum(all.fur[vat], all.lining[vat]), isOpen = open.has("all");
+                    return (
+                      <Fragment>
+                        <tr className="row-total">
+                          <td className={ARROW_TD}><button type="button" onClick={() => toggle("all")} aria-expanded={isOpen} aria-label="Раскрыть по годам: Всего, ₽ мех+подкладка"><Chevron open={isOpen} /></button></td>
+                          <td className="px-2 py-1.5 text-left font-semibold">Всего, ₽ <span className="text-xs font-normal opacity-80">мех+подкладка</span></td>
+                          <td className={td}>—</td><td className={td}>{rub(t.rv)}</td>
+                          <td className={td}>—</td><td className={td}>{rub(t.uv)}</td>
+                          <td className={td}>—</td><td className={td}>{rub(t.mv)}</td>
+                          <td className={td}>{rub0(all.paid)}</td>
+                          <td className={td + (all.debt > 0 ? " text-amber-700" : "")}>{rub0(all.debt)}</td>
+                        </tr>
+                        {isOpen ? yrs.map((r) => {
+                          const y = sum(r.fur[vat], r.lining[vat]);
+                          return (
+                            <tr key={"all" + r.key} className="border-b border-neutral-100 bg-neutral-50/70 text-[13px] text-neutral-700">
+                              <td className={ARROW_TD} />
+                              <td className="py-1.5 pr-2 pl-0">{r.label}{yearInfo(r)}</td>
+                              <td className={td}>—</td><td className={td}>{rub(y.rv)}</td>
+                              <td className={td}>—</td><td className={td}>{rub(y.uv)}</td>
+                              <td className={td}>—</td><td className={td}>{rub(y.mv)}</td>
+                              <td className={td + " border-l border-neutral-100"}>{rub0(r.paid)}</td>
+                              <td className={td + (r.debt > 0 ? " text-amber-700" : "")}>{rub0(r.debt)}</td>
+                            </tr>
+                          );
+                        }) : null}
+                      </Fragment>
+                    );
+                  })()}
+                </>
               );
-            })}
+            })()}
           </tbody>
         </table>
       </div>

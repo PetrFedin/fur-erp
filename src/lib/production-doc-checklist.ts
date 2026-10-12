@@ -1,3 +1,4 @@
+import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -194,7 +195,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
     docs: appendixDocs.map(toDoc),
     mentions: [],
     missing: withoutAppendix.length > 0 ? `НЕТ — подгрузить приложение к ТЗ: ${withoutAppendix.map(orderTitle).join(", ")}` : null,
-    note: `есть у ${withAppendix.length} из ${live.length} ТЗ`,
+    note: `есть у ${withAppendix.length} из ${live.length} ${live.length === uniqueOrderCount(live) ? "ТЗ" : "позиций ТЗ"}`,
     uploads: withoutAppendix.map((o) => ({ action: "driveDoc", entity: "order", id: o.id, docType: "TZ_APPENDIX", label: `Загрузить для ${orderTitle(o)}` })),
   });
 
@@ -252,7 +253,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const unmatched = poolRows.length === 0;
   const name = batchExtraName(batch.name);
   const hintLines = [
-    `Партия ${batch.number}${name ? ` «${name}»` : ""}: ${live.length} ТЗ.`,
+    `Партия ${batch.number}${name ? ` «${name}»` : ""}: ${tzCountText(uniqueOrderCount(live), live.length)}.`,
     `К оплате заказчиком (работа): ${formatMoney(t.work.toString())} = цена работы × количество по ТЗ партии. Оплачено: ${formatMoney(pr.paid.toString())} — каждая оплата считается один раз, даже если связана с несколькими ТЗ. Остаток: ${pay.remainingText}.`,
     `Себестоимость партии: ${formatMoney(t.cost.toString())}${ctx.c4Mode === "on" ? " (режим «С 4%»: надбавка 4% к сырью и подкладке уже включена)" : " (режим «Без 4%»)"}. Оплата за работу заказчику 4% не облагается, поэтому остаток к оплате от режима не зависит.`,
     "Правила документов — из «Покрытия документами»: у каждого ТЗ своё приложение, у партии — расчёт доплаты и счёт на аванс/доплату; платёжка по каждой оплате (или номер п/п в поле «документ»).",
@@ -264,7 +265,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const panel: Panel = {
     id: `batch-${batch.id}`,
     title: `Партия ${batch.number}${name ? ` «${name}»` : ""}`,
-    subtitle: `${live.length} ТЗ · произведено ${t.producedUnits.toDecimalPlaces(0).toString()} шт.`,
+    subtitle: `${tzCountText(uniqueOrderCount(live), live.length)} · произведено ${t.producedUnits.toDecimalPlaces(0).toString()} шт.`,
     href: `/production/batches/${batch.number}`,
     pay,
     payments: pr.rows,

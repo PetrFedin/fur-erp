@@ -1,3 +1,4 @@
+import { uniqueLabelCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +110,7 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
         </tbody>
         <tfoot>
           <tr className="row-total">
-            <td className="py-1.5 pr-2"><TotalLabel extra={`${goods.length} ТЗ`} /></td>
+            <td className="py-1.5 pr-2"><TotalLabel extra={`${uniqueLabelCount(goods.map((g) => ({ id: g.id, label: g.label })))} ТЗ`} /></td>
             <td /><td /><td />
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{qtyText(total)}</td>
             <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(work)}</td>

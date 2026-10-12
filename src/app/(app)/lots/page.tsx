@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
 import { LiningPurchaseForm } from "./lining-purchase-form";
+import { loadMaterialVat } from "@/lib/material-vat-server";
+import { MaterialVatCell } from "@/components/material-vat-cell";
+import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { YearsTable, RawTable } from "../dashboard/dynamics-tables";
 import { DASH_FILTERS, orderFiltersOn, type DashFilters } from "@/lib/dashboard-calc";
 import { AuctionView, loadAuctions } from "./auction-view";
@@ -55,6 +58,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     }),
     tab === "fur" ? loadAuctions(orgId, year) : Promise.resolve([]),
   ]);
+  const liningVat = tab === "lining" ? await loadMaterialVat(orgId, "M") : null;
   const aucOf = await auctionLabeler(orgId);
   const pyearOptions = (await getFilterOptions(orgId, year, ["pyear"])).pyear;
 
@@ -326,8 +330,32 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                 materials={materials
                   .filter((m) => m.unit === "M")
                   .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
-                  .map((m) => ({ id: m.id, name: m.name }))}
+                  .map((m) => ({ id: m.id, name: m.name, defaultVatRate: liningVat?.get(m.id)?.defaultRate ?? null }))}
               />
+            </div>
+          </details>
+          <details open className="rounded-lg border border-neutral-200 bg-white" data-testid="lining-vat">
+            <summary className="cursor-pointer px-3 py-2 text-sm text-neutral-700">НДС в ТЗ по тканям</summary>
+            <div className="border-t border-neutral-100 p-3">
+              <p className="mb-2 text-xs text-neutral-500">
+                Ставка, по которой считается ТЗ при выборе ткани: заданная у материала, иначе — ставка лота, на который списано (до 2026 — 20%, с 2026 — 22%). Правится в справочнике материалов.
+              </p>
+              <Table>
+                <Thead>
+                  <Tr><Th>Ткань</Th><Th>НДС в ТЗ</Th></Tr>
+                </Thead>
+                <Tbody>
+                  {materials
+                    .filter((m) => m.unit === "M")
+                    .sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }))
+                    .map((m) => (
+                      <Tr key={m.id}>
+                        <Td className="font-medium"><Link href={`/materials/${m.id}`} className="hover:underline">{m.name}</Link></Td>
+                        <Td className="text-xs">{liningVat?.get(m.id) ? <MaterialVatCell s={liningVat.get(m.id)!} /> : "—"}</Td>
+                      </Tr>
+                    ))}
+                </Tbody>
+              </Table>
             </div>
           </details>
           <FurSelectionTotal lots={tableLots} kind="lining" globalYear={year} initialQuery={sp} />

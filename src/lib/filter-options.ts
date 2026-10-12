@@ -1,3 +1,4 @@
+import { uniqueOrderCount } from "@/lib/tz-key";
 import "server-only";
 // Единый загрузчик вариантов для выпадающих фильтров: getFilterOptions(orgId, year, keys).
 // Кэш в памяти процесса на 30 секунд (как getFurIndex): ключ `orgId|год|имя` для зависящих от года (аукционы) и
@@ -75,11 +76,11 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
     case "batch": {
       const rows = await prisma.productionBatch.findMany({
         where: { organizationId: orgId },
-        select: { number: true, name: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
+        select: { number: true, name: true, year: true, orders: { select: { number: true, workOrderNumber: true, workOrderDate: true, endDate: true, startDate: true } } },
         orderBy: { number: "asc" },
       });
       // Год обязателен в подписи: «Партия 5 · 2025»; нет года — «≈год по ТЗ» или «пусто» (batch-label.ts).
-      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: b.orders.length, title: b.name ?? undefined }));
+      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: uniqueOrderCount(b.orders), title: b.name ?? undefined }));
     }
     case "supplier": {
       // Только поставщики, у которых есть закупки или оплаты: остальные фильтр ничем не сужают.

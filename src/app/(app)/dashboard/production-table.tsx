@@ -231,7 +231,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
             <tbody>
               {renderRows(rows, 0, "")}
               <tr className="row-total">
-                <td className="py-1.5 pr-2 text-sm"><TotalLabel note={repair.orders.size > 0 ? "без ремонта" : undefined} /></td>
+                <td className="py-1.5 pr-2 text-sm"><TotalLabel /></td>
                 {cells(total, false)}
               </tr>
               {repair.orders.size > 0 ? (
@@ -240,9 +240,9 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                     <td className="py-1.5 pr-2 text-sm"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link></td>
                     {cells(repair, true, true)}
                   </tr>
-                  <tr className="row-total">
-                    <td className="py-1.5 pr-2 text-sm"><TotalLabel note="с ремонтом" /></td>
-                    {cells(all, false, true)}
+                  <tr className="border-b border-neutral-100">
+                    <td className="py-1.5 pr-2 text-xs text-neutral-600">Всего с ремонтом, ₽</td>
+                    {cells(all, true, true)}
                   </tr>
                 </>
               ) : null}

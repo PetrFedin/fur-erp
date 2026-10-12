@@ -17,6 +17,7 @@ html[data-theme="customer"] {
   --ui-accent: #ff4a1c;
   --ui-soft: #ffe9e0;
   --ui-accent-text: #b92e08;
+  --ui-field-bg: #fff1eb; /* подложка активного фильтра */
 
   /* нейтральная шкала → сине-серая; 900 (активные кнопки, сегменты, рамки выбранного, фокус, чекбоксы) → акцент */
   --color-neutral-50: #f3f4f7;

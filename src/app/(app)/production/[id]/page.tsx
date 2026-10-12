@@ -27,6 +27,7 @@ import { UsageRow, type EditableLotOption } from "./usage-row";
 import { ExpenseRow } from "./expense-row";
 import { WorkRow } from "./work-row";
 import { OrderNav } from "./order-nav";
+import { uniqueOrderCount } from "@/lib/tz-key";
 import { CostSummary, type WeightedGroup } from "./cost-summary";
 import { ParamsTable, type ParamsData, type ParamsOptions } from "./params-table";
 import { OrderTiles } from "./order-tiles";
@@ -89,8 +90,26 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   if (!order.materialUsages.some((u) => u.commission4)) c4 = "";
 
   // У нескольких заказов бывает один номер ТЗ (напр. ТЗ №88 — 4 строки): в заголовке добавляем модель, чтобы карточки не были «близнецами».
-  const sameTzCount = order.workOrderNumber ? await prisma.productionOrder.count({ where: { organizationId: orgId, workOrderNumber: order.workOrderNumber } }) : 0;
+  // Позиции одного ТЗ из документа (артикулы с общим номером ТЗ): «позиция 2 из 3» и ссылки на соседние.
+  const siblings = order.workOrderNumber
+    ? await prisma.productionOrder.findMany({
+        where: { organizationId: orgId, workOrderNumber: order.workOrderNumber },
+        orderBy: { number: "asc" },
+        select: { id: true, number: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
+      })
+    : [];
+  const sameTzCount = siblings.length;
+  const posIndex = siblings.findIndex((x) => x.id === order.id);
   const tzTitle = order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
+  const tzPositions = sameTzCount > 1 && posIndex >= 0
+    ? {
+        index: posIndex + 1,
+        total: sameTzCount,
+        prev: posIndex > 0 ? { id: siblings[posIndex - 1].id, label: `${articleLabel(siblings[posIndex - 1].productModel)} · ${siblings[posIndex - 1].number}` } : null,
+        next: posIndex < sameTzCount - 1 ? { id: siblings[posIndex + 1].id, label: `${articleLabel(siblings[posIndex + 1].productModel)} · ${siblings[posIndex + 1].number}` } : null,
+        all: siblings.map((x) => ({ id: x.id, label: `${articleLabel(x.productModel)} · ${x.number}`, current: x.id === order.id })),
+      }
+    : null;
   const tzSearch = encodeURIComponent(order.workOrderNumber ?? order.number);
 
   // Счётчики для ряда разделов ТЗ: записи именно по этому ТЗ (артикулу).
@@ -99,7 +118,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     prisma.fitting.count({ where: { productionOrderId: order.id } }),
     prisma.productionPlan.count({ where: { organizationId: orgId, OR: [{ modelId: order.productModelId }, { articleCode: { equals: order.productModel.name, mode: "insensitive" } }] } }),
     prisma.supplyPlanEntry.count({ where: { organizationId: orgId, productModelId: order.productModelId } }),
-    order.batchId ? prisma.productionOrder.count({ where: { organizationId: orgId, batchId: order.batchId } }) : Promise.resolve(null),
+    order.batchId ? prisma.productionOrder.findMany({ where: { organizationId: orgId, batchId: order.batchId }, select: { number: true, workOrderNumber: true } }).then(uniqueOrderCount) : Promise.resolve(null),
   ]);
   const shipmentCount = shipmentLines.length;
 
@@ -405,6 +424,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <div className="mt-2">
           <OrderNav
             tzLabel={tzTitle}
+            positions={tzPositions}
             batchNumber={order.batch?.number ?? null}
             batchCount={batchOrdersCount}
             shipments={shipmentCount}

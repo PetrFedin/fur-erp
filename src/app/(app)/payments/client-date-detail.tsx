@@ -1,3 +1,4 @@
+import { uniqueLabelCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/utils";
@@ -32,7 +33,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
             </dl>
             {owedGoods && owedGoods.length > 0 ? (
               <details className="mt-3 border-t border-neutral-100 pt-3 text-sm">
-                <summary className="cursor-pointer text-neutral-600 hover:text-neutral-900">{`Состав: ${owedGoods.length} ТЗ`}</summary>
+                <summary className="cursor-pointer text-neutral-600 hover:text-neutral-900">{`Состав: ${uniqueLabelCount(owedGoods.map((g) => ({ id: g.id, label: g.label })))} ТЗ`}</summary>
                 <p className="mt-1 text-xs text-neutral-500">ТЗ под авансы не назначены, поэтому оплачено показано условно: авансы поровну по доле работы каждого ТЗ.</p>
                 <div className="mt-2"><Goods goods={owedGoods} /></div>
               </details>
@@ -62,7 +63,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
               <>
                 <div className="mt-2"><SplitLine amount={r.amount} allocated={r.allocated} hidesNote={r.hidesNote} movedTo={r.movedTo} /></div>
                 <details className="mt-3 border-t border-neutral-100 pt-3 text-sm">
-                  <summary className="cursor-pointer text-neutral-600 hover:text-neutral-900">{`Состав: ${r.goods.length} ТЗ`}</summary>
+                  <summary className="cursor-pointer text-neutral-600 hover:text-neutral-900">{`Состав: ${uniqueLabelCount(r.goods.map((g) => ({ id: g.id, label: g.label })))} ТЗ`}</summary>
                   <div className="mt-2"><Goods goods={r.goods} /></div>
                 </details>
               </>

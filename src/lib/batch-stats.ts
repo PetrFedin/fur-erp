@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { extraInclOnly } from "@/lib/commission4";
 import { DEFAULT_COMMISSION4_MODE, type Commission4Mode } from "@/lib/commission4-mode";
 import { orderUnits } from "@/lib/production-totals";
+import { orderKey, uniqueOrderCount } from "@/lib/tz-key";
 import { classifyProduct } from "@/lib/product-category";
 
 /** Количество изделий ТЗ (production-totals.ts): выпуск у завершённого, план у ТЗ в работе. */
@@ -77,7 +78,10 @@ export function orderStat(o: BatchOrder, mode: Commission4Mode = DEFAULT_COMMISS
 }
 
 export type BatchTotals = {
+  /** Уникальные ТЗ партии (по номеру ТЗ из документа), без отменённых. */
   orders: number;
+  /** Позиции (записи, артикулы в ТЗ), без отменённых. */
+  items: number;
   /** Произведено: выпуск завершённых ТЗ партии. */
   producedUnits: Decimal;
   producedOrders: number;
@@ -100,7 +104,8 @@ export type BatchTotals = {
 
 export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAULT_COMMISSION4_MODE): BatchTotals {
   const live = orders.filter((o) => o.status !== "CANCELLED");
-  let pUnits = 0, pOrders = 0;
+  let pUnits = 0;
+  const pOrderKeys = new Set<string>();
   const wUnits = 0, wOrders = 0; // «в работе» отдельно не показываем: произведено = все ТЗ без отменённых и ремонта
   let cost = new Decimal(0);
   let work = new Decimal(0);
@@ -111,7 +116,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
   for (const o of live) {
     const s = orderStat(o, mode);
     // Всё, что в ТЗ, производится и учитывается (как на Главной): завершённые + в работе + запланированные; ремонт — не изделия.
-    if (!isRepairOrder(o)) { pOrders += 1; pUnits += orderUnits(o); }
+    if (!isRepairOrder(o)) { pOrderKeys.add(orderKey(o)); pUnits += orderUnits(o); }
     cost = cost.add(s.cost);
     work = work.add(s.work);
     for (const a of o.paymentAllocations) {
@@ -126,7 +131,7 @@ export function batchTotals(orders: BatchOrder[], mode: Commission4Mode = DEFAUL
   const paidGross = Array.from(pay.values()).reduce((s, v) => s.add(v), new Decimal(0));
   const unallocated = Array.from(rest.values()).reduce((s, v) => s.add(v), new Decimal(0));
   const paid = shared;
-  return { orders: live.length, producedUnits: new Decimal(pUnits.toFixed(3)), producedOrders: pOrders, inWorkUnits: new Decimal(wUnits.toFixed(3)), inWorkOrders: wOrders, cost, work, paid, remaining: work.sub(paid), paidGross, unallocated, c4Applies };
+  return { orders: uniqueOrderCount(live), items: live.length, producedUnits: new Decimal(pUnits.toFixed(3)), producedOrders: pOrderKeys.size, inWorkUnits: new Decimal(wUnits.toFixed(3)), inWorkOrders: wOrders, cost, work, paid, remaining: work.sub(paid), paidGross, unallocated, c4Applies };
 }
 
 /** Партии организации с их ТЗ (для списка партий и сгруппированного вида). */

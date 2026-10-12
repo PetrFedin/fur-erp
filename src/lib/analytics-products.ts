@@ -3,6 +3,7 @@
 import { compareModelNames } from "@/lib/model-code";
 import { compareSizes, UNDEFINED_CATEGORY } from "@/lib/product-category";
 import type { OrderRow } from "@/lib/analytics-orders";
+import { orderKey } from "@/lib/tz-key";
 import { applyShared, one, parseShared, sharedParams, type SP, type SharedFilters } from "@/lib/analytics-filters";
 import { computeMetrics, sortItems, type Metrics } from "@/lib/analytics-metrics";
 
@@ -156,6 +157,7 @@ export type Matrix = {
 /** Матрица «A × B»: единицы и себестоимость по паре значений. */
 export function buildMatrix(rows: OrderRow[], rowKey: GroupKey, colKey: GroupKey): Matrix {
   const cells = new Map<string, { units: number; costIncl: number; costExcl: number; orders: number }>();
+  const cellTz = new Map<string, Set<string>>();
   const rowTotals = new Map<string, { units: number; costIncl: number; costExcl: number }>();
   const colTotals = new Map<string, { units: number; costIncl: number; costExcl: number }>();
   for (const r of rows) {
@@ -166,7 +168,10 @@ export function buildMatrix(rows: OrderRow[], rowKey: GroupKey, colKey: GroupKey
     c.units += r.qty;
     c.costIncl += r.costIncl;
     c.costExcl += r.costExcl;
-    c.orders += 1;
+    const tz = cellTz.get(k) ?? new Set<string>();
+    tz.add(orderKey(r));
+    cellTz.set(k, tz);
+    c.orders = tz.size;
     cells.set(k, c);
     for (const [map, key] of [
       [rowTotals, a],

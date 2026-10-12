@@ -77,7 +77,7 @@ export type { ClientDebtRow };
 export type DashboardData = {
   c4: Commission4Mode;
   raw: { fur: Pair<FlowFigures>; lining: Pair<FlowFigures>; lots: number };
-  prod: { done: ProdTotals; work: ProdTotals };
+  prod: { done: ProdTotals; work: ProdTotals; /** Все ТЗ года: уникальные номера ТЗ считаются по всему набору, а не суммой «завершённые + в работе». */ all: ProdTotals };
   rawTable: RawTableRow[];
   rawTableTotal: CellsPair;
   years: YearRow[];
@@ -586,7 +586,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     syntheticLots,
     rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
     raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
-    prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))) },
+    prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },
     rawTable, rawTableTotal: rawTableTotalAll, years, debt,
     supplierCashPaid,
     clientDebts, clientDebtInfo: { allocated: clientDebt.allocated, unallocated: clientDebt.unallocated, unallocatedAll: clientDebt.unallocatedAll, unallocatedApplied: clientDebt.unallocatedApplied, unallocatedByKind: clientDebt.unallocatedByKind }, invoiceDeadlines, control, options, noColorLots,

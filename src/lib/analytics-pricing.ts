@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { OrderRow } from "@/lib/analytics-orders";
+import { orderKey, uniqueOrderCount } from "@/lib/tz-key";
 import { compareModelNames } from "@/lib/model-code";
 import { weightedPercent } from "@/lib/weighted";
 import { UNDEFINED_CATEGORY } from "@/lib/product-category";
@@ -108,7 +109,10 @@ export type PriceAgg = {
   rows: OrderRow[];
   /** Единые показатели строки (те же формулы, что на «Изделиях»). */
   m: Metrics;
+  /** Уникальные ТЗ (по номеру из документа). */
   orders: number;
+  /** Позиции (записи). */
+  items: number;
   units: number;
   costedOrders: number;
   unitsCosted: number;
@@ -163,9 +167,9 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
     const unitInc = costed.filter((r) => r.qty > 0).map((r) => r.costIncl / r.qty);
     const unitExc = costed.filter((r) => r.qty > 0).map((r) => r.costExcl / r.qty);
     const lotMap = new Map<string, LotAgg>();
+    const lotTz = new Map<string, Set<string>>(); // лот → уникальные ТЗ (по номеру из документа)
     // Лоты — по всем ТЗ с составом (не только с известной себестоимостью): молоток нужен и там, где себестоимость 0.
     for (const r of rows) {
-      const seen = new Set<string>();
       for (const l of r.lines) {
         const k = `${l.lotId}`;
         const a = lotMap.get(k) ?? {
@@ -189,8 +193,10 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
         a.qty += l.qty;
         a.incl += l.incl;
         a.excl += l.excl;
-        if (!seen.has(k)) a.orders += 1;
-        seen.add(k);
+        const tz = lotTz.get(k) ?? new Set<string>();
+        tz.add(orderKey(r));
+        lotTz.set(k, tz);
+        a.orders = tz.size;
         lotMap.set(k, a);
       }
     }
@@ -208,7 +214,8 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
       modelCount: modelIds.size,
       rows,
       m: computeMetrics(rows),
-      orders: rows.length,
+      orders: uniqueOrderCount(rows),
+      items: rows.length,
       units: sum(rows, (r) => r.qty),
       costedOrders: costed.length,
       unitsCosted: sum(costed, (r) => r.qty),
@@ -231,7 +238,7 @@ export function aggregatePricing(allRows: OrderRow[], view: PricingView, prices:
       lots: Array.from(lotMap.values()).sort((a, b) => Number(a.isLining) - Number(b.isLining) || b.incl - a.incl),
       price: view === "model" ? (prices.get(key) ?? null) : null,
       pricedModels: pricedIds.length,
-      inWorkOrders: work.filter((r) => keyOf(r) === key).length,
+      inWorkOrders: uniqueOrderCount(work.filter((r) => keyOf(r) === key)),
       noUsages: rows.filter((r) => r.usageCount === 0),
       noWork: rows.filter((r) => !(r.work > 0)),
       zeroCost: rows.filter((r) => !(r.costIncl > 0)),

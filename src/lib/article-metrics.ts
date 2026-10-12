@@ -16,7 +16,10 @@ export type FurKindStat = {
 };
 
 export type ArticleMetrics = {
+  /** Уникальные ТЗ (по номеру ТЗ из документа). */
   orders: number;
+  /** Позиции (записи). */
+  items: number;
   /** Произведено, шт. (все ТЗ без отменённых и ремонта). */
   qty: number;
   /** Мех по строкам списания: шкур и сумма (с 4% / без 4%). */
@@ -90,7 +93,8 @@ export function articleMetrics(os: DrillOrder[]): ArticleMetrics {
   const furKinds = Array.from(kinds.values()).sort((a, b) => b.on.incl - a.on.incl);
   const vatRows = Array.from(vat, ([rate, v]) => ({ rate, incl: v.incl, vat: v.incl - v.excl })).sort((a, b) => a.rate - b.rate);
   return {
-    orders: list.length,
+    orders: sI.orders,
+    items: list.length,
     qty,
     fur,
     furKinds,

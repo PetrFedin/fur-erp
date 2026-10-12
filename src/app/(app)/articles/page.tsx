@@ -1,3 +1,4 @@
+import { uniqueOrderCount } from "@/lib/tz-key";
 import { Fragment } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -118,7 +119,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       model: { name: m.name, category: m.category, salesCode: m.salesCode, salesName: m.salesName, sku: m.sku },
       group: groupOf(m.categoryRef?.group),
       isActive: m.isActive,
-      orderCount: os.length,
+      orderCount: uniqueOrderCount(os),
       qty, wipQty, wipIncl, wipExcl, stockQty, stockIncl, stockExcl,
       costIncl, costExcl, unitIncl, unitExcl,
       sellingPrice: price,

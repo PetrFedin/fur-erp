@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { applyTheme, parseTheme, type UiTheme } from "@/lib/ui-theme";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,11 @@ const ITEMS: { id: UiTheme; label: string }[] = [
 /** Сегмент «Привычный стиль | Текущий стиль»: пишет cookie, сразу меняет data-theme на <html>. */
 export function ThemeToggle({ initial, className }: { initial?: UiTheme; className?: string }) {
   const router = useRouter();
-  const [theme, setTheme] = useState<UiTheme>(() => initial ?? (typeof document !== "undefined" ? parseTheme(document.documentElement.dataset.theme) : "customer"));
+  // Начальное значение одинаково на сервере и в браузере (иначе «✓» и aria-pressed расходятся при гидратации); реальная тема подтягивается после монтирования.
+  const [theme, setTheme] = useState<UiTheme>(initial ?? "customer");
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => { if (!initial) setTheme(parseTheme(document.documentElement.dataset.theme)); }, [initial]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const pick = (t: UiTheme) => {
     if (t === theme) return;
     setTheme(t);

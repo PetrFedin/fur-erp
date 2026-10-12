@@ -144,7 +144,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
   // Ссылка «Править» сохраняет выбранные фильтры страницы.
   const backQs = new URLSearchParams([...pf.season.map((v) => ["season", v]), ...(pf.q ? [["q", pf.q]] : [])]).toString();
 
-  const factCell = (f: PlanFact) => f.orders.length;
+  const factCell = (f: PlanFact) => new Set(f.orders.map((o) => o.label)).size; // уникальные ТЗ (№ ТЗ из документа)
   const emptyPlan = plans.length === 0 && !initial && !pf.q && pf.season.length === 0;
 
   return (

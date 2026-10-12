@@ -1,3 +1,4 @@
+import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment } from "react";
 import Link from "next/link";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
@@ -763,7 +764,7 @@ export default async function PaymentsPage({
             back="/payments?tab=clients"
             rows={clientRows.filter((r) => r.iso === pdate).map((r) => ({ ...r, verifySlot: clientVerify[r.id] }))}
             owedGoods={owedOrders.map((o) => ({ id: o.id, number: o.label, label: o.label, model: o.article, qty: o.qty, batch: o.batch, article: o.article, fur: o.fur, work: o.work, paidTotal: owedWorkTotal > 0 ? (o.work * advancesTotal) / owedWorkTotal : 0, paid: null }))}
-            owedNote={{ orders: owedOrders.length, batches: Array.from(new Set(owedOrders.map((o) => o.batch).filter((b): b is number => b != null))).sort((x, y) => x - y).join(", ") }}
+            owedNote={{ orders: uniqueLabelCount(owedOrders), batches: Array.from(new Set(owedOrders.map((o) => o.batch).filter((b): b is number => b != null))).sort((x, y) => x - y).join(", ") }}
           />
         ) : (
           <>

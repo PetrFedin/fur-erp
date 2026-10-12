@@ -1,5 +1,6 @@
 "use client";
 
+import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
@@ -171,7 +172,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
               return (
                 <Fragment key={b ?? "none"}>
                   <tr className="bg-neutral-100 font-semibold">
-                    <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Без партии"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {list.length} ТЗ</td>
+                    <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Без партии"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(w)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(p)}</td>
@@ -195,7 +196,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
         </table>
       </div>
       <dl className="grid max-w-md gap-1 text-sm">
-        <div className="flex justify-between gap-4"><dt className="text-neutral-600">Не оплачено по ТЗ ({owed.length})</dt><dd className="tabular-nums">{rub(total)}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-neutral-600">Не оплачено по ТЗ ({uniqueLabelCount(owed)})</dt><dd className="tabular-nums">{rub(total)}</dd></div>
         {advances > 0.5 ? <div className="flex justify-between gap-4"><dt className="text-neutral-600">Минус авансы без привязки к ТЗ</dt><dd className="tabular-nums text-emerald-700">−{rub(advances)}</dd></div> : null}
         <div className="flex justify-between gap-4 border-t border-neutral-200 pt-1 font-semibold"><dt>К оплате</dt><dd className="tabular-nums text-amber-700">{rub(balance)}</dd></div>
       </dl>

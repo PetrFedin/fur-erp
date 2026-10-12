@@ -1,3 +1,4 @@
+import { itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
@@ -293,7 +294,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
             <TileHead>Произведено</TileHead>
             <TileValue>{formatQty(sOwn.m.units)} шт.</TileValue>
-            <TileCaption>{sOwn.m.orders} ТЗ · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива{repairUnits > 0 ? ` · ремонт ${formatQty(repairUnits)} шт. отдельно` : ""}</TileCaption>
+            <TileCaption>{tzCountText(sOwn.m.orders, sOwn.m.items)} · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива{repairUnits > 0 ? ` · ремонт ${formatQty(repairUnits)} шт. отдельно` : ""}</TileCaption>
             <TileList items={[
               { k: "Сделано", v: `${formatQty(sOwnDone.m.units)} шт.`, share: sOwn.m.units ? sOwnDone.m.units / sOwn.m.units : null },
               { k: "В работе", v: `${formatQty(sOwnWork.m.units)} шт.`, share: sOwn.m.units ? sOwnWork.m.units / sOwn.m.units : null },
@@ -375,7 +376,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       {/* Вид таблицы */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-neutral-500">
-          Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · {STATUS_LABEL[f.st]} · ТЗ: {total.orders} · единиц: {formatQty(total.units)}
+          Группировка: <b className="text-neutral-800">{GROUPS[f.g]}{f.g2 ? ` → ${GROUPS[f.g2]}` : ""}</b> · {STATUS_LABEL[f.st]} · ТЗ: {total.orders}{itemsSuffix(total.orders, total.items)} · единиц: {formatQty(total.units)}
           {total.units === 0 && <span className="ml-2 text-neutral-500">нет данных за выбранный год и фильтры</span>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

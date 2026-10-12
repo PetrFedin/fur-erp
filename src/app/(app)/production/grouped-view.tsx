@@ -1,3 +1,4 @@
+import { itemsSuffix } from "@/lib/tz-key";
 import Link from "next/link";
 import { batchLabel } from "@/lib/batch-label";
 import { ArticleName } from "@/components/article-name";
@@ -80,7 +81,7 @@ export function GroupedByBatch({
                 <span className="font-medium">Без партии</span>
               )}
               <span className="text-xs text-neutral-500">
-                ТЗ: {t.orders} · произведено: {formatQty(t.producedUnits.toString())}
+                ТЗ: {t.orders}{itemsSuffix(t.orders, t.items)} · произведено: {formatQty(t.producedUnits.toString())}
               </span>
               <span className="ml-auto text-xs text-neutral-600">
                 себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""} <b>{formatMoney(t.cost.toString())}</b> · работа <b>{formatMoney(t.work.toString())}</b> · оплачено{" "}

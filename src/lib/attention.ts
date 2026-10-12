@@ -1,3 +1,4 @@
+import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { PrismaClient } from "@prisma/client";
@@ -428,7 +429,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     }),
     db.productionBatch.findMany({
       where: { organizationId },
-      select: { id: true, number: true, name: true, year: true, orders: { where: { status: { not: "CANCELLED" } }, select: { id: true } } },
+      select: { id: true, number: true, name: true, year: true, orders: { where: { status: { not: "CANCELLED" } }, select: { id: true, number: true, workOrderNumber: true } } },
       orderBy: { number: "asc" },
     }),
     db.productionPayment.findMany({
@@ -549,7 +550,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     flag(
       "batch",
       b.id,
-      { title: `Партия ${b.number}${b.name ? ` «${b.name}»` : ""}`, sub: `${b.orders.length} ТЗ`, href: `/production/batches/${b.number}`, year: b.year ?? null },
+      { title: `Партия ${b.number}${b.name ? ` «${b.name}»` : ""}`, sub: tzCountText(uniqueOrderCount(b.orders), b.orders.length), href: `/production/batches/${b.number}`, year: b.year ?? null },
       { text: "оплат заказчика нет", priority: "yellow", group: "batch-no-pay" }
     );
   }

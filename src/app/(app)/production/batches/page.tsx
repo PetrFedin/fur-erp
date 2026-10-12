@@ -1,3 +1,4 @@
+import { positionsWord, itemsSuffix } from "@/lib/tz-key";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
@@ -245,6 +246,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 <Link href={`/production?batch=${b.number}`} className="hover:underline">
                   {t.orders}
                 </Link>
+                {t.items > t.orders ? <span className="ml-1 text-xs text-neutral-500">· {t.items} {positionsWord(t.items)}</span> : null}
               </Td>
               <Td>
                 {formatQty(t.producedUnits.toString())}
@@ -308,7 +310,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               fields={[
                 { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
-                { label: "ТЗ", value: <Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link> },
+                { label: "ТЗ", value: <><Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link>{itemsSuffix(t.orders, t.items)}</> },
                 { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
               ]}
               details={[

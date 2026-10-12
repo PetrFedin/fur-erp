@@ -1,3 +1,4 @@
+import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { STAGE_ORDER, STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
@@ -160,7 +161,7 @@ function MonthTable({ items, filters, my, href, cell, cardHref }: {
         <div id="cell" className="flex scroll-mt-4 flex-col gap-1.5 rounded-lg border border-neutral-300 bg-neutral-50 p-3">
           <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-neutral-800">
             {cCol === "*" ? "Все месяцы" : monthText(cCol, true)} · {cFur === "*" ? "все виды меха" : cFur}
-            <span className="font-normal text-neutral-600">{open.length} ТЗ · {formatQty(open.reduce((a, p) => a + sumOf(p.units as StageSums, false), 0))} шт.</span>
+            <span className="font-normal text-neutral-600">{tzCountText(uniqueOrderCount(open), open.length)} · {formatQty(open.reduce((a, p) => a + sumOf(p.units as StageSums, false), 0))} шт.</span>
             <Link href={href({ cell: "" })} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Свернуть</Link>
           </div>
           {open.map((p) => <PipeRow key={p.id} p={p} cardHref={cardHref(p.id)} />)}
@@ -225,7 +226,7 @@ function MonthGantt({ items, filters, my, href, cardHref, today, gall, gpage }: 
       rows.push(
         <div key={`h-${fur}`} className="flex border-b border-neutral-200 bg-neutral-100">
           <div className={`sticky left-0 z-10 ${LABEL} border-r border-neutral-200 bg-neutral-100 px-2 py-1.5 text-sm font-semibold`}>{fur}</div>
-          <div className="flex-1 px-2 py-1.5 text-xs text-neutral-600">{formatQty(sumOf(fr.total, false))} шт. · {fr.items.length} ТЗ</div>
+          <div className="flex-1 px-2 py-1.5 text-xs text-neutral-600">{formatQty(sumOf(fr.total, false))} шт. · {tzCountText(uniqueOrderCount(fr.items), fr.items.length)}</div>
         </div>,
       );
     }
@@ -299,7 +300,7 @@ function MonthGantt({ items, filters, my, href, cardHref, today, gall, gpage }: 
       )}
       {undated.length > 0 && (
         <div className="flex flex-col gap-1.5 rounded-lg border border-neutral-300 bg-neutral-50 p-3">
-          <div className="text-sm font-semibold text-neutral-800">Без даты <span className="font-normal text-neutral-600">{undated.length} ТЗ — ни старта, ни срока в данных нет</span></div>
+          <div className="text-sm font-semibold text-neutral-800">Без даты <span className="font-normal text-neutral-600">{tzCountText(uniqueOrderCount(undated.map((x) => x.p)), undated.length)} — ни старта, ни срока в данных нет</span></div>
           {undated.slice(0, gall ? undefined : 40).map(({ p }) => <PipeRow key={p.id} p={p} cardHref={cardHref(p.id)} />)}
           {!gall && undated.length > 40 && <Link href={href({ gall: "1", gp: "" })} className="text-xs text-blue-700 hover:underline">Показать все {undated.length}</Link>}
         </div>

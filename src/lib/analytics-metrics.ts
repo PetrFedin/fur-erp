@@ -2,9 +2,13 @@
 // (ТЗ, партия, категория, артикул, мех, размер, цвет, год, модель). Чистые функции без обращения к БД.
 // Среднее — ТОЛЬКО средневзвешенное (отношение сумм). Вес и знаменатель у каждого показателя свои — см. подсказки COLUMNS.
 import type { OrderRow } from "@/lib/analytics-orders";
+import { uniqueOrderCount } from "@/lib/tz-key";
 
 export type Metrics = {
+  /** Уникальные ТЗ (по номеру ТЗ из документа). */
   orders: number;
+  /** Позиции (записи, артикулы в ТЗ). */
+  items: number;
   units: number;
   /** Σ себестоимости системы (мех + подкладка + 4% по режиму + расходы) по ТЗ с известной себестоимостью, с НДС / без НДС. */
   unitsCosted: number;
@@ -67,7 +71,8 @@ export function computeMetrics(rows: OrderRow[]): Metrics {
       if (l.hammerExcl != null) hamLotIds.add(l.lotId);
     }
   return {
-    orders: rows.length,
+    orders: uniqueOrderCount(rows),
+    items: rows.length,
     units: sum(rows, (r) => r.qty),
     unitsCosted: sum(costed, (r) => r.qty),
     costIncl: sum(costed, (r) => r.costIncl),
@@ -164,7 +169,7 @@ export type ColDef = {
 };
 
 export const COLUMNS: Record<ColKey, ColDef> = {
-  orders: { label: "ТЗ", basic: true, hint: "Сколько ТЗ в строке (отменённые не считаются).", sort: (m) => m.orders },
+  orders: { label: "ТЗ", basic: true, hint: "Сколько ТЗ в строке: уникальные номера ТЗ из документа (ТЗ с несколькими артикулами — одно ТЗ); отменённые не считаются. Позиции (артикулы в ТЗ) — отдельно.", sort: (m) => m.orders },
   units: { label: "Единиц", basic: true, hint: "Σ изделий: у завершённых ТЗ — произведено, у ТЗ в работе и запланированных — план (отдельно «Произведено» и «В работе» — по статусу ТЗ).", sort: (m) => m.units },
   share: { label: "Доля", basic: true, hint: "Единицы строки ÷ единицы всех строк таблицы.", sort: (m, t) => ratio(m.units, t.units) },
   skinsUnit: {

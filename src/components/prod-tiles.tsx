@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
+import { tzCountText } from "@/lib/tz-key";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
@@ -33,7 +34,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         <a {...link(`#${treeId}`)} aria-label="Произведено — перейти к составу">
           <TileHead>Произведено</TileHead>
           <TileValue>{formatQty(own.qty)} шт.</TileValue>
-          <TileCaption>{own.orders} ТЗ · состав ниже →{all.repairOrders > 0 ? ` · ремонт ${all.repairOrders} ТЗ отдельно` : ""}</TileCaption>
+          <TileCaption>{tzCountText(own.orders, own.items)} · состав ниже →{all.repairOrders > 0 ? ` · ремонт ${all.repairOrders} ТЗ отдельно` : ""}</TileCaption>
           <TileList items={Array.from(years, ([k, q]) => ({ k, v: `${formatQty(q)} шт.`, share: share(q, own.qty) }))} />
         </a>
         <div className="absolute right-3 top-3">

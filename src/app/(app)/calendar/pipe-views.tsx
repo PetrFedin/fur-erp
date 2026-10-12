@@ -1,3 +1,4 @@
+import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
@@ -210,7 +211,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
         <Card id="cell">
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2 text-sm">
-              {cFur === "*" ? "Все виды меха" : cFur} · {cStage === "*" ? "все стадии" : STAGE_STYLES[cStage as Stage]?.label} · {open.length} ТЗ
+              {cFur === "*" ? "Все виды меха" : cFur} · {cStage === "*" ? "все стадии" : STAGE_STYLES[cStage as Stage]?.label} · {tzCountText(uniqueOrderCount(open), open.length)}
               <Link href={href({ cell: "" })} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Закрыть</Link>
             </CardTitle>
           </CardHeader>

@@ -389,8 +389,8 @@ export function FurSelectionTotal({
           <tbody>
             {topRows.map((r) => renderNode(r, 0, "g"))}
             {table.rows.length > 0 && (
-              <tr data-total className="border-t-2 border-neutral-300 bg-neutral-100/70 text-[14px] font-semibold">
-                <td className="sticky left-0 z-10 bg-neutral-100 px-3 py-2.5 text-left font-semibold">Всего</td>
+              <tr data-total className="row-total text-[14px]">
+                <td className="sticky left-0 z-10 px-3 py-2.5 text-left font-semibold">Всего</td>
                 {cells(t, { strong: true, altUsed: true })}
               </tr>
             )}

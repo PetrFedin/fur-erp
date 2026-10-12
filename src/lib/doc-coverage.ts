@@ -1,3 +1,4 @@
+import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { auctionName } from "@/lib/auction-payments";
@@ -285,7 +286,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     }),
     db.productionBatch.findMany({
       where: { organizationId },
-      select: { id: true, number: true, name: true, year: true, orders: { where: { status: { not: "CANCELLED" } }, select: { id: true } } },
+      select: { id: true, number: true, name: true, year: true, orders: { where: { status: { not: "CANCELLED" } }, select: { id: true, number: true, workOrderNumber: true } } },
       orderBy: { number: "asc" },
     }),
     db.productionOrder.findMany({
@@ -447,7 +448,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     finish(
       {
         id: b.id, section: "batches", number: String(b.number), title: `Партия ${b.number}`,
-        sub: `${b.name ? `«${b.name}» · ` : ""}${b.orders.length} ТЗ`,
+        sub: `${b.name ? `«${b.name}» · ` : ""}${tzCountText(uniqueOrderCount(b.orders), b.orders.length)}`,
         href: `/production/batches/${b.number}`, year: b.year, auction: null,
         groupKey: "batches", groupTitle: "Партии производства", groupSort: 0,
       },

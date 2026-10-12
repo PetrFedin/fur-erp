@@ -1,3 +1,4 @@
+import { itemsSuffix } from "@/lib/tz-key";
 import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { IntegrityBanner } from "@/components/integrity-banner";
@@ -211,8 +212,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <Card>
         <CardHeader>
           <CardTitle>
-            ТЗ партии ({t.orders}
-            {batch.orders.length > t.orders ? ` + ${batch.orders.length - t.orders} отменено` : ""})
+            ТЗ партии ({t.orders}{itemsSuffix(t.orders, t.items)}
+            {batch.orders.length > t.items ? ` + ${batch.orders.length - t.items} отменено` : ""})
           </CardTitle>
         </CardHeader>
         <CardContent>

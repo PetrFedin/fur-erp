@@ -231,8 +231,8 @@ export function RawBlock({ rows, fur, lining, c4, lots, info, orderFilters }: { 
   return (
     <section aria-labelledby="dash-raw">
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
-      <WidgetRow id="raw" title={`Сырьё · ${lots} лотов`} titleClass="text-sm font-semibold" headerExtra={extra}
-        headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+      <WidgetRow id="raw" title="Сырьё" titleClass="text-sm font-semibold" headerExtra={extra}
+        headerEnd={<Link href="/lots" title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
         <div className="raw-row">
           {groups.map((g, i) => (
             <Fragment key={g.view}>

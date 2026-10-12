@@ -8,6 +8,7 @@ import { NO_GROUP } from "@/lib/category-groups";
 import type { DrillOrder, DrillLine } from "@/lib/dashboard-drill";
 import type { YearFilter } from "@/lib/year-filter";
 import { COMMISSION_RATE } from "@/lib/commission4-const";
+import { orderKey } from "@/lib/tz-key";
 
 export const ORDER_STATUS_LABELS: Record<string, string> = { PLANNED: "Запланирован", IN_PROGRESS: "В работе", COMPLETED: "Завершён", CANCELLED: "Отменён" };
 
@@ -103,17 +104,21 @@ export function orderMatches(o: OrderRow, f: DashFilters, aucIds: Set<string> | 
 /** Ремонт — не выпуск изделий: в штуках и числе ТЗ не считается, учитывается отдельно (затраты остаются в себестоимости). */
 export const REPAIR_CATEGORY = "Ремонт";
 
-export type ProdTotals = { repairOrders: number; repairQty: number; repairCostIncl: number; repairCostExcl: number; orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number; furExcl: number; liningExcl: number; c4Excl: number; expenses: number };
+export type ProdTotals = { repairItems: number; items: number; repairOrders: number; repairQty: number; repairCostIncl: number; repairCostExcl: number; orders: number; qty: number; costIncl: number; costExcl: number; workSum: number; furIncl: number; liningIncl: number; c4Incl: number; furExcl: number; liningExcl: number; c4Excl: number; expenses: number };
 
 /** Сводные числа по ТЗ: «произведено» — завершённые, «в работе» — запланированные и в работе. */
 export function prodTotals(rows: OrderRow[]): ProdTotals {
-  const t: ProdTotals = { repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0, furExcl: 0, liningExcl: 0, c4Excl: 0, expenses: 0 };
+  const t: ProdTotals = { repairItems: 0, items: 0, repairOrders: 0, repairQty: 0, repairCostIncl: 0, repairCostExcl: 0, orders: 0, qty: 0, costIncl: 0, costExcl: 0, workSum: 0, furIncl: 0, liningIncl: 0, c4Incl: 0, furExcl: 0, liningExcl: 0, c4Excl: 0, expenses: 0 };
+  const own = new Set<string>(), rep = new Set<string>();
   for (const o of rows) {
-    if (o.category === REPAIR_CATEGORY) { t.repairOrders += 1; t.repairQty += o.qty; t.repairCostIncl += o.costIncl; t.repairCostExcl += o.costExcl; } else { t.orders += 1; t.qty += o.qty; }
+    if (o.category === REPAIR_CATEGORY) { t.repairItems += 1; rep.add(orderKey({ number: o.number, workOrderNumber: o.workOrderNumber })); t.repairQty += o.qty; t.repairCostIncl += o.costIncl; t.repairCostExcl += o.costExcl; } else { t.items += 1; own.add(orderKey({ number: o.number, workOrderNumber: o.workOrderNumber })); t.qty += o.qty; }
     t.costIncl += o.costIncl; t.costExcl += o.costExcl; t.workSum += o.work;
     t.furIncl += o.furIncl; t.liningIncl += o.liningIncl; t.c4Incl += o.c4Incl;
     t.furExcl += o.furExcl; t.liningExcl += o.liningExcl; t.c4Excl += o.c4Excl; t.expenses += o.expenses;
   }
+  // ТЗ — уникальные номера из документа; items — позиции (записи). Суммы и штуки считаются по записям.
+  t.orders = own.size;
+  t.repairOrders = rep.size;
   return t;
 }
 
