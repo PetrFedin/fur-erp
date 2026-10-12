@@ -1,6 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
 import { STAGE_ORDER, STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
 import { fmtRu } from "@/lib/calendar-grid";
@@ -8,6 +7,7 @@ import { pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { buildMonthTable, cellItems, dateSpan, sumOf, type StageSums, type TableFilters } from "@/lib/calendar-table";
 import { formatQty } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
+import { BTN } from "./ui";
 
 type HrefFn = (patch: Record<string, string | string[]>) => string;
 
@@ -91,22 +91,20 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
     )],
   ];
   return (
-    <Card className={p.overdue ? "border-red-500" : ""}>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-sm">
-          <span>{p.articleLabel} · {pipeTitle(p)}</span> <StageChip stage={p.stage} word={p.stageWord} />
-          <Link href={closeHref} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Закрыть</Link>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
+    <section aria-label={`Карточка ТЗ ${pipeTitle(p)}`} className={`rounded-lg border bg-white p-3 ${p.overdue ? "border-red-500" : "border-neutral-200"}`}>
+      <h3 className="mb-2 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 text-base font-semibold">
+        <span>{p.articleLabel} · {pipeTitle(p)}</span> <StageChip stage={p.stage} word={p.stageWord} />
+        <Link href={closeHref} className={BTN + " ml-auto"} aria-label="Закрыть карточку ТЗ">Закрыть</Link>
+      </h3>
+      <div className="flex flex-col gap-2 text-sm">
         <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-3 gap-y-1">
           {rows.map(([k, v]) => (<div key={k} className="contents"><dt className="text-xs text-neutral-500">{k}</dt><dd className="min-w-0 break-words text-xs">{v}</dd></div>))}
         </dl>
         {eventHref && p.eventIds.length > 0 && (
           <p className="text-xs text-neutral-500">События календаря по этому ТЗ: {p.eventIds.map((id, i) => <Link key={id} href={eventHref(id)} className="mr-2 text-blue-700 hover:underline">#{i + 1}</Link>)}</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -154,7 +152,9 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
     items.filter((p) => (fur === "*" || p.fur === fur) && cellItems([p], filters, true, "*", "*").length > 0 && (stage === "*" ? true : (p.units[stage] ?? 0) > 0 && (!filters.stage.length || filters.stage.includes(stage))));
   const open = cStage && cFur ? rowItems(cFur, cStage as Stage | "*") : [];
   const stages = STAGE_ORDER.filter((k) => !filters.stage.length || filters.stage.includes(k));
-  const th = "whitespace-nowrap bg-neutral-50 px-2 py-1 text-right text-xs font-medium";
+  const th = "whitespace-nowrap bg-white px-1.5 py-1.5 text-right text-xs font-medium";
+  const td = "px-1.5 py-1.5 text-right align-top text-xs tabular-nums whitespace-nowrap";
+  const BL = " border-l border-neutral-200";
   const link = (stage: string, fur: string) => href({ cell: `${stage}~${fur}` }) + "#cell";
   const span = (fur: string, stage: Stage) => {
     const its = rowItems(fur, stage);
@@ -162,7 +162,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
     const nod = its.filter((p) => !p.expected).length;
     if (!sp && nod === 0) return null;
     return (
-      <div className="text-[11px] leading-tight text-neutral-400">
+      <div className="whitespace-normal text-[11px] font-normal leading-tight text-neutral-500">
         {sp ? (sp.min === sp.max ? fmtRu(sp.min) : `${fmtRu(sp.min)} – ${fmtRu(sp.max)}`) : "срока нет"}
         {nod > 0 && sp ? ` · без срока ${nod}` : ""}
       </div>
@@ -170,55 +170,62 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
   };
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full min-w-max border-collapse text-sm">
+      <div className="scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+        <table className="w-full min-w-[760px] table-fixed text-left">
+          <colgroup>
+            <col style={{ width: 170 }} />
+            {stages.map((k) => <col key={k} />)}
+            <col />
+          </colgroup>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-neutral-50 px-2 py-1 text-left text-xs font-medium text-neutral-500">Вид меха</th>
-              {stages.map((k) => <th key={k} className={`${th} ${STAGE_STYLES[k].text}`} title={STAGE_STYLES[k].hint}>{STAGE_STYLES[k].label}{k !== "repair" && k !== "shipped" ? " →" : ""}</th>)}
-              <th className={`${th} border-l border-neutral-200 text-neutral-500`}>Всего, шт.</th>
+              <th className="sticky left-0 z-10 bg-white" />
+              <th colSpan={Math.max(1, stages.length)} className={`bg-white px-1.5 pb-0.5 pt-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500${BL}`}>Путь изделия: план → отгрузка</th>
+              <th className={`bg-white px-1.5 pb-0.5 pt-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500${BL}`}>Итого</th>
+            </tr>
+            <tr className="border-b border-neutral-200">
+              <th className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Вид меха</th>
+              {stages.map((k, i) => <th key={k} className={`${th} ${i === 0 ? BL : ""} ${STAGE_STYLES[k].text}`} title={STAGE_STYLES[k].hint}>{STAGE_STYLES[k].label}, шт.</th>)}
+              <th className={`${th} text-neutral-500${BL}`}>Всего, шт.</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
             {t.rows.map((r) => (
               <tr key={r.fur}>
-                <th scope="row" className="sticky left-0 z-10 max-w-44 truncate bg-white px-2 py-1 text-left text-xs font-medium" title={r.fur}>{r.fur}</th>
-                {stages.map((k) => (
-                  <td key={k} className={`px-2 py-1 text-right align-top text-xs ${cStage === k && cFur === r.fur ? "bg-neutral-100" : ""}`}>
-                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block tabular-nums hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-300">—</span>}
+                <th scope="row" className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium" title={r.fur}>
+                  <span className="flex items-center gap-1"><span className="min-w-0 flex-1 truncate">{r.fur}</span><Link href={`/production?fur=${encodeURIComponent(r.fur)}`} title="Открыть в «ТЗ» с этим видом меха" aria-label={`Открыть в ТЗ: ${r.fur}`} className="text-[10px] text-neutral-400 hover:text-neutral-900">↗</Link></span>
+                </th>
+                {stages.map((k, i) => (
+                  <td key={k} className={`${td} ${i === 0 ? BL : ""} ${cStage === k && cFur === r.fur ? "bg-[var(--ui-soft)]" : ""}`}>
+                    {r.total[k] > 0 ? <Link href={link(k, r.fur)} className={`block hover:underline ${STAGE_STYLES[k].text}`}>{formatQty(r.total[k])}{span(r.fur, k)}</Link> : <span className="text-neutral-400">—</span>}
                   </td>
                 ))}
-                <td className="border-l border-neutral-200 px-2 py-1 text-right align-top text-xs font-medium tabular-nums"><Link href={link("*", r.fur)} className="hover:underline">{formatQty(stages.reduce((a, k) => a + r.total[k], 0))}</Link></td>
+                <td className={`${td} font-medium${BL}`}><Link href={link("*", r.fur)} className="hover:underline">{formatQty(stages.reduce((a, k) => a + r.total[k], 0))}</Link></td>
               </tr>
             ))}
             {t.rows.length === 0 && <tr><td colSpan={stages.length + 2} className="px-2 py-4 text-center text-xs text-neutral-500">Нет данных по выбранным фильтрам.</td></tr>}
           </tbody>
           <tfoot>
             <tr className="row-total">
-              <th scope="row" className="sticky left-0 z-10 bg-neutral-50 px-2 py-1 text-left text-xs"><TotalLabel unit="шт." /></th>
-              {stages.map((k) => <td key={k} className={`px-2 py-1 text-right text-xs tabular-nums ${STAGE_STYLES[k].text}`}>{t.grand[k] > 0 ? formatQty(t.grand[k]) : <span className="text-neutral-300">—</span>}</td>)}
-              <td className="border-l border-neutral-200 px-2 py-1 text-right text-xs tabular-nums">{formatQty(stages.reduce((a, k) => a + t.grand[k], 0))}</td>
+              <th scope="row" className="sticky left-0 z-10 px-2 py-1.5 text-left text-xs"><TotalLabel unit="шт." /></th>
+              {stages.map((k, i) => <td key={k} className={`${td}${i === 0 ? BL : ""}`}>{t.grand[k] > 0 ? formatQty(t.grand[k]) : <span className="opacity-60">—</span>}</td>)}
+              <td className={`${td}${BL}`}>{formatQty(stages.reduce((a, k) => a + t.grand[k], 0))}</td>
             </tr>
           </tfoot>
         </table>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <StageLegend />
-        <span className="text-neutral-700">Всего, шт. без ремонта: <b className="tabular-nums">{formatQty(sumOf(t.grand, false))}</b></span>
-        <InfoHint wide>Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «Произведено» не входит.</InfoHint>
+        <InfoHint wide label="Как читать стадии">Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «Произведено» не входит. Число изделий без ремонта: {formatQty(sumOf(t.grand, false))} шт.</InfoHint>
       </div>
       {open.length > 0 && (
-        <Card id="cell">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2 text-sm">
-              {cFur === "*" ? "Все виды меха" : cFur} · {cStage === "*" ? "все стадии" : STAGE_STYLES[cStage as Stage]?.label} · {tzCountText(uniqueOrderCount(open), open.length)}
-              <Link href={href({ cell: "" })} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Закрыть</Link>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1">
-            {open.map((p) => <PipeRow key={p.id} p={p} cardHref={cardHref(p.id)} />)}
-          </CardContent>
-        </Card>
+        <section id="cell" aria-label="ТЗ ячейки" className="flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-3">
+          <h3 className="mb-1 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 text-sm font-semibold">
+            {cFur === "*" ? "Все виды меха" : cFur} · {cStage === "*" ? "все стадии" : STAGE_STYLES[cStage as Stage]?.label} · <span className="font-normal text-neutral-500">{tzCountText(uniqueOrderCount(open), open.length)}</span>
+            <Link href={href({ cell: "" })} className={BTN + " ml-auto"}>Закрыть</Link>
+          </h3>
+          {open.map((p) => <PipeRow key={p.id} p={p} cardHref={cardHref(p.id)} />)}
+        </section>
       )}
     </div>
   );
