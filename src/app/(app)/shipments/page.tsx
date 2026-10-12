@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { formatDate, formatQty } from "@/lib/utils";
+import { Dash } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
+import { SummaryTiles } from "../production/summary-tiles";
 import { SHIPMENT_STATUS, summarizeLines, isoDay, todayIso } from "@/lib/shipments";
 import type { Prisma } from "@prisma/client";
 import { getYearFilter, yearRange } from "@/lib/year-filter";
@@ -90,6 +93,15 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
     const d = a.plannedDate.getTime() - b.plannedDate.getTime();
     return rank(a.status) === 0 ? d : -d;
   });
+  const qtyOf = (sh: (typeof rows)[number]) => sh.lines.reduce((a, l) => a + l.quantity, 0);
+  const planned = rows.filter((r) => r.status === "PLANNED");
+  const shipped = rows.filter((r) => r.status === "SHIPPED");
+  const plannedQty = planned.reduce((a, r) => a + qtyOf(r), 0);
+  const shippedQty = shipped.reduce((a, r) => a + qtyOf(r), 0);
+  const plannedCount = planned.length;
+  const shippedCount = shipped.length;
+  const overdueCount = planned.filter((r) => isoDay(r.plannedDate) < today).length;
+  const totalQty = rows.reduce((a, r) => a + qtyOf(r), 0);
   const hasFilters = Boolean(f.status.length || f.year.length || f.q || f.from || f.to || f.model.length);
   const isEmpty = rows.length === 0 && !hasFilters && year === "all";
 
@@ -121,15 +133,24 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         </div>
       ) : (
         <>
-      <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm">
-        На ближайшие 7 дней:{" "}
-        <span className="font-semibold">
-          {upcoming.length} {plural(upcoming.length, "отгрузка", "отгрузки", "отгрузок")}, {formatQty(upcomingQty)} шт.
-        </span>
-      </div>
+      <SummaryTiles
+        id="shipments"
+        title="Отгрузки — итоги"
+        linkHref="/production"
+        linkLabel="→ ТЗ"
+        tiles={[
+          { key: "all", label: "Отгрузок", value: rows.length ? formatQty(rows.length) : <Dash />, caption: hasFilters ? "по выбранным фильтрам" : "за выбранный год" },
+          { key: "planned", label: "Запланировано, шт.", value: plannedQty ? formatQty(plannedQty) : <Dash />, caption: plannedCount ? `${plannedCount} ${plural(plannedCount, "отгрузка", "отгрузки", "отгрузок")}` : undefined, href: "/shipments?status=PLANNED" },
+          { key: "shipped", label: "Отгружено, шт.", value: shippedQty ? formatQty(shippedQty) : <Dash />, caption: shippedCount ? `${shippedCount} ${plural(shippedCount, "отгрузка", "отгрузки", "отгрузок")}` : undefined, href: "/shipments?status=SHIPPED" },
+          { key: "overdue", label: "Просрочено", value: overdueCount ? formatQty(overdueCount) : <Dash />, caption: overdueCount ? "плановая дата прошла" : undefined, tone: overdueCount ? "text-red-700" : undefined },
+          { key: "week", label: "На ближайшие 7 дней", value: upcoming.length ? formatQty(upcoming.length) : <Dash />, caption: upcoming.length ? `${formatQty(upcomingQty)} шт.` : undefined, hint: <p>Запланированные отгрузки на ближайшие 7 дней; от года и фильтров не зависит.</p> },
+        ]}
+      />
 
       <FilterBar
         title="Фильтры отгрузок"
+        oneRow
+        hideChips
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
           { type: "multi", name: "status", label: "Статус", options: Object.entries(SHIPMENT_STATUS).map(([k, v]) => ({ value: k, label: v.label })), allLabel: "Все статусы" },
@@ -146,7 +167,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             <Th>Плановая дата</Th>
             <Th>Заказчик</Th>
             <Th>ТЗ и что отгружается</Th>
-            <Th>Кол-во, шт.</Th>
+            <Th className="text-right">Кол-во, шт.</Th>
             <Th>Статус</Th>
             <Th>Фактическая дата</Th>
           </Tr>
@@ -170,7 +191,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
                     <div key={t}>{t}</div>
                   ))}
                 </Td>
-                <Td className="font-medium">{formatQty(qty)}</Td>
+                <Td className="text-right font-medium tabular-nums">{qty ? formatQty(qty) : <Dash />}</Td>
                 <Td>
                   <Badge variant={st.variant}>{st.label}</Badge>
                 </Td>
@@ -178,6 +199,13 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
               </Tr>
             );
           })}
+          {rows.length > 0 && (
+            <Tr className="row-total">
+              <Td colSpan={3}><TotalLabel unit="шт." /></Td>
+              <Td className="text-right tabular-nums">{formatQty(totalQty)}</Td>
+              <Td colSpan={2} />
+            </Tr>
+          )}
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={6} className="py-8 text-center text-neutral-500">

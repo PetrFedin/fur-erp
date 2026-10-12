@@ -1,4 +1,6 @@
-import { itemsSuffix } from "@/lib/tz-key";
+import { itemsSuffix, tzCountText } from "@/lib/tz-key";
+import { TotalLabel } from "@/components/total-label";
+import { Dash } from "@/components/tree-table";
 import { InfoHint } from "@/components/info-hint";
 import Link from "next/link";
 import { IntegrityBanner } from "@/components/integrity-banner";
@@ -170,6 +172,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         treeId="batch-tree"
         id="batch"
         title="Партия — итоги"
+        headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>}
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
@@ -225,12 +228,12 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Шт.</Th>
                 <Th>Статус</Th>
                 <Th className="hidden sm:table-cell">
-                  Себестоимость{t.c4Applies ? c4Suffix(c4Mode) : ""}
+                  Себестоимость, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
                   <InfoHint label="Что значит 4%" wide>4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
                 </Th>
-                <Th className="hidden md:table-cell">Работа</Th>
-                <Th className="hidden md:table-cell">Оплачено</Th>
-                <Th className="hidden md:table-cell">Остаток</Th>
+                <Th className="hidden md:table-cell">Работа, ₽</Th>
+                <Th className="hidden md:table-cell">Оплачено, ₽</Th>
+                <Th className="hidden md:table-cell">Остаток, ₽</Th>
                 <Th className="hidden md:table-cell">НДС</Th>
               </Tr>
             </Thead>
@@ -265,6 +268,19 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   </Tr>
                 );
               })}
+              {orders.length > 0 && (
+                <Tr className="row-total">
+                  <Td><TotalLabel unit="₽" /></Td>
+                  <Td className="text-xs">{tzCountText(t.orders, t.items)}</Td>
+                  <Td>{t.producedUnits.isZero() ? <Dash /> : formatQty(t.producedUnits.toString())}</Td>
+                  <Td />
+                  <Td className="hidden whitespace-nowrap sm:table-cell">{t.cost.isZero() ? <Dash /> : formatMoney(t.cost.toString())}</Td>
+                  <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? <Dash /> : formatMoney(t.work.toString())}</Td>
+                  <Td className="hidden whitespace-nowrap md:table-cell">{t.paid.isZero() ? <Dash /> : formatMoney(t.paid.toString())}</Td>
+                  <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() && t.paid.isZero() ? <Dash /> : formatMoney(t.remaining.toString())}</Td>
+                  <Td className="hidden md:table-cell" />
+                </Tr>
+              )}
               {orders.length === 0 && (
                 <Tr>
                   <Td colSpan={9} className="py-6 text-center text-neutral-500">

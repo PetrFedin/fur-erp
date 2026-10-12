@@ -4,7 +4,7 @@ import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { orderKey, articlesWord, positionsWord } from "@/lib/tz-key";
+import { orderKey, articlesWord, tzCountText } from "@/lib/tz-key";
 import { TzGroupRows } from "./tz-group-rows";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -83,6 +83,10 @@ const PROD_FILTERS = defineFilters({
   }),
 });
 export const metadata = { title: "ТЗ" };
+
+// Надзаголовки блоков колонок и тонкая вертикальная линия слева у первой колонки блока.
+const GH = "px-3 pt-2 pb-0.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
+const BLH = " border-l border-neutral-200";
 
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
   const session = await requireSession();
@@ -429,12 +433,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     <span className="block truncate text-xs text-neutral-500">{[o.productModel.category?.trim(), orderColorNames(o).join("; "), showClient ? o.client?.name : ""].filter(Boolean).join(" · ")}</span>
                   </Link>
                 </Td>
-                <Td className={num}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
+                <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatQty(st.hides) : dash}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}{sub(st.furNoC4)}</Link></Td>
+                <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}{sub(st.furNoC4)}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatQty(st.liningQty) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}{sub(st.liningNoC4)}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.work > 0 ? formatMoney(Math.round(st.work)) : dash}</Link></Td>
+                <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.work > 0 ? formatMoney(Math.round(st.work)) : dash}</Link></Td>
                 <Td className={`${num} font-medium`}>
                   <Link href={href} className={link}>
                     {full.incl.isZero() ? dash : <Money incl={full.incl} excl={full.excl} />}
@@ -511,12 +515,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <>
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
-            <Td className={num}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
+            <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
             <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : dash}</span></Td>
-            <Td className={num}><span className={link}>{tot.fur.incl.isZero() ? dash : <Money incl={tot.fur.incl} excl={tot.fur.excl} />}</span></Td>
+            <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.fur.incl.isZero() ? dash : <Money incl={tot.fur.incl} excl={tot.fur.excl} />}</span></Td>
             <Td className={num}><span className={link}>{tot.liningQty > 0 ? formatQty(tot.liningQty) : dash}</span></Td>
             <Td className={num}><span className={link}>{tot.lining.incl.isZero() ? dash : <Money incl={tot.lining.incl} excl={tot.lining.excl} />}</span></Td>
-            <Td className={num}><span className={link}>{tot.work > 0 ? formatMoney(Math.round(tot.work)) : dash}</span></Td>
+            <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.work > 0 ? formatMoney(Math.round(tot.work)) : dash}</span></Td>
             <Td className={`${num} font-medium`}><span className={link}>{tot.full.incl.isZero() ? dash : <Money incl={tot.full.incl} excl={tot.full.excl} />}</span></Td>
             <Td className={cell}><span className={link} /></Td>
           </>
@@ -539,46 +543,50 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
         {/* Телефон: главное действие — первым и на всю ширину. */}
         <div className="flex flex-wrap items-center gap-2 max-md:w-full">
-          {canEdit && <Link href="/plan/seasons" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>Сезоны ТЗ</Link>}
-          {canEdit && <Link href="/production/import" className={`${buttonVariants({ variant: "outline" })} max-md:flex-1`}>Загрузить ТЗ</Link>}
+          {canEdit && <Link href="/plan/seasons" className={`${buttonVariants({ variant: "outline" })} btn-accent max-md:flex-1`}>Сезоны ТЗ</Link>}
+          {canEdit && <Link href="/production/import" className={`${buttonVariants({ variant: "outline" })} btn-accent max-md:flex-1`}>Загрузить ТЗ</Link>}
           {canEdit && (
-            <Link href="/production/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
+            <Link href="/production/new" className={`${buttonVariants()} btn-accent max-md:order-first max-md:w-full`}>
               + Новое ТЗ
             </Link>
           )}
         </div>
       </div>
 
-      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" />
+      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Вид списка">
-        <span className="text-xs text-neutral-500">Вид:</span>
-        {(
-          [
-            [false, "Списком"],
-            [true, "По партиям пошива"],
-          ] as const
-        ).map(([g, text]) => {
-          // Вид переключается без потери фильтров.
-          const href = filterHref(PROD_FILTERS, "/production", f, { view: g ? "batches" : "" });
-          return (
-            <Link
-              key={text}
-              href={href}
-              aria-current={grouped === g ? "page" : undefined}
-              className={
-                "rounded-md border px-3 py-1 max-md:inline-flex max-md:min-h-8 max-md:items-center " +
-                (grouped === g ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-              }
-            >
-              {text}
-            </Link>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Вид списка">
+        <span className="text-neutral-500">Вид:</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-neutral-300">
+          {(
+            [
+              [false, "Списком"],
+              [true, "По партиям пошива"],
+            ] as const
+          ).map(([g, text]) => {
+            // Вид переключается без потери фильтров.
+            const href = filterHref(PROD_FILTERS, "/production", f, { view: g ? "batches" : "" });
+            return (
+              <Link
+                key={text}
+                href={href}
+                aria-current={grouped === g ? "page" : undefined}
+                className={
+                  "px-3 py-1.5 max-md:inline-flex max-md:min-h-9 max-md:items-center " +
+                  (grouped === g ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-100")
+                }
+              >
+                {text}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       <FilterBar
         title="Фильтры производства"
+        oneRow
+        hideChips
         controls={[
           { type: "text", name: "q", label: "№ ТЗ / поиск", placeholder: "№ ТЗ, артикул, заказчик" },
           { type: "multi", name: "status", label: "Статус", options: STATUS_KEYS.map((k) => ({ value: k, label: STATUS_LABELS[k].label })), allLabel: "Все статусы" },
@@ -621,16 +629,22 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>
           <Tr>
+            <Th colSpan={4} aria-hidden />
+            <Th colSpan={2} className={GH + BLH}>Производство</Th>
+            <Th colSpan={3} className={GH + BLH}>Сырьё</Th>
+            <Th colSpan={3} className={GH + BLH}>Итого</Th>
+          </Tr>
+          <Tr>
             <Th>Партия</Th>
             <Th>ТЗ</Th>
             <Th>Мех</Th>
             <Th>Артикул</Th>
-            <Th className="text-right">Изд., шт.</Th>
-            <Th className="text-right">Шкур</Th>
-            <Th className="text-right"><VatLabel base="Мех" /></Th>
+            <Th className={"text-right" + BLH}>Изд., шт.</Th>
+            <Th className="text-right">Шкур, шт.</Th>
+            <Th className={"text-right" + BLH}><VatLabel base="Мех" /></Th>
             <Th className="text-right">Подкл., м</Th>
             <Th className="text-right"><VatLabel base="Подкладка" /></Th>
-            <Th className="text-right">Работа</Th>
+            <Th className={"text-right" + BLH}>Работа</Th>
             <Th className="text-right">
               <VatLabel base={`Себестоимость${c4}`} />
             </Th>
@@ -673,7 +687,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       )}
       {orders.length > 0 && (
         <div className="row-total flex flex-wrap items-baseline justify-end gap-2 px-3 py-2 text-sm">
-          <span className="mr-auto text-xs text-neutral-500">{tzGroups.length} ТЗ{priced.length > tzGroups.length ? ` · ${priced.length} ${positionsWord(priced.length)}` : ""}</span>
+          <span className="mr-auto text-xs text-neutral-500">{tzCountText(tzGroups.length, priced.length)}</span>
           <VatLabel base="Всего, ₽ по списку" />
           <Mode4Badge mode={c4Mode} />
           <span>{sumIncl.isZero() ? "—" : <Money incl={sumIncl.add(workSum).add(hidesSum)} excl={sumExcl.add(workSum).add(hidesSumExcl)} />}</span>

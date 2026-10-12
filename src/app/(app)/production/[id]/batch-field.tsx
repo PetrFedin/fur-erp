@@ -21,7 +21,7 @@ export function BatchField({ batches, defaultBatchId, idPrefix = "" }: { batches
       id={`${idPrefix}batch`}
       className={
         "scroll-mt-4 rounded-lg border-2 p-3 " +
-        (empty ? "border-amber-400 bg-amber-50" : "border-sky-300 bg-sky-50")
+        (empty ? "border-amber-400 bg-amber-50" : "border-neutral-200 bg-white")
       }
     >
       <Label htmlFor={`${idPrefix}batchId`} className="text-sm font-semibold">Партия (поставка)</Label>
@@ -76,12 +76,12 @@ export function OrderBatchBlock({
 
   if (!editing && current) {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-sky-300 bg-sky-50 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
         <span className="font-semibold">Партия пошива:</span>
         <a href={`/production/batches/${current.number}`} className="font-medium text-blue-700 underline-offset-2 hover:underline">
           {current.label}
         </a>
-        <button type="button" onClick={() => setEditing(true)} className="ml-auto rounded border border-sky-300 bg-white px-2 py-1 text-xs hover:bg-sky-100">
+        <button type="button" onClick={() => setEditing(true)} className="ml-auto btn-accent rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50">
           Изменить партию
         </button>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
@@ -34,7 +35,7 @@ export function OrderTiles({ order: o, c4, plannedQty, producedQty, completed }:
     </div>
   );
   return (
-    <WidgetRow id="tz" title="Итоги ТЗ">
+    <WidgetRow id="tz" title="Итоги ТЗ" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 xl:grid-cols-6">
         {tile("Себестоимость", money(total), `${modeLabel}${c4 === "on" ? ", с 4%" : ""}`, <p>Мех + подкладка{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Мех {money(s.fur)}, подкладка {money(s.lining)}, расходы и прочее {money(s.other)}, работа {money(s.work)}. Та же цифра — в «Стоимости производства» на Главной и в «Изделиях».</p>)}
         {tile("На 1 изделие", qty > 0 ? money(total / qty) : "—", qty > 0 ? `÷ ${formatQty(qty)} шт.` : "изделий нет", <p>Себестоимость ТЗ с работой ÷ количество ({completed ? "факт" : "план"}).</p>)}

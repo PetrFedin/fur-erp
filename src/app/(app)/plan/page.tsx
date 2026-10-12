@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { WidgetRow } from "@/components/widget-row";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -13,7 +12,9 @@ import { classifyProduct } from "@/lib/product-category";
 import { compareSizeLabels } from "@/lib/plan-sizes";
 import { loadPlanFacts, loadOffPlan, resolveModelId, modelIndex, SET_BUCKET, type PlanFact } from "@/lib/plan-fact";
 import { SEASON_HINTS } from "@/lib/plan-season-rule";
-import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
+import { SummaryTiles } from "../production/summary-tiles";
+import { Dash } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export const metadata = { title: "План заказа" };
 const PLAN_FILTERS = defineFilters({ ...pick(["season", "q"], { q: { label: "Поиск" } }) });
 
 const ORDER_STATUS: Record<string, string> = { PLANNED: "запланирован", IN_PROGRESS: "в работе", COMPLETED: "завершён" };
+const n0 = (n: number) => (n ? formatQty(n) : <Dash />);
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
 export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
@@ -156,8 +158,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             Факт берётся из ТЗ этого же артикула и сезона (сезон у ТЗ присваивается на странице «Сезоны ТЗ»). Количество по размерам в ТЗ записано не всегда: если у ТЗ один размер — единицы идут в него, если «единый», «44, 46» или пусто — в «набор размеров».
           </InfoHint></div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/calendar" className={buttonVariants({ variant: "outline" })}>Календарь</Link>
-          <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/calendar" className={buttonVariants({ variant: "outline" }) + " btn-accent"}>Календарь</Link>
+          <Link href="/plan/seasons" className={buttonVariants({ variant: "outline" }) + " btn-accent"}>
             Сезоны ТЗ{unseasonedOrders > 0 ? ` (${unseasonedOrders} без сезона)` : ""}
           </Link>
         </div>
@@ -166,8 +168,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
       {emptyPlan && (
         <Card>
           <CardContent className="flex flex-col gap-3 py-6">
-            <p className="text-sm text-neutral-500">План заказа пока пуст.</p>
-            <p className="text-sm text-neutral-500">{canEdit ? "Добавьте первую позицию: артикул, цвет, вид меха и количество по размерам." : "Позиций плана пока нет."}</p>
+            <p className="text-sm text-neutral-500">План заказа пока пуст. {canEdit ? "Добавьте первую позицию: артикул, цвет, вид меха и количество по размерам." : "Позиций плана пока нет."}</p>
             {canEdit && (
               <details>
                 <summary className={buttonVariants({ variant: "default" }) + " inline-flex cursor-pointer list-none"}>+ Добавить позицию плана</summary>
@@ -191,6 +192,8 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
       {!emptyPlan && <FilterBar
         title="Фильтры плана"
+        oneRow
+        hideChips
         controls={[
           { type: "multi", name: "season", label: "Сезон", options: seasons.map((s) => ({ value: s.code, label: s.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },
           { type: "text", name: "q", label: "Поиск", placeholder: "Артикул, название, цвет, мех" },
@@ -210,23 +213,19 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
             <p className="text-sm text-neutral-500">Позиций плана пока нет{canEdit ? " — добавьте их формой ниже" : ""}.</p>
           ) : (
             <>
-              <WidgetRow id="plan" title="План — выполнение">
-              <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
-                {[
-                  ["План, шт.", totals.plan, "по позициям плана"],
-                  ["Произведено", totals.produced, "завершённые ТЗ (по статусу)"],
-                  ["В работе", totals.inWork, "ТЗ в работе"],
-                  ["Не начато", totals.notStarted, "нет ТЗ"],
-                  ["Осталось произвести", Math.max(totals.plan - totals.produced, 0), "план − завершённые"],
-                ].map(([l, v, cap]) => (
-                  <div key={l as string} className={TILE_BOX}>
-                    <TileHead>{l}</TileHead>
-                    <TileValue>{formatQty(v as number)}</TileValue>
-                    <TileCaption>{cap}</TileCaption>
-                  </div>
-                ))}
-              </div>
-              </WidgetRow>
+              <SummaryTiles
+                id="plan"
+                title="План — выполнение"
+                linkHref="/production"
+                linkLabel="→ ТЗ"
+                tiles={[
+                  { key: "plan", label: "План, шт.", value: n0(totals.plan), caption: "по позициям плана" },
+                  { key: "done", label: "Произведено", value: n0(totals.produced), caption: "завершённые ТЗ (по статусу)" },
+                  { key: "work", label: "В работе", value: n0(totals.inWork), caption: "ТЗ в работе" },
+                  { key: "todo", label: "Не начато", value: n0(totals.notStarted), caption: "нет ТЗ" },
+                  { key: "left", label: "Осталось произвести", value: n0(Math.max(totals.plan - totals.produced, 0)), caption: "план − завершённые" },
+                ]}
+              />
               <div className="h-2 overflow-hidden rounded-full bg-neutral-100" title={formatPercent(pct(totals.produced, totals.plan))}>
                 <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, pct(totals.produced, totals.plan))}%` }} />
               </div>
@@ -259,12 +258,12 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   <Th>Артикул</Th>
                   {seasonId === "" && <Th>Сезон</Th>}
                   <Th>План по размерам</Th>
-                  <Th className="text-right">План</Th>
-                  <Th className="text-right">Произведено</Th>
-                  <Th className="text-right">В работе</Th>
-                  <Th className="text-right">Не начато</Th>
-                  <Th className="text-right">План − факт</Th>
-                  <Th className="text-right">%</Th>
+                  <Th className="text-right">План, шт.</Th>
+                  <Th className="text-right">Произведено, шт.</Th>
+                  <Th className="text-right">В работе, шт.</Th>
+                  <Th className="text-right">Не начато, шт.</Th>
+                  <Th className="text-right">План − факт, шт.</Th>
+                  <Th className="text-right">Выполнено, %</Th>
                   <Th>ТЗ</Th>
                   {canEdit && <Th>{""}</Th>}
                 </Tr>
@@ -284,16 +283,26 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                       {seasonId === "" && <Td>{p.season?.code ?? "—"}</Td>}
                       <Td className="text-xs tabular-nums">{sizesText(p.sizes)}</Td>
                       <Td className="text-right font-semibold tabular-nums">{formatQty(plan)}</Td>
-                      <Td className="text-right tabular-nums">{formatQty(f.produced)}</Td>
-                      <Td className="text-right tabular-nums">{formatQty(f.inWork)}</Td>
-                      <Td className="text-right tabular-nums">{formatQty(f.notStarted)}</Td>
-                      <Td className={`text-right tabular-nums ${plan - f.produced < 0 ? "text-amber-700" : ""}`}>{formatQty(plan - f.produced)}</Td>
-                      <Td className="text-right tabular-nums">{pct(f.produced, plan)}%</Td>
+                      <Td className="text-right tabular-nums">{n0(f.produced)}</Td>
+                      <Td className="text-right tabular-nums">{n0(f.inWork)}</Td>
+                      <Td className="text-right tabular-nums">{n0(f.notStarted)}</Td>
+                      <Td className={`text-right tabular-nums ${plan - f.produced < 0 ? "text-amber-700" : ""}`}>{n0(plan - f.produced)}</Td>
+                      <Td className="text-right tabular-nums">{formatPercent(pct(f.produced, plan))}</Td>
                       <Td className="text-xs"><OrderLinks f={f} /></Td>
                       {canEdit && <Td><RowActions id={p.id} back={backQs} /></Td>}
                     </Tr>
                   );
                 })}
+                <Tr className="row-total">
+                  <Td colSpan={seasonId === "" ? 3 : 2}><TotalLabel unit="шт." /></Td>
+                  <Td className="text-right tabular-nums">{n0(totals.plan)}</Td>
+                  <Td className="text-right tabular-nums">{n0(totals.produced)}</Td>
+                  <Td className="text-right tabular-nums">{n0(totals.inWork)}</Td>
+                  <Td className="text-right tabular-nums">{n0(totals.notStarted)}</Td>
+                  <Td className="text-right tabular-nums">{n0(totals.plan - totals.produced)}</Td>
+                  <Td className="text-right tabular-nums">{formatPercent(pct(totals.produced, totals.plan))}</Td>
+                  <Td colSpan={canEdit ? 2 : 1} />
+                </Tr>
               </Tbody>
             </Table>
           }
@@ -408,16 +417,22 @@ function MiniTable({ title, head, rows }: { title: string; head: string; rows: [
     <div className="overflow-x-auto">
       <div className="mb-1 text-xs font-medium text-neutral-600">{title}</div>
       <table className="w-full text-xs">
-        <thead><tr className="text-left text-neutral-500"><th className="py-1 pr-2 font-medium">{head}</th><th className="px-2 text-right font-medium">План</th><th className="px-2 text-right font-medium">Сделано</th><th className="pl-2 text-right font-medium">Осталось</th></tr></thead>
+        <thead><tr className="text-left text-neutral-500"><th className="py-1 pr-2 font-medium">{head}</th><th className="px-2 text-right font-medium">План, шт.</th><th className="px-2 text-right font-medium">Сделано, шт.</th><th className="pl-2 text-right font-medium">Осталось, шт.</th></tr></thead>
         <tbody>
           {rows.map(([k, plan, made]) => (
             <tr key={k} className="border-t border-neutral-100">
               <td className="py-1 pr-2">{k}</td>
-              <td className="px-2 text-right tabular-nums">{formatQty(plan)}</td>
-              <td className="px-2 text-right tabular-nums">{formatQty(made)}</td>
-              <td className={`pl-2 text-right tabular-nums ${plan - made < 0 ? "text-amber-700" : ""}`}>{formatQty(plan - made)}</td>
+              <td className="px-2 text-right tabular-nums">{n0(plan)}</td>
+              <td className="px-2 text-right tabular-nums">{n0(made)}</td>
+              <td className={`pl-2 text-right tabular-nums ${plan - made < 0 ? "text-amber-700" : ""}`}>{n0(plan - made)}</td>
             </tr>
           ))}
+          <tr className="row-total">
+            <td className="py-1 pr-2"><TotalLabel unit="шт." /></td>
+            <td className="px-2 text-right tabular-nums">{n0(rows.reduce((a, r) => a + r[1], 0))}</td>
+            <td className="px-2 text-right tabular-nums">{n0(rows.reduce((a, r) => a + r[2], 0))}</td>
+            <td className="pl-2 text-right tabular-nums">{n0(rows.reduce((a, r) => a + (r[1] - r[2]), 0))}</td>
+          </tr>
         </tbody>
       </table>
     </div>

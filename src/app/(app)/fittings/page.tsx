@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ProductionTabs } from "@/components/production-tabs";
 import { FittingThumbs } from "@/components/fitting-thumbs";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatQty } from "@/lib/utils";
+import { Dash } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
+import { SummaryTiles } from "../production/summary-tiles";
 import { FITTING_STATUS, FITTING_STATUS_KEYS, orderLabel, truncate } from "@/lib/fittings";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
@@ -78,6 +81,12 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
     prisma.fitting.findMany({ where: { organizationId: orgId }, select: { fittingDate: true } }),
   ]);
 
+  const cntOf = (k: string) => fittings.filter((x) => x.status === k).length;
+  const plannedCnt = cntOf("PLANNED");
+  const remarksCnt = cntOf("HELD_REMARKS");
+  const okCnt = cntOf("HELD_OK");
+  const photoTotal = fittings.reduce((a, x) => a + x.photos.length, 0);
+  const num = (n: number) => (n ? formatQty(n) : <Dash />);
   const hasFilters = Boolean(f.status.length || f.model.length || f.year.length || f.from || f.to || q);
   const isEmpty = fittings.length === 0 && !hasFilters;
 
@@ -87,7 +96,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Примерки</h1>
         {canEdit && !isEmpty && (
-          <Link href="/fittings/new" className={buttonVariants()}>
+          <Link href="/fittings/new" className={buttonVariants() + " btn-accent"}>
             + Примерка
           </Link>
         )}
@@ -97,15 +106,31 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-10 text-center text-sm text-neutral-500">
           <p>Примерок пока нет. Здесь записывают итог примерки изделия по ТЗ и прикладывают фото.</p>
           {canEdit && (
-            <Link href="/fittings/new" className={buttonVariants()}>
+            <Link href="/fittings/new" className={buttonVariants() + " btn-accent"}>
               + Примерка
             </Link>
           )}
         </div>
       ) : (
         <>
+      <SummaryTiles
+        id="fittings"
+        title="Примерки — итоги"
+        linkHref="/production"
+        linkLabel="→ ТЗ"
+        tiles={[
+          { key: "all", label: "Примерок", value: num(fittings.length), caption: hasFilters ? "по выбранным фильтрам" : undefined },
+          { key: "planned", label: "Запланировано", value: num(plannedCnt), href: "/fittings?status=PLANNED" },
+          { key: "remarks", label: "Есть замечания", value: num(remarksCnt), href: "/fittings?status=HELD_REMARKS" },
+          { key: "ok", label: "Принято", value: num(okCnt), href: "/fittings?status=HELD_OK" },
+          { key: "photos", label: "Фото, шт.", value: num(photoTotal) },
+        ]}
+      />
+
       <FilterBar
         title="Фильтры примерок"
+        oneRow
+        hideChips
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или комментарий" },
           { type: "multi", name: "status", label: "Итог", options: FITTING_STATUS_KEYS.map((k) => ({ value: k, label: FITTING_STATUS[k].label })), allLabel: "Любой итог" },
@@ -125,7 +150,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
             <Th>Размер</Th>
             <Th>Итог</Th>
             <Th>Комментарий</Th>
-            <Th>Фото</Th>
+            <Th>Фото, шт.</Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -170,6 +195,12 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
               </Tr>
             );
           })}
+          {fittings.length > 0 && (
+            <Tr className="row-total">
+              <Td colSpan={6}><TotalLabel unit="шт." note={`примерок: ${formatQty(fittings.length)}`} /></Td>
+              <Td className="tabular-nums">{photoTotal ? formatQty(photoTotal) : <Dash />}</Td>
+            </Tr>
+          )}
           {fittings.length === 0 && (
             <Tr>
               <Td colSpan={7} className="py-8 text-center text-neutral-500">

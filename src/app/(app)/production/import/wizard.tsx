@@ -129,7 +129,7 @@ export function TzImportWizard() {
             <label htmlFor="tz-text" className="mb-1 block text-sm font-medium">
               …или вставьте таблицу из Excel / текст
             </label>
-            <textarea id="tz-text" value={text} onChange={(e) => setText(e.target.value)} rows={6} className="w-full rounded-md border border-neutral-300 p-2 font-mono text-xs" placeholder={"№ ТЗ\tАртикул\tЦвет\tРазмеры\tПартия\tЦена работы\tЛот\tРасход\n169\tM012\tЧёрный\t44×2, 46×1\t7\t1500\t300687\t12,5"} />
+            <textarea id="tz-text" value={text} onChange={(e) => setText(e.target.value)} rows={6} className="ui-field w-full rounded-lg border border-neutral-300 p-2 font-mono text-xs" placeholder={"№ ТЗ\tАртикул\tЦвет\tРазмеры\tПартия\tЦена работы\tЛот\tРасход\n169\tM012\tЧёрный\t44×2, 46×1\t7\t1500\t300687\t12,5"} />
           </div>
           {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           {notes.length > 0 && <ul className="text-xs text-neutral-600">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
@@ -181,7 +181,7 @@ export function TzImportWizard() {
                   })}
                   <label className="flex flex-col gap-1 text-xs text-neutral-500 sm:col-span-2 lg:col-span-3">
                     Материалы: «лот количество [4% | без4]» — по строке на лот
-                    <textarea value={d.materials} onChange={(e) => edit(d.key, "materials", e.target.value)} rows={Math.min(8, Math.max(2, d.materials.split("\n").length))} className={`rounded-md border p-2 font-mono text-xs ${issueOf("materials").some((i) => i.level === "error") ? "border-red-400 bg-red-50" : "border-neutral-300"}`} />
+                    <textarea value={d.materials} onChange={(e) => edit(d.key, "materials", e.target.value)} rows={Math.min(8, Math.max(2, d.materials.split("\n").length))} className={`ui-field rounded-md border p-2 font-mono text-xs ${issueOf("materials").some((i) => i.level === "error") ? "border-red-400 bg-red-50" : "border-neutral-300"}`} />
                   </label>
                 </div>
                 {a && (

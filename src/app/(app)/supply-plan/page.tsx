@@ -18,6 +18,9 @@ import { defineFilters, parseFilters, pick, yearOptionsFrom } from "@/lib/filter
 import { normalizeModelCode as normCode } from "@/lib/model-code";
 import { ArticleName } from "@/components/article-name";
 import { articleLabel } from "@/lib/article-label";
+import { Dash } from "@/components/tree-table";
+import { TotalLabel } from "@/components/total-label";
+import { SummaryTiles } from "../production/summary-tiles";
 
 const MONTH_NAMES = [
   "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек",
@@ -119,6 +122,26 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
   }
   const rowList = Array.from(rows.values()).sort((a, b) => compareModelNames(a.modelName, b.modelName));
 
+  // Итоги плана (по записям в таблице и в списке «вне периода»): штуки по статусам; отменённые в «Всего» не входят.
+  const tally = [...shownEntries, ...hiddenEntries];
+  const qtyBy = (pred: (st: string) => boolean) => tally.filter((e) => pred(e.status)).reduce((a, e) => a + Number(e.quantity), 0);
+  const planQty = qtyBy((st) => st !== "CANCELLED");
+  const plannedQty = qtyBy((st) => st === "PLANNED");
+  const workQty = qtyBy((st) => st === "LAUNCHED" || st === "WITH_FURRIER" || st === "WITH_TAILOR");
+  const doneQty = qtyBy((st) => st === "PRODUCED");
+  const cancelledQty = qtyBy((st) => st === "CANCELLED");
+  const num = (n: number) => (n ? formatQty(n) : <Dash />);
+  const monthTotals = new Map<string, number>();
+  for (const e of shownEntries) if (e.status !== "CANCELLED") monthTotals.set(monthKey(new Date(e.month)), (monthTotals.get(monthKey(new Date(e.month))) ?? 0) + Number(e.quantity));
+  // Надзаголовки колонок: месяцы сгруппированы по годам.
+  const yearGroups: { year: number; span: number }[] = [];
+  for (const m of months) {
+    const y = m.date.getFullYear();
+    const last = yearGroups[yearGroups.length - 1];
+    if (last && last.year === y) last.span++;
+    else yearGroups.push({ year: y, span: 1 });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <ProductionTabs active="supply" />
@@ -130,17 +153,27 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
               Год ({year === "all" ? "все годы" : year}): по месяцу плана. {year === "all" ? `Таблица показывает период с ${MONTH_NAMES[windowStart.getMonth()]} ${windowStart.getFullYear()} по ${MONTH_NAMES[windowEnd.getMonth()]} ${windowEnd.getFullYear()}; остальные записи — отдельным списком.` : `Таблица показывает январь–декабрь ${year}.`}
             </p>
             <p className="mt-1">В плане только количество, стоимости нет — переключатель «С 4%» на эту страницу не влияет.</p>
-            <p className="mt-1">Те же даты по дням — в производственном календаре, количества по размерам — в плане заказа (ссылки под заголовком).</p>
+            <p className="mt-1">Те же даты по дням — в <Link href="/calendar" className="text-blue-700 hover:underline">производственном календаре</Link>, количества по размерам — в <Link href="/plan" className="text-blue-700 hover:underline">плане заказа</Link>.</p>
             <p className="mt-2 flex flex-wrap gap-1">
               {(Object.keys(STATUS_LABELS) as SupplyPlanStatusValue[]).map((st) => (
                 <Badge key={st} variant={STATUS_BADGE_VARIANT[st]}>{STATUS_LABELS[st]}</Badge>
               ))}
             </p>
           </InfoHint></div>
-        <p className="mt-1 text-xs text-neutral-500">
-          Те же даты по дням — в <Link href="/calendar" className="text-blue-600 hover:underline">производственном календаре</Link>, количества по размерам — в <Link href="/plan" className="text-blue-600 hover:underline">плане заказа</Link>.
-        </p>
       </div>
+
+      <SummaryTiles
+        id="supply"
+        title="План поставок — итоги"
+        linkHref="/plan"
+        linkLabel="→ План заказа"
+        tiles={[
+          { key: "plan", label: "Всего в плане, шт.", value: num(planQty), caption: cancelledQty ? `без отменённых (${formatQty(cancelledQty)} шт.)` : filtered ? "по выбранным фильтрам" : undefined },
+          { key: "planned", label: "Запланировано, шт.", value: num(plannedQty), href: "/supply-plan?status=PLANNED" },
+          { key: "work", label: "В работе, шт.", value: num(workQty), caption: "запуск, скорняк, портной", href: "/supply-plan?status=LAUNCHED&status=WITH_FURRIER&status=WITH_TAILOR" },
+          { key: "done", label: "Сдано, шт.", value: num(doneQty), href: "/supply-plan?status=PRODUCED" },
+        ]}
+      />
 
       {canEdit && (
         <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
@@ -188,6 +221,8 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
 
       <FilterBar
         title="Фильтры плана поставок"
+        oneRow
+        hideChips
         controls={[
           { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
           { type: "multi", name: "model", label: "Артикул (точно)", options: allModels.map((m) => ({ value: m.id, label: m.name })) },
@@ -199,13 +234,19 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
       <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-neutral-200 bg-neutral-50">
-              <th className="sticky left-0 z-10 bg-neutral-50 px-3 py-2 text-left font-medium text-neutral-600">
+            <tr className="border-b border-neutral-100 bg-white">
+              <th className="sticky left-0 z-10 bg-white px-3 pt-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500" />
+              {yearGroups.map((g) => (
+                <th key={g.year} colSpan={g.span} className="border-l border-neutral-200 px-3 pt-2 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{g.year}</th>
+              ))}
+            </tr>
+            <tr className="border-b border-neutral-200 bg-white">
+              <th className="sticky left-0 z-10 bg-white px-3 py-2 text-left text-xs font-medium text-neutral-500">
                 Артикул
               </th>
               {months.map((m) => (
-                <th key={m.key} className="min-w-[220px] border-l border-neutral-200 px-3 py-2 text-left font-medium text-neutral-600">
-                  {m.label}
+                <th key={m.key} className="min-w-[220px] border-l border-neutral-200 px-3 py-2 text-left text-xs font-medium text-neutral-500">
+                  {m.label.split(" ")[0]}, шт.
                 </th>
               ))}
             </tr>
@@ -246,6 +287,14 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
                 })}
               </tr>
             ))}
+            {rowList.length > 0 && (
+              <tr className="row-total">
+                <td className="sticky left-0 z-10 px-3 py-2"><TotalLabel unit="шт." note="без отменённых" /></td>
+                {months.map((m) => (
+                  <td key={m.key} className="border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{monthTotals.get(m.key) ? formatQty(monthTotals.get(m.key)!) : <Dash />}</td>
+                ))}
+              </tr>
+            )}
             {rowList.length === 0 && (
               <tr>
                 <td colSpan={months.length + 1} className="px-3 py-8 text-center text-neutral-500">

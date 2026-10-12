@@ -1,4 +1,4 @@
-import { positionsWord, itemsSuffix } from "@/lib/tz-key";
+import { positionsWord, itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
@@ -27,6 +27,10 @@ import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../dashboard/tile";
 import { loadOrdersDrill } from "@/lib/orders-drill";
+import { FilterBar } from "@/components/filters/filter-bar";
+import { TotalLabel } from "@/components/total-label";
+import { Dash } from "@/components/tree-table";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const metadata = { title: "Партии пошива" };
 
@@ -70,12 +74,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     const n = needsOf(r.b.number);
     return n ? n[need] : false;
   });
-  const needHref = (v: string) => {
-    const qs = new URLSearchParams();
-    if (showEmpty) qs.set("empty", "1");
-    if (v) qs.set("need", v);
-    return `/production/batches${qs.size ? `?${qs}` : ""}`;
-  };
   // Дерево и плитки — из тех же ТЗ, что на Главной; оплаты — по партиям/ТЗ из разнесения оплат (как в таблице).
   const shownNums = new Set(rows.map((r) => r.b.number));
   const drillAll = await loadOrdersDrill(orgId, year, c4Mode);
@@ -90,6 +88,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     for (const o of r.b.orders) payBy[`order:${o.id}`] = o.payShares.reduce((a, x) => (x.productionPayment.status === "CANCELLED" ? a : a + Number(x.amount)), 0);
   }
   const payRest = payWork - payPaid;
+  // Итог таблицы — только показанные партии (как строки выше); ТЗ каждой партии свои, двойного счёта нет.
+  const sumOrders = rows.reduce((a, r) => a + r.t.orders, 0);
+  const sumItems = rows.reduce((a, r) => a + r.t.items, 0);
+  const sumProduced = rows.reduce((a, r) => a.add(r.t.producedUnits), new Decimal(0));
+  const sumCost = rows.reduce((a, r) => a.add(r.t.cost), new Decimal(0));
+  const sumWork = rows.reduce((a, r) => a.add(r.t.work), new Decimal(0));
+  const sumPaid = rows.reduce((a, r) => a.add(r.t.paid), new Decimal(0));
   const money = (v: number) => formatMoney(v.toFixed(2));
   const anyC4 = rows.some((r) => r.t.c4Applies);
   // Расшифровка 4% по всем показанным партиям: сырьё и подкладка × 4%.
@@ -142,6 +147,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         treeId="orders-tree"
         id="batches"
         title="Партии — итоги"
+        headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
@@ -163,50 +169,16 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         }
       />
 
-      {emptyCount > 0 && (
-        <p className="text-sm text-neutral-500">
-          {showEmpty ? (
-            <>
-              Показаны и пустые партии (без ТЗ).{" "}
-              <Link href="/production/batches" className="underline underline-offset-2 hover:text-neutral-800">
-                Скрыть пустые ({emptyCount})
-              </Link>
-            </>
-          ) : (
-            <>
-              Партии без ТЗ скрыты.{" "}
-              <Link href="/production/batches?empty=1" className="underline underline-offset-2 hover:text-neutral-800">
-                Показать пустые ({emptyCount})
-              </Link>
-            </>
-          )}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Фильтр по документам и оплате">
-        <span className="text-xs text-neutral-500">Документы и оплата:</span>
-        {(
-          [
-            ["", "Все"],
-            ["docs", "Только без документов"],
-            ["pay", "Только без оплаты"],
-          ] as const
-        ).map(([v, text]) => (
-          <Link
-            key={v}
-            href={needHref(v)}
-            aria-current={need === v ? "page" : undefined}
-            className={
-              "rounded-md border px-3 py-1 max-md:inline-flex max-md:min-h-8 max-md:items-center " +
-              (need === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 text-neutral-700 hover:bg-neutral-100")
-            }
-          >
-            {text}
-          </Link>
-        ))}
-        <InfoHint label="Что значат цвета" wide>
-          <p>Красная точка — у партии не хватает обязательных документов или работа не оплачена; жёлтая — оплата частичная или по оплатам нет платёжки; зелёная — документы есть и всё оплачено.</p>
-          <p className="mt-1">«Без оплаты» — не оплачено или оплачено частично, либо по оплате нет платёжки. Откройте партию: там чек-лист, загрузка файлов и кнопка «Отметить оплату».</p>
-        </InfoHint>
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры партий"
+          oneRow
+          hideChips
+          controls={[
+            { type: "multi", name: "need", label: "Документы и оплата", single: true, allLabel: "Все", options: [{ value: "docs", label: "Только без документов" }, { value: "pay", label: "Только без оплаты" }], hint: "Красная точка — не хватает документов или работа не оплачена; жёлтая — оплата частичная или нет платёжки; зелёная — всё в порядке. Откройте партию: там чек-лист и кнопка «Отметить оплату»." },
+            ...(emptyCount > 0 || showEmpty ? [{ type: "multi" as const, name: "empty", label: "Пустые партии", single: true, allLabel: "Скрыты", options: [{ value: "1", label: `Показать пустые (${emptyCount})` }], hint: "Партии без ТЗ скрыты по умолчанию" }] : []),
+          ]}
+        />
       </div>
       <ResponsiveRows table={
       <Table stickyHeader>
@@ -219,13 +191,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <InfoHint label="Что значит произведено">Все ТЗ партии без отменённых и без ремонта: завершённые и в работе (как на Главной).</InfoHint>
             </Th>
             <Th className="hidden md:table-cell">
-              Себестоимость
+              Себестоимость, ₽
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
-            <Th className="hidden md:table-cell">Работа</Th>
-            <Th className="hidden lg:table-cell">Оплачено</Th>
-            <Th>Остаток</Th>
+            <Th className="hidden md:table-cell">Работа, ₽</Th>
+            <Th className="hidden lg:table-cell">Оплачено, ₽</Th>
+            <Th>Остаток, ₽</Th>
             <Th className="hidden lg:table-cell">
               Документы и оплата
               <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки.</InfoHint>
@@ -285,6 +257,18 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               </Td>
             </Tr>
           ))}
+          {rows.length > 0 && (
+            <Tr className="row-total">
+              <Td><TotalLabel unit="₽" /></Td>
+              <Td className="text-xs">{tzCountText(sumOrders, sumItems)}</Td>
+              <Td>{sumProduced.isZero() ? <Dash /> : <>{formatQty(sumProduced.toString())} <span className="text-[11px] font-normal opacity-80">шт.</span></>}</Td>
+              <Td className="hidden whitespace-nowrap md:table-cell">{sumCost.isZero() ? <Dash /> : formatMoney(sumCost.toString())}</Td>
+              <Td className="hidden whitespace-nowrap md:table-cell">{sumWork.isZero() ? <Dash /> : formatMoney(sumWork.toString())}</Td>
+              <Td className="hidden whitespace-nowrap lg:table-cell">{sumPaid.isZero() ? <Dash /> : formatMoney(sumPaid.toString())}</Td>
+              <Td className="whitespace-nowrap">{sumWork.isZero() && sumPaid.isZero() ? <Dash /> : formatMoney(sumWork.sub(sumPaid).toString())}</Td>
+              <Td className="hidden lg:table-cell" />
+            </Tr>
+          )}
           {rows.length === 0 && (
             <Tr>
               <Td colSpan={8} className="py-8 text-center text-neutral-500">
