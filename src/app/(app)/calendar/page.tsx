@@ -12,7 +12,9 @@ import { addDays, dayLabel, fmtRu, monthGridDays, monthTitle, parseMonth, parseY
 import { loadFactLayer, type FactItem } from "@/lib/calendar-layers";
 import { loadPipeline, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
-import { MonthsView, PipeCard, StageChip, StageLegend, StagesView } from "./pipe-views";
+import { PipeCard, StageChip, StageLegend, StagesView } from "./pipe-views";
+import { MonthsMode } from "./month-views";
+import { YEARS } from "@/lib/year-filter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,6 +38,11 @@ const CAL_FILTERS = defineFilters({
   stage: { kind: "multi", label: "Статус", allowed: STAGE_ORDER },
   cell: stateParam("Ячейка", { maxLen: 160 }),
   ord: stateParam("ТЗ", { maxLen: 40 }),
+  // «По месяцам»: mv — таблица / график, my — год внутри режима (2025 | 2026 | all), gall — показать все ТЗ графика, gp — страница графика.
+  mv: stateParam("Вид", { allowed: ["gantt"] }),
+  my: stateParam("Год режима", { pattern: /^(all|\d{4})$/ }),
+  gall: stateParam("Все ТЗ", { allowed: ["1"] }),
+  gp: stateParam("Страница графика", { pattern: /^\d{1,4}$/ }),
 });
 
 type Ev = {
@@ -127,7 +134,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     ? { items: [] as FactItem[], monthLevel: [] }
     : await loadFactLayer(orgId, from, to, { article: articleF, month });
   // «Конвейер» ТЗ: стадия, мех, ожидаемая дата — для подписей событий и фактов, карточек и режимов «По месяцам» / «Стадии».
-  const pipe = await loadPipeline(orgId, year, today);
+  // «По месяцам» выбирает год сам (my), поэтому грузим все годы; остальные режимы — год шапки.
+  const myEff = cf.my || (year === "all" ? "all" : year);
+  const pipe = await loadPipeline(orgId, mode === "months" ? "all" : year, today);
   const pipeBy = new Map<string, PipeItem>(pipe.map((p) => [p.id, p]));
   const cardItem: PipeItem | null = cf.ord ? (pipeBy.get(cf.ord) ?? (await loadPipeline(orgId, "all", today)).find((p) => p.id === cf.ord) ?? null) : null;
   // Мех артикула, если он однозначен по ТЗ (для событий без привязки к ТЗ).
@@ -189,7 +198,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
 
-  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell };
+  const params: Record<string, string | string[]> = { view: mode === "detail" ? view : mode, m: month, w: mode === "detail" && view === "week" ? weekStart : "", season: cf.season, action: actionVals, q: articleF, layers: layersOn ? "" : "0", grp: cf.grp, fur: cf.fur, stage: cf.stage, cell: cf.cell, mv: cf.mv, my: cf.my, gall: cf.gall, gp: cf.gp };
   const href = (patch: Record<string, string | string[]>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...params, ...patch })) {
@@ -319,14 +328,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           { type: "text", name: "q", label: "Артикул", aliases: ["article"], placeholder: "Артикул" },
           { type: "multi", name: "layers", label: "Факты", single: true, state: true, allLabel: "Показывать факты из ТЗ, отгрузок, примерок", options: [{ value: "0", label: "Только мои события" }], className: "sm:w-72" },
         ]}
-        dropOnChange={["event", "new", "cell", "ord"]}
+        dropOnChange={["event", "new", "cell", "ord", "gp"]}
       />
       {mode !== "detail" && (
         <>
           {mode === "months"
-            ? <MonthsView items={pipe} filters={tableFilters} allYears={year === "all"} year={year} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />
+            ? <MonthsMode items={pipe} filters={tableFilters} my={myEff} years={[...YEARS]} mv={cf.mv === "gantt" ? "gantt" : "table"} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} today={today} gall={cf.gall === "1"} gpage={Number(cf.gp) || 1} />
             : <StagesView items={pipe} filters={tableFilters} href={href} cell={cf.cell} cardHref={(id) => href({ ord: id }) + "#card"} />}
-          <p className="text-xs text-neutral-500">Источник данных <InfoHint wide>{`ТЗ без отменённых${year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.`}</InfoHint></p>
+          <p className="text-xs text-neutral-500">Источник данных <InfoHint wide>{`ТЗ без отменённых${mode === "months" ? (myEff === "all" ? ", все годы" : `, год ${myEff}`) : year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.`}</InfoHint></p>
         </>
       )}
       {mode === "detail" && layersOn && (seasonPicked || actionVals.length > 0) && <p className="text-xs text-neutral-500">Факты из других разделов скрыты: у них нет сезона и действия из этого списка.</p>}

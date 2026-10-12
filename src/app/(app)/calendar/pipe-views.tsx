@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoHint } from "@/components/info-hint";
 import { STAGE_ORDER, STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
-import { MONTH_NAMES, fmtRu } from "@/lib/calendar-grid";
+import { fmtRu } from "@/lib/calendar-grid";
 import { pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
-import { NO_DATE, buildMonthTable, cellItems, dateSpan, sumOf, type StageSums, type TableFilters } from "@/lib/calendar-table";
+import { buildMonthTable, cellItems, dateSpan, sumOf, type StageSums, type TableFilters } from "@/lib/calendar-table";
 import { formatQty } from "@/lib/utils";
 
 type HrefFn = (patch: Record<string, string | string[]>) => string;
@@ -48,7 +48,7 @@ export function PipeRow({ p, cardHref }: { p: PipeItem; cardHref: string }) {
       <StageChip stage={p.stage} word={p.stageWord} />
       <span className="ml-auto text-neutral-600 tabular-nums">
         {dateText(p)}
-        {p.expected && <span className="ml-1 text-[11px] text-neutral-400">{p.expected.source}</span>}
+        {p.expected && <span className="ml-1 text-xs text-neutral-500">{p.expected.source}</span>}
       </span>
     </div>
   );
@@ -108,8 +108,6 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
   );
 }
 
-const monthFull = (m: string, year: string) => `${MONTH_NAMES[Number(m) - 1]}${year !== "all" ? ` ${year}` : ""}`;
-const colTitle = (c: string, allYears: boolean, year: string) => (c === NO_DATE ? "Без даты" : allYears ? `${c} год` : monthFull(c, year));
 
 /** Крупные подписи стадий словами: «Отгружено 30», «В работе 7»; нули не показываем. */
 export function StageChips({ s, withRepair = true, size = "md" }: { s: StageSums; withRepair?: boolean; size?: "sm" | "md" }) {
@@ -127,7 +125,7 @@ export function StageChips({ s, withRepair = true, size = "md" }: { s: StageSums
 }
 
 /** Полоска долей стадий (без ремонта): с первого взгляда видно, сколько готово, а сколько ещё в пути. */
-function StageBar({ s }: { s: StageSums }) {
+export function StageBar({ s }: { s: StageSums }) {
   const tot = sumOf(s, false);
   if (tot <= 0) return null;
   return (
@@ -142,114 +140,6 @@ export function BigLegend() {
   return (
     <div className="flex flex-wrap gap-1.5" aria-label="Стадии">
       {STAGE_ORDER.map((k) => <span key={k} title={STAGE_STYLES[k].hint} className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm ${STAGE_STYLES[k].chip}`}><i className={`size-2.5 rounded-full ${STAGE_STYLES[k].dot}`} />{STAGE_STYLES[k].label}</span>)}
-    </div>
-  );
-}
-
-/**
- * «По месяцам»: карточки-месяцы сверху вниз (при «Все годы» — годы). В карточке: «Произведено N шт.» (без ремонта), полоска стадий,
- * ниже по каждому виду меха — его штуки и подписи стадий словами. Клик по виду меха раскрывает список ТЗ прямо в карточке.
- */
-export function MonthsView({ items, filters, allYears, year, href, cell, cardHref }: {
-  items: PipeItem[]; filters: TableFilters; allYears: boolean; year: string; href: HrefFn; cell: string; cardHref: (id: string) => string;
-}) {
-  const t = buildMonthTable(items, filters, allYears);
-  const [cCol, cFur] = cell.includes("~") ? cell.split("~") : ["", ""];
-  const cellLink = (col: string, fur: string) => href({ cell: `${col}~${fur}` }) + "#cell";
-  const cols = t.cols.filter((c) => t.colTotals[c] && sumOf(t.colTotals[c]) > 0);
-  const closeLink = <Link href={href({ cell: "" })} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Свернуть</Link>;
-  const list = (col: string, fur: string) => {
-    const open = cellItems(items, filters, allYears, col, fur);
-    if (open.length === 0) return null;
-    return (
-      <div id="cell" className="flex flex-col gap-1 rounded-md bg-neutral-50 p-2">
-        <div className="flex items-center gap-2 text-xs font-medium text-neutral-700">{fur === "*" ? "Все виды меха" : fur} · {col === "*" ? "весь период" : colTitle(col, allYears, year)} · {open.length} ТЗ {closeLink}</div>
-        {open.map((p) => <PipeRow key={p.id} p={p} cardHref={cardHref(p.id)} />)}
-      </div>
-    );
-  };
-  const prod = sumOf(t.grand, false);
-  return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-col gap-3 pt-4">
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-1">
-            <div>
-              <div className="text-sm text-neutral-500">Произведено {allYears ? "за все годы" : `за ${year} год`}</div>
-              <div className="text-3xl font-semibold tabular-nums">{formatQty(prod)} <span className="text-lg font-normal text-neutral-500">шт.</span></div>
-            </div>
-            {t.grand.repair > 0 && <div className="text-sm text-rose-700">Ремонт отдельно: <b className="tabular-nums">{formatQty(t.grand.repair)}</b> шт. (в «Произведено» не входит)</div>}
-            <InfoHint wide>
-              В карточке месяца — сколько изделий по ТЗ приходится на этот месяц и на каком они этапе. Месяц — по плановой дате окончания ТЗ, иначе по дате ТЗ или старта; ТЗ без дат собраны в «Без даты». «Произведено» — все ТЗ без отменённых и без ремонта, как на Главной при тех же фильтрах.
-              Нажмите на вид меха — ниже раскроются его ТЗ: артикул × количество, стадия, ожидаемая дата и откуда она взята. Сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок.
-            </InfoHint>
-          </div>
-          <StageBar s={t.grand} />
-          <StageChips s={t.grand} />
-          <BigLegend />
-        </CardContent>
-      </Card>
-
-      {cols.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">Нет данных по выбранным фильтрам{!allYears ? ` (год ${year})` : ""}.</p>}
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {cols.map((c) => {
-          const tot = t.colTotals[c];
-          const fursHere = t.rows.filter((r) => r.cells[c]).sort((a, b) => sumOf(b.cells[c]) - sumOf(a.cells[c]));
-          const wide = cCol === c && (cFur === "*" || fursHere.some((r) => r.fur === cFur));
-          return (
-            <Card key={c} className={wide ? "md:col-span-2 xl:col-span-3" : ""}>
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-base">
-                  <Link href={cellLink(c, "*")} className="hover:underline" title="Показать все ТЗ месяца">{colTitle(c, allYears, year)}</Link>
-                  <span className="text-sm font-normal text-neutral-600">Произведено <b className="text-lg font-semibold tabular-nums text-neutral-900">{formatQty(sumOf(tot, false))}</b> шт.{tot.repair > 0 && <span className="ml-2 italic text-rose-700">ремонт {formatQty(tot.repair)}</span>}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <StageBar s={tot} />
-                {cCol === c && cFur === "*" && list(c, "*")}
-                <ul className="flex flex-col divide-y divide-neutral-100">
-                  {fursHere.map((r) => {
-                    const s = r.cells[c];
-                    const on = cCol === c && cFur === r.fur;
-                    return (
-                      <li key={r.fur} className="flex flex-col gap-1.5 py-2 first:pt-0 last:pb-0">
-                        <Link href={on ? href({ cell: "" }) : cellLink(c, r.fur)} className="group flex items-baseline justify-between gap-2" aria-expanded={on}>
-                          <span className="min-w-0 break-words text-sm font-medium group-hover:underline">{r.fur}</span>
-                          <span className="shrink-0 text-sm tabular-nums"><b>{formatQty(sumOf(s, false))}</b> шт.</span>
-                        </Link>
-                        <StageChips s={s} size="sm" />
-                        {on && list(c, r.fur)}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {t.rows.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Итого по видам меха {allYears ? "за все годы" : `за ${year} год`}</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-0 divide-y divide-neutral-100">
-            {t.rows.map((r) => {
-              const on = cCol === "*" && cFur === r.fur;
-              return (
-                <div key={r.fur} className="flex flex-col gap-1.5 py-2 first:pt-0 last:pb-0">
-                  <Link href={on ? href({ cell: "" }) : cellLink("*", r.fur)} className="group flex items-baseline justify-between gap-2" aria-expanded={on}>
-                    <span className="min-w-0 break-words text-sm font-medium group-hover:underline">{r.fur}</span>
-                    <span className="shrink-0 text-sm tabular-nums"><b>{formatQty(sumOf(r.total, false))}</b> шт.</span>
-                  </Link>
-                  <StageChips s={r.total} size="sm" />
-                  {on && list("*", r.fur)}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

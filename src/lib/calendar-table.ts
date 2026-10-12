@@ -76,3 +76,66 @@ export function dateSpan(items: PipeItem[]): { min: string; max: string } | null
   const ds = items.map((p) => p.expected?.date).filter((x): x is string => !!x).sort();
   return ds.length ? { min: ds[0], max: ds[ds.length - 1] } : null;
 }
+
+// ───── «По месяцам» v2: столбцы — месяцы «ГГГГ-ММ» (выбранный год или все подряд), «Без даты» ─────
+export const MONTH_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
+export const MONTH_GEN = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+
+/** Выбор года внутри режима: «all» — все месяцы подряд, иначе «2026». */
+export type MonthScope = string;
+
+/** Месяц ТЗ «ГГГГ-ММ» (из bucket) или «none». */
+export const monthOf = (p: PipeItem): string => (p.bucket ? p.bucket.slice(0, 7) : NO_DATE);
+export const inScope = (p: PipeItem, my: MonthScope): boolean => my === "all" || p.year === Number(my);
+
+/** «2026-10» → «Окт 2026» (short) или «Октябрь 2026». */
+export function monthText(key: string, full = false): string {
+  if (key === NO_DATE) return "Без даты";
+  const [y, m] = key.split("-").map(Number);
+  return `${full ? MONTH_GEN[m - 1][0].toUpperCase() + MONTH_GEN[m - 1].slice(1) : MONTH_SHORT[m - 1]} ${y}`;
+}
+
+const nextMonth = (k: string) => { const [y, m] = k.split("-").map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`; };
+
+/** Месяцы подряд от первого до последнего с данными; для года — все 12. «Без даты» — в конце, если есть. */
+export function monthRange(items: PipeItem[], f: TableFilters, my: MonthScope): string[] {
+  const used = items.filter((p) => inScope(p, my) && Object.keys(unitsFor(p, f)).length > 0);
+  const hasNone = used.some((p) => monthOf(p) === NO_DATE);
+  let cols: string[];
+  if (my !== "all") cols = Array.from({ length: 12 }, (_, i) => `${my}-${String(i + 1).padStart(2, "0")}`);
+  else {
+    const ms = used.map(monthOf).filter((m) => m !== NO_DATE).sort();
+    cols = [];
+    if (ms.length) for (let k = ms[0]; k <= ms[ms.length - 1]; k = nextMonth(k)) cols.push(k);
+  }
+  return hasNone ? [...cols, NO_DATE] : cols;
+}
+
+export function buildMonthGrid(items: PipeItem[], f: TableFilters, my: MonthScope): MonthTable {
+  const scoped = items.filter((p) => inScope(p, my));
+  const byFur = new Map<string, { cells: Map<string, StageSums>; total: StageSums; items: PipeItem[] }>();
+  const colTotals = new Map<string, StageSums>();
+  const grand = blankSums();
+  for (const p of scoped) {
+    const u = unitsFor(p, f);
+    if (Object.keys(u).length === 0) continue;
+    const col = monthOf(p);
+    const row = byFur.get(p.fur) ?? { cells: new Map<string, StageSums>(), total: blankSums(), items: [] as PipeItem[] };
+    byFur.set(p.fur, row);
+    row.items.push(p);
+    const cell = row.cells.get(col) ?? blankSums(); row.cells.set(col, cell);
+    const ct = colTotals.get(col) ?? blankSums(); colTotals.set(col, ct);
+    for (const k of STAGE_ORDER) { const v = u[k] ?? 0; cell[k] += v; row.total[k] += v; ct[k] += v; grand[k] += v; }
+  }
+  const rows = [...byFur.entries()]
+    .map(([fur, r]) => ({ fur, cells: Object.fromEntries(r.cells) as Record<string, StageSums>, total: r.total, items: r.items }))
+    .sort((a, b) => sumOf(b.total, false) - sumOf(a.total, false) || a.fur.localeCompare(b.fur, "ru"));
+  return { cols: monthRange(items, f, my), rows, colTotals: Object.fromEntries(colTotals) as Record<string, StageSums>, grand };
+}
+
+/** ТЗ ячейки «месяц × мех» (col/fur «*» — любые). */
+export function gridCellItems(items: PipeItem[], f: TableFilters, my: MonthScope, col: string, fur: string): PipeItem[] {
+  return items
+    .filter((p) => inScope(p, my) && Object.keys(unitsFor(p, f)).length > 0 && (col === "*" || monthOf(p) === col) && (fur === "*" || p.fur === fur))
+    .sort((a, b) => (a.expected?.date ?? "9999").localeCompare(b.expected?.date ?? "9999") || a.articleLabel.localeCompare(b.articleLabel, "ru"));
+}
