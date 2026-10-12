@@ -74,7 +74,7 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
       }
       const tw = w.reduce((a, x) => a + x, 0);
       const excl = tw > 0 ? w.map((x) => (x / tw) * s.recvExcl) : (() => { const e = new Array<number>(NCAT + 1).fill(0); e[NCAT] = s.recvExcl; return e; })();
-      out.push({ id: s.id, num: "заказано, не получено", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, vat: s.recvIncl - s.recvExcl, kind: "planned", approx });
+      out.push({ id: s.id, num: "Закупка", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, vat: s.recvIncl - s.recvExcl, kind: "planned", approx });
     }
   }
 

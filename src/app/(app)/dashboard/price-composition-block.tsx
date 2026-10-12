@@ -15,20 +15,21 @@ const KEYS: string[] = [...COMP_CATS.map((c) => c.key), "nobd"];
 
 const OTHER_IDX = KEYS.indexOf("other");
 const NOBD_IDX = KEYS.indexOf("nobd");
-const OTHER_HINT = "Упаковка, округления и всё, что не разложено по статьям. У части лотов в расчёте нет разбивки — вся их сумма учтена здесь; такие лоты отмечены «без разбивки» в списке.";
+const OTHER_HINT = "Упаковка и прочие расходы, не разложенные по статьям, а также лоты, у которых в расчёте нет расчётного листа: вся их стоимость учтена здесь. Детализация — в подстроках.";
 
-/** «Без разбивки в расчёте» — тоже неразложенный остаток: показываем одной строкой «Прочие расходы», детали — в списке лотов. */
-function mergeOther(list: CompSlice[]): CompSlice[] {
-  const nobd = list.find((s) => s.key === "nobd");
-  if (!nobd) return list.map((s) => (s.key === "other" ? { ...s, hint: OTHER_HINT } : s));
-  const hasOther = list.some((s) => s.key === "other");
-  return list
-    .filter((s) => (hasOther ? s.key !== "nobd" : true))
-    .map((s) => {
-      if (s.key === "other") return { ...s, value: s.value + nobd.value, hint: OTHER_HINT };
-      if (s.key === "nobd") return { ...s, key: "other", label: "Прочие расходы", color: COMP_COLOR.other, hint: OTHER_HINT };
-      return s;
-    });
+const lotsWord = (n: number) => { const m = n % 100, d = n % 10; return m >= 11 && m <= 14 ? "лотов" : d === 1 ? "лот" : d >= 2 && d <= 4 ? "лота" : "лотов"; };
+
+/** «Упаковка и прочее» + «Нет расчётного листа» — один сектор «Прочее» с подстроками; сумма сектора = сумма подстрок. */
+function mergeOther(list: CompSlice[], nobdLots: number): CompSlice[] {
+  const o = list.find((s) => s.key === "other");
+  const n = list.find((s) => s.key === "nobd");
+  if (!o && !n) return list;
+  const sub: CompSlice[] = [];
+  if (o) sub.push({ key: "other_o", label: "Упаковка и прочее", value: o.value, color: COMP_COLOR.other, hint: "Упаковка, округления и всё, что не распознано в расчёте лота: остаток до цены лота." });
+  if (n) sub.push({ key: "nobd", label: `Нет расчётного листа (${nobdLots} ${lotsWord(nobdLots)})`, value: n.value, color: COMP_COLOR.nobd, hint: "Лоты и позиции, у которых в расчёте нет строк состава цены (или только итог), и шкуры подрядчика: вся их стоимость без деления на составляющие." });
+  const merged: CompSlice = { key: "other", label: "Прочее", value: sub.reduce((a, x) => a + x.value, 0), color: COMP_COLOR.other, hint: OTHER_HINT, sub: n ? sub : undefined };
+  const at = list.findIndex((s) => s.key === "other" || s.key === "nobd");
+  return list.flatMap((s, i) => (i === at ? [merged] : s.key === "other" || s.key === "nobd" ? [] : [s]));
 }
 
 type Agg = { cats: Record<CompCat, number>; nobd: number; vat: number; qty: number; unit: Record<string, number>; unitTotal: number; lots: PCLot[]; approx: number; nobdLots: number; planned: number };
@@ -85,23 +86,26 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
-  const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }));
+  const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).length, [lots]);
+  const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }), nobdLotsN);
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;
   const total = withVat ? exclTotal + a.vat : exclTotal;
-  const unitVals = { ...a.unit, other: (a.unit.other ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
+  const unitVals = { ...a.unit, other_o: a.unit.other ?? 0, other: (a.unit.other ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
   const unitTotal = withVat ? a.unitTotal + unitVals.vat : a.unitTotal;
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).length;
     m.other = lots.filter((l) => l.excl[OTHER_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005).length;
+    m.other_o = lots.filter((l) => l.excl[OTHER_IDX] > 0.005).length;
     return m;
   }, [lots]);
   // Сколько шкур приходится на каждую составляющую: сумма шкур лотов, где эта составляющая есть (данные лотов, не расчёт).
   const qtyVals = useMemo(() => {
     const m: Record<string, number> = Object.fromEntries(KEYS.map((k) => [k, 0]));
-    m.vat = 0;
+    m.vat = 0; m.other_o = 0;
     for (const l of lots) {
       if (!(l.qty > 0)) continue;
+      if (l.excl[OTHER_IDX] > 0.005) m.other_o += l.qty;
       KEYS.forEach((k, i) => { if (k !== "other" && l.excl[i] > 0.005) m[k] += l.qty; });
       if (l.excl[OTHER_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005) m.other += l.qty;
       if (l.vat > 0.005) m.vat += l.qty;
@@ -119,16 +123,22 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
   const rowsSum = rows.reduce((s, r) => s + r.v, 0);
   const href = fur ? `/lots/fur/${encodeURIComponent(fur)}` : "/lots";
   return (
-    <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-3 pt-1">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs text-neutral-500">
-          {a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lots.filter((l) => l.kind === "lot").length} лот.
-        </span>
-        {fur ? <Link href={href} className="ml-auto text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
+    <div className="flex w-full flex-col gap-3 pt-1">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Вид меха</div>
+          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Тотал · все виды меха"}</h3>
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
+            <span>{withVat ? "с НДС" : "без НДС"}</span>
+            <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))} ₽</span>
+            <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lots.filter((l) => l.kind !== "hides").length} лот.</span>
+          </div>
+        </div>
+        {fur ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
       <PriceCompositionChart
         slices={slices} total={total} qty={a.qty} unitVals={unitVals} unitTotal={unitTotal} qtyVals={qtyVals}
-        totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
+        stacked totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
         ariaLabel={`Из чего складывается стоимость меха: ${label}${withVat ? ", с НДС" : ", без НДС"}`}
         onSelect={sel} selectTitle="Показать лоты с этой составляющей"
         countLabel={(k) => (k === "vat" ? null : counts[k] ? `${counts[k]} лот.` : null)}
@@ -151,7 +161,7 @@ function Slide({ lots, fur, label, withVat }: { lots: PCLot[]; fur: string | nul
                   <tr key={l.id} className="border-b border-neutral-100">
                     <td className="py-1.5 pr-2">
                       {l.kind === "lot" ? <Link href={`/analytics/raw/lot/${l.id}`} className="text-blue-700 hover:underline">№ {l.num}</Link> : <span>{l.num}</span>}
-                      <div className="truncate text-[11px] text-neutral-500" title={l.auction}>{l.auction}{openSlice.key === "other" && l.excl[NOBD_IDX] > 0.005 ? " · без разбивки" : ""}</div>
+                      <div className="truncate text-[11px] text-neutral-500" title={l.auction}>{l.auction}{openSlice.key === "other" && l.excl[NOBD_IDX] > 0.005 ? " · нет расчётного листа" : ""}</div>
                     </td>
                     <td className="truncate px-1.5 py-1.5 text-right text-xs" title={l.fur}>{l.fur}</td>
                     <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{l.qty > 0 ? formatQty(l.qty) : "—"}</td>
@@ -192,14 +202,14 @@ export function PriceCompositionBlock({ lots }: { lots: PCLot[] }) {
     <WidgetRow id="price-comp" title="Из чего складывается стоимость меха" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3">
         <TileCarousel
-          clickable
+          clickable twoUp
           toolbar={<div className="mt-1.5">{toggle}</div>}
           title="Стоимость меха"
           hintLabel="Из чего складывается стоимость меха"
           hint={
             <>
               <p>Всё купленное сырьё по финальной рублёвой стоимости в разрезе составляющих: {COMP_CATS.map((c) => CAT_LABEL[c.key]).join(", ")}. Состав каждого лота — из его расчётного листа (карточка лота → «Из чего складывается цена»).</p>
-              <p className="mt-1">Суммы секторов без НДС (цена лота ÷ (1 + ставка лота)); в режиме «с НДС» добавляется сектор НДС, и итог равен «Куплено» меха на Главной. Заказанное, но не полученное (рысь) — по расчёту позиций закупки; шкуры подрядчика и лоты без расчёта — «Без разбивки в расчёте».</p>
+              <p className="mt-1">Суммы секторов без НДС (цена лота ÷ (1 + ставка лота)); в режиме «с НДС» добавляется сектор НДС, и итог равен «Куплено» меха на Главной. Сектор «Прочее» раскрывается: «Упаковка и прочее» и лоты, у которых нет расчётного листа (и шкуры подрядчика).</p>
               <p className="mt-1">Наведите на сектор или строку — подсветится парная; клик открывает лоты с этой составляющей. Фильтры Главной действуют.</p>
             </>
           }

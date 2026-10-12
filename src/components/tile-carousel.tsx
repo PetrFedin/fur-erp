@@ -47,36 +47,35 @@ export function TileCarousel({ title, hintLabel, hint, slides, toolbar, clickabl
   slidesLabel?: string;
   dotsLabel?: string;
 }) {
-  const last = slides.length - 1;
   const sw = useSlideWindow(slides.length, "(min-width: 1024px)", twoUp ? 2 : 1);
-  const { scroller, perView, cur, maxStart, goTo, onScroll } = sw;
+  const { scroller, perView, cur, maxStart, goTo, step, onScroll } = sw;
   const inWin = (i: number) => i >= cur && i < cur + perView;
   const arrow = CAROUSEL_ARROW;
   return (
     <div className="relative">
-      <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
+      <div data-hover-block={hoverBlocks ? (slides[cur]?.key === "total" ? "prod" : grpBlock(slides[cur]?.key ?? "")) : undefined} className={twoUp ? "flex h-full flex-col gap-1 pr-8" : TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>
         <TileHead>{title} · {perView > 1 ? slides.slice(cur, cur + perView).map((x) => x.label).join(" · ") : slides[cur]?.label}</TileHead>
         {toolbar}
         <div ref={scroller} onScroll={onScroll} tabIndex={0}
-          onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); goTo(cur + 1); } else if (e.key === "ArrowLeft") { e.preventDefault(); goTo(cur - 1); } }}
-          className="-mx-1 mt-1 flex snap-x snap-mandatory items-stretch overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"
+          onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
+          className={(twoUp ? "-mx-1.5 " : "-mx-1 ") + "mt-1 flex snap-x snap-mandatory items-stretch overflow-x-auto motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden"}
           role="group" aria-roledescription="карусель" aria-label={`${title}: ${slidesLabel}`}>
           {slides.map((s, i) => (
-            <div key={s.key} className={"snap-start px-1 " + (twoUp ? "min-w-full lg:min-w-[50%]" : "min-w-full")} aria-hidden={!inWin(i)} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`}>{s.body}</div>
+            <div key={s.key} className={"snap-start " + (twoUp ? "min-w-full px-1.5 lg:min-w-[50%]" : "min-w-full px-1")} aria-hidden={!inWin(i)} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`}>{twoUp ? <div className={TILE_BOX + (clickable ? " tile-click" : "") + " shadow-sm print:shadow-none"}>{s.body}</div> : s.body}</div>
           ))}
         </div>
         <div className="mt-auto flex items-center justify-center gap-2 pt-3">
-          <button type="button" className={arrow} onClick={() => goTo(cur - 1)} disabled={cur === 0} aria-label="Предыдущий слайд">‹</button>
+          <button type="button" className={arrow} onClick={() => step(-1)} disabled={cur === 0} aria-label="Предыдущий слайд">‹</button>
           <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5" role="tablist" aria-label={dotsLabel}>
             {slides.map((s, i) => (
               <button key={s.key} type="button" role="tab" aria-selected={inWin(i)} aria-label={s.label} title={s.label} onClick={() => goTo(i)}
                 className={"h-2 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 " + (inWin(i) ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
             ))}
           </div>
-          <button type="button" className={arrow} onClick={() => goTo(cur + 1)} disabled={cur >= maxStart} aria-label="Следующий слайд">›</button>
+          <button type="button" className={arrow} onClick={() => step(1)} disabled={cur >= maxStart} aria-label="Следующий слайд">›</button>
         </div>
       </div>
-      <div className="absolute right-3 top-3">
+      <div className={twoUp ? "absolute right-0 top-0" : "absolute right-3 top-3"}>
         <InfoHint label={hintLabel} wide align="right">{hint}</InfoHint>
       </div>
     </div>

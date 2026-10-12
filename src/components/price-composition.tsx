@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import { useVatDisplay } from "@/lib/vat-display";
+import { InfoHint } from "@/components/info-hint";
 
 // Состав цены: кольцевая диаграмма + горизонтальная составная полоса + таблица-легенда (она же текстовая альтернатива графику).
 // Наведение на сектор/полосу подсвечивает строку легенды (оранжевая граница, подложка #FFF1EB) и наоборот; клик по сектору/строке — onSelect.
@@ -26,7 +27,7 @@ function ringPath(a0: number, a1: number): string {
 
 const HOVER_ROW = "bg-[#FFF1EB] shadow-[inset_3px_0_0_var(--ui-accent,#ff4a1c)]";
 
-export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, qtyVals, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false }: {
+export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, qtyVals, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false, stacked = false }: {
   slices: CompSlice[];
   /** Итог для центра и строки «Всего»: сумма секторов, ₽. */
   total: number;
@@ -47,8 +48,11 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   /** Подпись справа от названия строки (например, «по 12 лотам»). */
   countLabel?: (key: string) => ReactNode;
   compact?: boolean;
+  /** Раскладка виджета Главной: компактное кольцо и полоса по центру (до ~360px), таблица-легенда ниже на всю ширину. */
+  stacked?: boolean;
 }) {
   const [hover, setHover] = useState<string | null>(null);
+  const [folded, setFolded] = useState<Set<string>>(new Set());
   const uid = useId();
   const pos = slices.filter((s) => s.value > 0);
   const posTotal = pos.reduce((a, s) => a + s.value, 0);
@@ -64,93 +68,135 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
   const interactive = !!onSelect;
   const enter = (k: string) => () => setHover(k);
   const leave = () => setHover(null);
+  const vQty = stacked ? "hidden @[32rem]:table-cell" : "hidden sm:table-cell";
+  const vAvg = stacked ? "hidden @[26rem]:table-cell" : "hidden sm:table-cell";
+  const toggleFold = (k: string) => setFolded((f) => { const n = new Set(f); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
+  /** Строка легенды: сектор (parent = null) или его подстрока. Подсветка и клик подстроки — по сектору-родителю. */
+  const row = (s: CompSlice, parent: CompSlice | null) => {
+    const sel = parent ?? s;
+    const hot = hover === sel.key;
+    const isSub = parent != null;
+    const hasSub = !isSub && (s.sub?.length ?? 0) > 0;
+    const isOpen = hasSub && !folded.has(s.key);
+    const label = (
+      <span className="flex min-w-0 items-center gap-2">
+        <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
+        <span title={s.label} className={"min-w-0 " + (stacked ? "leading-tight @[26rem]/c:truncate" : "truncate") + " " + (isSub ? "text-neutral-700" : "")}>{s.label}</span>
+        {countLabel && !isSub ? <span className={"shrink-0 text-[11px] text-neutral-500 " + (stacked ? "hidden @[40rem]:inline" : "hidden sm:inline")}>{countLabel(s.key)}</span> : null}
+      </span>
+    );
+    return (
+      <tr key={(parent ? parent.key + ">" : "") + s.key} title={s.hint} onMouseEnter={enter(sel.key)} onMouseLeave={leave}
+        className={"h-9 border-b border-neutral-100 transition-colors " + (hot ? HOVER_ROW : "") + (interactive ? " cursor-pointer" : "")}
+        onClick={interactive ? () => onSelect?.(sel.key) : undefined}>
+        <td className="py-1.5 pr-2">
+          <div className="flex min-w-0 items-center" style={isSub ? { paddingLeft: 14 } : undefined}>
+            <span className="inline-flex w-4 shrink-0 items-center">
+              {hasSub ? (
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleFold(s.key); }} aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"} детализацию: ${s.label}`} data-touch-ok
+                  className="rounded text-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"><span aria-hidden className={"inline-block w-4 transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button>
+              ) : null}
+            </span>
+            {interactive ? (
+              <button type="button" onClick={(e) => { e.stopPropagation(); onSelect?.(sel.key); }} onFocus={enter(sel.key)} onBlur={leave} aria-haspopup="dialog" title={selectTitle}
+                className="block min-w-0 flex-1 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{label}</button>
+            ) : <div className="min-w-0 flex-1">{label}</div>}
+          </div>
+        </td>
+        {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}
+        <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
+        <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(s.value, s.key)}</td>
+        <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
+      </tr>
+    );
+  };
+
+  const ring = (
+    <svg viewBox="0 0 120 120" className={stacked ? "h-36 w-36 @[26rem]/c:h-24 @[26rem]/c:w-24 @[40rem]/c:h-36 @[40rem]/c:w-36" : "h-44 w-44 sm:h-60 sm:w-60"} role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
+      <title>{ariaLabel}</title>
+      {arcs.length === 0 ? <circle cx={C} cy={C} r={(R_OUT + R_IN) / 2} fill="none" stroke="#e5e5e5" strokeWidth={R_OUT - R_IN} /> : null}
+      {drawn.map(({ s, d, frac }) => {
+        const hot = hover === s.key;
+        return (
+          <path key={s.key} d={d} fill={s.color}
+            stroke={hot ? "var(--ui-accent, #ff4a1c)" : "#ffffff"} strokeWidth={hot ? 2.2 : 1.2} strokeLinejoin="round"
+            className={interactive ? "cursor-pointer" : undefined}
+            onMouseEnter={enter(s.key)} onMouseLeave={leave}
+            onClick={interactive ? () => onSelect?.(s.key) : undefined}>
+            <title>{`${s.label}: ${money(s.value)} ₽ · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} ₽ за ${unitName}` : ""}`}</title>
+          </path>
+        );
+      })}
+      <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(unitTotal ?? total) : money(total)}</text>
+      <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `₽ за ${unitName}` : "₽"}</text>
+      {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
+    </svg>
+  );
+
+  const bar = pos.length > 0 ? (
+    <div className="flex h-3.5 w-full overflow-hidden rounded-md border border-neutral-200" role="presentation" aria-hidden>
+      {arcs.map(({ s, frac }) => (
+        <div key={s.key} style={{ width: `${frac * 100}%`, background: s.color, boxShadow: hover === s.key ? "inset 0 0 0 2px var(--ui-accent, #ff4a1c)" : undefined }}
+          title={`${s.label}: ${formatPercent(frac * 100)}`} className={interactive ? "cursor-pointer" : undefined}
+          onMouseEnter={enter(s.key)} onMouseLeave={leave} onClick={interactive ? () => onSelect?.(s.key) : undefined} />
+      ))}
+    </div>
+  ) : null;
+
+  const legend = (
+    <div id={`${uid}-legend`} className={stacked ? "@container w-full min-w-0 flex-1 @[26rem]/c:w-auto" : "w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0"}>
+      <table className={"w-full table-fixed text-left " + (stacked ? "text-[11px] @[40rem]:text-xs" : "text-xs sm:text-sm")}>
+        <caption className="sr-only">{ariaLabel}: составляющие, {qtyVals ? "количество шкур, " : ""}рубли всего, рубли за {unitName} и доля</caption>
+        <colgroup>
+          <col />
+          {qtyVals ? <col className={"" + (stacked ? "hidden @[32rem]:table-column @[32rem]:w-14" : "hidden sm:table-column w-[4.75rem]")} /> : null}
+          <col className={stacked ? "w-[5.25rem]" : "w-[5.5rem] sm:w-[6.75rem]"} />
+          <col className={stacked ? "hidden @[26rem]:table-column @[26rem]:w-[5.5rem]" : "hidden sm:table-column w-[6rem]"} />
+          <col className={stacked ? "w-12" : "w-[3.5rem] sm:w-[4.5rem]"} />
+        </colgroup>
+        <thead>
+          <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
+            <th scope="col" className="whitespace-nowrap py-1.5 pl-5 pr-2">Составляющая</th>
+            {qtyVals ? <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vQty}>Шкур, шт.</th> : null}
+            <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Всего, ₽</th>
+            <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vAvg}>
+              {qty > 0 ? <>{stacked ? "Ср. цена, ₽" : "Ср. цена, ₽/шт."}<InfoHint label="Что такое ср. цена" align="right"><p>Средневзвешенное значение: сумма ÷ количество по лотам.</p></InfoHint></> : "Всего, ₽"}
+            </th>
+            <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {slices.flatMap((s) => [row(s, null), ...(s.sub && !folded.has(s.key) ? s.sub.map((c) => row(c, s)) : [])])}
+          <tr className="row-total h-9">
+            <td className="py-1.5 pl-5 pr-2 text-sm font-semibold">{totalLabel}</td>
+            {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "—"}</td> : null}
+            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
+            <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(unitTotal ?? total)}</td>
+            <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
+  if (stacked) {
+    return (
+      <div className="@container/c w-full">
+        <div className="flex flex-col items-center gap-3 @[26rem]/c:flex-row @[26rem]/c:items-center @[26rem]/c:gap-2">
+          <div className="shrink-0">{ring}</div>
+          {legend}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex max-w-[56rem] flex-col gap-3">
       <div className={"flex flex-wrap items-start gap-x-6 gap-y-3 " + (compact ? "" : "")}>
-        <div className="mx-auto shrink-0 sm:mx-0 sm:self-center">
-          <svg viewBox="0 0 120 120" className="h-44 w-44 sm:h-60 sm:w-60" role="img" aria-label={ariaLabel} aria-describedby={`${uid}-legend`}>
-            <title>{ariaLabel}</title>
-            {arcs.length === 0 ? <circle cx={C} cy={C} r={(R_OUT + R_IN) / 2} fill="none" stroke="#e5e5e5" strokeWidth={R_OUT - R_IN} /> : null}
-            {drawn.map(({ s, d, frac }) => {
-              const hot = hover === s.key;
-              return (
-                <path key={s.key} d={d} fill={s.color}
-                  stroke={hot ? "var(--ui-accent, #ff4a1c)" : "#ffffff"} strokeWidth={hot ? 2.2 : 1.2} strokeLinejoin="round"
-                  className={interactive ? "cursor-pointer" : undefined}
-                  onMouseEnter={enter(s.key)} onMouseLeave={leave}
-                  onClick={interactive ? () => onSelect?.(s.key) : undefined}>
-                  <title>{`${s.label}: ${money(s.value)} ₽ · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} ₽ за ${unitName}` : ""}`}</title>
-                </path>
-              );
-            })}
-            <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(unitTotal ?? total) : money(total)}</text>
-            <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `₽ за ${unitName}` : "₽"}</text>
-            {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
-          </svg>
-        </div>
-
-        <div id={`${uid}-legend`} className="w-full min-w-0 sm:min-w-[17rem] sm:flex-1 sm:basis-0">
-          <table className="w-full table-fixed text-left text-xs sm:text-sm">
-            <caption className="sr-only">{ariaLabel}: составляющие, {qtyVals ? "количество шкур, " : ""}рубли всего, рубли за {unitName} и доля</caption>
-            <colgroup><col />{qtyVals ? <col className="hidden w-[4.75rem] sm:table-column" /> : null}<col className="w-[5.5rem] sm:w-[6.75rem]" /><col className="hidden w-[6rem] sm:table-column" /><col className="w-[3.5rem] sm:w-[4.5rem]" /></colgroup>
-            <thead>
-              <tr className="border-b border-neutral-200 text-xs font-medium text-neutral-500">
-                <th scope="col" className="py-1.5 pr-2">Составляющая</th>
-                {qtyVals ? <th scope="col" className="hidden px-1.5 py-1.5 text-right sm:table-cell">Шкур, шт.</th> : null}
-                <th scope="col" className="px-1.5 py-1.5 text-right">₽ всего</th>
-                <th scope="col" title={qty > 0 ? "Средневзвешенная цена = Σ ₽ ÷ Σ шт. шкур" : undefined} className="hidden whitespace-nowrap px-1.5 py-1.5 text-right sm:table-cell">{qty > 0 ? "Цена, ₽/шт." : "₽ всего"}</th>
-                <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slices.map((s) => {
-                const hot = hover === s.key;
-                const label = (
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
-                    <span className="min-w-0 break-words">{s.label}</span>
-                    {countLabel ? <span className="hidden shrink-0 text-[11px] text-neutral-500 sm:inline">{countLabel(s.key)}</span> : null}
-                  </span>
-                );
-                return (
-                  <tr key={s.key} title={s.hint} onMouseEnter={enter(s.key)} onMouseLeave={leave}
-                    className={"border-b border-neutral-100 transition-colors " + (hot ? HOVER_ROW : "") + (interactive ? " cursor-pointer" : "")}
-                    onClick={interactive ? () => onSelect?.(s.key) : undefined}>
-                    <td className="py-1.5 pr-2">
-                      {interactive ? (
-                        <button type="button" onClick={(e) => { e.stopPropagation(); onSelect?.(s.key); }} onFocus={enter(s.key)} onBlur={leave} aria-haspopup="dialog" title={selectTitle}
-                          className="block w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{label}</button>
-                      ) : label}
-                    </td>
-                    {qtyVals ? <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}
-                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
-                    <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(s.value, s.key)}</td>
-                    <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
-                  </tr>
-                );
-              })}
-              <tr className="row-total">
-                <td className="py-1.5 pr-2 text-sm font-semibold">{totalLabel}</td>
-                {qtyVals ? <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{qty > 0 ? formatQty(qty) : "—"}</td> : null}
-                <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
-                <td className="hidden whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums sm:table-cell">{perUnit(unitTotal ?? total)}</td>
-                <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <div className="mx-auto shrink-0 sm:mx-0 sm:self-center">{ring}</div>
+        {legend}
       </div>
-
-      {pos.length > 0 ? (
-        <div className="flex h-3.5 w-full overflow-hidden rounded-md border border-neutral-200" role="presentation" aria-hidden>
-          {arcs.map(({ s, frac }) => (
-            <div key={s.key} style={{ width: `${frac * 100}%`, background: s.color, boxShadow: hover === s.key ? "inset 0 0 0 2px var(--ui-accent, #ff4a1c)" : undefined }}
-              title={`${s.label}: ${formatPercent(frac * 100)}`} className={interactive ? "cursor-pointer" : undefined}
-              onMouseEnter={enter(s.key)} onMouseLeave={leave} onClick={interactive ? () => onSelect?.(s.key) : undefined} />
-          ))}
-        </div>
-      ) : null}
+      {bar}
     </div>
   );
 }

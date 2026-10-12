@@ -214,7 +214,7 @@ export const COMP_COLOR: Record<CompCat | "nobd" | "vat", string> = {
   vat: "#ebe6e1",
 };
 
-export type CompSlice = { key: string; label: string; value: number; color: string; hint?: string };
+export type CompSlice = { key: string; label: string; value: number; color: string; hint?: string; /** Детализация сектора (раскрывающиеся подстроки в таблице); сумма подстрок = сумма сектора. */ sub?: CompSlice[] };
 
 /** Сектора для графика из сумм по категориям (без НДС), «без разбивки» и НДС (показывается сектором только в режиме «с НДС»). Нулевые не включаются. */
 export function sliceList(cats: Record<CompCat, number>, o: { nobd?: number; vat?: number; withVat: boolean }): CompSlice[] {
