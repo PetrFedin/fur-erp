@@ -17,6 +17,8 @@ import { InfoHint } from "@/components/info-hint";
 import { FurOrdersTable } from "@/components/fur-orders-table";
 import { RawCards } from "../../../dashboard/raw-block";
 import { LiningFabrics } from "./view";
+import { SourceDocs } from "@/components/source-docs";
+import { loadPurchasesSourceDocs } from "@/lib/source-docs-server";
 
 export const metadata = { title: "Партия подкладки" };
 
@@ -100,6 +102,7 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
         </dl>
       </section>
 
+      <SourceDocs data={await loadPurchasesSourceDocs({ organizationId: orgId, role: session.user.role }, purchaseIds)} />
       <LiningFabrics lots={lots} />
       <FurOrdersTable lots={lots} kind="lining" orderInfo={orderInfo} initialGrp={firstOf(sp.grp)} />
     </div>

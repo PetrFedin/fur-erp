@@ -3,6 +3,8 @@ import { TH as Head } from "@/components/table-head";
 import type { ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
+import { SourceDocs } from "@/components/source-docs";
+import type { SourceDocsData } from "@/lib/source-docs";
 
 /** Одна оплата в упрощённом виде: что, когда, сколько, подтверждена ли и есть ли файлы. */
 export type PayLine = {
@@ -19,6 +21,8 @@ export type PayLine = {
   status: "COMPLETED" | "PENDING" | "CANCELLED";
   overdue?: boolean;
   docCount: number;
+  /** Документы-основания оплаты (свёрнуто). */
+  sourceDocs?: SourceDocsData;
   /** Кнопки «Изменить / удалить» — прячутся под «⋯». */
   controls?: ReactNode;
 };
@@ -27,6 +31,7 @@ export type PayLine = {
 
 export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; emptyText: string }) {
   const hasComment = lines.some((l) => Boolean(l.comment));
+  const hasDocs = lines.some((l) => l.sourceDocs);
   if (lines.length === 0) return <p className="rounded-md bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-500">{emptyText}</p>;
   return (
     <div className="overflow-x-auto">
@@ -39,6 +44,7 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
             <th className="px-2 py-1.5 font-medium">Счёт</th>
             {hasComment ? <th className="px-2 py-1.5 font-medium">Комментарий</th> : null}
             <th className="px-2 py-1.5 font-medium">П/п</th>
+            {hasDocs ? <th className="px-2 py-1.5 font-medium">Документы-основания</th> : null}
             <th className="px-2 py-1.5" />
           </tr>
         </thead>
@@ -55,6 +61,7 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
               </td>
               {hasComment ? <td className="px-2 py-2 text-xs text-neutral-600">{l.comment ?? ""}</td> : null}
               <td className="whitespace-nowrap px-2 py-2 text-neutral-600">{l.ppNo ? `№ ${l.ppNo}` : "—"}</td>
+              {hasDocs ? <td className="px-2 py-2">{l.sourceDocs ? <SourceDocs compact data={l.sourceDocs} /> : <span className="text-neutral-400">—</span>}</td> : null}
               <td className="px-2 py-2 text-right">
                 {l.controls ? (
                   <details className="relative inline-block text-left">

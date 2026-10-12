@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadTargetButton } from "@/components/source-docs";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -121,6 +122,7 @@ export function VerifyControl({
                   открыть
                 </Link>
               )}
+              {canEdit && b.upload && <UploadTargetButton upload={b.upload} />}
             </li>
           ))}
         </ul>

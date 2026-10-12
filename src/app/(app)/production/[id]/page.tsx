@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { SourceDocs } from "@/components/source-docs";
+import { loadOrderSourceDocs } from "@/lib/source-docs-server";
 import { IntegrityBanner } from "@/components/integrity-banner";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
@@ -442,6 +444,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
+
+      <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />
 
       <section aria-label="Расчёт" id="calc" className="flex flex-col gap-2">
         <div className="flex items-center gap-2">

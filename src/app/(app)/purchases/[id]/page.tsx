@@ -39,6 +39,8 @@ import { auctionKey } from "@/lib/auction-key";
 import { getColorOptions } from "@/lib/colors";
 import { loadAuctionSummaries } from "@/lib/auction-payments";
 import { AuctionDocsPay } from "../../lots/auction-docs-pay";
+import { SourceDocs } from "@/components/source-docs";
+import { loadPurchaseSourceDocs } from "@/lib/source-docs-server";
 import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
@@ -585,6 +587,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         )}
       </div>
       </WidgetRow>
+
+      <SourceDocs data={await loadPurchaseSourceDocs({ organizationId: session.user.organizationId, role: session.user.role }, id)} />
 
       <details className="rounded-lg border border-neutral-200 bg-white">
         <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-neutral-800">Документы и оплата партии</summary>

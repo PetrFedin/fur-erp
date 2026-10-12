@@ -9,6 +9,7 @@ import { parseDateInput } from "@/lib/input";
 import { DRIVE_DOC_TYPES, parseDriveLink, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { driveDocRemoveRoles } from "@/lib/drive-docs-server";
 import { randomUUID } from "node:crypto";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { removeStoredFiles } from "@/lib/fitting-files";
 import { readOneDriveFile, removeDriveFileIfUnused, writeDriveFile } from "@/lib/drive-files";
 import { resetByDriveDoc } from "@/lib/verification";
@@ -131,6 +132,7 @@ export async function removeDriveDocument(documentId: string): Promise<DriveDocS
   await removeDriveFileIfUnused(doc.storagePath);
   await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -218,6 +220,11 @@ export async function uploadDriveDocument(
     read.file.originalName.replace(/\.[A-Za-z0-9]{1,8}$/, "").slice(0, 200);
   const typeRaw = String(formData.get("docType") ?? "OTHER");
   const docType: DriveDocTypeKey = (DRIVE_DOC_TYPES as readonly string[]).includes(typeRaw) ? (typeRaw as DriveDocTypeKey) : "OTHER";
+  // Номер и дата документа необязательны: блок «Документы-основания» передаёт те, что названы в данных (УПД №124 от 29.07.2025).
+  const docNumber = String(formData.get("docNumber") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 100) || null;
+  const dateRaw = String(formData.get("docDate") ?? "").trim();
+  const docDate = dateRaw ? parseDateInput(dateRaw) : null;
+  if (dateRaw && !docDate) return { error: "Некорректная дата документа" };
 
   // Привязка — только к объекту своей организации.
   const link: {
@@ -259,6 +266,9 @@ export async function uploadDriveDocument(
         docType,
         mimeType: stored.storedMime,
         sizeBytes: stored.storedSize,
+        docNumber,
+        docDate,
+        year: docDate ? docDate.getUTCFullYear() : null,
         ...stored,
         storedAt: new Date(),
         ...link,
@@ -267,6 +277,7 @@ export async function uploadDriveDocument(
     });
     await resetByDriveDoc(doc);
     revalidateDriveDoc(doc);
+    revalidateAll(orgId);
   } catch (e) {
     await removeStoredFiles([stored.storagePath]);
     throw e;
@@ -298,6 +309,7 @@ export async function uploadDriveDocumentFile(documentId: string, formData: Form
   if (doc.storagePath && doc.storagePath !== stored.storagePath) await removeDriveFileIfUnused(doc.storagePath);
   await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
+  revalidateAll(orgId);
   return { ok: true };
 }
 
@@ -318,6 +330,7 @@ export async function removeDriveDocumentFile(documentId: string): Promise<Drive
   await removeDriveFileIfUnused(doc.storagePath);
   await resetByDriveDoc(doc);
   revalidateDriveDoc(doc);
+  revalidateAll(orgId);
   return { ok: true };
 }
 

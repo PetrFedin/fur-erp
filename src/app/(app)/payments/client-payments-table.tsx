@@ -1,3 +1,5 @@
+import { SourceDocs } from "@/components/source-docs";
+import type { SourceDocsData } from "@/lib/source-docs";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { TH as Head, THGroup } from "@/components/table-head";
 import Link from "next/link";
@@ -37,6 +39,8 @@ export type ClientPayRow = {
   /** Оплата нулевая: сумма вынесена в оплату закупки (номер). */
   movedTo: string | null;
   docCount: number;
+  /** Документы-основания оплаты (свёрнуто). */
+  sourceDocs?: SourceDocsData;
   confirmed: boolean;
   verify?: ReactNode;
   docTitle: string;
@@ -215,6 +219,9 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                           const linkEls = links.map((d) => <a key={d.url} href={d.url} target="_blank" rel="noreferrer" className="mr-1 text-xs text-blue-700 hover:underline">{d.title} ↗</a>);
                           return links.length ? <>{linkEls}</> : <span className="text-neutral-400">—</span>;
                         })()}
+                        {g.rows.filter((x) => x.sourceDocs).map((x, i) => (
+                          <div key={i} className="mt-1"><SourceDocs compact data={x.sourceDocs!} popover="right" /></div>
+                        ))}
                       </td>
                     </tr>
                   );

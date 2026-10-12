@@ -14,6 +14,7 @@ import { removeProductionPayment } from "@/app/(app)/production/actions";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
 import { PaymentFormButton, type PaymentPreset } from "@/components/payment-form";
 import { useConfirm } from "@/components/confirm-dialog";
+import { UploadTargetButton } from "@/components/source-docs";
 
 type Res = { error?: string; ok?: boolean; confirm?: string } | void | undefined;
 
@@ -137,6 +138,29 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
         {it.ok && it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
       </div>
       {bad && it.missing && <p className="text-sm font-semibold text-red-700">{it.missing}</p>}
+      {canUpload && !it.ok && it.need !== "na" && it.uploads.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {it.uploads.slice(0, 3).map((u, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-600">
+              {it.uploads.length > 1 && <span className="min-w-0 break-words">{u.label.replace(/^Загрузить\s+/, "")}</span>}
+              <UploadTargetButton upload={u} />
+            </div>
+          ))}
+          {it.uploads.length > 3 && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-neutral-500">ещё куда загрузить: {it.uploads.length - 3}</summary>
+              <div className="mt-1 flex flex-col gap-1">
+                {it.uploads.slice(3).map((u, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-neutral-600">
+                    <span className="min-w-0 break-words">{u.label.replace(/^Загрузить\s+/, "")}</span>
+                    <UploadTargetButton upload={u} />
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
       {shownDocs.length > 0 && (
         <ul className="flex flex-col gap-1">
           {shownDocs.map((d) => (
