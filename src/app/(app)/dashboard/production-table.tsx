@@ -217,7 +217,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                 <th />
                 <th colSpan={3} className="border-b border-neutral-200 px-2 pb-1 text-left">Производство</th>
                 <th colSpan={showOther ? 5 : 4} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Расходы</th>
-                <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Средние и расход</th>
+                <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Среднее</th>
               </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                 <th className="py-1.5 pr-2 font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
