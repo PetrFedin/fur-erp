@@ -137,15 +137,21 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
   const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => a - b);
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-      <table className="w-full min-w-[760px] text-sm">
+      <table className="w-full min-w-[1000px] table-fixed text-sm">
+        <colgroup><col className="w-[170px]" /><col className="w-[110px]" /><col /><col /><col /><col className="w-[170px]" /><col className="w-[150px]" /></colgroup>
         <thead>
+          <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <th colSpan={2} />
+            <th colSpan={3} className="border-b border-l border-neutral-200 px-3 pb-1 text-right">Расчёт</th>
+            <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pb-1 text-left">Проверка</th>
+          </tr>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="px-3 py-2 font-medium"><span className="inline-flex items-center gap-1 whitespace-nowrap">Дата<InfoHint label="Что внутри даты"><p>Нажмите на дату оплаты — откроется страница этой даты: все оплаты за день и за какой товар они пришли (ТЗ, изделие, количество, партия).</p></InfoHint></span></th>
             <th className="px-3 py-2 font-medium">Тип</th>
-            <th className="px-3 py-2 text-right font-medium">Стоимость</th>
-            <th className="px-3 py-2 text-right font-medium">Оплачено</th>
-            <th className="px-3 py-2 text-right font-medium">Задолженность</th>
-            <th className="px-3 py-2 font-medium">Подтверждение</th>
+            <th className="border-l border-neutral-200 px-3 py-2 text-right font-medium">Стоимость, ₽</th>
+            <th className="px-3 py-2 text-right font-medium">Оплачено, ₽</th>
+            <th className="px-3 py-2 text-right font-medium">Задолженность, ₽</th>
+            <th className="border-l border-neutral-200 px-3 py-2 font-medium">Подтверждение</th>
             <th className="px-3 py-2 font-medium">Счёт</th>
           </tr>
         </thead>
@@ -164,10 +170,10 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                   const left = due - paid;
                   return (
                     <>
-                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
+                      <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">+{money(-left)}</span>}</td>
-                      <td colSpan={2} />
+                      <td colSpan={2} className="border-l border-neutral-200" />
                     </>
                   );
                 })()}
@@ -188,7 +194,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                         const left = due - paid;
                         return (
                           <>
-                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
+                            <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                               {Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">+{money(-left)}</span>}
@@ -196,7 +202,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                           </>
                         );
                       })()}
-                      <td className="px-3 py-2">
+                      <td className="border-l border-neutral-200 px-3 py-2">
                         {confirmedN === g.rows.length && g.rows.reduce((a2, x) => a2 + x.due - x.paid, 0) > 0.5 ? <Badge variant="warning">подтверждена частично</Badge> : confirmedN === g.rows.length ? <Badge variant="success">подтверждена</Badge> : confirmedN === 0 ? <Badge variant="warning">не подтверждена</Badge> : <Badge variant="warning">подтверждено {confirmedN} из {g.rows.length}</Badge>}
                         {!many && r.verify && !r.confirmed ? (
                           <details className="mt-1">

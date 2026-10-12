@@ -51,7 +51,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   const [customKind, setCustomKind] = useState("");
   const [payYear, setPayYear] = useState("");
   const [allocateLater, setAllocateLater] = useState(false);
-  const [files, setFiles] = useState<{ file: File; role: DocRole }[]>([]);
+  const [files] = useState<{ file: File; role: DocRole }[]>([]);
   const [markConfirmed, setMarkConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [recalc, setRecalc] = useState<Recalc | null>(null);
@@ -197,12 +197,12 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           {!locked && (
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Кому платим">
               {tgt?.canSupplier !== false && (
-                <button type="button" role="radio" aria-checked={side === "supplier"} onClick={() => { setSide("supplier"); setQuote(null); }} className={`rounded-md border px-3 py-2 text-sm ${side === "supplier" ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+                <button type="button" role="radio" aria-checked={side === "supplier"} onClick={() => { setSide("supplier"); setQuote(null); }} className={`rounded-md border px-3 py-2 text-sm ${side === "supplier" ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-300"}`}>
                   Поставщику (аукцион / закупка)
                 </button>
               )}
               {tgt?.canWork !== false && (
-                <button type="button" role="radio" aria-checked={side === "work"} onClick={() => { setSide("work"); setQuote(null); if (kind === "REFUND") setKind("INVOICE"); }} className={`rounded-md border px-3 py-2 text-sm ${side === "work" ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+                <button type="button" role="radio" aria-checked={side === "work"} onClick={() => { setSide("work"); setQuote(null); if (kind === "REFUND") setKind("INVOICE"); }} className={`rounded-md border px-3 py-2 text-sm ${side === "work" ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-300"}`}>
                   По работе (партия / ТЗ)
                 </button>
               )}
@@ -286,7 +286,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
               ) : (
                 <div>
                   <label htmlFor="pf-orders" className={lab}>ТЗ (можно несколько: Ctrl / ⌘ или тап)</label>
-                  <select id="pf-orders" multiple size={7} value={orderIds} onChange={(e) => setOrderIds(Array.from(e.target.selectedOptions).map((o) => o.value))} className="w-full rounded-md border border-neutral-300 bg-white p-1 text-sm">
+                  <select id="pf-orders" multiple size={7} value={orderIds} onChange={(e) => setOrderIds(Array.from(e.target.selectedOptions).map((o) => o.value))} className="ui-field w-full rounded-lg border border-neutral-300 bg-white p-1 text-xs">
                     {tgt?.orders.map((o) => (
                       <option key={o.id} value={o.id}>{o.label}{o.batch ? ` · партия ${o.batch}` : ""}{o.client ? ` · ${o.client}` : ""}</option>
                     ))}
@@ -317,7 +317,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
           <fieldset className="flex flex-wrap gap-2">
             <legend className={lab}>Вид оплаты</legend>
             {kinds.map((k) => (
-              <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); setCustomKind(""); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-100 font-medium" : "border-neutral-300"}`}>
+              <button key={k.v} type="button" role="radio" aria-checked={kind === k.v} title={k.hint} onClick={() => { setKind(k.v); setCustomKind(""); if (k.v === "PERCENT" && mode === "amount") { setMode("percent"); setPercent("30"); } }} className={`rounded-md border px-3 py-2 text-sm ${kind === k.v ? "border-neutral-900 bg-neutral-900 font-medium text-white" : "border-neutral-300"}`}>
                 {k.label}
               </button>
             ))}
@@ -391,7 +391,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
             <p>{PAY_KINDS.find((k) => k.v === kind)?.label}: <b>{money(kind === "REFUND" ? -Math.abs(amountNum) : amountNum)}</b> от {paidAt}{ppNo ? `, п/п № ${ppNo}` : ""}</p>
           </div>
           <label className="flex items-start gap-2">
-            <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1" />
+            <input type="checkbox" checked={markConfirmed} disabled={!confirmOk} onChange={(e) => setMarkConfirmed(e.target.checked)} className="mt-1 accent-neutral-900" />
             <span>Отметить «подтверждено»{!confirmOk && <InfoHint label="Когда можно отметить"><p>Доступно, если указан № п/п с датой и суммой. Письмо-согласование оплатой не считается.</p></InfoHint>}</span>
           </label>
         </section>
@@ -453,9 +453,12 @@ export function PaymentFormButton({ label = "Внести оплату", preset,
     <>
       <Button type="button" variant={variant} size={size} onClick={() => setOpen(true)} className="max-md:h-10">{label}</Button>
       {open && (
-        <dialog ref={ref} onClose={() => { setOpen(false); }} className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
+        <dialog ref={ref} aria-labelledby="pf-dlg-title" onClose={() => { setOpen(false); }} className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
-            <h2 className="mb-3 text-base font-semibold">Внести оплату</h2>
+            <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
+              <h2 id="pf-dlg-title" className="text-base font-semibold">Внести оплату</h2>
+              <button type="button" onClick={() => ref.current?.close()} aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-2.5 py-1 text-sm">✕</button>
+            </div>
             <PaymentForm preset={preset} requireYear={requireYear} onDone={() => { ref.current?.close(); window.location.reload(); }} />
           </div>
         </dialog>

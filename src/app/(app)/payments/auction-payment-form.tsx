@@ -385,7 +385,8 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
     );
   }
   return (
-    <div role="dialog" aria-label="Подтверждение закрытия остатка" className="flex flex-col gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+    <div role="dialog" aria-labelledby={`${uid}-ttl`} onKeyDown={(e) => { if (e.key === "Escape" && !pending) { e.stopPropagation(); setOpen(false); } }} className="flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-3 text-sm">
+      <h3 id={`${uid}-ttl`} className="border-b border-neutral-200 pb-2 text-sm font-semibold">Подтверждение закрытия остатка</h3>
       {confirmNode}
       <p>
         Будет создана оплата «Оплачено» на весь текущий остаток аукциона «{auction}» — <span className="font-semibold">{remaining}</span>, с пометкой «закрытие
@@ -395,7 +396,7 @@ export function CloseRemainderButton({ auction, remaining }: { auction: string; 
         <label htmlFor={`${uid}-date`} className="mb-1 block text-xs text-neutral-600">
           Дата оплаты
         </label>
-        <Input id={`${uid}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        <Input id={`${uid}-date`} type="date" autoFocus value={date} onChange={(e) => setDate(e.target.value)} required />
       </div>
       {error && (
         <p role="alert" className="text-red-700">

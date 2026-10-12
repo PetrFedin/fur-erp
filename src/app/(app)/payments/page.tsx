@@ -489,7 +489,6 @@ export default async function PaymentsPage({
           const gr0 = g.items.reduce((acc, a) => acc.add(a.remaining), zeroD);
           // «Закупки без аукциона» и «Шкуры подрядчика» — внутри года оплаты: входят в итог года и раскрываются вместе с ним.
           const ex = withExtras && g.year != null ? (extraByYear.get(g.year) ?? []) : [];
-          const withExtra = ex.length > 0;
           const gt = ex.reduce((acc, e) => acc.add(e.total), gt0);
           const gp = ex.reduce((acc, e) => acc.add(e.paid), gp0);
           const gr = ex.reduce((acc, e) => acc.add(e.rem), gr0);
@@ -752,7 +751,7 @@ export default async function PaymentsPage({
               );
             }
           }
-          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} />} rows={rows} left={left} controls={controls} />;
+          return <PaymentsOverview tiles={<PayTiles d={dash} c4Mode={await getCommission4Mode()} year={year} headerEnd={<Link href="/dashboard" className="text-xs text-blue-700 hover:underline print:hidden">→ Главная</Link>} />} rows={rows} left={left} controls={controls} />;
         })()}
         </>
       ) : tab === "clients" ? (

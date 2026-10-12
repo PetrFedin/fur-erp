@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
 import { WidgetRow } from "@/components/widget-row";
@@ -95,7 +96,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
 
   return (
     <>
-      <WidgetRow id="payments" title="Оплаты — итоги">
+      <WidgetRow id="payments" title="Оплаты — итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-pay-tiles>
         <Tile label="Общая стоимость" value={rub(paid.total + debt.total)} hint={<InfoHint label="Что такое общая стоимость" align="right"><p>Оплачено плюс осталось оплатить за сырьё (мех с шкурами подрядчика, подкладка). Всегда с НДС; 4% отдельно не добавляются.</p></InfoHint>} items={split ? stat(paid.total + debt.total, paid.total + debt.total, split.paid.fur + split.debt.fur, split.paid.lining + split.debt.lining) : undefined} />
         <Tile label="Оплачено" value={rub(paid.total)} hint={paidHint} onOpen={() => setOpen("paid")} items={split ? stat(paid.total, paid.total, split.paid.fur, split.paid.lining) : undefined} />
@@ -105,14 +106,14 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
       </div>
       </WidgetRow>
       {open && (
-        <dialog ref={ref} onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
+        <dialog ref={ref} aria-labelledby="pay-dlg-title" onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "paid" ? "Оплачено" : "К оплате"}</div>
+                <h2 id="pay-dlg-title" className="text-base font-semibold">{open === "paid" ? "Оплачено" : "К оплате"}</h2>
                 <div className="text-xl font-semibold tabular-nums">{rub(open === "paid" ? paid.total : debt.total)}</div>
               </div>
-              <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+              <button type="button" onClick={() => ref.current?.close()} autoFocus aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>
             </div>
             {open === "paid" ? (
               <>
@@ -130,7 +131,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
                     </div>
                   ))}
                 </dl>
-                <h3 className="mb-2 text-sm font-medium">К оплате по партиям закупки</h3>
+                <h3 className="mb-2 text-sm font-semibold">К оплате по партиям закупки</h3>
                 <Bars rows={debt.rows} tone="debt" />
               </>
             )}

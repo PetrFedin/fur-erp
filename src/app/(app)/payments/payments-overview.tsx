@@ -33,10 +33,10 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
   const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 ? " text-amber-700" : "")}>{m(v)}</td>;
   const figures = (r: { fur: number; lining: number; work: number; paid: number; debt: number | null }, cls = "") => (
     <>
-      <td className={TD + " border-l border-neutral-100" + cls}>{m(r.fur)}</td>
+      <td className={TD + " border-l border-neutral-200" + cls}>{m(r.fur)}</td>
       <td className={TD + cls}>{m(r.lining)}</td>
       <td className={TD + cls}>{m(r.work)}</td>
-      <td className={TD + " border-l border-neutral-100" + cls}>{m(r.paid)}</td>
+      <td className={TD + " border-l border-neutral-200" + cls}>{m(r.paid)}</td>
       {r.debt == null ? <td className={TD}><Dash /></td> : debtTd(r.debt, cls)}
     </>
   );
@@ -81,7 +81,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                         <span className="ml-2">{r.what}</span>
                         <span className="ml-2 text-neutral-500">{r.label}</span>
                         {!r.confirmed ? <span className="ml-2 text-amber-700" title="Нет платёжки: оплата не подтверждена">ждёт проверки</span> : null}
-                        <Link href={r.links[0]?.href ?? r.href} className="ml-2 text-blue-700 hover:underline">→ {r.links[0]?.label ?? (r.kind === "raw" ? "За сырьё" : "За производство")}</Link>
+                        <Link href={r.links[0]?.href ?? r.href} title="Открыть закупку / ТЗ / партию" className="ml-2 text-[11px] text-neutral-500 hover:underline">↗ {r.links[0]?.label ?? (r.kind === "raw" ? "За сырьё" : "За производство")}</Link>
                         {r.doc ? <div className="mt-0.5 max-w-[34rem] truncate text-xs text-neutral-500" title={r.doc}>{r.doc}</div> : null}
                       </td>
                       {figures({ fur: r.fur, lining: r.lining, work: r.work, paid: r.amount, debt: null })}
@@ -114,8 +114,8 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                           {x.href ? <Link href={x.href} className="text-blue-700 hover:underline">{x.label}</Link> : x.label}
                           {x.note ? <span className="ml-1.5 text-neutral-400">{x.note}</span> : null}
                         </td>
-                        <td className={TD + " border-l border-neutral-100"} colSpan={3} />
-                        <td className={TD + " border-l border-neutral-100"}>{m(x.amount)}</td>
+                        <td className={TD + " border-l border-neutral-200"} colSpan={3} />
+                        <td className={TD + " border-l border-neutral-200"}>{m(x.amount)}</td>
                         <td className={TD} />
                       </tr>
                     )) : null}
@@ -143,16 +143,22 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
           </InfoHint>
         </div>
         <div className={SCROLL_BOX}>
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[820px] table-fixed text-sm">
+            <colgroup><col className="w-6" /><col className="w-[190px]" /><col /><col /><col /><col /><col /></colgroup>
             <thead>
+              <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                <th colSpan={2} />
+                <th colSpan={3} className="border-b border-l border-neutral-200 px-1.5 pb-1 text-right">Состав оплаты</th>
+                <th colSpan={2} className="border-b border-l border-neutral-200 px-1.5 pb-1 text-right">Оплата и долг</th>
+              </tr>
               <tr className="border-b border-neutral-200">
                 <th className={ARROW_TH} aria-label="Раскрыть" />
                 <th className={TH_LEFT}>Год / оплата</th>
-                <th className={TH + " border-l border-neutral-100"}>Мех</th>
-                <th className={TH}>Подкладка</th>
-                <th className={TH}>Работа</th>
-                <th className={TH + " border-l border-neutral-100"}>Оплачено</th>
-                <th className={TH}>Задолженность</th>
+                <th className={TH + " border-l border-neutral-200"}>Мех, ₽</th>
+                <th className={TH}>Подкладка, ₽</th>
+                <th className={TH}>Работа, ₽</th>
+                <th className={TH + " border-l border-neutral-200"}>Оплачено, ₽</th>
+                <th className={TH}>Задолженность, ₽</th>
               </tr>
             </thead>
             <tbody>

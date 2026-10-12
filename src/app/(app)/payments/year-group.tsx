@@ -13,7 +13,7 @@ export function YearGroup({ label, sub, cells, labelSpan = 1, defaultOpen = fals
     <Fragment>
       <tr className="border-b border-neutral-100 bg-neutral-50 text-sm font-semibold text-neutral-900">
         <td className="px-3 py-2" colSpan={labelSpan}>
-          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="inline-flex items-baseline gap-1 text-left hover:text-blue-700">
+          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="inline-flex items-baseline gap-1 text-left hover:underline">
             <Chevron open={open} />
             <span>{label}</span>
             {sub ? <span className="ml-1 text-xs font-normal text-neutral-600">{sub}</span> : null}

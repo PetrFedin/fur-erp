@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney, formatPercent } from "@/lib/utils";
@@ -33,15 +34,16 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
   const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => (a ?? 9999) - (b ?? 9999));
   const work = rows.reduce((s, r) => s + r.work, 0);
   const paid = rows.reduce((s, r) => s + r.paid, 0) + advances;
-  const rest = (w: number, p: number) => (Math.abs(w - p) <= 0.5 ? <span className="text-neutral-400">—</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">+{rub(p - w)}</span>);
+  const rest = (w: number, p: number) => (Math.abs(w - p) <= 0.5 ? <span className="text-neutral-500">—</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">+{rub(p - w)}</span>);
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[520px] text-sm">
+      <table className="w-full min-w-[520px] table-fixed text-sm">
+        <colgroup><col className="w-[170px]" /><col /><col /><col /></colgroup>
         <thead>
           <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
             <th />
-            <th className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Расчёт</th>
-            <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th>
+            <th className="border-b border-l border-neutral-200 px-2 pb-1 text-right">Расчёт</th>
+            <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-right">Оплата</th>
           </tr>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Партия</th>
@@ -55,8 +57,8 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
             const list = rows.filter((r) => r.year === y).sort((a, b) => a.key.localeCompare(b.key, "ru", { numeric: true }));
             return (
               <Fragment key={y ?? "none"}>
-                <tr className="bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-neutral-600">
-                  <td className="px-2 py-1.5" colSpan={4}>{y ?? "Без года"}</td>
+                <tr className="border-b border-neutral-200 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                  <td className="py-1.5 pr-2" colSpan={4}>{y ?? "Без года"}</td>
                 </tr>
                 {list.map((r) => (
                   <tr key={r.key} className="border-b border-neutral-100">
@@ -72,9 +74,9 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
           {advances > 0.5 ? (
             <tr className="border-b border-neutral-100">
               <td className="py-1.5 pr-2">Авансы без привязки к ТЗ</td>
-              <td className="border-l border-neutral-200 px-2 py-1.5 text-right text-neutral-400">—</td>
+              <td className="border-l border-neutral-200 px-2 py-1.5 text-right text-neutral-500">—</td>
               <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{rub(advances)}</td>
-              <td className="px-2 py-1.5 text-right text-neutral-400">—</td>
+              <td className="px-2 py-1.5 text-right text-neutral-500">—</td>
             </tr>
           ) : null}
         </tbody>
@@ -120,7 +122,7 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   }, [open]);
   return (
     <>
-      <WidgetRow id="goods" title="Оплата работы — итоги">
+      <WidgetRow id="goods" title="Оплата работы — итоги" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
         <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} note="работа по ТЗ" />
         <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${formatPercent((paid / total) * 100)} от стоимости` : undefined} />
@@ -128,14 +130,14 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
       </div>
       </WidgetRow>
       {open && (
-        <dialog ref={ref} onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-4xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
+        <dialog ref={ref} aria-labelledby="goods-dlg-title" onClose={() => setOpen(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close(); }} className="m-auto w-[calc(100vw-2rem)] max-w-4xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</div>
+                <h2 id="goods-dlg-title" className="text-base font-semibold">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</h2>
                 {open === "debt" ? <div className="text-sm text-neutral-700">К оплате <span className="font-medium text-amber-700">{rub(balance)}</span></div> : null}
               </div>
-              <button type="button" onClick={() => ref.current?.close()} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">✕ Закрыть</button>
+              <button type="button" onClick={() => ref.current?.close()} autoFocus aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>
             </div>
             {open === "debt" ? (
               <OwedTable owed={owed} advances={unallocated} balance={balance} />
@@ -181,7 +183,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
               const p = list.reduce((s, o) => s + o.paid, 0);
               return (
                 <Fragment key={b ?? "none"}>
-                  <tr className="bg-neutral-100 font-semibold">
+                  <tr className="bg-neutral-50/70 font-semibold">
                     <td className="px-2 py-1.5" colSpan={3}>{b != null ? `Партия ${b}` : "Без партии"}{list[0]?.year ? ` · ${list[0].year}` : ""} · {uniqueLabelCount(list)} ТЗ</td>
                     <td className="border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{list.reduce((s, o) => s + o.qty, 0).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{rub(w)}</td>
