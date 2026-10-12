@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { TH as Head } from "@/components/table-head";
 import { cookies } from "next/headers";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -32,8 +33,8 @@ function LotTable({ title, rows, total }: { title: string; rows: TzLine[]; total
             <th className={th}>Лот</th>
             <th className={th}>Материал</th>
             <th className={th + " text-right"}>Кол-во</th>
-            <th className={th + " text-right"}>Цена за ед.</th>
-            <th className={th + " text-right"}>Сумма</th>
+            <Head label="Цена за ед." unit="₽" align="right" />
+            <Head label="Сумма" unit="₽" align="right" />
           </tr>
         </thead>
         <tbody>
@@ -127,8 +128,8 @@ export default async function TzPrintPage({
                 <th className={th}>Цвет</th>
                 <th className={th}>Размеры</th>
                 <th className={th + " text-right"}>Кол-во, шт.</th>
-                <th className={th + " text-right"}>Работа за ед.</th>
-                <th className={th + " text-right"}>Сумма работы</th>
+                <Head label="Работа за ед." unit="₽" align="right" />
+                <Head label="Сумма работы" unit="₽" align="right" />
               </tr>
             </thead>
             <tbody>
@@ -161,7 +162,7 @@ export default async function TzPrintPage({
                 <tr>
                   <th className={th}>Статья</th>
                   <th className={th}>Описание</th>
-                  <th className={th + " text-right"}>Сумма</th>
+                  <Head label="Сумма" unit="₽" align="right" />
                 </tr>
               </thead>
               <tbody>

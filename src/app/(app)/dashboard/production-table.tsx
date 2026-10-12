@@ -1,5 +1,6 @@
 "use client";
 
+import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -155,7 +156,6 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
   const qty = (g: Agg) => Array.from(g.orders.values()).reduce((s, o) => s + o.qty, 0);
   const sum = cost;
 
-  const th = "px-2 py-1.5 text-right font-medium";
   // Тонкая вертикальная линия между блоками колонок: «Производство» | «Расходы» | «Средние и расход».
   const BL = " border-l border-neutral-200";
   const cells = (g: Agg, small: boolean, noQty = false, dark = false) => {
@@ -238,27 +238,27 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left">
             <thead>
-              <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              <tr>
                 <th />
-                <th colSpan={3} className="border-b border-neutral-200 px-2 pb-1 text-left">Производство</th>
-                <th colSpan={showOther ? 5 : 4} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Расходы</th>
-                <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Среднее</th>
+                <THGroup colSpan={3} sep={false}>Производство</THGroup>
+                <THGroup colSpan={showOther ? 5 : 4}>Расходы</THGroup>
+                <THGroup colSpan={5}>Среднее</THGroup>
               </tr>
               <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-                <th className="py-1.5 pr-2 font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
-                <th className={th}>Изделий, шт.</th>
-                <th className={th}>Ср. цена изделия</th>
-                <th className={th}>Сумма производства</th>
-                <th className={th + BL}>Мех</th>
-                <th className={th}>Подкладка</th>
-                <th className={th}>Работа</th>
-                <th className={th}>4%</th>
-                {showOther ? <th className={th}>Расходы и прочее</th> : null}
-                <th className={th + BL}>Шкур, шт.</th>
-                <th className={th}>Ср. цена шкуры</th>
-                <th className={th}>Подкладки, м</th>
-                <th className={th}>Ср. цена подкладки, ₽/м</th>
-                <th className={th}>Ср. цена работы, ₽/изд.</th>
+                <th className="py-1.5 pr-2 text-left font-medium">{by === "cat" ? "Группа / категория / мех" : "Мех / группа / категория"}</th>
+                <TH label="Изделий" unit="шт." />
+                <TH label="Ср. цена изделия" unit="₽/шт." />
+                <TH label="Сумма производства" unit="₽" />
+                <TH label="Мех" unit="₽" sep />
+                <TH label="Подкладка" unit="₽" />
+                <TH label="Работа" unit="₽" />
+                <TH label="4%" unit="₽" />
+                {showOther ? <TH label="Расходы и прочее" unit="₽" /> : null}
+                <TH label="Шкур" unit="шт." sep />
+                <TH label="Ср. цена шкуры" unit="₽/шт." />
+                <TH label="Подкладки" unit="м" />
+                <TH label="Ср. цена подкладки" unit="₽/м" />
+                <TH label="Ср. цена работы" unit="₽/изд." />
               </tr>
             </thead>
             <tbody>

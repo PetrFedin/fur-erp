@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { itemsSuffix, tzCountText } from "@/lib/tz-key";
 import { TotalLabel } from "@/components/total-label";
 import { Dash } from "@/components/tree-table";
@@ -127,6 +128,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${batch.number}` }]} />
       <ProductionTabs active="batches" />
       <IntegrityBanner kind="batch" id={batch.id} />
       <div>
@@ -218,14 +220,14 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               <Tr>
                 <Th>№ ТЗ</Th>
                 <Th>Изделие</Th>
-                <Th>Шт.</Th>
+                <Th unit="шт.">Кол-во</Th>
                 <Th className="hidden sm:table-cell">
                   Себестоимость, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
                   <InfoHint label="Что значит 4%" wide>4% — доп. комиссия посредника (Веллмех): мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
                 </Th>
-                <Th className="hidden md:table-cell">Работа, ₽</Th>
-                <Th className="hidden md:table-cell">Оплачено, ₽</Th>
-                <Th className="hidden md:table-cell">Остаток, ₽</Th>
+                <Th className="hidden md:table-cell" unit="₽">Работа</Th>
+                <Th className="hidden md:table-cell" unit="₽">Оплачено</Th>
+                <Th className="hidden md:table-cell" unit="₽">Остаток</Th>
                 <Th className="hidden md:table-cell">НДС</Th>
               </Tr>
             </Thead>
@@ -305,7 +307,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               <Tr>
                 <Th>Дата</Th>
                 <Th>Тип</Th>
-                <Th>Сумма</Th>
+                <Th unit="₽">Сумма</Th>
                 <Th className="hidden sm:table-cell" title="Часть платежа, отнесённая на ТЗ этой партии">На ТЗ партии</Th>
                 <Th className="hidden sm:table-cell">Документ</Th>
                 <Th className="hidden sm:table-cell">ТЗ</Th>

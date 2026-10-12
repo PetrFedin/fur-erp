@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
@@ -104,6 +105,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Отгрузки" }]} />
       <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Отгрузки</h1><YearNote year={year} />
@@ -163,7 +165,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
             <Th>Плановая дата</Th>
             <Th>Заказчик</Th>
             <Th>ТЗ и что отгружается</Th>
-            <Th className="text-right">Кол-во, шт.</Th>
+            <Th className="text-right" unit="шт.">Кол-во</Th>
             <Th>Фактическая дата</Th>
           </Tr>
         </Thead>

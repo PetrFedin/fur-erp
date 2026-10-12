@@ -277,11 +277,11 @@ function FormBody({
           <tr className="border-b border-neutral-200">
             <th className={th}>Лот</th>
             <th className={`${th} text-right`}>Остаток</th>
-            <th className={`${th} text-right`}>Цена за {unitLabel}</th>
+            <th className={`${th} text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Цена</span><span className="text-[10px] font-normal opacity-80">₽/{unitLabel}</span></span></th>
             <th className={`${th} text-right`}>НДС</th>
-            <th className={`${th} w-28 text-right`}>Кол-во, {unitLabel}</th>
-            <th className={`${th} text-center`}>4%</th>
-            <th className={`${th} text-right`}>Сумма</th>
+            <th className={`${th} w-28 text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Кол-во</span><span className="text-[10px] font-normal opacity-80">{unitLabel}</span></span></th>
+            <th className={`${th} text-center`}><span className="inline-flex flex-col items-center leading-tight"><span>4%</span><span className="text-[10px] font-normal opacity-80">₽</span></span></th>
+            <th className={`${th} text-right`}><span className="inline-flex flex-col items-end leading-tight"><span>Сумма</span><span className="text-[10px] font-normal opacity-80">₽</span></span></th>
             <th className={th} />
           </tr>
         </thead>

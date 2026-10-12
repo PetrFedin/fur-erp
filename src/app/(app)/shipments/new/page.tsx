@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { requireRole } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
 import { suggestSizeRows, todayIso } from "@/lib/shipments";
@@ -27,6 +28,7 @@ export default async function NewShipmentPage({ searchParams }: PageProps<"/ship
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Отгрузки", href: "/shipments" }, { label: "Новая отгрузка" }]} />
       <ProductionTabs active="shipments" />
       <h1 className="text-xl font-semibold">Новая отгрузка</h1>
       <ShipmentForm

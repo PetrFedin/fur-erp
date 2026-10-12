@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head, THGroup } from "@/components/table-head";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatMoney, formatPercent } from "@/lib/utils";
@@ -43,13 +44,13 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
           <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
             <th />
             <th className="border-b border-l border-neutral-200 px-2 pb-1 text-right">Расчёт</th>
-            <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-right">Оплата</th>
+            <THGroup colSpan={2}>Оплата</THGroup>
           </tr>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Партия</th>
-            <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Стоимость</th>
-            <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Оплачено</th>
-            <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
+            <Head label="Стоимость" unit="₽" align="right" sep className="px-2" />
+            <Head label="Оплачено" unit="₽" align="right" sep className="px-2" />
+            <Head label="Задолженность" unit="₽" align="right" className="px-2" />
           </tr>
         </thead>
         <tbody>
@@ -162,18 +163,18 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-              <th colSpan={3} className="border-b border-neutral-200 px-2 pb-1 text-left">Заказ</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Количество и расчёт</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th>
+              <THGroup colSpan={3} sep={false}>Заказ</THGroup>
+              <THGroup colSpan={2}>Количество и расчёт</THGroup>
+              <THGroup colSpan={2}>Оплата</THGroup>
             </tr>
             <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
               <th className="py-1.5 pr-2 font-medium">ТЗ</th>
               <th className="px-2 py-1.5 font-medium">Артикул</th>
               <th className="px-2 py-1.5 font-medium">Мех</th>
-              <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Кол-во</th>
-              <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
-              <th className="border-l border-neutral-200 px-2 py-1.5 text-right font-medium">Оплачено</th>
-              <th className="px-2 py-1.5 text-right font-medium">Задолженность</th>
+              <Head label="Кол-во" unit="шт." align="right" sep className="px-2" />
+              <Head label="Стоимость" unit="₽" align="right" className="px-2" />
+              <Head label="Оплачено" unit="₽" align="right" sep className="px-2" />
+              <Head label="Задолженность" unit="₽" align="right" className="px-2" />
             </tr>
           </thead>
           <tbody>

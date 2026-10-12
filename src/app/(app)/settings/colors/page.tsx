@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -77,8 +78,8 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Цвета" }]} />
       <div>
-        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник цветов</h1><InfoHint label="О справочнике" wide>
           Один цвет — одно название на русском. В ТЗ, закупках и лотах цвет выбирается отсюда; переименование здесь сразу меняет название везде.
           В «Синонимах» — как этот цвет пишут в реестре и документах (латиница, опечатки).

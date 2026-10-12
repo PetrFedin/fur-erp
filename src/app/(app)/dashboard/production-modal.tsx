@@ -1,5 +1,6 @@
 "use client";
 
+import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -225,23 +226,23 @@ export function ProductionModal({
                     <table className={"w-full text-sm " + (rich ? "min-w-[900px]" : "min-w-[520px]")}>
                       <thead>
                         {(rich || showFurQ || showLinQ || workCol) ? (
-                          <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                          <tr>
                             <th colSpan={2 + (perUnit ? 1 : 0)} />
-                            {showFurQ || showLinQ ? <th colSpan={(showFurQ ? 1 : 0) + (showLinQ ? 1 : 0)} className={"border-b border-neutral-200 px-2 pb-1 text-left" + GL}>Использовано</th> : null}
-                            <th colSpan={1 + (rich ? 3 + (showOther ? 1 : 0) : 0) + (workCol ? 1 : 0)} className={"border-b border-neutral-200 px-2 pb-1 text-left" + GL}>Себестоимость и состав</th>
+                            {showFurQ || showLinQ ? <THGroup colSpan={(showFurQ ? 1 : 0) + (showLinQ ? 1 : 0)}>Использовано</THGroup> : null}
+                            <THGroup colSpan={1 + (rich ? 3 + (showOther ? 1 : 0) : 0) + (workCol ? 1 : 0)}>Себестоимость и состав</THGroup>
                             <th className={GL} />
                           </tr>
                         ) : null}
                         <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                          <th className="min-w-[150px] py-1.5 pr-2 font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
-                          <th className="px-2 py-1.5 text-right font-medium">Кол-во</th>
-                          {perUnit ? <th className="px-2 py-1.5 text-right font-medium">1 изд.</th> : null}
-                          {showFurQ ? <th className={"px-2 py-1.5 text-right font-medium" + GL}>Шкур, шт.</th> : null}
-                          {showLinQ ? <th className={"px-2 py-1.5 text-right font-medium" + (showFurQ ? "" : GL)}>Подкладка, м</th> : null}
-                          <th className={"px-2 py-1.5 text-right font-medium" + GL}>Себестоимость</th>
-                          {rich ? <><th className="px-2 py-1.5 text-right font-medium">Мех</th><th className="px-2 py-1.5 text-right font-medium">Подкладка</th><th className="px-2 py-1.5 text-right font-medium">4%</th>{showOther ? <th className="px-2 py-1.5 text-right font-medium">{workCol ? "Прочее" : "Расходы и прочее"}</th> : null}</> : null}
-                          {workCol ? <th className="px-2 py-1.5 text-right font-medium">Работа</th> : null}
-                          <th className={"px-2 py-1.5 text-right font-medium" + GL}>Доля уровня</th>
+                          <th className="min-w-[150px] py-1.5 pr-2 text-left font-medium">{level.kind === "composition" ? "Составляющая" : level.kind === "lines" ? "Лот" : "Строка"}</th>
+                          <TH label="Кол-во" unit="шт." />
+                          {perUnit ? <TH label="На 1 изд." unit="₽" /> : null}
+                          {showFurQ ? <TH label="Шкур" unit="шт." sep /> : null}
+                          {showLinQ ? <TH label="Подкладка" unit="м" sep={!showFurQ} /> : null}
+                          <TH label="Себестоимость" unit="₽" sep />
+                          {rich ? <><TH label="Мех" unit="₽" /><TH label="Подкладка" unit="₽" /><TH label="4%" unit="₽" />{showOther ? <TH label={workCol ? "Прочее" : "Расходы и прочее"} unit="₽" /> : null}</> : null}
+                          {workCol ? <TH label="Работа" unit="₽" /> : null}
+                          <TH label="Доля уровня" unit="%" sep />
                         </tr>
                       </thead>
                       <tbody>

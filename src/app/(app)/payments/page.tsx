@@ -414,10 +414,10 @@ export default async function PaymentsPage({
       <Thead>
         <Tr>
           <Th>Аукцион</Th>
-          <Th className="text-right">Стоимость</Th>
-          <Th className="text-right">Оплачено</Th>
-          {anyPlanned && <Th className="text-right">Запланировано</Th>}
-          <Th className="text-right">Задолженность</Th>
+          <Th className="text-right" unit="₽">Стоимость</Th>
+          <Th className="text-right" unit="₽">Оплачено</Th>
+          {anyPlanned && <Th className="text-right" unit="₽">Запланировано</Th>}
+          <Th className="text-right" unit="₽">Задолженность</Th>
         </Tr>
       </Thead>
       <Tbody>

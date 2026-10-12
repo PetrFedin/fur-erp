@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { ArticleName } from "@/components/article-name";
 import { notFound } from "next/navigation";
@@ -33,6 +34,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Отгрузки", href: "/shipments" }, { label: `Отгрузка на ${formatDate(s.plannedDate)}` }]} />
       <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/shipments" className="text-sm text-neutral-500 hover:underline">
@@ -60,7 +62,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             <Th>ТЗ</Th>
             <Th>Модель</Th>
             <Th>Размер</Th>
-            <Th>Кол-во, шт.</Th>
+            <Th unit="шт.">Кол-во</Th>
           </Tr>
         </Thead>
         <Tbody>

@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -34,8 +35,8 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
   const T = usage.totals;
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Мех" }]} />
       <div>
-        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник меха</h1><InfoHint label="О справочнике" wide>
         Один вид меха — одна запись: русское название (его видно в аналитике и лотах), английское (из инвойсов и спецификаций — показывается в подсказке) и синонимы.
         В инвойсах мех написан латиницей («sable», «mink», «swakara»), в ТЗ — по-русски («шкура норки», «соболя»): любое из этих написаний приводится к русскому названию.

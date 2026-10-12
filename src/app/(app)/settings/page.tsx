@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +23,7 @@ export default async function SettingsPage() {
   await requireSession();
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки" }]} />
       <div>
         <h1 className="text-xl font-semibold">Настройки</h1>
         <p className="mt-1 text-sm text-neutral-500">

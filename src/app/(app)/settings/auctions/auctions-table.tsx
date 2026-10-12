@@ -131,7 +131,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
                 <Th>Дом</Th>
                 <Th>Вид · год/мес.</Th>
                 <Th className="text-right">Закупок</Th>
-                <Th className="text-right">Сумма</Th>
+                <Th className="text-right" unit="₽">Сумма</Th>
                 <Th>Статус</Th>
                 <Th>{canEdit ? "Действия" : ""}</Th>
               </Tr>

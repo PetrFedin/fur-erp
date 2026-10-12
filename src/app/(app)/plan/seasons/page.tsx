@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -84,6 +85,7 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "План заказа", href: "/plan" }, { label: "Сезоны ТЗ" }]} />
       <ProductionTabs active="plan" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Сезоны ТЗ</h1><YearNote year={year} />{" "}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head } from "@/components/table-head";
 import { useState } from "react";
 import { Money } from "@/components/money";
 import { TotalLabel } from "@/components/total-label";
@@ -67,8 +68,8 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                 <th className={TH + " w-[9%]"}>Дата</th>
                 <th className={TH + " w-[9%]"}>{unit === "м" ? "Метров" : "Шкур"}, {unit}</th>
                 <th className={TH + " w-[8%]"}>Доля лота</th>
-                <th className={TH + " w-[13%]"}>Сумма без 4%, ₽</th>
-                <th className={TH + " w-[13%]"}>Сумма с 4%, ₽</th>
+                <Head label="Сумма без 4%" unit="₽" align="right" className="w-[13%]" />
+                <Head label="Сумма с 4%" unit="₽" align="right" className="w-[13%]" />
                 <th className={TH + " w-[9%]"}>Ср. цена, ₽/{unit}</th>
                 <th className={TH + " w-[9%]"}>На изделие, {unit}</th>
               </tr>

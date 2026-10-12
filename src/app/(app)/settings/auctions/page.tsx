@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -44,7 +45,7 @@ export default async function AuctionsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Аукционы" }]} />
       <AuctionsTable rows={rows} canEdit={canEdit} />
       {orphan.size > 0 && (
         <div className="max-w-3xl rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">

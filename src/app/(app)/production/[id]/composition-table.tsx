@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head } from "@/components/table-head";
 import type { ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty, formatShare } from "@/lib/utils";
@@ -103,15 +104,15 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
               <th className={TH + " text-left"}>Закупка</th>
               <th className={TH + " text-left"}>Аукцион</th>
               <th className={TH + " text-left"}>Материал</th>
-              <th className={TH + " text-right"}>Кол-во</th>
-              <th className={TH + " text-right"}>Цена за ед., {modeLabel}</th>
-              <th className={TH + " text-right"}>Ставка НДС</th>
-              <th className={TH + " border-l border-neutral-200 text-right"}>Сумма, {modeLabel}</th>
-              <th className={TH + " text-right"}>в т.ч. НДС</th>
-              {c4 === "on" ? <th className={TH + " text-right"}>4%</th> : null}
-              <th className={TH + " border-l border-neutral-200 text-right"}>Всего, ₽</th>
-              <th className={TH + " text-right"}>Работа</th>
-              <th className={TH + " text-right"}>Доля</th>
+              <Head label="Кол-во" align="right" />
+              <Head label={`Цена за ед. ${modeLabel}`} unit="₽" align="right" />
+              <Head label="Ставка НДС" unit="%" align="right" />
+              <Head label={`Сумма ${modeLabel}`} unit="₽" align="right" sep />
+              <Head label="в т.ч. НДС" unit="₽" align="right" />
+              {c4 === "on" ? <Head label="4%" unit="₽" align="right" /> : null}
+              <Head label="Всего" unit="₽" align="right" sep />
+              <Head label="Работа" unit="₽" align="right" />
+              <Head label="Доля" unit="%" align="right" />
             </tr>
           </thead>
           <tbody>

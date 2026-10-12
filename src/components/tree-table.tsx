@@ -1,8 +1,8 @@
 // Общие классы таблиц с раскрытием вглубь стрелкой › — как «Динамика по годам» и «Динамика по сырью» на Главной.
 // 1-й уровень text-sm, вложенные text-xs серым; если раскрыт следующий уровень, строка становится чёрной (text-neutral-900).
-export const TH = "whitespace-nowrap px-1.5 py-1.5 text-right text-xs font-medium text-neutral-500";
+export const TH = "whitespace-nowrap px-1.5 py-1.5 align-middle text-right text-xs font-medium text-neutral-500";
 export const TD = "whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums";
-export const TH_LEFT = "px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
+export const TH_LEFT = "px-2 py-1.5 align-middle text-left text-xs font-medium text-neutral-500";
 /** Узкая колонка со стрелкой раскрытия: у всех строк на одной вертикали. */
 export const ARROW_TD = "w-6 py-1.5 pl-2 pr-0 text-left align-middle";
 export const ARROW_TH = "w-6 px-0";

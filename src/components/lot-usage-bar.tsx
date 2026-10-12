@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head } from "@/components/table-head";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPercent, formatQty } from "@/lib/utils";
 
@@ -158,7 +159,7 @@ export function LotUsageViz({
               <th className="py-1.5 pr-3 font-medium">Артикул</th>
               <th className="py-1.5 pr-3 text-right font-medium">Кол-во, {unit}</th>
               <th className="py-1.5 pr-3 text-right font-medium">Доля от лота</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Сумма, ₽</th>
+              <Head label="Сумма" unit="₽" align="right" />
               <th className="py-1.5 font-medium">Дата списания</th>
             </tr>
           </thead>

@@ -39,15 +39,25 @@ export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
   return <tr className={cn("hover:bg-neutral-50/60", className)} {...props} />;
 }
 
-export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+/**
+ * Ячейка заголовка. unit — единица (UNIT.* из src/lib/units.ts) мелкой второй строкой под названием;
+ * числовые колонки задают className="text-right" (подпись и единица прижимаются к правому краю).
+ * Вертикально всегда по центру. Подробнее — src/components/table-head.tsx.
+ */
+export function Th({ className, unit, children, ...props }: ThHTMLAttributes<HTMLTableCellElement> & { unit?: string }) {
+  const cls = className ?? "";
+  const stack = /text-right/.test(cls) ? "items-end" : /text-center/.test(cls) ? "items-center" : "items-start";
   return (
-    <th
-      className={cn(
-        "px-3 py-2 text-xs font-medium text-neutral-500",
-        className
+    <th className={cn("px-3 py-2 align-middle text-xs font-medium text-neutral-500", className)} {...props}>
+      {unit ? (
+        <span className={cn("inline-flex flex-col leading-tight", stack)}>
+          <span className="inline-flex items-center gap-1">{children}</span>
+          <span className="text-[10px] font-normal opacity-80">{unit}</span>
+        </span>
+      ) : (
+        children
       )}
-      {...props}
-    />
+    </th>
   );
 }
 

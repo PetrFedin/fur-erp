@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { TH as Head, THGroup } from "@/components/table-head";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { STAGE_ORDER, STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
@@ -152,7 +153,6 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
     items.filter((p) => (fur === "*" || p.fur === fur) && cellItems([p], filters, true, "*", "*").length > 0 && (stage === "*" ? true : (p.units[stage] ?? 0) > 0 && (!filters.stage.length || filters.stage.includes(stage))));
   const open = cStage && cFur ? rowItems(cFur, cStage as Stage | "*") : [];
   const stages = STAGE_ORDER.filter((k) => !filters.stage.length || filters.stage.includes(k));
-  const th = "whitespace-nowrap bg-white px-1.5 py-1.5 text-right text-xs font-medium";
   const td = "px-1.5 py-1.5 text-right align-top text-xs tabular-nums whitespace-nowrap";
   const BL = " border-l border-neutral-200";
   const link = (stage: string, fur: string) => href({ cell: `${stage}~${fur}` }) + "#cell";
@@ -180,13 +180,13 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
           <thead>
             <tr>
               <th className="sticky left-0 z-10 bg-white" />
-              <th colSpan={Math.max(1, stages.length)} className={`bg-white px-1.5 pb-0.5 pt-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500${BL}`}>Путь изделия: план → отгрузка</th>
-              <th className={`bg-white px-1.5 pb-0.5 pt-1.5 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500${BL}`}>Итого</th>
+              <THGroup colSpan={Math.max(1, stages.length)} className="bg-white">Путь изделия: план → отгрузка</THGroup>
+              <THGroup className="bg-white">Итого</THGroup>
             </tr>
             <tr className="border-b border-neutral-200">
               <th className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Вид меха</th>
-              {stages.map((k, i) => <th key={k} className={`${th} ${i === 0 ? BL : ""} ${STAGE_STYLES[k].text}`} title={STAGE_STYLES[k].hint}>{STAGE_STYLES[k].label}, шт.</th>)}
-              <th className={`${th} text-neutral-500${BL}`}>Всего, шт.</th>
+              {stages.map((k, i) => <Head key={k} label={STAGE_STYLES[k].label} unit="шт." align="right" sep={i === 0} className={STAGE_STYLES[k].text} title={STAGE_STYLES[k].hint} />)}
+              <Head label="Всего" unit="шт." align="right" sep className="text-neutral-500" />
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">

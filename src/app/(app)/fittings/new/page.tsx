@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
@@ -27,6 +28,7 @@ export default async function NewFittingPage({ searchParams }: PageProps<"/fitti
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Примерки", href: "/fittings" }, { label: "Новая примерка" }]} />
       <ProductionTabs active="fittings" />
       <h1 className="text-xl font-semibold">Новая примерка</h1>
       <NewFittingForm orders={options} initialOrderId={orderParam} today={localTodayIso()} />

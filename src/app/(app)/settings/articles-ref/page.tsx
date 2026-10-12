@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -65,6 +66,7 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   const withSales = rows.filter((r) => r.salesCode?.trim()).length;
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Артикулы" }]} />
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник артикулов</h1><InfoHint label="О справочнике" wide>
         Один артикул — одна запись. У нас он ведётся под кодом <b>M…</b>, в системе продаж — под своим кодом и названием: впишите их рядом, чтобы

@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CATEGORY_GROUPS, NO_GROUP_ARTICLES_LABEL } from "@/lib/category-groups";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
@@ -70,7 +71,7 @@ const PROD_FILTERS = defineFilters({
 export const metadata = { title: "ТЗ" };
 
 // Надзаголовки блоков колонок и тонкая вертикальная линия слева у первой колонки блока.
-const GH = "px-3 pt-2 pb-0.5 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
+const GH = "border-b border-neutral-200 px-3 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500";
 const BLH = " border-l border-neutral-200";
 
 export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
@@ -510,6 +511,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   };
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ" }]} />
       <ProductionTabs active="orders" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center">
@@ -615,13 +617,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th>ТЗ</Th>
             <Th>Мех</Th>
             <Th>Артикул</Th>
-            <Th className={"text-right" + BLH}>Изд., шт.</Th>
-            <Th className="text-right">Шкур, шт.</Th>
-            <Th className={"text-right" + BLH}><VatLabel base="Мех" /></Th>
-            <Th className="text-right">Подкл., м</Th>
-            <Th className="text-right"><VatLabel base="Подкладка" /></Th>
-            <Th className={"text-right" + BLH}>Работа</Th>
-            <Th className="text-right">
+            <Th className={"text-right" + BLH} unit="шт.">Изделий</Th>
+            <Th className="text-right" unit="шт.">Шкур</Th>
+            <Th className={"text-right" + BLH} unit="₽"><VatLabel base="Мех" /></Th>
+            <Th className="text-right" unit="м">Подкладка</Th>
+            <Th className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
+            <Th className={"text-right" + BLH} unit="₽">Работа</Th>
+            <Th className="text-right" unit="₽">
               <VatLabel base={`Себестоимость${c4}`} />
             </Th>
             <Th>НДС</Th>

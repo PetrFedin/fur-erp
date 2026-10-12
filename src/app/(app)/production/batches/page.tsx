@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { positionsWord, itemsSuffix, tzCountText } from "@/lib/tz-key";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
@@ -115,6 +116,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Партии пошива" }]} />
       <ProductionTabs active="batches" />
       {modelSel.length > 0 && (
         <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
@@ -195,9 +197,9 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
-            <Th className="hidden md:table-cell">Работа, ₽</Th>
-            <Th className="hidden lg:table-cell">Оплачено, ₽</Th>
-            <Th>Остаток, ₽</Th>
+            <Th className="hidden md:table-cell" unit="₽">Работа</Th>
+            <Th className="hidden lg:table-cell" unit="₽">Оплачено</Th>
+            <Th unit="₽">Остаток</Th>
             <Th className="hidden lg:table-cell">
               Документы и оплата
               <InfoHint label="Что значат документы и оплата" align="right">Чего не хватает по документам и оплачена ли работа заказчиком. Ниже — проверка: подтверждена ли партия (все ТЗ подтверждены, документы и оплата сопоставлены) или ждёт ручной проверки.</InfoHint>

@@ -1,4 +1,5 @@
 import { itemsSuffix } from "@/lib/tz-key";
+import { TH as Head } from "@/components/table-head";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -89,7 +90,7 @@ export default async function BatchPrintPage({
               <th className={th}>№ ТЗ</th>
               <th className={th}>Изделие</th>
               <th className={th}>Цвет / размеры</th>
-              <th className={th + " text-right"}>Шт.</th>
+              <Head label="Кол-во" unit="шт." align="right" />
               <th className={th}>Статус</th>
               <th className={th + " text-right"}>Себестоимость{c4}</th>
               <th className={th + " text-right"}>Работа</th>

@@ -1,5 +1,6 @@
 "use client";
 
+import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
@@ -196,7 +197,6 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
       );
     });
 
-  const th = "px-2 py-1.5 text-right font-medium";
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 sm:items-center sm:p-4 print:hidden" onMouseDown={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="avg-modal-title" className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" onMouseDown={(e) => e.stopPropagation()}>
@@ -223,23 +223,23 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead>
-                <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                <tr>
                   <th />
-                  <th colSpan={2} className="border-b border-neutral-200 px-2 pb-1 text-left">Изделие</th>
-                  <th colSpan={5} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Мех и подкладка</th>
-                  <th colSpan={2} className={"border-b border-neutral-200 px-2 pb-1 text-left" + BL}>Работа и надбавка</th>
+                  <THGroup colSpan={2} sep={false}>Изделие</THGroup>
+                  <THGroup colSpan={5}>Мех и подкладка</THGroup>
+                  <THGroup colSpan={2}>Работа и надбавка</THGroup>
                 </tr>
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-                  <th className="py-1.5 pr-2 font-medium">Строка</th>
-                  <th className={th}>Изделий, шт.</th>
-                  <th className={th}>Себестоимость изделия</th>
-                  <th className={th + BL}>Мех на изделие</th>
-                  <th className={th}>Шкур на изделие</th>
-                  <th className={th}>Ср. цена шкуры</th>
-                  <th className={th}>Подкладки на изделие, м</th>
-                  <th className={th}>Ср. цена подкладки, ₽/м</th>
-                  <th className={th + BL}>Работа на изделие</th>
-                  <th className={th}>4% на изделие</th>
+                  <th className="py-1.5 pr-2 text-left font-medium">Строка</th>
+                  <TH label="Изделий" unit="шт." />
+                  <TH label="Себестоимость изделия" unit="₽/шт." />
+                  <TH label="Мех на изделие" unit="₽/шт." sep />
+                  <TH label="Шкур на изделие" unit="шт./изд." />
+                  <TH label="Ср. цена шкуры" unit="₽/шт." />
+                  <TH label="Подкладки на изделие" unit="м/изд." />
+                  <TH label="Ср. цена подкладки" unit="₽/м" />
+                  <TH label="Работа на изделие" unit="₽/шт." sep />
+                  <TH label="4% на изделие" unit="₽/шт." />
                 </tr>
               </thead>
               <tbody>

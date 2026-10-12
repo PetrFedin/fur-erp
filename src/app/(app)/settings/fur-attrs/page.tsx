@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { requireSession } from "@/lib/session";
@@ -39,8 +40,8 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Признаки меха" }]} />
       <div>
-        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Признаки меха</h1><InfoHint label="О справочнике" wide>
           Признак, подвид или обработка шкуры, которые пишут в описаниях лотов и ТЗ помимо вида и цвета: седина соболя (SIL.1…SIL.6, «серебристый», «без седины»),
           дикий / клеточный / баргузинский, тонированный, крашеный. Признаки ставятся лотам и ТЗ по тексту описаний (<code>scripts/apply-fur-attrs.ts</code>) по названию и синонимам;
@@ -105,7 +106,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
               <Th>Вид меха</Th>
               <Th>Синонимы (по ним ищем в тексте)</Th>
               <Th className="text-right">Лотов</Th>
-              <Th className="text-right">Шкур, шт.</Th>
+              <Th className="text-right" unit="шт.">Шкур</Th>
               <Th className="text-right">ТЗ (в тексте / по лотам)</Th>
               <Th>{canEdit ? "Действия" : ""}</Th>
             </Tr>

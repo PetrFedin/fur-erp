@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TH as Head, THGroup } from "@/components/table-head";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -250,14 +251,14 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                     <tr>
                       <th />
                       <th className="border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Расход</th>
-                      <th colSpan={2} className={"border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500" + BL}>Стоимость</th>
+                      <THGroup colSpan={2}>Стоимость</THGroup>
                       <th className={"border-b border-neutral-200 px-1.5 pb-0.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500" + BL}>На изделие</th>
                     </tr>
                     <tr className="border-b border-neutral-200">
                       <th className="py-1.5 pr-2 text-xs font-medium text-neutral-500">Материал</th>
                       <th className={TH}>Списано</th>
-                      <th className={TH + BL}>Сумма, ₽</th>
-                      <th className={TH}>Ср. цена, ₽</th>
+                      <Head label="Сумма" unit="₽" align="right" sep />
+                      <Head label="Ср. цена" unit="₽" align="right" />
                       <th className={TH + BL}>Расход</th>
                     </tr>
                   </thead>
@@ -382,7 +383,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             <p className="text-sm text-neutral-500">На складе нет</p>
           ) : (
             <Table>
-              <Thead><Tr><Th className="text-right">Остаток, шт.</Th><Th className="text-right">Учётная себестоимость за ед., ₽</Th></Tr></Thead>
+              <Thead><Tr><Th className="text-right" unit="шт.">Остаток</Th><Th className="text-right" unit="₽">Учётная себестоимость за ед.</Th></Tr></Thead>
               <Tbody>
                 <Tr>
                   <Td className="text-right tabular-nums">{stockQty > 0 ? formatQty(String(stockQty)) : <Dash />}</Td>
@@ -393,7 +394,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           )}
           {movements.length > 0 && (
             <Table>
-              <Thead><Tr><Th>Дата</Th><Th>Операция</Th><Th className="text-right">Шт.</Th><Th>ТЗ</Th><Th>Примечание</Th></Tr></Thead>
+              <Thead><Tr><Th>Дата</Th><Th>Операция</Th><Th className="text-right" unit="шт.">Кол-во</Th><Th>ТЗ</Th><Th>Примечание</Th></Tr></Thead>
               <Tbody>
                 {movements.map((m) => (
                   <Tr key={m.id}>

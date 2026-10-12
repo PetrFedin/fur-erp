@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TH as Head } from "@/components/table-head";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
@@ -30,7 +31,7 @@ export function AssignTable({ orders, seasons, canEdit }: { orders: AssignOrder[
           <thead className="bg-neutral-50 text-left text-xs font-medium text-neutral-500">
             <tr>
               {canEdit && <th className="w-10 px-3 py-2"><input type="checkbox" aria-label="Выбрать все" checked={all} onChange={() => setSel(all ? new Set() : new Set(orders.map((o) => o.id)))} className="size-4" /></th>}
-              <th className="px-3 py-2">ТЗ</th><th className="px-3 py-2">Модель</th><th className="px-3 py-2">Дата ТЗ</th><th className="px-3 py-2">Шт.</th><th className="px-3 py-2">Сезон</th>
+              <th className="px-3 py-2">ТЗ</th><th className="px-3 py-2">Модель</th><th className="px-3 py-2">Дата ТЗ</th><Head label="Кол-во" unit="шт." align="left" className="px-3" /><th className="px-3 py-2">Сезон</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">

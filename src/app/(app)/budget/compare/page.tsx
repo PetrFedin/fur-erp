@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { THGroup } from "@/components/table-head";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -95,9 +96,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           <thead>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Изделий, шт.</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Всего, ₽</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide">Var (Б к А)</th>
+              <THGroup colSpan={2}>Изделий, шт.</THGroup>
+              <THGroup colSpan={2}>Всего, ₽</THGroup>
+              <THGroup colSpan={2}>Var (Б к А)</THGroup>
             </tr>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               {["А", "Б", "А", "Б", "₽", "%"].map((h, i) => <th key={i} className={"px-3 pb-2 text-right font-medium" + (i % 2 === 0 ? " border-l border-neutral-200" : "")}>{h}</th>)}

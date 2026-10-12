@@ -256,39 +256,39 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th>Категория / группа</Th>
             <Th>Мех</Th>
             <Th>Цвет</Th>
-            <Th className="text-right">
-              Произведено, шт.
+            <Th className="text-right" unit="шт.">
+              Произведено
               <InfoHint label="Что такое произведено">Все ТЗ артикула без отменённых: завершённые и в работе (как на Главной).</InfoHint>
             </Th>
-            <Th className="text-right">
-              На складе, шт.
+            <Th className="text-right" unit="шт.">
+              На складе
               <InfoHint label="Что такое остаток">Готовая продукция сейчас. Разница с «Произведено» — изделия в ТЗ, которые ещё в работе.</InfoHint>
             </Th>
-            <Th className="text-right">
-              Шкур, шт.
+            <Th className="text-right" unit="шт.">
+              Шкур
               <InfoHint label="Шкуры">Сколько шкур списано в ТЗ артикула и сколько в среднем на 1 изделие (шкур ÷ произведено).</InfoHint>
             </Th>
-            <Th className="text-right">
-              Шкуры, сумма
+            <Th className="text-right" unit="₽">
+              Шкуры
               <InfoHint label="Сумма шкур">Стоимость списанных шкур: основная цифра с 4%, мелко — без 4%. Включена в «Себестоимость итого». Цена за шкуру по видам меха — в карточке артикула.</InfoHint>
             </Th>
-            <Th className="text-right">Подкладка, м</Th>
-            <Th className="text-right">Подкладка, сумма</Th>
-            <Th className="text-right">Работа</Th>
-            <Th className="text-right">
+            <Th className="text-right" unit="м">Подкладка</Th>
+            <Th className="text-right" unit="₽">Подкладка</Th>
+            <Th className="text-right" unit="₽">Работа</Th>
+            <Th className="text-right" unit="₽">
               Себестоимость итого
               <InfoHint label="Из чего складывается">Шкуры + подкладка + 4% + расходы + работа по всем ТЗ артикула. Итог равен «Себестоимости» изделий (без ремонта) на Главной. Основная цифра — с 4%, мелко — без 4%.</InfoHint>
             </Th>
-            <Th className="text-right">
-              За ед.
+            <Th className="text-right" unit="₽/шт.">
+              Себестоимость за ед.
               <InfoHint label="Себестоимость единицы">Себестоимость итого ÷ произведено.</InfoHint>
             </Th>
             <Th>
               НДС
               <InfoHint label="НДС">Ставки НДС в строках списания шкур и подкладки (из лотов или заданные в ТЗ). Все суммы в таблице показываются «с НДС» или «без НДС» по переключателю в шапке.</InfoHint>
             </Th>
-            <Th className="text-right">
-              Цена, с НДС
+            <Th className="text-right" unit="₽">
+              Цена с НДС
               <InfoHint label="Розничная цена">Розничная цена артикула с НДС. Правится прямо здесь: Enter или переход в другое поле сохраняет, рядом появляется «Сохранено». Применяется к ТЗ в плане и в работе.</InfoHint>
             </Th>
             <Th className="text-right">
@@ -432,14 +432,14 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
-                <th className="px-3 py-2 font-medium">Мех</th>
-                <th className="px-3 py-2 font-medium">Категория</th>
-                <th className="px-3 py-2 text-right font-medium">Артикулов</th>
-                <th className="px-3 py-2 text-right font-medium">Ср. розничная цена</th>
-                <th className="px-3 py-2 text-right font-medium">
+                <Th>Мех</Th>
+                <Th>Категория</Th>
+                <Th className="text-right" unit="шт.">Артикулов</Th>
+                <Th className="text-right" unit="₽">Ср. розничная цена</Th>
+                <Th className="text-right">
                   Ср. маркап
                   <InfoHint label="Как считается средневзвешенный маркап">Взвешено по выпуску (артикулы с ценой): цена = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Мех артикула — тот, на который списано больше всего меха в его ТЗ. Считается по артикулам после фильтров.</InfoHint>
-                </th>
+                </Th>
               </tr>
             </thead>
             <tbody>

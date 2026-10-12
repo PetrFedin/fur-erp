@@ -1,5 +1,7 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { formatDate } from "@/lib/utils";
 import { requireRole } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
 import { isoDay, type SizeRow } from "@/lib/shipments";
@@ -26,6 +28,7 @@ export default async function EditShipmentPage({ params }: PageProps<"/shipments
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Отгрузки", href: "/shipments" }, { label: `Отгрузка на ${formatDate(s.plannedDate)}`, href: `/shipments/${id}` }, { label: "Изменение" }]} />
       <ProductionTabs active="shipments" />
       <h1 className="text-xl font-semibold">Изменить отгрузку</h1>
       <ShipmentForm

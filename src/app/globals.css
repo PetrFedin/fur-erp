@@ -190,3 +190,9 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
   /* Плитки оплат: сумма сразу под названием, без резерва второй строки (иначе под «Оплачено» остаётся пустое место). */
   .raw-row-pay .raw-pay .tile-box [data-comment-title] { min-height: 0; }
 }
+
+/* ── Шапки таблиц: заголовки строго по центру по вертикали, одинаковая высота строки (см. components/table-head.tsx). ── */
+table thead :is(th, td) { vertical-align: middle; }
+table thead tr:last-child > th { height: 2.5rem; }
+table thead tr:not(:last-child) > th:not([rowspan]) { height: 1.75rem; }
+table thead th { line-height: 1.15; }

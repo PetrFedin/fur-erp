@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -89,8 +90,8 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Категории" }]} />
       <div>
-        <div className="mb-1 text-sm"><Link href="/settings" className="text-neutral-500 hover:underline">← Настройки</Link></div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Справочник категорий</h1><InfoHint label="О справочнике" wide>
           Одна категория изделия — одно название на русском («Пальто», «Полупальто», «Жакет»…). В моделях и артикулах категория выбирается отсюда;
           аналитика («Что произведено», цены) группирует по этому названию. В «Синонимах» — как категорию записывали раньше («Пальто женское из соболя»).

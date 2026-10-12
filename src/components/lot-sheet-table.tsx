@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { TH as Head } from "@/components/table-head";
 import { InfoHint } from "@/components/info-hint";
 import { useConfirm } from "@/components/confirm-dialog";
 import { TotalLabel } from "@/components/total-label";
@@ -69,9 +70,9 @@ export function LotSheetTable({
               <th className="w-[26%] px-1.5 py-1.5">Статья расчёта</th>
               <th className="w-[17%] px-1.5 py-1.5">Категория сектора</th>
               <th className="w-[11%] px-1.5 py-1.5 text-right">Значение</th>
-              <th className="w-[10%] px-1.5 py-1.5 text-right">На шкуру, ₽</th>
-              <th className="w-[12%] px-1.5 py-1.5 text-right">Всего по лоту, ₽</th>
-              <th className="w-[9%] px-1.5 py-1.5 text-right">в т.ч. НДС, ₽</th>
+              <Head label="На шкуру" unit="₽" align="right" className="w-[10%] px-1.5" />
+              <Head label="Всего по лоту" unit="₽" align="right" className="w-[12%] px-1.5" />
+              <Head label="в т.ч. НДС" unit="₽" align="right" className="w-[9%] px-1.5" />
               <th className="w-[15%] px-1.5 py-1.5">Источник</th>
             </tr>
           </thead>

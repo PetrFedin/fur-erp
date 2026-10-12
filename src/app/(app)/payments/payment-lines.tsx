@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TH as Head } from "@/components/table-head";
 import type { ReactNode } from "react";
 import { formatMoney } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
@@ -33,7 +34,7 @@ export function PaymentLinesTable({ lines, emptyText }: { lines: PayLine[]; empt
         <thead>
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Дата</th>
-            <th className="px-2 py-1.5 text-right font-medium">Сумма</th>
+            <Head label="Сумма" unit="₽" align="right" className="px-2" />
             <th className="px-2 py-1.5 font-medium">Оплата</th>
             <th className="px-2 py-1.5 font-medium">Счёт</th>
             {hasComment ? <th className="px-2 py-1.5 font-medium">Комментарий</th> : null}
@@ -91,9 +92,9 @@ export function PurchaseLinesTable({ lines, withPaid }: { lines: PurchaseLine[];
           <tr className="border-b border-neutral-200 text-left text-xs text-neutral-500">
             <th className="py-1.5 pr-2 font-medium">Закупка</th>
             <th className="px-2 py-1.5 font-medium">Мех</th>
-            <th className="px-2 py-1.5 text-right font-medium">Стоимость</th>
-            {withPaid ? <th className="px-2 py-1.5 text-right font-medium">Оплачено</th> : null}
-            {withPaid ? <th className="px-2 py-1.5 text-right font-medium">Остаток</th> : null}
+            <Head label="Стоимость" unit="₽" align="right" className="px-2" />
+            {withPaid ? <Head label="Оплачено" unit="₽" align="right" className="px-2" /> : null}
+            {withPaid ? <Head label="Остаток" unit="₽" align="right" className="px-2" /> : null}
           </tr>
         </thead>
         <tbody>

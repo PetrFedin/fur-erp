@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head, THGroup } from "@/components/table-head";
 import { Fragment, useState, type ReactNode } from "react";
 import type { OverviewRow } from "@/lib/payments-overview";
 import { formatMoney } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
-import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
 
 const fmtDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -148,17 +149,17 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
             <thead>
               <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                 <th colSpan={2} />
-                <th colSpan={3} className="border-b border-l border-neutral-200 px-1.5 pb-1 text-right">Состав оплаты</th>
-                <th colSpan={2} className="border-b border-l border-neutral-200 px-1.5 pb-1 text-right">Оплата и долг</th>
+                <THGroup colSpan={3}>Состав оплаты</THGroup>
+                <THGroup colSpan={2}>Оплата и долг</THGroup>
               </tr>
               <tr className="border-b border-neutral-200">
                 <th className={ARROW_TH} aria-label="Раскрыть" />
                 <th className={TH_LEFT}>Год / оплата</th>
-                <th className={TH + " border-l border-neutral-200"}>Мех, ₽</th>
-                <th className={TH}>Подкладка, ₽</th>
-                <th className={TH}>Работа, ₽</th>
-                <th className={TH + " border-l border-neutral-200"}>Оплачено, ₽</th>
-                <th className={TH}>Задолженность, ₽</th>
+                <Head label="Мех" unit="₽" align="right" sep />
+                <Head label="Подкладка" unit="₽" align="right" />
+                <Head label="Работа" unit="₽" align="right" />
+                <Head label="Оплачено" unit="₽" align="right" sep />
+                <Head label="Задолженность" unit="₽" align="right" />
               </tr>
             </thead>
             <tbody>

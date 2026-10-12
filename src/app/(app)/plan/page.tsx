@@ -1,4 +1,6 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
+import { TH as Head } from "@/components/table-head";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -150,6 +152,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "План заказа" }]} />
       <ProductionTabs active="plan" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">План заказа</h1><InfoHint wide>
@@ -257,12 +260,12 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   <Th>Артикул</Th>
                   {seasonId === "" && <Th>Сезон</Th>}
                   <Th>План по размерам</Th>
-                  <Th className="text-right">План, шт.</Th>
-                  <Th className="text-right">Произведено, шт.</Th>
-                  <Th className="text-right">В работе, шт.</Th>
-                  <Th className="text-right">Не начато, шт.</Th>
-                  <Th className="text-right">План − факт, шт.</Th>
-                  <Th className="text-right">Выполнено, %</Th>
+                  <Th className="text-right" unit="шт.">План</Th>
+                  <Th className="text-right" unit="шт.">Произведено</Th>
+                  <Th className="text-right" unit="шт.">В работе</Th>
+                  <Th className="text-right" unit="шт.">Не начато</Th>
+                  <Th className="text-right" unit="шт.">План − факт</Th>
+                  <Th className="text-right" unit="%">Выполнено</Th>
                   <Th>ТЗ</Th>
                   {canEdit && <Th>{""}</Th>}
                 </Tr>
@@ -416,7 +419,7 @@ function MiniTable({ title, head, rows }: { title: string; head: string; rows: [
     <div className="overflow-x-auto">
       <div className="mb-1 text-xs font-medium text-neutral-600">{title}</div>
       <table className="w-full text-xs">
-        <thead><tr className="text-left text-neutral-500"><th className="py-1 pr-2 font-medium">{head}</th><th className="px-2 text-right font-medium">План, шт.</th><th className="px-2 text-right font-medium">Сделано, шт.</th><th className="pl-2 text-right font-medium">Осталось, шт.</th></tr></thead>
+        <thead><tr className="text-left text-neutral-500"><th className="py-1 pr-2 font-medium">{head}</th><Head label="План" unit="шт." align="right" className="px-2" /><Head label="Сделано" unit="шт." align="right" className="px-2" /><Head label="Осталось" unit="шт." align="right" /></tr></thead>
         <tbody>
           {rows.map(([k, plan, made]) => (
             <tr key={k} className="border-t border-neutral-100">

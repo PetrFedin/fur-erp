@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
@@ -89,6 +90,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
 
   return (
     <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Примерки" }]} />
       <ProductionTabs active="fittings" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Примерки</h1>
@@ -145,7 +147,7 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
             <Th>Заказчик</Th>
             <Th>Размер</Th>
             <Th>Комментарий</Th>
-            <Th>Фото, шт.</Th>
+            <Th unit="шт.">Фото</Th>
           </Tr>
         </Thead>
         <Tbody>

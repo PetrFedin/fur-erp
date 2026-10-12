@@ -49,11 +49,17 @@ const KIND_LABEL = { fur: "тип сырья", cat: "категория", art: "
 const ICON_BTN = "btn-accent inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-neutral-200 bg-white px-1.5 text-sm text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40 md:h-8 md:min-w-8";
 const DOT = { ok: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-red-500", manual: "bg-neutral-400" } as const;
 
-/** Короткая подпись колонки + «i»-подсказка (title). */
-function Th({ children, tip, className = "" }: { children: ReactNode; tip: string; className?: string }) {
+/** Короткая подпись колонки + единица второй строкой + «i»-подсказка (title). Вертикально по центру. */
+function Th({ children, tip, unit, className = "" }: { children: ReactNode; tip: string; unit?: string; className?: string }) {
   return (
-    <th scope="col" className={"whitespace-nowrap px-2 pb-1.5 pt-1 text-right text-[11px] font-medium text-neutral-500 " + className}>
-      {children} <span title={tip} aria-label={tip} className="ml-0.5 inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-neutral-300 align-middle text-[9px] font-normal leading-none text-neutral-400">i</span>
+    <th scope="col" className={"h-10 whitespace-nowrap px-2 py-1 text-right align-middle text-[11px] font-medium leading-tight text-neutral-500 " + className}>
+      <span className="inline-flex flex-col items-end">
+        <span className="inline-flex items-center gap-0.5">
+          {children}
+          <span title={tip} aria-label={tip} className="ml-0.5 inline-flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[9px] font-normal leading-none text-neutral-400">i</span>
+        </span>
+        {unit ? <span className="text-[10px] font-normal opacity-80">{unit}</span> : null}
+      </span>
     </th>
   );
 }
@@ -505,7 +511,7 @@ export function BudgetEditor(p: Props) {
 
   const saveText = !canEdit ? (status === "APPROVED" ? "Утверждён: только просмотр" : "Только просмотр")
     : saveState === "saving" ? "Сохраняю…" : saveState === "saved" ? "Сохранено" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : "";
-  const grp = `${sepL} border-b border-neutral-200 px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
+  const grp = `${sepL} border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
   const upNode = upFor ? byId.get(upFor) : null;
 
   return (
@@ -598,19 +604,19 @@ export function BudgetEditor(p: Props) {
               <thead className="sticky top-0 z-20 bg-white print:static">
                 <tr className="h-7">
                   <th rowSpan={2} scope="col" className="sticky left-0 z-30 min-w-[220px] border-b border-r border-neutral-200 bg-white px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-neutral-500 print:static">Тип сырья · категория</th>
-                  <th colSpan={2} className="border-b border-neutral-200 px-2 pt-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
+                  <th colSpan={2} className="border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
                   <th colSpan={2} className={grp}>Прогноз</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
-                  <Th tip="Бюджет изделий, шт.">Изделий</Th>
-                  <Th tip="Всего шкур на эти изделия">Шкур</Th>
-                  <Th tip="Мех = шкуры × цена шкуры" className={sepL}>Мех</Th>
-                  <Th tip="Подкладка = метры × цена за метр">Подкладка</Th>
-                  <Th tip="Работа = изделия × работа на изделие">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL}>Всего, ₽</Th>
-                  <Th tip="Всего, ₽ ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше">На 1 изд.</Th>
+                  <Th tip="Бюджет изделий, шт." unit="шт.">Изделий</Th>
+                  <Th tip="Всего шкур на эти изделия" unit="шт.">Шкур</Th>
+                  <Th tip="Мех = шкуры × цена шкуры" className={sepL} unit="₽">Мех</Th>
+                  <Th tip="Подкладка = метры × цена за метр" unit="₽">Подкладка</Th>
+                  <Th tip="Работа = изделия × работа на изделие" unit="₽">Работа</Th>
+                  <Th tip="Надбавка на мех и подкладку" unit="₽">4%</Th>
+                  <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
+                  <Th tip="Всего, ₽ ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>
@@ -631,19 +637,19 @@ export function BudgetEditor(p: Props) {
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
-                  <Th tip="Сколько изделий заложено в бюджет" className={sepL}>Бюджет, шт.</Th>
-                  <Th tip="Сколько шкур уходит на одно изделие">Шкур/изд.</Th>
-                  <Th tip="Бюджет изделий × шкур на изделие">Всего шкур</Th>
-                  <Th tip="Цена одной шкуры, ₽. Зелёный процент слева — применённая надбавка; жирный и подчёркнутый — задана на этой строке. Ручная правка закрывает замок" className={sepL}>Цена шкуры, ₽</Th>
-                  <Th tip="Подкладка, метров на одно изделие">Подкл., м/изд.</Th>
-                  <Th tip="Цена подкладки за метр, ₽">Цена, ₽/м</Th>
-                  <Th tip="Стоимость работы на одно изделие, ₽">Работа/изд., ₽</Th>
-                  <Th tip="Мех = всего шкур × цена шкуры" className={sepL}>Мех</Th>
-                  <Th tip="Подкладка = бюджет × м на изделие × цена за метр">Подкладка</Th>
-                  <Th tip="Работа = бюджет × работа на изделие">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4%">Всего, ₽</Th>
-                  <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)">На 1 изд.</Th>
+                  <Th tip="Сколько изделий заложено в бюджет" className={sepL} unit="шт.">Бюджет</Th>
+                  <Th tip="Сколько шкур уходит на одно изделие" unit="шт./изд.">Шкур на изделие</Th>
+                  <Th tip="Бюджет изделий × шкур на изделие" unit="шт.">Всего шкур</Th>
+                  <Th tip="Цена одной шкуры, ₽. Зелёный процент слева — применённая надбавка; жирный и подчёркнутый — задана на этой строке. Ручная правка закрывает замок" className={sepL} unit="₽/шт.">Цена шкуры</Th>
+                  <Th tip="Подкладка, метров на одно изделие" unit="м/изд.">Подкладка на изделие</Th>
+                  <Th tip="Цена подкладки за метр, ₽" unit="₽/м">Цена подкладки</Th>
+                  <Th tip="Стоимость работы на одно изделие, ₽" unit="₽/шт.">Работа на изделие</Th>
+                  <Th tip="Мех = всего шкур × цена шкуры" className={sepL} unit="₽">Мех</Th>
+                  <Th tip="Подкладка = бюджет × м на изделие × цена за метр" unit="₽">Подкладка</Th>
+                  <Th tip="Работа = бюджет × работа на изделие" unit="₽">Работа</Th>
+                  <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)" unit="₽">4%</Th>
+                  <Th tip="Мех + подкладка + работа + 4%" unit="₽">Всего</Th>
+                  <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>

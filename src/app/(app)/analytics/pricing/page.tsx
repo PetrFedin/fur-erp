@@ -197,8 +197,8 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <Thead>
           <Tr>
             <Th>Что входит</Th>
-            <Th className="text-right">На единицу</Th>
-            <Th className="text-right">Σ по ТЗ</Th>
+            <Th className="text-right" unit="₽">На единицу</Th>
+            <Th className="text-right" unit="₽">Σ по ТЗ</Th>
             <Th className="text-right">Доля</Th>
           </Tr>
         </Thead>
@@ -234,12 +234,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             <Th>Лот</Th>
             <Th>Материал</Th>
             <Th className="text-right">Кол-во</Th>
-            <Th className="text-right">Цена за ед.</Th>
+            <Th className="text-right" unit="₽">Цена за ед.</Th>
             <Th className="text-right">
               Молоток за шкуру
               <InfoHint label="О молотке в лоте" align="right" wide>Цена шкуры на аукционе до сборов и выделки, в ₽ по курсу лота (в скобках — в долларах). «нет данных» — в расчёте лота молотка нет, лот в среднее молотка не входит.</InfoHint>
             </Th>
-            <Th className="text-right">Сумма</Th>
+            <Th className="text-right" unit="₽">Сумма</Th>
             <Th className="text-right">ТЗ</Th>
           </Tr>
         </Thead>

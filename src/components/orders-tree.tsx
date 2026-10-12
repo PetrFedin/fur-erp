@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TH as Head, THGroup } from "@/components/table-head";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
@@ -8,7 +9,7 @@ import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
 import { articlesWord, orderKey, tzCountText, tzLabel, uniqueOrderCount } from "@/lib/tz-key";
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
-import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH, TH_LEFT, rowTone } from "@/components/tree-table";
+import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
 import { pathBlock } from "@/lib/block-hover";
 
@@ -268,28 +269,28 @@ export function OrdersTree({
       <div className={SCROLL_BOX}>
         <table className="w-full min-w-[1120px] text-sm">
           <thead>
-            <tr className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <tr>
               <th />
               <th />
-              <th colSpan={2} className="border-b border-neutral-200 px-2 pb-1 text-left">Выпуск</th>
-              <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Использовано</th>
-              <th colSpan={5 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0)} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Себестоимость и состав</th>
-              {showPay ? <th colSpan={2} className="border-b border-l border-neutral-200 px-2 pb-1 text-left">Оплата</th> : null}
+              <THGroup colSpan={2} sep={false}>Выпуск</THGroup>
+              <THGroup colSpan={2}>Использовано</THGroup>
+              <THGroup colSpan={5 + (c4 === "on" ? 1 : 0) + (showRes ? 1 : 0)}>Себестоимость и состав</THGroup>
+              {showPay ? <THGroup colSpan={2}>Оплата</THGroup> : null}
             </tr>
             <tr className="border-b border-neutral-200">
               <th className={ARROW_TH} aria-label="Раскрыть" />
               <th className={TH_LEFT}>{mode.label}</th>
-              <th className={TH}>Изд., шт.</th>
-              <th className={TH}>На изделие</th>
-              <th className={TH + " border-l border-neutral-200"}>Шкур, шт.</th>
-              <th className={TH}>Подкладка, м</th>
-              <th className={TH + " border-l border-neutral-200"}>Себестоимость</th>
-              <th className={TH}>Мех</th>
-              <th className={TH}>Подкладка</th>
-              <th className={TH}>Работа</th>
-              {c4 === "on" ? <th className={TH}>4%</th> : null}
-              {showRes ? <th className={TH}>Прочее</th> : null}
-              {showPay ? <><th className={TH + " border-l border-neutral-200"}>Оплачено</th><th className={TH}>К оплате по работе</th></> : null}
+              <Head label="Изделий" unit="шт." align="right" />
+              <Head label="На изделие" unit="₽/шт." align="right" />
+              <Head label="Шкур" unit="шт." align="right" sep />
+              <Head label="Подкладка" unit="м" align="right" />
+              <Head label="Себестоимость" unit="₽" align="right" sep />
+              <Head label="Мех" unit="₽" align="right" />
+              <Head label="Подкладка" unit="₽" align="right" />
+              <Head label="Работа" unit="₽" align="right" />
+              {c4 === "on" ? <Head label="4%" unit="₽" align="right" /> : null}
+              {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
+              {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате по работе" unit="₽" align="right" /></> : null}
             </tr>
           </thead>
           <tbody>

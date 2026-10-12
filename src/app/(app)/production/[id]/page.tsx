@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -366,6 +367,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   return (
     <EditGuard completed={order.status === "COMPLETED"}>
     <div className="flex flex-col gap-4">
+      <Breadcrumbs
+        items={[
+          { label: "ТЗ", href: "/production" },
+          ...(order.batch ? [{ label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${order.batch.number}`, href: `/production/batches/${order.batch.number}` }] : []),
+          { label: order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · позиция ${posIndex + 1} из ${sameTzCount}` : ""}` : `Заказ ${order.number}` },
+        ]}
+      />
       <IntegrityBanner kind="order" id={order.id} />
       <div>
         <div className="flex flex-wrap items-center gap-2">
@@ -514,10 +522,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Th>Лот / статья</Th>
               <Th>Материал / описание</Th>
               <Th className="text-right">Кол-во</Th>
-              <Th className="text-right">Цена за ед. без НДС{c4}</Th>
-              <Th className="text-right">НДС, %</Th>
-              <Th className="text-center">4%</Th>
-              <Th className="text-right">Сумма с НДС{c4}</Th>
+              <Th className="text-right" unit="₽">Цена за ед. без НДС{c4}</Th>
+              <Th className="text-right" unit="%">НДС</Th>
+              <Th className="text-center" unit="₽">4%</Th>
+              <Th className="text-right" unit="₽">Сумма с НДС{c4}</Th>
               <Th></Th>
             </Tr>
           </Thead>

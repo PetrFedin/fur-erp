@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoHint } from "@/components/info-hint";
+import { TH as Head } from "@/components/table-head";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -237,7 +238,7 @@ function ResultView({ r }: { r: ImportResult }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-neutral-500">
-              <th className="pr-3">ТЗ</th><th className="pr-3">Шт.</th><th className="pr-3">Себестоимость сырья</th><th className="pr-3">С 4%</th><th className="pr-3">Работа</th><th>Не хватает документов</th>
+              <th className="pr-3">ТЗ</th><Head label="Кол-во" unit="шт." align="left" /><Head label="Себестоимость сырья" unit="₽" align="left" /><Head label="С 4%" unit="₽" align="left" /><Head label="Работа" unit="₽" align="left" /><th>Не хватает документов</th>
             </tr>
           </thead>
           <tbody>
