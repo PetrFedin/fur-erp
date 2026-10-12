@@ -67,7 +67,10 @@ export function FurSelectionTotal({
   lockItem,
   orderInfo,
   noLotsKinds,
+  noLotsInfo,
 }: {
+  /** По виду без лотов: изделия, ТЗ и работа из ТЗ (как на Главной) — показываются в «Использовано» с подписью «по ТЗ», в итоги не входят. */
+  noLotsInfo?: Record<string, { units: number; orders: number; work: number }>;
   /** Виды меха без лотов (сырьё подрядчика, «Бобр»): пункт фильтра «лотов нет» и строка «—» в таблице; в суммы не входят. */
   noLotsKinds?: string[];
   /** Сведения о ТЗ (артикул, партия, изделий, статус) для таблицы «Использование по ТЗ» страницы вида меха. */
@@ -562,7 +565,7 @@ export function FurSelectionTotal({
               lining={kind === "lining" ? tileData.pair : raw.lining}
               c4={raw.c4}
               headerEnd={raw.headerEnd}
-              titleSuffix={slideNow ? (noLotsKinds ?? []).includes(slideNow) && !table.filteredLots.some((l) => l.item === slideNow) ? `${slideNow} (сырьё подрядчика)` : slideNow : undefined}
+              titleSuffix={slideNow ? (noLotsKinds ?? []).includes(slideNow) && !table.filteredLots.some((l) => l.item === slideNow) ? slideNow : slideNow : undefined}
               headerExtra={slideCtl}
               pay={<FilteredPayTiles figs={tileData.pair.incl} paid={tileData.paid} due={tileData.due} c4={raw.c4} />}
             />
@@ -619,11 +622,19 @@ export function FurSelectionTotal({
                   <div className="flex items-center whitespace-nowrap">
                     <span aria-hidden className="mr-1 inline-block w-3" />
                     <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
-                    <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] leading-4 text-neutral-500">сырьё подрядчика</span>
-                    <InfoHint label="Что такое сырьё подрядчика" align="left">{k} — сырьё подрядчика: закупки и лотов у нас нет, поэтому в суммах «Куплено / Использовано / Остаток» его нет. Изделия из него — в ТЗ (страница вида меха).</InfoHint>
+                    <InfoHint label="Что такое строка без лотов" align="left">Закупок и лотов {k.toLowerCase()} нет; значения — по ТЗ изделий из этого меха (как на Главной). В итоги не входят.</InfoHint>
                   </div>
                 </td>
-                {Array.from({ length: totalCols }, (_, i) => <td key={i} className={cn("px-2 py-2 text-right text-neutral-300", i % 3 === 0 && "border-l border-neutral-100")}>—</td>)}
+                {GROUPS.flatMap((g) => Array.from({ length: colsOf(g.key) }, (_, i) => {
+                  const info = noLotsInfo?.[k];
+                  const first = i === 0;
+                  const base = cn("whitespace-nowrap px-2 py-2 text-right tabular-nums", first && "border-l border-neutral-100");
+                  if (g.key === "used" && info && info.units > 0) {
+                    if (i === 0) return <td key={`${g.key}${i}`} className={base}>{info.units} изд.<div className="text-[10px] text-neutral-500">{info.orders} ТЗ</div></td>;
+                    if (i === 1) return <td key={`${g.key}${i}`} className={base}>{info.work > 0 ? formatMoney(info.work) : "—"}<div className="text-[10px] text-neutral-500">по ТЗ</div></td>;
+                  }
+                  return <td key={`${g.key}${i}`} className={cn(base, "text-neutral-300")}>—</td>;
+                }))}
               </tr>
             ))}
             {table.rows.length > 0 && (

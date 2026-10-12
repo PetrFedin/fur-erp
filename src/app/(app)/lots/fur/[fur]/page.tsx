@@ -16,7 +16,7 @@ import { YearNote } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { loadFurKinds } from "@/lib/fur-kinds-server";
-import { furKindsOfOrder, NO_LOTS_FUR_TITLE } from "@/lib/order-fur";
+import { furKindsOfOrder } from "@/lib/order-fur";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../../dashboard/tile";
 import { formatMoney } from "@/lib/utils";
 import { RawCards } from "../../../dashboard/raw-block";
@@ -52,20 +52,19 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
     if (!kinds.noLots.includes(name)) notFound();
     const ords = kinds.orders.filter((o) => furKindsOfOrder(o.fur).includes(name)).sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
     const units = ords.reduce((a, o) => a + o.qty, 0);
-    const note = `${name} — сырьё подрядчика: закупки и лотов у нас нет (не наша закупка и не наш долг), в системе мех не списывается. Изделия — по данным ТЗ.`;
     return (
       <div className="flex flex-col gap-4">
         <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: name }]} />
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/lots" aria-label="Назад в «Сырьё — Мех»" title="Назад в «Сырьё — Мех»" className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 hover:bg-neutral-50">←</Link>
-          <h1 className="text-xl font-semibold">{name} · сырьё подрядчика</h1>
-          <InfoHint label="О сырье подрядчика" wide><p>{note}</p><p className="mt-1">{NO_LOTS_FUR_TITLE}.</p></InfoHint>
+          <h1 className="text-xl font-semibold">{name}</h1>
+          <InfoHint label="О виде меха без лотов" wide><p>Закупок и лотов {name.toLowerCase()} нет; значения — по ТЗ изделий из {name.toLowerCase()} (как на Главной).</p></InfoHint>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {["Куплено", "Использовано", "Остаток"].map((t) => (
+          {["Куплено", "Остаток"].map((t) => (
             <div key={t} className={TILE_BOX}><TileHead>{t}</TileHead><TileValue compact>—</TileValue><TileCaption>закупок и лотов нет</TileCaption></div>
           ))}
-          <div className={TILE_BOX}><TileHead>Изделий в ТЗ, шт.</TileHead><TileValue compact>{units}</TileValue><TileCaption>{ords.length} ТЗ</TileCaption></div>
+          <div className={TILE_BOX}><TileHead>Использовано</TileHead><TileValue compact>{units} изд.</TileValue><TileCaption>{ords.length} ТЗ · {formatMoney(ords.reduce((a, o) => a + o.work, 0))} по ТЗ</TileCaption></div>
         </div>
         <section aria-labelledby="beaver-orders" className="space-y-2">
           <div className="flex items-center gap-2"><h2 id="beaver-orders" className="text-base font-semibold">Изделия из меха «{name}»</h2>
