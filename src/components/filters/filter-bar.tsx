@@ -258,8 +258,12 @@ function BarView({
   children?: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const controls = useMemo(() => allControls.filter((c) => !isPointless(c, vals)), [allControls, vals]);
+  // Поле, один раз показанное, остаётся на месте: после выбора соседнего фильтра в его списке может остаться один вариант,
+  // но сетка от этого пересобираться не должна.
+  const [seen, setSeen] = useState<ReadonlySet<string>>(() => new Set(allControls.filter((c) => !isPointless(c, vals)).map((c) => c.name)));
+  const controls = useMemo(() => allControls.filter((c) => !isPointless(c, vals) || seen.has(c.name)), [allControls, vals, seen]);
+  const fresh = allControls.filter((c) => !isPointless(c, vals) && !seen.has(c.name)).map((c) => c.name);
+  if (fresh.length) setSeen(new Set([...seen, ...fresh]));
   const labelOf = (c: BarControl, v: string) => {
     if (c.type === "date") return ruDate(v);
     if (c.type === "text") return v;
@@ -277,7 +281,10 @@ function BarView({
   const moreControls = controls.filter((c) => c.more);
   const mainControls = controls.filter((c) => !c.more);
   const moreCount = moreControls.filter((c) => !c.state).reduce((n, c) => n + (vals[c.name] ?? []).length, 0);
-  const moreActive = moreOpen || moreCount > 0;
+  // Блок «Ещё фильтры» раскрыт сразу, если в нём уже есть выбор; дальше его открывает и закрывает только кнопка (выбор значений блок не трогает).
+  const [moreOpen, setMoreOpen] = useState(moreCount > 0);
+  const moreActive = moreOpen;
+  const gridCls = cn(oneRow ? "grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] items-end gap-2" : "flex flex-wrap items-end gap-2");
   const renderControl = (c: BarControl) => {
           if (c.type === "multi") {
             return (
@@ -332,61 +339,71 @@ function BarView({
 
   return (
     <section data-filter-bar data-comment-anchor="filters" data-comment-label="Панель фильтров" aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>
-          {count > 0 && <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white">применены: {count}</span>}
-          {pending && (
-            <span role="status" className="flex items-center gap-1 text-xs text-neutral-500">
-              <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
-              Обновляю…
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-expanded={mobileOpen}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 sm:hidden"
-        >
-          Фильтры{count > 0 ? ` (${count})` : ""} {mobileOpen ? "▴" : "▾"}
-        </button>
-      </div>
-      <form
-        method="get"
-        action={action}
-        onSubmit={(e) => e.preventDefault()}
-        className={cn(oneRow ? "grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] items-end gap-2" : "flex flex-wrap items-end gap-2", !mobileOpen && "max-sm:hidden")}
-      >
-        {hidden.map(([k, v], i) => (
-          <input key={`${k}-${i}`} type="hidden" name={k} value={v} />
-        ))}
-        {mainControls.map(renderControl)}
-        {moreControls.length > 0 && (
+      {/* Шапка постоянной высоты: счётчик, индикатор обновления и «Сбросить всё» занимают место всегда (прячутся через invisible), поэтому выбор значений ничего не двигает. */}
+      <div className="mb-2 flex min-h-6 items-center gap-2">
+        <div className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>
+        <span className={cn("shrink-0 whitespace-nowrap rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white max-sm:hidden", count === 0 && "invisible")} aria-hidden={count === 0}>
+          применены: {count || 0}
+        </span>
+        <span role="status" className={cn("flex shrink-0 items-center gap-1 text-xs text-neutral-500", !pending && "invisible")}>
+          <span aria-hidden className="size-3 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" />
+          <span className="max-sm:hidden">Обновляю…</span>
+        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            aria-expanded={moreActive}
-            className="h-11 rounded-lg border border-dashed border-neutral-300 bg-white px-3 text-sm text-neutral-600 hover:border-neutral-500"
+            onClick={reset}
+            disabled={count === 0}
+            tabIndex={count === 0 ? -1 : undefined}
+            aria-hidden={count === 0}
+            className={cn("whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium text-blue-700 hover:underline", count === 0 && "invisible")}
           >
-            Ещё фильтры{moreCount > 0 ? ` (${moreCount})` : ""} {moreActive ? "▴" : "▾"}
+            Сбросить всё
           </button>
-        )}
-        {moreActive && moreControls.map(renderControl)}
-        {children ? <Fragment key="extra">{children}</Fragment> : null}
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-expanded={mobileOpen}
+            className="whitespace-nowrap rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 sm:hidden"
+          >
+            Фильтры{count > 0 ? ` (${count})` : ""} {mobileOpen ? "▴" : "▾"}
+          </button>
+        </div>
+      </div>
+      <form method="get" action={action} onSubmit={(e) => e.preventDefault()} className={cn("flex flex-col gap-2", !mobileOpen && "max-sm:hidden")}>
+        <div className={gridCls}>
+          {hidden.map(([k, v], i) => (
+            <input key={`${k}-${i}`} type="hidden" name={k} value={v} />
+          ))}
+          {mainControls.map(renderControl)}
+          {moreControls.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-expanded={moreActive}
+              className="h-11 min-w-0 truncate rounded-lg border border-dashed border-neutral-300 bg-white px-3 text-sm text-neutral-600 hover:border-neutral-500 max-sm:w-full sm:flex-1 sm:basis-40"
+            >
+              Ещё фильтры{moreCount > 0 ? ` (${moreCount})` : ""} {moreActive ? "▴" : "▾"}
+            </button>
+          )}
+          {children ? <Fragment key="extra">{children}</Fragment> : null}
+        </div>
+        {moreActive && moreControls.length > 0 && <div className={gridCls}>{moreControls.map(renderControl)}</div>}
         <noscript>
           <button type="submit" className="h-11 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-medium">Применить</button>
         </noscript>
       </form>
-      {chips.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Активные фильтры">
-          {(hideChips ? [] : chips).map(({ c, v }) => (
+      {/* Чипы (если страница их просит) — в слоте постоянной высоты, в одну строку с прокруткой: панель от выбора не растёт. */}
+      {!hideChips && (
+        <div className="mt-2 flex h-8 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden" aria-label="Активные фильтры">
+          {chips.length === 0 && <span className="whitespace-nowrap text-xs text-neutral-500">Активных фильтров нет</span>}
+          {chips.map(({ c, v }) => (
             <button
               key={`${c.name}:${v}`}
               type="button"
               onClick={() => setCtl(c.name, (vals[c.name] ?? []).filter((x) => x !== v), 0)}
               title="Убрать этот фильтр"
-              className="inline-flex max-w-full items-center gap-1 rounded-full border border-neutral-300 bg-white py-1 pl-2.5 pr-2 text-xs text-neutral-800 hover:border-neutral-500 max-md:min-h-8"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-neutral-300 bg-white py-1 pl-2.5 pr-2 text-xs text-neutral-800 hover:border-neutral-500"
             >
               <span className="text-neutral-500">{c.label}:</span>
               <span className="max-w-[220px] truncate font-normal">{labelOf(c, v)}</span>
@@ -394,13 +411,6 @@ function BarView({
               <span className="sr-only">убрать</span>
             </button>
           ))}
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-full px-2.5 py-1 text-xs font-medium text-blue-700 hover:underline max-md:min-h-8"
-          >
-            Сбросить всё
-          </button>
         </div>
       )}
       {/* Блок передаётся серверной страницей (элемент с владельцем DashboardPage): без собственного key в списке детей <section> React 19 ругается «Each child in a list should have a unique key». */}

@@ -45,6 +45,8 @@ export function MultiSelectFilter({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  // Куда раскрывать список: вниз, а если снизу мало места, а сверху больше — вверх; высота списка подгоняется под доступное место (оверлей, страницу не прокручивает и не толкает).
+  const [place, setPlace] = useState<{ up: boolean; max: number; right: boolean }>({ up: false, max: 288, right: false });
   const box = useRef<HTMLDetailsElement>(null);
 
   const all = useMemo<FilterOption[]>(() => (noneLabel ? [...options, { value: NONE, label: noneLabel }] : options), [options, noneLabel]);
@@ -140,7 +142,16 @@ export function MultiSelectFilter({
     <details
       ref={box}
       onToggle={(e) => {
-        setOpen(e.currentTarget.open);
+        const el = e.currentTarget;
+        if (el.open) {
+          const r = el.getBoundingClientRect();
+          const below = window.innerHeight - r.bottom - 12;
+          const above = r.top - 12;
+          const chrome = 175; // поиск, «Все», нижние кнопки, отступы
+          const up = below < 300 && above > below;
+          setPlace({ up, max: Math.max(120, Math.min(288, (up ? above : below) - chrome)), right: r.left + Math.min(360, window.innerWidth - 32) > window.innerWidth - 2 && r.right - Math.min(360, window.innerWidth - 32) >= 2 });
+        }
+        setOpen(el.open);
         if (!e.currentTarget.open) setQuery("");
       }}
       className={cn("group relative min-w-0 max-sm:w-full sm:flex-1 sm:basis-40", className)}
@@ -162,8 +173,9 @@ export function MultiSelectFilter({
       </summary>
       <div
         className={cn(
-          "absolute z-40 mt-1.5 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-neutral-300 bg-white p-2 shadow-xl",
-          align === "right" ? "right-0" : "left-0",
+          "absolute z-40 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-neutral-300 bg-white p-2 shadow-xl",
+          place.up ? "bottom-full mb-1.5" : "top-full mt-1.5",
+          align === "right" || place.right ? "right-0" : "left-0",
         )}
       >
         {(grouped || list.length >= searchFrom) && (
@@ -181,7 +193,7 @@ export function MultiSelectFilter({
           <span className="min-w-0 flex-1 truncate">{allLabel}</span>
           <span className="text-xs font-normal tabular-nums text-neutral-600">{list.length}</span>
         </label>
-        <div className="mt-1 max-h-72 overflow-auto border-t border-neutral-200 pt-1">
+        <div style={{ maxHeight: place.max }} className="mt-1 overflow-auto overscroll-contain border-t border-neutral-200 pt-1">
           {grouped
             ? visibleGroups.map((g) => {
                 const n = g.items.filter((o) => set.has(o.value)).length;
