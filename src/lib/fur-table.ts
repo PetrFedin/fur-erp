@@ -445,6 +445,7 @@ export function parseFilters(q: Q, kind: FurKind): FurFilters {
   // Фильтры по статусу закупки и оплате убраны из интерфейса: старые параметры адреса игнорируем.
   f.status = [];
   f.pay = [];
+  f.supplier = []; // фильтр «Поставщик» убран из интерфейса (поставщик один)
   f.usage = f.usage.filter((v) => v in USAGE_LABELS);
   f.rate = []; // фильтр «Ставка НДС» убран из интерфейса: старый параметр адреса игнорируем
   f.year = f.year.filter((v) => /^\d{4}$/.test(v));
