@@ -335,14 +335,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           ]}
           dropOnChange={["event", "new", "cell", "ord", "gp"]}
           footer={
-            <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
+            <div className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
               Фильтры применяются сразу
               <InfoHint label="Что фильтруется" wide>
                 {mode === "detail"
                   ? <p>Сезон, действие и артикул отбирают события календаря. {factsNote || "Факты из других разделов показываются, пока не выбран сезон или действие: у них их нет."}</p>
                   : <p>Группа, вид меха и статус отбирают ТЗ в плитках и таблице. Источник данных: ТЗ без отменённых{mode === "months" ? (myEff === "all" ? ", все годы" : `, год ${myEff}`) : year !== "all" ? `, год ${year}` : ", все годы"}; сроки — плановая дата ТЗ, событие календаря, поставка лота, план поставок; «—» — даты нет.</p>}
               </InfoHint>
-            </p>
+            </div>
           }
         />
       </div>

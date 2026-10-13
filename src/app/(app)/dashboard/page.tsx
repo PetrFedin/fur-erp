@@ -102,14 +102,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             { type: "multi", name: "kind", label: "Тип", single: true, options: [{ value: "prod", label: KIND_LABELS.prod }, { value: "repair", label: KIND_LABELS.repair }], allLabel: "Все", hint: "Производство — все ТЗ кроме ремонта; Ремонт — только ремонтные ТЗ" },
           ]}
           footer={
-            <p className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
+            <div className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">
               Фильтры применяются сразу
               <InfoHint label="Что фильтруется на Главной" wide>
                 <p>Год — общий, из шапки ({year === "all" ? "все годы" : `${year} год`}).</p>
                 <p className="mt-1">Партия закупки, вид меха, цвет и признак меха отбирают лоты (куплено, остаток, использовано) и ТЗ, в которых списан такой лот; вид меха без лотов (например, бобр подрядчика) отбирает только ТЗ. Партия производства, группа категорий и тип (производство / ремонт) отбирают ТЗ (и «использовано» — только по ним). Ставки НДС показаны внутри карточек.</p>
                 <p className="mt-1">Сужают блоки «Сырьё» и «Производство» и обе таблицы динамики. Долг и оплаты поставщику (по закупкам и оплатам года) от фильтров не зависят{filtersOn ? " — сейчас фильтры включены" : ""}.</p>
               </InfoHint>
-            </p>
+            </div>
           }
         />
       </div>
