@@ -97,23 +97,6 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           </InfoHint></div>
       </div>
 
-      <WidgetRow id="verify" title="Очередь проверки — итоги">
-      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
-        {[
-          { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
-          { label: "Ждёт проверки", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
-          { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
-          { label: "Всего, строк", v: total.total, sub: null, tone: "" },
-        ].map((c) => (
-          <div key={c.label} className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>{c.label}</TileHead>
-            <TileValue className={c.tone}>{c.v}</TileValue>
-            <TileCaption>{c.sub}</TileCaption>
-          </div>
-        ))}
-      </div>
-      </WidgetRow>
-
       <nav className="flex flex-wrap gap-1" aria-label="Разделы очереди">
         {TABS.map((t) => {
           const c = countRows(tabRows(t));
@@ -133,6 +116,35 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         })}
       </nav>
 
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры проверки"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, аукцион, сумма…" },
+            { type: "multi", name: "verified", label: "Состояние", aliases: ["filter"], options: FILTERS.map((x) => ({ value: x.id, label: x.label })), allLabel: "Все" },
+          ]}
+        />
+      </div>
+
+      <WidgetRow id="verify" title="Очередь проверки — итоги">
+      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
+        {[
+          { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
+          { label: "Ждёт проверки", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
+          { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
+          { label: "Всего, строк", v: total.total, sub: null, tone: "" },
+        ].map((c) => (
+          <div key={c.label} className={TILE_BOX + " shadow-sm print:shadow-none"}>
+            <TileHead>{c.label}</TileHead>
+            <TileValue className={c.tone}>{c.v}</TileValue>
+            <TileCaption>{c.sub}</TileCaption>
+          </div>
+        ))}
+      </div>
+      </WidgetRow>
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-xs text-neutral-500">
           {tab.label}: подтверждено {tabCounts.verified}, ждёт {tabCounts.waiting}, готово {tabCounts.ready}
@@ -141,14 +153,6 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           </InfoHint>
         </p>
       </div>
-
-      <FilterBar
-        title="Фильтры проверки"
-        controls={[
-          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, аукцион, сумма…" },
-          { type: "multi", name: "verified", label: "Состояние", aliases: ["filter"], options: FILTERS.map((x) => ({ value: x.id, label: x.label })), allLabel: "Все" },
-        ]}
-      />
 
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500">

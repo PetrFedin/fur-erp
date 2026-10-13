@@ -7,6 +7,7 @@ import {
   GROUPS, applyFilters, groupLots, groupUsage, isUsageBy, loadRawData, loadUsageRows,
   type GroupBy, type LotGroupBy, type RawFilters, type UsageGroupBy,
 } from "@/lib/raw-analytics";
+import { loadRawWithDashboard } from "@/lib/raw-analytics-dash";
 import { GroupLots } from "./lot-rows";
 import { UsageGroupLots } from "./usage-rows";
 
@@ -31,8 +32,8 @@ export async function loadGroupLots(by: GroupBy, key: string, f: RawFilters) {
   const c4 = await getCommission4Mode();
   const safeBy: LotGroupBy = GROUPS.some((g) => g.key === by) && !isUsageBy(by) ? (by as LotGroupBy) : "auction";
   const filters = cleanFilters(f);
-  const data = await loadRawData(session.user.organizationId, year);
-  const group = groupLots(applyFilters(data.lots, filters), safeBy).find((g) => g.key === String(key));
+  const { all } = await loadRawWithDashboard(session.user.organizationId, year, c4);
+  const group = groupLots(applyFilters(all, filters), safeBy).find((g) => g.key === String(key));
   if (!group) return <p className="px-3 py-3 text-sm text-neutral-500">Лоты не найдены — обновите страницу.</p>;
   return <GroupLots lots={group.lots} unit={filters.scope === "lining" ? "м" : "шт."} c4={c4} showAuction={safeBy !== "auction"} />;
 }

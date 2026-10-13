@@ -517,6 +517,18 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </a>
       </div>
 
+      {/* Параметры и фильтры (над виджетами, как на Главной) */}
+      <AnalyticsFilterBar
+        opts={opts}
+        aucOf={aucOf}
+        lead={[
+          { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
+          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
+          { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
+        ]}
+      />
+      {badInput && <span className="text-xs text-red-600">Наценка: введите число, например 350 — взято значение по умолчанию.</span>}
+
       {/* Сводка */}
       <WidgetRow id="pricing" title="Цены и наценка — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-4">
@@ -544,18 +556,6 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
       </WidgetRow>
-
-      {/* Параметры и фильтры */}
-      <AnalyticsFilterBar
-        opts={opts}
-        aucOf={aucOf}
-        lead={[
-          { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
-          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
-          { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
-        ]}
-      />
-      {badInput && <span className="text-xs text-red-600">Наценка: введите число, например 350 — взято значение по умолчанию.</span>}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1 text-sm">

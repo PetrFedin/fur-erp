@@ -25,6 +25,26 @@ export function GroupLots({ lots, unit, c4, showAuction }: { lots: RawLot[]; uni
 function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4: "on" | "off"; showAuction: boolean }) {
   const a = aggOf([l]);
   const lab = "block text-xs text-neutral-500 md:hidden";
+  if (l.synthetic) {
+    // Строка моста до Главной (не лот склада): без ссылок на карточку лота.
+    return (
+      <div className="border-t border-neutral-200 py-2 text-sm first:border-t-0">
+        <div className={`grid grid-cols-2 gap-2 ${LOT_COLS}`}>
+          <div className="col-span-2 md:col-span-1">
+            <div className="font-medium">{l.synthetic === "ordered" ? `Заказано, не получено · ${l.kind}` : `Шкуры подрядчика · ${l.year}`}</div>
+            <div className="text-xs text-neutral-500">{l.synthetic === "ordered" ? `${l.auctionLabel} · лотов склада ещё нет` : "оплачены в составе пошива, в ТЗ не списаны"}</div>
+          </div>
+          <span className="tabular-nums"><span className={lab}>Куплено</span>{qty(l.recv, unit)}</span>
+          <span className="tabular-nums"><span className={lab}>Использовано</span>{qty(l.used, unit)}</span>
+          <span className="tabular-nums"><span className={lab}>В учёте</span><span aria-label="совпадает с остатком">✓</span></span>
+          <span className="font-medium tabular-nums"><span className={lab}>Остаток</span>{qty(l.rem, unit)}</span>
+          <span className="tabular-nums"><span className={lab}>% исп.</span>{pctText(usedPct(a))}</span>
+          <span className="tabular-nums"><span className={lab}>Куплено, ₽</span><Money incl={q2(a.recvIncl)} excl={q2(a.recvExcl)} /></span>
+          <span className="tabular-nums"><span className={lab}>Стоимость остатка</span><Money incl={q2(a.remIncl)} excl={q2(a.remExcl)} /></span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="border-t border-neutral-200 py-2 text-sm first:border-t-0">
       <div className={`grid grid-cols-2 gap-2 ${LOT_COLS}`}>

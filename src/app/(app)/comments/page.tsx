@@ -93,6 +93,9 @@ export default async function CommentsPage({ searchParams }: PageProps<"/comment
 
       <FilterBar
         title="Фильтры комментариев"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск по тексту", aliases: ["dq"], placeholder: "текст, запись, автор…" },
           { type: "multi", name: "status", label: "Статус", options: COMMENT_STATUSES.map((v) => ({ value: v, label: STATUS_LABEL[v] })), allLabel: "Любой" },

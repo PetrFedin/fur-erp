@@ -33,6 +33,7 @@ import { LotNumberField, LotRemainingField, LotDateField, LotChoiceField, LotPur
 import { LotPassport, type PassportSection } from "@/components/lot-passport";
 import { LotSheetTable } from "@/components/lot-sheet-table";
 import { LotProducts, type ProdModel } from "@/components/lot-products";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -314,14 +315,11 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         </div>
       </WidgetRow>
 
-      {/* 2. Паспорт */}
-      <div className={BLOCK}>
-        <h2 className={H2 + " flex items-center gap-2"}>
-          Паспорт лота
-          <InfoHint label="Паспорт лота" wide>
+      {/* 2. Паспорт — справочные поля: свёрнут */}
+      <CollapsibleBlock title="Паспорт лота" summary="справочные поля лота · правка по месту">
+        <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">О паспорте <InfoHint label="Паспорт лота" wide>
             <p>Карточка лота — первоисточник: все поля правятся здесь по месту (Enter или уход из поля — сохранить, Esc — отмена). Цена, количество и НДС перед записью показывают окно «что изменится»: пересчитываются сумма лота и позиции закупки, остаток, стоимость списаний по ТЗ, себестоимость ТЗ, состав цены и молоток. Поля закупки-основания (поставщик, аукцион, счёт, УПД, дата) действуют на всю закупку; в закупке и таблицах они только показываются.</p>
-          </InfoHint>
-        </h2>
+          </InfoHint></div>
         <LotPassport
           lotId={id}
           sections={sections}
@@ -331,7 +329,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           attrOptions={attrRefs}
           attrIds={row.attrs.map((a) => a.attrId)}
         />
-      </div>
+      </CollapsibleBlock>
 
       {/* 3. Из чего состоит цена */}
       {showPrice && (
@@ -388,16 +386,13 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <LotUsageViz unit={unit} recv={l.recv.toNumber()} startDate={formatDate(l.date)} segs={usageSegs} totalCost={<Money incl={q2(recvIncl)} excl={q2(recvExcl)} />} />
       </div>
 
-      {/* Документы лота */}
-      <div className={BLOCK}>
-        <h2 className={H2 + " flex items-center gap-2"}>
-          Документы
-          <InfoHint label="Документы лота" wide>
+      {/* Документы лота — свёрнуты */}
+      <CollapsibleBlock title="Документы" summary={`${lotDocs.length} шт. · УПД, счёт, спецификация`}>
+        <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">О документах <InfoHint label="Документы лота" wide>
             <p>УПД, счёт и спецификацию пока не нужно заполнять — просто прикрепите файлы: перетащите на слот или нажмите «Загрузить файл» (PDF, XLSX, DOCX, JPEG, PNG до 25 МБ). Номера и суммы не требуются. Документы лота видны и в закупке-основании.</p>
-          </InfoHint>
-        </h2>
+          </InfoHint></div>
         <LotDocuments lotId={id} docs={lotDocs} inherited={inheritedDocs} canEdit={canEdit} />
-      </div>
+      </CollapsibleBlock>
     </div>
   );
 }

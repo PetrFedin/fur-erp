@@ -143,6 +143,22 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         </a>
       </div>
 
+      {/* ---------- фильтры матрицы (над виджетами, как на Главной) */}
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры анализа документов"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
+            { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
+            { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
+            { type: "multi", name: "gaps", label: "Пробелы", single: true, options: [{ value: "1", label: "Только с пробелами" }], allLabel: "Все записи" },
+            { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
+          ]}
+        />
+      </div>
+
       {/* ---------- сводка */}
       <WidgetRow id="docs-coverage" title="Покрытие документами">
       <section aria-label="Сводка покрытия" className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
@@ -163,18 +179,6 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       )}
 
       <RegistryBlock />
-
-      {/* ---------- фильтры матрицы */}
-      <FilterBar
-        title="Фильтры анализа документов"
-        controls={[
-          { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
-          { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
-          { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
-          { type: "multi", name: "gaps", label: "Пробелы", single: true, options: [{ value: "1", label: "Только с пробелами" }], allLabel: "Все записи" },
-          { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
-        ]}
-      />
 
       {/* ---------- матрица */}
       {visible.length === 0 ? (
@@ -202,14 +206,18 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
           </h2>
         </div>
 
-        <FilterBar
-          title="Фильтры документов"
-          controls={[
-            { type: "text", name: "q", label: "Поиск по названию / номеру", aliases: ["dq"], placeholder: "например, УПД 109" },
-            { type: "multi", name: "dtype", label: "Тип документа", options: DRIVE_DOC_TYPES.filter((t) => typeCounts.get(t) || df.type.includes(t)).map((t) => ({ value: t, label: DRIVE_DOC_TYPE_LABELS[t], count: typeCounts.get(t) ?? 0 })), allLabel: "Все типы" },
-            { type: "multi", name: "dlink", label: "Привязан к", options: [...Object.entries(DOC_LINK_LABELS).map(([value, label]) => ({ value, label })), { value: "none", label: "Не привязан" }], allLabel: "Любая привязка" },
-          ]}
-        />
+        <div className="print:hidden">
+          <FilterBar
+            title="Фильтры документов"
+            oneRow
+            hideChips
+            controls={[
+              { type: "text", name: "q", label: "Поиск по названию / номеру", aliases: ["dq"], placeholder: "например, УПД 109" },
+              { type: "multi", name: "dtype", label: "Тип документа", options: DRIVE_DOC_TYPES.filter((t) => typeCounts.get(t) || df.type.includes(t)).map((t) => ({ value: t, label: DRIVE_DOC_TYPE_LABELS[t], count: typeCounts.get(t) ?? 0 })), allLabel: "Все типы" },
+              { type: "multi", name: "dlink", label: "Привязан к", options: [...Object.entries(DOC_LINK_LABELS).map(([value, label]) => ({ value, label })), { value: "none", label: "Не привязан" }], allLabel: "Любая привязка" },
+            ]}
+          />
+        </div>
 
         {pageDocs.length === 0 ? (
           <Card className="p-6 text-center text-neutral-600">Документов по этим условиям нет.</Card>
@@ -247,7 +255,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                         <td className="px-3 py-2">
                           <GroupLinks d={d} />
                         </td>
-                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-700">✓ в приложении</span> : <span className="text-neutral-500">только ссылка</span>}</td>
+                        <td className="px-3 py-2">{d.hasOriginal ? <span className="text-emerald-700">✓ в приложении</span> : <span className="text-neutral-500">файл не загружен</span>}</td>
                       </tr>
                     ))}
                   </tbody>

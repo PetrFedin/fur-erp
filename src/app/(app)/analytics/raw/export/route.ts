@@ -1,6 +1,8 @@
 import { getFreshSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
-import { applyFilters, aggOf, avgPrice, groupLots, groupUsage, isUsageBy, loadRawData, loadUsageRows, parseFilters, usedPct, GROUPS } from "@/lib/raw-analytics";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { loadRawWithDashboard } from "@/lib/raw-analytics-dash";
+import { applyFilters, aggOf, avgPrice, groupLots, groupUsage, isUsageBy, loadUsageRows, parseFilters, usedPct, GROUPS } from "@/lib/raw-analytics";
 
 /**
  * CSV «Аналитика сырья» (UTF-8 с BOM, разделитель «;» — открывается в Excel).
@@ -17,8 +19,8 @@ export async function GET(request: Request) {
   for (const k of new Set(url.searchParams.keys())) spObj[k] = url.searchParams.getAll(k);
   const { f, by } = parseFilters(spObj);
   const year = await getYearFilter();
-  const data = await loadRawData(session.user.organizationId, year);
-  const lots = applyFilters(data.lots, f);
+  const { all } = await loadRawWithDashboard(session.user.organizationId, year, await getCommission4Mode());
+  const lots = applyFilters(all, f);
   const unit = f.scope === "lining" ? "м" : "шт";
 
   const cell = (v: string | number | null) => {

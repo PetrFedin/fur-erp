@@ -173,18 +173,18 @@ export async function loadFurLots(
  */
 export function flowOfRawLots(lots: RawLot[]): Flow {
   return flowOf(
-    lots.map((l) => ({
+    lots.map((l) => ({ l, v: l.fixed ?? { recvIncl: l.recv.mul(l.unitIncl), recvExcl: l.recv.mul(l.unitExcl), remIncl: l.rem.mul(l.unitIncl), remExcl: l.rem.mul(l.unitExcl) } })).map(({ l, v }) => ({
       recv: num(l.recv),
       used: num(l.used),
       rem: num(l.rem),
-      recvIncl: num(l.recv.mul(l.unitIncl)),
-      recvExcl: num(l.recv.mul(l.unitExcl)),
+      recvIncl: num(v.recvIncl),
+      recvExcl: num(v.recvExcl),
       usedIncl: num(l.usedIncl),
       usedExcl: num(l.usedExcl),
       usedExtraIncl: num(l.usedExtraIncl),
       usedExtraExcl: num(l.usedExtraExcl),
-      remIncl: num(l.rem.mul(l.unitIncl)),
-      remExcl: num(l.rem.mul(l.unitExcl)),
+      remIncl: num(v.remIncl),
+      remExcl: num(v.remExcl),
       usdQty: 0,
       usdSubtotal: 0,
       usdUsedQty: 0,

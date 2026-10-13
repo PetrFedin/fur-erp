@@ -341,7 +341,7 @@ function BarView({
     <section data-filter-bar data-comment-anchor="filters" data-comment-label="Панель фильтров" aria-busy={pending} className={cn("rounded-xl border border-neutral-200 bg-neutral-50/70 p-3", className)}>
       {/* Шапка постоянной высоты: счётчик, индикатор обновления и «Сбросить всё» занимают место всегда (прячутся через invisible), поэтому выбор значений ничего не двигает. */}
       <div className="mb-2 flex min-h-6 items-center gap-2">
-        <div className="min-w-0 truncate text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">{title}</div>
+        <div className="min-w-0 break-words text-xs font-semibold uppercase leading-tight tracking-[0.12em] text-neutral-500 sm:truncate">{title}</div>
         <span className={cn("shrink-0 whitespace-nowrap rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white max-sm:hidden", count === 0 && "invisible")} aria-hidden={count === 0}>
           применены: {count || 0}
         </span>
@@ -356,7 +356,7 @@ function BarView({
             disabled={count === 0}
             tabIndex={count === 0 ? -1 : undefined}
             aria-hidden={count === 0}
-            className={cn("whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium text-blue-700 hover:underline", count === 0 && "invisible")}
+            className={cn("whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium text-blue-700 hover:underline", count === 0 && "invisible max-sm:hidden")}
           >
             Сбросить всё
           </button>
@@ -414,7 +414,10 @@ function BarView({
         </div>
       )}
       {/* Блок передаётся серверной страницей (элемент с владельцем DashboardPage): без собственного key в списке детей <section> React 19 ругается «Each child in a list should have a unique key». */}
-      {footer ? <div key="footer">{footer}</div> : null}
+      {/* Единая подпись под всеми панелями фильтров; свой footer (с подсказкой) её заменяет, footer={null} убирает. */}
+      {footer === undefined
+        ? <p key="footer" className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу</p>
+        : footer ? <div key="footer">{footer}</div> : null}
     </section>
   );
 }

@@ -19,7 +19,21 @@ export async function BatchDocsPay({ batchNumber }: { batchNumber: number }) {
   const [b] = await loadBatchPanels(prisma, orgId, c, [batchNumber]);
   if (!b) return null;
   const { verify, canVerify } = await loadPaymentVerify("prodPayment");
-  return <DocsPayPanel panel={b.panel} verify={verify} canVerify={canVerify} />;
+  const pn = b.panel;
+  const required = pn.items.filter((i) => i.need === "required");
+  const missing = required.length - required.filter((i) => i.ok).length;
+  const pay = pn.pay.state === "NOBASE" ? pn.pay.label : `${pn.pay.paidText} из ${pn.pay.totalText}`;
+  // Документы и оплата — по клику: в карточке партии по умолчанию развёрнуты только цифры.
+  return (
+    <CollapsibleBlock
+      title="Документы и оплата партии"
+      problem={Boolean(pn.alert) || pn.pay.tone === "bad"}
+      autoOpen={false}
+      summary={<>Документы: не хватает {missing} · Оплата: {pay}</>}
+    >
+      <DocsPayPanel panel={pn} verify={verify} canVerify={canVerify} />
+    </CollapsibleBlock>
+  );
 }
 
 /** «Документы и оплата» одного ТЗ (оплата — по партии, если ТЗ в партии). */

@@ -66,6 +66,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
 
       <FilterBar
         title="Фильтры пользователей"
+        oneRow
+        hideChips
+        className="print:hidden"
         dropOnChange={["error"]}
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Имя или email" },

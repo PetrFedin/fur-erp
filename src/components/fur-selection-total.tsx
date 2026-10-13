@@ -530,6 +530,7 @@ export function FurSelectionTotal({
 
   return (
     <div className="space-y-3">
+      <div className="print:hidden">
       <LocalFilterBar
         oneRow
         hideChips
@@ -552,6 +553,7 @@ export function FurSelectionTotal({
         }}
         onReset={() => { setFilters(emptyFilters()); setQ(""); setDateFrom(""); setDateTo(""); }}
       />
+      </div>
 
       {raw ? (
         <>

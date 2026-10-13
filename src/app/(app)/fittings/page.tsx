@@ -112,6 +112,21 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
         </div>
       ) : (
         <>
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры примерок"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или комментарий" },
+            { type: "multi", name: "model", label: "Модель", options: models.map((m) => ({ value: m.id, label: m.name })), allLabel: "Все модели" },
+            { type: "multi", name: "year", label: "Год примерки", options: yearOptionsFrom(allDates.map((d) => d.fittingDate)) },
+            { type: "date", name: "from", label: "Дата с" },
+            { type: "date", name: "to", label: "Дата по" },
+          ]}
+        />
+      </div>
+
       <SummaryTiles
         id="fittings"
         title="Примерки — итоги"
@@ -123,19 +138,6 @@ export default async function FittingsPage({ searchParams }: PageProps<"/fitting
           { key: "remarks", label: "Есть замечания", value: num(remarksCnt) },
           { key: "ok", label: "Принято", value: num(okCnt) },
           { key: "photos", label: "Фото, шт.", value: num(photoTotal) },
-        ]}
-      />
-
-      <FilterBar
-        title="Фильтры примерок"
-        oneRow
-        hideChips
-        controls={[
-          { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или комментарий" },
-          { type: "multi", name: "model", label: "Модель", options: models.map((m) => ({ value: m.id, label: m.name })), allLabel: "Все модели" },
-          { type: "multi", name: "year", label: "Год примерки", options: yearOptionsFrom(allDates.map((d) => d.fittingDate)) },
-          { type: "date", name: "from", label: "Дата с" },
-          { type: "date", name: "to", label: "Дата по" },
         ]}
       />
 

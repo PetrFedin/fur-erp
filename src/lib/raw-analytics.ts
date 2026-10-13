@@ -89,7 +89,21 @@ export type RawLot = {
   jProdOut: Decimal;
   jOtherOut: Decimal;
   jNet: Decimal;
+  /**
+   * Строка «моста до Главной» — не лот склада: «ordered» — заказано, но не получено (лотов ещё нет),
+   * «hides» — шкуры подрядчика (оплачены в составе пошива). Собираются в loadDashboard (src/lib/raw-analytics-dash.ts).
+   */
+  synthetic?: "ordered" | "hides";
+  /** Суммы, заданные расчётом Главной (у синтетических строк цена за единицу не имеет смысла): вместо кол-во × цена. */
+  fixed?: { recvIncl: Decimal; recvExcl: Decimal; remIncl: Decimal; remExcl: Decimal };
 };
+
+/** Стоимость лота: получено и остаток, ₽ (с НДС / без НДС). Для обычного лота — кол-во × цена за единицу. */
+export function lotValues(l: RawLot): { recvIncl: Decimal; recvExcl: Decimal; remIncl: Decimal; remExcl: Decimal } {
+  return l.fixed ?? { recvIncl: l.recv.mul(l.unitIncl), recvExcl: l.recv.mul(l.unitExcl), remIncl: l.rem.mul(l.unitIncl), remExcl: l.rem.mul(l.unitExcl) };
+}
+
+export const SYNTHETIC_LABEL = { ordered: "Заказано, не получено", hides: "Шкуры подрядчика" } as const;
 
 export type RawData = {
   lots: RawLot[];
@@ -334,14 +348,15 @@ export function addLot(a: Agg, l: RawLot): void {
   a.recv = a.recv.add(l.recv);
   a.used = a.used.add(l.used);
   a.rem = a.rem.add(l.rem);
-  a.recvIncl = a.recvIncl.add(l.recv.mul(l.unitIncl));
-  a.recvExcl = a.recvExcl.add(l.recv.mul(l.unitExcl));
+  const v = lotValues(l);
+  a.recvIncl = a.recvIncl.add(v.recvIncl);
+  a.recvExcl = a.recvExcl.add(v.recvExcl);
   a.usedIncl = a.usedIncl.add(l.usedIncl);
   a.usedExcl = a.usedExcl.add(l.usedExcl);
   a.usedExtraIncl = a.usedExtraIncl.add(l.usedExtraIncl);
   a.usedExtraExcl = a.usedExtraExcl.add(l.usedExtraExcl);
-  a.remIncl = a.remIncl.add(l.rem.mul(l.unitIncl));
-  a.remExcl = a.remExcl.add(l.rem.mul(l.unitExcl));
+  a.remIncl = a.remIncl.add(v.remIncl);
+  a.remExcl = a.remExcl.add(v.remExcl);
   a.jrem = a.jrem.add(l.jNet);
 }
 export const aggOf = (lots: RawLot[]): Agg => {
@@ -364,6 +379,15 @@ export function groupLots(lots: RawLot[], by: LotGroupBy): Group[] {
     let key: string;
     let label: string;
     let title: string | undefined;
+    if (l.synthetic) {
+      // «Заказано, не получено» и «Шкуры подрядчика» — всегда отдельными подписанными строками (в любой группировке).
+      key = `syn:${l.synthetic}`; label = SYNTHETIC_LABEL[l.synthetic];
+      let sg = map.get(key);
+      if (!sg) map.set(key, (sg = { key, label, title: l.synthetic === "ordered" ? "Заказано по закупкам, лотов склада ещё нет (входит в «Куплено» и «Остаток» на Главной)" : "Шкуры подрядчика, оплаченные в составе пошива (входят в «Куплено» и «Использовано» на Главной)", agg: emptyAgg(), lots: [] }));
+      sg.lots.push(l);
+      addLot(sg.agg, l);
+      continue;
+    }
     switch (by) {
       case "auction": key = l.auction; label = l.auctionLabel; title = l.auction === NO_AUCTION_KEY ? undefined : l.auction; break;
       case "year": key = String(l.year); label = String(l.year); break;
@@ -386,7 +410,8 @@ export function groupLots(lots: RawLot[], by: LotGroupBy): Group[] {
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || byRem(a, b);
   });
   else arr.sort(byRem);
-  return arr;
+  // Строки моста до Главной — в конце, после обычных групп.
+  return [...arr.filter((g) => !g.key.startsWith("syn:")), ...arr.filter((g) => g.key.startsWith("syn:"))];
 }
 
 export function parseFilters(sp: Record<string, string | string[] | undefined>): { f: RawFilters; by: GroupBy } {

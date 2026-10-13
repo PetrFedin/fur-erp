@@ -90,6 +90,9 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
 
       <FilterBar
         title="Фильтры признаков"
+        oneRow
+        hideChips
+        className="print:hidden"
         dropOnChange={["ok", "error"]}
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, синоним, описание" },

@@ -45,6 +45,9 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
       </div>
       <FilterBar
         title="Фильтры меха"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, английское, синоним" },
           { type: "multi", name: "status", label: "Использование", options: [{ value: "used", label: "Используется" }, { value: "unused", label: "Не используется" }], allLabel: "Все" },

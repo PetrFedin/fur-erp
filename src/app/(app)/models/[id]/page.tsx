@@ -37,6 +37,7 @@ import { articleMetrics } from "@/lib/article-metrics";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { cleanNote } from "@/lib/note-tags";
 
@@ -319,11 +320,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2" className="flex items-center gap-1 text-base">Реквизиты и цена</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+      <CollapsibleBlock title="Реквизиты и цена" summary={`${price ? `розница ${formatMoney(price.toFixed(2))}` : "цена не задана"} · ${model.category?.trim() || "без категории"}`}>
+        <div className="flex flex-col gap-4">
           <ArticleForm
             mode="edit"
             action={saveArticleForm.bind(null, id)}
@@ -356,8 +354,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             <dt className="text-neutral-500">Создан / изменён</dt>
             <dd className="tabular-nums">{formatDate(model.createdAt)} / {formatDate(model.updatedAt)}</dd>
           </dl>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleBlock>
 
       <OrdersTree
         orders={drill}
@@ -377,7 +375,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </p>
       )}
 
-      <details id="stock" className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={stocks.length > 0 || movements.length > 0}>
+      <details id="stock" className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">Остаток и движения ({movementsCount})</summary>
         <div className="mt-2 flex flex-col gap-3">
           {stocks.length === 0 ? (
@@ -412,7 +410,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </div>
       </details>
 
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={shipments.length > 0}>
+      {!HIDDEN_MODULES.shipments && (
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">Отгрузки ({shipments.length})</summary>
         <div className="mt-2">
           {shipments.length === 0 ? (
@@ -434,8 +433,10 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           )}
         </div>
       </details>
+      )}
 
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={fittings.length > 0}>
+      {!HIDDEN_MODULES.fittings && (
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">Примерки ({fittings.length})</summary>
         <div className="mt-2">
           {fittings.length === 0 ? (
@@ -457,8 +458,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           )}
         </div>
       </details>
+      )}
 
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={model.materials.length > 0}>
+      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">
           Норма расхода сырья на 1 изделие ({model.materials.length})
           <InfoHint label="Зачем норма расхода">Необязательно. Себестоимость берётся из фактических ТЗ, нормы её не меняют.</InfoHint>
@@ -492,7 +494,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </div>
       </details>
 
-      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3" open={docs.length > 0}>
+      <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">Документы ТЗ артикула ({docs.length})</summary>
         <div className="mt-2">
           {docs.length === 0 ? (

@@ -661,6 +661,7 @@ export default async function PaymentsPage({
 
       {tab === "all" ? (
         <>
+        <div className="print:hidden">
         <FilterBar
           title="Фильтры оплат"
           oneRow
@@ -671,6 +672,7 @@ export default async function PaymentsPage({
             { type: "date", name: "to", label: "Оплата по" },
           ]}
         />
+        </div>
         {await (async () => {
           // Плитки — те же, что на Главной (одна и та же функция): Общая стоимость / Оплачено / К оплате. Год — из шапки.
           const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
@@ -725,6 +727,7 @@ export default async function PaymentsPage({
           />
         ) : (
           <>
+        <div className="print:hidden">
         <FilterBar
           title="Фильтры оплат"
           oneRow
@@ -736,6 +739,7 @@ export default async function PaymentsPage({
             { type: "date", name: "to", label: "Оплата по" },
           ]}
         />
+        </div>
         {goodsTotals && !pdate && <GoodsTiles {...goodsTotals} owed={owedOrders} />}
                 <ClientPaymentsTable rows={clientRows} />
           </>
@@ -744,11 +748,11 @@ export default async function PaymentsPage({
       ) : (
         <>
           {auctions.length > 0 && (
-            <>
+            <div className="print:hidden">
             <FilterBar
               title="Фильтры оплат"
-          oneRow
-          hideChips
+              oneRow
+              hideChips
               controls={[
                 { type: "multi", name: "auction", label: "Аукцион", aliases: ["auc"], options: payOpts.auction, noneLabel: "Служебные записи", allLabel: "Все партии" },
                 { type: "text", name: "q", label: "Название партии", aliases: ["dq"], placeholder: "часть названия" },
@@ -756,7 +760,7 @@ export default async function PaymentsPage({
                 { type: "date", name: "to", label: "Оплата по" },
               ]}
             />
-            </>
+            </div>
           )}
           {debt && (
             <>

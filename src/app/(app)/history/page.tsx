@@ -88,6 +88,9 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
 
       <FilterBar
         title="Фильтры журнала"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "З-2026-0014, ТЗ 19, id…" },
           { type: "multi", name: "actor", label: "Кто", options: [...actorOptions].map(([value, label]) => ({ value, label })), allLabel: "Все" },

@@ -6,6 +6,7 @@ import { modelCodeVariants } from "@/lib/model-code";
 import { STATUS_LABELS, type SupplyPlanStatusValue } from "@/app/(app)/supply-plan/status";
 import type { LayerKind } from "@/lib/calendar-actions";
 import { articleLabel } from "@/lib/article-label";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
 // Слой «факты» производственного календаря: только чтение, ничего не копируется в CalendarEvent.
 // Источники: SupplyPlanEntry (дата этапа), Shipment.plannedDate, Fitting.fittingDate, ProductionOrder.endDate.
@@ -30,11 +31,11 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
       },
       select: { id: true, status: true, quantity: true, eventDate: true, notes: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } },
     }),
-    prisma.shipment.findMany({
+    HIDDEN_MODULES.shipments ? Promise.resolve([]) : prisma.shipment.findMany({
       where: { organizationId, status: { not: "CANCELLED" }, plannedDate: { gte, lte }, ...(nameFilter ? { lines: { some: { productionOrder: { productModel: nameFilter } } } } : {}) },
       select: { id: true, plannedDate: true, status: true, client: { select: { name: true } }, lines: { select: { quantity: true, productionOrder: { select: { productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } } } } } },
     }),
-    prisma.fitting.findMany({
+    HIDDEN_MODULES.fittings ? Promise.resolve([]) : prisma.fitting.findMany({
       where: { organizationId, fittingDate: { gte, lte }, ...(nameFilter ? { productionOrder: { productModel: nameFilter } } : {}) },
       select: { id: true, fittingDate: true, status: true, size: true, productionOrder: { select: { id: true, workOrderNumber: true, number: true, productModel: { select: { name: true, category: true, salesCode: true, salesName: true } } } } },
     }),
@@ -50,7 +51,7 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
     const label = STATUS_LABELS[s.status as SupplyPlanStatusValue] ?? s.status;
     if (s.eventDate) {
       items.push({ id: `sp-${s.id}`, kind: "supply", date: ymd(s.eventDate), title: articleLabel(s.productModel), qty: Number(s.quantity), label, href: "/supply-plan" });
-    } else {
+    } else if (!HIDDEN_MODULES.supplyPlan) {
       monthLevel.push({ id: s.id, title: articleLabel(s.productModel), qty: Number(s.quantity), label });
     }
   }

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { cn, formatMoney, formatPercent } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
+import { LocalFilterBar } from "@/components/filters/filter-bar";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
 import { TotalLabel } from "@/components/total-label";
@@ -53,6 +54,21 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="print:hidden">
+        <LocalFilterBar
+          title="Фильтры ТЗ"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Поиск по ТЗ", placeholder: "№ ТЗ, артикул" },
+            ...(batches.length > 1 ? [{ type: "multi" as const, name: "batch", label: "Партия производства", single: true, allLabel: "Все", options: batches.map((b) => ({ value: b, label: b })) }] : []),
+          ]}
+          values={{ q: q ? [q] : [], batch: batch === "all" ? [] : [batch] }}
+          onChange={(name, v) => { if (name === "q") setQ(v[0] ?? ""); else if (name === "batch") setBatch(v[0] ?? "all"); }}
+          onReset={() => { setQ(""); setBatch("all"); }}
+          footer={<p className="mt-2 text-[11px] leading-4 text-neutral-500">Фильтры применяются сразу и сужают таблицу «По ТЗ»</p>}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="hides-tiles">
         <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney(val(all).toFixed(2))}</TileValue><TileCaption>{vat === "excl" ? "без НДС" : "с НДС"}</TileCaption></div>
         <div className={TILE_BOX}><TileHead>С НДС, ₽</TileHead><TileValue compact>{formatMoney(all.incl.toFixed(2))}</TileValue><TileCaption>как в «Оплатах»</TileCaption></div>
@@ -94,17 +110,6 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
           <InfoHint label="Как читать таблицу по ТЗ" wide>
             <p>В каких ТЗ учтены шкуры подрядчика. Количество шкур в документах не указано (оплачена стоимость, а не шкуры), поэтому «шкур» и средняя цена за шкуру — «—»; цены в $ нет. Суммы входят в «Использовано» меха на Главной (свакара) и в себестоимость ТЗ.</p>
           </InfoHint>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 print:hidden">
-          <label className="flex items-center gap-1.5"><span>Поиск:</span>
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="№ ТЗ, артикул" aria-label="Поиск по ТЗ" className="ui-field h-8 w-44 rounded-lg border border-neutral-300 bg-white px-2 text-xs" /></label>
-          {batches.length > 1 ? (
-            <div role="tablist" aria-label="Партия" className="flex items-center gap-1"><span>Партия:</span>
-              {["all", ...batches].map((b) => (
-                <button key={b} type="button" role="tab" aria-selected={batch === b} onClick={() => setBatch(b)} className={"rounded-lg border px-2.5 py-1 text-xs " + (batch === b ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{b === "all" ? "Все" : b}</button>
-              ))}
-            </div>
-          ) : null}
         </div>
         <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
           <table className="w-full table-fixed text-sm" style={{ minWidth: 900 }}>

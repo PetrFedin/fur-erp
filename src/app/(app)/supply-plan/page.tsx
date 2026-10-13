@@ -156,6 +156,19 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
           </InfoHint></div>
       </div>
 
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры плана поставок"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
+            { type: "multi", name: "model", label: "Артикул (точно)", options: allModels.map((m) => ({ value: m.id, label: m.name })) },
+            { type: "multi", name: "year", label: "Год плана", options: yearOptions, hint: "По месяцу плана; дополнительно к году в шапке" },
+          ]}
+        />
+      </div>
+
       <SummaryTiles
         id="supply"
         title="План поставок — итоги"
@@ -212,17 +225,6 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
           </CardContent>
         </Card>
       )}
-
-      <FilterBar
-        title="Фильтры плана поставок"
-        oneRow
-        hideChips
-        controls={[
-          { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
-          { type: "multi", name: "model", label: "Артикул (точно)", options: allModels.map((m) => ({ value: m.id, label: m.name })) },
-          { type: "multi", name: "year", label: "Год плана", options: yearOptions, hint: "По месяцу плана; дополнительно к году в шапке" },
-        ]}
-      />
 
       <div className="table-scroll overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full border-collapse text-sm">

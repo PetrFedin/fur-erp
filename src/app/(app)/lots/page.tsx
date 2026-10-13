@@ -150,17 +150,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           const info = { year: year === "all" ? "все годы" : `${year} год`, filters: null };
           return (
             <>
-              <FilterBar
-                title="Фильтры сводки"
-                oneRow
-                hideChips
-                controls={[
-                  { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
-                  { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
-                  { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета" },
-                  ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки" }] : []),
-                ]}
-              />
+              <div className="print:hidden">
+                <FilterBar
+                  title="Фильтры сводки"
+                  oneRow
+                  hideChips
+                  controls={[
+                    { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
+                    { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: d.options.fur },
+                    { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета" },
+                    ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки" }] : []),
+                  ]}
+                />
+              </div>
               <YearsTable rows={d.years} c4={c4} info={info} />
               <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
             </>
@@ -174,14 +176,18 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   // Основа — выпадающий список «Партия закупки» с мультивыбором (быстрых чипов партий нет). Годы закупки в режиме таблицы
   // выбираются в самой таблице (там же вид меха, цвет, размер, остаток): параметр один — pyear.
   const filtersBlock = (
+    <div className="print:hidden">
     <FilterBar
       title="Фильтры меха"
+      oneRow
+      hideChips
       controls={[
         { type: "multi", name: "auction", label: "Партии закупки (аукционы)", options: auctions.map((a) => ({ value: a.name, label: aucOf(a.name).label, count: a.count, title: aucOf(a.name).title })), allLabel: "Все партии", hint: "Выберите одну или несколько партий — откроются их счета и лоты" },
         { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ лота, материал, цвет, сорт" },
         ...(auctionMode ? [{ type: "multi" as const, name: "material", label: "Материал", options: furOptions, allLabel: "Все материалы" }, { type: "multi" as const, name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOptions, hint: "Дополнительно к году в шапке: сужает выбор внутри него" }] : []),
       ]}
     />
+    </div>
   );
 
   if (auctionMode) {

@@ -55,6 +55,9 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
 
       <FilterBar
         title="Фильтры заказчиков"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, контакт, телефон, email" },
         ]}

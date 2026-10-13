@@ -44,6 +44,7 @@ import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
 import { loadOrderRows } from "@/lib/analytics-orders";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
 const SORTS: Record<string, string> = {
   num_desc: "№ ТЗ: по убыванию",
@@ -523,7 +524,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
         {/* Телефон: главное действие — первым и на всю ширину. */}
         <div className="flex flex-wrap items-center gap-2 max-md:w-full">
-          {canEdit && <Link href="/plan/seasons" className={`${buttonVariants({ variant: "outline" })} btn-accent max-md:flex-1`}>Сезоны ТЗ</Link>}
+          {canEdit && !HIDDEN_MODULES.seasons && <Link href="/plan/seasons" className={`${buttonVariants({ variant: "outline" })} btn-accent max-md:flex-1`}>Сезоны ТЗ</Link>}
           {canEdit && <Link href="/production/import" className={`${buttonVariants({ variant: "outline" })} btn-accent max-md:flex-1`}>Загрузить ТЗ</Link>}
           {canEdit && (
             <Link href="/production/new" className={`${buttonVariants()} btn-accent max-md:order-first max-md:w-full`}>
@@ -532,8 +533,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           )}
         </div>
       </div>
-
-      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
       <div className="flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Вид списка">
         <span className="text-neutral-500">Вид:</span>
@@ -563,6 +562,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         </div>
       </div>
 
+      <div className="print:hidden">
       <FilterBar
         title="Фильтры производства"
         oneRow
@@ -586,6 +586,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "sort", label: "Сортировка", single: true, options: Object.entries(SORTS).map(([value, label]) => ({ value, label })), allLabel: "Сначала новые", more: true },
         ]}
       />
+      </div>
+
+      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
       {grouped ? (
         <OrdersTree

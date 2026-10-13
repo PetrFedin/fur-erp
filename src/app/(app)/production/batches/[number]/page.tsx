@@ -297,7 +297,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         hint={<p>Каждое ТЗ партии раскрывается до строк списания по лотам (со ссылкой на лот и закупку), шкур подрядчика, расходов и работы. Итог равен плиткам выше.</p>}
       />
 
-      <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" />
+      {/* Подтверждение — по клику (свёрнуто) */}
+      <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" collapsed />
 
       {/* Список оплат с покрываемыми ТЗ — справка; статус, платёжки и отметка оплаты — в блоке «Документы и оплата» ниже. */}
       <details className="rounded-lg border border-neutral-200 bg-white">

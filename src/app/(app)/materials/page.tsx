@@ -72,6 +72,9 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
 
       <FilterBar
         title="Фильтры материалов"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название или артикул" },
           { type: "multi", name: "type", label: "Вид", options: [{ value: "fur", label: "Мех" }, { value: "lining", label: "Подкладка" }], allLabel: "Все" },

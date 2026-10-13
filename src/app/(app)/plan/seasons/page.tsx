@@ -151,6 +151,9 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
 
       <FilterBar
         title="Фильтры ТЗ"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ или модель" },
           { type: "multi", name: "season", label: "Сезон", aliases: ["s"], options: seasons.map((x) => ({ value: x.code, label: x.code })), noneLabel: "Без сезона", allLabel: "Все сезоны" },

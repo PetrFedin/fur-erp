@@ -3,25 +3,28 @@ import { cn } from "@/lib/utils";
 
 /**
  * Сворачиваемый блок: в строке-заголовке — название и краткий итог, внутри — полное содержимое.
- * `problem` — блок раскрыт сам, а итог подсвечен красным (есть что исправить).
+ * `problem` — итог подсвечен красным (есть что исправить) и, если не задано `autoOpen`, блок раскрыт сам.
+ * `autoOpen={false}` — всегда свёрнут по умолчанию, даже при проблеме (карточки: развёрнуты только цифры, документы и прочее — по клику).
  */
 export function CollapsibleBlock({
   title,
   summary,
   problem = false,
+  autoOpen,
   id,
   children,
 }: {
   title: string;
   summary: ReactNode;
   problem?: boolean;
+  autoOpen?: boolean;
   id?: string;
   children: ReactNode;
 }) {
   return (
     <details
       id={id}
-      open={problem}
+      open={autoOpen ?? problem}
       data-collapsible-block
       className={cn("group rounded-lg border bg-white", problem ? "border-red-300" : "border-neutral-200")}
     >

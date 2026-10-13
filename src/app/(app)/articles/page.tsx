@@ -217,8 +217,10 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
+      <div className="print:hidden">
       <FilterBar
         oneRow
+        hideChips
         title="Фильтры изделий"
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
@@ -236,6 +238,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           { type: "multi", name: "price", label: "Цена", more: true, options: [{ value: "yes", label: "Есть цена" }, { value: "no", label: "Нет цены" }] },
         ]}
       />
+      </div>
 
       <ProdTiles
         orders={[...drill, ...repairDrill]}

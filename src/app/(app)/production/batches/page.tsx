@@ -151,6 +151,17 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             </p>
           </InfoHint></div>
       </div>
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры партий"
+          oneRow
+          hideChips
+          controls={[
+            { type: "multi", name: "need", label: "Документы и оплата", single: true, allLabel: "Все", options: [{ value: "docs", label: "Только без документов" }, { value: "pay", label: "Только без оплаты" }], hint: "Красная точка — не хватает документов или работа не оплачена; жёлтая — оплата частичная или нет платёжки; зелёная — всё в порядке. Откройте партию: там чек-лист и кнопка «Отметить оплату»." },
+            ...(emptyCount > 0 || showEmpty ? [{ type: "multi" as const, name: "empty", label: "Пустые партии", single: true, allLabel: "Скрыты", options: [{ value: "1", label: `Показать пустые (${emptyCount})` }], hint: "Партии без ТЗ скрыты по умолчанию" }] : []),
+          ]}
+        />
+      </div>
       <ProdTiles
         orders={drill}
         c4={c4Mode}
@@ -203,17 +214,6 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         }
       />
 
-      <div className="print:hidden">
-        <FilterBar
-          title="Фильтры партий"
-          oneRow
-          hideChips
-          controls={[
-            { type: "multi", name: "need", label: "Документы и оплата", single: true, allLabel: "Все", options: [{ value: "docs", label: "Только без документов" }, { value: "pay", label: "Только без оплаты" }], hint: "Красная точка — не хватает документов или работа не оплачена; жёлтая — оплата частичная или нет платёжки; зелёная — всё в порядке. Откройте партию: там чек-лист и кнопка «Отметить оплату»." },
-            ...(emptyCount > 0 || showEmpty ? [{ type: "multi" as const, name: "empty", label: "Пустые партии", single: true, allLabel: "Скрыты", options: [{ value: "1", label: `Показать пустые (${emptyCount})` }], hint: "Партии без ТЗ скрыты по умолчанию" }] : []),
-          ]}
-        />
-      </div>
       <ResponsiveRows table={
       <Table stickyHeader>
         <Thead>

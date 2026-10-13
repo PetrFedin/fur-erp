@@ -202,6 +202,9 @@ export default async function CategoriesPage({ searchParams }: PageProps<"/setti
 
       <FilterBar
         title="Фильтры категорий"
+        oneRow
+        hideChips
+        className="print:hidden"
         dropOnChange={["ok", "error"]}
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, синоним, примечание" },

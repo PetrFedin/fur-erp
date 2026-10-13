@@ -55,6 +55,9 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
 
       <FilterBar
         title="Фильтры поставщиков"
+        oneRow
+        hideChips
+        className="print:hidden"
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, контакт, телефон, email" },
         ]}

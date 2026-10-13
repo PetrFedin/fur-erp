@@ -294,6 +294,17 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
       </div>
 
+      {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются); над виджетами, как на Главной */}
+      <AnalyticsFilterBar
+        opts={opts}
+        aucOf={aucOf}
+        lead={[
+          { type: "multi", name: "g", label: "Группировать по", single: true, state: true, allLabel: GROUPS.category, options: GROUP_KEYS.filter((k) => k !== "category").map((k) => ({ value: k, label: GROUPS[k] })) },
+          { type: "multi", name: "g2", label: "Внутри", single: true, state: true, allLabel: "Без второго уровня", options: GROUP_KEYS.filter((k) => k !== f.g).map((k) => ({ value: k, label: GROUPS[k] })) },
+          { type: "multi", name: "st", label: "ТЗ", single: true, state: true, allLabel: STATUS_LABEL.done, options: (["work", "all"] as const).map((k) => ({ value: k, label: STATUS_LABEL[k] })) },
+        ]}
+      />
+
       {/* Сводка по статусам ТЗ: плитки в формате Главной */}
       <WidgetRow id="products" title="Аналитика изделий — итоги">
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -368,17 +379,6 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
       </div>
       </WidgetRow>
-
-      {/* Фильтры: группировка и статус — параметры вида (применяются сразу, фильтрами не считаются) */}
-      <AnalyticsFilterBar
-        opts={opts}
-        aucOf={aucOf}
-        lead={[
-          { type: "multi", name: "g", label: "Группировать по", single: true, state: true, allLabel: GROUPS.category, options: GROUP_KEYS.filter((k) => k !== "category").map((k) => ({ value: k, label: GROUPS[k] })) },
-          { type: "multi", name: "g2", label: "Внутри", single: true, state: true, allLabel: "Без второго уровня", options: GROUP_KEYS.filter((k) => k !== f.g).map((k) => ({ value: k, label: GROUPS[k] })) },
-          { type: "multi", name: "st", label: "ТЗ", single: true, state: true, allLabel: STATUS_LABEL.done, options: (["work", "all"] as const).map((k) => ({ value: k, label: STATUS_LABEL[k] })) },
-        ]}
-      />
 
       {/* Вид таблицы */}
       <div className="flex flex-wrap items-center justify-between gap-2">

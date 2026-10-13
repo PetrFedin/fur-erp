@@ -207,6 +207,9 @@ export default async function ColorsPage({ searchParams }: PageProps<"/settings/
 
       <FilterBar
         title="Фильтры цветов"
+        oneRow
+        hideChips
+        className="print:hidden"
         dropOnChange={["ok", "error"]}
         controls={[
           { type: "text", name: "q", label: "Поиск", placeholder: "Название, синоним, примечание" },

@@ -45,7 +45,7 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
         <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed} data-touch-ok
           className={"inline-flex min-w-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-900 " + titleClass}>
           <span aria-hidden className={"inline-block w-3 transition-transform " + (collapsed ? "" : "rotate-90")}>›</span>
-          <span className="truncate">{title}</span>
+          <span className="text-left max-sm:break-words sm:truncate">{title}</span>
         </button>
         {headerExtra ? <div className="flex min-w-0 flex-1 items-center gap-2">{headerExtra}</div> : null}
         <div className={"flex shrink-0 gap-2 " + (headerEnd ? "flex-col items-end gap-1" : "items-center")}>

@@ -7,6 +7,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatDate, formatQty } from "@/lib/utils";
@@ -537,15 +538,17 @@ export async function AuctionView({
       {blocks.length > 0 && (flat ? <FlatLotsPanel /> : <AuctionTotalsPanel />)}
       </LotsProvider>
 
-      <AuctionVerify organizationId={organizationId} names={names} />
+      {/* Карточка: развёрнуты только цифры, остальное — по клику */}
+      <CollapsibleBlock title="Подтверждение закупок аукциона" summary="по документам · раскрыть, чтобы проверить">
+        <AuctionVerify organizationId={organizationId} names={names} />
+      </CollapsibleBlock>
 
-      <AuctionDocsPay organizationId={organizationId} names={names} />
+      <CollapsibleBlock title="Документы и оплата" summary="чек-лист документов, платёжки, оплаты — по клику">
+        <AuctionDocsPay organizationId={organizationId} names={names} />
+      </CollapsibleBlock>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Документы аукциона ({countLabel(docGroupTotal, docRecords)})</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+      <CollapsibleBlock title="Документы аукциона" summary={countLabel(docGroupTotal, docRecords)}>
+        <div className="flex flex-col gap-3">
           {fileGroups.length > 0 ? (
             <Table className="max-md:block">
               <Thead className="max-md:hidden">
@@ -646,8 +649,8 @@ export async function AuctionView({
               }))}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleBlock>
     </div>
   );
 }

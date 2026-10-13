@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
@@ -46,6 +47,8 @@ import { loadPurchaseSourceDocs } from "@/lib/source-docs-server";
 import { ConfirmSubmitButton } from "./documents-form";
 import { rowVersion, PURCHASE_V, PURCHASE_ITEM_V, PURCHASE_EXPENSE_V, PAYMENT_EDIT_V } from "@/lib/concurrency";
 import { ExpenseEditButton, PaymentEditButton } from "./edit-buttons";
+import { PlanExpenses } from "./plan-expenses";
+import { planExpenseLines } from "@/lib/plan-expenses";
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
@@ -625,8 +628,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <CardContent className="flex flex-col gap-3">
           {editable && (
             <>
-              <details open={purchase.items.length === 0} className="rounded-md border border-neutral-200 px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium max-md:py-2">Вставить позиции из Excel</summary>
+              <details className="rounded-md border border-neutral-200 px-3 py-2">
+                <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Вставить позиции из Excel</summary>
                 <div className="mt-3">
                   <BulkItemForm
                     purchaseId={id}
@@ -767,17 +770,13 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       })()}
 
       {planItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Расчёт себестоимости
-              <InfoHint label="О расчёте себестоимости" wide>
+        <CollapsibleBlock title="Расчёт себестоимости" summary={`${planItems.length} поз. · справочно`}>
+          <div className="flex flex-col gap-2">
+            <InfoHint label="О расчёте себестоимости" wide>
                 Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
                 переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4% сюда не входит: оно добавляется только при списании в ТЗ.
               </InfoHint>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
+            
             <div className="flex items-center gap-1 text-xs text-neutral-600">
               {statusEditable ? "Править: «Править расчёт» в строке позиции" : "Расчёт закрыт для правок"}
               <InfoHint wide label="Кто и как правит расчёт">
@@ -816,17 +815,21 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 orderDate={purchase.orderDate.toISOString().slice(0, 10)}
               />
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </CollapsibleBlock>
       )}
-
 
       <Card>
         <CardHeader>
           <CardTitle>Расходы</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {editable && <PurchaseExpenseForm purchaseId={id} categories={expenseCategories} />}
+          {editable && (
+            <details className="rounded-md border border-neutral-200 px-3 py-2">
+              <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить расход</summary>
+              <div className="mt-3"><PurchaseExpenseForm purchaseId={id} categories={expenseCategories} /></div>
+            </details>
+          )}
           {purchase.expenses.length > 0 && (
             <ResponsiveRows
               table={
@@ -910,7 +913,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               ))}
             </ResponsiveRows>
           )}
-          {purchase.expenses.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
+          <PlanExpenses items={purchase.items} />
+          {purchase.expenses.length === 0 && planExpenseLines(purchase.items).lines.length === 0 && <p className="text-sm text-neutral-500">Расходов нет</p>}
           {!statusEditable && canEditRole && purchase.expenses.length > 0 && (
             <p className="text-xs text-neutral-500">
               Расходы принятой закупки уже распределены по лотам, поэтому здесь не правятся: изменение сломало бы себестоимость лотов, которые могли уйти в ТЗ.

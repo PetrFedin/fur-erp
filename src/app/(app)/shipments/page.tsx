@@ -132,6 +132,21 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         </div>
       ) : (
         <>
+      <div className="print:hidden">
+        <FilterBar
+          title="Фильтры отгрузок"
+          oneRow
+          hideChips
+          controls={[
+            { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
+            { type: "multi", name: "model", label: "Артикул", options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
+            { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
+            { type: "date", name: "from", label: "Плановая дата с" },
+            { type: "date", name: "to", label: "Плановая дата по" },
+          ]}
+        />
+      </div>
+
       <SummaryTiles
         id="shipments"
         title="Отгрузки — итоги"
@@ -143,19 +158,6 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           { key: "shipped", label: "Отгружено, шт.", value: shippedQty ? formatQty(shippedQty) : <Dash />, caption: shippedCount ? `${shippedCount} ${plural(shippedCount, "отгрузка", "отгрузки", "отгрузок")}` : undefined },
           { key: "overdue", label: "Просрочено", value: overdueCount ? formatQty(overdueCount) : <Dash />, caption: overdueCount ? "плановая дата прошла" : undefined, tone: overdueCount ? "text-red-700" : undefined },
           { key: "week", label: "На ближайшие 7 дней", value: upcoming.length ? formatQty(upcoming.length) : <Dash />, caption: upcoming.length ? `${formatQty(upcomingQty)} шт.` : undefined, hint: <p>Запланированные отгрузки на ближайшие 7 дней; от года и фильтров не зависит.</p> },
-        ]}
-      />
-
-      <FilterBar
-        title="Фильтры отгрузок"
-        oneRow
-        hideChips
-        controls={[
-          { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
-          { type: "multi", name: "model", label: "Артикул", options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
-          { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
-          { type: "date", name: "from", label: "Плановая дата с" },
-          { type: "date", name: "to", label: "Плановая дата по" },
         ]}
       />
 

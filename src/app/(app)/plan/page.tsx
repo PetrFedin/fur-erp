@@ -194,6 +194,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
 
       {!emptyPlan && <FilterBar
         title="Фильтры плана"
+        className="print:hidden"
         oneRow
         hideChips
         controls={[

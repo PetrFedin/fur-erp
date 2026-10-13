@@ -410,7 +410,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {view !== "week" && listDays.length === 0 && <p className="rounded-lg border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500">В этом месяце событий нет{canEdit ? " — добавьте первое формой выше" : ""}.</p>}
       </div>
 
-      {layersOn && !factsHidden && layer.monthLevel.length > 0 && (
+      {layersOn && !factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
         <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="План поставок без точной даты">
           <h3 className="mb-2 text-sm font-semibold">План поставок на {monthTitle(month)} (без точной даты) <InfoHint>Записи из раздела «План поставок», у которых указан только месяц. Только чтение.</InfoHint></h3>
           <div className="flex flex-wrap gap-2 text-xs">
