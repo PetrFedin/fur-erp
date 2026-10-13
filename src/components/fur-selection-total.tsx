@@ -9,11 +9,10 @@ import { InfoHint } from "@/components/info-hint";
 import { TotalLabel } from "@/components/total-label";
 import { LocalFilterBar, type BarControl } from "@/components/filters/filter-bar";
 import { shortMaterialName } from "@/lib/material-name";
-import { CAROUSEL_ARROW } from "@/components/tile-carousel";
+import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
-import { useSlideWindow } from "@/components/slide-window";
 import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
@@ -40,11 +39,8 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   usage: { kind: { fur: "Использование", lining: "Использование" }, all: "Любое" },
   rate: { kind: { fur: "Ставка НДС", lining: "Ставка НДС" }, all: "Любая" },
 };
-/** Слайды-источники «Куплено» после слайда «Все виды меха»: аукционы → поставщик (всё купленное — либо там, либо там). Ключ начинается с «@». */
-const SRC_KEYS = ["@auction", "@supplier"] as const;
-const SRC_TITLE: Record<string, string> = { "@auction": "Куплено на аукционах", "@supplier": "Куплено у поставщика" };
-const SRC_SHORT: Record<string, string> = { "@auction": "На аукционах", "@supplier": "У поставщика" };
-const inSrc = (k: string, l: FurLot) => { return classifyLotSource(l) === (k === "@auction" ? "auction" : "supplier"); };
+/** Источник лота для слайдов: «all» — вся закупка, остальные — по classifyLotSource (аукцион / поставщик). */
+const inSrc = (s: FurSrc, l: FurLot) => s === "all" || classifyLotSource(l) === s;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -90,7 +86,7 @@ export function FurSelectionTotal({
    * Плитки сырья и оплат, которые пересчитываются по фильтрам таблицы: без фильтров показывается `tiles` (серверные плитки Главной, цифры те же),
    * при любом фильтре/поиске/датах — плитки по отфильтрованным лотам (лоты несут paid/due для оплат). `after` — то, что идёт под плитками (формы подкладки).
    */
-  raw?: { tiles: ReactNode; after?: ReactNode; c4: "on" | "off"; fur: { incl: FlowFigures; excl: FlowFigures }; lining: { incl: FlowFigures; excl: FlowFigures }; headerEnd?: ReactNode; rows: RawTableRow[]; /** Плитки оплат Главной (PayTiles bare) для слайда «Все виды меха» без фильтров. */ pay?: ReactNode };
+  raw?: { tiles: ReactNode; after?: ReactNode; c4: "on" | "off"; fur: { incl: FlowFigures; excl: FlowFigures }; lining: { incl: FlowFigures; excl: FlowFigures }; headerEnd?: ReactNode; rows: RawTableRow[]; /** Плитки оплат Главной (PayTiles bare) для слайда «Вся закупка · Все типы» без фильтров. */ pay?: ReactNode };
   lots: FurLot[];
   kind?: FurKind;
   /** Общий год из шапки (cookie yearFilter): лоты уже отфильтрованы им; локальный «Год закупки» сужает внутри. */
@@ -151,20 +147,41 @@ export function FurSelectionTotal({
     return list;
   }, [lots, needle, dateFrom, dateTo]);
   const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
-  // Слайды ряда плиток: «Тотал» (все виды / ткани с учётом фильтров) → по одному слайду на вид меха (ткань). Слайд меняет только плитки, таблица и фильтры не трогаются.
-  const slideKeys = useMemo(() => {
-    if (!raw || lockItem) return [] as string[];
-    const have = Array.from(new Set(table.filteredLots.map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
-    const extra = kind === "fur" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
-    const items = [...have, ...extra];
-    return kind === "fur" && items.length ? [...SRC_KEYS, ...items] : items;
-  }, [raw, lockItem, table.filteredLots, kind, noLotsKinds, filters.item]);
-  // Лента слайдов (прокрутка колесом/тачпадом/свайпом/перетаскиванием со scroll-snap) — тот же механизм, что в TileCarousel.
-  const sw = useSlideWindow(slideKeys.length + 1, "(min-width: 1024px)", 1);
-  const slideIdx = slideKeys.length ? sw.cur : 0;
+  // Слайды ряда плиток. Мех — два уровня: источник («Вся закупка | На аукционах | У поставщика») → слайды типов меха внутри него
+  // («Все типы» → Лиса → Норка → …, только типы с данными). Ткань — один уровень: «Все ткани» → по тканям. Слайд меняет только плитки.
+  const hasSlides = Boolean(raw) && !lockItem;
+  const srcList: FurSrc[] = kind === "fur" ? FUR_SRC_KEYS : ["all"];
+  const typesBySrc = useMemo(() => {
+    const out: Partial<Record<FurSrc, string[]>> = {};
+    if (!hasSlides) return out;
+    for (const sr of srcList) {
+      const have = Array.from(new Set(table.filteredLots.filter((l) => inSrc(sr, l)).map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
+      const extra = kind === "fur" && sr === "all" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
+      out[sr] = [...have, ...extra];
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSlides, table.filteredLots, kind, noLotsKinds, filters.item]);
+  const nav = useSrcTypeNav(typesBySrc);
+  const sw = nav.sw;
+  const src = nav.src;
+  const slideKeys = useMemo(() => typesBySrc[src] ?? [], [typesBySrc, src]);
+  const hasTypes = hasSlides && (typesBySrc.all?.length ?? 0) > 0;
+  const slideIdx = hasTypes ? sw.cur : 0;
   const slideNow = slideIdx > 0 ? slideKeys[slideIdx - 1] ?? "" : "";
-  const slideNowTitle = slideNow.startsWith("@") ? SRC_TITLE[slideNow] : slideNow;
-  const goSlide = (i: number) => { const n = slideKeys.length + 1; sw.goTo(((i % n) + n) % n); };
+  // Цифры (источник × тип) для долей и сверок: без фильтров «Вся закупка / Все типы» — плитки Главной (raw.fur), остальное — те же flowOf/figures по лотам.
+  const grid = useMemo(() => {
+    const g = new Map<string, FlowFigures>();
+    if (!hasTypes || !raw) return g;
+    const typeUnion = Array.from(new Set(srcList.flatMap((sr) => typesBySrc[sr] ?? [])));
+    for (const sr of srcList) for (const k of ["", ...typeUnion]) {
+      const ls = table.filteredLots.filter((l) => inSrc(sr, l) && (!k || l.item === k));
+      g.set(`${sr}|${k}`, figures(flowOf(ls), { vat, c4: raw.c4 }));
+    }
+    if (!isFiltered) g.set("all|", raw.fur[vat]);
+    return g;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasTypes, raw, typesBySrc, table.filteredLots, vat, isFiltered, kind]);
   // Плитки одного набора лотов: те же flowOf/figures, что на Главной; деньги оплат — доли аукционов по стоимости лота.
   const tilesOf = (ls: FurLot[], item: string) => {
     const fl = flowOf(ls);
@@ -177,14 +194,14 @@ export function FurSelectionTotal({
     return { pair, paid, due, rows: rawRowsFromLots(ls) };
   };
   const slides = useMemo(() => {
-    if (!raw || lockItem || !slideKeys.length) return null;
+    if (!raw || lockItem || !hasTypes) return null;
+    const base = table.filteredLots.filter((l) => inSrc(src, l));
     return ["", ...slideKeys].map((k) => {
-      const src = k.startsWith("@");
-      const ls = src ? table.filteredLots.filter((l) => inSrc(k, l)) : k ? table.filteredLots.filter((l) => l.item === k) : table.filteredLots;
-      return { key: k, lots: ls, data: k || isFiltered ? tilesOf(ls, src ? "" : k) : null };
+      const ls = k ? base.filter((l) => l.item === k) : base;
+      return { key: k, lots: ls, data: k || src !== "all" || isFiltered ? tilesOf(ls, k) : null };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, lockItem, slideKeys, table.filteredLots, isFiltered]);
+  }, [raw, lockItem, hasTypes, src, slideKeys, table.filteredLots, isFiltered]);
   const tileData = useMemo(() => {
     if (!raw || !isFiltered || !lockItem) return null;
     return tilesOf(table.filteredLots, "");
@@ -515,25 +532,15 @@ export function FurSelectionTotal({
 
   // Фильтры таблицы — та же панель, что на остальных страницах (мгновенное применение, чипы, «Сбросить всё»);
   // лоты загружены целиком, варианты каскадные, поэтому значения считаются здесь, а адрес обновляется без перезагрузки.
-  // Управление слайдами: ‹ › (CAROUSEL_ARROW), точки, подпись; клавиши ←/→; свайп на телефоне.
-  const slideCtl = slideKeys.length > 0 ? (
-    <div role="group" aria-label="Слайды ряда: все виды меха и по видам" tabIndex={0} className="inline-flex items-center gap-1 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 print:hidden"
-      onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); goSlide(slideIdx - 1); } else if (e.key === "ArrowRight") { e.preventDefault(); goSlide(slideIdx + 1); } }}
-      onTouchStart={(e) => { (e.currentTarget as HTMLElement).dataset.x = String(e.touches[0].clientX); }}
-      onTouchEnd={(e) => { const x0 = Number((e.currentTarget as HTMLElement).dataset.x ?? 0); const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) goSlide(slideIdx + (dx < 0 ? 1 : -1)); }}>
-      <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" onClick={() => goSlide(slideIdx - 1)}>‹</button>
-      <div className="flex items-center gap-1" role="tablist" aria-label="Вид">
-        {["", ...slideKeys].map((k, i) => (
-          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={SRC_TITLE[k] ?? (k || "Все виды меха")} title={SRC_TITLE[k] ?? (k || "Все виды меха")} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
-        ))}
-      </div>
-      <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" onClick={() => goSlide(slideIdx + 1)}>›</button>
-      <span className="ml-1 max-w-[9rem] truncate text-xs text-neutral-600">
-        {slideNow.startsWith("@") ? SRC_SHORT[slideNow] : slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? "Все виды меха" : "Все ткани"}
-      </span>
+  // Управление слайдами: у меха — переключатель источника + ‹ › и точки типов; у ткани — только ‹ › и точки.
+  const slideCtl = hasTypes ? (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 print:hidden" data-testid="fur-slide-ctl">
+      {kind === "fur" ? <SegmentSwitch label="Источник закупки меха" value={src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} /> : null}
+      <TypeDots labels={["", ...slideKeys].map((k) => k || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"))} cur={slideIdx} goTo={sw.goTo} step={sw.step} last={sw.maxStart} ariaLabel={kind === "fur" ? "Тип меха" : "Ткань"}
+        nowLabel={slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"} />
     </div>
   ) : null;
-  
+
   const controls: BarControl[] = [
     ...shownKeys.map((k): BarControl => ({
       type: "multi",
@@ -580,39 +587,51 @@ export function FurSelectionTotal({
       {raw ? (
         <>
           {slides ? (() => {
-            // «Все виды меха» (без фильтров — плитки Главной) и сумма двух слайдов-источников — для долей и сверки.
-            const allFig = (slides[0].data ? slides[0].data.pair : raw.fur)[vat];
-            const shareNote = (f: FlowFigures) => `доля от «Все виды меха»: ${allFig.recvQty > 0 ? formatPercent((f.recvQty / allFig.recvQty) * 100) : "—"} по шт., ${allFig.recvValue > 0 ? formatPercent((f.recvValue / allFig.recvValue) * 100) : "—"} по ₽`;
-            const srcFigs = SRC_KEYS.map((k) => slides.find((x) => x.key === k)?.data?.pair[vat]).filter((x): x is FlowFigures => !!x);
-            const sum = (g: (f: FlowFigures) => number) => srcFigs.reduce((a, f) => a + g(f), 0);
-            const dif = (g: (f: FlowFigures) => number) => g(allFig) - sum(g);
+            const G = (sr: FurSrc, k: string) => grid.get(`${sr}|${k}`) as FlowFigures;
             const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4% — как в плитке
             const chk: [string, (f: FlowFigures) => number, boolean][] = [["куплено", (f) => f.recvQty, false], ["куплено", (f) => f.recvValue, true], ["использовано", (f) => f.usedQty, false], ["использовано", used$, true], ["остаток", (f) => f.remQty, false], ["остаток", (f) => f.remValue, true]];
-            const rounding = chk.filter(([, g]) => Math.abs(dif(g)) >= 0.5).map(([n, g, m]) => `${n} ${m ? formatMoney(dif(g)) : formatQty(dif(g)) + " шт."}`);
-            const srcCheck = (
-              <div className="mt-1 flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-500" data-testid="source-check">
-                <span>
-                  «На аукционах» + «У поставщика» = «Все виды меха»: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
-                  {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
-                </span>
-                <InfoHint label="Что такое аукцион, поставщик и прочее" align="left" wide>
-                  <p><b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); привязка — поле закупки «Аукцион».</p>
-                  <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
-                  <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика; третьего источника нет. «На аукционах» включает заказанное, но ещё не полученное (СП 09.26, FH 06.26): по ним лотов нет, поэтому остаток = заказанное количество, использовано 0 — на «Использовано» и «Остаток» этого слайда это влияет.</p>
-                  <p className="mt-1">Два слайда вместе дают «Все виды меха» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
-                </InfoHint>
-              </div>
+            const pctOf = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
+            const shareNote = (of: FlowFigures, f: FlowFigures, what: string) => `${what}: ${pctOf(f.recvQty, of.recvQty)} по шт., ${pctOf(f.recvValue, of.recvValue)} по ₽`;
+            const checkLine = (lhs: string, parts: FlowFigures[], whole: FlowFigures, testid: string, hint?: ReactNode) => {
+              const sum = (g: (f: FlowFigures) => number) => parts.reduce((a, f) => a + g(f), 0);
+              const dif = (g: (f: FlowFigures) => number) => g(whole) - sum(g);
+              const rounding = chk.filter(([, g]) => Math.abs(dif(g)) >= 0.5).map(([n, g, m]) => `${n} ${m ? formatMoney(dif(g)) : formatQty(dif(g)) + " шт."}`);
+              return (
+                <div className="mt-1 flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-500" data-testid={testid}>
+                  <span>
+                    {lhs}: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
+                    {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
+                  </span>
+                  {hint}
+                </div>
+              );
+            };
+            const srcHint = (
+              <InfoHint label="Что такое аукцион, поставщик и прочее" align="left" wide>
+                <p><b>Вся закупка</b> — весь купленный мех. <b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); привязка — поле закупки «Аукцион».</p>
+                <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
+                <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика; третьего источника нет. «На аукционах» включает заказанное, но ещё не полученное (СП 09.26, FH 06.26): по ним лотов нет, поэтому остаток = заказанное количество, использовано 0 — на «Использовано» и «Остаток» этого слайда это влияет.</p>
+                <p className="mt-1">Внутри источника листаются типы меха: «Все типы» → Лиса → Норка → … (только типы с данными). Сумма типов = «Все типы» источника; «На аукционах» + «У поставщика» = «Вся закупка» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
+              </InfoHint>
             );
             const pane: RawSlide[] = slides.map((sl) => {
               const d = sl.data;
               const fur = kind === "fur" && d ? d.pair : raw.fur;
               const lining = kind === "lining" && d ? d.pair : raw.lining;
-              const own = kind === "fur" ? fur : lining;
+              let recvNote: string | undefined;
+              let below: ReactNode = null;
+              if (kind === "fur") {
+                if (!sl.key) recvNote = src === "all" ? undefined : shareNote(G("all", ""), G(src, ""), "доля от «Вся закупка»");
+                else recvNote = shareNote(G(src, ""), G(src, sl.key), `доля вида в «${FUR_SRC_LABEL[src]}»`);
+                const parts = [G("auction", sl.key), G("supplier", sl.key)];
+                const bySrc = checkLine(`«На аукционах» + «У поставщика» = «Вся закупка»${sl.key ? ` · ${sl.key}` : ""}`, parts, G("all", sl.key), "source-check", srcHint);
+                const byType = !sl.key && slideKeys.length > 0 ? checkLine(`Сумма типов (${slideKeys.length}) = «Все типы» · «${FUR_SRC_LABEL[src]}»`, slideKeys.map((k) => G(src, k)), G(src, ""), "type-check") : null;
+                below = <>{byType}{bySrc}</>;
+              }
               return {
-                key: sl.key, label: sl.key ? SRC_TITLE[sl.key] ?? sl.key : (kind === "fur" ? "Все виды меха" : "Все ткани"), fur, lining,
+                key: `${src}:${sl.key || "all"}`, label: sl.key || (kind === "fur" ? ALL_TYPES_LABEL : "Все ткани"), fur, lining,
                 pay: d ? <FilteredPayTiles figs={d.pair.incl} paid={d.paid} due={d.due} c4={raw.c4} /> : raw.pay ?? null,
-                recvNote: sl.key.startsWith("@") ? shareNote(own[vat]) : undefined,
-                below: sl.key.startsWith("@") ? srcCheck : null,
+                recvNote, below,
               };
             });
             const curData = slides[Math.min(slideIdx, slides.length - 1)]?.data;
@@ -621,7 +640,7 @@ export function FurSelectionTotal({
                 rows={curData?.rows ?? raw.rows}
                 fur={kind === "fur" && curData ? curData.pair : raw.fur}
                 lining={kind === "lining" && curData ? curData.pair : raw.lining}
-                c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={slideNowTitle || undefined} headerExtra={slideCtl} />
+                c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={(kind === "fur" ? FUR_SRC_LABEL[src] + (slideNow ? ` · ${slideNow}` : "") : slideNow) || undefined} headerExtra={slideCtl} />
             );
           })() : lockItem ? (
             <>

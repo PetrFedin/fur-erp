@@ -86,6 +86,8 @@ export type DashboardData = {
   raw: { fur: Pair<FlowFigures>; lining: Pair<FlowFigures>; lots: number };
   /** Мех «Куплено» по источнику (слайды «На аукционах» / «У поставщика» блока «Сырьё»): те же flowOf/figures; заказанное, но не полученное — к аукционам, шкуры подрядчика — к поставщику. Сумма двух = raw.fur. */
   rawSources: { auction: Pair<FlowFigures>; supplier: Pair<FlowFigures> };
+  /** Мех по источнику × типу: «Вся закупка» / «На аукционах» / «У поставщика» → итог источника + типы меха, у которых есть данные (виджет «Мех» блока «Сырьё»). Сумма типов = итог источника, auction + supplier = all. */
+  rawFurBySource: Record<"all" | "auction" | "supplier", { total: Pair<FlowFigures>; types: { name: string; pair: Pair<FlowFigures> }[] }>;
   /** НДС по ставкам внутри плиток сырья (куплено / использовано / остаток; использовано — без 4%) и в себестоимости (по строкам списаний + шкуры подрядчика, без НДС на надбавку 4%). */
   vat: { fur: VatTriple; lining: VatTriple; cost: VatByRate };
   prod: { done: ProdTotals; work: ProdTotals; /** Все ТЗ года: уникальные номера ТЗ считаются по всему набору, а не суммой «завершённые + в работе». */ all: ProdTotals };
@@ -656,6 +658,31 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       return {
         auction: { incl: bumpFigures(a.incl, orderedAll.qty, orderedAll.incl), excl: bumpFigures(a.excl, orderedAll.qty, orderedAll.excl) },
         supplier: { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) },
+      };
+    })(),
+    rawFurBySource: (() => {
+      // Источник × тип меха: те же flowOf/figuresPair, что у raw.fur / rawSources; заказанное, но не полученное (по виду) — к аукционам, шкуры подрядчика (вид «Свакара») — к поставщику.
+      const orderedBy = new Map(unreceived.byFur.map((g) => [g.label, g.ordered] as const));
+      const hasHides = Math.abs(hidesTotal.incl) > 0 || Math.abs(hidesTotal.excl) > 0;
+      const names = Array.from(new Set([...furLots.map((l) => l.item), ...unreceived.byFur.map((g) => g.label), ...(hasHides ? ["Свакара"] : [])])).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
+      const build = (src: "all" | "auction" | "supplier", total: Pair<FlowFigures>) => {
+        const ls = src === "all" ? furLots : furLots.filter((l) => classifyLotSource(l) === src);
+        const types = names.flatMap((t) => {
+          let p = figuresPair(flowOf(ls.filter((l) => l.item === t)), c4k);
+          const o = src !== "supplier" ? orderedBy.get(t) : undefined;
+          if (o) p = { incl: bumpFigures(p.incl, o.qty, o.incl), excl: bumpFigures(p.excl, o.qty, o.excl) };
+          if (hasHides && t === "Свакара" && src !== "auction") p = { incl: addHidesFig(p.incl, hidesTotal.incl), excl: addHidesFig(p.excl, hidesTotal.excl) };
+          const f = p.incl;
+          return Math.abs(f.recvQty) + Math.abs(f.recvValue) + Math.abs(f.usedQty) + Math.abs(f.remQty) > 0 ? [{ name: t, pair: p }] : [];
+        });
+        return { total, types };
+      };
+      const a = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "auction")), c4k);
+      const s = figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === "supplier")), c4k);
+      return {
+        all: build("all", furPairAll),
+        auction: build("auction", { incl: bumpFigures(a.incl, orderedAll.qty, orderedAll.incl), excl: bumpFigures(a.excl, orderedAll.qty, orderedAll.excl) }),
+        supplier: build("supplier", { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) }),
       };
     })(),
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },

@@ -162,7 +162,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Вид меха</div>
-          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Все виды меха"}</h3>
+          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Вся закупка"}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
             <span>{withVat ? "с НДС" : "без НДС"}</span>
             <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))}</span>
@@ -231,7 +231,7 @@ export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots:
   }, [lots]);
   if (lots.length === 0) return null;
   const slides = onlyFur ? [{ key: `fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={onlyFur} withVat={withVat} hideLink /> }] : [
-    { key: "total", label: "Все виды меха", body: <Slide lots={lots} fur={null} label="Все виды меха" withVat={withVat} /> },
+    { key: "total", label: "Вся закупка", body: <Slide lots={lots} fur={null} label="Вся закупка" withVat={withVat} /> },
     ...furs.map((f) => ({ key: `fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={f} withVat={withVat} /> })),
   ];
   return (
@@ -249,7 +249,7 @@ export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots:
               <p className="mt-1">Наведите на сектор или строку — подсветится парная; клик открывает лоты с этой составляющей. Фильтры Главной действуют.</p>
             </>
           }
-          slidesLabel="слайды: все виды меха и отдельные виды" dotsLabel="Вид меха"
+          slidesLabel="слайды: вся закупка и отдельные виды меха" dotsLabel="Вид меха"
           slides={slides}
         />
       </div>

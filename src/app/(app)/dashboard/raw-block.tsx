@@ -16,7 +16,7 @@ import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
 import { useSlideWindow } from "@/components/slide-window";
-import { CAROUSEL_ARROW } from "@/components/tile-carousel";
+import { ALL_TYPES_LABEL, FUR_SRC_KEYS, FUR_SRC_LABEL, SegmentSwitch, TypeDots, useSrcTypeNav, type FurSrc } from "@/components/fur-source-nav";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 
@@ -75,8 +75,8 @@ function Duo({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
-/** Слайд ряда «Сырьё | Оплаты»: плитки одного вида меха (или «Все виды меха») + то, что под ними (разбивка «Куплено»). */
-export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pay: React.ReactNode; below?: React.ReactNode; /** Строка под цифрами «Куплено» (доля от «Все виды меха» на слайдах-источниках). */ recvNote?: React.ReactNode };
+/** Слайд ряда «Сырьё | Оплаты»: плитки одного вида меха (или «Вся закупка») + то, что под ними (разбивка «Куплено»). */
+export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pay: React.ReactNode; below?: React.ReactNode; /** Строка под цифрами «Куплено» (доля от «Вся закупка» на слайдах источников и доля вида в источнике). */ recvNote?: React.ReactNode };
 
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»).
  *  Если передан pay (три плитки оплат), они встают в ТОТ ЖЕ ряд: «Сырьё | Оплаты» — шесть плиток в одну строку на мониторе, тонкая линия между группами. */
@@ -87,7 +87,9 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
   if (slides && slideWindow) {
     const { scroller, onScroll, dragProps, cur, step } = slideWindow;
     return (
-      <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerExtra={headerExtra} headerEnd={headerEnd}>
+      <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerEnd={headerEnd}>
+        {/* Управление слайдами (источник, типы) — отдельной строкой над плитками: в шапке ряда на телефоне ему не хватает места. */}
+        {headerExtra ? <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-1">{headerExtra}</div> : null}
         <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="raw-slides" role="group" aria-roledescription="карусель" aria-label="Сырьё и оплаты: слайды по видам"
           onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
           className="-mx-1 flex snap-x snap-mandatory items-start overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
@@ -271,7 +273,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
-export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates, sources }: { /** Мех «Куплено» по источнику (готовые числа с сервера, с теми же фильтрами Главной). */ sources: { auction: Pair; supplier: Pair }; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
+export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates, furSrc }: { /** Мех по источнику × типу (готовые числа с сервера, с теми же фильтрами Главной). */ furSrc: Record<FurSrc, { total: Pair; types: { name: string; pair: Pair }[] }>; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   void info;
   const { mode: vat } = useVatDisplay();
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
@@ -293,38 +295,36 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
     </>
   );
   const groups: { view: "fur" | "lining"; label: string }[] = [{ view: "fur", label: "Мех" }, { view: "lining", label: "Подкладка" }];
-  // Слайды группы «Мех»: «Все виды меха» → «На аукционах» → «У поставщика».
-  const sw = useSlideWindow(3, "(min-width: 1024px)", 1);
-  const { scroller, onScroll, dragProps, cur, step, goTo } = sw;
-  const slidesF = [
-    { key: "all", label: "Все виды меха", fur },
-    { key: "auction", label: "На аукционах", fur: sources.auction },
-    { key: "supplier", label: "У поставщика", fur: sources.supplier },
-  ];
-  const allF = fur[vat];
+  // Группа «Мех»: сверху источник («Вся закупка | На аукционах | У поставщика»), под ним слайды по типам меха внутри источника: «Все типы» → Лиса → Норка → …
+  const nav = useSrcTypeNav({ all: furSrc.all.types.map((t) => t.name), auction: furSrc.auction.types.map((t) => t.name), supplier: furSrc.supplier.types.map((t) => t.name) });
+  const { scroller, onScroll, dragProps, cur, step, goTo, maxStart } = nav.sw;
+  const block = furSrc[nav.src];
+  const slidesF = [{ key: "", label: ALL_TYPES_LABEL, fur: block.total }, ...block.types.map((t) => ({ key: t.name, label: t.name, fur: t.pair }))];
+  const slideNow = slidesF[Math.min(cur, slidesF.length - 1)];
   const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
-  const shareNote = (p: Pair) => `доля от «Все виды меха»: ${pct(p[vat].recvQty, allF.recvQty)} по шт., ${pct(p[vat].recvValue, allF.recvValue)} по ₽`;
+  const share = (p: Pair, of: Pair, what: string) => `${what}: ${pct(p[vat].recvQty, of[vat].recvQty)} по шт., ${pct(p[vat].recvValue, of[vat].recvValue)} по ₽`;
+  const noteOf = (key: string, p: Pair) => {
+    if (!key) return nav.src === "all" ? undefined : share(p, furSrc.all.total, "доля от «Вся закупка»");
+    return share(p, block.total, `доля вида в «${FUR_SRC_LABEL[nav.src]}»`);
+  };
   const emptyVat = { recv: {}, used: {}, rem: {} } as VatTriple;
   const used$ = (f: FlowFigures) => (c4 === "on" ? f.usedValueOther : f.usedValue);
-  const sumSrc = (g: (f: FlowFigures) => number) => g(sources.auction[vat]) + g(sources.supplier[vat]);
-  const srcOk = (g: (f: FlowFigures) => number) => Math.abs(g(allF) - sumSrc(g)) < 0.5;
-  const sumOk = srcOk((f) => f.recvQty) && srcOk((f) => f.recvValue) && srcOk((f) => f.usedQty) && srcOk(used$) && srcOk((f) => f.remQty) && srcOk((f) => f.remValue);
+  const same = (a: FlowFigures, b: FlowFigures, g: (f: FlowFigures) => number) => Math.abs(g(a) - g(b)) < 0.5;
+  const eqAll = (a: FlowFigures, b: FlowFigures) => [(f: FlowFigures) => f.recvQty, (f: FlowFigures) => f.recvValue, (f: FlowFigures) => f.usedQty, used$, (f: FlowFigures) => f.remQty, (f: FlowFigures) => f.remValue].every((g) => same(a, b, g));
+  const sumFig = (list: FlowFigures[]): FlowFigures => list.reduce((a, f) => ({ ...a, recvQty: a.recvQty + f.recvQty, recvValue: a.recvValue + f.recvValue, usedQty: a.usedQty + f.usedQty, usedValue: a.usedValue + f.usedValue, usedValueOther: a.usedValueOther + f.usedValueOther, remQty: a.remQty + f.remQty, remValue: a.remValue + f.remValue }), { ...list[0], recvQty: 0, recvValue: 0, usedQty: 0, usedValue: 0, usedValueOther: 0, remQty: 0, remValue: 0 });
+  const sumOk = FUR_SRC_KEYS.every((k) => furSrc[k].types.length === 0 || eqAll(furSrc[k].total[vat], sumFig(furSrc[k].types.map((t) => t.pair[vat]))))
+    && eqAll(furSrc.all.total[vat], sumFig([furSrc.auction.total[vat], furSrc.supplier.total[vat]]));
   const slideCtl = (
-    <div role="group" aria-label="Слайды группы «Мех»" className="inline-flex items-center gap-1 print:hidden">
-      <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" disabled={cur === 0} onClick={() => step(-1)}>‹</button>
-      <div className="flex items-center gap-1" role="tablist" aria-label="Источник">
-        {slidesF.map((x, i) => (
-          <button key={x.key} type="button" role="tab" aria-selected={i === cur} aria-label={x.label} title={x.label} onClick={() => goTo(i)} className={"h-2 rounded-full transition-all " + (i === cur ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
-        ))}
-      </div>
-      <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" disabled={cur >= slidesF.length - 1} onClick={() => step(1)}>›</button>
-    </div>
+    <>
+      <SegmentSwitch label="Источник закупки меха" value={nav.src} onChange={nav.pick} options={FUR_SRC_KEYS.map((k) => ({ key: k, label: FUR_SRC_LABEL[k] }))} />
+      <TypeDots labels={slidesF.map((x) => x.label)} cur={cur} goTo={goTo} step={step} last={maxStart} />
+    </>
   );
   const srcHint = (
-    <InfoHint label="Что такое аукцион и поставщик" align="left" wide>
-      <p><b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); включая заказанное, но ещё не полученное (СП 09.26, FH 06.26): по нему лотов нет, поэтому остаток = заказанное количество, использовано 0.</p>
-      <p className="mt-1"><b>У поставщика</b> — закупки напрямую у поставщика или фермы без документов аукциона, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
-      <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика. Два слайда вместе дают «Все виды меха»{sumOk ? "" : " (с разницей округления)"}. Использовано — без 4%. Фильтры Главной, НДС и 4% применяются так же, как к слайду «Все виды меха». Определение то же, что на странице «Сырьё».</p>
+    <InfoHint label="Что такое источник закупки и типы меха" align="left" wide>
+      <p><b>Вся закупка</b> — весь купленный мех. <b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); включая заказанное, но ещё не полученное (СП 09.26, FH 06.26): по нему лотов нет, поэтому остаток = заказанное количество, использовано 0.</p>
+      <p className="mt-1"><b>У поставщика</b> — закупки напрямую у поставщика или фермы без документов аукциона, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив; учтены как «Свакара»).</p>
+      <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика. Внутри источника листаются типы меха: «Все типы» → Лиса → Норка → … (только те, по которым в источнике есть данные). Сумма типов = «Все типы» источника, «На аукционах» + «У поставщика» = «Вся закупка»{sumOk ? "" : " (с разницей округления)"}. Использовано — без 4%. Фильтры Главной, НДС и 4% применяются так же, как к слайду «Вся закупка». Определение то же, что на странице «Сырьё».</p>
     </InfoHint>
   );
   return (
@@ -339,16 +339,16 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
               <div className="raw-group" role="group" aria-label={g.label}>
                 {g.view === "fur" ? (
                   <>
-                    <div className="raw-group-label flex flex-wrap items-center gap-x-1" data-testid="fur-slide-label">
-                      <span>{g.label} · {slidesF[cur]?.label}</span>{slideCtl}{srcHint}
+                    <div className="raw-group-label flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="fur-slide-label">
+                      <span>{g.label} · {FUR_SRC_LABEL[nav.src]}{slideNow?.key ? ` · ${slideNow.label}` : ""}</span>{slideCtl}{srcHint}
                     </div>
-                    <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label="Мех: слайды по источнику закупки"
+                    <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label={`Мех · ${FUR_SRC_LABEL[nav.src]}: слайды по типам меха`}
                       onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
                       className="-mx-1 flex snap-x snap-mandatory items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
                       {slidesF.map((x, i) => (
-                        <div key={x.key} data-slide={x.key} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1">
+                        <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1">
                           <div className="raw-tiles">
-                            <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact noOpen={i > 0} onOpen={(col) => setPc({ view: "fur", col })} vatRates={i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={i > 0 ? shareNote(x.fur) : undefined} />
+                            <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact noOpen={nav.src !== "all" || i > 0} onOpen={(col) => setPc({ view: "fur", col })} vatRates={nav.src === "all" && i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={noteOf(x.key, x.fur)} />
                           </div>
                         </div>
                       ))}
