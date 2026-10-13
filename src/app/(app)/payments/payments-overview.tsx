@@ -81,7 +81,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                         <span className="tabular-nums">{fmtDate(r.iso)}</span>
                         <span className="ml-2">{r.what}</span>
                         <span className="ml-2 text-neutral-500">{r.label}</span>
-                        {!r.confirmed ? <span className="ml-2 text-amber-700" title="Нет платёжки: оплата не подтверждена">ждёт проверки</span> : null}
+                        {!r.confirmed ? <span className="ml-2 text-amber-700" title="Нет платёжки: оплата не подтверждена">не подтверждено</span> : null}
                         <Link href={r.links[0]?.href ?? r.href} title="Открыть закупку / ТЗ / партию" className="ml-2 text-[11px] text-neutral-500 hover:underline">↗ {r.links[0]?.label ?? (r.kind === "raw" ? "За сырьё" : "За производство")}</Link>
                         {r.doc ? <div className="mt-0.5 max-w-[34rem] truncate text-xs text-neutral-500" title={r.doc}>{r.doc}</div> : null}
                       </td>

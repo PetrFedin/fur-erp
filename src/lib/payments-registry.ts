@@ -21,7 +21,7 @@ export type PayStatus = "verified" | "docs" | "check" | "mismatch";
 export const PAY_STATUS_LABEL: Record<PayStatus, string> = {
   verified: "Подтверждена",
   docs: "Ждёт документа",
-  check: "Ждёт проверки",
+  check: "Не подтверждено",
   mismatch: "Расходится",
 };
 

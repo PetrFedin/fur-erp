@@ -409,6 +409,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         grade: item.grade ?? "",
                         color: item.color ?? "",
                         colorRefId: item.colorRefId ?? "",
+                        lotId: item.lotId ?? undefined,
                         version: rowVersion(item, PURCHASE_ITEM_V),
                       }}
                     >

@@ -271,7 +271,7 @@ function PaymentLine({ p, canMark, v, canVerify, actions }: { p: PanelPayment; c
       {v && !p.planned && (
         <details className="text-xs">
           <summary className="cursor-pointer list-none text-neutral-500 hover:text-neutral-800">
-            {v.verified ? "✓ подтверждена" : "ждёт проверки"} · подробнее ›
+            {v.verified ? "✓ подтверждена" : "не подтверждено"} · подробнее ›
           </summary>
           <div className="mt-1.5"><VerifyControl v={v} canEdit={!!canVerify} compact /></div>
         </details>

@@ -57,7 +57,7 @@ const DOCS_OPTIONS = [
 ];
 const VERIFIED_OPTIONS = [
   { value: "yes", label: "Подтверждено" },
-  { value: "no", label: "Ждёт проверки" },
+  { value: "no", label: "Не подтверждено" },
 ];
 const PROD_FILTERS = defineFilters({
   ...pick(["q", "season", "status", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {

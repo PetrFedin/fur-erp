@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useActionState, useContext, useState, type ReactNode } from "react";
+import { createContext, startTransition, useActionState, useContext, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
@@ -11,6 +11,9 @@ import type { FormState, OrderRef } from "../actions";
 import type { MaterialUnit } from "@prisma/client";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 import { useKeepingForm } from "@/lib/use-keeping-form";
+import { useConfirm } from "@/components/confirm-dialog";
+import { useLotChange } from "@/components/lot-edit-fields";
+import type { LotChange } from "@/lib/lot-reprice";
 
 const initialState: FormState = {};
 
@@ -69,6 +72,8 @@ export function PurchaseItemRow({
     grade: string;
     color: string;
     colorRefId: string;
+    /** Лот склада этой позиции (есть после приёма): правка цены/количества идёт через окно «что изменится». */
+    lotId?: string;
     /** Версия записи на момент открытия (защита от тихой перезаписи чужой правки). */
     version?: string;
   };
@@ -80,7 +85,44 @@ export function PurchaseItemRow({
     if (!updateAction) return {};
     return (await updateAction(fd)) ?? {};
   }, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const { setForm: keepRef } = useKeepingForm(formAction, state, pending);
+  const lotChange = useLotChange(defaults.lotId ?? "");
+  const plain = useConfirm();
+  const [guardBusy, setGuardBusy] = useState(false);
+
+  // Цена/количество/НДС изменены: с лотом — окно «что изменится» (старое → новое, ТЗ, сброс подтверждения) и пересчёт лота;
+  // без лота — обычное подтверждение. Запись только после «да».
+  const guardedSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+    const fd = new FormData(form, submitter);
+    const num = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(",", "."));
+    const qtyCh = num(fd.get("quantity")) !== Number(defaults.quantity);
+    const priceCh = num(fd.get("unitPrice")) !== Number(defaults.unitPrice);
+    const vatCh = num(fd.get("vatRate")) !== Number(defaults.vatRate);
+    if (updateAction && canEditFinancials && (qtyCh || priceCh || vatCh)) {
+      setGuardBusy(true);
+      try {
+        if (defaults.lotId) {
+          const change: LotChange = {};
+          if (qtyCh) change.qty = String(fd.get("quantity"));
+          if (priceCh) change.unitPrice = String(fd.get("unitPrice"));
+          if (vatCh) change.vatRate = String(fd.get("vatRate"));
+          const ok = await lotChange.run(change, "Изменить позицию закупки");
+          if (!ok) return;
+          // Лот пересчитан вместе с позицией: дальше уходят только лот/сорт/цвет (версия строки уже сменилась).
+          fd.delete("_v");
+        } else if (!(await plain.ask("Изменить цену/количество позиции? Лота на складе нет — пересчитывать нечего.", { ok: "Сохранить" }))) {
+          return;
+        }
+      } finally {
+        setGuardBusy(false);
+      }
+    }
+    setSubmitted(true);
+    startTransition(() => formAction(fd));
+  };
 
   // Close the edit form once a submitted save comes back without an error —
   // adjusting state during render (rather than in an effect) so this doesn't
@@ -116,9 +158,11 @@ export function PurchaseItemRow({
             </div>
   );
   const editForm = (
+            <>
+            {lotChange.node}{plain.node}
             <form
               ref={keepRef}
-              onSubmit={(e) => { setSubmitted(true); keepSubmit(e); }}
+              onSubmit={guardedSubmit}
               className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 items-end gap-2 py-2"
             >
               {defaults.version && <input type="hidden" name="_v" value={defaults.version} />}
@@ -196,6 +240,7 @@ export function PurchaseItemRow({
                       <OrderLinks orders={lockedOrders} />
                     </p>
                   )}
+                  {lotChange.error && <p className="text-sm text-red-600">{lotChange.error}</p>}
                   {state.error && (
                     <p className="text-sm text-red-600">
                       {state.error}
@@ -203,11 +248,12 @@ export function PurchaseItemRow({
                     </p>
                   )}
                 </div>
-                <Button type="submit" variant="outline" size="sm" disabled={pending}>
+                <Button type="submit" variant="outline" size="sm" disabled={pending || guardBusy || lotChange.busy}>
                   {pending ? "Сохраняем..." : "Сохранить"}
                 </Button>
               </div>
             </form>
+            </>
   );
   if (variant === "card" && card) {
     return (

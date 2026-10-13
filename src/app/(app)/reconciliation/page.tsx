@@ -90,7 +90,7 @@ function HowToRead() {
   );
 }
 
-/** Отметка «подтверждено вами / авто / ждёт проверки» для группы (аукцион — по его закупкам, партия — по самой партии). */
+/** Отметка «подтверждено вами / авто / не подтверждено» для группы (аукцион — по его закупкам, партия — по самой партии). */
 function verifyMark(g: Group, vf: VerifyFlags): { text: string; cls: string } | null {
   const flags = g.section === "production" ? (g.dbLink.batch != null && vf.batchByNumber.get(g.dbLink.batch) ? [vf.batchByNumber.get(g.dbLink.batch)!] : []) : (g.dbLink.purchases ?? []).map((n) => vf.purchaseByNumber.get(n)).filter((x): x is NonNullable<typeof x> => !!x);
   if (flags.length === 0) return null;
@@ -101,7 +101,7 @@ function verifyMark(g: Group, vf: VerifyFlags): { text: string; cls: string } | 
     return { text: `Подтверждено ✓ ${auto ? "авто по документам" : manual ? "вами" : "вами и авто"}`, cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
   }
   if (ok.length > 0) return { text: `Подтверждено ${ok.length} из ${flags.length}`, cls: "border-amber-300 bg-amber-50 text-amber-900" };
-  return { text: "Ждёт проверки", cls: "border-amber-300 bg-amber-50 text-amber-900" };
+  return { text: "Не подтверждено", cls: "border-amber-300 bg-amber-50 text-amber-900" };
 }
 
 function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: Live; ver: { text: string; cls: string } | null }) {
@@ -139,7 +139,7 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
         </span>
         <span className={cn("rounded-full border px-2 py-0.5 text-xs", st.cls)} title={st.hint}>Сверка: {st.label.toLowerCase()}</span>
         {ver && (
-          <Link href="/verify" className={cn("rounded-full border px-2 py-0.5 text-xs", ver.cls)} title="Подтверждение строки: откройте «Ждёт проверки»">
+          <Link href="/verify" className={cn("rounded-full border px-2 py-0.5 text-xs", ver.cls)} title="Подтверждение строки: откройте «Не подтверждено»">
             {ver.text}
           </Link>
         )}

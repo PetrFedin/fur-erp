@@ -18,9 +18,9 @@ export function SupplierDebtHint({ debt, year = "all", align = "left" }: { debt:
       </p>
       {debt.paymentsVerification && (
         <p className="mt-1 text-xs text-neutral-600">
-          Все проведённые оплаты учтены в долге. Из них подтверждено <b>{m(debt.paymentsVerification.verified)}</b>; не подтверждено (ждёт проверки){" "}
+          Все проведённые оплаты учтены в долге. Из них подтверждено <b>{m(debt.paymentsVerification.verified)}</b>; не подтверждено (не подтверждено){" "}
           <b className={debt.paymentsVerification.waiting.greaterThan(0) ? "text-amber-700" : undefined}>{m(debt.paymentsVerification.waiting)}</b>
-          {debt.paymentsVerification.noProof.greaterThan(0) && <>, из них без платёжки <b>{m(debt.paymentsVerification.noProof)}</b></>}. Подтвердить — на странице «Ждёт проверки».
+          {debt.paymentsVerification.noProof.greaterThan(0) && <>, из них без платёжки <b>{m(debt.paymentsVerification.noProof)}</b></>}. Подтвердить — на странице «Не подтверждено».
         </p>
       )}
       <table className="mt-2 w-full border-collapse text-xs">
