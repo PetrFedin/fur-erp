@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { batchNameText } from "@/lib/batch-name";
 import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
 import type { PrismaClient } from "@prisma/client";
@@ -446,7 +447,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     finish(
       {
         id: b.id, section: "batches", number: String(b.number), title: `Партия ${b.number}`,
-        sub: `${b.name ? `«${b.name}» · ` : ""}${tzCountText(uniqueOrderCount(b.orders), b.orders.length)}`,
+        sub: `${batchNameText(b.name) ? `«${batchNameText(b.name)}» · ` : ""}${tzCountText(uniqueOrderCount(b.orders), b.orders.length)}`,
         href: `/production/batches/${b.number}`, year: b.year, auction: null,
         groupKey: "batches", groupTitle: "Партии производства", groupSort: 0,
       },
@@ -466,7 +467,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
         id: o.id, section: "tz", number: o.number, title: `ТЗ ${o.number}`,
         sub: articleLabel(o.productModel), href: `/production/${o.id}`, year, auction: null,
         groupKey: b ? `b${b.number}` : "nob",
-        groupTitle: b ? `Партия ${b.number}${b.name ? ` «${b.name}»` : ""}` : "Без партии",
+        groupTitle: b ? `Партия ${b.number}${batchNameText(b.name) ? ` «${batchNameText(b.name)}»` : ""}` : "Без партии",
         groupSort: b ? b.number : 9999,
       },
       tzRules({ status: o.status }),

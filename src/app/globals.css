@@ -104,7 +104,7 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
   button[aria-expanded][aria-label^="Раскрыть"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); }
   /* Хлебные крошки и ссылки «оплаты ›» / «документы ›» в строках таблиц: невидимая зона касания 40 px. */
   nav[aria-label="Путь"] a, td a[href$="/payments"], td a[href*="#"], td a[href*="tab="], td a[href^="/documents?"] { position: relative; }
-  nav[aria-label="Путь"] a::after, td a[href$="/payments"]::after, td a[href*="#"]::after, td a[href*="tab="], td a[href^="/documents?"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 40px); height: 40px; transform: translate(-50%, -50%); }
+  nav[aria-label="Путь"] a::after, td a[href$="/payments"]::after, td a[href*="#"]::after, td a[href*="tab="]::after, td a[href^="/documents?"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 40px); height: 40px; transform: translate(-50%, -50%); }
   /* Стрелки каруселей слайдов: ширина 32 → 40 */
   button[aria-label="Предыдущий слайд"],
   button[aria-label="Следующий слайд"] { min-width: 40px; }

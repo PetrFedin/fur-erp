@@ -146,7 +146,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- фильтры матрицы (над виджетами, как на Главной) */}
       <div className="print:hidden">
         <FilterBar
-          title="Фильтры анализа документов"
+          title="Фильтры документов"
           oneRow
           hideChips
           controls={[

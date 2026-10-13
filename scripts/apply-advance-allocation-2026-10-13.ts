@@ -102,11 +102,12 @@ type Journal = {
 };
 
 async function main() {
-  const { PrismaClient } = await import("@prisma/client");
+  const { createAuditedClient } = await import("../src/lib/prisma");
   const { INV, readJson, writeJson } = await import("./detail-common");
   const { checkAllocation, toCents, fromCents } = await import("../src/lib/payment-alloc-core");
   const { allocatedCentsByOrder, orderWorkCents } = await import("../src/lib/payment-alloc");
-  const prisma = new PrismaClient();
+  // Клиент с журналом: иначе PaymentAllocation / ProductionPaymentOrder пишутся мимо AuditLog и не видны в «Истории».
+  const prisma = createAuditedClient("script:apply-advance-allocation-2026-10-13");
   const JOURNAL = join(INV, "corrections-journal-advance-allocation-2026-10-13.json");
 
   const pays = new Map<PKey, { id: string; organizationId: string; amountC: number; allocations: number; links: number }>();

@@ -25,7 +25,7 @@ type Line = { key: string; amount: string; why: string };
  * Мастер «Внести оплату и разнести»: 1) оплата, 2) разнесение по закупкам / аукционам / ТЗ с остатком «не разнесено»,
  * 3) что изменится и запись одной транзакцией. Предложения — по правилам lib/payment-wizard-core (основание → самые старые → пропорционально работе).
  */
-export function PaymentWizard({ onDone }: { onDone?: () => void }) {
+export function PaymentWizard({ onDone, defaultSide }: { onDone?: () => void; defaultSide?: "supplier" | "work" }) {
   const [data, setData] = useState<WizardData | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [quick, setQuick] = useState(false);
@@ -52,10 +52,10 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
     getWizardData().then((d) => {
       if ("error" in d) return setLoadErr(d.error);
       setData(d);
-      if (!d.canSupplier && d.canWork) setSide("work");
+      if ((!d.canSupplier && d.canWork) || (defaultSide === "work" && d.canWork)) setSide("work");
       if (d.suppliers.length === 1) setSupplierId(d.suppliers[0].id);
     }).catch(() => setLoadErr("Не удалось загрузить данные: нет связи с сервером"));
-  }, []);
+  }, [defaultSide]);
 
   const amountC = centsOf(amount);
   const targets = useMemo(() => {
@@ -261,7 +261,7 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
 }
 
 /** Кнопка «+ Внести оплату»: открывает мастер в окне. */
-export function PaymentWizardButton({ label = "+ Внести оплату" }: { label?: string }) {
+export function PaymentWizardButton({ label = "+ Внести оплату", defaultSide }: { label?: string; defaultSide?: "supplier" | "work" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -278,7 +278,7 @@ export function PaymentWizardButton({ label = "+ Внести оплату" }: {
               <h2 id="pw-dlg-title" className="text-base font-semibold">Внести оплату и разнести</h2>
               <button type="button" onClick={() => ref.current?.close()} aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-2.5 py-1 text-sm">✕</button>
             </div>
-            <PaymentWizard onDone={() => { ref.current?.close(); window.location.reload(); }} />
+            <PaymentWizard defaultSide={defaultSide} onDone={() => { ref.current?.close(); window.location.reload(); }} />
           </div>
         </dialog>
       )}

@@ -79,14 +79,15 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
     const isSub = parent != null;
     const hasSub = !isSub && (s.sub?.length ?? 0) > 0;
     const isOpen = hasSub && unfolded.has(s.key);
-    const label = (
-      <span className="flex min-w-0 items-center gap-2">
+    const swatchAndText = (
+      <>
         <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
         <span title={s.label} className={"min-w-0 " + (stacked ? "leading-tight @[26rem]/c:truncate" : "truncate") + " " + (isSub ? "text-neutral-700" : "")}>{s.label}</span>
-        {s.note ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Пояснение: ${s.label}`} wide><p>{s.note}</p></InfoHint></span> : null}
-        {countLabel && !isSub ? <span className={"shrink-0 text-[11px] text-neutral-500 " + (stacked ? "hidden @[40rem]:inline" : "hidden sm:inline")}>{countLabel(s.key)}</span> : null}
-      </span>
+      </>
     );
+    // «i» и счётчик стоят РЯДОМ с кнопкой выбора, а не внутри неё (button в button недопустим).
+    const hint = s.note ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Пояснение: ${s.label}`} wide><p>{s.note}</p></InfoHint></span> : null;
+    const count = countLabel && !isSub ? <span className={"shrink-0 text-[11px] text-neutral-500 " + (stacked ? "hidden @[40rem]:inline" : "hidden sm:inline")}>{countLabel(s.key)}</span> : null;
     return (
       <tr key={(parent ? parent.key + ">" : "") + s.key} title={s.hint} onMouseEnter={enter(sel.key)} onMouseLeave={leave}
         className={"h-9 border-b border-neutral-100 transition-colors " + (hot ? HOVER_ROW : "") + (interactive ? " cursor-pointer" : "")}
@@ -99,10 +100,14 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
                   className="rounded text-neutral-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"><span aria-hidden className={"inline-block w-4 transition-transform " + (isOpen ? "rotate-90" : "")}>›</span></button>
               ) : null}
             </span>
-            {interactive ? (
-              <button type="button" onClick={(e) => { e.stopPropagation(); onSelect?.(sel.key); }} onFocus={enter(sel.key)} onBlur={leave} aria-haspopup="dialog" title={selectTitle}
-                className="block min-w-0 flex-1 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{label}</button>
-            ) : <div className="min-w-0 flex-1">{label}</div>}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {interactive ? (
+                <button type="button" onClick={(e) => { e.stopPropagation(); onSelect?.(sel.key); }} onFocus={enter(sel.key)} onBlur={leave} aria-haspopup="dialog" title={selectTitle}
+                  className="flex min-w-0 items-center gap-2 rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">{swatchAndText}</button>
+              ) : <span className="flex min-w-0 items-center gap-2">{swatchAndText}</span>}
+              {hint}
+              {count}
+            </div>
           </div>
         </td>
         {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}

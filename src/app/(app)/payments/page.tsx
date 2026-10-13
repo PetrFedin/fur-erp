@@ -109,10 +109,10 @@ const KIND_LABELS: Record<string, string> = {
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
   ADVANCE: "Аванс",
   PARTIAL: "Доплата",
-  FINAL: "Оплата",
+  FINAL: "Окончательный расчёт",
 };
 
-const INVOICE_RX = /сч[её]т[^№;·]*№\s*([^\s;·]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
+const INVOICE_RX = /сч[её]т[^№;·]*№\s*([^\s;·,()]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
 
 /** Счёт оплаты: «№103 от 03.07.2025» (слово «счёт» — в заголовке колонки). Берём из основания платежа, иначе из закупки. */
 function payInvoice(docRef: string | null, purchase?: { id: string; number: string; invoiceNumber: string | null } | null): { text: string; href?: string } | undefined {
@@ -651,7 +651,7 @@ export default async function PaymentsPage({
         <InfoHint wide label="О странице оплат">
           <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
         </InfoHint>
-        {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" /></span>}
+        {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" defaultSide={tab === "clients" ? "work" : undefined} /></span>}
       </div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
@@ -734,14 +734,26 @@ export default async function PaymentsPage({
           hideChips
           controls={[
             { type: "multi", name: "batch", label: "Партия", options: clientBatchOptions, allLabel: "Все партии" },
-            { type: "multi", name: "ptype", label: "Тип оплаты", options: [{ value: "ADVANCE", label: "Аванс" }, { value: "PARTIAL", label: "Доплата" }, { value: "FINAL", label: "Оплата" }], allLabel: "Любой" },
+            { type: "multi", name: "ptype", label: "Тип оплаты", options: [{ value: "ADVANCE", label: "Аванс" }, { value: "PARTIAL", label: "Доплата" }, { value: "FINAL", label: "Окончательный расчёт" }], allLabel: "Любой" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
           ]}
         />
         </div>
         {goodsTotals && !pdate && <GoodsTiles {...goodsTotals} owed={owedOrders} />}
-                <ClientPaymentsTable rows={clientRows} />
+                <ClientPaymentsTable
+                  rows={clientRows}
+                  rest={(() => {
+                    // Итог таблицы должен сходиться с шапкой: работа, по которой ещё нет оплат по датам, — разность «шапка − таблица» (расчёты не меняются).
+                    // Только без фильтров: при фильтре таблица показывает часть оплат, и разность была бы не «без оплат».
+                    if (!goodsTotals || activeCount(PAY_FILTERS, { ...pf, tab: "" }) > 0) return undefined;
+                    const tCost = clientRows.reduce((a, r) => a + r.due, 0);
+                    const tPaid = clientRows.reduce((a, r) => a + r.paid, 0);
+                    const cost = Math.round((goodsTotals.total - tCost) * 100) / 100;
+                    const debt = Math.round((goodsTotals.balance - (tCost - tPaid)) * 100) / 100;
+                    return cost > 0.5 ? { cost, debt, headCost: goodsTotals.total, headPaid: goodsTotals.paid, headDebt: goodsTotals.balance } : undefined;
+                  })()}
+                />
           </>
         )}
         </>

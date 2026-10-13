@@ -220,10 +220,10 @@ const groupOfPurchase = (() => {
 const batchGroup = (n: number): Group | null => ALL_GROUPS.find((g) => g.section === "production" && g.dbLink.batch === n) ?? null;
 
 const STATUS_BLOCKER: Record<string, string> = {
-  docs: "реестр сверки: по документам сходится, но в базе копейки сверх допуска или оплата не привязана",
-  unpaid: "реестр сверки: оплату нечем подтвердить (нет платёжки или п/п)",
-  conflict: "реестр сверки: документы не сходятся с базой",
-  empty: "реестр сверки: данных в документах нет",
+  docs: "сверка с документами: по документам сходится, но в базе копейки сверх допуска или оплата не привязана",
+  unpaid: "сверка с документами: оплату нечем подтвердить (нет платёжки или п/п)",
+  conflict: "сверка с документами: документы не сходятся с базой",
+  empty: "сверка с документами: данных в документах нет",
 };
 
 export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = {}): Promise<VerifyModel> {
@@ -384,7 +384,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const roundingOnly = costDiff != null && Math.abs(costDiff) <= ROUND_TOL_RUB;
         const failed = (g.checks ?? []).filter((c) => !c.ok && !(roundingOnly && /УПД|расч[её]т/i.test(c.label)));
         for (const c of failed) blockers.push({ text: `в реестре сверки не сошлось: ${c.label}`, href: gHref });
-        if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "реестр сверки: не сходится на 100%", href: gHref });
+        if (g.status !== "ok" && failed.length === 0 && !(roundingOnly && g.status === "docs")) blockers.push({ text: STATUS_BLOCKER[g.status] ?? "сверка с документами: не сходится на 100%", href: gHref });
         if (docCost == null) blockers.push({ text: "в документах нет итоговой суммы (УПД/счёта) — сравнить не с чем", href: gHref });
         else if (costDiff != null) {
           if (Math.abs(costDiff) > ROUND_TOL_RUB) blockers.push({ text: `сумма в базе ≠ УПД на ${fmtRub(Math.abs(costDiff))} (в базе ${fmtRub(gd!.cost!)}, по документам ${fmtRub(docCost)})`, href });

@@ -1,4 +1,5 @@
 import { uniqueOrderCount } from "@/lib/tz-key";
+import { batchNameText } from "@/lib/batch-name";
 import "server-only";
 // Единый загрузчик вариантов для выпадающих фильтров: getFilterOptions(orgId, year, keys).
 // Кэш в памяти процесса на 30 секунд (как getFurIndex): ключ `orgId|год|имя` для зависящих от года (аукционы) и
@@ -81,7 +82,7 @@ async function load(orgId: string, year: YearFilter, key: OptionKey): Promise<Fi
       });
       // Год обязателен в подписи: «Партия 5 · 2025»; нет года — «≈год по ТЗ» или «пусто» (batch-label.ts).
       // Группа списка — год партии (batch.year); без года — «Без года». Серверный разбор значений не меняется.
-      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: uniqueOrderCount(b.orders), title: b.name ?? undefined, group: b.year ? String(b.year) : "Без года" }));
+      return rows.map((b) => ({ value: String(b.number), label: batchLabel(b.number, b.year, b.orders), count: uniqueOrderCount(b.orders), title: batchNameText(b.name) ?? undefined, group: b.year ? String(b.year) : "Без года" }));
     }
     case "supplier": {
       // Только поставщики, у которых есть закупки или оплаты: остальные фильтр ничем не сужают.

@@ -88,7 +88,7 @@ export function ProductionPaymentForm({
           <Select name="paymentType" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
             <option value="ADVANCE">Аванс</option>
             <option value="PARTIAL">Доплата</option>
-            <option value="FINAL">Окончательная</option>
+            <option value="FINAL">Окончательный расчёт</option>
           </Select>
         </div>
         <div>

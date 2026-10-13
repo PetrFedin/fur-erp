@@ -172,10 +172,7 @@ export function LotsStep(p: Props) {
       )}
       {mode === "manual" && (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-neutral-600">Добавляйте строки кнопкой ниже и заполняйте прямо в таблице.</p>
-          <div>
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>+ Добавить строку</Button>
-          </div>
+          <p className="text-neutral-600">Добавляйте строки кнопкой «+ Строка» ниже и заполняйте прямо в таблице.</p>
         </div>
       )}
 

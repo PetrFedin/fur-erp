@@ -256,7 +256,7 @@ export default async function ReconciliationPage() {
         <Card className="border-neutral-200 bg-neutral-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold">Перепроверка по актуальной структуре Google Drive · {RECHECK.date}</div>
+              <div className="text-sm font-semibold">Перепроверка по актуальным документам · {RECHECK.date}</div>
               <div className="mt-1 text-xs text-neutral-600">
                 Подтверждено: {RECHECK.found.length} · не найдено: {RECHECK.notFound.length} · решений владельца: {RECHECK.ownerDecisions.length}
                 {RECHECK.notFound.length > 0 && (

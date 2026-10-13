@@ -69,7 +69,7 @@ export default async function DocumentAnalysisPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Анализ документов</h1><span className="ml-2 align-middle text-sm font-normal">
               <InfoHint wide label="О странице">
-                <p>Отдельный контур доказательств: Google Drive «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Главная» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
+                <p>Отдельный контур доказательств: папка документов «Мех» → первичные документы → оплаты → ТЗ/партии → ERP. Здесь находятся пробелы, расхождения и ручные проверки; управленческая «Главная» этим не перегружена. Очередь дел — вкладка «Задачи».</p>
               </InfoHint>
             </span></div>
         </div>
@@ -79,7 +79,7 @@ export default async function DocumentAnalysisPage() {
       <WidgetRow id="docs-summary" title="Анализ документов — итоги">
       <section className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-          <TileHead>Google Drive · «Мех»</TileHead>
+          <TileHead>Документы папки «Мех»</TileHead>
           <TileValue>{formatPercent(driveSyncSnapshot.meaningfulCoveragePct)}</TileValue>
           <TileCaption>файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></TileCaption>
           <div className={"mt-2 text-xs " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
@@ -97,10 +97,10 @@ export default async function DocumentAnalysisPage() {
           <Link href="/reconciliation" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть сверку →</Link>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-          <TileHead>Задачи</TileHead>
+          <TileHead>Что требует внимания</TileHead>
           <TileValue>{attention.main}</TileValue>
           <TileCaption>срочных: {attention.red}<InfoHint label="Подробности"><p>Срочных блоков {attention.red} · справочно {attention.info}.</p></InfoHint></TileCaption>
-          <Link href="/attention" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть задачи →</Link>
+          <Link href="/attention" className="mt-2 inline-block text-xs text-blue-700 hover:underline">Открыть «Что требует внимания» →</Link>
           <Link href="/verify" className="mt-1 inline-block text-xs text-blue-700 hover:underline">ждёт подтверждения строк: {verification.total - verification.verified} →</Link>
         </div>
       </section>

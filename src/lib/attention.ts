@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { batchNameText } from "@/lib/batch-name";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { PrismaClient } from "@prisma/client";
@@ -555,7 +556,7 @@ export async function computeAttention(db: PrismaClient, organizationId: string,
     flag(
       "batch",
       b.id,
-      { title: `Партия ${b.number}${b.name ? ` «${b.name}»` : ""}`, sub: tzCountText(uniqueOrderCount(b.orders), b.orders.length), href: `/production/batches/${b.number}`, year: b.year ?? null },
+      { title: `Партия ${b.number}${batchNameText(b.name) ? ` «${batchNameText(b.name)}»` : ""}`, sub: tzCountText(uniqueOrderCount(b.orders), b.orders.length), href: `/production/batches/${b.number}`, year: b.year ?? null },
       { text: "оплат заказчика нет", priority: "yellow", group: "batch-no-pay" }
     );
   }

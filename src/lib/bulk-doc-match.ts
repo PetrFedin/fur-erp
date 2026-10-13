@@ -1,4 +1,5 @@
 import "server-only";
+import { batchNameText } from "@/lib/batch-name";
 import type { PrismaClient } from "@prisma/client";
 import { DRIVE_DOC_TYPES, guessDocType, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { extractDocRefs, refFromField, typeGroup, type DocRef } from "@/lib/source-docs";
@@ -146,7 +147,7 @@ export async function findTargets(db: Db, orgId: string, inp: MatchInput, rec: R
   const bm = /парти[яиюе]\s*(?:№|n)?\s*(\d{1,4})(?!\d)/iu.exec(hay);
   if (bm) {
     const b = await db.productionBatch.findFirst({ where: { organizationId: orgId, number: Number(bm[1]) }, select: { id: true, number: true, name: true } });
-    if (b) add({ entity: "batch", id: b.id, label: `Партия ${b.number}${b.name ? ` · ${b.name}` : ""}`, why: `«партия ${bm[1]}» в имени или тексте` });
+    if (b) add({ entity: "batch", id: b.id, label: `Партия ${b.number}${batchNameText(b.name) ? ` · ${batchNameText(b.name)}` : ""}`, why: `«партия ${bm[1]}» в имени или тексте` });
   }
 
   // --- лот: «лот 12345»

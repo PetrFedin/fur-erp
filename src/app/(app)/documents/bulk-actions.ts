@@ -1,5 +1,6 @@
 "use server";
 
+import { batchNameText } from "@/lib/batch-name";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -90,7 +91,7 @@ export async function searchBulkTargets(entity: string, q: string): Promise<Bulk
       where: { organizationId: orgId, ...(n !== null ? { number: n } : ins ? { name: ins } : {}) },
       orderBy: { number: "desc" }, take: 15, select: { id: true, number: true, name: true },
     });
-    return rows.map((b) => ({ entity: e, id: b.id, label: `Партия ${b.number}${b.name ? ` · ${b.name}` : ""}`, why }));
+    return rows.map((b) => ({ entity: e, id: b.id, label: `Партия ${b.number}${batchNameText(b.name) ? ` · ${batchNameText(b.name)}` : ""}`, why }));
   }
   const rows = await prisma.rawMaterialLot.findMany({
     where: { organizationId: orgId, ...(ins ? { lotNumber: ins } : {}) },

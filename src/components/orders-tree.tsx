@@ -39,7 +39,7 @@ const money = (v: number) => (Math.abs(v) < 0.5 ? <Dash /> : formatMoney(Math.ro
  * Режимы НДС и 4% — общие переключатели шапки (суммы с НДС / без НДС; 4% учтён в данных).
  */
 export function OrdersTree({
-  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.",
+  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.", costLabel = "Себестоимость", costHint,
 }: {
   orders: DrillOrder[];
   modes: TreeMode[];
@@ -54,6 +54,9 @@ export function OrdersTree({
   /** Оплачено заказчиком: ключи `batch:<номер>` и `order:<id>` (₽, с НДС). */
   payBy?: Record<string, number>;
   empty?: string;
+  /** Подпись столбца «Себестоимость» (на странице партий — «с работой», чтобы не путать с таблицей выше) и пояснение «i». */
+  costLabel?: string;
+  costHint?: ReactNode;
 }) {
   const { mode: vat } = useVatDisplay();
   const [modeId, setModeId] = useState(modes[0].id);
@@ -290,7 +293,7 @@ export function OrdersTree({
               <Head label="Ср. цена" unit="₽/шт." align="right" />
               <Head label="Подкладка" unit="м" align="right" />
               <Head label="Ср. цена" unit="₽/м" align="right" />
-              <Head label="Себестоимость" unit="₽" align="right" sep />
+              <Head label={costLabel} unit="₽" align="right" sep after={costHint ? <InfoHint label={`Что в столбце «${costLabel}»`} wide>{costHint}</InfoHint> : undefined} />
               <Head label="Мех" unit="₽" align="right" />
               <Head label="Подкладка" unit="₽" align="right" />
               <Head label="Работа" unit="₽" align="right" />

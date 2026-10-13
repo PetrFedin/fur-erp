@@ -102,7 +102,7 @@ export function VerifyControl({
         {canEdit && !v.verified && !forcing && (
           <>
             <Button type="button" size="sm" variant={v.ready ? "default" : "outline"} disabled={pending} className="max-md:h-9" onClick={() => (v.ready ? confirmAction() : setForcing(true))}>
-              {v.ready ? "Подтвердить" : "Подтвердить вопреки замечаниям…"}
+              {v.ready ? "Подтвердить" : "Подтвердить с расхождением…"}
             </Button>
           </>
         )}
@@ -130,7 +130,7 @@ export function VerifyControl({
       {canEdit && !v.verified && forcing && (
         <div className="flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3">
           <label className="flex flex-col gap-1 text-xs text-neutral-600">
-            Почему подтверждаете вопреки замечаниям (обязательно, сохранится в примечании)
+            Почему подтверждаете с расхождением (обязательно, сохранится в примечании)
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={400} className="rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="напр.: проверил по выписке банка, сумма верна" />
           </label>
           <div className="flex flex-wrap gap-2">

@@ -46,7 +46,7 @@ const ruDate = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().jo
 const METHOD_RU: Record<string, string> = { BANK_TRANSFER: "банковский перевод", CASH: "наличные", CARD: "карта", OTHER: "другое" };
 const money = (v: number) => v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
 const ppOf = (docRef: string | null) => /п\/п\s*№?\s*(\d+)/i.exec(docRef ?? "")?.[1] ?? null;
-const invoiceOf = (docRef: string | null) => /сч[её]т[^№;·]*№\s*([^\s;·]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i.exec(docRef ?? "");
+const invoiceOf = (docRef: string | null) => /сч[её]т[^№;·]*№\s*([^\s;·,()]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i.exec(docRef ?? "");
 
 /** Все проведённые оплаты (поставщику за сырьё и по производству) с разбивкой по статьям. */
 export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]> {
@@ -161,9 +161,16 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const rest = amount - alloc;
     const hides = rest > 1 && /шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) ? rest : 0;
     const iso = p.paidAt.toISOString().slice(0, 10);
-    const parts: OverviewPart[] = p.allocations
-      .filter((x) => x.amount.toNumber() !== 0)
-      .map((x) => ({ label: `ТЗ ${x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number}`, href: `/production/${x.productionOrder.id}`, amount: x.amount.toNumber() }));
+    // Несколько позиций одного ТЗ (одинаковый номер ТЗ) — одной строкой «ТЗ 118 (4 позиции)», суммы складываются.
+    const byTz = new Map<string, { href: string; amount: number; n: number }>();
+    for (const x of p.allocations) {
+      if (x.amount.toNumber() === 0) continue;
+      const key = x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number;
+      const cur = byTz.get(key);
+      if (cur) { cur.amount += x.amount.toNumber(); cur.n += 1; } else byTz.set(key, { href: `/production/${x.productionOrder.id}`, amount: x.amount.toNumber(), n: 1 });
+    }
+    const posWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? "позиция" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "позиции" : "позиций");
+    const parts: OverviewPart[] = Array.from(byTz, ([key, v]) => ({ label: v.n > 1 ? `ТЗ ${key} (${v.n} ${posWord(v.n)})` : `ТЗ ${key}`, href: v.href, amount: Math.round(v.amount * 100) / 100 }));
     if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Шкуры подрядчика в составе счёта за пошив" : "Аванс без привязки к ТЗ", amount: rest });
     const orderIds = new Map<string, string>();
     for (const x of p.allocations) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
@@ -176,7 +183,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
       ["Вид", whatProd],
       ["Статья", hides > 0 ? `работа ${money(amount - hides)} · шкуры подрядчика ${money(hides)}` : `работа ${money(amount)}`],
       ["Кому", p.client?.name ?? "заказчик не указан"],
-      ["За что", orderIds.size > 0 ? Array.from(orderIds.values()).map((n) => `ТЗ ${n}`).join(", ") : "Без привязки к ТЗ (аванс)"],
+      ["За что", orderIds.size > 0 ? parts.filter((x) => x.label.startsWith("ТЗ ")).map((x) => x.label).join(", ") || Array.from(new Set(orderIds.values())).map((n) => `ТЗ ${n}`).join(", ") : "Без привязки к ТЗ (аванс)"],
       ["Способ", METHOD_RU[p.method] ?? p.method],
       ["№ п/п", ppOf(p.docRef) ? `№ ${ppOf(p.docRef)}` : ""],
       ["Счёт", invP ? `№${invP[1]}${invP[2] ? ` от ${invP[2]}` : ""}` : ""],
@@ -191,7 +198,19 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     out.push({
       fields: prodFields.filter(([, v]) => v !== ""),
       unallocated: Math.abs(rest) > 0.5 ? rest : 0,
-      links: Array.from(orderIds, ([id, n]) => ({ label: `ТЗ ${n}`, href: `/production/${id}` })),
+      links: (() => {
+        const seen = new Set<string>();
+        const ls: { label: string; href: string }[] = [];
+        const cnt = new Map<string, number>();
+        for (const n of orderIds.values()) cnt.set(n, (cnt.get(n) ?? 0) + 1);
+        for (const [id, n] of orderIds) {
+          if (seen.has(n)) continue;
+          seen.add(n);
+          const c = cnt.get(n) ?? 1;
+          ls.push({ label: c > 1 ? `ТЗ ${n} (${c} ${posWord(c)})` : `ТЗ ${n}`, href: `/production/${id}` });
+        }
+        return ls;
+      })(),
       edit: "prod",
       id: p.id, kind: "prod", iso, year: p.paidAt.getUTCFullYear(), amount,
       fur: hides, lining: 0, work: amount - hides, hides,

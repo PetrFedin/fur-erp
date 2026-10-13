@@ -42,7 +42,7 @@ export function ProductionPaymentEditButton({
         <Select name="paymentType" defaultValue={defaults.paymentType}>
           <option value="ADVANCE">Аванс</option>
           <option value="PARTIAL">Доплата</option>
-          <option value="FINAL">Окончательная</option>
+          <option value="FINAL">Окончательный расчёт</option>
         </Select>
       </Field>
       <Field label="Способ оплаты">

@@ -137,7 +137,10 @@ function groupByDate(list: ClientPayRow[]): { iso: string; rows: ClientPayRow[] 
   return out;
 }
 
-export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
+/** Работа, по которой ещё нет оплат по датам, и итоги шапки (чтобы итог таблицы сходился с плитками сверху). */
+export type ClientRest = { cost: number; debt: number; headCost: number; headPaid: number; headDebt: number };
+
+export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest?: ClientRest }) {
   const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => a - b);
   return (
     <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
@@ -233,6 +236,28 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
             <tr><td colSpan={7} className="px-3 py-8 text-center text-neutral-500">Оплат за производство пока нет</td></tr>
           ) : null}
         </tbody>
+        {rest ? (
+          <tfoot>
+            <tr className="border-t border-neutral-200 bg-neutral-50">
+              <td colSpan={2} className="px-3 py-2 text-sm">
+                <span className="inline-flex items-center gap-1">Работа без оплат по датам
+                  <InfoHint label="Что это за строка" wide><p>Работа по ТЗ, по которой ещё не было ни одной оплаты, поэтому она не попала ни в одну дату выше. Эта строка добавляет её к итогу таблицы, чтобы он сходился с плитками сверху: «Общая стоимость» {money(rest.headCost)}, долг {money(rest.headDebt)}. Расчёты не менялись: сумма — разность плиток и дат.</p></InfoHint>
+                </span>
+              </td>
+              <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{money(rest.cost)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums"><span className="text-neutral-400">—</span></td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums"><span className="font-medium text-amber-700">{money(rest.debt)}</span></td>
+              <td colSpan={2} className="border-l border-neutral-200" />
+            </tr>
+            <tr className="row-total">
+              <td colSpan={2} className="px-3 py-2"><TotalLabel /></td>
+              <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{money(rest.headCost)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(rest.headPaid)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(rest.headDebt)}</td>
+              <td colSpan={2} className="border-l border-neutral-200" />
+            </tr>
+          </tfoot>
+        ) : null}
       </table>
     </div>
   );

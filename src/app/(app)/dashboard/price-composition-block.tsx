@@ -117,7 +117,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
     return g.filter((e) => Math.abs(e.value) >= 0.005).map((e) => [e.k, e] as const);
   }, [lots]);
   // Рысь: пояснение «i» у «Выделки» и «Прочих расходов» (по документам, решение 13.10.2026; суммы и расчёт не меняются).
-  const LYNX_NOTE = "Выделка — предварительная оценка Веллмех ($11 за шкуру × курс): в инвойсе Fur Harvesters шкуры сырые, документа от фабрики пока нет, сумма уточняется. Упаковка — отдельная статья: $11 за шкуру, сбор аукциона (handling fee), подтверждена инвойсом №32324.";
+  const LYNX_NOTE = "Выделка — предварительная оценка Веллмех ($11 за шкуру × курс): в счёте аукциона Fur Harvesters шкуры сырые, документа от фабрики пока нет, сумма уточняется. Упаковка — отдельная статья: $11 за шкуру, сбор аукциона (сбор за обработку), подтверждена счётом аукциона №32324.";
   const slices = mergeOther(sliceList(a.cats, { nobd: a.nobd, vat: a.vat, withVat }), nobdLotsN).map((sl) =>
     sl.key === "other" && otherGroups.length > 0
       ? { ...sl, note: fur === "Рысь" ? LYNX_NOTE : undefined, sub: otherGroups.map(([k, e]) => ({ key: k, label: `${e.label} (${e.n} ${lotsWord(e.n)})`, value: e.value, color: COMP_COLOR.other, hint: e.hint })) }

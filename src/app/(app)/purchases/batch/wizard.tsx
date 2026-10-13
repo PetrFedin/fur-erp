@@ -378,6 +378,10 @@ export function BatchWizard({
                     <option value="EUR">EUR — евро</option>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="vatDefault">НДС по умолчанию, %</Label>
+                  <Input id="vatDefault" inputMode="decimal" value={header.vatDefault} onChange={(e) => set("vatDefault", e.target.value)} />
+                </div>
                 {header.currency !== "RUB" && (
                   <div>
                     <Label htmlFor="exchangeRate">Курс {header.currency} → RUB</Label>
@@ -388,10 +392,8 @@ export function BatchWizard({
                     </div>
                   </div>
                 )}
-                <div>
-                  <Label htmlFor="vatDefault">НДС по умолчанию, %</Label>
-                  <Input id="vatDefault" inputMode="decimal" value={header.vatDefault} onChange={(e) => set("vatDefault", e.target.value)} />
-                </div>
+                {/* Место под поле курса резервируется и для рубля: при выборе USD/EUR остальная разметка не сдвигается. */}
+                {header.currency === "RUB" && <div aria-hidden className="invisible h-[6.25rem]" />}
               </div>
 
               <details className="rounded-md border border-neutral-200 px-3 py-2">
@@ -463,7 +465,7 @@ export function BatchWizard({
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
 
       {step < 4 && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-20 sm:pb-16">
           <Button type="button" variant="outline" disabled={step === 1 || pending} onClick={() => setStep(step - 1)}>← Назад</Button>
           <div className="flex flex-col items-end gap-1">
             {step === 1 && headerProblems.length > 0 && <span className="text-xs text-neutral-500">{headerProblems[0]}</span>}

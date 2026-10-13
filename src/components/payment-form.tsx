@@ -1,5 +1,6 @@
 "use client";
 
+import { batchNameText } from "@/lib/batch-name";
 import { InfoHint } from "@/components/info-hint";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -288,7 +289,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
                   <Select id="pf-batch" value={batchId} onChange={(e) => setBatchId(e.target.value)}>
                     <option value="">— выберите —</option>
                     {tgt?.batches.map((b) => (
-                      <option key={b.id} value={b.id}>Партия {b.number}{b.name ? ` · ${b.name}` : ""} · ТЗ: {b.orders}</option>
+                      <option key={b.id} value={b.id}>Партия {b.number}{batchNameText(b.name) ? ` · ${batchNameText(b.name)}` : ""} · ТЗ: {b.orders}</option>
                     ))}
                   </Select>
                 </div>

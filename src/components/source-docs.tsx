@@ -145,8 +145,8 @@ function Row({ row }: { row: SourceDocRow }) {
       </div>
       {loaded && (
         <ul className="flex flex-col gap-1.5 pl-5">
-          {row.files.map((f) => (
-            <FileLine key={`${f.src}:${f.id}`} f={f} canEdit={row.canUpload} target={row.target} />
+          {row.files.map((f, i) => (
+            <FileLine key={`${f.src}:${f.id}:${i}`} f={f} canEdit={row.canUpload} target={row.target} />
           ))}
         </ul>
       )}
@@ -256,8 +256,8 @@ export function SourceDocs({
       <div className={cn("flex flex-col gap-2 p-2 sm:p-3", compact ? cn("absolute z-20 mt-1 w-[min(26rem,calc(100vw-2rem))] rounded-lg border border-neutral-200 bg-white shadow-lg", popover === "right" ? "right-0" : "left-0") : "border-t border-neutral-100")}>
         {data.rows.length > 0 ? (
           <ul className="flex flex-col gap-2">
-            {data.rows.map((r) => (
-              <Row key={r.key} row={r} />
+            {data.rows.map((r, i) => (
+              <Row key={`${r.key}:${i}`} row={r} />
             ))}
           </ul>
         ) : (

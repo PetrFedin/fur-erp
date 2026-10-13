@@ -570,7 +570,7 @@ const CHECKS: CheckDef[] = [
     group: "ТЗ и партии",
     severity: "warn",
     tolerance: `${ROUND_TOL_RUB} ₽`,
-    what: "Σ оплат ТЗ партии (каждая оплата один раз) не превышает работу подрядчика по партии (цена работы × количество действующих ТЗ).",
+    what: "Σ сумм, разнесённых на ТЗ партии, не превышает работу подрядчика по партии (цена работы × количество действующих ТЗ).",
     fix: "Производство → партия → оплаты; «шкуры подрядчика» фиксируются явной пометкой в оплате.",
     run: ({ d, helpers: h }) => {
       const v: Violation[] = [];
@@ -580,9 +580,9 @@ const CHECKS: CheckDef[] = [
         const os = byBatch.get(b.id) ?? [];
         if (!os.length) continue;
         const work = os.reduce((s, o) => s + (o.clientWorkPricePerUnit ?? 0) * h.orderUnits(o), 0);
-        const pay = new Map<string, number>();
-        for (const o of os) for (const a of o.allocations) if (a.status !== "CANCELLED") pay.set(a.paymentId, a.amount);
-        const paid = [...pay.values()].reduce((s, x) => s + x, 0);
+        // Оплачено по партии = суммы, РАЗНЕСЁННЫЕ на ТЗ партии (а не вся сумма платежа).
+        let paid = 0;
+        for (const o of os) for (const a of o.allocations) if (a.status !== "CANCELLED") paid += a.allocated;
         const delta = r2(paid - work);
         if (delta > ROUND_TOL_RUB) v.push({ key: `batch:${b.number}`, message: `Партия ${b.number}: оплачено ${money(r2(paid))}, работа ${money(r2(work))}`, delta, unit: "₽", entity: h.ref.batch(b), href: h.href.batch(b.number), tags: [`batch:${b.number}`] });
       }
@@ -902,11 +902,11 @@ const CHECKS: CheckDef[] = [
   },
   {
     id: "dup-doc-link",
-    title: "Нет двойных привязок одного файла Drive",
+    title: "Один документ не приложен дважды к одной записи",
     group: "Дубли",
     severity: "info",
     tolerance: "нет",
-    what: "Один файл Drive не привязан дважды к одной и той же записи.",
+    what: "Один и тот же документ не приложен дважды к одной и той же записи.",
     fix: "Документы записи: убрать повторную привязку.",
     run: ({ d }) => {
       const seen = new Map<string, number>();
@@ -915,7 +915,7 @@ const CHECKS: CheckDef[] = [
         seen.set(k, (seen.get(k) ?? 0) + 1);
       }
       const dup = [...seen.entries()].filter(([, c]) => c > 1);
-      const v: Violation[] = dup.slice(0, 50).map(([k, c]) => ({ key: k, message: `Файл ${k.split("|")[0].slice(0, 12)}… привязан к одной записи ${c} раза`, delta: c - 1, unit: "ед." as const, entity: { kind: "system" as const, id: k, label: "Документ Drive" }, href: "/documents" }));
+      const v: Violation[] = dup.slice(0, 50).map(([k, c]) => ({ key: k, message: (() => { const owner = (["закупке", "лоту", "ТЗ", "партии", "оплате поставщику", "оплате подрядчику"] as const)[k.split("|").slice(1).findIndex((x) => x !== "" && x !== "null" && x !== "undefined")]; return owner ? `Один документ приложен к одной записи (${owner}) ${c} раза` : `Один документ записан в базе ${c} раза без привязки к записи`; })(), delta: c - 1, unit: "ед." as const, entity: { kind: "system" as const, id: k, label: "Документ" }, href: "/documents" }));
       return { checked: d.driveLinks.length, violations: v };
     },
   },

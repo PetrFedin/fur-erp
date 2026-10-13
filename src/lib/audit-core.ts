@@ -182,6 +182,7 @@ export const MODEL_TITLES: Record<string, string> = {
   Payment: "Оплата поставщику",
   ProductionPayment: "Оплата производства",
   ProductionPaymentOrder: "Привязка оплаты к ТЗ",
+  PaymentAllocation: "Разнесение оплаты",
   ProductionOrder: "ТЗ",
   ProductionMaterialUsage: "Списание материала",
   ProductionExpense: "Расход ТЗ",
@@ -223,7 +224,9 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "ProductionBatch": return `Партия №${s("number") ?? ""}${s("name") ? " " + s("name") : ""}`.trim();
     case "Payment": return `Оплата ${money(r.amount)} ${day(r.paidAt)}`.trim() + (s("auctionSession") ? ` · ${s("auctionSession")}` : "");
     case "ProductionPayment": return `Оплата производства ${money(r.amount)} ${day(r.paidAt)}`.trim();
-    case "RawMaterialLot": return `Лот ${s("lotNumber") ?? s("id") ?? ""}${s("color") ? " " + s("color") : ""}`.trim();
+    case "RawMaterialLot": return `Лот ${s("lotNumber") ?? "без номера"}${s("color") ? " " + s("color") : ""}`.trim();
+    case "FinishedGoodsMovement": return `Движение готовой продукции${r.date ? " от " + day(r.date) : ""}`.trim();
+    case "PaymentAllocation": return `Разнесение оплаты ${money(r.amount)}`.trim();
     case "PurchaseItem": return `Позиция закупки${s("lotNumber") ? " лот " + s("lotNumber") : ""} ${money(r.subtotal)}`.trim();
     case "ProductModel": return `Модель ${s("name") ?? ""}${s("sku") ? " (" + s("sku") + ")" : ""}`.trim();
     case "Auction": return `Аукцион ${s("name") ?? ""}`.trim();

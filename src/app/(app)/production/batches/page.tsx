@@ -227,7 +227,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <InfoHint label="Что значит произведено">Все ТЗ партии без отменённых и без ремонта: завершённые и в работе (как на Главной).</InfoHint>
             </Th>
             <Th className="hidden md:table-cell">
-              Себестоимость, ₽
+              <span className="inline-block max-w-[13rem] whitespace-normal align-middle leading-tight">Себестоимость (мех, подкладка, 4 %) без работы, ₽</span>
+              <InfoHint label="Чем отличается от «Себестоимость с работой»">Здесь себестоимость материалов: мех, подкладка и 4 % (при включённом «С 4%»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Себестоимость с работой» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
@@ -370,6 +371,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         orders={drill}
         c4={c4Mode}
         title="Партии → ТЗ → состав"
+        costLabel="Себестоимость с работой"
+        costHint={<p>Мех + подкладка + 4 % + расходы + работа подрядчика. В таблице «Партии» выше себестоимость показана без работы (мех, подкладка, 4 %), поэтому у одной партии суммы разные.</p>}
         payBy={payBy}
         modes={[{ id: "batch", label: "Партии", dims: ["batch", "order"] }]}
         hint={<p>Те же ТЗ и суммы, что в плитках выше и в блоке «Производство» на Главной. «Оплачено» — оплаты заказчика, разнесённые на партию и ТЗ; «К оплате» = работа − оплачено (сверх — оплачено больше работы).</p>}

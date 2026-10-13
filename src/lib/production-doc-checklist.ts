@@ -107,12 +107,13 @@ function paymentRowsOf(m: Model, orders: OrderRow[], rollbackOwner: string | nul
   for (const o of orders) for (const a of o.paymentAllocations) if (a.productionPayment.status !== "CANCELLED") pays.set(a.productionPayment.id, a.productionPayment);
   const rows: PanelPayment[] = [];
   let noProof = 0;
+  // Оплачено по этим ТЗ = суммы, РАЗНЕСЁННЫЕ на них (PaymentAllocation), а не валовая сумма платежей: неразнесённый аванс в партию не входит.
   let paid = new Decimal(0);
+  for (const o of orders) for (const sh of o.payShares) if (sh.productionPayment.status !== "CANCELLED") paid = paid.add(sh.amount);
   for (const p of [...pays.values()].sort((a, b) => a.paidAt.getTime() - b.paidAt.getTime())) {
     const driveProofs = (m.docsByPayment.get(p.id) ?? []).filter((d) => PROOF_TYPES.includes(d.docType));
     const hasProof = p.confirmed && (driveProofs.length > 0 || !!p.docRef?.trim());
     if (!hasProof) noProof++;
-    paid = paid.add(p.amount);
     const manual = isManualRef(p.docRef);
     rows.push({
       id: p.id,
@@ -255,7 +256,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const name = batchExtraName(batch.name);
   const hintLines = [
     `Партия ${batch.number}${name ? ` «${name}»` : ""}: ${tzCountText(uniqueOrderCount(live), live.length)}.`,
-    `К оплате заказчиком (работа): ${formatMoney(t.work.toString())} = цена работы × количество по ТЗ партии. Оплачено: ${formatMoney(pr.paid.toString())} — каждая оплата считается один раз, даже если связана с несколькими ТЗ. Остаток: ${pay.remainingText}.`,
+    `К оплате заказчиком (работа): ${formatMoney(t.work.toString())} = цена работы × количество по ТЗ партии. Оплачено: ${formatMoney(pr.paid.toString())} — считаются суммы, разнесённые на ТЗ партии (неразнесённый аванс в партию не входит). Остаток: ${pay.remainingText}.`,
     `Себестоимость партии: ${formatMoney(t.cost.toString())}${ctx.c4Mode === "on" ? " (режим «С 4%»: надбавка 4% к сырью и подкладке уже включена)" : " (режим «Без 4%»)"}. Оплата за работу заказчику 4% не облагается, поэтому остаток к оплате от режима не зависит.`,
     "Правила документов — из «Покрытия документами»: у каждого ТЗ своё приложение, у партии — расчёт доплаты и счёт на аванс/доплату; платёжка по каждой оплате (или номер п/п в поле «документ»).",
     mentions ? `Что названо в папке Drive: «${mentions.group}» (docs-inventory).` : "В инвентаризации Drive по этой партии записей нет.",

@@ -12,7 +12,7 @@ const TABS = [
   { key: "verify", href: "/verify", label: "Подтвердить", hint: "Подтверждение оплат, закупок, ТЗ и партий" },
   { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает" },
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Реестр сверки: что сходится на 100%, что нет" },
-  { key: "analysis", href: "/document-analysis", label: "Анализ документов", hint: "Google Drive, спорные долги, расхождения" },
+  { key: "analysis", href: "/document-analysis", label: "Анализ документов", hint: "документы, спорные долги, расхождения" },
   { key: "integrity", href: "/integrity", label: "Проверка данных", hint: "Что в данных не сходится: остатки, стоимости, оплаты, долг, подтверждения" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
   { key: "comments", href: "/comments", label: "Комментарии", hint: "Замечания, ошибки и идеи к частям проекта — для доработки" },

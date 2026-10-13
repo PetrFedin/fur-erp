@@ -25,7 +25,7 @@ export type IOrder = {
   clientWorkPricePerUnit: number | null; retailPrice: number | null; batchId: string | null; productModelId: string; finishedWarehouseId: string;
   color: string | null; colorRefId: string | null; colorRefName: string | null; colorRefAliases: string[];
   updatedAt: Date; verifiedAt: Date | null; verifiedBy: string | null;
-  allocations: { paymentId: string; amount: number; status: string }[];
+  allocations: { paymentId: string; amount: number; allocated: number; status: string }[];
 };
 export type IBatch = { id: string; number: number; name: string | null; plannedUnits: number | null; verifiedAt: Date | null; verifiedBy: string | null };
 export type IPayment = {
@@ -95,6 +95,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
         clientWorkPricePerUnit: true, retailPrice: true, batchId: true, productModelId: true, finishedWarehouseId: true, color: true, colorRefId: true, colorRef: { select: { name: true, aliases: true } },
         updatedAt: true, verifiedAt: true, verifiedBy: true,
         paymentAllocations: { select: { productionPayment: { select: { id: true, amount: true, status: true } } } },
+        payShares: { select: { amount: true, productionPaymentId: true, productionPayment: { select: { status: true } } } },
       },
     }),
     db.productionBatch.findMany({ where: { organizationId: orgId }, select: { id: true, number: true, name: true, plannedUnits: true, verifiedAt: true, verifiedBy: true } }),
@@ -170,7 +171,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
       batchId: o.batchId, productModelId: o.productModelId, finishedWarehouseId: o.finishedWarehouseId,
       color: o.color, colorRefId: o.colorRefId, colorRefName: o.colorRef?.name ?? null, colorRefAliases: o.colorRef?.aliases ?? [],
       updatedAt: o.updatedAt, verifiedAt: o.verifiedAt, verifiedBy: o.verifiedBy,
-      allocations: o.paymentAllocations.map((a) => ({ paymentId: a.productionPayment.id, amount: num(a.productionPayment.amount), status: a.productionPayment.status })),
+      allocations: o.paymentAllocations.map((a) => ({ paymentId: a.productionPayment.id, amount: num(a.productionPayment.amount), allocated: num(o.payShares.filter((x) => x.productionPaymentId === a.productionPayment.id).reduce((t, x) => t + num(x.amount), 0)), status: a.productionPayment.status })),
     })),
     batches: batches.map((b) => ({ ...b })),
     payments: payments.map((p) => ({

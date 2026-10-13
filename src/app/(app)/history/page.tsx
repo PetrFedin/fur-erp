@@ -50,10 +50,26 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
   // В журнале у ТЗ записан внутренний номер («П-2026-0176»); на экране показываем номер ТЗ из документа, а внутренний — в подсказке.
   const orderIds = Array.from(new Set(rows.filter((r) => r.model === "ProductionOrder").map((r) => r.recordId)));
   const woById = new Map((orderIds.length ? await prisma.productionOrder.findMany({ where: { id: { in: orderIds } }, select: { id: true, number: true, workOrderNumber: true } }) : []).map((o) => [o.id, o]));
+  // Старые записи журнала подписаны внутренним id («Лот cmv06…», «Движение готовой продукции cmv4…») — на экране показываем человеческую подпись.
+  const idLabelRows = rows.filter((r) => (r.model === "RawMaterialLot" || r.model === "FinishedGoodsMovement") && /\bc[a-z0-9]{20,}\b/.test(r.label ?? ""));
+  const lotIds = idLabelRows.filter((r) => r.model === "RawMaterialLot").map((r) => r.recordId);
+  const moveIds = idLabelRows.filter((r) => r.model === "FinishedGoodsMovement").map((r) => r.recordId);
+  const lotById = new Map((lotIds.length ? await prisma.rawMaterialLot.findMany({ where: { id: { in: lotIds } }, select: { id: true, lotNumber: true } }) : []).map((l) => [l.id, l.lotNumber]));
+  const moveById = new Map((moveIds.length ? await prisma.finishedGoodsMovement.findMany({ where: { id: { in: moveIds } }, select: { id: true, date: true } }) : []).map((m) => [m.id, m.date]));
   const shownLabel = (r: LogRow): { text: string; title?: string } => {
     const o = r.model === "ProductionOrder" ? woById.get(r.recordId) : undefined;
     const wo = o?.workOrderNumber?.trim();
-    return wo ? { text: `ТЗ №${wo}`, title: `внутренний номер ${o!.number}` } : { text: r.label ?? r.recordId };
+    if (wo) return { text: `ТЗ №${wo}`, title: `внутренний номер ${o!.number}` };
+    const idRe = /\s*\bc[a-z0-9]{20,}\b/;
+    if (r.model === "RawMaterialLot" && r.label && idRe.test(r.label)) {
+      const n = lotById.get(r.recordId);
+      return { text: r.label.replace(idRe, n ? ` ${n}` : " без номера").trim() };
+    }
+    if (r.model === "FinishedGoodsMovement" && r.label && idRe.test(r.label)) {
+      const d = moveById.get(r.recordId);
+      return { text: d ? `Движение готовой продукции от ${d.toLocaleDateString("ru-RU")}` : "Движение готовой продукции" };
+    }
+    return { text: r.label ?? r.recordId };
   };
 
   const actorOptions = new Map<string, string>();
