@@ -134,7 +134,7 @@ function Row({ row }: { row: SourceDocRow }) {
   const { pending, error, setError, run } = useRun();
   const loaded = row.files.length > 0;
   const mark = loaded ? "✓" : "✗";
-  const status = loaded ? "загружен" : row.linkId ? "нужно загрузить файл (запись есть, файла нет)" : row.expected ? "нужно загрузить" : "";
+  const status = loaded ? "загружен" : row.linkId ? "нужен файл (документ записан, самого файла пока нет)" : row.expected ? "нужен файл" : "";
   return (
     <li className={cn("flex flex-col gap-1.5 rounded-md border px-3 py-2 text-sm", loaded || !row.expected ? "border-neutral-200 bg-white" : "border-amber-300 bg-amber-50")}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
