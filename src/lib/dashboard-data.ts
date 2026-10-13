@@ -5,6 +5,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { loadPaymentsLeft, loadPaymentsOverview } from "@/lib/payments-overview";
 import { prisma } from "@/lib/prisma";
 import { loadFurLots } from "@/lib/fur-table-server";
+import { classifyLotSource } from "@/lib/purchase-source";
 import { figures, flowOf, NOT_SET, type C4Kind, type FlowFigures, type FurLot } from "@/lib/fur-table";
 import { orderUnits } from "@/lib/production-totals";
 import { loadOrderRows, type OrderRow } from "@/lib/analytics-orders";
@@ -83,6 +84,8 @@ export type { ClientDebtRow };
 export type DashboardData = {
   c4: Commission4Mode;
   raw: { fur: Pair<FlowFigures>; lining: Pair<FlowFigures>; lots: number };
+  /** Мех «Куплено» по источнику (слайды «На аукционах» / «У поставщика» блока «Сырьё»): те же flowOf/figures; заказанное, но не полученное — к аукционам, шкуры подрядчика — к поставщику. Сумма двух = raw.fur. */
+  rawSources: { auction: Pair<FlowFigures>; supplier: Pair<FlowFigures> };
   /** НДС по ставкам внутри плиток сырья (куплено / использовано / остаток; использовано — без 4%) и в себестоимости (по строкам списаний + шкуры подрядчика, без НДС на надбавку 4%). */
   vat: { fur: VatTriple; lining: VatTriple; cost: VatByRate };
   prod: { done: ProdTotals; work: ProdTotals; /** Все ТЗ года: уникальные номера ТЗ считаются по всему набору, а не суммой «завершённые + в работе». */ all: ProdTotals };
@@ -647,6 +650,14 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     lotMoney,
     rawMoneyTotal: { paid: paidOut.fur + paidOut.lining, due: leftOut.raw, unreceived: unreceivedOut },
     raw: { fur: furPairAll, lining: liningPair, lots: lotsYear.length },
+    rawSources: (() => {
+      const pairOf = (src: "auction" | "supplier") => figuresPair(flowOf(furLots.filter((l) => classifyLotSource(l) === src)), c4k);
+      const a = pairOf("auction"), s = pairOf("supplier");
+      return {
+        auction: { incl: bumpFigures(a.incl, orderedAll.qty, orderedAll.incl), excl: bumpFigures(a.excl, orderedAll.qty, orderedAll.excl) },
+        supplier: { incl: addHidesFig(s.incl, hidesTotal.incl), excl: addHidesFig(s.excl, hidesTotal.excl) },
+      };
+    })(),
     prod: { done: prodTotals(ordersYear.filter(isDone)), work: prodTotals(ordersYear.filter((o) => !isDone(o))), all: prodTotals(ordersYear) },
     rawTable, rawTableTotal: rawTableTotalAll, years, debt,
     supplierCashPaid,

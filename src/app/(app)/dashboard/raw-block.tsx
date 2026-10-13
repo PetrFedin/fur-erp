@@ -15,7 +15,8 @@ import { shortMaterialName } from "@/lib/material-name";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
-import type { useSlideWindow } from "@/components/slide-window";
+import { useSlideWindow } from "@/components/slide-window";
+import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 
@@ -145,7 +146,7 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
 
 /** Три плитки «Куплено / Использовано / Остаток» по меху или подкладке. compact — узкая раскладка для общего ряда из шести плиток:
  *  поля стоят в столбик с зарезервированной высотой, поэтому одинаковые строки лежат на одной горизонтали во всех шести плитках. */
-function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates, recvNote }: { recvNote?: React.ReactNode; view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
+function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates, recvNote, noOpen = false }: { /** Слайды-источники: окно цен по видам считается по всему меху, поэтому плитки не открывают его. */ noOpen?: boolean; recvNote?: React.ReactNode; view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
   const { mode: vat } = useVatDisplay();
   const F = fur[vat];
   const L = lining[vat];
@@ -194,7 +195,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
 
   return (
     <CompactCtx.Provider value={compact}>
-        <Card block={view} title="Куплено" onOpen={() => setPriceCol("recv")} hint={all ? undefined : (
+        <Card block={view} title="Куплено" onOpen={noOpen ? undefined : () => setPriceCol("recv")} hint={all ? undefined : (
           <InfoHint label="О «Куплено»" align="right">
             <p>Сумма — всегда без 4%. Цена — средневзвешенная.</p>
             {usdTile && usdBought ? <p className="mt-1">Цена $: {usdBought.note}.</p> : null}
@@ -219,7 +220,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           )}
         </Card>
 
-        <Card block={view} title="Использовано" onOpen={() => setPriceCol("used")} hint={
+        <Card block={view} title="Использовано" onOpen={noOpen ? undefined : () => setPriceCol("used")} hint={
           <InfoHint label="О «Использовано»" align="right">
             <p>Показаны обе суммы: без 4% и под ней с 4% (надбавка начисляется при списании в ТЗ). Режим шапки на эти две строки не влияет.</p>
             {usdTile && F.usdUsedAvg != null ? <p className="mt-1">Цена $ — {px(F.usdUsedQty, F.usedQty)} с ценой в USD.</p> : null}
@@ -244,7 +245,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
           )}
         </Card>
 
-        <Card block={view} title="Остаток" onOpen={() => setPriceCol("rem")} hint={all ? undefined : (
+        <Card block={view} title="Остаток" onOpen={noOpen ? undefined : () => setPriceCol("rem")} hint={all ? undefined : (
           <InfoHint label="Об «Остатке»" align="right">
             <p>На складе по цене закупки лотов; всегда без 4%.</p>
             {usdTile && F.usdRemAvg != null ? <p className="mt-1">Цена $ — {px(F.usdRemQty, F.remQty)} с ценой в USD.</p> : null}
@@ -270,7 +271,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
   );
 }
 
-export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates }: { rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
+export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, orderFilters, vat: vatRates, sources }: { /** Мех «Куплено» по источнику (готовые числа с сервера, с теми же фильтрами Главной). */ sources: { auction: Pair; supplier: Pair }; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; lots: number; info: ModeInfo; orderFilters: boolean; vat?: { fur: VatTriple; lining: VatTriple }; /** «→ Сырьё» с фильтрами Главной. */ href?: string }) {
   void info;
   const { mode: vat } = useVatDisplay();
   const vatW = vat === "incl" ? "с НДС" : "без НДС";
@@ -292,6 +293,40 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
     </>
   );
   const groups: { view: "fur" | "lining"; label: string }[] = [{ view: "fur", label: "Мех" }, { view: "lining", label: "Подкладка" }];
+  // Слайды группы «Мех»: «Все виды меха» → «На аукционах» → «У поставщика».
+  const sw = useSlideWindow(3, "(min-width: 1024px)", 1);
+  const { scroller, onScroll, dragProps, cur, step, goTo } = sw;
+  const slidesF = [
+    { key: "all", label: "Все виды меха", fur },
+    { key: "auction", label: "На аукционах", fur: sources.auction },
+    { key: "supplier", label: "У поставщика", fur: sources.supplier },
+  ];
+  const allF = fur[vat];
+  const pct = (a: number, b: number) => (b > 0 ? formatPercent((a / b) * 100) : "—");
+  const shareNote = (p: Pair) => `доля от «Все виды меха»: ${pct(p[vat].recvQty, allF.recvQty)} по шт., ${pct(p[vat].recvValue, allF.recvValue)} по ₽`;
+  const emptyVat = { recv: {}, used: {}, rem: {} } as VatTriple;
+  const used$ = (f: FlowFigures) => (c4 === "on" ? f.usedValueOther : f.usedValue);
+  const sumSrc = (g: (f: FlowFigures) => number) => g(sources.auction[vat]) + g(sources.supplier[vat]);
+  const srcOk = (g: (f: FlowFigures) => number) => Math.abs(g(allF) - sumSrc(g)) < 0.5;
+  const sumOk = srcOk((f) => f.recvQty) && srcOk((f) => f.recvValue) && srcOk((f) => f.usedQty) && srcOk(used$) && srcOk((f) => f.remQty) && srcOk((f) => f.remValue);
+  const slideCtl = (
+    <div role="group" aria-label="Слайды группы «Мех»" className="inline-flex items-center gap-1 print:hidden">
+      <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" disabled={cur === 0} onClick={() => step(-1)}>‹</button>
+      <div className="flex items-center gap-1" role="tablist" aria-label="Источник">
+        {slidesF.map((x, i) => (
+          <button key={x.key} type="button" role="tab" aria-selected={i === cur} aria-label={x.label} title={x.label} onClick={() => goTo(i)} className={"h-2 rounded-full transition-all " + (i === cur ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+        ))}
+      </div>
+      <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" disabled={cur >= slidesF.length - 1} onClick={() => step(1)}>›</button>
+    </div>
+  );
+  const srcHint = (
+    <InfoHint label="Что такое аукцион и поставщик" align="left" wide>
+      <p><b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); включая заказанное, но ещё не полученное (СП 09.26, FH 06.26): по нему лотов нет, поэтому остаток = заказанное количество, использовано 0.</p>
+      <p className="mt-1"><b>У поставщика</b> — закупки напрямую у поставщика или фермы без документов аукциона, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
+      <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика. Два слайда вместе дают «Все виды меха»{sumOk ? "" : " (с разницей округления)"}. Использовано — без 4%. Фильтры Главной, НДС и 4% применяются так же, как к слайду «Все виды меха». Определение то же, что на странице «Сырьё».</p>
+    </InfoHint>
+  );
   return (
     <section aria-labelledby="dash-raw">
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
@@ -302,10 +337,31 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
             <Fragment key={g.view}>
               {i > 0 ? <div className="raw-divider" aria-hidden /> : null}
               <div className="raw-group" role="group" aria-label={g.label}>
-                <div className="raw-group-label">{g.label}</div>
-                <div className="raw-tiles">
-                  <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} vatRates={vatRates?.[g.view]} />
-                </div>
+                {g.view === "fur" ? (
+                  <>
+                    <div className="raw-group-label flex flex-wrap items-center gap-x-1" data-testid="fur-slide-label">
+                      <span>{g.label} · {slidesF[cur]?.label}</span>{slideCtl}{srcHint}
+                    </div>
+                    <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="fur-slides" role="group" aria-roledescription="карусель" aria-label="Мех: слайды по источнику закупки"
+                      onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
+                      className="-mx-1 flex snap-x snap-mandatory items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
+                      {slidesF.map((x, i) => (
+                        <div key={x.key} data-slide={x.key} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1">
+                          <div className="raw-tiles">
+                            <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact noOpen={i > 0} onOpen={(col) => setPc({ view: "fur", col })} vatRates={i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={i > 0 ? shareNote(x.fur) : undefined} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="raw-group-label">{g.label}</div>
+                    <div className="raw-tiles">
+                      <RawTriple view={g.view} fur={fur} lining={lining} c4={c4} compact onOpen={(col) => setPc({ view: g.view, col })} vatRates={vatRates?.[g.view]} />
+                    </div>
+                  </>
+                )}
               </div>
             </Fragment>
           ))}

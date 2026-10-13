@@ -116,7 +116,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
 
-      <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} />
+      <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} sources={d.rawSources} />
 
       <YearsTable rows={d.years} c4={c4Mode} info={info} />
 
