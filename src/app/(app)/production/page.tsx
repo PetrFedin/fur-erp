@@ -472,7 +472,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           ...rows.map((r) => ({
             key: r.x.o.id,
             label: <Link href={`/production/${r.x.o.id}`} className="text-blue-700 hover:underline">{articleLabel(r.x.o.productModel)}</Link>,
-            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "—"} · ${r.x.o.number}`,
+            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "—"}${r.x.o.workOrderNumber ? ` · ТЗ ${r.x.o.workOrderNumber}` : ` · ${r.x.o.number}`}`,
           })),
         ]}
       />,

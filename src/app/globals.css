@@ -79,6 +79,37 @@ html[data-filtering="1"] [data-filter-bar] ~ * {
 }
 
 
+/* Телефон: цели нажатия не меньше 40 px без визуального увеличения — невидимая зона касания ::after у мелких элементов
+   (кнопки с data-touch-ok: «Свернуть», «Закрепить», шевроны «›», а также самостоятельные ссылки вне текста, списков и таблиц). Десктоп не затрагивается. */
+@media (max-width: 767px) {
+  [data-touch-ok]:not(.absolute):not(.fixed):not(.sticky),
+  a[href]:not(p a):not(li a):not(td a):not(th a):not(label a):not(.info-i):not([data-touch-ok]):not(button a) {
+    position: relative;
+  }
+  [data-touch-ok]::after,
+  a[href]:not(p a):not(li a):not(td a):not(th a):not(label a):not(button a)::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 40px);
+    height: max(100%, 40px);
+    transform: translate(-50%, -50%);
+  }
+  /* Точки-индикаторы каруселей: остаются маленькими (не тянутся до 40 px), зона касания — невидимая. */
+  button[role="tab"].h-2 { min-height: 0; position: relative; }
+  button[role="tab"].h-2::after { content: ""; position: absolute; top: 50%; left: 50%; width: 16px; height: 40px; transform: translate(-50%, -50%); }
+  /* Шевроны «Раскрыть …» в таблицах: узкая кнопка получает зону касания шире самой стрелки. */
+  button[aria-expanded][aria-label^="Раскрыть"]:not([data-touch-ok]) { position: relative; }
+  button[aria-expanded][aria-label^="Раскрыть"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); }
+  /* Хлебные крошки и ссылки «оплаты ›» / «документы ›» в строках таблиц: невидимая зона касания 40 px. */
+  nav[aria-label="Путь"] a, td a[href$="/payments"], td a[href*="#"], td a[href*="tab="], td a[href^="/documents?"] { position: relative; }
+  nav[aria-label="Путь"] a::after, td a[href$="/payments"]::after, td a[href*="#"]::after, td a[href*="tab="], td a[href^="/documents?"]::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(100%, 40px); height: 40px; transform: translate(-50%, -50%); }
+  /* Стрелки каруселей слайдов: ширина 32 → 40 */
+  button[aria-label="Предыдущий слайд"],
+  button[aria-label="Следующий слайд"] { min-width: 40px; }
+}
+
 /* Телефон: ряд плиток — одна горизонтальная лента (листается вправо-влево), плитки компактнее.
    Относится к рядам, где плитка (.tile-box) лежит прямо в сетке или в обёртке .relative (как на Главной). */
 @media (max-width: 639px) {

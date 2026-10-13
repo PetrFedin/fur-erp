@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useState, type ReactNode } from "react";
-import { cn, formatDebt, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
+import { cn, formatDebt, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { Chevron, Dash, SCROLL_BOX, TD, rowTone } from "@/components/tree-table";
@@ -13,6 +13,7 @@ import { TotalLabel } from "@/components/total-label";
 import { LotUsageMini } from "@/components/lot-usage-bar";
 import { RowCard } from "@/components/responsive-rows";
 import { shortMaterialName } from "@/lib/material-name";
+import { ruGradeLabel } from "@/lib/fur-ref";
 import { aggregate, type Agg, type TreeItem, type TreePurchase, type TreeYear } from "./purchases-agg";
 
 export type { PurchaseStatus, TreeBatch, TreePurchase, TreeYear } from "./purchases-agg";
@@ -24,9 +25,10 @@ export type ExtraRow = { key: string; label: string; sub?: string; href?: string
 
 const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
 /** Долг: отрицательный — «Переплата N ₽» (только отображение). */
-const restMoney = (v: number) => (v < -OVERPAY_FROM ? formatDebt(v) : money(v));
+const restMoney = (v: number, base?: number) =>
+  isRoundingRest(v, base) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : money(v);
 const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatQty(v));
-const restCls = (v: number) => (v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
+const restCls = (v: number, base?: number) => (isRoundingRest(v, base) ? "" : v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
 const BL = " border-l border-neutral-200";
 const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? few : many}`;
 const usedPct = (a: Pick<Agg, "usedValue" | "recvValue" | "hasLots">) => (a.hasLots && a.recvValue > 0.5 ? (a.usedValue / a.recvValue) * 100 : null);
@@ -95,7 +97,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
       <td className={TD + BL}>{usedPct(a) != null ? formatPercent(usedPct(a)) : <Dash />}</td>
       <td className={TD + " text-xs"}>{remText(a)}</td>
       <td className={TD + BL}>{money(a.paid)}</td>
-      <td className={TD + restCls(a.rest)}>{restMoney(a.rest)}</td>
+      <td className={TD + restCls(a.rest, pick(a))}>{restMoney(a.rest, pick(a))}</td>
     </>
   );
   const empty = (n: number) => Array.from({ length: n }, (_, i) => <td key={i} className={TD} />);
@@ -263,7 +265,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
   const key = `${pk}:${x.id}`;
   const isOpen = open.has(key);
   const canOpen = x.usages.length > 0;
-  const detail = [x.color, x.size ?? x.grade].filter(Boolean).join(" · ");
+  const detail = [x.color, x.size ?? ruGradeLabel(x.grade)].filter(Boolean).join(" · ");
   const prices = [x.priceRub != null ? `${formatMoney(x.priceRub.toFixed(2))}/${x.unit}` : null, x.priceUsd != null ? `$${x.priceUsd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null].filter(Boolean).join(" · ");
   const isFur = x.unit === "шт.";
   return (
@@ -347,7 +349,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
               { label: `Кол-во, ${unitLabel}`, value: qty(qtyOf(p)) },
               { label: "Использовано", value: usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash /> },
               { label: "Оплачено", value: p.status === "CANCELLED" ? <Dash /> : money(p.paid) },
-              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{restMoney(p.rest)}</span> },
+              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest, pick(p))}>{restMoney(p.rest, pick(p))}</span> },
             ]}
             details={[
               { label: "Лотов", value: p.lots > 0 ? p.lots : null },
@@ -404,7 +406,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   <td className={TD + BL}>{usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash />}</td>
                   <td className={TD + " text-xs"}>{remText(p)}</td>
                   <td className={TD + BL}>{cancelled ? <Dash /> : money(p.paid)}</td>
-                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : restMoney(p.rest)}</td>
+                  <td className={TD + restCls(p.rest, pick(p))}>{cancelled ? <Dash /> : restMoney(p.rest, pick(p))}</td>
                 </tr>
               );
             })}
@@ -428,7 +430,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                 <td className={TD + BL}>{usedPct(tot) != null ? formatPercent(usedPct(tot)) : <Dash />}</td>
                 <td className={TD + " text-xs"}>{remText(tot)}</td>
                 <td className={TD + BL}>{money(tot.paid + exPaid)}</td>
-                <td className={TD + restCls(tot.rest)}>{restMoney(tot.rest)}</td>
+                <td className={TD + restCls(tot.rest, pick(tot))}>{restMoney(tot.rest, pick(tot))}</td>
               </tr>
             ) : null}
           </tbody>

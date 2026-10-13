@@ -4,7 +4,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionLabeler, getFilterOptions } from "@/lib/filter-options";
-import { formatMoney, formatQty, OVERPAY_FROM } from "@/lib/utils";
+import { formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { safeRatio } from "@/lib/weighted";
 import { parseVatModeCookie } from "@/lib/vat-mode";
 import { addLeaf, aggOf, emptyAgg, loadSummary, loadUnlinkedAdvances, type Agg, type Leaf } from "@/lib/purchase-summary";
@@ -86,8 +86,8 @@ function Metrics({ a, mode, unit }: { a: Agg; mode: Mode; unit?: string }) {
       </span>
       <span className={cell}>
         <span className={lab}>Остаток</span>
-        <span className={f.remaining.greaterThan(0.005) ? "text-amber-700" : f.remaining.lessThan(-0.005) ? "text-blue-600" : ""}>
-          {f.remaining.lessThan(-OVERPAY_FROM) ? `Переплата ${money(f.remaining.neg())}` : money(f.remaining)}
+        <span className={isRoundingRest(f.remaining.toNumber()) ? "" : f.remaining.greaterThan(0.005) ? "text-amber-700" : f.remaining.lessThan(-0.005) ? "text-blue-600" : ""}>
+          {isRoundingRest(f.remaining.toNumber()) ? <span title={roundingRestHint(f.remaining.toNumber())} className="cursor-help">—</span> : f.remaining.lessThan(-OVERPAY_FROM) ? `Переплата ${money(f.remaining.neg())}` : money(f.remaining)}
         </span>
       </span>
       <span className={cell} title="Цена шкур по счетам ÷ число шкур">

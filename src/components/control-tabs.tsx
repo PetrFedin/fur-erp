@@ -8,12 +8,12 @@ import { loadControlCounts, type ControlCounts } from "@/lib/control-counts";
 import { getIntegrityReport } from "@/lib/integrity";
 
 const TABS = [
-  { key: "tasks", href: "/attention", label: "Задачи", hint: "Что требует действия — единый список" },
+  { key: "tasks", href: "/attention", label: "Что требует внимания", hint: "Что требует действия — единый список" },
   { key: "verify", href: "/verify", label: "Подтвердить", hint: "Подтверждение оплат, закупок, ТЗ и партий" },
   { key: "documents", href: "/documents", label: "Документы", hint: "Каких документов не хватает" },
   { key: "reconciliation", href: "/reconciliation", label: "Сверка", hint: "Реестр сверки: что сходится на 100%, что нет" },
   { key: "analysis", href: "/document-analysis", label: "Анализ документов", hint: "Google Drive, спорные долги, расхождения" },
-  { key: "integrity", href: "/integrity", label: "Самопроверка", hint: "Что в данных не сходится: остатки, стоимости, оплаты, долг, подтверждения" },
+  { key: "integrity", href: "/integrity", label: "Проверка данных", hint: "Что в данных не сходится: остатки, стоимости, оплаты, долг, подтверждения" },
   { key: "history", href: "/history", label: "История", hint: "Кто, когда и что изменил" },
   { key: "comments", href: "/comments", label: "Комментарии", hint: "Замечания, ошибки и идеи к частям проекта — для доработки" },
 ] as const;

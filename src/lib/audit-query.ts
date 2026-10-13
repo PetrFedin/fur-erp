@@ -145,3 +145,66 @@ export function detailLines(r: Pick<LogRow, "action" | "changes">): string[] {
 export function snapshotText(changes: unknown): string {
   return JSON.stringify(changes, null, 2);
 }
+
+// ───────────── Подробности для людей: «статья: было → стало» вместо сырого JSON ─────────────
+
+const NESTED_LABELS: Record<string, string> = {
+  costBreakdown: "состав себестоимости", items: "статьи", source: "источник", calcSource: "источник расчёта",
+  expenseVat: "НДС расходов", materialVat: "НДС материала", expenseExclVat: "расходы без НДС", materialExclVat: "материал без НДС",
+  unitCostInclVat: "себестоимость за ед. с НДС", expenseCostExclVat: "расходы без НДС", materialCostExclVat: "материал без НДС",
+  expenseVatAmount: "НДС расходов", materialVatAmount: "НДС материала", label: "статья", value: "значение",
+};
+const nestedLabel = (k: string) => NESTED_LABELS[k] ?? fieldLabel(k);
+
+const numRu = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 }).format(n);
+function leafText(v: unknown): string {
+  if (typeof v === "number") return numRu(v);
+  if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v)) return numRu(Number(v));
+  return showValue(v);
+}
+
+/** Плоский вид вложенного значения: «путь статьи» → текст. Массив статей {label, value} раскрывается по подписям статей. */
+function flatten(v: unknown, path: string[], out: Map<string, string>): void {
+  if (Array.isArray(v)) {
+    const named = v.every((x) => x && typeof x === "object" && !Array.isArray(x) && typeof (x as Ch).label === "string" && "value" in (x as Ch));
+    v.forEach((x, i) => {
+      if (named) {
+        const it = x as { label: string; value: unknown };
+        flatten(it.value, [...path.filter((p) => p !== NESTED_LABELS.items), it.label], out);
+      } else flatten(x, [...path, `№${i + 1}`], out);
+    });
+    return;
+  }
+  if (v && typeof v === "object") {
+    const entries = Object.entries(v as Ch);
+    if (entries.length === 0) out.set(path.join(" · ") || "—", "—");
+    for (const [k, x] of entries) flatten(x, k === "items" ? path : [...path, nestedLabel(k)], out);
+    return;
+  }
+  out.set(path.join(" · ") || "значение", leafText(v));
+}
+
+export type DetailEntry =
+  | { kind: "line"; text: string }
+  | { kind: "table"; field: string; rows: { key: string; before: string; after: string }[]; raw: string };
+
+/** Подробности изменения: простые поля — строкой «поле: было → стало»; составные (состав себестоимости и т. п.) — таблица «статья: было → стало». */
+export function detailEntries(r: Pick<LogRow, "action" | "changes">): DetailEntry[] {
+  const c = (r.changes ?? {}) as Ch;
+  if (r.action !== "update" || "ids" in c) return [];
+  const out: DetailEntry[] = [];
+  for (const [k, v] of Object.entries(c)) {
+    if (!isPair(v)) continue;
+    const complex = (typeof v[0] === "object" && v[0] !== null) || (typeof v[1] === "object" && v[1] !== null);
+    if (!complex) { out.push({ kind: "line", text: pairLine(k, v, true) }); continue; }
+    const a = new Map<string, string>(), b = new Map<string, string>();
+    flatten(v[0], [], a);
+    flatten(v[1], [], b);
+    const keys = Array.from(new Set([...a.keys(), ...b.keys()]));
+    const rows = keys
+      .map((key) => ({ key, before: a.get(key) ?? "—", after: b.get(key) ?? "—" }))
+      .filter((x) => x.before !== x.after);
+    out.push({ kind: "table", field: fieldLabel(k), rows, raw: JSON.stringify(v, null, 2) });
+  }
+  return out;
+}

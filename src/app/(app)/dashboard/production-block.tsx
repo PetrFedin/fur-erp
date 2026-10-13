@@ -60,10 +60,10 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
         headerExtra={<ProdBridgeHint done={fact} c4={c4} vat={vat} bridge={bridge} vatCost={vatCost} />}
         headerEnd={<Link href={href} className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">
-        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p><b>Произведено</b> — изделия по всем ТЗ (завершённые и в работе): учитывается фактическое списание сырья, отметка «Завершён» не важна. Ремонт в штуки не входит — он считается отдельно (страница «Ремонт»). ТЗ без списаний и в плане входят плановым количеством.</p>
-            <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
+            <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего»). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
             { key: "total", label: "Всего", body: (
@@ -84,7 +84,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
                 <GroupProducedSlide all={drillOrders} grp={g} vat={vat} loading={!drill} compact />
               </button>) })),
           ]} />
-        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<>
             <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость» без работы: <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>

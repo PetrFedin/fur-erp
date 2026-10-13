@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ruGradeLabel } from "@/lib/fur-ref";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { requireSession } from "@/lib/session";
@@ -249,7 +250,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             <Tr key={l.lotId}>
               <Td>
                 <Link href={`/analytics/raw/lot/${l.lotId}`} className="underline underline-offset-2" title="Карточка лота: где использован, учёт, остаток">{l.lotNumber ?? "лот"}</Link>
-                {(l.grade || l.color) && <span className="ml-1 text-xs text-neutral-500">{[l.grade, l.color].filter(Boolean).join(", ")}</span>}
+                {(l.grade || l.color) && <span className="ml-1 text-xs text-neutral-500">{[ruGradeLabel(l.grade), l.color].filter(Boolean).join(", ")}</span>}
                 {l.purchaseId && (
                   <div className="text-[11px] text-neutral-500">
                     <Link href={`/purchases/${l.purchaseId}`} className="underline underline-offset-2">закупка {l.purchaseNumber}</Link>

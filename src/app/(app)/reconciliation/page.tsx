@@ -247,7 +247,7 @@ export default async function ReconciliationPage() {
           Счета Веллмех и оплата по документам · сверено {data.checkedAt}
           <InfoHint wide label="О сверке">
             <p>Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. База читается при каждом заходе ({yearLabel(year)}).</p>
-            <p className="mt-2 text-neutral-500">Строки документов собраны скриптом <code>npx tsx scripts/build-reconciliation.ts</code> (src/data/reconciliation.json + docs-inventory/reconciliation-extra.json). Счетов в реестре: {ALL_INVOICES.length}.</p>
+            <p className="mt-2 text-neutral-500">Строки собраны из счетов в документах; чтобы обновить сверку после новых документов, обратитесь к разработчику. Счетов в реестре: {ALL_INVOICES.length}.</p>
           </InfoHint>
         </p>
       </div>

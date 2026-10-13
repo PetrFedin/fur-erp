@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
-type Item = { key: string; label: string; href?: string; count: number | null; title: string; active?: boolean };
+type Item = { key: string; label: string; href?: string; count: number | null; unit?: string; title: string; active?: boolean };
 
 /**
  * Ряд разделов именно ЭТОГО ТЗ: сам ТЗ (активный), его партия пошива, отгрузки, примерки, план заказа и план поставок по артикулу.
@@ -35,7 +35,7 @@ export function OrderNav({
   const items: Item[] = [
     { key: "tz", label: tzLabel, count: null, title: "Эта карточка ТЗ", active: true },
     batchNumber != null
-      ? { key: "batch", label: `Партия пошива ${batchNumber}`, href: `/production/batches/${batchNumber}`, count: batchCount, title: "Партия пошива этого ТЗ: состав партии, итоги (счётчик — ТЗ в партии)" }
+      ? { key: "batch", label: `Партия пошива № ${batchNumber}`, href: `/production/batches/${batchNumber}`, count: batchCount, unit: "ТЗ", title: `Партия пошива № ${batchNumber}: состав партии, итоги (в партии ${batchCount} ТЗ)` }
       : { key: "batch", label: "Партия пошива", href: "#card-batch", count: null, title: "Партия не указана — выберите её в параметрах ТЗ" },
     ...(HIDDEN_MODULES.shipments ? [] : [{ key: "ship", label: "Отгрузки", href: `/shipments?q=${q}`, count: shipments, title: "Отгрузки с этим ТЗ" }]),
     ...(HIDDEN_MODULES.fittings ? [] : [{ key: "fit", label: "Примерки", href: `/fittings?q=${q}`, count: fittings, title: "Примерки этого ТЗ" }]),
@@ -64,7 +64,7 @@ export function OrderNav({
     <nav aria-label="Разделы этого ТЗ" className="flex gap-1 overflow-x-auto border-b border-neutral-200 pb-2">
       {items.map((it) => {
         const badge = it.count == null ? null : (
-          <span className={"rounded-full px-1.5 text-[11px] tabular-nums " + (it.active ? "bg-white/20" : "bg-neutral-100 text-neutral-600")}>{it.count > 0 ? it.count : "—"}</span>
+          <span className={"rounded-full px-1.5 text-[11px] tabular-nums " + (it.active ? "bg-white/20" : "bg-neutral-100 text-neutral-600")}>{it.count > 0 ? (it.unit ? `${it.count} ${it.unit}` : it.count) : "—"}</span>
         );
         return it.active ? (
           <span key={it.key} aria-current="page" title={it.title} className={cls + " bg-neutral-900 text-white"}>{it.label}</span>

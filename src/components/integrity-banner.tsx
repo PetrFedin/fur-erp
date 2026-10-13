@@ -32,7 +32,7 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
                 <Link href={x.v.href} className="underline">где исправить</Link>
               </li>
             ))}
-            {v.length > 5 && <li>…и ещё {v.length - 5}. <Link href="/integrity" className="underline">Самопроверка</Link></li>}
+            {v.length > 5 && <li>…и ещё {v.length - 5}. <Link href="/integrity" className="underline">Проверка данных</Link></li>}
           </ul>
         </div>
       )}

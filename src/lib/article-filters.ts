@@ -149,7 +149,12 @@ export function tzOptions(rows: TzRow[]): Record<"fur" | "color" | "size" | "sea
       .sort((a, b) => Number(b.value) - Number(a.value)),
     tzyear: count(rows.map((r) => (r.year == null ? null : String(r.year)))).sort((a, b) => Number(b.value) - Number(a.value)),
     tz: rows
-      .map((r) => ({ value: r.number, label: r.number, title: [r.number, r.workOrderNumber, r.modelName].filter(Boolean).join(" · ") }))
+      .map((r) => {
+        const wo = r.workOrderNumber?.trim();
+        const same = wo ? rows.filter((x) => x.workOrderNumber?.trim() === wo).length : 0;
+        const label = wo ? (same > 1 ? `ТЗ ${wo} · ${r.modelName ?? r.number}` : `ТЗ ${wo}`) : r.number;
+        return { value: r.number, label, title: [wo ? `ТЗ ${wo}` : null, `внутренний номер ${r.number}`, r.modelName].filter(Boolean).join(" · ") };
+      })
       .sort((a, b) => a.label.localeCompare(b.label, "ru", { numeric: true })),
   };
 }

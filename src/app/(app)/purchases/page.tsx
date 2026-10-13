@@ -4,7 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -413,7 +413,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                   <div className={TILE_BOX}><TileHead>Закупок</TileHead><TileValue compact>{a.purchases}</TileValue><TileCaption>{sec.k === "fur" ? "с мехом" : "с подкладкой"}</TileCaption></div>
                   <div className={TILE_BOX}><TileHead>{sec.k === "fur" ? "Шкур, шт." : "Подкладка, м"}</TileHead><TileValue compact>{formatQty(q)}</TileValue><TileCaption>{a.lots} позиций</TileCaption></div>
                   <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney((a.total + exSum).toFixed(2))}</TileValue><TileCaption>{ex.length ? "с шкурами подрядчика и округлением" : "с НДС"}</TileCaption></div>
-                  <div className={TILE_BOX}><TileHead>{a.rest < -OVERPAY_FROM ? "Переплата, ₽" : "Долг, ₽"}</TileHead><TileValue compact className={a.rest > 0.5 ? "text-amber-700" : ""}>{formatMoney((a.rest < -OVERPAY_FROM ? -a.rest : a.rest).toFixed(2))}</TileValue><TileCaption>Сумма − оплачено</TileCaption></div>
+                  <div className={TILE_BOX}><TileHead>{a.rest < -OVERPAY_FROM ? "Переплата, ₽" : "Долг, ₽"}</TileHead><TileValue compact className={a.rest > 0.5 && !isRoundingRest(a.rest, a.total + exSum) ? "text-amber-700" : ""}>{isRoundingRest(a.rest, a.total + exSum) ? "оплачено" : formatMoney((a.rest < -OVERPAY_FROM ? -a.rest : a.rest).toFixed(2))}</TileValue><TileCaption>{isRoundingRest(a.rest, a.total + exSum) ? roundingRestHint(a.rest) : "Сумма − оплачено"}</TileCaption></div>
                 </div>
                 <PurchasesList
                   id={`pur-list-${sec.k}`}

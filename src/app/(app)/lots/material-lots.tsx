@@ -5,6 +5,7 @@ import { shortAuctionName } from "@/lib/auction-names";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
+import { ruGradeLabel } from "@/lib/fur-ref";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { getYearFilter, type YearFilter } from "@/lib/year-filter";
@@ -90,7 +91,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
                 {l.lotNumber ?? "без номера"}
                 {(l.grade || l.color) && (
                   <div className="text-xs text-neutral-500">
-                    {[l.grade, l.color].filter(Boolean).join(" / ")}
+                    {[ruGradeLabel(l.grade), l.color].filter(Boolean).join(" / ")}
                   </div>
                 )}
               </Td>
@@ -190,7 +191,7 @@ export async function MaterialLots({ organizationId, materialId, q }: { organiza
           <RowCard
             key={l.id}
             title={l.lotNumber ?? "без номера"}
-            subtitle={[l.grade, l.color].filter(Boolean).join(" / ") || undefined}
+            subtitle={[ruGradeLabel(l.grade), l.color].filter(Boolean).join(" / ") || undefined}
             badge={l.quantityRemaining.isZero() ? <Badge>Израсходован</Badge> : undefined}
             fields={[
               { label: "Куплено", value: `${formatQty(l.quantityReceived.toString())} ${unit}` },

@@ -61,7 +61,7 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     }),
     prisma.productionPayment.findMany({
       where: { organizationId: orgId, status: "COMPLETED" },
-      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true } } } } },
+      select: { id: true, amount: true, paidAt: true, createdAt: true, paymentType: true, method: true, docRef: true, notes: true, confirmedAt: true, client: { select: { name: true } }, _count: { select: { driveDocuments: true } }, allocations: { select: { amount: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } } }, orders: { select: { productionOrderId: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } } } },
       orderBy: { paidAt: "desc" },
     }),
     // Закупки партий: оплата партии делится между ними пропорционально сумме (так же, как «Оплачено» в списке закупок).
@@ -163,11 +163,11 @@ export async function loadPaymentsOverview(orgId: string): Promise<OverviewRow[]
     const iso = p.paidAt.toISOString().slice(0, 10);
     const parts: OverviewPart[] = p.allocations
       .filter((x) => x.amount.toNumber() !== 0)
-      .map((x) => ({ label: `ТЗ ${x.productionOrder.number}`, href: `/production/${x.productionOrder.id}`, amount: x.amount.toNumber() }));
+      .map((x) => ({ label: `ТЗ ${x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number}`, href: `/production/${x.productionOrder.id}`, amount: x.amount.toNumber() }));
     if (Math.abs(rest) > 0.5) parts.push({ label: hides > 0 ? "Шкуры подрядчика в составе счёта за пошив" : "Аванс без привязки к ТЗ", amount: rest });
     const orderIds = new Map<string, string>();
-    for (const x of p.allocations) orderIds.set(x.productionOrder.id, x.productionOrder.number);
-    for (const x of p.orders) if (!orderIds.has(x.productionOrder.id)) orderIds.set(x.productionOrder.id, x.productionOrder.number);
+    for (const x of p.allocations) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
+    for (const x of p.orders) if (!orderIds.has(x.productionOrder.id)) orderIds.set(x.productionOrder.id, x.productionOrder.workOrderNumber?.trim() || x.productionOrder.number);
     const whatProd = p.paymentType === "ADVANCE" ? "Аванс" : p.paymentType === "PARTIAL" ? "Доплата" : "Оплата";
     const invP = invoiceOf(p.docRef);
     const prodFields: [string, string][] = [

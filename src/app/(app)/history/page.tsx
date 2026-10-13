@@ -47,6 +47,14 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
     prisma.auditLog.groupBy({ by: ["actorId", "actorName", "source"], where: { organizationId: session.user.organizationId } }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // В журнале у ТЗ записан внутренний номер («П-2026-0176»); на экране показываем номер ТЗ из документа, а внутренний — в подсказке.
+  const orderIds = Array.from(new Set(rows.filter((r) => r.model === "ProductionOrder").map((r) => r.recordId)));
+  const woById = new Map((orderIds.length ? await prisma.productionOrder.findMany({ where: { id: { in: orderIds } }, select: { id: true, number: true, workOrderNumber: true } }) : []).map((o) => [o.id, o]));
+  const shownLabel = (r: LogRow): { text: string; title?: string } => {
+    const o = r.model === "ProductionOrder" ? woById.get(r.recordId) : undefined;
+    const wo = o?.workOrderNumber?.trim();
+    return wo ? { text: `ТЗ №${wo}`, title: `внутренний номер ${o!.number}` } : { text: r.label ?? r.recordId };
+  };
 
   const actorOptions = new Map<string, string>();
   for (const a of actors) {
@@ -121,6 +129,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
           )}
           {rows.map((r) => {
             const href = r.action === "delete" ? null : recordHref(r.model, r.recordId, r.label);
+            const shown = shownLabel(r);
             return (
               <Tr key={r.id} className="align-top">
                 <Td className="whitespace-nowrap text-xs">{fmtAt(r.at)}</Td>
@@ -128,11 +137,11 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
                 <Td className="text-xs">
                   <div className="text-neutral-500">{entityTitle(r.model)}</div>
                   {href ? (
-                    <Link href={href} className="text-blue-700 hover:underline">
-                      {r.label ?? r.recordId}
+                    <Link href={href} className="text-blue-700 hover:underline" title={shown.title}>
+                      {shown.text}
                     </Link>
                   ) : (
-                    <span>{r.label ?? r.recordId}</span>
+                    <span title={shown.title}>{shown.text}</span>
                   )}
                 </Td>
                 <Td>

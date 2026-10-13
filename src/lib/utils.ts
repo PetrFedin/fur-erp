@@ -88,3 +88,23 @@ export function formatDebt(value: number | string, fmt: (v: number) => string = 
 export function debtLabel(value: number | string, base = "Долг"): string {
   return Number(value) < -OVERPAY_FROM ? "Переплата" : base;
 }
+
+/** Остаток меньше 1 ₽ по модулю — копеечное округление, а не долг/переплата. */
+export const ROUNDING_REST_MAX = 1;
+/** Относительный «хвост»: до 100 ₽ и не больше 0,0001 % от суммы (округление НДС и целых рублей по нескольким оплатам). */
+const ROUNDING_REST_REL = 1e-6;
+const ROUNDING_REST_ABS = 100;
+
+/** Остаток считать округлением: |остаток| < 1 ₽, либо мелкий хвост (до 100 ₽) от очень большой суммы. base — сумма закупки/партии/аукциона. Только отображение. */
+export function isRoundingRest(value: number | string, base?: number | string): boolean {
+  const a = Math.abs(Number(value));
+  if (!(a > 0)) return false;
+  if (a < ROUNDING_REST_MAX) return true;
+  const b = Math.abs(Number(base ?? 0));
+  return a <= ROUNDING_REST_ABS && b > 0 && a / b <= ROUNDING_REST_REL;
+}
+
+/** Подсказка для остатка-округления: «округление, 0,40 ₽». */
+export function roundingRestHint(value: number | string): string {
+  return `округление, ${formatMoney(Math.abs(Number(value)).toFixed(2))}`;
+}

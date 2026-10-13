@@ -38,7 +38,8 @@ export default async function NewBatchPage() {
       <BatchWizard
         userKey={session.user.id}
         refs={{
-          auctions: refs.auctions.map((a) => ({ id: a.id, name: a.name, house: a.house, currency: a.currency, aliases: a.aliases })),
+          // Только настоящие аукционы и дома: «Белая норка №80», «Сырьё подрядчика» и прочие служебные записи справочника в выбор не попадают (в /settings/auctions они остаются).
+          auctions: refs.auctions.filter((a) => a.kind !== "OTHER" && a.house !== "Прочее").map((a) => ({ id: a.id, name: a.name, house: a.house, currency: a.currency, aliases: a.aliases })),
           suppliers: refs.suppliers,
           warehouses: refs.warehouses,
           materials: refs.materials.map((m) => ({ id: m.id, name: m.name })),

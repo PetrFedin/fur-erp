@@ -116,7 +116,7 @@ export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; a
               {merging === r.id && <Tr><Td colSpan={cols} className="p-0"><Merge src={r} rows={allRows} onClose={() => setMerging(null)} /></Td></Tr>}
             </Fragment>
           ))}
-          {rows.length === 0 && <Tr><Td colSpan={cols} className="py-8 text-center text-neutral-500">{allRows.length > 0 ? "Ничего не найдено" : "Справочник пуст — запустите засев (scripts/seed-fur-refs.ts) или добавьте вид меха"}</Td></Tr>}
+          {rows.length === 0 && <Tr><Td colSpan={cols} className="py-8 text-center text-neutral-500">{allRows.length > 0 ? "Ничего не найдено" : "Справочник пуст — добавьте вид меха (или попросите разработчика заполнить стандартный список)"}</Td></Tr>}
         </Tbody>
       </Table>
     </div>

@@ -349,12 +349,12 @@ export const DECISIONS: Decision[] = [
     amount: 7_286_790.01,
     refs: [{ label: "Закупки", href: "/purchases" }, { label: "Долг по строкам L09, L10", href: "/payments" }],
     options: [
-      { key: "hides-model", label: "Решено владельцем: модель «шкуры подрядчика», закупки сохранены", then: "Сделано 08.10.2026 (scripts/apply-contractor-hides-split.ts): шкурная часть оплат производства вынесена в отдельные оплаты закупок З-2026-0010…0013; закупки, лоты и использование в ТЗ не менялись." },
+      { key: "hides-model", label: "Решено владельцем: модель «шкуры подрядчика», закупки сохранены", then: "Сделано 08.10.2026: шкурная часть оплат производства вынесена в отдельные оплаты закупок З-2026-0010…0013; закупки, лоты и использование в ТЗ не менялись." },
       { key: "storno", label: "Сторно: это шкуры подрядчика, уже оплачены в доплатах", then: "Сторнировать закупки З-2026-0001, 0010…0013 из долга (−7 286 790 ₽)." },
       { key: "purchase", label: "Закупка у Веллмех: запросить УПД и счёт", then: "Появится задача на УПД и счёт Веллмех по свакаре 346+35+70+32,5 шк. и красной лисе." },
       { key: "later", label: "Отложить, пока нет ответа Веллмех" },
     ],
-    source: "debt-trace L09, L10; audit-calc-purchasing §4.6; sync.md §7.2",
+    source: "расшифровка долга поставщику, расчёт закупок, разбор расхождений",
   },
   {
     id: "advance-30666300",
@@ -367,7 +367,7 @@ export const DECISIONS: Decision[] = [
       { key: "audit", label: "Разнести по аудиту (СП 29,61 млн / РП 3,59 млн)", then: "«Оплаты» → «Привязать к аукциону»: две части по расчёту аудита." },
       { key: "wait", label: "Ждать письма Веллмех о разнесении", then: "Задача «Письмо о разнесении аванса» остаётся открытой." },
     ],
-    source: "debt-trace L01, L11; audit-calc-purchasing §4.1",
+    source: "проверка расчёта закупок; расшифровка долга поставщику",
   },
   {
     id: "invoice-265",
@@ -380,7 +380,7 @@ export const DECISIONS: Decision[] = [
       { key: "invoice", label: "Вести по счёту №265: 1 892 430", then: "Оставить как есть; разницу согласовать с подрядчиком." },
       { key: "ask", label: "Запросить у подрядчика исправленный счёт" },
     ],
-    source: "OWNER-TODO §2; chain-production (партия 20); debt-trace §6",
+    source: "расшифровка долга поставщику; список вопросов владельцу; цепочка производства",
   },
   {
     id: "beaver-0063",
@@ -393,7 +393,7 @@ export const DECISIONS: Decision[] = [
       { key: "exclude", label: "Исключить из долга Веллмех: закупка вне Веллмех", then: "Отменить или перенести закупку из долга поставщику." },
       { key: "vat", label: "Подтвердить НДС 0% и сумму 4 490 090" },
     ],
-    source: "debt-trace L18; audit-calc-purchasing §4.4; beaver-findings.md",
+    source: "проверка расчёта закупок; расшифровка долга поставщику; разбор по бобру",
   },
   {
     id: "vat-contractor-lots",
@@ -405,7 +405,7 @@ export const DECISIONS: Decision[] = [
       { key: "all20", label: "Все четыре — 20% (дата заказа 2025)", then: "Поправить ставку лотов З-2026-0012/0013 на 20%." },
       { key: "date", label: "Сначала установить фактическую дату заказа 0012/0013" },
     ],
-    source: "audit-calc-production §4.5; audit-calc-purchasing §4.3",
+    source: "проверка расчёта производства; проверка расчёта закупок",
   },
   {
     id: "lot-728026",
@@ -416,7 +416,7 @@ export const DECISIONS: Decision[] = [
       { key: "grey", label: "Оставить «Серый» (цвет шкуры)" },
       { key: "navy", label: "Сменить на «Тёмно-синий» (по ТЗ 48)", then: "Поправить цвет лота 728026." },
     ],
-    source: "data-decisions-3 п.4",
+    source: "решения по данным",
   },
   {
     id: "usd-rub-rate",
@@ -427,7 +427,7 @@ export const DECISIONS: Decision[] = [
       { key: "confirm", label: "Метод верен: использовать для всех 67 лотов" },
       { key: "direct", label: "Только прямые цены из документов, остальные оставить пустыми" },
     ],
-    source: "audit-calc-purchasing §1; usd-coverage.md",
+    source: "проверка расчёта закупок; покрытие долларовых цен",
   },
   {
     id: "lining-125-tz",
@@ -438,7 +438,7 @@ export const DECISIONS: Decision[] = [
       { key: "price", label: "Оценить по цене лота 2 140 ₽/м", then: "Сформировать списания подкладки по 125 ТЗ (по цене лота)." },
       { key: "own", label: "Давальческая: ткань заказчика, в себестоимость не входит" },
     ],
-    source: "audit-calc-production С2, §4.2",
+    source: "проверка расчёта производства",
   },
   {
     id: "advance-15-9",
@@ -450,7 +450,7 @@ export const DECISIONS: Decision[] = [
       { key: "split", label: "Разнести по партиям 17–21 по документам", then: "Привязать три аванса к ТЗ партий 17–21." },
       { key: "keep", label: "Оставить авансом клиента без привязки" },
     ],
-    source: "audit-calc-production С7, §4.4",
+    source: "проверка расчёта производства",
   },
   {
     id: "expected-11-7",
@@ -462,7 +462,7 @@ export const DECISIONS: Decision[] = [
       { key: "debt", label: "Считать долгом (как сейчас)" },
       { key: "plan", label: "Вынести из долга в план расходов", then: "Исключить часть «Ожидаемое» из долга поставщику в расчёте." },
     ],
-    source: "audit-calc-purchasing §4.5",
+    source: "проверка расчёта закупок",
   },
   {
     id: "saga-overpay",
@@ -474,7 +474,7 @@ export const DECISIONS: Decision[] = [
       { key: "confirm", label: "Зачёт подтверждён", then: "Завести зачёт 83 875,32 в оплате AME 05.26." },
       { key: "refund", label: "Зачёта нет: ждём возврата или зачёта в другом счёте" },
     ],
-    source: "audit-calc-purchasing §4.2; debt-trace L05",
+    source: "проверка расчёта закупок; расшифровка долга поставщику",
   },
   {
     id: "tz-158-raw",
@@ -485,7 +485,7 @@ export const DECISIONS: Decision[] = [
       { key: "lot", label: "Завести лотом по 176 000 ₽/ед.", then: "Создать лот сырья подрядчика для ТЗ 158." },
       { key: "skip", label: "Не заводить: сырьё подрядчика вне учёта" },
     ],
-    source: "OWNER-TODO §2; sync.md §7.2",
+    source: "список вопросов владельцу, разбор расхождений",
   },
   {
     id: "lining-shift-607118",
@@ -497,7 +497,7 @@ export const DECISIONS: Decision[] = [
       { key: "fix", label: "Переприсвоить лоты закупкам по документам", then: "Привязать лоты пула подкладки к З-2026-0060 по УПД №109." },
       { key: "keep", label: "Оставить: итог по аукциону верен" },
     ],
-    source: "audit-calc-purchasing §3; sync.md §7.2",
+    source: "расчёт закупок, разбор расхождений",
   },
   {
     id: "hammer-vat",
@@ -508,7 +508,7 @@ export const DECISIONS: Decision[] = [
       { key: "rule", label: "Подтвердить правило и поправить данные пяти лотов", then: "Поправить лоты 15316, 500747, 500748, 10025, 10026." },
       { key: "ask", label: "Сначала проверить пять лотов по документам" },
     ],
-    source: "audit-calc-production Е1, §4.1",
+    source: "проверка расчёта производства",
   },
   {
     id: "markup-vat",
@@ -519,7 +519,7 @@ export const DECISIONS: Decision[] = [
       { key: "incl", label: "Продажная цена в базе — с НДС" },
       { key: "excl", label: "Продажная цена в базе — без НДС" },
     ],
-    source: "audit-calc-production С1, §4.3",
+    source: "проверка расчёта производства",
   },
 ];
 

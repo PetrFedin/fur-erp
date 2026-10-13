@@ -114,3 +114,16 @@ export function furKindLabel(text: string | null | undefined, index?: FurIndex):
 export function furEnglish(name: string | null | undefined, index?: FurIndex): string | null {
   return canonicalFur(name, index)?.nameEn ?? null;
 }
+
+/**
+ * Подпись сорта/цвета для экрана: «lynx cat» → «рысь», «рысь (lynx cat)» → «рысь». Только отображение — в базе остаётся как есть.
+ * Чисто латинский текст, который справочник мехов знает, показываем русским названием (в нижнем регистре); латиницу в скобках после русского слова убираем.
+ */
+export function ruGradeLabel(text: string | null | undefined): string {
+  const t = (text ?? "").trim();
+  if (!t || !/[A-Za-z]/.test(t)) return t;
+  const stripped = t.replace(/\s*\([A-Za-z][A-Za-z ,.\-]*\)/g, "").trim();
+  if (/[А-Яа-яЁё]/.test(stripped)) return stripped;
+  const ref = matchFurRef(t);
+  return ref ? ref.name.toLowerCase() : t;
+}

@@ -20,7 +20,7 @@ export type ILot = {
 };
 export type IUsage = { id: string; orderId: string; lotId: string; quantity: number; unitCost: number; totalCost: number; commission4: boolean };
 export type IOrder = {
-  id: string; number: string; status: string; plannedQuantity: number; producedQuantity: number;
+  id: string; number: string; workOrderNumber: string | null; status: string; plannedQuantity: number; producedQuantity: number;
   materialCost: number | null; expenseCost: number | null; totalCost: number | null; unitCost: number | null;
   clientWorkPricePerUnit: number | null; retailPrice: number | null; batchId: string | null; productModelId: string; finishedWarehouseId: string;
   color: string | null; colorRefId: string | null; colorRefName: string | null; colorRefAliases: string[];
@@ -91,7 +91,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
     db.productionOrder.findMany({
       where: { organizationId: orgId },
       select: {
-        id: true, number: true, status: true, plannedQuantity: true, producedQuantity: true, materialCost: true, expenseCost: true, totalCost: true, unitCost: true,
+        id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, materialCost: true, expenseCost: true, totalCost: true, unitCost: true,
         clientWorkPricePerUnit: true, retailPrice: true, batchId: true, productModelId: true, finishedWarehouseId: true, color: true, colorRefId: true, colorRef: { select: { name: true, aliases: true } },
         updatedAt: true, verifiedAt: true, verifiedBy: true,
         paymentAllocations: { select: { productionPayment: { select: { id: true, amount: true, status: true } } } },
@@ -163,7 +163,7 @@ export async function loadIntegrityData(db: PrismaClient, orgId: string): Promis
     usages: usages.map((u) => ({ id: u.id, orderId: u.productionOrderId, lotId: u.lotId, quantity: num(u.quantity), unitCost: num(u.unitCost), totalCost: num(u.totalCost), commission4: u.commission4 })),
     orderExpenses: new Map(expGroups.map((g) => [g.productionOrderId, num(g._sum.amount)])),
     orders: orders.map((o) => ({
-      id: o.id, number: o.number, status: o.status, plannedQuantity: num(o.plannedQuantity), producedQuantity: num(o.producedQuantity),
+      id: o.id, number: o.number, workOrderNumber: o.workOrderNumber, status: o.status, plannedQuantity: num(o.plannedQuantity), producedQuantity: num(o.producedQuantity),
       materialCost: o.materialCost == null ? null : num(o.materialCost), expenseCost: o.expenseCost == null ? null : num(o.expenseCost),
       totalCost: o.totalCost == null ? null : num(o.totalCost), unitCost: o.unitCost == null ? null : num(o.unitCost),
       clientWorkPricePerUnit: o.clientWorkPricePerUnit == null ? null : num(o.clientWorkPricePerUnit), retailPrice: o.retailPrice == null ? null : num(o.retailPrice),

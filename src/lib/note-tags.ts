@@ -17,12 +17,16 @@ const SCRIPT_SENTENCE_RE = /\s*(?:Создан[оа]|Привязка|Привя
 /** Имя скрипта в скобках: (apply-drive-production-corrections), (fix-lining-prices.ts), (scripts/foo.ts). */
 const SCRIPT_NAME_RE = /\s*\((?:scripts\/)?(?:apply|fix|link|import|create|consolidate)-[\w.-]+\)/gi;
 
+/** «(скрипт apply-….ts, откат --rollback)» — имя скрипта и ключ отката в скобках. */
+const SCRIPT_PAREN_RE = /\s*\((?:скрипт|script)\s[^)]*\)/gi;
+
 export function stripServiceTags(s: string): string {
   return s
     .replace(IMPORT_KEY_RE, "")
     .replace(TAG_RE, "")
     .replace(SCRIPT_SENTENCE_RE, "")
     .replace(SCRIPT_NAME_RE, "")
+    .replace(SCRIPT_PAREN_RE, "")
     .replace(/\s{2,}/g, " ")
     .replace(/^[\s,;·]+|[\s,;·]+$/g, "")
     .trim();

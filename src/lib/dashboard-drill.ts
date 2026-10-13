@@ -122,7 +122,7 @@ function keyOf(dim: Dim, a: Atom): { key: string; label: string } {
     case "fur": return { key: o.fur, label: o.fur };
     case "furw": return { key: o.fur, label: o.fur };
     case "auction": return { key: a.au, label: a.au };
-    case "order": return { key: o.id, label: `ТЗ ${o.number}` };
+    case "order": return { key: o.id, label: `ТЗ ${o.wo?.trim() || o.number}` };
   }
 }
 
@@ -270,8 +270,8 @@ export function levelFor(orders: DrillOrder[], mode: RootMode, path: PathStep[],
     items.forEach((i) => (i.share = total ? i.value / total : 0));
     const workCol = (work ?? 0) + expV;
     return {
-      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.number} (с работой)` : "Состав", items, total, totalWork: work != null || expV !== 0 ? workCol : null, orders: orderCount,
-      links: o ? [{ label: `Открыть ТЗ ${o.number}`, href: `/production/${o.id}` }] : [],
+      kind: "composition", title: o ? `Состав себестоимости ТЗ ${o.wo?.trim() || o.number} (с работой)` : "Состав", items, total, totalWork: work != null || expV !== 0 ? workCol : null, orders: orderCount,
+      links: o ? [{ label: `Открыть ТЗ ${o.wo?.trim() || o.number}`, href: `/production/${o.id}` }] : [],
     };
   }
 

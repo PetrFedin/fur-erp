@@ -11,7 +11,7 @@ import type { CheckResult } from "@/lib/integrity/types";
 import { RecheckButton } from "./recheck-button";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
-export const metadata = { title: "Самопроверка" };
+export const metadata = { title: "Проверка данных" };
 export const dynamic = "force-dynamic";
 
 function tone(c: CheckResult) {
@@ -22,12 +22,12 @@ function tone(c: CheckResult) {
   return { dot: "bg-neutral-400", label: "справочно", cls: "text-neutral-600" };
 }
 
-/** Величина расхождения по проверке: Σ|Δ| в ₽ либо число записей. */
+/** Величина расхождения по проверке: сумма разниц в ₽ либо число записей. */
 function magnitude(c: CheckResult) {
   const list = c.violations.length ? c.violations : c.known;
   if (!list.length) return "—";
   const rub = list.filter((v) => v.unit === "₽" && v.delta != null).reduce((s, v) => s + Math.abs(v.delta!), 0);
-  return rub > 0 ? `Σ ${fmtNum(Math.round(rub * 100) / 100)} ₽ · ${list.length} зап.` : `${list.length} зап.`;
+  return rub > 0 ? `всего ${fmtNum(Math.round(rub * 100) / 100)} ₽ · ${list.length} зап.` : `${list.length} зап.`;
 }
 
 export default async function IntegrityPage() {
@@ -39,12 +39,12 @@ export default async function IntegrityPage() {
   const groups = [...new Set(attention.map((c) => c.group))];
   return (
     <div className="space-y-4">
-      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Самопроверка" }]} />
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Проверка данных" }]} />
       <ControlTabs active="integrity" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold text-neutral-900">Самопроверка данных</h1><span className="ml-2 align-middle text-sm font-normal">
-              <InfoHint wide label="О самопроверке">
+          <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold text-neutral-900">Проверка данных</h1><span className="ml-2 align-middle text-sm font-normal">
+              <InfoHint wide label="О проверке данных">
                 <p>Всё, что сведено (остатки, стоимости, себестоимость, оплаты, долг, подтверждения), пересчитывается из нижних уровней и сравнивается с тем, что записано сверху. Только чтение: ничего не меняется.</p>
                 <p className="mt-2">Известные объяснимые расхождения показаны серым с причиной и не считаются ошибкой.</p>
               </InfoHint>
@@ -58,13 +58,13 @@ export default async function IntegrityPage() {
       {!r && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">Проверка не выполнилась (подробности в логе сервера). Нажмите «Проверить сейчас».</div>}
       {r && (
         <>
-          <WidgetRow id="integrity" title="Самопроверка — итоги">
+          <WidgetRow id="integrity" title="Проверка данных — итоги">
           <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {[
               { k: "Ошибок", v: r.failingErrors, tone: r.failingErrors ? "text-red-700" : "text-emerald-700" },
               { k: "Предупреждений", v: r.failingWarns, tone: r.failingWarns ? "text-amber-700" : "text-emerald-700" },
-              { k: "Известных", v: r.knownCount, tone: "" },
-              { k: "Справочных", v: r.failingInfo, tone: "" },
+              { k: "Объяснённых", v: r.knownCount, tone: "" },
+              { k: "К сведению", v: r.failingInfo, tone: "" },
               { k: "Проверок", v: r.checksTotal, tone: "" },
             ].map((c) => (
               <div key={c.k} className={TILE_BOX + " shadow-sm print:shadow-none"}>
@@ -105,7 +105,7 @@ export default async function IntegrityPage() {
                             {c.violations.slice(0, 25).map((v) => (
                               <li key={v.key} className="flex flex-wrap items-baseline gap-x-2">
                                 <span>{v.message}</span>
-                                {v.delta != null && <b className="tabular-nums">Δ {fmtNum(v.delta)} {v.unit}</b>}
+                                {v.delta != null && <b className="tabular-nums">разница {fmtNum(v.delta)} {v.unit}</b>}
                                 <Link href={v.href} className="text-blue-700 hover:underline">{v.entity.label}</Link>
                               </li>
                             ))}

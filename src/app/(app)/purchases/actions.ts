@@ -1463,7 +1463,7 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
     // Докупка идёт в единый пул ткани (addOrPoolLiningLot): если лотов у ткани уже несколько, приёмка откажет — говорим об этом сразу и понятно, до создания закупки.
     if (materialId) {
       const lotCount = await prisma.rawMaterialLot.count({ where: { organizationId: orgId, rawMaterialId: materialId } });
-      if (lotCount > 1) return { error: `Строка ${n}: у «${materialName}» ${lotCount} лота — докупать через форму можно только ткань с одним лотом. Лоты ткани нужно сначала объединить (scripts/consolidate-lining-lots.ts).` };
+      if (lotCount > 1) return { error: `Строка ${n}: у «${materialName}» ${lotCount} лота — докупать через форму можно только ткань с одним лотом. Лоты ткани нужно сначала объединить в один — обратитесь к разработчику.` };
     }
     const vatRaw = String(l.vat ?? "").replace(",", ".").trim();
     const vat = vatRaw === "" ? resolveVatRate(defaultVat, orderDate).rate : Number(vatRaw);

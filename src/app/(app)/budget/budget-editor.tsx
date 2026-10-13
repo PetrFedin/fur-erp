@@ -327,7 +327,7 @@ export function BudgetEditor(p: Props) {
   });
   const furTile = (
     <TileCarousel key="fur" title="Мех" hintLabel="Что показывает плитка «Мех»" hint={<p>Первый слайд — стоимость всего меха, далее каждый тип сырья: сколько изделий и шкур, средняя цена шкуры и доля в бюджете.</p>}
-      slides={furSlides} slidesLabel="слайды: тотал и типы меха" dotsLabel="Тип меха" />
+      slides={furSlides} slidesLabel="слайды: все виды меха и по типам" dotsLabel="Тип меха" />
   );
 
   const totalTiles = (

@@ -55,7 +55,7 @@ const U = (n: number | null) => (n == null || !Number.isFinite(n) || n <= 0 ? "�
 /**
  * Таблица «куплено → использовано → остаток» по меху или подкладке (расчёт — src/lib/fur-table.ts, одна функция на
  * /lots, Сводку и analytics/raw). Фильтры — выпадающие списки с галочками, применяются сразу и хранятся в URL.
- * Клик по названию или стрелке раскрывает строку до партий (аукционов) и лотов; чекбокс слева выбирает строку для тотала.
+ * Клик по названию или стрелке раскрывает строку до партий (аукционов) и лотов; чекбокс слева выбирает строку для итога.
  */
 export function FurSelectionTotal({
   lots,
@@ -494,7 +494,7 @@ export function FurSelectionTotal({
   // лоты загружены целиком, варианты каскадные, поэтому значения считаются здесь, а адрес обновляется без перезагрузки.
   // Управление слайдами: ‹ › (CAROUSEL_ARROW), точки, подпись; клавиши ←/→; свайп на телефоне.
   const slideCtl = slideKeys.length > 0 ? (
-    <div role="group" aria-label="Слайды ряда: тотал и виды" tabIndex={0} className="inline-flex items-center gap-1 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 print:hidden"
+    <div role="group" aria-label="Слайды ряда: все виды меха и по видам" tabIndex={0} className="inline-flex items-center gap-1 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900 print:hidden"
       onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); goSlide(slideIdx - 1); } else if (e.key === "ArrowRight") { e.preventDefault(); goSlide(slideIdx + 1); } }}
       onTouchStart={(e) => { (e.currentTarget as HTMLElement).dataset.x = String(e.touches[0].clientX); }}
       onTouchEnd={(e) => { const x0 = Number((e.currentTarget as HTMLElement).dataset.x ?? 0); const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) goSlide(slideIdx + (dx < 0 ? 1 : -1)); }}>
@@ -506,7 +506,7 @@ export function FurSelectionTotal({
       </div>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" onClick={() => goSlide(slideIdx + 1)}>›</button>
       <span className="ml-1 max-w-[9rem] truncate text-xs text-neutral-600">
-        {slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : "Тотал"}
+        {slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? "Все виды меха" : "Все ткани"}
       </span>
     </div>
   ) : null;

@@ -6,6 +6,7 @@ import type { DecisionView, DocTaskView, TaskBlocks } from "@/lib/task-docs";
 import { DOC_KIND_LABEL, OWNER_HINT, OWNER_LABEL, OWNER_ORDER, buildLetter, type TaskOwner } from "@/lib/task-docs-catalog";
 import { decideAction, reopenDecisionAction } from "./actions";
 import { LetterButtons } from "./letter-buttons";
+import { stripServiceTags } from "@/lib/note-tags";
 
 const DOT = { red: "bg-red-500", yellow: "bg-amber-400", gray: "bg-neutral-300" } as const;
 const BADGE = { red: "bg-red-100 text-red-700", yellow: "bg-amber-100 text-amber-800", gray: "bg-neutral-100 text-neutral-600" } as const;
@@ -77,7 +78,7 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
       {v.choice ? (
         <div className="mt-2 rounded-md bg-emerald-50 p-2 text-xs text-emerald-900">
           <b>Решено: {v.choice.label}</b>
-          <div className="text-emerald-800">{v.choice.byName ?? "—"} · {v.choice.at ? ruDate(v.choice.at) : ""}{v.choice.note ? ` · ${v.choice.note}` : ""}</div>
+          <div className="text-emerald-800">{v.choice.byName ?? "—"} · {v.choice.at ? ruDate(v.choice.at) : ""}{v.choice.note ? ` · ${stripServiceTags(v.choice.note)}` : ""}</div>
           {chosen?.then && <div className="mt-1">Дальше: {chosen.then}</div>}
           {canDecide && (
             <form action={reopenDecisionAction} className="mt-1">
@@ -119,7 +120,7 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
         Документы для поиска и загрузки: <span className="text-neutral-900">{blocks.openDocs}</span>
         {blocks.urgentDocs > 0 && <span className="text-red-600 normal-case">срочных {blocks.urgentDocs}</span>}
         <InfoHint wide label="Как это работает">
-          <p>По расшифровке долга поставщику (docs-inventory/debt-trace) — какие документы не нашлись в Drive «мех» и у кого их просить. Задача закрывается сама: когда к записи загружен документ нужного типа или оплата подтверждена. Вручную закрыть нельзя.</p>
+          <p>По расшифровке долга поставщику — какие документы не нашлись в Drive «мех» и у кого их просить. Задача закрывается сама: когда к записи загружен документ нужного типа или оплата подтверждена. Вручную закрыть нельзя.</p>
           <p className="mt-2">«После поставки» ({blocks.laterDocs}) в число не входят. Оплаты, описанные здесь, не считаются повторно в «Нет платёжек».</p>
         </InfoHint>
       </h2>

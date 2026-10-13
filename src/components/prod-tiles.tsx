@@ -59,8 +59,8 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     <WidgetRow id={id} title={title} headerEnd={headerEnd}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
       {carousel ? (
-        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал без ремонта). Ремонт — только в тотале и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+          hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Произведено — перейти к составу">{producedTotal}</a> },
             ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Произведено: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
@@ -79,7 +79,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
       </div>
       )}
       {carousel ? (
-        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: тотал, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Всего» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
             { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Себестоимость — перейти к составу">{costTotal}</a> },

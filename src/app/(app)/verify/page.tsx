@@ -169,7 +169,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         </p>
       )}
       <p className="text-xs text-neutral-500">
-        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Задачи</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
+        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Что требует внимания</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
       </p>
     </div>
   );

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
@@ -51,6 +51,7 @@ import { PlanExpenses } from "./plan-expenses";
 import { planExpenseLines } from "@/lib/plan-expenses";
 import { PaymentDeleteButton } from "./payment-delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ruGradeLabel } from "@/lib/fur-ref";
 import { removePurchaseItem, removePurchaseExpense, removePurchasePayment, updatePurchaseItem, updatePurchase, type OrderRef } from "../actions";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -334,7 +335,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   );
                   const card = {
                     title: item.rawMaterial.name,
-                    subtitle: [item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера", [item.grade, item.color].filter(Boolean).join(" / ")].filter(Boolean).join(" · "),
+                    subtitle: [item.lotNumber ? `Лот ${item.lotNumber}` : "Лот без номера", [ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ")].filter(Boolean).join(" · "),
                     fields: [
                       { label: "Кол-во", value: `${formatQty(item.quantity.toString())} ${UNIT_LABELS[item.rawMaterial.unit]}` },
                       { label: hasPlan ? `Цена лота, ${currencySym}` : "Цена без НДС", value: formatCurrency(item.unitPrice.toString(), purchase.currency) },
@@ -419,7 +420,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     >
                       <Td>{furKind ? <Link href={`/lots/fur/${encodeURIComponent(furKind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{item.rawMaterial.name}</Link> : item.rawMaterial.name}</Td>
                       <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "—")}</Td>
-                      {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
+                      {showGradeColor && <Td>{[ruGradeLabel(item.grade), item.color].filter(Boolean).join(" / ") || "—"}</Td>}
                       <Td>
                         {formatQty(item.quantity.toString())} {UNIT_LABELS[item.rawMaterial.unit]}
                       </Td>
@@ -607,15 +608,15 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             />
             <SummaryCard
               label="Остаток по партии"
-              value={auctionPay.remaining.lessThan(-0.005) ? `Переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
-              note={auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
-              warn={auctionPay.remaining.greaterThan(0)}
+              value={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? "оплачено" : auctionPay.remaining.lessThan(-0.005) ? `Переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
+              note={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? roundingRestHint(auctionPay.remaining.toNumber()) : auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
+              warn={auctionPay.remaining.greaterThan(0) && !isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber())}
             />
           </>
         ) : (
           <>
             <SummaryCard label="Оплачено" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
-            <SummaryCard label="Остаток к оплате" value={balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+            <SummaryCard label="Остаток к оплате" note={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(balanceDue.toNumber()) : undefined} value={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0) && !isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber())} />
           </>
         )}
       </div>

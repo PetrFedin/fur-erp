@@ -31,7 +31,7 @@ export async function loadIntakeRefs(db: Db, orgId: string) {
     db.auction.findMany({
       where: { organizationId: orgId, isService: false },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, fullName: true, house: true, year: true, currency: true, auctionDate: true, aliases: true },
+      select: { id: true, name: true, fullName: true, house: true, kind: true, year: true, currency: true, auctionDate: true, aliases: true },
     }),
     db.supplier.findMany({ where: { organizationId: orgId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.warehouse.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, isDefault: true }, orderBy: { name: "asc" } }),

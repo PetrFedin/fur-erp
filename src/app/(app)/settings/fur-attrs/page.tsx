@@ -44,7 +44,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
       <div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Признаки меха</h1><InfoHint label="О справочнике" wide>
           Признак, подвид или обработка шкуры, которые пишут в описаниях лотов и ТЗ помимо вида и цвета: седина соболя (SIL.1…SIL.6, «серебристый», «без седины»),
-          дикий / клеточный / баргузинский, тонированный, крашеный. Признаки ставятся лотам и ТЗ по тексту описаний (<code>scripts/apply-fur-attrs.ts</code>) по названию и синонимам;
+          дикий / клеточный / баргузинский, тонированный, крашеный. Признаки ставятся лотам и ТЗ по тексту описаний, по названию и синонимам;
           по ним работает фильтр «Признак меха» на «Сырье», Главной, в «ТЗ» и аналитике. «Предложено» — признак заведён по найденным в данных написаниям и ждёт вашего подтверждения.
         </InfoHint></div>
       </div>
@@ -197,7 +197,7 @@ export default async function FurAttrsPage({ searchParams }: PageProps<"/setting
             {shown.length === 0 && (
               <Tr>
                 <Td colSpan={7} className="py-8 text-center text-neutral-500">
-                  {rows.length > 0 ? "Ничего не найдено" : "Признаков пока нет. Запустите scripts/apply-fur-attrs.ts --apply (заведёт предложенные признаки) или добавьте вручную."}
+                  {rows.length > 0 ? "Ничего не найдено" : "Признаков пока нет. Добавьте вручную (или попросите разработчика завести стандартные признаки)."}
                 </Td>
               </Tr>
             )}

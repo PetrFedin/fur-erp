@@ -215,11 +215,23 @@ export function BatchWizard({
       const r = await getCbrRate(header.currency, header.orderDate);
       if (r.error || !r.rate) return setRateMsg(r.error ?? "Курс не получен — введите вручную");
       set("exchangeRate", r.rate.replace(".", ","));
-      setRateMsg(`Курс ЦБ на ${r.date}: ${r.rate.replace(".", ",")} — проверьте`);
+      autoRate.current = r.rate.replace(".", ",");
+      setRateMsg(`курс ЦБ на дату ${r.date}: ${r.rate.replace(".", ",")} — проверьте`);
     } catch {
       setRateMsg("Не удалось получить курс — введите вручную");
     }
   }
+
+  // Не рубль: курс подставляется сам — курсом ЦБ на дату закупки (пока пользователь не ввёл свой). Курс остаётся редактируемым и обязательным.
+  const autoRate = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hydrated || header.currency === "RUB" || !header.orderDate) return;
+    const cur = header.exchangeRate.trim();
+    if (cur !== "" && cur !== autoRate.current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchRate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, header.currency, header.orderDate]);
 
   // ----- создание
   function submit() {
@@ -371,7 +383,7 @@ export function BatchWizard({
                     <Label htmlFor="exchangeRate">Курс {header.currency} → RUB</Label>
                     <Input id="exchangeRate" inputMode="decimal" placeholder="например, 84,4075" value={header.exchangeRate} onChange={(e) => set("exchangeRate", e.target.value)} />
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={fetchRate}>Подставить курс ЦБ на дату</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={fetchRate}>Курс ЦБ на дату</Button>
                       {rateMsg && <span className="text-xs text-neutral-500">{rateMsg}</span>}
                     </div>
                   </div>

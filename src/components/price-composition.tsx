@@ -83,6 +83,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
       <span className="flex min-w-0 items-center gap-2">
         <span aria-hidden className="inline-block h-3 w-3 shrink-0 rounded-sm border border-neutral-300" style={{ background: s.color }} />
         <span title={s.label} className={"min-w-0 " + (stacked ? "leading-tight @[26rem]/c:truncate" : "truncate") + " " + (isSub ? "text-neutral-700" : "")}>{s.label}</span>
+        {s.note ? <span onClick={(e) => e.stopPropagation()}><InfoHint label={`Пояснение: ${s.label}`} wide><p>{s.note}</p></InfoHint></span> : null}
         {countLabel && !isSub ? <span className={"shrink-0 text-[11px] text-neutral-500 " + (stacked ? "hidden @[40rem]:inline" : "hidden sm:inline")}>{countLabel(s.key)}</span> : null}
       </span>
     );

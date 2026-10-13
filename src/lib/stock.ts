@@ -126,7 +126,7 @@ export async function addOrPoolLiningLot(
 
   if (existingLots.length > 1) {
     throw new Error(
-      `У ткани найдено ${existingLots.length} лотов вместо одного объединённого пула — требуется ручная проверка (см. scripts/consolidate-lining-lots.ts) перед новым поступлением.`
+      `У ткани найдено ${existingLots.length} лотов вместо одного объединённого пула — перед новым поступлением нужно сначала объединить лоты ткани (обратитесь к разработчику).`
     );
   }
 

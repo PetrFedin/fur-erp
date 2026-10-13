@@ -84,7 +84,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
         id: true, title: true, docType: true, docNumber: true, docDate: true, year: true, storagePath: true, viewUrl: true, createdAt: true, sizeBytes: true, storedSize: true,
         purchase: { select: { id: true, number: true } },
         lot: { select: { purchaseId: true, lotNumber: true } },
-        productionOrder: { select: { id: true, number: true } },
+        productionOrder: { select: { id: true, number: true, workOrderNumber: true } },
         productionBatch: { select: { number: true } },
         payment: { select: { id: true, purchaseId: true, auctionSession: true, supplier: { select: { name: true } } } },
         productionPayment: { select: { id: true, client: { select: { name: true } }, orders: { select: { productionOrderId: true }, take: 1 } } },
@@ -103,7 +103,7 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
     const links: DocListItem["links"] = [];
     if (d.purchase) links.push({ kind: "purchase", label: `Закупка ${d.purchase.number}`, href: `/purchases/${d.purchase.id}` });
     if (d.lot) links.push({ kind: "lot", label: `Лот${d.lot.lotNumber ? ` ${d.lot.lotNumber}` : ""}`, href: d.lot.purchaseId ? `/purchases/${d.lot.purchaseId}` : "/lots" });
-    if (d.productionOrder) links.push({ kind: "tz", label: `ТЗ ${d.productionOrder.number}`, href: `/production/${d.productionOrder.id}` });
+    if (d.productionOrder) links.push({ kind: "tz", label: `ТЗ ${d.productionOrder.workOrderNumber?.trim() || d.productionOrder.number}`, href: `/production/${d.productionOrder.id}` });
     if (d.productionBatch) links.push({ kind: "batch", label: `Партия ${d.productionBatch.number}`, href: `/production/batches/${d.productionBatch.number}` });
     if (d.payment) links.push({ kind: "payment", label: `Оплата · ${d.payment.supplier.name}`, href: d.payment.purchaseId ? `/purchases/${d.payment.purchaseId}` : "/payments" });
     if (d.productionPayment) {

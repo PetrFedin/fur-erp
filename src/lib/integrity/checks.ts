@@ -56,7 +56,7 @@ export function makeHelpers(d: IntegrityData) {
 
   const ref = {
     purchase: (p: IPurchase): EntityRef => ({ kind: "purchase", id: p.id, label: `Закупка ${p.number}` }),
-    order: (o: IOrder): EntityRef => ({ kind: "order", id: o.id, label: `ТЗ ${o.number}` }),
+    order: (o: IOrder): EntityRef => ({ kind: "order", id: o.id, label: `ТЗ ${o.workOrderNumber?.trim() || o.number}` }),
     lot: (l: IntegrityData["lots"][number]): EntityRef => ({ kind: "lot", id: l.id, label: `Лот ${l.lotNumber ?? "без номера"} (${l.materialName})` }),
     batch: (b: IntegrityData["batches"][number]): EntityRef => ({ kind: "batch", id: b.id, label: `Партия ${b.number}` }),
   };

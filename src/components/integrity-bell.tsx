@@ -54,8 +54,8 @@ export function IntegrityBell() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        aria-label={s ? (n ? `Самопроверка: расхождений ${n}` : "Самопроверка: всё сходится") : "Самопроверка"}
-        title={s ? (n ? `Не сходится: ${n}` : "Всё сходится") : "Самопроверка данных"}
+        aria-label={s ? (n ? `Проверка данных: расхождений ${n}` : "Проверка данных: всё сходится") : "Проверка данных"}
+        title={s ? (n ? `Не сходится: ${n}` : "Всё сходится") : "Проверка данных"}
         className="relative flex size-8 items-center justify-center rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
       >
         <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -69,7 +69,7 @@ export function IntegrityBell() {
       {open && (
         <div className="fixed inset-x-2 top-14 z-50 max-h-[75vh] overflow-y-auto rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-10 sm:w-[26rem]">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="font-semibold text-neutral-900">Самопроверка данных</div>
+            <div className="font-semibold text-neutral-900">Проверка данных</div>
             <Link href="/integrity" onClick={() => setOpen(false)} className="text-xs text-blue-700 hover:underline">Все проверки</Link>
           </div>
           {!s && <div className="py-3 text-neutral-500">Проверяем…</div>}

@@ -30,7 +30,7 @@ import {
   parseDocListFilters,
 } from "@/lib/drive-doc-list";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
-import { REGISTRY_UPDATE_CMD, registryCoverage, type RegStat } from "@/lib/registry-coverage";
+import { registryCoverage, type RegStat } from "@/lib/registry-coverage";
 import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
@@ -126,7 +126,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
               <div className="space-y-2">
                 <p>Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе прямо сейчас — загрузили файл или добавили ссылку на карточке, и пробел исчезает.</p>
                 <p>
-                  <b>Процент</b> — сколько обязательных документов уже есть из тех, что нужны по правилам (правила — в файле src/lib/doc-coverage.ts). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
+                  <b>Процент</b> — сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
                 </p>
                 <p>
                   <b>Год</b> берётся из шапки (Все / 2025 / 2026): закупка — по дате закупки, ТЗ — по году партии или даты ТЗ, оплата — по дате оплаты, документ — по дате документа. Плитки сверху и таблицы пересчитываются.
@@ -527,9 +527,8 @@ function RegistryBlock() {
           <InfoHint wide label="Что такое покрытие реестром и как обновить сверку">
             <div className="space-y-2">
               <p>Сколько записей единого реестра (xlsx) нашлось в базе: лоты, остатки, закупки, ТЗ, оплаты. Сверка от {regDate(r.checkedAt)} (реестр — от {regDate(r.registryDate)}).</p>
-              <p><b>Как обновить сверку.</b> Сверка делается вне приложения (реестр xlsx сравнивается с базой, результат — docs-inventory/coverage-matrix.json). После новой сверки обновите данные страницы командой в корне проекта:</p>
-              <p><code className="rounded bg-neutral-100 px-1.5 py-0.5">{REGISTRY_UPDATE_CMD}</code></p>
-              <p>Она пересоберёт src/data/registry-coverage.json; затем закоммитьте файл. Запрос к базе она не делает.</p>
+              <p><b>Как обновить сверку.</b> Сверка делается вне приложения: реестр из таблицы сравнивается с базой. После новой сверки попросите разработчика обновить данные этой страницы.</p>
+              <p>Обновление не меняет данные в базе.</p>
             </div>
           </InfoHint>
         </h2>
