@@ -43,7 +43,7 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
           { k: "Материалы: мех", v: money(s.fur), share: share(s.fur) },
           ...(Math.abs(s.lining) > 0.5 ? [{ k: "Материалы: подкладка", v: money(s.lining), share: share(s.lining) }] : []),
           ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(s.c4), share: share(s.c4) }] : []),
-          ...(Math.abs(s.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other), share: share(s.other) }] : []),
+          ...(Math.abs(s.other) > 0.5 && Math.abs(s.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other), share: share(s.other) }] : []),
           { k: "Работа", v: money(s.work), share: share(s.work) },
         ]} />
         <div className="row-total mt-2 flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs">

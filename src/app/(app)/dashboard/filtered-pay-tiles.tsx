@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/utils";
+import { isDebtDust } from "@/lib/raw-rounding";
 import type { FlowFigures } from "@/lib/fur-table";
 import { InfoHint } from "@/components/info-hint";
 import { TILE_BOX, TileHead, TileValue, TileList, type TileItem } from "./tile";
@@ -43,8 +44,17 @@ export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; p
       </div>
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
         <TileHead>К оплате</TileHead>
-        <TileValue compact className={due > 0.5 ? "text-amber-700" : ""}>{money(due)}</TileValue>
-        <TileList stack items={list(split(due), 0)} />
+        {isDebtDust(due) ? (
+          <>
+            <TileValue compact><span title={`округление (${money(due)})`}>—</span></TileValue>
+            <div className="text-xs text-neutral-500">округление ({money(due)})</div>
+          </>
+        ) : (
+          <>
+            <TileValue compact className={due > 0.5 ? "text-amber-700" : ""}>{money(due)}</TileValue>
+            <TileList stack items={list(split(due), 0)} />
+          </>
+        )}
       </div>
     </>
   );

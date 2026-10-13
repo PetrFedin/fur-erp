@@ -26,7 +26,7 @@ import { payShort } from "@/lib/doc-panel";
 import { docCounts } from "@/lib/doc-links";
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
-import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../dashboard/tile";
+import { TILE_BOX, TileCaption, TileHead, TileValue } from "../../dashboard/tile";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { TotalLabel } from "@/components/total-label";
@@ -175,22 +175,20 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <TileHead>Работа подрядчику</TileHead>
               <TileValue className={payRest > 1 ? "text-amber-700" : ""}>{payRest < 1 ? "—" : money(payRest)}</TileValue>
               <TileCaption>К доплате по партиям (до зачёта аванса без партии)</TileCaption>
-              <TileList items={[
-                { k: "Работа подрядчику (партии)", v: money(payWork) },
-                { k: "Оплачено (разнесено на партии)", v: money(payPaid), share: payWork ? payPaid / payWork : null },
-                ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
-                ...(debt ? [
-                  { k: "Оплачено всего", v: money(debt.paid) },
-                  { k: "из них разнесено на партии", v: money(payPaid), sub: true },
-                  ...(Math.abs(outAlloc) > 0.5 ? [{ k: "разнесено на ТЗ без партии", v: money(outAlloc), sub: true }] : []),
-                  { k: "не разнесено на партии (аванс)", v: money(debt.unallocated), sub: true },
-                  { k: "Работа подрядчику всего (Главная)", v: money(debt.billable) },
-                  ...(Math.abs(outWork) > 0.5 ? [{ k: "в т. ч. ТЗ без партии", v: money(outWork), sub: true }] : []),
-                ] : []),
-              ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается работа подрядчику" wide align="right">
+                <ul className="mb-2 space-y-0.5 tabular-nums">
+                  <li>Работа подрядчику (партии): <b>{money(payWork)}</b></li>
+                  <li>Оплачено (разнесено на партии): <b>{money(payPaid)}</b></li>
+                  {payOver > 0.5 && <li>Сверх работы (шкуры подрядчика и др.): <b>{money(payOver)}</b></li>}
+                  {debt && (
+                    <>
+                      <li>Оплачено всего: <b>{money(debt.paid)}</b>, из них разнесено на партии {money(payPaid)}{Math.abs(outAlloc) > 0.5 ? `, на ТЗ без партии ${money(outAlloc)}` : ""}, не разнесено (аванс) {money(debt.unallocated)}</li>
+                      <li>Работа подрядчику всего (Главная): <b>{money(debt.billable)}</b>{Math.abs(outWork) > 0.5 ? `, в т. ч. ТЗ без партии ${money(outWork)}` : ""}</li>
+                    </>
+                  )}
+                </ul>
                 <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>К доплате по партиям (до зачёта аванса без партии)</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
                 {debt && (
                   <>
@@ -248,7 +246,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 <Link href={`/production/batches/${b.number}`} className="hover:underline">
                   Партия {b.number}
                 </Link>
-                <span className="ml-1.5 text-xs font-normal text-neutral-500">{b.year ?? ""}</span>
+                {b.year ? <span className="text-xs font-normal text-neutral-500">{" · "}{b.year}</span> : null}
                 {batchExtraName(b.name) && <span className="block text-xs font-normal text-neutral-500">{batchExtraName(b.name)}</span>}
               </Td>
               <Td>

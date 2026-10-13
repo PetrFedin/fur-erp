@@ -75,6 +75,18 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const view = ["month", "week", "list"].includes(rawView) ? rawView : "month";
   let month = parseMonth(cleanSearch(sp.m, 7)) ?? today.slice(0, 7);
   if (!parseMonth(cleanSearch(sp.m, 7)) && year !== "all" && month.slice(0, 4) !== year) month = `${year}-01`;
+  // Без явного месяца (?m, ?w, ?day) — ближайший месяц с событиями: текущий, иначе ближайший будущий, иначе последний прошлый.
+  let autoMonth = false;
+  if (mode === "detail" && !parseMonth(cleanSearch(sp.m, 7)) && !cleanSearch(sp.w, 10) && !cleanSearch(sp.day, 10) && !cleanSearch(sp.new, 10)) {
+    const yrAuto = yearRange(year);
+    const base = { organizationId: orgId, ...(yrAuto ? { date: yrAuto } : {}) };
+    const nextEv = await prisma.calendarEvent.findFirst({ where: { ...base, date: { ...(yrAuto ?? {}), gte: parseYmd(`${month}-01`) } }, orderBy: { date: "asc" }, select: { date: true } });
+    const found = nextEv ?? (await prisma.calendarEvent.findFirst({ where: base, orderBy: { date: "desc" }, select: { date: true } }));
+    if (found) {
+      const fm = ymd(found.date).slice(0, 7);
+      if (fm !== month) { month = fm; autoMonth = true; }
+    }
+  }
   const weekStartParam = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.w, 10)) ? cleanSearch(sp.w, 10) : "";
   const weekStart = startOfWeek(weekStartParam || (today.startsWith(month) ? today : `${month}-01`));
   const cf = parseFilters(CAL_FILTERS, sp);
@@ -363,7 +375,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
-        <h2 className="min-w-44 text-center text-base font-semibold">{title}</h2>
+        <h2 className="min-w-44 text-center text-base font-semibold">{title}{autoMonth && view !== "week" && <span className="block text-[11px] font-normal text-neutral-500">выбран автоматически: ближайший месяц с событиями</span>}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
         <Link href={href({ m: today.slice(0, 7), w: "", event: "", new: "" })} className={BTN}>Сегодня</Link>
       </div>

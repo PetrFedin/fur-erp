@@ -46,7 +46,7 @@ export function PerUnitCarousel({ orders, c4 }: { orders: DrillOrder[]; c4: "on"
         <TileList items={[
           { k: "Сырьё (мех + подкладка)", v: moneyNz((s.fur + s.lining) / s.qty), share: share(s.fur + s.lining) },
           ...(c4 === "on" ? [{ k: "Надбавка 4%", v: moneyNz(s.c4 / s.qty), share: share(s.c4) }] : []),
-          ...(Math.abs(s.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other / s.qty), share: share(s.other) }] : []),
+          ...(Math.abs(s.other) > 0.5 && Math.abs(s.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other / s.qty), share: share(s.other) }] : []),
           { k: "Работа", v: moneyNz(s.work / s.qty), share: share(s.work) },
         ]} />
       </>

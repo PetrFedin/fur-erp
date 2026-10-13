@@ -53,7 +53,7 @@ export function GroupCostSlide({ all, grp, vat, c4, loading, compact }: { all: D
         { k: "Мех", v: money(s.fur), share: share(s.fur, total) },
         { k: "Подкладка", v: money(s.lining), share: share(s.lining, total) },
         ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(s.c4), share: share(s.c4, total) }] : []),
-        ...(Math.abs(s.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other), share: share(s.other, total) }] : []),
+        ...(Math.abs(s.other) > 0.5 && Math.abs(s.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(s.other), share: share(s.other, total) }] : []),
         { k: "Работа", v: money(s.work), share: share(s.work, total) },
       ]} />
     </>

@@ -7,6 +7,7 @@ import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { isDebtDust } from "@/lib/raw-rounding";
 import { InfoHint } from "@/components/info-hint";
 import { PinSection } from "@/components/pin-section";
 import { VatTriplesHint } from "./vat-line";
@@ -115,7 +116,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
                         <tr data-block={kd.k} className="border-b border-neutral-100 bg-white">
                           <NameCell className="font-semibold" arrow={<button type="button" onClick={() => toggle(kd.k)} aria-expanded={isOpen} aria-label={`Раскрыть по годам: ${kd.label}`}><Chevron open={isOpen} /></button>}>{shortMaterialName(kd.label)}</NameCell>
                           <CellsTds c={c} unit={kd.unit} avg={false} />
-                          <MoneyTds paid={m.paid} due={m.debt} />
+                          <MoneyTds paid={m.paid} due={m.debt} note={kd.k === "lining" ? LINING_NOTE : undefined} />
                         </tr>
                         {isOpen ? yrs.map((r) => {
                           const y = kd.pick(r), ym = kd.money(r);
@@ -180,12 +181,13 @@ function CellsTds({ c, unit, bold, avg }: { c: Cells; unit: string; bold?: boole
   );
 }
 
-function MoneyTds({ paid, due, bold }: { paid: number; due: number; bold?: boolean }) {
+const LINING_NOTE = "Расхождение со счётом №100 (Ж2): подкладка Спец. 7 — сумма закупок на 1 357,06 ₽ больше УПД №109 и оплаты 1 455 842 ₽.";
+function MoneyTds({ paid, due, bold, note }: { paid: number; due: number; bold?: boolean; note?: string }) {
   const cls = td + (bold ? " font-semibold" : "");
   return (
     <>
       <td className={cls + " border-l border-neutral-100"}>{Math.abs(paid) < 0.5 ? <span className="text-neutral-300">—</span> : rub0(paid)}</td>
-      <td className={cls + (due > 0.5 ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">—</span> : rub0(due)}</td>
+      <td className={cls + (due > 0.5 && !isDebtDust(due) ? " text-amber-700" : "")}>{Math.abs(due) < 0.5 ? <span className="text-neutral-300">—</span> : isDebtDust(due) ? <span className="text-neutral-300" title={`округление (${rub(due)})`}>—</span> : <span title={note && Math.abs(due - 1357.06) < 0.5 ? note : undefined} className={note && Math.abs(due - 1357.06) < 0.5 ? "cursor-help underline decoration-dotted" : undefined}>{rub0(due)}</span>}</td>
     </>
   );
 }
@@ -279,11 +281,11 @@ export function RawTable({ rows, total, money, c4, info: _info, orderFilters, va
       <tr data-block="lining" className="border-b border-neutral-100 bg-white hover:bg-neutral-50">
         <NameCell arrow={lin.length > 0 ? arrow(LIN, "подкладка") : null}><span className="font-medium">Подкладка</span></NameCell>
         <CellsTds c={linSub} unit="м" avg={avg} />
-        <MoneyTds paid={linPaid} due={linDue} />
+        <MoneyTds paid={linPaid} due={linDue} note={LINING_NOTE} />
       </tr>
       {open.has(LIN) ? itemRows(lin, "м") : null}
       {open.has(LIN) && lin.length > 1 ? (
-        <tr className="row-total"><NameCell><TotalLabel note="подкладка" avg={avg} /></NameCell><CellsTds c={linSub} unit="м" bold avg={avg} /><MoneyTds paid={linPaid} due={linDue} bold /></tr>
+        <tr className="row-total"><NameCell><TotalLabel note="подкладка" avg={avg} /></NameCell><CellsTds c={linSub} unit="м" bold avg={avg} /><MoneyTds paid={linPaid} due={linDue} bold note={LINING_NOTE} /></tr>
       ) : null}
     </>
   );

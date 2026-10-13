@@ -14,3 +14,7 @@ export function rawRounding(
   };
   return (kinds.fur ? part(d.raw.fur.incl.recvValue, d.paidByItem.fur, d.left.fur) : 0) + (kinds.lining ? part(d.raw.lining.incl.recvValue, d.paidByItem.lining, d.left.lining) : 0);
 }
+
+/** Долг меньше этого порога по модулю (₽) — копеечное округление, а не долг: в показе выводим «—» с пометкой. Только показ, расчёты не меняются. */
+export const DEBT_DUST = 100;
+export const isDebtDust = (v: number) => Math.abs(v) >= 0.005 && Math.abs(v) < DEBT_DUST;

@@ -46,7 +46,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         { k: "Мех", v: money(all.fur), share: share(all.fur, total) },
         { k: "Подкладка", v: money(all.lining), share: share(all.lining, total) },
         ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(all.c4), share: share(all.c4, total) }] : []),
-        ...(Math.abs(all.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(all.other), share: share(all.other, total) }] : []),
+        ...(Math.abs(all.other) > 0.5 && Math.abs(all.other) >= total * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(all.other), share: share(all.other, total) }] : []),
         { k: "Работа", v: money(all.work), share: share(all.work, total) },
         ...(all.repairOrders > 0 ? [
           { k: "из них изделия", v: money(totalOwn), sub: true },
@@ -107,7 +107,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
             <TileList items={[
               { k: "Сырьё (мех + подкладка)", v: money((own.fur + own.lining) / own.qty), share: share(own.fur + own.lining, totalOwn) },
               ...(c4 === "on" ? [{ k: "Надбавка 4%", v: money(own.c4 / own.qty), share: share(own.c4, totalOwn) }] : []),
-              ...(Math.abs(own.other) > 0.5 ? [{ k: "Расходы ТЗ и прочее", v: money(own.other / own.qty), share: share(own.other, totalOwn) }] : []),
+              ...(Math.abs(own.other) > 0.5 && Math.abs(own.other) >= totalOwn * 0.001 ? [{ k: "Расходы ТЗ и прочее", v: money(own.other / own.qty), share: share(own.other, totalOwn) }] : []),
               { k: "Работа", v: money(own.work / own.qty), share: share(own.work, totalOwn) },
             ]} />
           ) : null}

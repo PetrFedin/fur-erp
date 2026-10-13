@@ -3,6 +3,7 @@
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useKeepingForm } from "@/lib/use-keeping-form";
@@ -364,7 +365,7 @@ export function CommentWidget() {
             b.open > 0 ? "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100" : "border-neutral-300 bg-white text-neutral-500 hover:bg-neutral-50",
           )}
         >
-          <span aria-hidden>💬</span>
+          <MessageSquare aria-hidden className="h-3.5 w-3.5" />
           <span className="tabular-nums">{b.open > 0 ? b.open : b.total}</span>
         </button>
       ))}
@@ -407,7 +408,7 @@ export function CommentWidget() {
           style={{ left: selBtn.x, top: selBtn.y }}
           className="fixed z-[60] rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-neutral-700"
         >
-          💬 Комментировать выделенное
+          <MessageSquare aria-hidden className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />Комментировать выделенное
         </button>
       )}
 
@@ -419,7 +420,7 @@ export function CommentWidget() {
         title="Оставить комментарий: замечание, ошибка, идея или вопрос к этой странице, записи или блоку"
         className="fixed bottom-3 right-3 z-40 inline-flex h-11 items-center gap-1.5 rounded-full border border-neutral-300 bg-white/95 px-3.5 text-sm font-medium text-neutral-800 shadow-md backdrop-blur hover:bg-white max-sm:w-11 max-sm:justify-center max-sm:px-0"
       >
-        <span aria-hidden className="text-base leading-none">💬</span>
+        <MessageSquare aria-hidden className="h-[18px] w-[18px]" />
         <span className="max-sm:sr-only">Комментарий</span>
         {openCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-xs font-semibold tabular-nums text-white max-sm:absolute max-sm:-right-1 max-sm:-top-1">{openCount}</span>}
       </button>

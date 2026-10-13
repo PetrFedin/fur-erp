@@ -20,13 +20,18 @@ const TABS = [
 
 export type ControlTab = (typeof TABS)[number]["key"];
 
+function plural(n: number, one: string, few: string, many: string): string {
+  const a = Math.abs(n) % 100, b = a % 10;
+  return `${n} ${a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many}`;
+}
+
 function count(key: ControlTab, c: ControlCounts | null, comments: number, integrity: { n: number; red: boolean } | null): { n: number; tone: string; title: string } | null {
-  if (key === "comments") return { n: comments, tone: "bg-blue-100 text-blue-700", title: "открытых комментариев" };
-  if (key === "integrity") return integrity && integrity.n > 0 ? { n: integrity.n, tone: integrity.red ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: "расхождений в данных" } : null;
+  if (key === "comments") return { n: comments, tone: "bg-blue-100 text-blue-700", title: `${plural(comments, "открытый комментарий", "открытых комментария", "открытых комментариев")}` };
+  if (key === "integrity") return integrity && integrity.n > 0 ? { n: integrity.n, tone: integrity.red ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: plural(integrity.n, "расхождение", "расхождения", "расхождений") + " в данных" } : null;
   if (!c) return null;
-  if (key === "tasks") return { n: c.tasks, tone: c.urgent > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: `задач: ${c.tasks}${c.urgent ? `, срочных блоков: ${c.urgent}` : ""}` };
-  if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: "не подтверждено" };
-  if (key === "documents") return { n: c.docGaps, tone: "bg-amber-100 text-amber-900", title: "записей, где не хватает документов" };
+  if (key === "tasks") return { n: c.tasks, tone: c.urgent > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: plural(c.tasks, "вопрос", "вопроса", "вопросов") + (c.urgent ? `, срочных блоков: ${c.urgent}` : "") };
+  if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: plural(c.waiting, "строка", "строки", "строк") + " ждут подтверждения" };
+  if (key === "documents") return { n: c.docGaps, tone: "bg-amber-100 text-amber-900", title: plural(c.docGaps, "документ", "документа", "документов") + " с неполным комплектом" };
   return null;
 }
 
@@ -49,7 +54,7 @@ function Bar({ active, counts, comments = 0, integrity = null }: { active: Contr
           >
             {t.label}
             {c && c.n > 0 && (
-              <span className={cn("rounded-full px-1.5 text-xs font-semibold tabular-nums", c.tone)} title={c.title}>
+              <span className={cn("rounded-full px-1.5 text-xs font-semibold tabular-nums", c.tone)} title={c.title} aria-label={c.title}>
                 {c.n}
               </span>
             )}
