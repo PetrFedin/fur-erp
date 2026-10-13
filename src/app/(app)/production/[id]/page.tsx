@@ -45,7 +45,6 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
-import { OrderStatusBadge } from "@/components/order-status-badge";
 import { TotalLabel } from "@/components/total-label";
 import { allocatedCentsByOrder } from "@/lib/payment-alloc";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -390,7 +389,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             ←
           </Link>
           <h1 className="text-xl font-semibold">{tzTitle}</h1>
-          <OrderStatusBadge status={order.status} className="text-xs" />
           {order.workOrderNumber && <span className="text-xs text-neutral-400" title="Внутренний номер заказа в системе; в списках и документах ТЗ называется по номеру ТЗ">{order.number}</span>}
           <TzVatBadge b={vatB} hint={false} />
           <div className="ml-auto" />
