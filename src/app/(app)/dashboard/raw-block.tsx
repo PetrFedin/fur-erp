@@ -332,7 +332,7 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
       <h2 id="dash-raw" className="sr-only">Сырьё</h2>
       <WidgetRow id="raw" title="Сырьё" titleClass="text-sm font-semibold" headerExtra={extra}
         headerEnd={<Link href={href} title={`${lots} лотов`} className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
-        <div className="raw-row">
+        <div className="raw-row raw-row-fl">
           {groups.map((g, i) => (
             <Fragment key={g.view}>
               {i > 0 ? <div className="raw-divider" aria-hidden /> : null}
@@ -346,8 +346,8 @@ export function RawBlock({ href = "/lots", rows, fur, lining, c4, lots, info, or
                       onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
                       className="-mx-1 flex snap-x snap-mandatory items-stretch overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
                       {slidesF.map((x, i) => (
-                        <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1">
-                          <div className="raw-tiles">
+                        <div key={`${nav.src}:${x.key || "all"}`} data-slide={`${nav.src}:${x.key || "all"}`} role="group" aria-roledescription="слайд" aria-label={`${x.label}, ${i + 1} из ${slidesF.length}`} aria-hidden={i !== cur} className="h-full min-w-full max-w-full snap-start px-1">
+                          <div className="raw-tiles h-full">
                             <RawTriple view="fur" fur={x.fur} lining={lining} c4={c4} compact noOpen={nav.src !== "all" || i > 0} onOpen={(col) => setPc({ view: "fur", col })} vatRates={nav.src === "all" && i === 0 ? vatRates?.fur : vatRates ? emptyVat : undefined} recvNote={noteOf(x.key, x.fur)} />
                           </div>
                         </div>

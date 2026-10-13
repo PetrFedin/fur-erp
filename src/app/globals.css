@@ -204,6 +204,12 @@ html:root :is(button, [role="button"], a.btn, summary):not(:disabled, [aria-disa
   .raw-divider { height: auto; width: 1px; }
   .raw-row .tile-box { padding: 0.75rem; }
 }
+/* Главная: подпись группы и плитки «Мех» и «Подкладка» — общие строки сетки (subgrid): верх и низ плиток совпадают при любой высоте полосы управления у меха. */
+@media (min-width: 1280px) {
+  .raw-row-fl { grid-template-rows: auto 1fr; }
+  .raw-row-fl > .raw-group { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0.25rem; }
+  .raw-row-fl > .raw-divider { grid-row: span 2; }
+}
 @media (max-width: 767px) {
   .raw-divider { display: none; }
   .raw-tiles {
