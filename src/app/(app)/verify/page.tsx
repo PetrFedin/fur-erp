@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { activeCount, defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { canVerify } from "@/lib/verify-access";
-import { BulkVerify, VerifyRowCard } from "./row";
+import { VerifyQueue } from "./verify-bulk";
 import { TILE_BOX, TileCaption, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 
 export const metadata = { title: "Подтвердить" };
@@ -73,7 +73,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
   rows = [...rows].sort((a, b) => rank(a) - rank(b));
   const shown = showAll ? rows : rows.slice(0, MAX_ROWS);
 
-  const bulkItems = inYearRows.filter((r) => !r.verified && r.ready && canVerify(role, r.kind)).map((r) => ({ key: r.key, kind: r.kind, title: `${r.kind === "payment" || r.kind === "prodPayment" ? "Оплата" : r.kind === "purchase" ? "Закупка" : r.kind === "order" ? "ТЗ" : "Партия"}: ${r.title}${r.sub ? ` — ${r.sub.slice(0, 70)}` : ""}` }));
+  const readyAll = inYearRows.filter((r) => !r.verified && r.ready && canVerify(role, r.kind)).map((r) => ({ key: r.key, row: r }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,8 +113,6 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         ))}
       </div>
       </WidgetRow>
-
-      <BulkVerify items={bulkItems} canEdit />
 
       <nav className="flex flex-wrap gap-1" aria-label="Разделы очереди">
         {TABS.map((t) => {
@@ -156,13 +154,8 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         <p className="rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500">
           {emptyForYear(year, "строк", activeCount(VERIFY_FILTERS, f) > 0 ? "Строк нет — измените фильтр или поиск." : "Строк нет.")}
         </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {shown.map((r) => (
-            <VerifyRowCard key={r.key} row={r} canEdit={canVerify(role, r.kind)} />
-          ))}
-        </ul>
-      )}
+      ) : null}
+      <VerifyQueue items={shown.map((r) => ({ row: r, canEdit: canVerify(role, r.kind) }))} readyAll={readyAll} />
       {rows.length > shown.length && (
         <p className="text-sm text-neutral-600">
           Показано {shown.length} из {rows.length}.{" "}

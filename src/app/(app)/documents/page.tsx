@@ -36,6 +36,8 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
+import { BulkUpload } from "./bulk-upload";
+import { ACCESS, hasRole } from "@/lib/access";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
@@ -152,6 +154,13 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       </WidgetRow>
 
       <TodoSummary organizationId={orgId} year={yf} />
+
+      {hasRole(session.user.role, ACCESS.purchases) && (
+        <details className="rounded-lg border border-neutral-200 bg-white" open={false}>
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium hover:bg-neutral-50">Массовая загрузка документов <span className="font-normal text-neutral-500">— выбрать или перетащить несколько файлов, привязка предлагается сама</span></summary>
+          <div className="border-t border-neutral-100 p-3"><BulkUpload /></div>
+        </details>
+      )}
 
       <RegistryBlock />
 

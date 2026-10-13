@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -34,6 +35,10 @@ export default async function NewPurchasePage() {
     <div className="flex flex-col gap-3">
       <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Закупки", href: "/purchases" }, { label: "Новая закупка" }]} />
       <h1 className="text-xl font-semibold">Новая закупка</h1>
+      <p className="rounded-lg bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900">
+        Нужны таблица лотов из Excel, расходы (транспорт, таможня, выделка, сборы) и состав цены до сохранения? Откройте единое окно:{" "}
+        <Link href="/purchases/batch" className="font-medium underline">Новая партия закупки →</Link>
+      </p>
       <Card>
         <CardContent className="pt-4">
           <PurchaseCreateForm

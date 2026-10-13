@@ -21,6 +21,8 @@ import { formatMoney } from "@/lib/utils";
 import { createBatch, previewBatch } from "./actions";
 import { getCbrRate } from "../cbr-actions";
 import { LotsStep } from "./lots-step";
+import { CompositionTable, ExpensesBlock } from "./expenses-block";
+import { compositionOf } from "@/lib/batch-expenses";
 import type { DocState, Draft, TableInfo, WizardRefs } from "./shared";
 
 const STEPS = ["Аукцион", "Лоты", "Проверка", "Итог"];
@@ -186,6 +188,7 @@ export function BatchWizard({
   if (!header.supplierId) headerProblems.push("Выберите поставщика / посредника");
   if (!header.orderDate) headerProblems.push("Укажите дату закупки");
   if (header.currency !== "RUB" && !(numOf(header.exchangeRate) > 0)) headerProblems.push(`Укажите курс ${header.currency} → RUB`);
+  if (header.orderDate && header.receiveNow && header.orderDate > today()) headerProblems.push("Дата закупки в будущем, а мех принимается на склад сразу: поправьте дату или снимите «Принять на склад сразу» (Дополнительно)");
 
   const set = <K extends keyof BatchHeader>(k: K, v: BatchHeader[K]) => setHeader((h) => ({ ...h, [k]: v }));
 
@@ -334,6 +337,15 @@ export function BatchWizard({
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {refs.suppliers.length > 1 && (
+                  <div>
+                    <Label htmlFor="supplierId">Поставщик / посредник</Label>
+                    <Select id="supplierId" value={header.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
+                      <option value="">Выберите…</option>
+                      {refs.suppliers.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="orderDate">Дата закупки</Label>
                   <Input id="orderDate" type="date" value={header.orderDate} onChange={(e) => set("orderDate", e.target.value)} />
@@ -405,9 +417,14 @@ export function BatchWizard({
               }}
             />
           )}
+          {step === 2 && (
+            <div className="mt-4">
+              <ExpensesBlock rows={rows} setRows={setRows} pct={pct} setPct={setPct} ctx={{ rate, currency: header.currency || "RUB", vatDefault: ctx.vatDefault }} />
+            </div>
+          )}
 
           {step === 3 && (
-            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} />
+            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} rows={rows} pct={pct} rate={rate} vatDefault={ctx.vatDefault} />
           )}
 
           {step === 4 && result && <ResultStep result={result} onRestart={restart} />}
@@ -447,10 +464,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function ReviewStep({
-  preview, previewErr, header, refs, ack, setAck, debtNow,
+  preview, previewErr, header, refs, ack, setAck, debtNow, rows, pct, rate, vatDefault,
 }: {
   preview: BatchPreview | null; previewErr: string | null; header: BatchHeader; refs: WizardRefs; ack: boolean; setAck: (v: boolean) => void; debtNow: number;
+  rows: IntakeRow[]; pct: Partial<Record<"fee" | "broker", boolean>>; rate: number; vatDefault: number;
 }) {
+  const comp = useMemo(() => compositionOf(rows, { rate, currency: header.currency || "RUB", vatDefault, pct }), [rows, rate, header.currency, vatDefault, pct]);
   if (previewErr) return <p className="text-sm text-red-700">{previewErr}</p>;
   if (!preview) return <p className="text-sm text-neutral-500">Считаем итоги…</p>;
   const t = preview.totals;
@@ -476,6 +495,24 @@ function ReviewStep({
       </div>
       <div className="rounded-md bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
         Долг поставщику сейчас: <b>{money(debtNow)}</b>. После создания он вырастет на сумму закупок с НДС (≈ {money(t.inclVat)}) за вычетом оплат по этому аукциону, если они уже внесены.
+      </div>
+      <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3" data-create-summary>
+        <h2 className="text-sm font-semibold">Что будет создано</h2>
+        <p className="text-sm text-neutral-700">Закупок: <b>{preview.purchases.length}</b>, лотов: <b>{fmt(t.lots)}</b>, шкур: <b>{fmt(t.qty)}</b>, на сумму <b>{money(t.inclVat)}</b> с НДС; {preview.receiving ? "мех будет принят на склад" : "закупки останутся черновиками"}.</p>
+        <CompositionTable c={comp} serverTotal={t.inclVat} />
+        <details className="text-xs">
+          <summary className="cursor-pointer text-neutral-600">Лоты и себестоимость за шкуру ({comp.perLot.length})</summary>
+          <div className="mt-1 max-h-72 overflow-auto">
+            <table className="w-full min-w-[420px]">
+              <thead className="text-left text-neutral-500"><tr><th className="py-1">Лот</th><th>Мех</th><th className="text-right">Шт.</th><th className="text-right">За шкуру, ₽</th><th className="text-right">Итого, ₽</th></tr></thead>
+              <tbody>
+                {comp.perLot.map((l) => (
+                  <tr key={l.n} className="border-t border-neutral-100"><td className="py-0.5">{l.lot || "—"}</td><td>{l.material}</td><td className="text-right tabular-nums">{fmt(l.qty)}</td><td className="text-right tabular-nums">{fmt(l.unitIncl, 2)}</td><td className="text-right tabular-nums">{fmt(l.totalIncl, 2)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </div>
       {preview.purchases.length > 1 && (
         <div className="overflow-x-auto">

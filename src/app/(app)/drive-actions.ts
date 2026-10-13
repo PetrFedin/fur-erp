@@ -184,12 +184,13 @@ function revalidateDriveDoc(doc: DocForRevalidate) {
   }
 }
 
-type UploadEntity = Entity | "payment" | "productionPayment";
+type UploadEntity = Entity | "payment" | "productionPayment" | "lot";
 
 const UPLOAD_ROLES: Record<UploadEntity, readonly string[]> = {
   ...ROLES,
   payment: ["OWNER", "ADMIN"],
   productionPayment: ["OWNER", "ADMIN"],
+  lot: ACCESS.purchases,
 };
 
 const DOC_INCLUDE = {
@@ -233,6 +234,7 @@ export async function uploadDriveDocument(
     productionBatchId?: string;
     paymentId?: string;
     productionPaymentId?: string;
+    lotId?: string;
   } = {};
   if (entity === "purchase") {
     const p = await prisma.purchase.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
@@ -246,6 +248,10 @@ export async function uploadDriveDocument(
     const b = await prisma.productionBatch.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
     if (!b) return { error: "Партия не найдена" };
     link.productionBatchId = b.id;
+  } else if (entity === "lot") {
+    const l = await prisma.rawMaterialLot.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
+    if (!l) return { error: "Лот не найден" };
+    link.lotId = l.id;
   } else if (entity === "payment") {
     const p = await prisma.payment.findFirst({ where: { id: entityId, organizationId: orgId }, select: { id: true } });
     if (!p) return { error: "Оплата не найдена" };

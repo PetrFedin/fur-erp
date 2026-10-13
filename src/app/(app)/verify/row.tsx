@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { VerifyControl } from "@/components/verify-control";
 import type { VerifyRow } from "@/lib/verification";
-import { patchOrderRow, patchPaymentRow, patchPurchaseRow, bulkVerifyReady, type VerifyState } from "./actions";
+import { patchOrderRow, patchPaymentRow, patchPurchaseRow, type VerifyState } from "./actions";
 
 const field = "h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm shadow-sm";
 
@@ -89,64 +89,5 @@ export function VerifyRowCard({ row, canEdit, purchaseIds }: { row: VerifyRow; c
       <VerifyControl v={row} canEdit={canEdit} compact purchaseIds={purchaseIds} />
       {canEdit && !row.verified && <QuickEdit row={row} />}
     </li>
-  );
-}
-
-/** «Подтвердить все готовые (без блокеров)»: предпросмотр списка и подтверждение. */
-export function BulkVerify({ items, canEdit }: { items: { key: string; title: string; kind: string }[]; canEdit: boolean }) {
-  const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<{ error?: string; ok?: string }>({});
-  if (!canEdit) return null;
-  if (items.length === 0) return <p className="text-xs text-neutral-500">Готовых к подтверждению строк без блокеров сейчас нет.</p>;
-  return (
-    <div className="flex flex-col gap-2">
-      {!open ? (
-        <div>
-          <Button type="button" onClick={() => setOpen(true)} className="max-md:h-10 max-md:w-full">
-            Подтвердить все готовые ({items.length})…
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2 rounded-lg border border-neutral-300 bg-white p-3">
-          <p className="text-sm font-semibold">Будет подтверждено строк: {items.length} (только без замечаний; решение сервер проверит заново)</p>
-          <ul className="max-h-64 list-disc space-y-0.5 overflow-auto pl-5 text-xs text-neutral-700">
-            {items.map((i) => (
-              <li key={i.key}>{i.title}</li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                start(async () => {
-                  setMsg({});
-                  try {
-                    const r = await bulkVerifyReady(items.map((i) => i.key));
-                    if (r.error) setMsg({ error: r.error });
-                    else {
-                      setMsg({ ok: r.message });
-                      setOpen(false);
-                      router.refresh();
-                    }
-                  } catch {
-                    setMsg({ error: "Не удалось выполнить: пропала связь или сервер отклонил запрос." });
-                  }
-                })
-              }
-            >
-              {pending ? "Подтверждаем…" : "Да, подтвердить все"}
-            </Button>
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => setOpen(false)}>
-              Отмена
-            </Button>
-            {msg.error && <span role="alert" className="text-xs text-red-600">{msg.error}</span>}
-          </div>
-        </div>
-      )}
-      {msg.ok && <p className="text-xs text-emerald-700">{msg.ok}</p>}
-    </div>
   );
 }
