@@ -158,7 +158,7 @@ export function UsageRow({
           disabled={readOnly || busy}
           className="h-4 w-4 max-md:h-5 max-md:w-5"
           aria-label="Начислять 4%"
-          title={c4Error ?? "4% — доп. комиссия посредника (Веллмех): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"}
+          title={c4Error ?? "4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"}
           onChange={async (e) => {
             const box = e.target;
             const checked = box.checked;
