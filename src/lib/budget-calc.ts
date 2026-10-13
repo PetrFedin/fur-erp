@@ -319,8 +319,30 @@ export function defaultLines(): LegacyLine[] {
 
 /** Шаблон «по Budget PCS FW27» как дерево; Рысь остаётся вручную (замок закрыт, значения из расчёта LYNX MVST FW26). */
 export function templateNodes(): BudgetNode[] {
-  return legacyToNodes(defaultLines());
+  const base = legacyToNodes(defaultLines());
+  const out: BudgetNode[] = [];
+  for (const nd of base) {
+    out.push(nd);
+    if (nd.kind !== "cat" || nd.locked) continue;
+    const fur = base.find((x) => x.id === nd.parentId);
+    const lens = fur ? TEMPLATE_LENGTHS[`${fur.name}|${nd.name}`] : undefined;
+    if (!lens || lens.reduce((s, l) => s + l[1], 0) !== nd.pcs) continue;
+    // Длина наследует значения категории (итог не меняется); «Автоматический расчёт» пересчитает по статистике.
+    for (const [name, pcs] of lens) out.push({ ...nd, id: newId(), kind: "len", parentId: nd.id, name, pcs, locked: false, modelId: null, statFur: "", statCat: "" });
+  }
+  return out;
 }
+
+/** Длины по Budget PCS FW27 (PDF, стр. 2, «Conf TTL PCS»): мех|категория → [длина, штуки]. Рысь не делится. */
+const TEMPLATE_LENGTHS: Record<string, Array<[string, number]>> = {
+  "Соболь|Шубы": [["Short", 46], ["Regular", 28], ["Long", 12]],
+  "Соболь|Жилет меховой": [["Short", 18], ["Long", 8]],
+  "Норка|Шубы": [["Short", 65], ["Long", 45]],
+  "Норка|Жилет меховой": [["Short", 42], ["Regular", 35], ["Long", 18]],
+  "Норка|Куртки меховые": [["Short", 45]],
+  "Норка+Соболь|Шубы": [["Long", 14]],
+  "Лиса|Шубы": [["Short", 55], ["Long", 15]],
+};
 
 /** Разбор сохранённого JSON (старый плоский или новый формат) в дерево. */
 export function parseNodes(raw: unknown): BudgetNode[] {

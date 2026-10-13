@@ -6,6 +6,8 @@ import { orderCost, type DrillOrder } from "@/lib/dashboard-drill";
 /** Сжатая запись факта: ТЗ, сложенные по артикулу, виду меха и категории. Суммы — с НДС, 4% отдельно (как в окне «Стоимость производства»). */
 export type FactRow = {
   mid: string; fur: string; cat: string; repair: boolean;
+  /** Бобр — сырьё подрядчика, в бюджет не входит: считается отдельно, как ремонт. */
+  out: boolean;
   pcs: number; hides: number; mex: number; lining: number; work: number; c4: number;
   /** Расходы ТЗ + шкуры подрядчика + прочее: входят в себестоимость на Главной, в колонки бюджета (мех, подкладка, работа, 4%) не входят. */
   extra: number;
@@ -19,7 +21,7 @@ export function factRows(orders: DrillOrder[]): FactRow[] {
   for (const o of orders) {
     const repair = o.cat === "Ремонт";
     const key = `${o.mid}|${o.fur}|${o.cat}`;
-    const r = m.get(key) ?? { mid: o.mid, fur: o.fur, cat: o.cat, repair, pcs: 0, hides: 0, mex: 0, lining: 0, work: 0, c4: 0, extra: 0 };
+    const r = m.get(key) ?? { mid: o.mid, fur: o.fur, cat: o.cat, repair, out: normKey(o.fur) === "бобр", pcs: 0, hides: 0, mex: 0, lining: 0, work: 0, c4: 0, extra: 0 };
     m.set(key, r);
     r.pcs += o.qty; r.work += o.work;
     let lines = 0;
@@ -71,7 +73,7 @@ function budgetCat(tzCat: string, have: Set<string>): string {
  * lenOf: артикул (ProductModel.id) → длина по справочнику (Short/Regular/Long); артикул без длины в строки-длины не попадает, но входит в факт категории. */
 export function factByNode(nodes: BudgetNode[], rows: FactRow[], lenOf: Record<string, string> = {}): Map<string, FactAgg | null> {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const own = rows.filter((r) => !r.repair);
+  const own = rows.filter((r) => !r.repair && !r.out);
   const out = new Map<string, FactAgg | null>();
   const catsOfFur = new Map<string, Set<string>>();
   for (const n of nodes) {
@@ -103,12 +105,15 @@ export function factTotals(rows: FactRow[]) {
   const all = zeroFact();
   /** Ремонт — отдельно, не выпуск изделий; cost с работой. */
   const rep = { pcs: 0, cost: 0 };
+  /** Сырьё подрядчика (бобр): вне бюджета, cost с работой. */
+  const outside = { pcs: 0, cost: 0 };
   let extra = 0;
   for (const r of rows) {
+    if (r.out && !r.repair) { outside.pcs += r.pcs; outside.cost += r.mex + r.lining + r.c4 + r.extra + r.work; continue; }
     if (r.repair) { rep.pcs += r.pcs; rep.cost += r.mex + r.lining + r.c4 + r.extra + r.work; continue; }
     add(all, r); extra += r.extra;
   }
-  return { all, repair: rep, extra };
+  return { all, repair: rep, outside, extra };
 }
 
 /** Отклонение: факт к бюджету, % ((факт ÷ бюджет − 1) × 100); null — если нечего сравнивать. */

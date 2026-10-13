@@ -86,6 +86,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="flex flex-col gap-4">
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } }"}</style>
       <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
       <div>
         <h1 className="text-xl font-semibold">Сравнение версий
@@ -107,8 +108,8 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           ))}
         </div>
       </WidgetRow>
-      <div className="scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white p-3">
-        <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+      <div className="scroll-hint overflow-x-auto rounded-lg border border-neutral-200 bg-white p-3 print:overflow-visible print:border-0 print:p-0">
+        <table className="w-full min-w-[760px] table-fixed text-left text-sm print:min-w-0 print:text-xs">
           <thead>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория / длина</th>

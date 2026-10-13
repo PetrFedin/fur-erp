@@ -1,6 +1,6 @@
 /**
  * Бюджет FW27 (DRAFT): строки, которых не хватает для факта по ТЗ (бюджет по ним 0 шт.), чтобы факт попадал в свою строку «мех · категория»
- * и не оставался «за бортом»: Каракульча → «Юбка меховая» (5 изд.), Норка+Соболь → «Манжеты, муфты, варежки» (8 изд.), мех «Бобр» → «Шапка меховая» (10 изд.).
+ * и не оставался «за бортом»: Каракульча → «Юбка меховая» (5 изд.), Норка+Соболь → «Манжеты, муфты, варежки» (8 изд.). Мех «Бобр» (сырьё подрядчика) владелец в бюджет не включил: строки «Бобр» убираются ключом --remove-beaver, факт по бобру в бюджете не учитывается.
  * Пробный прогон по умолчанию; --apply (backup.sh + запись + журнал); --rollback.
  *   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/add-budget-fact-rows-2026-10-13.ts [--apply|--rollback]
  */
@@ -11,6 +11,7 @@ import { join } from "path";
 
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
+const REMOVE_BEAVER = process.argv.includes("--remove-beaver");
 const JOURNAL = join(__dirname, "..", "docs-inventory", "corrections-journal-budget-fact-rows-2026-10-13.json");
 type N = { id: string; kind: string; parentId: string | null; name: string; [k: string]: unknown };
 const blank = (id: string, kind: string, parentId: string | null, name: string, statFur: string, statCat: string): N => ({
@@ -31,14 +32,20 @@ async function main() {
     console.log("откат выполнен");
     return;
   }
+  if (REMOVE_BEAVER) {
+    const ids = new Set(["f-бобр", "c-шапка-бобр"]);
+    const left = before.filter((n) => !ids.has(n.id));
+    console.log(`уберётся строк: ${before.length - left.length}`);
+    if (!APPLY || left.length === before.length) { console.log(APPLY ? "" : "пробный прогон: ничего не записано (добавьте --apply)"); return; }
+    execSync("bash scripts/backup.sh", { stdio: "inherit", cwd: join(__dirname, "..") });
+    await prisma.budgetScenario.update({ where: { id: row.id }, data: { lines: left as object[] } });
+    console.log("строки «Бобр» убраны (откат: восстановить из бэкапа или добавить строки заново скриптом без ключей)");
+    return;
+  }
   const has = (parent: string | null, name: string) => before.some((n) => n.parentId === parent && n.name === name);
   const add: N[] = [];
   if (!has("f-каракульча", "Юбка меховая")) add.push(blank("c-юбка-кар", "cat", "f-каракульча", "Юбка меховая", "Свакара", "Юбка"));
   if (!has("f-норкасоболь", "Манжеты, муфты, варежки")) add.push(blank("c-варежки-нс", "cat", "f-норкасоболь", "Манжеты, муфты, варежки", "Норка + Соболь", "Варежки"));
-  if (!before.some((n) => n.kind === "fur" && n.name === "Бобр")) {
-    add.push(blank("f-бобр", "fur", null, "Бобр", "", ""));
-    add.push(blank("c-шапка-бобр", "cat", "f-бобр", "Шапка меховая", "Бобр", "Головной убор"));
-  }
   console.log(add.length ? `добавится строк: ${add.length}: ${add.map((n) => n.name).join("; ")}` : "всё уже есть");
   if (!APPLY || !add.length) { console.log(APPLY ? "" : "пробный прогон: ничего не записано (добавьте --apply)"); return; }
   execSync("bash scripts/backup.sh", { stdio: "inherit", cwd: join(__dirname, "..") });
