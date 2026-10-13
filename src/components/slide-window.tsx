@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 /**
  * Окно из N соседних слайдов в горизонтальной ленте со scroll-snap (на широком экране — 2 слайда, на узком — 1).
@@ -40,5 +40,48 @@ export function useSlideWindow(count: number, wideQuery = "(min-width: 1024px)",
     goTo(base + d);
   }, [goTo, cur, perView]);
   const onScroll = () => { const el = scroller.current; if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / (el.clientWidth / perView))); };
-  return { scroller, perView, cur, maxStart, goTo, step, onScroll };
+
+  // Ширина окна или число слайдов изменились (фильтры сузили список): прокрутка не должна остаться за последним слайдом.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !el.clientWidth) return;
+    const max = maxStart * (el.clientWidth / perView);
+    if (el.scrollLeft > max + 1) el.scrollTo({ left: max, behavior: "auto" });
+  }, [maxStart, perView]);
+
+  // Перетаскивание мышью (колесо/тачпад/свайп работают сами — это нативная прокрутка со scroll-snap): тянем ленту, на отпускании «прилипаем» к слайду.
+  const dragged = useRef(false);
+  const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
+    const el = scroller.current;
+    if (e.pointerType !== "mouse" || e.button !== 0 || !el || el.scrollWidth <= el.clientWidth + 1) return;
+    if ((e.target as HTMLElement).closest("input,textarea,select,option,[data-no-drag]")) return;
+    const x0 = e.clientX, left0 = el.scrollLeft;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0;
+      if (!moved && Math.abs(dx) > 6) {
+        moved = true;
+        el.style.scrollSnapType = "none"; el.style.scrollBehavior = "auto"; el.style.cursor = "grabbing"; el.style.userSelect = "none";
+      }
+      if (moved) el.scrollLeft = left0 - dx;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (!moved) return;
+      dragged.current = true;
+      window.setTimeout(() => { dragged.current = false; }, 0);
+      el.style.scrollSnapType = ""; el.style.scrollBehavior = ""; el.style.cursor = ""; el.style.userSelect = "";
+      goTo(Math.round(el.scrollLeft / (el.clientWidth / perView)));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
+  // После перетаскивания «клик» по плитке под курсором не нужен.
+  const onClickCapture = (e: ReactMouseEvent<HTMLElement>) => { if (dragged.current) { e.stopPropagation(); e.preventDefault(); } };
+  /** Разложить на ленту: <div ref={scroller} onScroll={onScroll} {...dragProps}> */
+  const dragProps = { onPointerDown, onClickCapture };
+  return { scroller, perView, cur, maxStart, goTo, step, onScroll, dragProps };
 }

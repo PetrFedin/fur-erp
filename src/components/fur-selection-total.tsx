@@ -12,7 +12,9 @@ import { shortMaterialName } from "@/lib/material-name";
 import { CAROUSEL_ARROW } from "@/components/tile-carousel";
 import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
-import { RawCards } from "@/app/(app)/dashboard/raw-block";
+import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
+import { useSlideWindow } from "@/components/slide-window";
+import { SourceSplit } from "@/components/source-split";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
 import { FurOrdersTable, type OrderInfo } from "@/components/fur-orders-table";
@@ -83,7 +85,7 @@ export function FurSelectionTotal({
    * Плитки сырья и оплат, которые пересчитываются по фильтрам таблицы: без фильтров показывается `tiles` (серверные плитки Главной, цифры те же),
    * при любом фильтре/поиске/датах — плитки по отфильтрованным лотам (лоты несут paid/due для оплат). `after` — то, что идёт под плитками (формы подкладки).
    */
-  raw?: { tiles: ReactNode; after?: ReactNode; c4: "on" | "off"; fur: { incl: FlowFigures; excl: FlowFigures }; lining: { incl: FlowFigures; excl: FlowFigures }; headerEnd?: ReactNode; rows: RawTableRow[] };
+  raw?: { tiles: ReactNode; after?: ReactNode; c4: "on" | "off"; fur: { incl: FlowFigures; excl: FlowFigures }; lining: { incl: FlowFigures; excl: FlowFigures }; headerEnd?: ReactNode; rows: RawTableRow[]; /** Плитки оплат Главной (PayTiles bare) для слайда «Все виды меха» без фильтров. */ pay?: ReactNode };
   lots: FurLot[];
   kind?: FurKind;
   /** Общий год из шапки (cookie yearFilter): лоты уже отфильтрованы им; локальный «Год закупки» сужает внутри. */
@@ -145,28 +147,41 @@ export function FurSelectionTotal({
   }, [lots, needle, dateFrom, dateTo]);
   const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
   // Слайды ряда плиток: «Тотал» (все виды / ткани с учётом фильтров) → по одному слайду на вид меха (ткань). Слайд меняет только плитки, таблица и фильтры не трогаются.
-  const [slide, setSlide] = useState("");
   const slideKeys = useMemo(() => {
     if (!raw || lockItem) return [] as string[];
     const have = Array.from(new Set(table.filteredLots.map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
     const extra = kind === "fur" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
     return [...have, ...extra];
   }, [raw, lockItem, table.filteredLots, kind, noLotsKinds, filters.item]);
-  const slideNow = slideKeys.includes(slide) ? slide : "";
-  const slideIdx = slideNow ? slideKeys.indexOf(slideNow) + 1 : 0;
-  const goSlide = (i: number) => { const n = slideKeys.length + 1; const j = ((i % n) + n) % n; setSlide(j === 0 ? "" : slideKeys[j - 1]); };
-  const tileData = useMemo(() => {
-    if (!raw || (!isFiltered && !slideNow)) return null;
-    const ls = slideNow ? table.filteredLots.filter((l) => l.item === slideNow) : table.filteredLots;
+  // Лента слайдов (прокрутка колесом/тачпадом/свайпом/перетаскиванием со scroll-snap) — тот же механизм, что в TileCarousel.
+  const sw = useSlideWindow(slideKeys.length + 1, "(min-width: 1024px)", 1);
+  const slideIdx = slideKeys.length ? sw.cur : 0;
+  const slideNow = slideIdx > 0 ? slideKeys[slideIdx - 1] ?? "" : "";
+  const goSlide = (i: number) => { const n = slideKeys.length + 1; sw.goTo(((i % n) + n) % n); };
+  // Плитки одного набора лотов: те же flowOf/figures, что на Главной; деньги оплат — доли аукционов по стоимости лота.
+  const tilesOf = (ls: FurLot[], item: string) => {
     const fl = flowOf(ls);
-    const pair = { incl: figures(fl, { vat: "incl", c4: raw.c4 }), excl: figures(fl, { vat: "excl", c4: raw.c4 }) };
+    const pair = { incl: figures(fl, { vat: "incl", c4: raw?.c4 ?? "off" }), excl: figures(fl, { vat: "excl", c4: raw?.c4 ?? "off" }) };
     // Вид без лотов с $ (рысь): цена $ по расчёту позиций закупки — как в таблице и на Главной.
-    const plan = slideNow ? planUsdAvg(ls, fl) : null;
+    const plan = item ? planUsdAvg(ls, fl) : null;
     if (plan != null) for (const v of ["incl", "excl"] as const) pair[v] = { ...pair[v], usdAvg: plan, usdRemAvg: plan, usdQty: pair[v].recvQty, usdRemQty: pair[v].remQty, usdBySource: { direct: 0, eur: 0, rub: 0, calc: pair[v].recvQty } };
     const paid = ls.reduce((a, l) => a + (l.paid ?? 0), 0);
     const due = ls.reduce((a, l) => a + (l.due ?? 0), 0);
     return { pair, paid, due, rows: rawRowsFromLots(ls) };
-  }, [raw, isFiltered, slideNow, table.filteredLots]);
+  };
+  const slides = useMemo(() => {
+    if (!raw || lockItem || !slideKeys.length) return null;
+    return ["", ...slideKeys].map((k) => {
+      const ls = k ? table.filteredLots.filter((l) => l.item === k) : table.filteredLots;
+      return { key: k, lots: ls, data: k || isFiltered ? tilesOf(ls, k) : null };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, lockItem, slideKeys, table.filteredLots, isFiltered]);
+  const tileData = useMemo(() => {
+    if (!raw || !isFiltered || !lockItem) return null;
+    return tilesOf(table.filteredLots, "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, isFiltered, lockItem, table.filteredLots]);
   const options = useMemo(() => {
     const o = Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>;
     // Вид меха без лотов (сырьё подрядчика): есть в списке с пометкой «лотов нет» — как на Главной; выбор даёт пустую таблицу с пояснением.
@@ -510,8 +525,7 @@ export function FurSelectionTotal({
       </span>
     </div>
   ) : null;
-  const slideBar = slideCtl ? <div className="flex items-center justify-end px-1">{slideCtl}</div> : null;
-
+  
   const controls: BarControl[] = [
     ...shownKeys.map((k): BarControl => ({
       type: "multi",
@@ -557,22 +571,34 @@ export function FurSelectionTotal({
 
       {raw ? (
         <>
-          {tileData ? (
-            <RawCards
-              key="raw-filtered"
-              view={kind}
-              rows={tileData.rows}
-              fur={kind === "fur" ? tileData.pair : raw.fur}
-              lining={kind === "lining" ? tileData.pair : raw.lining}
-              c4={raw.c4}
-              headerEnd={raw.headerEnd}
-              titleSuffix={slideNow ? (noLotsKinds ?? []).includes(slideNow) && !table.filteredLots.some((l) => l.item === slideNow) ? slideNow : slideNow : undefined}
-              headerExtra={slideCtl}
-              pay={<FilteredPayTiles figs={tileData.pair.incl} paid={tileData.paid} due={tileData.due} c4={raw.c4} />}
-            />
-          ) : slideKeys.length > 0 ? (
-            // Без фильтров и на слайде «Тотал» — серверные плитки Главной (те же цифры); стрелки слайдов — отдельной строкой над рядом.
-            <div className="flex flex-col gap-1">{slideBar}{raw.tiles}</div>
+          {slides ? (() => {
+            const pane: RawSlide[] = slides.map((sl) => {
+              const d = sl.data;
+              const fur = kind === "fur" && d ? d.pair : raw.fur;
+              const lining = kind === "lining" && d ? d.pair : raw.lining;
+              const own = kind === "fur" ? fur : lining;
+              return {
+                key: sl.key, label: sl.key || (kind === "fur" ? "Все виды меха" : "Все ткани"), fur, lining,
+                pay: d ? <FilteredPayTiles figs={d.pair.incl} paid={d.paid} due={d.due} c4={raw.c4} /> : raw.pay ?? null,
+                below: kind === "fur" ? <SourceSplit lots={sl.lots} total={own} /> : null,
+              };
+            });
+            const curData = slides[Math.min(slideIdx, slides.length - 1)]?.data;
+            return (
+              <RawCards key="raw-slides" view={kind} slides={pane} slideWindow={sw}
+                rows={curData?.rows ?? raw.rows}
+                fur={kind === "fur" && curData ? curData.pair : raw.fur}
+                lining={kind === "lining" && curData ? curData.pair : raw.lining}
+                c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={slideNow || undefined} headerExtra={slideCtl} />
+            );
+          })() : lockItem ? (
+            <>
+              {tileData ? (
+                <RawCards key="raw-filtered" view={kind} rows={tileData.rows} fur={tileData.pair} lining={raw.lining} c4={raw.c4} headerEnd={raw.headerEnd}
+                  pay={<FilteredPayTiles figs={tileData.pair.incl} paid={tileData.paid} due={tileData.due} c4={raw.c4} />} />
+              ) : raw.tiles}
+              {kind === "fur" ? <SourceSplit lots={table.filteredLots} total={tileData ? tileData.pair : raw.fur} /> : null}
+            </>
           ) : raw.tiles}
           {isFiltered ? (
             <div className="px-1 text-[11px] leading-4 text-neutral-500" data-testid="tiles-filtered">

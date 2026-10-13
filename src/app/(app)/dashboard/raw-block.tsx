@@ -15,6 +15,7 @@ import { shortMaterialName } from "@/lib/material-name";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead } from "./tile";
 import { BridgeHint, type ModeInfo } from "./mode-line";
+import type { useSlideWindow } from "@/components/slide-window";
 
 type Pair = { incl: FlowFigures; excl: FlowFigures };
 
@@ -73,12 +74,45 @@ function Duo({ children }: { children: React.ReactNode }) {
   return <div className="mt-2 grid grid-cols-1 gap-x-2 first:mt-1 xl:grid-cols-2 [&>*]:!mt-2 xl:[&>*]:!mt-0 [&_.tabular-nums]:whitespace-nowrap">{children}</div>;
 }
 
+/** Слайд ряда «Сырьё | Оплаты»: плитки одного вида меха (или «Все виды меха») + то, что под ними (разбивка «Куплено»). */
+export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pay: React.ReactNode; below?: React.ReactNode };
+
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»).
  *  Если передан pay (три плитки оплат), они встают в ТОТ ЖЕ ряд: «Сырьё | Оплаты» — шесть плиток в одну строку на мониторе, тонкая линия между группами. */
-export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd, titleSuffix, headerExtra }: { /** Подпись текущего слайда в заголовке ряда («· Лиса»). */ titleSuffix?: string; /** Элементы рядом с заголовком (стрелки и точки слайдов). */ headerExtra?: React.ReactNode; view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
+export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd, titleSuffix, headerExtra, slides, slideWindow }: { /** Слайды ряда: плитки всех слайдов лежат в одной ленте с прокруткой вправо-влево (колесо, тачпад, свайп, перетаскивание), заголовок ряда остаётся на месте. rows/fur/lining — текущего слайда (для окна цен). */ slides?: RawSlide[]; slideWindow?: ReturnType<typeof useSlideWindow>; /** Подпись текущего слайда в заголовке ряда («· Лиса»). */ titleSuffix?: string; /** Элементы рядом с заголовком (стрелки и точки слайдов). */ headerExtra?: React.ReactNode; view: "fur" | "lining"; rows: RawTableRow[]; fur: Pair; lining: Pair; c4: "on" | "off"; vatRates?: VatTriple; /** Плитки оплат (PayTiles bare) — вторая группа ряда. */ pay?: React.ReactNode; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** Устарело: заголовок ряда теперь всегда в WidgetRow. */ hideLabel?: boolean }) {
   const { mode: vat } = useVatDisplay();
   const [priceCol, setPriceCol] = useState<null | "recv" | "used" | "rem">(null);
   const modal = priceCol ? <PriceModal col={priceCol} rows={rows.filter((r) => r.kind === view)} vat={vat} fur={view === "lining" ? null : fur[vat]} lining={view === "fur" ? null : lining[vat]} onClose={() => setPriceCol(null)} /> : null;
+  if (slides && slideWindow) {
+    const { scroller, onScroll, dragProps, cur, step } = slideWindow;
+    return (
+      <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerExtra={headerExtra} headerEnd={headerEnd}>
+        <div ref={scroller} onScroll={onScroll} {...dragProps} tabIndex={0} data-testid="raw-slides" role="group" aria-roledescription="карусель" aria-label="Сырьё и оплаты: слайды по видам"
+          onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowRight") { e.preventDefault(); step(1); } else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); } }}
+          className="-mx-1 flex snap-x snap-mandatory items-start overflow-x-auto overscroll-x-contain motion-safe:scroll-smooth [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 [&::-webkit-scrollbar]:hidden">
+          {slides.map((s, i) => (
+            <div key={s.key || "all"} data-slide={s.key || "all"} role="group" aria-roledescription="слайд" aria-label={`${s.label}, ${i + 1} из ${slides.length}`} aria-hidden={i !== cur} className="min-w-full max-w-full snap-start px-1">
+              <div className="raw-row raw-row-pay">
+                <div className="raw-group" role="group" aria-label="Сырьё">
+                  <div className="raw-group-label">Сырьё</div>
+                  <div className="raw-tiles">
+                    <RawTriple view={view} fur={s.fur} lining={s.lining} c4={c4} compact onOpen={setPriceCol} vatRates={i === cur ? vatRates : undefined} />
+                  </div>
+                </div>
+                <div className="raw-divider" aria-hidden />
+                <div className="raw-group" role="group" aria-label="Оплаты">
+                  <div className="raw-group-label">Оплаты</div>
+                  <div className="raw-tiles raw-pay">{s.pay}</div>
+                </div>
+              </div>
+              {s.below}
+            </div>
+          ))}
+        </div>
+        {modal}
+      </WidgetRow>
+    );
+  }
   if (pay) {
     return (
       <WidgetRow id={`raw-${view}`} title={(view === "fur" ? "Сырьё и оплаты — мех" : "Сырьё и оплаты — подкладка") + (titleSuffix ? ` · ${titleSuffix}` : "")} headerExtra={headerExtra} headerEnd={headerEnd}>

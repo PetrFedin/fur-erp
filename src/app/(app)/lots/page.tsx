@@ -274,6 +274,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     return [k, { units: os.reduce((a, o) => a + o.qty, 0), orders: os.length, work: os.reduce((a, o) => a + o.work, 0) }];
   }));
   const tilesHeaderEnd = <Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>;
+  const payTiles = <PayTiles bare d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />;
   const tiles = (
     <div key="raw-tiles" data-raw-tiles>
       <RawCards
@@ -283,7 +284,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
         lining={dash.raw.lining}
         c4={c4Mode}
         headerEnd={tilesHeaderEnd}
-        pay={<PayTiles bare d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />}
+        pay={payTiles}
       />
     </div>
   );
@@ -352,7 +353,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
               <p>Те же цифры, что в блоке «Сырьё» на Главной: <b>Куплено = Использовано + Остаток</b> (без 4%). 4% начисляется только при списании в ТЗ и показано в «Использовано» отдельной строкой «с 4%». Нажмите на плитку — цены по видам. Справа за тонкой линией: Оплачено и К оплате по меху (с НДС, 4% отдельно не добавляются).</p>
             </InfoHint>
           </div>
-          <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable }} />
+          <FurSelectionTotal noLotsKinds={furKinds.noLots} noLotsInfo={noLotsInfo} lots={furTabLots} kind="fur" globalYear={year} initialQuery={sp} raw={{ tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles }} />
         </section>
       ) : (
         <section aria-labelledby="raw-lining" className="space-y-3">
@@ -369,7 +370,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             globalYear={year}
             initialQuery={sp}
             raw={{
-              tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable,
+              tiles, c4: c4Mode, fur: dash.raw.fur, lining: dash.raw.lining, headerEnd: tilesHeaderEnd, rows: dash.rawTable, pay: payTiles,
             }}
           />
         </section>

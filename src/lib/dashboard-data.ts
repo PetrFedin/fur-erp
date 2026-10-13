@@ -553,7 +553,7 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
     remIncl: used ? 0 : o.incl, remExcl: used ? 0 : o.excl,
     vatRate: 22, usdPrice: null, usdSource: "none", usdQty: 0, usdSubtotal: 0, usdUsedQty: 0, usdUsedSubtotal: 0, usdRemQty: 0, usdRemSubtotal: 0,
     usdQtyDirect: 0, usdQtyEur: 0, usdQtyRub: 0, usdQtyCalc: 0, hammerExcl: null, hammerIncl: null, hammerSource: null, hamQty: 0, hamSubExcl: 0, hamSubIncl: 0, usages: [],
-    purchaseStatus: used ? "RECEIVED" : "DRAFT", paid: money.paid, due: money.due, usdPlanQty: plan?.q, usdPlanSubtotal: plan?.s, positions,
+    purchaseStatus: used ? "RECEIVED" : "DRAFT", source: used ? "contractor" : "ordered", paid: money.paid, due: money.due, usdPlanQty: plan?.q, usdPlanSubtotal: plan?.s, positions,
   });
   const syntheticLots: FurLot[] = [
     ...unreceived.byFur.map((g) => synth(`ordered:${g.label}`, g.label, g.names[0] ?? "Заказано", 2026, g.ordered, null, { paid: g.paid, due: g.due }, g.usd, g.positions)),
