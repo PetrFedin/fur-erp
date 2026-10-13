@@ -93,7 +93,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
   ];
   return (
     <section aria-label={`Карточка ТЗ ${pipeTitle(p)}`} className={`rounded-lg border bg-white p-3 ${p.overdue ? "border-red-500" : "border-neutral-200"}`}>
-      <h3 className="mb-2 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 text-base font-semibold">
+      <h3 className="mb-2 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 block-title">
         <span>{p.articleLabel} · {pipeTitle(p)}</span> <StageChip stage={p.stage} word={p.stageWord} />
         <Link href={closeHref} className={BTN + " ml-auto"} aria-label="Закрыть карточку ТЗ">Закрыть</Link>
       </h3>
@@ -220,7 +220,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
       </div>
       {open.length > 0 && (
         <section id="cell" aria-label="ТЗ ячейки" className="flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-3">
-          <h3 className="mb-1 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 text-sm font-semibold">
+          <h3 className="mb-1 flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-2 block-title">
             {cFur === "*" ? "Все виды меха" : cFur} · {cStage === "*" ? "все стадии" : STAGE_STYLES[cStage as Stage]?.label} · <span className="font-normal text-neutral-500">{tzCountText(uniqueOrderCount(open), open.length)}</span>
             <Link href={href({ cell: "" })} className={BTN + " ml-auto"}>Закрыть</Link>
           </h3>

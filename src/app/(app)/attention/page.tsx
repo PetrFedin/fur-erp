@@ -111,7 +111,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
       )}
 
       {!showAll && decisions.length + infos.length > 0 && (
-        <h2 className="text-base font-semibold">Пробелы в данных</h2>
+        <h2 className="block-title">Пробелы в данных</h2>
       )}
 
       {all.length === 0 ? (

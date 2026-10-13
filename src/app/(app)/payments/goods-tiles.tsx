@@ -135,7 +135,7 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
               <div>
-                <h2 id="goods-dlg-title" className="text-base font-semibold">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</h2>
+                <h2 id="goods-dlg-title" className="block-title">{open === "debt" ? "К оплате — за что не оплатили" : "Стоимость и оплачено — по партиям"}</h2>
                 {open === "debt" ? <div className="text-sm text-neutral-700">К оплате <span className="font-medium text-amber-700">{rub(balance)}</span></div> : null}
               </div>
               <button type="button" onClick={() => ref.current?.close()} autoFocus aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>

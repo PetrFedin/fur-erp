@@ -302,7 +302,7 @@ export function DocsPayPanel({ panel, compact = false, verify, canVerify, paymen
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" data-docs-pay={panel.id}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h3 className="text-base font-semibold">
+        <h3 className="block-title">
           {compact ? panel.title : "Документы и оплата"}
           {!compact && panel.title && <span className="ml-2 text-sm font-normal text-neutral-500">{panel.title}</span>}
         </h3>

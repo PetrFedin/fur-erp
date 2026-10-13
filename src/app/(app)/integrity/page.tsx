@@ -76,7 +76,7 @@ export default async function IntegrityPage() {
           </WidgetRow>
           {groups.map((g) => (
             <section key={g} className="space-y-1.5">
-              <h2 className="text-base font-semibold">{g}</h2>
+              <h2 className="block-title">{g}</h2>
               <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
                 {attention.filter((c) => c.group === g).map((c) => {
                   const t = tone(c);

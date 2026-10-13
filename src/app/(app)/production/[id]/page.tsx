@@ -462,20 +462,20 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       ) : null}
 
       {workCents > 0 || paidCents > 0 ? (
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" id="work-pay">
-          <b className="font-semibold">Оплата работы</b>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" id="work-pay">
+          <h2 className="block-title">Оплата работы</h2>
           <span>работа <b className="font-medium tabular-nums">{formatMoney((workCents / 100).toFixed(2))}</b></span>
           <span>оплачено <b className="font-medium tabular-nums">{formatMoney((paidCents / 100).toFixed(2))}</b></span>
           <span>{payRemainCents < -1 ? "оплачено сверх работы" : "остаток"} <b className={"font-medium tabular-nums " + (payRemainCents > 1 ? "text-amber-700" : "")}>{formatMoney((Math.abs(payRemainCents) / 100).toFixed(2))}</b></span>
           {order.client ? <Link href={payLink} className="ml-auto text-xs text-blue-700 hover:underline" title="Оплаты заказчика: в оплатах нет фильтра по одному ТЗ, открывается список по партии этого ТЗ">{order.batch ? `оплаты партии ${order.batch.number} →` : "оплаты заказчиков →"}</Link> : null}
-        </p>
+        </div>
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
 
       <section aria-label="Расчёт" id="calc" className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">Расчёт</h2>
+          <h2 className="block-title">Расчёт</h2>
           <InfoHint label="Как читать: Расчёт" wide>
             <p><b>Откуда и куда:</b> лот → цена и ставка НДС из закупки (ссылки «лот» и «закупка» в строке), списание уменьшает остаток лота и растёт в «Сырьё»; статья расхода — из справочника «Статьи расходов»; итог идёт на Главную, в «Изделия» и в «Партии». </p><p className="mt-1">Что списано в ТЗ и как из этого складывается себестоимость. Лот, количество и «4%» в строке, статья, описание и сумма расхода, цена работы правятся по месту (Enter или уход курсора сохраняет); итоги пересчитываются.</p>
             <p className="mt-1">Цена за единицу — свойство лота из закупки (менять в закупке). Ставка НДС по умолчанию берётся из лота (22%, у закупок 2025 г. — 20%); в этом ТЗ её можно исправить по месту (поле «НДС, %»; пусто или как в лоте — без изменения): сумма с НДС остаётся, пересчитывается разбивка «без НДС / НДС». {c4Mode === "on" ? "Режим «С 4%»: к меху и подкладке добавлено 4% (цена × 1,04); работа и расходы не облагаются." : "Режим «Без 4%»: цена лота как в закупке."}</p>

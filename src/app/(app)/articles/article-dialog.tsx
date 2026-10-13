@@ -26,7 +26,7 @@ export function ArticleDialog({ label, title, tzHref, tzCount, children }: { lab
         >
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-2">
-              <h2 id={titleId} className="text-base font-semibold">{title}</h2>
+              <h2 id={titleId} className="block-title">{title}</h2>
               <button type="button" autoFocus onClick={() => ref.current?.close()} aria-label="Закрыть окно" className="btn-accent shrink-0 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>
             </div>
             <div className="flex flex-col gap-2 text-sm text-neutral-700">{children}</div>

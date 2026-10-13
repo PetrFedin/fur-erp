@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 function Block({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4">
-      <h2 className="flex items-center gap-2 text-base font-semibold">{title}{hint ? <InfoHint wide label={`О блоке «${title}»`}>{hint}</InfoHint> : null}</h2>
+      <h2 className="flex items-center gap-2 block-title">{title}{hint ? <InfoHint wide label={`О блоке «${title}»`}>{hint}</InfoHint> : null}</h2>
       {children}
     </section>
   );

@@ -331,7 +331,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
 
       {/* 2. Паспорт: ключевые поля сверху, остальные ниже (свёрнуты) */}
       <div className="flex flex-col gap-2">
-        <h2 className="flex items-center gap-2 text-base font-semibold">
+        <h2 className="flex items-center gap-2 block-title">
           Паспорт лота
           <InfoHint label="Паспорт лота" wide>
             <p>Карточка лота — первоисточник: все поля правятся здесь по месту (Enter или уход из поля — сохранить, Esc — отмена). Цена и количество пересчитываются через окно «что изменится»: видно, как изменятся лот, ТЗ, где он списан, и состав цены; запись — только после подтверждения.</p>

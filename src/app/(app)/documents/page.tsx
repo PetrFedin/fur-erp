@@ -207,7 +207,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       {/* ---------- Все документы */}
       <section id="drive" className="flex scroll-mt-4 flex-col gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
+          <h2 className="flex items-center gap-2 block-title">
             Все документы
             <span className="text-sm font-normal text-neutral-500">
               {docsFiltered.length} файлов · не привязаны: <strong className={unlinked > 0 ? "text-amber-700" : ""}>{unlinked}</strong>
@@ -493,7 +493,7 @@ function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionK
   return (
     <section className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <h2 className="text-base font-semibold">{SECTION_TITLES[section]}</h2>
+        <h2 className="block-title">{SECTION_TITLES[section]}</h2>
         {/* Процент — только в плитках сверху; здесь число пробелов. */}
         {(() => {
           const n = rows.filter((r) => r.gaps.length > 0).length;
@@ -534,7 +534,7 @@ function RegistryBlock() {
   return (
     <details aria-label="Покрытие реестром" className="group rounded-lg border border-neutral-200 bg-neutral-50 p-3">
       <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="flex items-center gap-2 text-base font-semibold">
+        <h2 className="flex items-center gap-2 block-title">
           Покрытие реестром
           <InfoHint wide label="Что такое покрытие реестром и как обновить сверку">
             <div className="space-y-2">

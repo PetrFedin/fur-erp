@@ -43,7 +43,7 @@ export function DriveDocuments({
   const groups = groupDocs(docs);
   return (
     <section className="flex flex-col gap-2" data-drive-docs>
-      <h3 className="text-sm font-semibold text-neutral-800">
+      <h3 className="block-title">
         {title} <span className="font-normal text-neutral-500">({countLabel(groups.length, docs.length)})</span>
       </h3>
       {docs.length > 0 ? (

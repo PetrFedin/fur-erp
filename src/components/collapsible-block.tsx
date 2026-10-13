@@ -30,7 +30,7 @@ export function CollapsibleBlock({
     >
       <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="text-neutral-500 transition-transform group-open:rotate-90">›</span>
-        <span className="font-semibold text-neutral-900">{title}</span>
+        <span className="block-title">{title}</span>
         <span className={cn("text-xs", problem ? "font-medium text-red-700" : "text-neutral-600")}>{summary}</span>
       </summary>
       <div className="border-t border-neutral-100 p-2 sm:p-3">{children}</div>

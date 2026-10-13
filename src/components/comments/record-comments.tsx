@@ -22,7 +22,7 @@ export async function RecordComments({ entityType, entityId }: { entityType: str
   const open = rows.filter((r) => r.status === "OPEN").length;
   return (
     <details className="rounded-md border border-neutral-200 bg-white text-sm" data-record-comments data-comment-anchor="record-comments" data-comment-label="Комментарии к записи">
-      <summary className="cursor-pointer select-none px-3 py-2 font-medium text-neutral-700">
+      <summary className="block-title cursor-pointer select-none px-3 py-2">
         Комментарии к записи {rows.length > 0 ? `(${rows.length}${rows.length === 20 ? "+" : ""}${open ? `, открытых ${open}` : ""})` : "— пока нет"}
       </summary>
       <div className="flex flex-col gap-2 border-t border-neutral-100 px-3 py-2">

@@ -233,3 +233,10 @@ table thead :is(th, td) { vertical-align: middle; }
 table thead tr:last-child > th { height: 2.5rem; }
 table thead tr:not(:last-child) > th:not([rowspan]) { height: 1.75rem; }
 table thead th { line-height: 1.15; }
+
+/* Единый заголовок блока (как «Расчёт» на карточке ТЗ): 16px, полужирный, цвет текста страницы. */
+.block-title {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}

@@ -437,6 +437,8 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   if ("error" in auc) return { error: auc.error };
   const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim() || null;
   const transferDocument = (formData.get("transferDocument") as string)?.trim() || null;
+  // Примечание правится той же формой; если поля в форме нет (старые вызовы) — не трогаем.
+  const notesField = formData.has("notes") ? { notes: (formData.get("notes") as string).trim().slice(0, 4000) || null } : {};
 
   await prisma.purchase.updateMany({
     where: { id: purchaseId, organizationId: session.user.organizationId, status: { notIn: ["RECEIVED", "CANCELLED"] } },
@@ -452,6 +454,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
       auctionId: auc.auctionId,
       invoiceNumber,
       transferDocument,
+      ...notesField,
       orderDate: new Date(parsed.data.orderDate),
     },
   });
@@ -477,6 +480,7 @@ async function updateReceivedPurchaseHeader(
   if (!dateRaw || parseDateInput(dateRaw) === null) return { error: "Укажите корректную дату заказа" };
   const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim().slice(0, 200) || null;
   const transferDocument = (formData.get("transferDocument") as string)?.trim().slice(0, 200) || null;
+  const notesField = formData.has("notes") ? { notes: (formData.get("notes") as string).trim().slice(0, 4000) || null } : {};
   const auc = await purchaseAuctionFromForm(orgId, formData, purchase.auctionSession);
   if ("error" in auc) return { error: auc.error };
 
@@ -498,6 +502,7 @@ async function updateReceivedPurchaseHeader(
       orderDate: new Date(dateRaw),
       invoiceNumber,
       transferDocument,
+      ...notesField,
       auctionSession: auc.auctionSession,
       auctionId: auc.auctionId,
     },

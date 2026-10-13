@@ -17,7 +17,7 @@ export async function UnallocatedAdvancesBlock({ orgId }: { orgId: string }) {
   return (
     <section aria-label="Неразнесённые авансы" className="rounded-lg border border-neutral-200 bg-white p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">
+        <h2 className="block-title">
           Неразнесённые авансы <span className="font-normal text-neutral-500">· {list.length} на {formatMoney(total.toFixed(2))}</span>
           <span className="ml-1.5 align-middle"><InfoHint wide label="Что это">
             <p>Часть платежа заказчика, не отнесённая ни к одному ТЗ. На долг заказчиков не влияет (учтена отдельной строкой), в число задач не входит.</p>

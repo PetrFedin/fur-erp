@@ -18,7 +18,7 @@ export function LotsDetails({ summary, children, id = "tz-composition" }: { summ
   }, [id]);
   return (
     <details ref={ref} id={id} className="group scroll-mt-4 rounded-lg border border-neutral-200 bg-white px-3 py-2">
-      <summary className="flex cursor-pointer list-none items-center gap-2 text-base font-semibold [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 block-title [&::-webkit-details-marker]:hidden">
         <span className="inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
         {summary}
       </summary>

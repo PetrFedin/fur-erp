@@ -29,7 +29,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
   return (
     <section id="unallocated" aria-label="Неразнесённые авансы" className="scroll-mt-20 flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold">
+        <h2 className="block-title">
           <span className="inline-flex items-center gap-1.5">Неразнесённые авансы <span className="font-normal text-neutral-500">· {pays.length} на {formatMoney(total.toFixed(2))}</span>
             <InfoHint label="Про неразнесённые авансы" wide>
               <p>Часть платежа заказчика, не отнесённая ни к одному ТЗ. В долге заказчиков она уже учтена отдельной строкой, поэтому разнесение итог долга не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Эта сумма — «Аванс без партии» на странице «Партии».</p>

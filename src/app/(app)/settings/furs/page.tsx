@@ -57,7 +57,7 @@ export default async function FursPage({ searchParams }: PageProps<"/settings/fu
 
       {(usage.unmatchedMaterials.length > 0 || usage.unmatchedOrders.length > 0) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
-          <h2 className="mb-2 text-base font-semibold">Не сопоставлено с видом меха — ждёт ручного решения</h2>
+          <h2 className="mb-2 block-title">Не сопоставлено с видом меха — ждёт ручного решения</h2>
           {usage.unmatchedMaterials.length > 0 && (
             <p className="mb-2">
               Материалы (не подкладка): {usage.unmatchedMaterials.map((m) => `«${m.name}» (лотов ${m.lots}, позиций ${m.items})`).join("; ")}.

@@ -12,8 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ArticleForm } from "../article-form";
 import { saveArticleForm } from "../actions";
-import { BomAddForm } from "./bom-add-form";
-import { BomRemoveButton } from "./bom-remove-button";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { orderLabel, truncate } from "@/lib/fittings";
@@ -39,27 +37,11 @@ import { canEditProduction } from "@/lib/production-access";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
-import { cleanNote } from "@/lib/note-tags";
 
 /** Тонкая вертикальная линия слева у первой колонки блока. */
 const BL = " border-l border-neutral-200";
 
-const UNIT_LABELS: Record<string, string> = {
-  PIECE: "шт.",
-  KG: "кг",
-  M2: "м²",
-  M: "м",
-  SET: "компл.",
-};
 
-const MOVE_LABEL: Record<string, string> = {
-  PRODUCTION_IN: "Выпуск по ТЗ",
-  WRITE_OFF_OUT: "Списание",
-  ADJUSTMENT_IN: "Корректировка +",
-  ADJUSTMENT_OUT: "Корректировка −",
-  TRANSFER_IN: "Перемещение (приход)",
-  TRANSFER_OUT: "Перемещение (расход)",
-};
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -92,15 +74,10 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.models);
-  const [model, materials, fittings, categoryOptions, orders, stocks, movements, shipments] = await Promise.all([
+  const [model, fittings, categoryOptions, orders, shipments] = await Promise.all([
     prisma.productModel.findFirst({
       where: { id, organizationId: orgId },
-      include: { materials: { include: { rawMaterial: true }, orderBy: { id: "asc" } }, categoryRef: { select: { group: true } } },
-    }),
-    prisma.rawMaterial.findMany({
-      where: { organizationId: orgId, isActive: true },
-      select: { id: true, name: true, unit: true },
-      orderBy: { name: "asc" },
+      include: { categoryRef: { select: { group: true } } },
     }),
     prisma.fitting.findMany({
       where: { organizationId: orgId, productionOrder: { productModelId: id } },
@@ -114,13 +91,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       select: { id: true, number: true, workOrderNumber: true, status: true, batchId: true },
       orderBy: [{ createdAt: "desc" }],
     }),
-    prisma.finishedGoodsStock.findMany({ where: { organizationId: orgId, productModelId: id } }),
-    prisma.finishedGoodsMovement.findMany({
-      where: { organizationId: orgId, productModelId: id },
-      include: { productionOrder: { select: { id: true, number: true, workOrderNumber: true } } },
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      take: 15,
-    }),
     prisma.shipment.findMany({
       where: { organizationId: orgId, lines: { some: { productionOrder: { productModelId: id } } } },
       include: { lines: { orderBy: { id: "asc" }, select: { size: true, quantity: true, productionOrder: { select: { productModelId: true, number: true, workOrderNumber: true } } } } },
@@ -132,14 +102,13 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
   const c4 = await getCommission4Mode();
   const year = await getYearFilter();
-  const [drillAll, orderRows, planCount, supplyCount, fittingsCount, shipmentsCount, movementsCount] = await Promise.all([
+  const [drillAll, orderRows, planCount, supplyCount, fittingsCount, shipmentsCount] = await Promise.all([
     loadOrdersDrill(orgId, year, c4),
     loadOrderRows(orgId, year, c4),
     prisma.productionPlan.count({ where: { organizationId: orgId, OR: [{ modelId: id }, { articleCode: { equals: model.name, mode: "insensitive" } }] } }),
     prisma.supplyPlanEntry.count({ where: { organizationId: orgId, productModelId: id } }),
     prisma.fitting.count({ where: { organizationId: orgId, productionOrder: { productModelId: id } } }),
     prisma.shipment.count({ where: { organizationId: orgId, lines: { some: { productionOrder: { productModelId: id } } } } }),
-    prisma.finishedGoodsMovement.count({ where: { organizationId: orgId, productModelId: id } }),
   ]);
   const drill = drillAll.filter((o) => o.mid === id);
   const docs = orders.length
@@ -155,15 +124,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const batchCount = new Set(orders.filter((o) => o.status !== "CANCELLED" && o.batchId).map((o) => o.batchId)).size;
   const colors = Array.from(new Set(orderRows.filter((r) => r.modelId === id && drill.some((d) => d.id === r.id)).flatMap((r) => r.colors))).sort((a, b) => a.localeCompare(b, "ru"));
 
-  // Склад: остаток × средняя себестоимость завершённых ТЗ (как в списке «Изделия»); ТЗ в работе — отдельно, в «Себестоимости».
-  const done = drill.filter((o) => o.st === "COMPLETED");
-  const doneQty = done.reduce((a, o) => a + o.qty, 0);
-  const sI = sumOrders(done, "incl");
-  const sE = sumOrders(done, "excl");
-  const stockQty = stocks.reduce((a, s) => a + s.quantity.toNumber(), 0);
-  const legacy = stocks.reduce((a, s) => a + s.quantity.toNumber() * s.avgUnitCost.toNumber(), 0);
-  const stockIncl = doneQty > 0 ? (stockQty * sumTotal(sI)) / doneQty : legacy;
-  const stockExcl = doneQty > 0 ? (stockQty * sumTotal(sE)) / doneQty : legacy;
   const met = articleMetrics(drill);
   const all = sumOrders(drill, "incl");
   const unit = all.qty > 0 ? sumTotal(all) / all.qty : null;
@@ -181,7 +141,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <YearNote year={year} />
         <span className="ml-2 inline-flex">
           <InfoHint label="О карточке артикула" wide>
-            <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, склад и движения, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «Произведено» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость; склад и движения — текущие.</p>
+            <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «Произведено» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость.</p>
             <p className="mt-1">Кнопки ниже ведут в разделы с фильтром по этому артикулу; число — сколько записей, «—» — нет.</p>
           </InfoHint>
         </span>
@@ -197,7 +157,6 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         {!HIDDEN_MODULES.fittings && <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />}
         {!HIDDEN_MODULES.orderPlan && <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />}
         {!HIDDEN_MODULES.supplyPlan && <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />}
-        <SectionLink href="#stock" label="Остаток / движения" count={movementsCount} />
         <SectionLink href="#docs" label="Документы" count={docs.length} />
       </nav>
 
@@ -212,27 +171,62 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-              <TileHead>На складе и розница</TileHead>
-              <TileValue>{stockQty > 0 ? `${formatQty(stockQty)} шт.` : "—"}</TileValue>
-              <TileCaption>готовая продукция</TileCaption>
+              <TileHead>Розница</TileHead>
+              <TileValue>{price ? formatMoney(price.toFixed(2)) : "—"}</TileValue>
+              <TileCaption>розничная цена, с НДС</TileCaption>
               <TileList items={[
-                { k: "Стоимость остатка", v: stockQty > 0 ? <Money incl={stockIncl.toFixed(2)} excl={stockExcl.toFixed(2)} /> : "—" },
-                { k: "Розничная цена, с НДС", v: price ? formatMoney(price.toFixed(2)) : "—" },
                 { k: "Наценка", v: markup ? `×${markup.toFixed(2).replace(".", ",")}` : "—" },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
-              <InfoHint label="Как считается склад" wide align="right">
-                <p>Стоимость остатка = остаток × средняя себестоимость завершённых ТЗ артикула. Наценка = розничная цена ÷ себестоимость за изделие. Цена задаётся ниже, в «Реквизитах».</p>
+              <InfoHint label="Как считается наценка" wide align="right">
+                <p>Наценка = розничная цена ÷ себестоимость за изделие. Цена задаётся ниже, в «Реквизитах».</p>
               </InfoHint>
             </div>
           </div>
         }
       />
 
+      <CollapsibleBlock title="Реквизиты и цена" summary={`${price ? `розница ${formatMoney(price.toFixed(2))}` : "цена не задана"} · ${model.category?.trim() || "без категории"}`}>
+        <div className="flex flex-col gap-4">
+          <ArticleForm
+            mode="edit"
+            action={saveArticleForm.bind(null, id)}
+            categories={categoryOptions}
+            canCreateCategory={hasRole(session.user.role, ACCESS.categories)}
+            canEdit={canEdit}
+            initial={{
+              name: model.name,
+              salesCode: model.salesCode ?? "",
+              salesName: model.salesName ?? "",
+              aliases: model.aliases.join(", "),
+              category: model.category ?? "",
+              categoryRefId: model.categoryRefId,
+              sellingPrice: model.sellingPrice ? model.sellingPrice.toString() : "",
+              description: model.description ?? "",
+              isActive: model.isActive,
+            }}
+          />
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-neutral-100 pt-3 text-sm">
+            <dt className="text-neutral-500">Категория → группа</dt>
+            <dd>{model.category?.trim() || "—"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-500">группа «{group}»</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
+            <dt className="text-neutral-500">Мех (по ТЗ)</dt>
+            <dd>{met.furNames.length ? met.furNames.join(", ") : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
+            <dt className="text-neutral-500">Цвет (по ТЗ)</dt>
+            <dd>{colors.length ? colors.join(", ") : "—"}<Src href="/settings/colors" title="Справочник цветов" /></dd>
+            <dt className="text-neutral-500">НДС в списаниях</dt>
+            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v}%`).join(", ") : "—"}<span className="ml-2 text-xs text-neutral-400">задаётся в ТЗ (по умолчанию — ставка лота)</span></dd>
+            <dt className="text-neutral-500">Цена в ценообразовании</dt>
+            <dd>{price ? `${formatMoney(price.toFixed(2))} (с НДС)` : "не задана"}<Src href="/analytics/pricing" title="Ценообразование: какую цену заводить для нужной наценки" /></dd>
+            <dt className="text-neutral-500">Создан / изменён</dt>
+            <dd className="tabular-nums">{formatDate(model.createdAt)} / {formatDate(model.updatedAt)}</dd>
+          </dl>
+        </div>
+      </CollapsibleBlock>
+
       <Card>
         <CardHeader>
-          <CardTitle as="h2" className="flex items-center gap-1 text-base">
+          <CardTitle as="h2" className="flex items-center gap-1">
             Показатели по ТЗ
             <InfoHint label="Показатели" wide>
               <p>Считаются по ТЗ артикула теми же функциями, что в карточке ТЗ и на Главной. Основная цифра — с 4% (так мы платим), мелко под ней — без 4%; «с НДС / без НДС» — по переключателю в шапке.</p>
@@ -320,99 +314,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </CardContent>
       </Card>
 
-      <CollapsibleBlock title="Реквизиты и цена" summary={`${price ? `розница ${formatMoney(price.toFixed(2))}` : "цена не задана"} · ${model.category?.trim() || "без категории"}`}>
-        <div className="flex flex-col gap-4">
-          <ArticleForm
-            mode="edit"
-            action={saveArticleForm.bind(null, id)}
-            categories={categoryOptions}
-            canCreateCategory={hasRole(session.user.role, ACCESS.categories)}
-            canEdit={canEdit}
-            initial={{
-              name: model.name,
-              salesCode: model.salesCode ?? "",
-              salesName: model.salesName ?? "",
-              aliases: model.aliases.join(", "),
-              category: model.category ?? "",
-              categoryRefId: model.categoryRefId,
-              sellingPrice: model.sellingPrice ? model.sellingPrice.toString() : "",
-              description: model.description ?? "",
-              isActive: model.isActive,
-            }}
-          />
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 border-t border-neutral-100 pt-3 text-sm">
-            <dt className="text-neutral-500">Категория → группа</dt>
-            <dd>{model.category?.trim() || "—"}{group !== NO_GROUP ? <span className="ml-2 text-neutral-500">группа «{group}»</span> : null}<Src href="/settings/categories" title="Справочник категорий и групп" /></dd>
-            <dt className="text-neutral-500">Мех (по ТЗ)</dt>
-            <dd>{met.furNames.length ? met.furNames.join(", ") : "—"}<Src href="/settings/furs" title="Справочник видов меха" /></dd>
-            <dt className="text-neutral-500">Цвет (по ТЗ)</dt>
-            <dd>{colors.length ? colors.join(", ") : "—"}<Src href="/settings/colors" title="Справочник цветов" /></dd>
-            <dt className="text-neutral-500">НДС в списаниях</dt>
-            <dd>{met.vatRates.length ? met.vatRates.map((v) => `${v}%`).join(", ") : "—"}<span className="ml-2 text-xs text-neutral-400">задаётся в ТЗ (по умолчанию — ставка лота)</span></dd>
-            <dt className="text-neutral-500">Цена в ценообразовании</dt>
-            <dd>{price ? `${formatMoney(price.toFixed(2))} (с НДС)` : "не задана"}<Src href="/analytics/pricing" title="Ценообразование: какую цену заводить для нужной наценки" /></dd>
-            <dt className="text-neutral-500">Создан / изменён</dt>
-            <dd className="tabular-nums">{formatDate(model.createdAt)} / {formatDate(model.updatedAt)}</dd>
-          </dl>
-        </div>
-      </CollapsibleBlock>
-
-      <OrdersTree
-        orders={drill}
-        c4={c4}
-        id="model-tree"
-        title="ТЗ артикула и их состав"
-        modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
-        hint={<p>Каждое ТЗ раскрывается до строк списания: мех и подкладка по лотам (со ссылками на лот и закупку), шкуры подрядчика, расходы, работа. Номер ТЗ ведёт в его карточку.</p>}
-        empty="ТЗ по этому артикулу нет."
-      />
-      {cancelled.length > 0 && (
-        <p className="text-xs text-neutral-500">
-          Отменённые ТЗ в расчёты не входят:{" "}
-          {cancelled.map((o, i) => (
-            <span key={o.id}>{i > 0 ? ", " : ""}<Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link></span>
-          ))}
-        </p>
-      )}
-
-      <details id="stock" className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">Остаток и движения ({movementsCount})</summary>
-        <div className="mt-2 flex flex-col gap-3">
-          {stocks.length === 0 ? (
-            <p className="text-sm text-neutral-500">На складе нет</p>
-          ) : (
-            <Table>
-              <Thead><Tr><Th className="text-right" unit="шт.">Остаток</Th><Th className="text-right" unit="₽">Учётная себестоимость за ед.</Th></Tr></Thead>
-              <Tbody>
-                <Tr>
-                  <Td className="text-right tabular-nums">{stockQty > 0 ? formatQty(String(stockQty)) : <Dash />}</Td>
-                  <Td className="text-right tabular-nums">{stockQty > 0 && legacy > 0 ? formatMoney((legacy / stockQty).toFixed(2)) : <Dash />}</Td>
-                </Tr>
-              </Tbody>
-            </Table>
-          )}
-          {movements.length > 0 && (
-            <Table>
-              <Thead><Tr><Th>Дата</Th><Th>Операция</Th><Th className="text-right" unit="шт.">Кол-во</Th><Th>ТЗ</Th><Th>Примечание</Th></Tr></Thead>
-              <Tbody>
-                {movements.map((m) => (
-                  <Tr key={m.id}>
-                    <Td>{formatDate(m.date)}</Td>
-                    <Td>{MOVE_LABEL[m.type] ?? m.type}</Td>
-                    <Td className="text-right tabular-nums">{formatQty(m.quantity.toString())}</Td>
-                    <Td>{m.productionOrder ? <Link href={`/production/${m.productionOrder.id}`} className="text-blue-700 hover:underline">{orderLabel(m.productionOrder)}</Link> : "—"}</Td>
-                    <Td className="text-neutral-600">{cleanNote(m.notes) ? truncate(cleanNote(m.notes)!, 80) : "—"}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          )}
-        </div>
-      </details>
-
       {!HIDDEN_MODULES.shipments && (
       <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">Отгрузки ({shipments.length})</summary>
+        <summary className="block-title cursor-pointer">Отгрузки ({shipments.length})</summary>
         <div className="mt-2">
           {shipments.length === 0 ? (
             <p className="text-sm text-neutral-500">Отгрузок пока нет</p>
@@ -437,7 +341,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
 
       {!HIDDEN_MODULES.fittings && (
       <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">Примерки ({fittings.length})</summary>
+        <summary className="block-title cursor-pointer">Примерки ({fittings.length})</summary>
         <div className="mt-2">
           {fittings.length === 0 ? (
             <p className="text-sm text-neutral-500">Примерок по этому артикулу пока нет</p>
@@ -460,42 +364,8 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       </details>
       )}
 
-      <details className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          Норма расхода сырья на 1 изделие ({model.materials.length})
-          <InfoHint label="Зачем норма расхода">Необязательно. Себестоимость берётся из фактических ТЗ, нормы её не меняют.</InfoHint>
-        </summary>
-        <div className="mt-2 flex flex-col gap-4">
-          {model.materials.length === 0 ? (
-            <p className="text-sm text-neutral-500">Норма не задана.</p>
-          ) : (
-            <Table>
-              <Thead>
-                <Tr>
-                  <Th>Материал</Th>
-                  <Th className="text-right">Норма на 1 изделие</Th>
-                  <Th></Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {model.materials.map((line) => (
-                  <Tr key={line.id}>
-                    <Td>{line.rawMaterial.name}</Td>
-                    <Td className="text-right tabular-nums">
-                      {formatQty(line.quantityPerUnit.toString())} {UNIT_LABELS[line.rawMaterial.unit]}
-                    </Td>
-                    <Td>{canEdit ? <BomRemoveButton modelId={id} lineId={line.id} name={line.rawMaterial.name} /> : null}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          )}
-          {canEdit && <BomAddForm productModelId={id} materials={materials} />}
-        </div>
-      </details>
-
       <details id="docs" className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">Документы ТЗ артикула ({docs.length})</summary>
+        <summary className="block-title cursor-pointer">Документы ТЗ артикула ({docs.length})</summary>
         <div className="mt-2">
           {docs.length === 0 ? (
             <p className="text-sm text-neutral-500">Документов, привязанных к ТЗ этого артикула, пока нет</p>
@@ -522,6 +392,52 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
           )}
         </div>
       </details>
+
+      <OrdersTree
+        orders={drill}
+        c4={c4}
+        id="model-tree"
+        title="ТЗ артикула и их состав"
+        modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
+        hint={<p>Каждое ТЗ раскрывается до строк списания: мех и подкладка по лотам (со ссылками на лот и закупку), шкуры подрядчика, расходы, работа. Номер ТЗ ведёт в его карточку.</p>}
+        empty="ТЗ по этому артикулу нет."
+      />
+      {cancelled.length > 0 && (
+        <p className="text-xs text-neutral-500">
+          Отменённые ТЗ в расчёты не входят:{" "}
+          {cancelled.map((o, i) => (
+            <span key={o.id}>{i > 0 ? ", " : ""}<Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link></span>
+          ))}
+        </p>
+      )}
+
+      <section aria-label="Средневзвешенные по артикулу" className="flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
+        <h2 className="block-title">Средневзвешенные по артикулу</h2>
+        {met.qty === 0 ? <p className="text-neutral-500">ТЗ с произведённым количеством нет.</p> : (
+          <div className="flex flex-col gap-1 text-[13px]">
+            {met.furKinds.map((k) => (
+              <div key={k.fur} className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-neutral-500">{k.fur}:</span>
+                {k.qty > 0 ? <b className="font-medium tabular-nums"><CostTwo on={{ incl: k.on.incl / k.qty, excl: k.on.excl / k.qty }} off={{ incl: k.off.incl / k.qty, excl: k.off.excl / k.qty }} suffix="/шк." /></b> : "—"}
+                <span className="text-neutral-400">·</span>
+                <span className="tabular-nums">{perItem(k.qty)} шк./изд.</span>
+              </div>
+            ))}
+            {met.lining.qty > 0 && (
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-neutral-500">Подкладка:</span>
+                <b className="font-medium tabular-nums"><CostTwo on={{ incl: met.lining.on.incl / met.lining.qty, excl: met.lining.on.excl / met.lining.qty }} off={{ incl: met.lining.off.incl / met.lining.qty, excl: met.lining.off.excl / met.lining.qty }} suffix="/м" /></b>
+                <span className="text-neutral-400">·</span>
+                <span className="tabular-nums">{perItem(met.lining.qty)} м/изд.</span>
+              </div>
+            )}
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-neutral-500">Работа на изделие:</span>
+              <b className="font-medium tabular-nums">{met.work > 0 ? formatMoney((met.work / met.qty).toFixed(2)) : "—"}</b>
+            </div>
+          </div>
+        )}
+      </section>
 
       <RecordHistory model="ProductModel" recordId={model.id} />
       <RecordComments entityType="ProductModel" entityId={model.id} />

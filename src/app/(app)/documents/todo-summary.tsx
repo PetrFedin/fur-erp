@@ -47,7 +47,7 @@ export async function TodoSummary({ organizationId, year }: { organizationId: st
   return (
     <section id="todo" aria-label="Что осталось подгрузить и отметить" className="flex scroll-mt-4 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-base font-semibold">Что осталось подгрузить и отметить</h2>
+        <h2 className="block-title">Что осталось подгрузить и отметить</h2>
         <InfoHint wide label="Как читать сводку">
           <div className="flex flex-col gap-1.5">
             <p>Аукционы (закупки сырья) и партии производства, где не хватает обязательных документов, оплата не отмечена полностью или по оплате нет платёжки. Те же статусы и формулировки, что в карточках и в «Реестре сверки».</p>

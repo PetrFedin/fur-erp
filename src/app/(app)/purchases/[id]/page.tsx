@@ -249,6 +249,19 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ? (await loadAuctionSummaries(prisma, session.user.organizationId, [batchName]))[0] ?? null
     : null;
   const balanceDue = grandTotalRub.sub(paidTotal);
+  // Один счёт/УПД на несколько закупок (split purchase): показываем соседние закупки с тем же счётом или УПД у того же поставщика.
+  const sharedKeys = [
+    ...(purchase.invoiceNumber ? [{ invoiceNumber: purchase.invoiceNumber }] : []),
+    ...(purchase.transferDocument ? [{ transferDocument: purchase.transferDocument }] : []),
+  ];
+  const sharedDocPurchases = sharedKeys.length
+    ? await prisma.purchase.findMany({
+        where: { organizationId: session.user.organizationId, supplierId: purchase.supplierId, id: { not: purchase.id }, status: { not: "CANCELLED" }, OR: sharedKeys },
+        include: { items: true, expenses: true },
+        orderBy: { number: "asc" },
+      })
+    : [];
+  const vatRatesText = [...new Set(purchase.items.map((i) => i.vatRate.toString()))].join(" / ");
 
   const boundUpdatePurchase = updatePurchase.bind(null, id);
   const boundRemoveItem = removePurchaseItem.bind(null, id);
@@ -517,11 +530,30 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             {[
               purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
-              isForeignCurrency ? `валюта позиций ${purchase.currency}` : null,
+              isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${purchase.exchangeRate.toString()}` : null,
+              vatRatesText ? `НДС ${vatRatesText}%` : null,
             ].filter(Boolean).map((t) => (
               <span key={t} className="flex items-center gap-x-1.5"><span aria-hidden>·</span>{t}</span>
             ))}
           </p>
+          {sharedDocPurchases.length > 0 && (
+            <p className="mt-1 text-xs text-neutral-600">
+              Тот же {purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : "УПД"} оформлен ещё на:{" "}
+              {sharedDocPurchases.map((o, i) => (
+                <span key={o.id}>
+                  {i > 0 ? "; " : ""}
+                  <Link href={`/purchases/${o.id}`} className="text-blue-700 hover:underline">{o.number}</Link>{" "}
+                  ({formatMoney(purchaseTotalInclVat(o).toString())})
+                </span>
+              ))}
+            </p>
+          )}
+          {purchase.notes && (
+            <details className="mt-1 max-w-3xl text-xs text-neutral-600">
+              <summary className="cursor-pointer text-neutral-500 hover:text-neutral-800">Примечание: {purchase.notes.split("\n")[0].slice(0, 110)}{purchase.notes.length > 110 || purchase.notes.includes("\n") ? "…" : ""}</summary>
+              <p className="mt-1 whitespace-pre-line">{purchase.notes}</p>
+            </details>
+          )}
           {headerEditable && (
             <div className="mt-2 max-w-md">
               <PurchaseEditForm
@@ -541,6 +573,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   auctionId: auctionIdDefault,
                   invoiceNumber: purchase.invoiceNumber ?? "",
                   transferDocument: purchase.transferDocument ?? "",
+                  notes: purchase.notes ?? "",
                 }}
               />
             </div>

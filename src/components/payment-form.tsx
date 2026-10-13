@@ -410,7 +410,7 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
 
       {step === 4 && recalc && (
         <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-white p-3 text-sm" data-testid="pf-result">
-          <h3 className="text-base font-semibold">Оплата записана — что пересчиталось</h3>
+          <h3 className="block-title">Оплата записана — что пересчиталось</h3>
           <p className="font-medium">{recalc.title}</p>
           {recalc.total != null && (
             <p>Остаток: {money(recalc.remainingBefore)} → <b>{money(recalc.remainingAfter)}</b> · оплачено {money(recalc.paidBefore)} → <b>{money(recalc.paidAfter)}</b> (из {money(recalc.total)})</p>

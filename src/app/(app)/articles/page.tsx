@@ -146,7 +146,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   });
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((a, r) => a + pick(r), 0);
   const totalQty = sum((r) => r.qty);
-  const totalStockQty = sum((r) => r.stockQty);
   const totalCostIncl = sum((r) => r.costIncl);
   const totalCostExcl = sum((r) => r.costExcl);
   const totalFurQty = sum((r) => r.met.fur.qty);
@@ -256,7 +255,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       />
 
       <ResponsiveRows table={
-      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1500px]">
+      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1420px]">
         <Thead>
           <Tr>
             <Th>Артикул</Th>
@@ -266,10 +265,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             <Th className="text-right" unit="шт.">
               Произведено
               <InfoHint label="Что такое произведено">Все ТЗ артикула без отменённых: завершённые и в работе (как на Главной).</InfoHint>
-            </Th>
-            <Th className="text-right" unit="шт.">
-              На складе
-              <InfoHint label="Что такое остаток">Готовая продукция сейчас. Разница с «Произведено» — изделия в ТЗ, которые ещё в работе.</InfoHint>
             </Th>
             <Th className="text-right" unit="шт.">
               Шкур
@@ -326,7 +321,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
               </Td>
               <Td className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
-              <Td className="text-right tabular-nums">{r.stockQty > 0 ? formatQty(r.stockQty) : "—"}</Td>
               <Td className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
                 {r.met.fur.qty > 0 && r.qty > 0 ? <div className="text-[11px] text-neutral-400">{perItem(r.met.fur.qty, r.qty)} шк./изд.</div> : null}
@@ -361,7 +355,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
               <Td><TotalLabel unit="шт." /></Td>
               <Td /><Td /><Td />
               <Td className="text-right tabular-nums">{totalQty > 0 ? formatQty(totalQty) : "—"}</Td>
-              <Td className="text-right tabular-nums">{totalStockQty > 0 ? formatQty(totalStockQty) : "—"}</Td>
               <Td className="text-right tabular-nums">{totalFurQty > 0 ? formatQty(Math.round(totalFurQty * 100) / 100) : "—"}</Td>
               <Td className="text-right"><CostTwo on={sumPair((r) => r.met.fur.on)} off={sumPair((r) => r.met.fur.off)} /></Td>
               <Td className="text-right tabular-nums">{totalLiningQty > 0 ? formatQty(Math.round(totalLiningQty * 100) / 100) : "—"}</Td>
@@ -391,7 +384,6 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
             href={`/models/${r.id}`}
             fields={[
               { label: "Произведено, шт.", value: r.qty > 0 ? formatQty(r.qty) : "—", strong: true },
-              { label: "На складе, шт.", value: r.stockQty > 0 ? formatQty(r.stockQty) : "—" },
               { label: "Себестоимость итого", value: <CostTwo on={r.costIncl > 0 ? r.met.total.on : null} off={r.met.total.off} /> },
               { label: "За ед.", value: <CostTwo on={r.met.unit ? r.met.unit.on : null} off={r.met.unit ? r.met.unit.off : null} /> },
               { label: "Наценка", value: r.markup ? fmtX(r.markup) : "—" },

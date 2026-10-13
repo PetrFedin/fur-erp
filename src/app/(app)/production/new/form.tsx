@@ -45,7 +45,7 @@ function Step({ n, title, hint, children, id }: { n: number; title: string; hint
     <section id={id} aria-label={title} className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-xs font-medium text-white">{n}</span>
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="block-title">{title}</h2>
         {hint ? <InfoHint label={title} wide>{hint}</InfoHint> : null}
       </div>
       {children}

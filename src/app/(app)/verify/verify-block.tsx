@@ -41,7 +41,7 @@ export async function VerifyBlock({ kind, id, title = "Подтверждени�
   }
   return (
     <section className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" data-verify-block={`${kind}:${id}`}>
-      <h3 className="flex items-center gap-2 text-base font-semibold">
+      <h3 className="flex items-center gap-2 block-title">
         {title}
         <InfoHint wide label="Что значит «подтверждено»">
           <p>{HINT[kind]}</p>
@@ -87,7 +87,7 @@ export async function AuctionVerify({ organizationId, names }: { organizationId:
         };
         return (
           <section key={name} className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" data-verify-block={`auction:${name}`}>
-            <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
+            <h3 className="flex flex-wrap items-center gap-2 block-title">
               Подтверждение · {shortAuctionName(name, 60)}
               <span className="text-sm font-normal text-neutral-500">строк подтверждено: {rows.length - waiting.length} из {rows.length}</span>
               <InfoHint wide label="Что значит «подтверждено»">

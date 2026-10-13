@@ -112,7 +112,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
               <div>
-                <h2 id="pay-dlg-title" className="text-base font-semibold">{open === "paid" ? "Оплачено" : "К оплате"}</h2>
+                <h2 id="pay-dlg-title" className="block-title">{open === "paid" ? "Оплачено" : "К оплате"}</h2>
                 <div className="text-xl font-semibold tabular-nums">{rub(open === "paid" ? paid.total : debt.total)}</div>
               </div>
               <button type="button" onClick={() => ref.current?.close()} autoFocus aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">✕ Закрыть</button>
@@ -133,7 +133,7 @@ export function PaymentTiles({ paid, debt, paidHint, debtHint, deadlines, debtWa
                     </div>
                   ))}
                 </dl>
-                <h3 className="mb-2 text-sm font-semibold">К оплате по партиям закупки</h3>
+                <h3 className="mb-2 block-title">К оплате по партиям закупки</h3>
                 <Bars rows={debt.rows} tone="debt" />
               </>
             )}

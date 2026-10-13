@@ -58,7 +58,7 @@ export function PinSection({ id, title, headerExtra, value, onRestore, children,
     <section aria-label={title} className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
-          <h2 className="text-base font-semibold">
+          <h2 className="block-title">
             <button type="button" onClick={() => setCollapsed((v) => !v)} aria-expanded={!collapsed} data-touch-ok
               className="inline-flex items-center gap-1 hover:text-neutral-600">
               <span aria-hidden className={"inline-block w-3 text-neutral-400 transition-transform " + (collapsed ? "" : "rotate-90")}>›</span>

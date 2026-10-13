@@ -247,7 +247,7 @@ function ResultView({ r }: { r: ImportResult }) {
   const t = r.totals!;
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-white p-4" data-testid="tz-result">
-      <h2 className="text-base font-semibold">Создано ТЗ: {r.orders!.length}</h2>
+      <h2 className="block-title">Создано ТЗ: {r.orders!.length}</h2>
       <p className="text-sm text-neutral-700">
         ТЗ в учёте: {t.ordersBefore} → {t.ordersAfter}. Сырья списано на {money(t.rawSpent)}.
         {(t.created.articles || t.created.colors || t.created.clients) > 0 && ` Создано в справочниках: артикулов ${t.created.articles}, цветов ${t.created.colors}, заказчиков ${t.created.clients}.`}
@@ -272,13 +272,13 @@ function ResultView({ r }: { r: ImportResult }) {
       </div>
       {r.lots!.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold">Остаток меха по лотам</h3>
+          <h3 className="block-title">Остаток меха по лотам</h3>
           <ul className="text-sm text-neutral-700">{r.lots!.map((l) => <li key={l.lotNumber}>лот {l.lotNumber} ({l.material}): {qtyFmt(l.before)} → {qtyFmt(l.after)}</li>)}</ul>
         </div>
       )}
       {r.batches!.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold">Партии</h3>
+          <h3 className="block-title">Партии</h3>
           <ul className="text-sm text-neutral-700">
             {r.batches!.map((b) => (
               <li key={b.number}>

@@ -38,7 +38,7 @@ export function CostSummary({ qty, qtyLabel, furGroups, liningGroup, noUsages = 
   };
   return (
     <details className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" id="cost-summary">
-      <summary className="cursor-pointer text-xs text-neutral-500">Средневзвешенные цены и расход на 1 изделие</summary>
+      <summary className="block-title cursor-pointer">Средневзвешенные цены и расход на 1 изделие</summary>
       <div className="mt-2 flex flex-col gap-1 text-[13px]">
         <p className="text-xs text-neutral-500">
           Цена за шкуру (м подкладки) = сумма по всем лотам ТЗ ÷ количество шкур (м). Расход на 1 изделие = количество шкур (м) ÷ количество изделий ({qtyLabel}). Основная цифра — с 4%, мелко — без 4%.

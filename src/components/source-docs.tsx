@@ -247,7 +247,7 @@ export function SourceDocs({
     <details data-source-docs className={cn("group rounded-lg border bg-white", compact ? "relative border-neutral-200 text-xs" : "border-neutral-200")}>
       <summary className={cn("flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden", compact ? "px-2 py-1" : "min-h-11 px-3 py-2 text-sm")}>
         <span aria-hidden className="text-neutral-500 transition-transform group-open:rotate-90">›</span>
-        {!compact && <span className="font-semibold text-neutral-900">{title}</span>}
+        {!compact && <span className="block-title">{title}</span>}
         <span className={cn("text-xs", missing > 0 ? "font-medium text-amber-800" : "text-neutral-600")}>
           {s.total > 0 ? `${compact ? "" : "· "}${s.loaded} из ${s.total} загружено` : nothing ? `${compact ? "" : "· "}в данных не названы` : `${compact ? "" : "· "}приложено: ${s.extra}`}
           {s.total > 0 && s.extra > 0 ? ` · прочих: ${s.extra}` : ""}

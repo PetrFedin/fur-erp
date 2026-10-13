@@ -136,7 +136,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
 
       <section aria-labelledby="pay-years" className="space-y-2">
         <div className="flex items-center gap-2">
-          <h2 id="pay-years" className="text-base font-semibold">Оплаты по годам</h2>
+          <h2 id="pay-years" className="block-title">Оплаты по годам</h2>
           <InfoHint label="Как читать таблицу оплат" wide>
             <p><b>Год → вид → оплата → распределение.</b> Год оплаты сырья — год закупки партии, год оплаты работы — год платежа. Нажмите ›, чтобы раскрыть вглубь: сырьё и производство, платежи, а в платеже — на какие закупки партии или ТЗ он разнесён.</p>
             <p className="mt-1"><b>Оплачено</b> = мех + подкладка + работа. <b>Задолженность</b> — сколько осталось оплатить (по сырью — долг поставщику, по работе — долг заказчика); у отдельного платежа её нет. «Итого» совпадает с плитками выше и с Главной.</p>

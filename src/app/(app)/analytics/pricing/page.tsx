@@ -698,7 +698,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
 
       {/* Качество данных */}
       <details className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
-        <summary className="cursor-pointer text-base font-semibold">Качество данных</summary>
+        <summary className="block-title cursor-pointer">Качество данных</summary>
         <p className="mt-2 text-xs text-neutral-500">Проверки по моделям и ТЗ выбранного года (с учётом фильтров). Данные не правятся — только показано, что мешает посчитать цену.</p>
         <ul className="mt-2 flex flex-col gap-2">
           <li>

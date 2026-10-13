@@ -16,7 +16,7 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
 
 /** as — уровень заголовка (по умолчанию h3); на страницах создания название карточки — заголовок страницы (h1). */
 export function CardTitle({ className, as: Tag = "h3", ...props }: HTMLAttributes<HTMLHeadingElement> & { as?: "h1" | "h2" | "h3" }) {
-  return <Tag className={cn("text-sm font-semibold text-neutral-900", className)} {...props} />;
+  return <Tag className={cn("text-base font-semibold", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {

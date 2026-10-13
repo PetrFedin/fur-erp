@@ -138,7 +138,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
   return (
     <section aria-labelledby="fur-orders" className="space-y-2">
       <div className="flex items-center gap-2">
-        <h2 id="fur-orders" className="text-base font-semibold">Использование по ТЗ</h2>
+        <h2 id="fur-orders" className="block-title">Использование по ТЗ</h2>
         <InfoHint label="Как читать использование по ТЗ" wide>
           <p>Одна строка — одно ТЗ: сколько шкур (метров) этого вида ушло в него, на какую сумму, по какой средневзвешенной цене (₽ и $), сколько на изделие и сколько ещё лежит в лотах, из которых брало это ТЗ. Для ТЗ из нескольких видов меха — только списания этого вида. Фильтры таблицы выше действуют и здесь.</p>
           <p className="mt-1"><b>Сумма</b> — без 4% (режим «с НДС / без НДС» из шапки), мелко — с 4%. <b>Цена $</b> — только по лотам, где цена в $ записана в расчёте; «по N из M» — охват. «›» раскрывает лоты и аукционы ТЗ.</p>

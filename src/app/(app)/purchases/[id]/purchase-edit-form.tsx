@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/input";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "../actions";
 import type { Supplier } from "@prisma/client";
 import { useKeepingForm } from "@/lib/use-keeping-form";
@@ -38,6 +38,7 @@ export function PurchaseEditForm({
     auctionId: string | null;
     invoiceNumber: string;
     transferDocument: string;
+    notes: string;
   };
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -121,9 +122,13 @@ export function PurchaseEditForm({
           placeholder="№ 143 от 22.09.2025 г."
         />
       </div>
+      <div className="sm:col-span-2">
+        <Label htmlFor="notes">Примечание</Label>
+        <Textarea id="notes" name="notes" rows={4} maxLength={4000} defaultValue={defaults.notes} />
+      </div>
       <p className="sm:col-span-2 text-xs text-neutral-500">
         {receivedMode
-          ? "Закупка принята на склад: поставщик, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта и УПД; подтверждение закупки сбросится."
+          ? "Закупка принята на склад: поставщик, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта, УПД и примечание; подтверждение закупки сбросится."
           : currencyLocked
           ? "Валюта и курс не меняются: в закупке есть позиции с расчётом из расчётного листа."
           : "При смене валюты курс сбрасывается на 1 — обновите его ниже."}

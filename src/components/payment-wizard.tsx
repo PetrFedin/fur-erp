@@ -405,7 +405,7 @@ export function PaymentWizardButton({ label = "+ Внести оплату", def
         <dialog ref={ref} aria-labelledby="pw-dlg-title" onClose={() => setOpen(false)} className="m-auto w-[calc(100vw-2rem)] max-w-3xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
           <div className="max-h-[88vh] overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
-              <h2 id="pw-dlg-title" className="text-base font-semibold">Внести оплату и разнести</h2>
+              <h2 id="pw-dlg-title" className="block-title">Внести оплату и разнести</h2>
               <button type="button" onClick={() => ref.current?.close()} aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-2.5 py-1 text-sm">✕</button>
             </div>
             <PaymentWizard defaultSide={defaultSide} preset={preset} onDone={() => { ref.current?.close(); window.location.reload(); }} />

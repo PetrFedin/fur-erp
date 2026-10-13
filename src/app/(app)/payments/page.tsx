@@ -861,11 +861,11 @@ export default async function PaymentsPage({
               </CardHeader>
               <CardContent className="flex flex-col gap-5">
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold">За что платим ({noAucLines.length})</h3>
+                  <h3 className="mb-2 block-title">За что платим ({noAucLines.length})</h3>
                   <PurchaseLinesTable lines={noAucLines} withPaid />
                 </section>
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold">Оплаты ({noAucPayLines.length})</h3>
+                  <h3 className="mb-2 block-title">Оплаты ({noAucPayLines.length})</h3>
                   <PaymentLinesTable lines={noAucPayLines} emptyText="Оплат по этим закупкам нет" />
                 </section>
               </CardContent>
@@ -911,7 +911,7 @@ export default async function PaymentsPage({
                 </CardHeader>
                 <CardContent className="flex flex-col gap-5">
                   <section>
-                    <h3 className="mb-2 text-sm font-semibold">Оплаты ({lines.length})</h3>
+                    <h3 className="mb-2 block-title">Оплаты ({lines.length})</h3>
                     <PaymentLinesTable lines={lines} emptyText={`По этой партии оплат пока нет`} />
                   </section>
 

@@ -109,7 +109,7 @@ export default async function DocumentAnalysisPage() {
 
       <section className="space-y-2">
         <div>
-          <h2 className="text-base font-semibold">Где именно не хватает документа</h2>
+          <h2 className="block-title">Где именно не хватает документа</h2>
         </div>
         <WidgetRow id="docs-gaps" title="Где не хватает документа">
         <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -130,7 +130,7 @@ export default async function DocumentAnalysisPage() {
 
       <section className="space-y-2">
         <div>
-          <h2 className="text-base font-semibold">Почему отдельные партии выглядят неоплаченными</h2>
+          <h2 className="block-title">Почему отдельные партии выглядят неоплаченными</h2>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
           {debtCases.map((c) => {

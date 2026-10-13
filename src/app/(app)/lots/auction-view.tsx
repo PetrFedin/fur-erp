@@ -512,7 +512,14 @@ export async function AuctionView({
                     Валюта {p.currency}, курс {rateText(p.exchangeRate)}
                   </span>
                 )}
+                {p.transferDocument && <span className="text-xs text-neutral-500">УПД {p.transferDocument}</span>}
               </div>
+              {p.notes && (
+                <details className="text-xs text-neutral-600">
+                  <summary className="cursor-pointer text-neutral-500 hover:text-neutral-800">Примечание: {p.notes.split("\n")[0].slice(0, 110)}{p.notes.length > 110 || p.notes.includes("\n") ? "…" : ""}</summary>
+                  <p className="mt-1 whitespace-pre-line">{p.notes}</p>
+                </details>
+              )}
               <PurchaseLotsTable
                 purchaseId={p.id}
                 currency={p.currency}

@@ -363,7 +363,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
-        <h2 className="min-w-44 text-center text-base font-semibold">{title}</h2>
+        <h2 className="min-w-44 text-center block-title">{title}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
         <Link href={href({ m: today.slice(0, 7), w: "", event: "", new: "" })} className={BTN}>Сегодня</Link>
       </div>
@@ -412,7 +412,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
       {layersOn && !factsHidden && !HIDDEN_MODULES.supplyPlan && layer.monthLevel.length > 0 && (
         <section className="rounded-lg border border-neutral-200 bg-white p-3" aria-label="План поставок без точной даты">
-          <h3 className="mb-2 text-sm font-semibold">План поставок на {monthTitle(month)} (без точной даты) <InfoHint>Записи из раздела «План поставок», у которых указан только месяц. Только чтение.</InfoHint></h3>
+          <h3 className="mb-2 block-title">План поставок на {monthTitle(month)} (без точной даты) <InfoHint>Записи из раздела «План поставок», у которых указан только месяц. Только чтение.</InfoHint></h3>
           <div className="flex flex-wrap gap-2 text-xs">
             {layer.monthLevel.map((m) => <Link key={m.id} href="/supply-plan" className={`rounded border px-1.5 py-0.5 ${LAYER_STYLES.supply.chip}`}>{m.title} ×{formatQty(m.qty)} · {m.label}</Link>)}
           </div>
@@ -433,7 +433,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             <aside id="day-panel" role="dialog" aria-modal="true" aria-labelledby="day-panel-title" className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl md:w-[30rem]">
               <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <h2 id="day-panel-title" className="text-base font-semibold">{fmtRu(panelDay)}, {wd}{panelDay === today ? " · сегодня" : ""}</h2>
+                  <h2 id="day-panel-title" className="block-title">{fmtRu(panelDay)}, {wd}{panelDay === today ? " · сегодня" : ""}</h2>
                   <p className="text-xs text-neutral-500">{dayEvents.length} {dayEvents.length === 1 ? "событие" : "событий"} · {dayFacts.length} {dayFacts.length === 1 ? "факт" : "фактов"}</p>
                 </div>
                 <Link href={href({ day: addDays(panelDay, -1), m: addDays(panelDay, -1).slice(0, 7), event: "" })} scroll={false} className={BTN_ICON} aria-label="Предыдущий день">‹</Link>
@@ -442,7 +442,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               </div>
               <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-3 [&>section+section]:border-t [&>section+section]:border-neutral-200 [&>section+section]:pt-3">
                 <section className="flex flex-col gap-2" aria-label="События дня">
-                  <h3 className="text-sm font-semibold">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
+                  <h3 className="block-title">События дня <InfoHint>События календаря на этот день (включая периоды, которые его захватывают). Серые пунктирные факты ниже — из ТЗ, поставок, отгрузок и примерок, они только для просмотра.</InfoHint></h3>
                   {dayEvents.length === 0 && <p className="rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500">В этот день событий нет{canEdit ? " — добавьте ниже" : ""}.</p>}
                   {dayEvents.map((e) => {
                     const def = actionDef(e.action);
@@ -475,7 +475,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
                 {canEdit && (
                   <section className="flex flex-col gap-2" aria-label={editing ? "Правка события" : "Добавить в этот день"} id="event">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                    <h3 className="flex items-center gap-2 block-title">
                       {editing ? `Правка: ${editing.articleCode} × ${editing.quantity}` : `Добавить в этот день · ${fmtRu(panelDay)}`}
                       {editing && <Link href={dayHref} scroll={false} className="ml-auto text-xs font-normal text-neutral-500 hover:underline">Отмена</Link>}
                     </h3>
@@ -484,7 +484,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                 )}
 
                 <section className="flex flex-col gap-2" aria-label="Факты дня">
-                  <h3 className="text-sm font-semibold">Факты дня <InfoHint>Из других разделов: окончание ТЗ, поставки, отгрузки, примерки. Нажмите — откроется карточка.</InfoHint></h3>
+                  <h3 className="block-title">Факты дня <InfoHint>Из других разделов: окончание ТЗ, поставки, отгрузки, примерки. Нажмите — откроется карточка.</InfoHint></h3>
                   {dayFacts.length === 0 && <p className="text-xs text-neutral-500">В этот день фактов нет.</p>}
                   {dayFacts.map((f) => {
                     const st = LAYER_STYLES[f.kind];

@@ -257,7 +257,7 @@ export function OrdersTree({
     <section aria-labelledby={id} className="space-y-2" id={id}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 id={id} className="text-base font-semibold">{title}</h2>
+          <h2 id={id} className="block-title">{title}</h2>
           <InfoHint label={`Как читать: ${title}`} wide>
             {hint}
             <p className="mt-1">Нажмите ›, чтобы раскрыть вглубь: группа → ТЗ → состав (мех и подкладка по лотам со ссылками на лот и закупку, шкуры подрядчика, работа и доп. расходы). Номер ТЗ ведёт в карточку ТЗ.</p>

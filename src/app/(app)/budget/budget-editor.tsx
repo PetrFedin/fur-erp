@@ -15,18 +15,17 @@ import {
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { factByNode, factTotals, zeroFact, type FactAgg, type FactRow } from "./fact-calc";
-import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, pct, qty, segBtn, share } from "./ui";
+import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, qty, segBtn, share } from "./ui";
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
-  initialStats: BudgetStat[]; fact: FactRow[]; furNames: string[]; catNames: string[]; catGroups: Record<string, string>; lenOf: Record<string, string>; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
+  initialStats: BudgetStat[]; furNames: string[]; catNames: string[]; catGroups: Record<string, string>; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
 };
 
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
 function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
   if (!(per > 0) || !(sum > 0)) return null;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-[10px] font-normal leading-tight text-neutral-600">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
+  return <div className="sub-cap mt-0.5 whitespace-normal text-[11px] font-normal leading-tight text-neutral-600">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
 }
 
 
@@ -40,13 +39,13 @@ const DOT = { ok: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-red-500", man
 /** Короткая подпись колонки + единица второй строкой + «i»-подсказка (title). Вертикально по центру. */
 function Th({ children, tip, unit, className = "" }: { children: ReactNode; tip: string; unit?: string; className?: string }) {
   return (
-    <th scope="col" className={"h-10 whitespace-nowrap px-0.5 py-1 text-right align-middle text-[10px] font-medium leading-tight print:text-[8.5px] 2xl:px-2 2xl:text-[11px] text-neutral-500 " + className}>
+    <th scope="col" className={"h-10 whitespace-nowrap px-1 py-1 text-right align-middle text-[11px] font-medium leading-tight print:text-[8.5px] 2xl:px-2 2xl:text-xs text-neutral-500 " + className}>
       <span className="inline-flex flex-col items-end">
         <span className="inline-flex items-center gap-0.5">
           {children}
           <span title={tip} aria-label={tip} className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-neutral-300 text-[8px] font-normal leading-none text-neutral-400">i</span>
         </span>
-        {unit ? <span className="max-w-[72px] whitespace-normal text-[10px] font-normal opacity-80">{unit}</span> : null}
+        {unit ? <span className="max-w-[72px] whitespace-normal text-[11px] font-normal opacity-80">{unit}</span> : null}
       </span>
     </th>
   );
@@ -160,15 +159,6 @@ export function BudgetEditor(p: Props) {
   const calc = useMemo(() => computeTree(nodes, params), [nodes, params]);
   const total = useMemo(() => grandTotal(nodes, params), [nodes, params]);
   const furs = useMemo(() => kids.get(null) ?? [], [kids]);
-  // Затраты по ТЗ: те же ТЗ, что на Главной (без отменённых, ремонт отдельно).
-  const factMap = useMemo(() => factByNode(nodes, p.fact, p.lenOf), [nodes, p.fact, p.lenOf]);
-  const ft = useMemo(() => factTotals(p.fact), [p.fact]);
-  const factRest = useMemo(() => {
-    const r = { ...ft.all };
-    for (const f of furs) { const x = factMap.get(f.id); if (x) { r.pcs -= x.pcs; r.hides -= x.hides; r.meters -= x.meters; r.mex -= x.mex; r.lining -= x.lining; r.work -= x.work; r.c4 -= x.c4; r.total -= x.total; } }
-    for (const k of ["pcs", "hides", "meters", "mex", "lining", "work", "c4", "total"] as const) if (Math.abs(r[k]) < 0.5) r[k] = 0;
-    return r.pcs > 0 || r.total > 0 ? r : null;
-  }, [ft, furs, factMap]);
   const pairOptions = useMemo(() => stats.filter((s) => !s.modelId), [stats]);
 
   const setParam = (k: keyof BudgetParams, v: number) => {
@@ -412,21 +402,8 @@ export function BudgetEditor(p: Props) {
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
-  const sumCell = "whitespace-nowrap px-0.5 py-2 text-right text-[10.5px] tabular-nums print:px-0.5 print:text-[9px] 2xl:px-3 2xl:text-sm";
-  const factCells = (f: FactAgg | null | undefined, budget: number) => {
-    return (
-      <>
-        <td className={sumCell + " " + sepL}>{f ? qz(f.pcs) : "—"}</td>
-        <td className={sumCell + " text-neutral-600"}>{f ? qz(f.hides) : "—"}{f ? <Avg sum={f.hides} per={f.pcs} unit="шк./изд." d={1} /> : null}</td>
-        <td className={sumCell}>{f ? mt(f.mex) : "—"}{f ? <Avg sum={f.mex} per={f.hides} unit="₽/шт." /> : null}</td>
-        <td className={sumCell}>{f ? mt(f.lining) : "—"}{f ? <Avg sum={f.lining} per={f.meters} unit="₽/м" /> : null}</td>
-        <td className={sumCell}>{f ? mt(f.work) : "—"}{f ? <Avg sum={f.work} per={f.pcs} unit="₽/изд." /> : null}</td>
-        <td className={sumCell + " text-neutral-500"}>{f ? mt(f.c4) : "—"}</td>
-        <td className={sumCell + " font-semibold"}>{f ? mt(f.total) : "—"}{f ? <Avg sum={f.total} per={f.pcs} unit="₽/изд." /> : null}</td>
-      </>
-    );
-  };
-  const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean; fact?: FactAgg | null }) => {
+  const sumCell = "whitespace-nowrap px-1.5 py-2 text-right text-xs tabular-nums print:px-0.5 print:text-[9px] 2xl:px-3 2xl:text-[13px]";
+  const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean }) => {
     const sh = total.total > 0 ? a.total / total.total : 0;
     return (
       <tr key={key} className={`${o.bg} ${o.bold ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid`}>
@@ -436,7 +413,7 @@ export function BudgetEditor(p: Props) {
         <td className={sumCell + " " + sepL}>{mt(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
         <td className={sumCell}>{mt(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
         <td className={sumCell}>{mt(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-        <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}</td>
+        <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
         <td className={sumCell + " text-sm font-semibold " + sepL}>
           {mt(a.total)}
           <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-normal text-neutral-500">
@@ -445,7 +422,6 @@ export function BudgetEditor(p: Props) {
           </div>
         </td>
         <td className={sumCell}>{mt(perUnit(a))}</td>
-        {factCells(o.fact, a.total)}
       </tr>
     );
   };
@@ -464,33 +440,8 @@ export function BudgetEditor(p: Props) {
           
         </div>
       );
-      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0, fact: factMap.get(n.id) }), ...(open ? [...summaryRows(n.id, depth + 1), ...noLenRow(n, ch, depth + 1)] : [])];
+      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0 }), ...(open ? summaryRows(n.id, depth + 1) : [])];
     });
-  // «Без длины»: ТЗ категории с артикулами без указанной длины (вычисляемая строка, в данных бюджета её нет).
-  const noLenRow = (n: BudgetNode, ch: BudgetNode[], depth: number): ReactNode[] => {
-    if (n.kind !== "cat" || !ch.some((c) => c.kind === "len")) return [];
-    const cf = factMap.get(n.id);
-    if (!cf) return [];
-    const r = { ...zeroFact() };
-    for (const k of ["pcs", "hides", "meters", "mex", "lining", "work", "c4"] as const) {
-      r[k] = cf[k];
-      for (const c of ch) if (c.kind === "len") r[k] -= factMap.get(c.id)?.[k] ?? 0;
-      if (Math.abs(r[k]) < 0.5) r[k] = 0;
-    }
-    r.total = r.mex + r.lining + r.work + r.c4;
-    if (!(r.pcs > 0 || r.total > 0)) return [];
-    const dash = <td className={sumCell}>—</td>;
-    return [(
-      <tr key={n.id + ":nolen"} className="bg-white [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid">
-        <td className="sticky left-0 z-10 min-w-[120px] max-w-[320px] border-r border-neutral-200 bg-inherit px-1.5 py-2 text-sm text-neutral-600 print:static">
-          <div className="flex items-center gap-1" style={{ paddingLeft: depth * 14 + 24 }}><span>Без длины</span></div>
-        </td>
-        <td className={sumCell}>0</td>{dash}<td className={sumCell + " " + sepL}>—</td>{dash}{dash}{dash}<td className={sumCell + " " + sepL}>—</td>{dash}
-        {factCells(r, 0)}
-      </tr>
-    )];
-  };
-
   // ---- Детально: таблица с полями (планшет и компьютер)
   const numCell = (n: BudgetNode, k: NumKey, label: string, w: string, tag?: UpKey, below?: ReactNode) => (
     <td className={"px-1.5 py-1 " + w}>
@@ -524,15 +475,6 @@ export function BudgetEditor(p: Props) {
     </td>
   );
 
-  const factDetail = (f: FactAgg | null | undefined, budget: number) => {
-    return (
-      <>
-        <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{f ? qz(f.pcs) : "—"}</td>
-        <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{f ? mz(f.total) : "—"}</td>
-      </>
-    );
-  };
-
   const tableRows = (parentId: string | null, depth: number): ReactNode[] =>
     (kids.get(parentId) ?? []).flatMap((n) => {
       const a = calc.get(n.id) ?? ZERO;
@@ -557,10 +499,9 @@ export function BudgetEditor(p: Props) {
           <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{mz(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}</td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
           <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{mz(a.total)}</td>
           <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{mz(perUnit(a))}</td>
-          {factDetail(factMap.get(n.id), a.total)}
           <td className="border-l border-neutral-200 bg-inherit px-1.5 py-1 lg:sticky lg:right-0 lg:z-10">{actions(n, hasKids)}</td>
         </tr>
       );
@@ -577,10 +518,9 @@ export function BudgetEditor(p: Props) {
       <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шт." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}</td>
+      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}</td>
-      {factDetail(ft.all, total.total)}
       <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
@@ -619,7 +559,7 @@ export function BudgetEditor(p: Props) {
                   {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Затраты по ТЗ, изд.", qz(factMap.get(n.id)?.pcs)], ["Затраты по ТЗ, ₽", mz(factMap.get(n.id)?.total)]].map(([k, v]) => (
+                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
                   ))}
                 </dl>
@@ -697,10 +637,10 @@ export function BudgetEditor(p: Props) {
 
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="text-base font-semibold">Состав бюджета
+          <h2 className="block-title">Состав бюджета
             <InfoHint label="Как считается бюджет" wide>
               <p>Изделий × (шкур × цена шкуры + подкладка, м × цена за м + работа) + {formatPercent(params.c4)} на мех и подкладку.</p>
-              <p className="mt-1">«Затраты по ТЗ» — что уже потрачено по ТЗ в работе и завершённым (без отменённых; ремонт отдельно) в тех же статьях. Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
+              <p className="mt-1">Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
               <p className="mt-1">Точка у строки — качество данных: зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную. Закрытый замок — строка ручная.</p>
             </InfoHint>
           </h2>
@@ -710,8 +650,8 @@ export function BudgetEditor(p: Props) {
                 className={segBtn(view === v)}>{l}</button>
             ))}
           </div>
-          <label className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 text-xs text-neutral-600 md:min-h-0">
-            <input type="checkbox" checked={subOn} onChange={(e) => toggleSub(e.target.checked)} className="h-4 w-4" />Мелкие подписи под суммами: среднее (за шкуру, за метр, на изделие)
+          <label title="Мелкие подписи под суммами: среднее за шкуру, за метр, на изделие" className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 text-xs text-neutral-600 md:min-h-0">
+            <input type="checkbox" checked={subOn} onChange={(e) => toggleSub(e.target.checked)} className="h-4 w-4" />Средние
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -737,7 +677,6 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={2} className="border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
                   <th colSpan={2} className={grp}>Прогноз</th>
-                  <th colSpan={7} className={grp}>Затраты по ТЗ</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
                   <Th tip="Бюджет изделий, шт." unit="шт.">Изделий</Th>
@@ -748,36 +687,15 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Надбавка на мех и подкладку" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ изделий" unit="₽/шт.">На 1 изд.</Th>
-                  <Th tip="Всего изделий по ТЗ (в работе и завершённые, без отменённых; ремонт отдельно)" className={sepL} unit="шт.">Изделий</Th>
-                  <Th tip="Всего шкур, списанных в этих ТЗ (сумма, не среднее)" unit="шт.">Шкур</Th>
-                  <Th tip="Мех по ТЗ" unit="₽">Мех</Th>
-                  <Th tip="Подкладка по ТЗ" unit="₽">Подкладка</Th>
-                  <Th tip="Работа по ТЗ (цена работы × количество)" unit="₽">Работа</Th>
-                  <Th tip="Надбавка на мех и подкладку по ТЗ" unit="₽">4%</Th>
-                  <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
                 </tr>
               </thead>
               <tbody>
-                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true, fact: ft.all })}
+                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true })}
                 {summaryRows(null, 0)}
-                {factRest ? (
-                  <tr className="bg-white [&>td]:border-b [&>td]:border-neutral-100">
-                    <td className="sticky left-0 z-10 min-w-[150px] max-w-[320px] border-r border-neutral-200 bg-inherit px-2 py-2 text-sm text-neutral-600">Не вошло в строки бюджета (затраты по ТЗ)</td>
-                    <td colSpan={8} />
-                    {factCells(factRest, 0)}
-                  </tr>
-                ) : null}
-                {sumRow("total-bottom", <TotalLabel />, total, { bg: "row-total", bold: true, fact: ft.all })}
+                {sumRow("total-bottom", <TotalLabel />, total, { bg: "row-total", bold: true })}
               </tbody>
             </table>
           </div>
-
-          {view === "summary" ? (
-            <p className="text-xs text-neutral-500 print:hidden">
-              Затраты по ТЗ: {qty(ft.all.pcs, 0)} изд. · {money(ft.all.total)} в колонках (мех, подкладка, работа, 4%) + расходы ТЗ и шкуры подрядчика {money(ft.extra)}
-              {ft.repair.pcs > 0 ? ` + ремонт отдельно (${qty(ft.repair.pcs, 0)} изд.) ${money(ft.repair.cost)}` : ""}{ft.outside.pcs > 0 ? ` + бобр (сырьё подрядчика, вне бюджета: ${qty(ft.outside.pcs, 0)} изд.) ${money(ft.outside.cost)}` : ""} = {money(ft.all.total + ft.extra + ft.repair.cost + ft.outside.cost)} — «Себестоимость по ТЗ» с работой на Главной.
-            </p>
-          ) : null}
 
           <div className={(view === "detail" ? "hidden md:block " : "hidden ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:hidden"}>
             <table data-sub={subOn ? "on" : "off"} className="w-max min-w-full border-separate border-spacing-0 text-left">
@@ -787,7 +705,6 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={3} className={grp}>Количество</th>
                   <th colSpan={4} className={grp}>Цены на 1 изделие</th>
                   <th colSpan={6} className={grp}>Прогноз</th>
-                  <th colSpan={2} className={grp}>Затраты по ТЗ</th>
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
@@ -804,8 +721,6 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%" unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ бюджет изделий" unit="₽/шт.">На 1 изд.</Th>
-                  <Th tip="Всего изделий по ТЗ (в работе и завершённые, без отменённых; ремонт отдельно)" className={sepL} unit="шт.">Изделий</Th>
-                  <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
                 </tr>
               </thead>
               <tbody>

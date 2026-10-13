@@ -454,7 +454,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <summary className="cursor-pointer text-sm font-medium text-neutral-700">Матрицы «категория × мех» и «категория × размер»</summary>
       <div className="mt-3 flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">
+        <h2 className="block-title">
           Матрицы
           <InfoHint label="О матрицах" wide>
             Тепловые таблицы по тем же ТЗ, что и таблица выше (с учётом фильтров): число единиц или Σ себестоимости на пересечении «категория × мех» и «категория × размер». Чем темнее ячейка, тем больше. Наведите на ячейку — число ТЗ.
@@ -488,7 +488,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
 
       {/* Качество данных */}
       <details className="rounded-lg border border-neutral-200 bg-white p-4 text-sm">
-        <summary className="cursor-pointer text-base font-semibold">
+        <summary className="block-title cursor-pointer">
           Качество данных
         </summary>
         <p className="mt-2 text-xs text-neutral-500">Проверки по всем ТЗ выбранного года (без фильтров таблицы). Данные не правятся — только показано, где неполно.</p>

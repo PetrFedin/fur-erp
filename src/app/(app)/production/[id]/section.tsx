@@ -40,7 +40,7 @@ export function Section({
   if (collapsed) {
     return (
       <details id={id} className="scroll-mt-16 rounded-lg border border-neutral-200 bg-white" open={false}>
-        <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 px-3 py-2 text-sm font-semibold text-neutral-800">
+        <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 px-3 py-2 block-title">
           {title}
           {summary ? <span className="text-xs font-normal text-neutral-500">{summary}</span> : null}
         </summary>
@@ -50,7 +50,7 @@ export function Section({
   }
   return (
     <details ref={ref} id={id} open className="scroll-mt-16">
-      <summary className="cursor-pointer list-none rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 sm:hidden">
+      <summary className="cursor-pointer list-none rounded-md border border-neutral-200 bg-white px-3 py-2 block-title sm:hidden">
         {title}
       </summary>
       <div className="mt-2 flex flex-col gap-4 sm:mt-0">{children}</div>
