@@ -15,7 +15,7 @@ import {
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { factByNode, factDev, factTotals, type FactAgg, type FactRow } from "./fact-calc";
+import { factByNode, factTotals, type FactAgg, type FactRow } from "./fact-calc";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, pct, qty, segBtn, share } from "./ui";
 
 type Props = {
@@ -406,7 +406,7 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Отклонение факта по ТЗ от бюджета", v: pct(factDev(ft.all.total, total.total)) }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
       {tile("w", "Работа", money(total.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
@@ -416,7 +416,6 @@ export function BudgetEditor(p: Props) {
   // ---- Сводка (для руководства): без полей ввода
   const sumCell = "whitespace-nowrap px-0.5 py-2 text-right text-[10.5px] tabular-nums print:px-0.5 print:text-[9px] 2xl:px-3 2xl:text-sm";
   const factCells = (f: FactAgg | null | undefined, budget: number) => {
-    const dev = factDev(f?.total, budget);
     return (
       <>
         <td className={sumCell + " " + sepL}>{f ? qz(f.pcs) : "—"}</td>
@@ -426,7 +425,6 @@ export function BudgetEditor(p: Props) {
         <td className={sumCell}>{f ? mt(f.work) : "—"}</td>
         <td className={sumCell + " text-neutral-500"}>{f ? mt(f.c4) : "—"}</td>
         <td className={sumCell + " font-semibold"}>{f ? mt(f.total) : "—"}</td>
-        <td className={sumCell + " text-neutral-600"}>{dev == null ? "—" : pct(dev)}</td>
       </>
     );
   };
@@ -505,12 +503,10 @@ export function BudgetEditor(p: Props) {
   );
 
   const factDetail = (f: FactAgg | null | undefined, budget: number) => {
-    const dev = factDev(f?.total, budget);
     return (
       <>
         <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{f ? qz(f.pcs) : "—"}</td>
         <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{f ? mz(f.total) : "—"}</td>
-        <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{dev == null ? "—" : pct(dev)}</td>
       </>
     );
   };
@@ -601,7 +597,7 @@ export function BudgetEditor(p: Props) {
                   {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Факт по ТЗ, изд.", qz(factMap.get(n.id)?.pcs)], ["Факт по ТЗ, ₽", mz(factMap.get(n.id)?.total)], ["Отклонение: факт к бюджету", pct(factDev(factMap.get(n.id)?.total, a.total))]].map(([k, v]) => (
+                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Факт по ТЗ, изд.", qz(factMap.get(n.id)?.pcs)], ["Факт по ТЗ, ₽", mz(factMap.get(n.id)?.total)]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
                   ))}
                 </dl>
@@ -682,7 +678,7 @@ export function BudgetEditor(p: Props) {
           <h2 className="text-base font-semibold">Состав бюджета
             <InfoHint label="Как считается бюджет" wide>
               <p>Изделий × (шкур × цена шкуры + подкладка, м × цена за м + работа) + {formatPercent(params.c4)} на мех и подкладку.</p>
-              <p className="mt-1">«Факт по ТЗ» — что уже набежало по ТЗ в работе и завершённым (без отменённых; ремонт отдельно) в тех же статьях; «Отклонение: факт к бюджету» = (факт ÷ бюджет − 1) × 100. Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
+              <p className="mt-1">«Факт по ТЗ» — что уже набежало по ТЗ в работе и завершённым (без отменённых; ремонт отдельно) в тех же статьях. Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
               <p className="mt-1">Точка у строки — качество данных: зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную. Закрытый замок — строка ручная.</p>
             </InfoHint>
           </h2>
@@ -716,7 +712,7 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={2} className="border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
                   <th colSpan={2} className={grp}>Прогноз</th>
-                  <th colSpan={8} className={grp}>Факт по ТЗ</th>
+                  <th colSpan={7} className={grp}>Факт по ТЗ</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
                   <Th tip="Бюджет изделий, шт." unit="шт.">Изделий</Th>
@@ -734,7 +730,6 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Работа по ТЗ (цена работы × количество)" unit="₽">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку по ТЗ" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
-                  <Th tip="Отклонение: факт к бюджету, % = (факт ÷ бюджет − 1) × 100. Плюс — по ТЗ уже потрачено больше, чем в бюджете" unit="факт к бюджету, %">Отклонение</Th>
                 </tr>
               </thead>
               <tbody>
@@ -767,7 +762,7 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={3} className={grp}>Количество</th>
                   <th colSpan={4} className={grp}>Цены на 1 изделие</th>
                   <th colSpan={6} className={grp}>Прогноз</th>
-                  <th colSpan={3} className={grp}>Факт по ТЗ</th>
+                  <th colSpan={2} className={grp}>Факт по ТЗ</th>
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
@@ -786,7 +781,6 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Всего, ₽ ÷ бюджет изделий" unit="₽/шт.">На 1 изд.</Th>
                   <Th tip="Всего изделий по ТЗ (в работе и завершённые, без отменённых; ремонт отдельно)" className={sepL} unit="шт.">Изделий</Th>
                   <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
-                  <Th tip="Отклонение: факт к бюджету, % = (факт ÷ бюджет − 1) × 100" unit="факт к бюджету, %">Отклонение</Th>
                 </tr>
               </thead>
               <tbody>
