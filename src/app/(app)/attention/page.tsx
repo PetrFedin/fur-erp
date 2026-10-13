@@ -76,7 +76,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
               </p>
               <p className="mt-2">Один факт — одно место: «нет документа» и «нет платёжки» здесь одной строкой со ссылкой, подробности — во вкладках «Документы» и «Подтвердить». Полный список по сущностям — «Показать всё».</p>
             </InfoHint></div>
-          <p className="mt-1 text-sm text-neutral-500">
+          <div className="mt-1 text-sm text-neutral-500">
             Открыто: <b className="text-neutral-900">{counts.tasks}</b>
             {counts.urgent > 0 && <> · срочно: <b className="text-red-600">{counts.urgent}</b></>}
             {year !== "all" && <> · {yearLabel(year)}</>}
@@ -84,7 +84,7 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
               <p>По данным {totals.main} · документы {counts.docTasks} · решения {counts.decisions}{totals.info > 0 && <> · справочно (в число не входит) {totals.info}</>}.</p>
               <p className="mt-2">Цвет точки: <span className="text-red-600">красный</span> — срочно, жёлтый — проверить, серый — справочно.</p>
             </InfoHint>
-          </p>
+          </div>
         </div>
         <Link href={showAll ? "/attention" : "/attention?all=1"} className="inline-flex h-9 items-center rounded-md border border-neutral-300 bg-white px-3 text-sm hover:bg-neutral-100">
           {showAll ? "По категориям" : "Показать всё"}

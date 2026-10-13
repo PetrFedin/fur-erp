@@ -25,7 +25,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
         const paid = rows.reduce((a, r) => a + r.paid, 0);
         return (
           <section className="rounded-lg border border-neutral-200 bg-white p-4" aria-label="К оплате, оплачено, остаток">
-            <p className="mb-2 flex items-center gap-1.5 text-xs text-neutral-500">Авансы под {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}<InfoHint label="Что это за ТЗ" wide><p>Работа ТЗ, под которую внесены авансы: {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}.</p></InfoHint></p>
+            <div className="mb-2 flex items-center gap-1.5 text-xs text-neutral-500">Авансы под {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}<InfoHint label="Что это за ТЗ" wide><p>Работа ТЗ, под которую внесены авансы: {owedNote.orders} ТЗ{owedNote.batches ? `, партии ${owedNote.batches}` : ""}.</p></InfoHint></div>
             <dl className="grid gap-2 sm:grid-cols-3">
               <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">К оплате</dt><dd className="font-medium tabular-nums">{formatMoney(due.toFixed(2))}</dd></div>
               <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">Оплачено</dt><dd className="font-medium tabular-nums">{formatMoney(paid.toFixed(2))}</dd></div>
@@ -34,7 +34,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
             {owedGoods && owedGoods.length > 0 ? (
               <details className="mt-3 border-t border-neutral-100 pt-3 text-sm">
                 <summary className="cursor-pointer text-neutral-600 hover:text-neutral-900">{`Состав: ${uniqueLabelCount(owedGoods.map((g) => ({ id: g.id, label: g.label })))} ТЗ`}</summary>
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Оплачено показано условно<InfoHint label="Почему условно"><p>ТЗ под авансы не назначены, поэтому оплачено показано условно: авансы поровну по доле работы каждого ТЗ.</p></InfoHint></p>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500">Оплачено показано условно<InfoHint label="Почему условно"><p>ТЗ под авансы не назначены, поэтому оплачено показано условно: авансы поровну по доле работы каждого ТЗ.</p></InfoHint></div>
                 <div className="mt-2"><Goods goods={owedGoods} /></div>
               </details>
             ) : null}
@@ -72,7 +72,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
         );
       })}
       {rows.length > 0 && rows.every((r) => r.goods.length === 0) ? (
-        <p className="flex items-center gap-1.5 text-xs text-neutral-500">ТЗ под эти авансы ещё не назначены<InfoHint label="Подробнее про авансы" wide><p>ТЗ под эти авансы ещё не назначены: в счетах указаны изделия «в работе» (модели и цвета), без номеров ТЗ. По письму Василия от 01.09 заказы первой части — 21 559 500 ₽; работа этих ТЗ в приложении — на 629 200 ₽ больше, разница не сверена.</p></InfoHint></p>
+        <div className="flex items-center gap-1.5 text-xs text-neutral-500">ТЗ под эти авансы ещё не назначены<InfoHint label="Подробнее про авансы" wide><p>ТЗ под эти авансы ещё не назначены: в счетах указаны изделия «в работе» (модели и цвета), без номеров ТЗ. По письму Василия от 01.09 заказы первой части — 21 559 500 ₽; работа этих ТЗ в приложении — на 629 200 ₽ больше, разница не сверена.</p></InfoHint></div>
       ) : null}
     </section>
   );

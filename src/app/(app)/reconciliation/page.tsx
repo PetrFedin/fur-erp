@@ -243,13 +243,13 @@ export default async function ReconciliationPage() {
           </span>
           <HowToRead />
         </div>
-        <p className="mt-1 text-sm text-neutral-600">
+        <div className="mt-1 text-sm text-neutral-600">
           Счета Веллмех и оплата по документам · сверено {data.checkedAt}
           <InfoHint wide label="О сверке">
             <p>Каждый счёт Веллмех — с оплатой по документам, остатком и тем, что записано в базе. База читается при каждом заходе ({yearLabel(year)}).</p>
             <p className="mt-2 text-neutral-500">Строки собраны из счетов в документах; чтобы обновить сверку после новых документов, обратитесь к разработчику. Счетов в реестре: {ALL_INVOICES.length}.</p>
           </InfoHint>
-        </p>
+        </div>
       </div>
 
       {RECHECK ? (

@@ -681,7 +681,7 @@ export function BudgetEditor(p: Props) {
       ) : null}
       {upAll ? (
         <Modal title="Надбавки по типам меха и категориям" onClose={() => setUpAll(false)} wide>
-          <p className="mb-3 text-xs text-neutral-500">Пустое поле — с уровня выше. Общие надбавки версии: {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки. Строки с замком не пересчитываются.</p></InfoHint></p>
+          <div className="mb-3 text-xs text-neutral-500">Пустое поле — с уровня выше. Общие надбавки версии: {formatPercent(params.upFur)} / {formatPercent(params.upLining)} / {formatPercent(params.upWork)}.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки. Строки с замком не пересчитываются.</p></InfoHint></div>
           <div className="max-h-[60vh] overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-white"><tr className="border-b border-neutral-200 text-left text-xs text-neutral-500"><th className="py-1 font-medium">Тип меха · категория</th><th className="w-20 px-1 text-right font-medium">Шкура, %</th><th className="w-20 px-1 text-right font-medium">Подкладка, %</th><th className="w-20 px-1 text-right font-medium">Работа, %</th></tr></thead>
@@ -713,7 +713,7 @@ export function BudgetEditor(p: Props) {
       ) : null}
       {upNode ? (
         <Modal title={`Надбавки: ${upNode.name}`} onClose={() => setUpFor(null)}>
-          <p className="mb-3 text-xs text-neutral-500">Для этой строки и всего, что внутри. Пустое поле — с уровня выше.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки.</p></InfoHint></p>
+          <div className="mb-3 text-xs text-neutral-500">Для этой строки и всего, что внутри. Пустое поле — с уровня выше.<InfoHint label="Как работают надбавки" wide><p>Пустое поле — берётся с уровня выше (в подсказке поля то, что действует сейчас). 0 — без надбавки.</p></InfoHint></div>
           <div className="grid grid-cols-3 gap-3">
             {([["upFur", "Шкура, %"], ["upLining", "Подкладка, %"], ["upWork", "Работа, %"]] as const).map(([k, label]) => {
               const parent = upNode.parentId ? byId.get(upNode.parentId) : undefined;

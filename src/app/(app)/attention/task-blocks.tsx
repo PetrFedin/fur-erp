@@ -124,12 +124,12 @@ export function DocTasksBlock({ blocks }: { blocks: TaskBlocks }) {
           <p className="mt-2">«После поставки» ({blocks.laterDocs}) в число не входят. Оплаты, описанные здесь, не считаются повторно в «Нет платёжек».</p>
         </InfoHint>
       </h2>
-      <p className="text-xs text-neutral-500">
+      <div className="text-xs text-neutral-500">
         Под вопросом: <b className="tabular-nums text-neutral-800">{money(blocks.openAmount)}</b>
         <InfoHint label="Про долг">
           <p>Долг поставщику сейчас: <b className="tabular-nums">{formatMoney(blocks.debtRub)}</b>. Расчёт долга задачи не меняют.</p>
         </InfoHint>
-      </p>
+      </div>
       {OWNER_ORDER.map((owner) => {
         const items = open.filter((v) => v.task.owner === owner).sort(sortTasks);
         if (items.length === 0) return null;

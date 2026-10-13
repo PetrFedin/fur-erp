@@ -575,13 +575,13 @@ export function FurSelectionTotal({
             <div className="flex flex-col gap-1">{slideBar}{raw.tiles}</div>
           ) : raw.tiles}
           {isFiltered ? (
-            <p className="px-1 text-[11px] leading-4 text-neutral-500" data-testid="tiles-filtered">
+            <div className="px-1 text-[11px] leading-4 text-neutral-500" data-testid="tiles-filtered">
               Плитки сырья и оплат посчитаны по выбранным фильтрам — лотов: {table.filteredLots.length}
               <InfoHint label="Как считаются плитки при фильтрах" wide>
                 <p>Куплено, Использовано и Остаток — по лотам, подходящим под фильтры (те же функции, что без фильтров). Оплачено и К оплате — доля оплат и долга партии закупки пропорционально стоимости лота, как строки «по сырью» на Главной при фильтрах.</p>
                 <p className="mt-1">Без фильтров показаны плитки Главной — цифры те же.</p>
               </InfoHint>
-            </p>
+            </div>
           ) : null}
         </>
       ) : null}

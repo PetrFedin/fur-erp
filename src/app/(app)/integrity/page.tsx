@@ -91,14 +91,14 @@ export default async function IntegrityPage() {
                         <span className="text-xs text-neutral-500">проверено записей: {c.checked}</span>
                       </summary>
                       <div className="mt-2 space-y-2 pl-5 text-sm text-neutral-700">
-                        <p className="text-xs text-neutral-500">
+                        <div className="text-xs text-neutral-500">
                           <InfoHint wide label="Что проверяется и где исправлять">
                             <p>{c.what}</p>
                             <p className="mt-1"><b>Допуск:</b> {c.tolerance}.</p>
                             <p className="mt-1"><b>Где исправлять:</b> {c.fix}</p>
                           </InfoHint>
                           <span className="ml-1">что проверяется и где исправлять</span>
-                        </p>
+                        </div>
                         {c.error && <p className="text-red-700">Проверка не выполнилась: {c.error}</p>}
                         {c.violations.length > 0 && (
                           <ul className="space-y-1">

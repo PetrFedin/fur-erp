@@ -82,12 +82,12 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">История</h1>
-          <p className="text-sm text-neutral-500">
+          <div className="text-sm text-neutral-500">
             Записей: {total}
             <InfoHint label="О журнале">
               <p>Журнал всегда полный: общий год из шапки здесь не применяется.</p>
             </InfoHint>
-          </p>
+          </div>
         </div>
         <a href={`/history/export${exportQs}`} className={buttonVariants({ variant: "outline" })}>
           Экспорт CSV

@@ -73,12 +73,12 @@ export default async function CommentsPage({ searchParams }: PageProps<"/comment
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h1 className="text-xl font-semibold">Комментарии</h1>
-          <p className="text-sm text-neutral-500">
+          <div className="text-sm text-neutral-500">
             Открытых: {openCount} · найдено: {total}
             <InfoHint wide label="О комментариях">
               <p>Замечания, ошибки, идеи и вопросы к частям проекта: кнопка «Комментарий» справа внизу на любой странице. Общий год из шапки здесь не применяется.</p>
             </InfoHint>
-          </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={`/comments/export?format=md${exportQs ? "&" + exportQs : ""}`} className={buttonVariants({ variant: "outline" })}>
