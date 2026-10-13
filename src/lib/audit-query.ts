@@ -66,7 +66,7 @@ export function recordHref(model: string, recordId: string, label: string | null
       return n ? `/production/batches/${n}` : null;
     }
     case "Comment":
-    case "CommentReply": return "/comments";
+    case "CommentReply": return "/history/comments";
     case "ColorRef": return "/settings/colors";
     case "FurAttrRef": return "/settings/fur-attrs";
     case "FurRef": return "/settings/furs";

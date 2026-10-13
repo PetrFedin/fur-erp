@@ -10,7 +10,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lotComposition, splitVat, COMP_CATS, CAT_LABEL, type CompCat, type CompInput } from "@/lib/price-composition";
-import { lotHammer, lotUsdPrice } from "@/lib/lot-hammer";
+import { lotHammerListed, lotUsdListed } from "@/lib/lot-hammer";
 import { applyRowEdits, pushPriceDelta, scaleLotRows, type RawItem, type RowEdit } from "@/lib/lot-sheet-calc";
 import { MAX_MONEY, MAX_QTY } from "@/lib/input";
 
@@ -320,11 +320,10 @@ export async function buildLotPlan(db: Db, orgId: string, lotId: string, ch: Lot
   let comp: LotPlan["comp"] = null;
   if (cb && ca) comp = COMP_CATS.map((c) => ({ label: CAT_LABEL[c.key as CompCat], before: cb[c.key], after: ca[c.key] })).filter((x) => Math.abs(x.before) >= 0.005 || Math.abs(x.after) >= 0.005);
   if (lot.rawMaterial.unit !== "M") {
-    const hb = lotHammer(lot.costBreakdown, vat0.toNumber(), plans), ha = lotHammer(sheetChanged ? { items: raw } : lot.costBreakdown, vat1.toNumber(), plans);
+    const hb = lotHammerListed(lot.costBreakdown, vat0.toNumber(), plans), ha = lotHammerListed(sheetChanged ? { items: raw } : lot.costBreakdown, vat1.toNumber(), plans);
     if (hb && ha && Math.abs(hb.excl - ha.excl) >= 0.005) lines.push({ label: "Молоток, ₽/шт. без НДС", before: hb.excl.toFixed(2), after: ha.excl.toFixed(2) });
-    const ub = lotUsdPrice(lot.costBreakdown, plans, { vatRate: vat0.toNumber(), purchaseNumber: lot.purchase?.number, lotNumber: lot.lotNumber });
-    const ua = lotUsdPrice(sheetChanged ? { items: raw } : lot.costBreakdown, plans, { vatRate: vat1.toNumber(), purchaseNumber: lot.purchase?.number, lotNumber: lot.lotNumber });
-    if (ub.usd != null && ua.usd != null && Math.abs(ub.usd - ua.usd) >= 0.00005) lines.push({ label: "Молоток, $/шт.", before: ub.usd.toFixed(2), after: ua.usd.toFixed(2) });
+    const ub = lotUsdListed(lot.costBreakdown, plans), ua = lotUsdListed(sheetChanged ? { items: raw } : lot.costBreakdown, plans);
+    if (ub != null && ua != null && Math.abs(ub - ua) >= 0.00005) lines.push({ label: "Молоток, $/шт.", before: ub.toFixed(2), after: ua.toFixed(2) });
   }
   if (moneyChanged && lot.purchase) notes.push("Подтверждение закупки сбросится; оплаты закупки не меняются, долг пересчитается от новой суммы");
 

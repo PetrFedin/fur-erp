@@ -22,7 +22,7 @@ import { SourceDocs } from "@/components/source-docs";
 import { loadBatchSourceDocs } from "@/lib/source-docs-server";
 import { docCounts } from "@/lib/doc-links";
 import { toDriveView } from "@/lib/drive-docs-server";
-import { batchExtraName, batchOrderInclude, contractorHidesFromNotes, batchTotals, orderStat } from "@/lib/batch-stats";
+import { batchExtraName, batchOrderInclude, batchTotals, orderStat } from "@/lib/batch-stats";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
@@ -32,6 +32,7 @@ import { BatchDocsPay } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
 import { BatchEditButton } from "../../[id]/edit-buttons";
 import { rowVersion, BATCH_V } from "@/lib/concurrency";
+import { CollapsibleBlock } from "@/components/collapsible-block";
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../../../dashboard/tile";
@@ -91,11 +92,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     }
   }
 
-  // Переплата: оплата больше работы партии. Если в заметке платежа сказано про шкуры подрядчика — объясняем.
+  // Переплата: оплата больше работы партии.
   const overpaid = t.remaining.lessThan(-1);
-  const hidesInPay = payments
-    .map((x) => contractorHidesFromNotes(x.p.notes))
-    .reduce<Decimal | null>((s, v) => (v ? (s ? s.add(v) : v) : s), null);
 
   const orderIds = orders.map((o) => o.id);
   const driveRows = await prisma.driveDocument.findMany({
@@ -168,7 +166,9 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
       <ProdTiles
         orders={drill}
         c4={c4Mode}
-        treeId="batch-tree"
+        treeId="batch-tree-block"
+        hideProduced
+        hidePerUnit
         id="batch"
         title="Партия — итоги"
         headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>}
@@ -199,14 +199,14 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             <span>
               Не отнесено к ТЗ: <span className="font-medium">{formatMoney(t.unallocated.toString())}</span>
               <InfoHint label="Про неотнесённую сумму" wide>
-                {hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Платёж больше остатка работы ТЗ партии."} В остаток по ТЗ это не входит; список — <Link href="/attention" className="underline">Контроль → Что требует внимания → Неразнесённые авансы</Link>.
+                Платёж больше остатка работы ТЗ партии. В остаток по ТЗ это не входит; список — <Link href="/attention" className="underline">Контроль → Что требует внимания → Неразнесённые авансы</Link>.
               </InfoHint>
             </span>
           )}
           {overpaid && (
             <span>
               Переплата {formatMoney(t.remaining.abs().toString())}
-              <InfoHint label="Про переплату">{hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Оплаты больше работы партии."}</InfoHint>
+              <InfoHint label="Про переплату">Оплаты больше работы партии.</InfoHint>
             </span>
           )}
         </p>
@@ -321,16 +321,18 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </CardContent>
       </Card>
 
+      <CollapsibleBlock id="batch-tree-block" title="Состав партии: ТЗ и списания" summary={`${t.orders} ТЗ · раскрыть`} autoOpen={false}>
       <OrdersTree
         orders={drill}
         c4={c4Mode}
         id="batch-tree"
-        title="Состав партии: ТЗ и списания"
+        title="Состав"
         payBy={payBy}
         defaultOpenDepth={0}
         modes={[{ id: "order", label: "ТЗ", dims: ["order"] }]}
         hint={<p>Каждое ТЗ партии раскрывается до строк списания по лотам (со ссылкой на лот и закупку), шкур подрядчика, расходов и работы. Итог равен плиткам выше.</p>}
       />
+      </CollapsibleBlock>
 
       {/* Подтверждение — по клику (свёрнуто) */}
       <VerifyBlock kind="batch" id={batch.id} title="Подтверждение партии" collapsed />

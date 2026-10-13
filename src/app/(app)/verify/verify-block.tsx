@@ -1,4 +1,4 @@
-import { remarkOf } from "@/lib/verify-remark";
+import { STATUS_LABEL, verifiedLabel } from "@/lib/verify-remark";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
@@ -26,7 +26,7 @@ export async function VerifyBlock({ kind, id, title = "Подтверждени�
       <details className="group rounded-lg border border-neutral-200 bg-white" data-verify-block={`${kind}:${id}`} open={false}>
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 text-sm hover:bg-neutral-50 sm:px-4">
           <span className="font-semibold">{title}</span>
-          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? (remarkOf(row.note) ? "✓ подтверждена с замечанием" : row.auto ? "✓ подтверждено документом" : "✓ подтверждено") : `не подтверждено${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
+          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? `✓ ${verifiedLabel(row)}` : `${STATUS_LABEL.none}${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
           <InfoHint wide label="Что значит «подтверждено»">
             <p>{HINT[kind]}</p>
             <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова.</p>

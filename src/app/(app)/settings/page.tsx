@@ -14,7 +14,7 @@ const SETTINGS_LINKS = [
   { href: "/settings/auctions", title: "Справочник аукционов", description: "Короткие имена аукционов, как они видны на платформе; новые аукционы, объединение, подтверждение" },
   { href: "/settings/articles-ref", title: "Справочник артикулов", description: "Наш код и код/название в системе продаж, другие написания, объединение дублей" },
   { href: "/warehouses", title: "Склады", description: "Склады сырья и готовой продукции, склад по умолчанию" },
-  { href: "/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
+  { href: "/settings/expense-categories", title: "Статьи расходов", description: "Категории дополнительных расходов" },
   { href: "/users", title: "Пользователи", description: "Сотрудники и их роли" },
 ];
 

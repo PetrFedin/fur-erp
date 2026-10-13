@@ -246,8 +246,8 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], allLabel: "Все партии", options: auctionOpts.map(([key, lab]) => ({ value: key, label: lab === NO_AUCTION_LABEL ? lab : key === NO_AUCTION_KEY ? lab : aucOf(key).label, title: key === NO_AUCTION_KEY ? undefined : aucOf(key).title })) },
             { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: kindOpts.map((k) => ({ value: k, label: k })) },
             { type: "multi", name: "pyear", label: "Год закупки", aliases: ["py"], options: pyearOpts.map((y) => ({ value: y, label: y })) },
-            ...(sizeOpts.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", options: sizeOpts, hint: "По документам (размер лота); без размера — отдельной строкой в конце" }] : []),
-            ...(attrOpts.length > 1 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: attrOpts, hint: "Седина (SIL), дикий / клеточный, тонированный… — справочник «Признаки меха» в Настройках" }] : []),
+            ...(sizeOpts.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: sizeOpts, hint: "По документам (размер лота); без размера — отдельной строкой в конце" }] : []),
+            ...(attrOpts.length > 1 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", more: true, options: attrOpts, hint: "Седина (SIL), дикий / клеточный, тонированный… — справочник «Признаки меха» в Настройках" }] : []),
             { type: "text", name: "q", label: "Поиск по лоту / сорту", placeholder: "напр. 15016" },
             { type: "multi", name: "rest", label: "Остаток", single: true, allLabel: "Любой", options: [{ value: "1", label: "Только с остатком" }] },
           ]}

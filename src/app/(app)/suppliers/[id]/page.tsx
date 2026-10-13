@@ -107,7 +107,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
               <Tbody>
                 {shownPays.map((p) => (
                   <Tr key={p.id}>
-                    <Td><Link href={`/payments/s-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>{p.status === "PENDING" && <span className="ml-1 text-xs text-neutral-500">(план)</span>}</Td>
+                    <Td>{Number(p.amount) === 0 ? <span>{formatDate(p.paidAt)}</span> : <Link href={`/payments/s-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>}{p.status === "PENDING" && <span className="ml-1 text-xs text-neutral-500">(план)</span>}</Td>
                     <Td>{p.auctionSession ? `Аукцион «${p.auctionSession}»` : p.purchase ? `Закупка ${p.purchase.number}` : "Аванс без привязки"}</Td>
                     <Td className="text-xs text-neutral-600">{p.docRef ?? "—"}{!p.confirmed && <span className="ml-1 text-amber-700">· не подтверждена</span>}</Td>
                     <Td className="text-right tabular-nums">{rub(p.amount.toString())}</Td>

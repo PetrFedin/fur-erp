@@ -14,7 +14,7 @@ export type BudgetSummary = {
 
 const ICON = "btn-accent inline-flex h-8 w-8 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-50 md:h-7 md:w-7";
 
-type Dialog = { kind: "new" } | { kind: "rename"; b: BudgetSummary } | { kind: "delete"; b: BudgetSummary } | null;
+type Dialog = { kind: "new" } | { kind: "compare" } | { kind: "rename"; b: BudgetSummary } | { kind: "delete"; b: BudgetSummary } | null;
 
 export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit: boolean }) {
   const router = useRouter();
@@ -45,6 +45,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {items.length >= 2 ? <button type="button" onClick={() => setDialog({ kind: "compare" })} className={BTN}>Сравнить</button> : null}
           {canEdit ? <button type="button" onClick={() => setDialog({ kind: "new" })} className={BTN_PRIMARY}>+ Новый бюджет</button> : null}
         </div>
       </div>
@@ -100,6 +101,7 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
       )}
 
       {dialog?.kind === "new" ? <NewDialog items={items} busy={busy} onClose={() => setDialog(null)} onCreate={(v) => run(() => createBudget(v), (id) => router.push(`/budget/${id}`))} /> : null}
+      {dialog?.kind === "compare" ? <CompareDialog items={items} onClose={() => setDialog(null)} onGo={(a, b) => router.push(`/budget/compare?a=${a}&b=${b}`)} /> : null}
       {dialog?.kind === "rename" ? <RenameDialog b={dialog.b} busy={busy} onClose={() => setDialog(null)} onSave={(name, season) => run(() => renameBudget(dialog.b.id, name, season))} /> : null}
       {dialog?.kind === "delete" ? (
         <Modal title="Удалить бюджет?" onClose={() => setDialog(null)}>
@@ -111,6 +113,29 @@ export function BudgetList({ items, canEdit }: { items: BudgetSummary[]; canEdit
         </Modal>
       ) : null}
     </div>
+  );
+}
+
+function CompareDialog({ items, onClose, onGo }: { items: BudgetSummary[]; onClose: () => void; onGo: (a: string, b: string) => void }) {
+  const [a, setA] = useState(items[0]?.id ?? "");
+  const [b, setB] = useState(items[1]?.id ?? "");
+  const opts = items.map((x) => <option key={x.id} value={x.id}>{x.name} · {x.season}</option>);
+  return (
+    <Modal title="Сравнить версии" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">Версия А
+          <select value={a} onChange={(e) => setA(e.target.value)} className={FIELD}>{opts}</select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">Версия Б
+          <select value={b} onChange={(e) => setB(e.target.value)} className={FIELD}>{opts}</select>
+        </label>
+        {a === b ? <p className="text-xs text-amber-700">Выберите две разные версии.</p> : null}
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" className={BTN} onClick={onClose}>Отмена</button>
+          <button type="button" disabled={!a || !b || a === b} className={BTN_PRIMARY + " disabled:opacity-50"} onClick={() => onGo(a, b)}>Сравнить</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

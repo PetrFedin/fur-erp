@@ -19,13 +19,12 @@ import { TILE_BOX, TileHead, TileValue, TileList } from "../../../../dashboard/t
 import { VatLine } from "../../../../dashboard/vat-line";
 import { LotUsageViz, type UsageSeg } from "@/components/lot-usage-bar";
 import { LotPriceComposition } from "@/components/price-composition";
-import { lotComposition, splitVat, CAT_LABEL, type CompCat } from "@/lib/price-composition";
-import { lotHammer, lotUsdPrice, USD_SOURCE_LABEL } from "@/lib/lot-hammer";
+import { COMP_CATS, emptyCats } from "@/lib/price-composition";
+import { lotHammerListed, lotUsdListed } from "@/lib/lot-hammer";
 import { shortMaterialName } from "@/lib/material-name";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
-import { actorText, fmtAt, type LogRow } from "@/lib/audit-query";
 import { rawSheetItems, sheetRowsOf } from "@/lib/lot-sheet";
 import { analyzeRows } from "@/lib/price-composition";
 import { LotDocuments, type LotDocRow } from "@/components/lot-documents";
@@ -95,10 +94,9 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const usedUnitIncl = l.used.greaterThan(0) ? l.usedIncl.div(l.used) : l.unitIncl;
   const usedUnitExcl = l.used.greaterThan(0) ? l.usedExcl.div(l.used) : l.unitExcl;
 
-  const hammerLot = lining ? null : lotHammer(row.costBreakdown, vatRate, plans);
-  const usdLot = lining ? null : lotUsdPrice(row.costBreakdown, plans, { vatRate, purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
-  const comp = lotComposition({ breakdown: row.costBreakdown, plans, vatRate, qty: l.recv.toNumber(), totalIncl: recvIncl.toNumber(), purchaseNumber: l.purchaseNumber, lotNumber: l.lotNumber });
-  const compSplit = comp ? splitVat(comp, vatRate) : null;
+  // Молоток — только то, что прямо стоит в расчётном листе лота (или введено вручную в него); оценок и догадок нет.
+  const hammerLot = lining ? null : lotHammerListed(row.costBreakdown, vatRate, plans);
+  const usdListed = lining ? null : lotUsdListed(row.costBreakdown, plans);
 
   // Расчётный лист: собственный лота (правятся заметки) или расчёт позиции закупки (только чтение).
   const ownItems = rawSheetItems(row.costBreakdown);
@@ -122,12 +120,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   for (const d of pu?.documents ?? []) docMap.set("p" + d.id, { href: `/api/purchase-docs/${d.id}`, text: `${DOC_KIND_LABELS[d.kind] ?? d.kind} — ${d.title}` });
   const inheritedDocs = Array.from(docMap.values());
   const lotDocs: LotDocRow[] = row.documents.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() }));
-
-  // Последняя правка из журнала (только для читающих журнал).
-  let lastEdit: LogRow | null = null;
-  if (!lining && hasRole(session.user.role, ACCESS.history) && "auditLog" in prisma) {
-    lastEdit = (await prisma.auditLog.findFirst({ where: { organizationId: orgId, model: "RawMaterialLot", recordId: id }, orderBy: { at: "desc" } })) as LogRow | null;
-  }
 
   const colorOptions = canEdit ? await getColorOptions(orgId) : [];
   const attrRefs = canEdit && !lining ? await prisma.furAttrRef.findMany({ where: { organizationId: orgId }, select: { id: true, name: true, group: true }, orderBy: [{ group: "asc" }, { name: "asc" }] }) : [];
@@ -178,7 +170,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const vatTotalLot = recvIncl.sub(recvExcl);
   const sizeText = l.size === "Не указан" ? "" : l.size;
   const colorText = p.colorRef ? (p.color && p.color !== p.colorRef ? `${p.colorRef} (в закупке: ${p.color})` : p.colorRef) : (p.color ?? "");
-  const perUnit = <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />;
   const isoDay = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
   const itemOfLot = pu?.items.find((i) => i.lotId === id) ?? null;
   const poolNote = (row.purchase?.items.filter((i) => i.lotId === id).length ?? 0) > 1 ? "лот собран из нескольких поступлений — цену и количество одного поступления выделить нельзя" : undefined;
@@ -190,7 +181,6 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
       title: "Идентификация",
       fields: [
         { label: "№ лота", key: "lotNumber", value: row.lotNumber ?? "" },
-        { label: "Внутренний id", node: <span className="font-mono text-xs">{id}</span>, note: "служебный номер записи — только чтение" },
         { label: lining ? "Ткань" : "Вид меха", node: lining ? <>{shortMaterialName(p.materialName)}<span className="block text-[11px] text-neutral-500">{p.materialName}</span></> : <Link href={`/lots/fur/${encodeURIComponent(l.kind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{p.materialName}</Link>, editor: canEdit ? <LotChoiceField key="e" lotId={id} kind="material" value={row.rawMaterial.id} options={materialOpts.map((m) => ({ value: m.id, label: m.name }))} label={lining ? "Ткань" : "Вид меха"} /> : undefined },
         { label: lining ? "Цвет / описание" : "Цвет", key: "color" as const, value: row.color ?? colorText, refId: row.colorRefId, node: colorText },
         ...(lining ? [] : [{ label: "Размер", key: "sizeGrade" as const, value: row.sizeGrade ?? "", node: sizeText }]),
@@ -226,34 +216,24 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     {
       title: "Цена",
       fields: [
-        { label: `Цена за ${unitWord} с НДС, ₽`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote },
-        { label: `Цена за ${unitWord} без НДС, ₽`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitExcl", q2(l.unitExcl), `Цена за ${unitWord} без НДС`, "₽"), note: "правка цены пересчитывает сумму лота, списания и состав цены" },
-        { label: "Сумма лота с НДС, ₽", node: <Money incl={q2(recvIncl)} excl={q2(recvExcl)} />, editor: mEd("totalIncl", q2(recvIncl), "Сумма лота с НДС", "₽") },
+        { label: `Цена за ${unitWord}, ₽ (с НДС)`, node: <Money incl={q2(l.unitIncl)} excl={q2(l.unitExcl)} />, editor: mEd("unitIncl", q2(l.unitIncl), `Цена за ${unitWord} с НДС`, "₽"), note: poolNote ?? <span className="text-[11px] text-neutral-500">единственное поле цены; без НДС {formatMoney(q2(l.unitExcl))} и сумма лота с НДС {formatMoney(q2(recvIncl))} считаются; правка пересчитывает сумму лота, списания и состав цены</span> },
         { label: "НДС, %", node: `${formatQty(p.vatRate.toString())}%`, editor: mEd("vatRate", p.vatRate.toString(), "Ставка НДС лота", "%"), note: <>по дате документа {vatDefault}% ({vatPeriodLabel(byDate)}){vatRate !== vatDefault ? " — не совпадает" : ""} <InfoHint label="Ставка НДС в ТЗ" wide><p>В ТЗ берётся эта ставка лота; ставка строки списания может быть изменена в ТЗ. При смене ставки можно сохранить сумму с НДС (меняется выделение НДС) или цену без НДС (меняется сумма с НДС).</p></InfoHint></> },
         { label: "Сумма НДС, ₽", node: formatMoney(q2(vatTotalLot)), note: "считается из суммы лота и ставки" },
         ...(lining && row.rawMaterial.defaultVatRate != null ? [{ label: "Ставка по умолчанию материала", node: `${formatQty(row.rawMaterial.defaultVatRate.toString())}%`, note: <Link href={`/materials/${row.rawMaterial.id}`} className="text-blue-700 hover:underline">правится в карточке материала →</Link> }] : []),
         ...(itemOfLot ? [{ label: `Цена в закупке (без НДС)${p.currency && p.currency !== "RUB" ? `, ${p.currency}` : ", ₽"}`, node: p.currency && p.currency !== "RUB" ? `${formatCurrency(itemOfLot.unitPrice.toString(), p.currency)}${p.exchangeRate ? ` · курс ${formatQty(p.exchangeRate.toString())}` : ""}` : formatMoney(itemOfLot.unitPrice.toString()), editor: mEd("unitPrice", itemOfLot.unitPrice.toString(), "Цена в закупке без НДС") }] : []),
         ...(lining ? [] : [
-          { label: "Молоток, ₽/шт.", node: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—", note: hammerLot ? `источник: ${hammerLot.source}` : undefined, editor: hammerLot && hasHammerRow ? mEd("hammerExcl", q2(new Decimal(hammerLot.excl)), "Молоток без НДС", "₽ без НДС") : undefined },
-          { label: "Молоток, $/шт.", node: usdLot?.usd != null ? `$${usdLot.usd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—", note: usdLot?.usd != null ? USD_SOURCE_LABEL[usdLot.source] : undefined, editor: usdLot?.usd != null && hasUsdRow ? mEd("hammerUsd", String(usdLot.usd), "Молоток в долларах", "$") : undefined },
-          { label: "Итого цена лота, ₽/шт.", node: perUnit, editor: mEd("unitIncl", q2(l.unitIncl), "Итого цена лота за шкуру, с НДС", "₽ с НДС") },
+          { label: "Молоток, ₽/шт.", node: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—", note: hammerLot ? "строка расчётного листа" : "в расчётном листе лота не указан", editor: hammerLot && hasHammerRow ? mEd("hammerExcl", q2(new Decimal(hammerLot.excl)), "Молоток без НДС", "₽ без НДС") : undefined },
+          { label: "Молоток, $/шт.", node: usdListed != null ? `$${usdListed.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—", note: usdListed != null ? "строка расчётного листа" : "в расчётном листе лота не указан", editor: usdListed != null && hasUsdRow ? mEd("hammerUsd", String(usdListed), "Молоток в долларах", "$") : undefined },
         ]),
       ],
     },
     { title: "Примечания", fields: [{ label: "Примечание", key: "notes", value: row.notes ?? "" }] },
-    ...(lining ? [] : [{
-      title: "Системное",
-      fields: [
-        { label: "Создан", node: formatDate(row.createdAt), note: "запись журнала — только чтение" },
-        { label: "Последняя правка", node: lastEdit ? `${fmtAt(lastEdit.at)} · ${actorText(lastEdit)}` : "—", note: hasRole(session.user.role, ACCESS.history) ? <Link href={`/history?q=${id}`} className="text-blue-700 hover:underline">история изменений →</Link> : undefined },
-      ],
-    }]),
   ];
 
   // Ключевые поля — наверху, всегда на виду; остальное («справочные») — ниже, свёрнуто. Те же поля, та же правка по месту, без дублей.
   const KEY_LABELS = [
     lining ? "Ткань" : "Вид меха", lining ? "Цвет / описание" : "Цвет", lining ? "Описание" : "Сорт / описание",
-    "Получено", `Цена за ${unitWord} с НДС, ₽`, "НДС, %", "Закупка №", "Партия закупки (аукцион)",
+    "Получено", `Цена за ${unitWord}, ₽ (с НДС)`, "НДС, %", "Закупка №", "Партия закупки (аукцион)",
   ];
   const allFields = sections.flatMap((sec) => sec.fields);
   const keySection: PassportSection = {
@@ -264,7 +244,17 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const restSections: PassportSection[] = sections
     .map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !keySet.has(f.label)) }))
     .filter((sec) => sec.fields.length > 0);
-  const sheetWithSplit = comp && compSplit;
+  // График состава цены — только по строкам листа с назначенной категорией; остальное — «не распределено».
+  const chartIncl = emptyCats();
+  let explicitRows = 0;
+  for (const r of sheetRows) if (r.cat && r.perLot != null) { chartIncl[r.cat] += r.perLot; explicitRows++; }
+  const kVat = 1 + (vatRate > 0 ? vatRate / 100 : 0);
+  const naturalExcl = recvIncl.toNumber() / kVat;
+  const fExcl = naturalExcl !== 0 ? recvExcl.toNumber() / naturalExcl : 1;
+  const chartExcl = emptyCats();
+  for (const c of COMP_CATS) chartExcl[c.key] = (chartIncl[c.key] / kVat) * fExcl;
+  const chartUnalloc = recvExcl.toNumber() - Object.values(chartExcl).reduce((a, x) => a + x, 0);
+  const chartVat = recvIncl.toNumber() - recvExcl.toNumber();
   const unitLbl = lining ? "за м" : "за шт.";
 
   // Путь по иерархии «Сырьё»: вид меха → аукцион (у подкладки — партия) → лот.
@@ -321,7 +311,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
             {lining ? null : (
               <TileList items={[
                 { k: "Молоток, ₽/шт.", v: hammerLot ? <Money incl={q2(new Decimal(hammerLot.incl))} excl={q2(new Decimal(hammerLot.excl))} /> : "—" },
-                { k: "Молоток, $/шт.", v: usdLot?.usd != null ? `$${usdLot.usd.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—" },
+                { k: "Молоток, $/шт.", v: usdListed != null ? `$${usdListed.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—" },
               ]} />
             )}
             <div className="mt-2 text-[11px] leading-4 text-neutral-500">ставка НДС лота {formatQty(String(vatRate))}%</div>
@@ -365,14 +355,15 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           <h2 className={H2 + " flex items-center gap-2"}>
             Из чего состоит цена лота
             <InfoHint label="Из чего состоит цена лота" wide>
-              <p>Финальная цена лота по долям (график) и все строки расчётного листа (таблица). Суммы графика приведены к цене лота без НДС; НДС — отдельно. Нераспознанное попадает в «{CAT_LABEL.other}». 4% в цену лота не входит — оно начисляется при списании в ТЗ.</p>
-              {comp?.approx && <p className="mt-1">Молоток вычислен по цене из расчёта Drive × курсы, брокерский процент — остаток до цены лота: доли приблизительные.</p>}
+              <p>Цена лота по долям (график) и все строки расчётного листа (таблица). График строится только по строкам, которым в таблице назначена категория; всё остальное — «Не распределено». Суммы приведены к цене лота без НДС; НДС — отдельно. 4% в цену лота не входит — оно начисляется при списании в ТЗ.</p>
             </InfoHint>
           </h2>
-          {sheetWithSplit ? (
+          {sheetRows.length > 0 && explicitRows > 0 ? (
             <div className="rounded-lg border border-neutral-200 bg-white p-3">
-              <LotPriceComposition cats={compSplit.excl as Record<CompCat, number>} vat={compSplit.vat} qty={l.recv.toNumber()} unitName={lining ? "метр" : "шкуру"} ariaLabel={`Состав цены лота ${l.lotNumber ?? ""}`} />
+              <LotPriceComposition cats={chartExcl} unallocated={chartUnalloc} vat={chartVat} qty={l.recv.toNumber()} unitName={lining ? "метр" : "шкуру"} ariaLabel={`Состав цены лота ${l.lotNumber ?? ""}`} />
             </div>
+          ) : sheetRows.length > 0 ? (
+            <p className="rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-500">Категории строкам расчёта не назначены — вся цена лота не распределена. Назначьте категории в таблице ниже, и появится график.</p>
           ) : null}
           {sheetRows.length > 0 ? (
             <LotSheetTable

@@ -30,7 +30,7 @@ export default async function EditMaterialPage({ params }: PageProps<"/materials
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы", href: "/materials" }, { label: material.name }]} />
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Материалы", href: "/materials" }, { label: material.name }]} />
       <h1 className="text-xl font-semibold">Редактировать материал</h1>
       <Card>
         <CardContent className="pt-4">

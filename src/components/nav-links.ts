@@ -3,16 +3,16 @@
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: [] },
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
-  { href: "/lots", label: "Сырьё", also: ["/purchases", "/lining", "/raw-materials", "/analytics", "/materials"] },
+  { href: "/lots", label: "Сырьё", also: ["/purchases", "/analytics"] },
   { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/supply-plan"] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },
   // «Настройки» — только справочники и параметры.
-  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/expense-categories", "/users"] },
-  // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · Анализ документов · История.
-  // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
+  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/materials", "/users"] },
+  // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · История.
+  // Старые адреса (/document-analysis, /integrity, /comments) — редиректы на новые места; подсветка остаётся на «Контроле».
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity"] },
 ] as const;
 

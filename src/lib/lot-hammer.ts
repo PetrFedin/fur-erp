@@ -94,6 +94,26 @@ export function lotHammer(costBreakdown: unknown, vatRate: number, planBreakdown
   return null;
 }
 
+/**
+ * Молоток, прямо стоящий в расчётном листе лота (или расчётном листе позиции закупки): строки «Стоимость молоток за ед…», «Цена за ед. (ам. долл.)» × «Курс»,
+ * «Цена за ед. по курсу, ₽». Никаких оценок: ни «НДС на шкуры ÷ ставка», ни цен из справочника Drive (lot-usd-sources.json). Для карточки лота.
+ */
+export function lotHammerListed(costBreakdown: unknown, vatRate: number, planBreakdowns: unknown[] = []): Hammer | null {
+  const own = fromItems(itemsOf(costBreakdown), vatRate);
+  if (own) return own;
+  for (const p of planBreakdowns) {
+    const h = fromItems(itemsOf((p as { costBreakdown?: unknown } | null | undefined)?.costBreakdown), vatRate);
+    if (h) return h;
+  }
+  return null;
+}
+
+/** Цена шкуры в $, прямо стоящая в расчётном листе лота («Цена за ед. (ам. долл.)» / «Цена за ед., $»); иначе null — без оценок. */
+export function lotUsdListed(costBreakdown: unknown, planBreakdowns: unknown[] = []): number | null {
+  const u = lotUsdPrice(costBreakdown, planBreakdowns);
+  return u.source === "direct" ? u.usd : null;
+}
+
 /** Откуда взята цена шкуры в USD (молоток, до сборов). */
 export type UsdSource = "direct" | "eur×rate" | "rub÷rate" | "calc" | "none";
 

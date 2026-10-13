@@ -53,7 +53,7 @@ export async function createCommentAction(_prev: ActionState, fd: FormData): Pro
       commission4: parseCommission4Cookie(jar.get(COMMISSION4_COOKIE)?.value),
     },
   );
-  if (r.ok) revalidatePath("/comments");
+  if (r.ok) revalidatePath("/history/comments");
   return r.ok ? { ok: true, id: r.id, at: Date.now() } : { error: r.error };
 }
 
@@ -64,7 +64,7 @@ export async function updateCommentAction(id: string, text: string, kind: string
   if (!a) return NO_SESSION;
   if (!dbReady()) return NO_DB;
   const r = await updateComment(prisma, a, id, { text, kind, priority });
-  if (r.ok) revalidatePath("/comments");
+  if (r.ok) revalidatePath("/history/comments");
   return r;
 }
 
@@ -73,7 +73,7 @@ export async function setStatusAction(ids: string[], status: string, note?: stri
   if (!a) return NO_SESSION;
   if (!dbReady()) return NO_DB;
   const r = await setStatus(prisma, a, ids, status, note);
-  if (r.ok) revalidatePath("/comments");
+  if (r.ok) revalidatePath("/history/comments");
   return r;
 }
 
@@ -82,7 +82,7 @@ export async function deleteCommentAction(id: string): Promise<Plain> {
   if (!a) return NO_SESSION;
   if (!dbReady()) return NO_DB;
   const r = await deleteComment(prisma, a, id);
-  if (r.ok) revalidatePath("/comments");
+  if (r.ok) revalidatePath("/history/comments");
   return r;
 }
 
@@ -91,6 +91,6 @@ export async function addReplyAction(id: string, text: string): Promise<Plain> {
   if (!a) return NO_SESSION;
   if (!dbReady()) return NO_DB;
   const r = await addReply(prisma, a, id, text);
-  if (r.ok) revalidatePath("/comments");
+  if (r.ok) revalidatePath("/history/comments");
   return r;
 }

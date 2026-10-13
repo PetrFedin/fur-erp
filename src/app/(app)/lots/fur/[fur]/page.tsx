@@ -59,7 +59,6 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
     if (!kinds.noLots.includes(name)) notFound();
     const ords = kinds.orders.filter((o) => furKindsOfOrder(o.fur).includes(name)).sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
     const units = ords.reduce((a, o) => a + o.qty, 0);
-    const cHides = ords.reduce((a, o) => a + o.contractorHides, 0);
     return (
       <div className="flex flex-col gap-4">
         <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Мех", href: "/lots" }, { label: name }]} />
@@ -72,14 +71,14 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
           {["Куплено", "Остаток"].map((t) => (
             <div key={t} className={TILE_BOX}><TileHead>{t}</TileHead><TileValue compact>—</TileValue><TileCaption>закупок и лотов нет</TileCaption></div>
           ))}
-          <div className={TILE_BOX}><TileHead>Использовано</TileHead><TileValue compact>{cHides > 0 ? `${cHides} шк.` : `${units} изд.`}</TileValue><TileCaption>{cHides > 0 ? `шкуры подрядчика · ${units} изд. · ` : ""}{ords.length} ТЗ · {formatMoney(ords.reduce((a, o) => a + o.work, 0))} по ТЗ</TileCaption></div>
+          <div className={TILE_BOX}><TileHead>Использовано</TileHead><TileValue compact>{units} изд.</TileValue><TileCaption>{ords.length} ТЗ · {formatMoney(ords.reduce((a, o) => a + o.work, 0))} по ТЗ</TileCaption></div>
         </div>
         <section aria-labelledby="beaver-orders" className="space-y-2">
           <div className="flex items-center gap-2"><h2 id="beaver-orders" className="text-base font-semibold">Изделия из меха «{name}»</h2>
-            <InfoHint label="Откуда данные" wide><p>Данные ТЗ (артикул, партия, количество изделий, работа). Шкуры подрядчика, шт. — справка по расчёту «МГУ» (1 шкура на изделие): реальной цены шкуры в документах нет. Это не списания сырья: расход по документам в системе не записан, суммы в «Сырьё» и на Главной не входят.</p></InfoHint></div>
+            <InfoHint label="Откуда данные" wide><p>Данные ТЗ (артикул, партия, количество изделий, работа). Это не списания сырья: расход по документам в системе не записан.</p></InfoHint></div>
           <div className="scroll-hint overflow-x-auto rounded-xl border border-neutral-200 bg-white">
-            <table className="w-full table-fixed text-sm tabular-nums" style={{ minWidth: 720 }}>
-              <thead><tr className="border-b border-neutral-200 text-xs text-neutral-500"><th className="px-2 py-1.5 text-left font-medium">ТЗ</th><th className="px-2 py-1.5 text-left font-medium">Артикул</th><th className="px-2 py-1.5 text-left font-medium">Партия</th><th className="px-2 py-1.5 text-right font-medium">Изделий, шт.</th><th className="px-2 py-1.5 text-right font-medium">Шкур подрядчика, шт.</th><th className="px-2 py-1.5 text-right font-medium">Работа, ₽</th><th className="px-2 py-1.5 text-right font-medium">Работа за ед., ₽</th></tr></thead>
+            <table className="w-full table-fixed text-sm tabular-nums" style={{ minWidth: 640 }}>
+              <thead><tr className="border-b border-neutral-200 text-xs text-neutral-500"><th className="px-2 py-1.5 text-left font-medium">ТЗ</th><th className="px-2 py-1.5 text-left font-medium">Артикул</th><th className="px-2 py-1.5 text-left font-medium">Партия</th><th className="px-2 py-1.5 text-right font-medium">Изделий, шт.</th><th className="px-2 py-1.5 text-right font-medium">Работа, ₽</th><th className="px-2 py-1.5 text-right font-medium">Работа за ед., ₽</th></tr></thead>
               <tbody>
                 {ords.map((o) => (
                   <tr key={o.id} className="border-t border-neutral-100">
@@ -87,13 +86,12 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
                     <td className="truncate px-2 py-1.5 text-xs" title={o.modelHint}>{o.modelLabel || o.modelName}</td>
                     <td className="truncate px-2 py-1.5 text-xs">{o.batchText ?? "—"}</td>
                     <td className="px-2 py-1.5 text-right">{o.qty}</td>
-                    <td className="px-2 py-1.5 text-right">{o.contractorHides > 0 ? o.contractorHides : "—"}</td>
                     <td className="px-2 py-1.5 text-right">{o.work > 0 ? formatMoney(o.work) : "—"}</td>
                     <td className="px-2 py-1.5 text-right">{o.work > 0 && o.qty > 0 ? formatMoney(Math.round(o.work / o.qty)) : "—"}</td>
                   </tr>
                 ))}
-                {ords.length === 0 ? <tr><td colSpan={7} className="px-3 py-5 text-center text-neutral-500">ТЗ нет.</td></tr> : (
-                  <tr className="row-total"><td className="px-2 py-2 text-left" colSpan={3}>Всего, шт.</td><td className="px-2 py-2 text-right">{units}</td><td className="px-2 py-2 text-right">{cHides > 0 ? cHides : "—"}</td><td className="px-2 py-2 text-right">{formatMoney(ords.reduce((a, o) => a + o.work, 0))}</td><td className="px-2 py-2" /></tr>
+                {ords.length === 0 ? <tr><td colSpan={6} className="px-3 py-5 text-center text-neutral-500">ТЗ нет.</td></tr> : (
+                  <tr className="row-total"><td className="px-2 py-2 text-left" colSpan={3}>Всего, шт.</td><td className="px-2 py-2 text-right">{units}</td><td className="px-2 py-2 text-right">{formatMoney(ords.reduce((a, o) => a + o.work, 0))}</td><td className="px-2 py-2" /></tr>
                 )}
               </tbody>
             </table>

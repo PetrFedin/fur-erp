@@ -98,7 +98,7 @@ export function LotSheetTable({
             {rows.map((r) => {
               const d = cur(r);
               const dirty = changed.includes(r);
-              const catKey = (d.cat || r.autoCat || "") as CompCat | "";
+              const catKey = d.cat as CompCat | "";
               return (
                 <tr key={r.idx} className={"border-b border-neutral-100 align-top " + (r.info ? "text-neutral-500" : "") + (dirty ? " bg-amber-50/50" : "")}>
                   <td className="px-1.5 py-1.5">
@@ -112,11 +112,11 @@ export function LotSheetTable({
                   <td className="px-1.5 py-1.5">
                     {canEdit ? (
                       <select aria-label={`Категория: ${r.label}`} className={FIELD} value={d.cat} onChange={(e) => patch(r, "cat", e.target.value)}>
-                        <option value="">{r.autoCat ? `${CAT_LABEL[r.autoCat]} (авто)` : r.kind === "detail" ? "входит в другую строку (авто)" : "справочно (авто)"}</option>
+                        <option value="">не назначена</option>
                         {COMP_CATS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                       </select>
                     ) : (
-                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : r.kind === "detail" ? "входит в другую строку" : "справочно"}</span>
+                      <span className="text-xs">{catKey ? CAT_LABEL[catKey] : "—"}</span>
                     )}
                   </td>
                   <td className="px-1.5 py-1.5 text-right tabular-nums">
@@ -163,7 +163,7 @@ export function LotSheetTable({
         <SaveStatus pending={s.pending || lc.busy} saved={s.saved || lc.saved} error={s.error ?? lc.error} />
         <InfoHint label="Что можно править в расчёте" wide>
           <p>Правятся значения строк, названия для показа, категория сектора и источник. Правка значения пересчитывает состав цены, молоток, $ и цену лота, а вместе с ней — стоимость списаний по ТЗ и себестоимость затронутых ТЗ; перед записью показывается окно «что изменится».</p>
-          <p className="mt-1">Связанные строки листа (молоток за шкуру, НДС на товар, «Итого …») сдвигаются вместе с изменённой. Строки-детализации («входит в другую строку») отдельно в цену не входят. Категория, выбранная вручную, переносит вклад строки в другой сектор — сумма цены лота не меняется.</p>
+          <p className="mt-1">Связанные строки листа (молоток за шкуру, НДС на товар, «Итого …») сдвигаются вместе с изменённой. Категория строки назначается вручную и нужна только графику «Из чего состоит цена лота»: он строится по строкам с назначенной категорией, остальное — «не распределено». Сумма цены лота от категорий не меняется.</p>
           <p className="mt-1">«На шкуру» и «Всего по лоту» определены по названию строки: в расчётных листах вперемешку суммы за лот и за шкуру. Для строк в $, курсов и процентов рублёвые столбцы пусты. Добавить или удалить статью нельзя.</p>
         </InfoHint>
         {purchaseLink}

@@ -6,10 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { checkOrgRefs } from "@/lib/org-guard";
 import { staleError, MODEL_V } from "@/lib/concurrency";
 import { resolveCategoryInput } from "@/lib/categories";
-import { parsePrice, zNum, zNumOpt, MAX_QTY, isUniqueViolation, normalizeNumberInput } from "@/lib/input";
+import { parsePrice, zNumOpt, isUniqueViolation, normalizeNumberInput } from "@/lib/input";
 import { loadArticleList } from "@/lib/article-ref";
 import { articleKey, parseAliases } from "@/lib/article-key";
 import { articleConflict } from "@/lib/article-conflict";
@@ -93,8 +92,8 @@ export async function updateModel(
   return {};
 }
 
-// Применяется только к незавершённым ТЗ (PLANNED/IN_PROGRESS): у завершённых и отменённых цена не меняется. See the matching note on
-// production/actions.ts's updateRetailPrice.
+// Применяется только к незавершённым ТЗ (PLANNED/IN_PROGRESS): у завершённых и отменённых цена не меняется. Розничная цена в самом ТЗ
+// правится отдельно (retailPatch в production/actions.ts).
 export async function updateSellingPrice(modelId: string, formData: FormData): Promise<ModelFormState> {
   const session = await requireRole(...EDIT_ROLES);
   // Пустое поле — цену убрать (модель без розничной цены); иначе число больше 0.
@@ -121,54 +120,6 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
 
   revalidateAll(session.user.organizationId);
   return {};
-}
-
-const bomSchema = z.object({
-  rawMaterialId: z.string().min(1, "Выберите материал"),
-  quantityPerUnit: zNum("Норма расхода", { positive: true, max: MAX_QTY }),
-});
-
-export async function addBomLine(productModelId: string, formData: FormData): Promise<ModelFormState> {
-  const session = await requireRole(...EDIT_ROLES);
-  const orgId = session.user.organizationId;
-  const model = await prisma.productModel.findFirst({
-    where: { id: productModelId, organizationId: orgId },
-  });
-  if (!model) return { error: "Модель не найдена" };
-
-  const parsed = bomSchema.safeParse({
-    rawMaterialId: formData.get("rawMaterialId"),
-    quantityPerUnit: formData.get("quantityPerUnit"),
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
-  const badRef = await checkOrgRefs(orgId, { rawMaterial: parsed.data.rawMaterialId });
-  if (badRef) return { error: badRef };
-
-  await prisma.productModelMaterial.upsert({
-    where: {
-      productModelId_rawMaterialId: {
-        productModelId,
-        rawMaterialId: parsed.data.rawMaterialId,
-      },
-    },
-    create: { productModelId, ...parsed.data },
-    update: { quantityPerUnit: parsed.data.quantityPerUnit },
-  });
-
-  revalidateAll(orgId);
-  return {};
-}
-
-export async function removeBomLine(productModelId: string, lineId: string) {
-  const session = await requireRole(...EDIT_ROLES);
-  const model = await prisma.productModel.findFirst({
-    where: { id: productModelId, organizationId: session.user.organizationId },
-  });
-  if (!model) return;
-
-  // Строка удаляется только если она принадлежит этой (своей) модели.
-  await prisma.productModelMaterial.deleteMany({ where: { id: lineId, productModelId: model.id } });
-  revalidateAll(session.user.organizationId);
 }
 
 // ───────────────────────── единая форма артикула (новый + правка по месту) ─────────────────────────

@@ -105,9 +105,14 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
             </InfoHint>
           </div>
         </div>
-        <a href={`/history/export${exportQs}`} className={buttonVariants({ variant: "outline" })}>
-          Экспорт CSV
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/history/comments" className={buttonVariants({ variant: "outline" })} title="Замечания, ошибки и идеи к частям проекта — для доработки">
+            Комментарии
+          </Link>
+          <a href={`/history/export${exportQs}`} className={buttonVariants({ variant: "outline" })}>
+            Экспорт CSV
+          </a>
+        </div>
       </div>
 
       <FilterBar
@@ -119,7 +124,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
           { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "З-2026-0014, ТЗ 19, id…" },
           { type: "multi", name: "actor", label: "Кто", options: [...actorOptions].map(([value, label]) => ({ value, label })), allLabel: "Все" },
           { type: "multi", name: "model", label: "Что", options: Object.entries(MODEL_TITLES).map(([value, label]) => ({ value, label })), allLabel: "Всё" },
-          { type: "multi", name: "action", label: "Действие", options: [{ value: "create", label: "Создано" }, { value: "update", label: "Изменено" }, { value: "delete", label: "Удалено" }], allLabel: "Любое" },
+          { type: "multi", name: "action", label: "Действие", more: true, options: [{ value: "create", label: "Создано" }, { value: "update", label: "Изменено" }, { value: "delete", label: "Удалено" }], allLabel: "Любое" },
           { type: "date", name: "from", label: "С даты" },
           { type: "date", name: "to", label: "По дату" },
         ]}

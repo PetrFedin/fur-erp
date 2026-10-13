@@ -25,7 +25,7 @@ import { DecisionsBlock, DocTasksBlock } from "./task-blocks";
 import { UnallocatedAdvancesBlock } from "./unallocated-block";
 import { formatMoney, cn } from "@/lib/utils";
 
-export const metadata = { title: "Что требует внимания" };
+export const metadata = { title: "Задачи" };
 
 const DOT: Record<AttentionPriority, string> = { red: "bg-red-500", yellow: "bg-amber-400", gray: "bg-neutral-300" };
 const PRIORITY_LABEL: Record<AttentionPriority, string> = { red: "Срочно", yellow: "Проверить", gray: "Справочно" };
@@ -60,11 +60,11 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Что требует внимания" }]} />
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Задачи" }]} />
       <ControlTabs active="tasks" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Что требует внимания</h1><InfoHint wide label="Как считается число">
+          <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Задачи</h1><InfoHint wide label="Как считается число">
               <p>
                 Единый список «что требует действия»: нет документа, нет платёжки, расхождение суммы, ждёт подтверждения, нет даты, цены или состава.
                 Живые проверки по базе: исправили запись — она исчезает.

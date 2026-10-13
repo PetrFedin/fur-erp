@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { recheckIntegrity } from "./actions";
+import { recheckIntegrity } from "./integrity-actions";
 
 export function RecheckButton() {
   const [pending, start] = useTransition();

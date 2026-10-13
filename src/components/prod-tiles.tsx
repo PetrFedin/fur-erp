@@ -19,7 +19,7 @@ const money = (v: number) => formatMoney(v.toFixed(2));
  * Считаются из тех же ТЗ, что и дерево под ними и плитки «Производство» на Главной (при тех же фильтрах и годе).
  * `extra` — дополнительные плитки страницы (оплаты партий, маркап и т. п.); `perUnit` — замена плитки «На 1 изделие» (карусель на «Изделиях»).
  */
-export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd }: { headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
+export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCount = extra ? 1 : 0, id = "prod", title = "Производство", perUnit, carousel = false, headerEnd, hideProduced = false, hidePerUnit = false }: { hideProduced?: boolean; hidePerUnit?: boolean; headerEnd?: ReactNode; carousel?: boolean; id?: string; perUnit?: ReactNode; title?: string; orders: DrillOrder[]; c4: "on" | "off"; extra?: ReactNode; treeId?: string; extraCount?: number }) {
   const { mode: vat } = useVatDisplay();
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
@@ -57,8 +57,8 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   );
   return (
     <WidgetRow id={id} title={title} headerEnd={headerEnd}>
-    <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (extraCount >= 2 ? "xl:grid-cols-5" : extraCount === 1 ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
-      {carousel ? (
+    <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
+      {hideProduced ? null : carousel ? (
         <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
@@ -98,7 +98,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         </div>
       </div>
       )}
-      {perUnit ?? <div className="relative">
+      {hidePerUnit ? null : perUnit ?? <div className="relative">
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>На 1 изделие</TileHead>
           <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "—"}</TileValue>

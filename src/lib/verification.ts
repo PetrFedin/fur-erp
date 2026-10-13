@@ -73,6 +73,8 @@ export type VerifyRow = {
   blockers: Blocker[];
   /** Поля быстрого ввода прямо в строке (/verify): значения сейчас. */
   edit: { date?: string; amount?: string; ref?: string; number?: string } | null;
+  /** Оплата: основание — только письмо «оплачено» (без файла платёжки и п/п) → подпись «согласовано письмом». */
+  letter?: boolean;
   /** Чем подтверждено реестром сверки (п/п, сумма и дата совпали) — только для оплат. */
   registryFact: string | null;
   /** Пояснение «из чего состоит» для строки (аукцион: закупки). */
@@ -282,7 +284,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         key: `payment:${p.id}`, kind: "payment", id: p.id,
         title: `${formatDate(p.paidAt)} · ${fmtRub(p.amount)}`, sub: `${p.supplier.name} · ${target}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
         href, group: auctionName(p.auctionSession) ?? p.purchase?.number ?? null, year: p.paidAt.getUTCFullYear(), amountText: fmtRub(p.amount),
-        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes),
+        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes), letter: !hasFile && ev === "letter",
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
         registryFact: reg, members: [],
@@ -335,7 +337,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         title: `${formatDate(p.paidAt)} · ${fmtRub(p.amount)}`,
         sub: `${p.client?.name ?? "заказчик не указан"} · ${batches.length ? `партия ${batches.join(", ")}` : "без партии"}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
         href, group: batches.length === 1 ? `Партия ${batches[0]}` : null, year: p.paidAt.getUTCFullYear(), amountText: fmtRub(p.amount),
-        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes),
+        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes), letter: !hasFile && ev === "letter",
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
         registryFact: reg, members: [],

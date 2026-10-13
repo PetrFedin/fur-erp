@@ -447,7 +447,7 @@ export function CommentWidget() {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/comments" className="text-xs text-blue-700 hover:underline">
+              <Link href="/history/comments" className="text-xs text-blue-700 hover:underline">
                 Все комментарии
               </Link>
               <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть (Esc)" title="Закрыть (Esc) — введённый текст сохранится" className="rounded-md px-2 py-1 text-neutral-500 hover:bg-neutral-100">

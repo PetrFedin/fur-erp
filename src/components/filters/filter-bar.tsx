@@ -13,7 +13,7 @@ type Common = {
   aliases?: string[];
   className?: string;
   state?: boolean;
-  /** Второстепенный фильтр: прячется под «Ещё фильтры» (раскрыт сам, если в нём уже есть выбор). */
+  /** Второстепенный фильтр: прячется под «Показать ещё» (раскрыт сам, если в нём уже есть выбор). */
   more?: boolean;
 };
 export type MultiControl = Common & {
@@ -278,11 +278,19 @@ function BarView({
 
   const field = "ui-field h-11 rounded-lg border border-neutral-300 bg-white px-3 text-xs font-normal text-neutral-800 placeholder:text-neutral-500 focus-visible:outline-none";
 
-  const moreControls = controls.filter((c) => c.more);
-  const mainControls = controls.filter((c) => !c.more);
+  // Кнопка «Показать ещё» нужна, только если фильтров больше пяти: до пяти показываем все в строке.
+  const useMore = controls.length > 5;
+  const moreControls = useMore ? controls.filter((c) => c.more) : [];
+  const mainControls = useMore ? controls.filter((c) => !c.more) : controls;
   const moreCount = moreControls.filter((c) => !c.state).reduce((n, c) => n + (vals[c.name] ?? []).length, 0);
   // Блок «Ещё фильтры» раскрыт сразу, если в нём уже есть выбор; дальше его открывает и закрывает только кнопка (выбор значений блок не трогает).
   const [moreOpen, setMoreOpen] = useState(moreCount > 0);
+  // Ссылка/переход с выбором в скрытых фильтрах раскрывает блок (выбранное не теряется из виду).
+  const [prevMore, setPrevMore] = useState(moreCount);
+  if (prevMore !== moreCount) {
+    setPrevMore(moreCount);
+    if (moreCount > prevMore) setMoreOpen(true);
+  }
   const moreActive = moreOpen;
   const gridCls = cn(oneRow ? "grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] items-end gap-2" : "flex flex-wrap items-end gap-2");
   const renderControl = (c: BarControl) => {
@@ -383,7 +391,7 @@ function BarView({
               aria-expanded={moreActive}
               className="h-11 min-w-0 truncate rounded-lg border border-dashed border-neutral-300 bg-white px-3 text-sm text-neutral-600 hover:border-neutral-500 max-sm:w-full sm:flex-1 sm:basis-40"
             >
-              Ещё фильтры{moreCount > 0 ? ` (${moreCount})` : ""} {moreActive ? "▴" : "▾"}
+              {moreActive ? "Скрыть" : `Показать ещё${moreCount > 0 ? ` · ${moreCount}` : ""}`} {moreActive ? "▴" : "▾"}
             </button>
           )}
           {children ? <Fragment key="extra">{children}</Fragment> : null}

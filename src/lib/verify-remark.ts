@@ -21,3 +21,8 @@ export const STATUS_LABEL = {
   none: "не подтверждено",
   remark: "подтверждена с замечанием",
 } as const;
+
+/** Подпись подтверждённой строки: с замечанием; иначе «согласовано письмом» (основание — только письмо), иначе «подтверждено документом». */
+export function verifiedLabel(v: { note: string | null | undefined; letter?: boolean }): string {
+  return remarkOf(v.note) ? STATUS_LABEL.remark : v.letter ? STATUS_LABEL.letter : STATUS_LABEL.docs;
+}

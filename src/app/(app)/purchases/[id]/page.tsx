@@ -9,10 +9,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CollapsibleBlock } from "@/components/collapsible-block";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
@@ -304,12 +303,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     ordersByLot.set(u.lotId, list);
   }
 
-  const itemsInclVatRub = itemsTotalInclVatRub;
-  const totalQty = purchase.items.reduce((s, i) => s.add(i.quantity), new Decimal(0));
-  const units = new Set(purchase.items.map((i) => i.rawMaterial.unit));
-  const singleUnit = units.size === 1 ? [...units][0] : null;
-  const expensePerUnit = singleUnit && totalQty.greaterThan(0) ? expensesTotalInclVat.div(totalQty) : null;
-  const expensePct = itemsInclVatRub.greaterThan(0) ? expensesTotalInclVat.div(itemsInclVatRub).mul(100) : null;
 
   const itemRow = (item: (typeof purchase.items)[number], variant: "row" | "card") => {
                   const furKind = canonicalFur(item.rawMaterial.name, furIdx)?.name ?? null;
@@ -493,6 +486,60 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   );
   };
 
+  // «Как считается» — расчёт себестоимости внутри блока «Из чего сложилась цена единицы» (свёрнуто).
+  const calcHow = planItems.length > 0 ? (
+    <details className="rounded-md border border-neutral-200">
+      <summary className="cursor-pointer px-2 py-1.5 text-sm text-neutral-700">Как считается <span className="text-xs text-neutral-500">· {planItems.length} поз. · справочно</span></summary>
+      <div className="border-t border-neutral-100 p-2">
+          <div className="flex flex-col gap-2">
+            <InfoHint label="О расчёте себестоимости" wide>
+                Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
+                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4% сюда не входит: оно добавляется только при списании в ТЗ.
+              </InfoHint>
+            
+            <div className="flex items-center gap-1 text-xs text-neutral-600">
+              {statusEditable ? "Править: «Править расчёт» в строке позиции" : "Расчёт закрыт для правок"}
+              <InfoHint wide label="Кто и как правит расчёт">
+                <p>
+              {statusEditable ? (
+                canEditRole ? (
+                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт» в строке позиции.</>
+                ) : (
+                  <>Расчёт могут менять только владелец, администратор и закупщик.</>
+                )
+              ) : (
+                <>
+                  Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — расчёт менять нельзя;
+                  обратитесь к администратору.
+                  {batchName && canEditRole && (
+                    <>
+                      {" "}
+                      Документы можно заменить или переименовать в режиме «Аукцион»:{" "}
+                      <Link href={`/lots?auction=${encodeURIComponent(batchName)}`} className="underline">
+                        открыть аукцион {batchName}
+                      </Link>
+                      .
+                    </>
+                  )}
+                </>
+              )}
+                </p>
+              </InfoHint>
+            </div>
+            {canEditPlan && (
+              <CostPlanRateForm
+                key={purchase.exchangeRate.toString()}
+                purchaseId={id}
+                currency={purchase.currency}
+                exchangeRate={purchase.exchangeRate.toString()}
+                orderDate={purchase.orderDate.toISOString().slice(0, 10)}
+              />
+            )}
+          </div>
+      </div>
+    </details>
+  ) : null;
+
   return (
     <ItemRowShared value={{ colorOptions, canAddColor, materials: allMaterials, currency: purchase.currency }}>
     <div className="flex flex-col gap-4">
@@ -624,23 +671,23 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             <SummaryCard
               label={
                 <Link href={`/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block`} className="inline-block text-blue-600 hover:underline max-md:py-2" title={`Оплаты ведутся по партии «${auctionPay.name}» целиком`}>
-                  Оплачено по партии
+                  Оплачено
                 </Link>
               }
               value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "—"}
-              note={`из ${formatMoney(auctionPay.total.toString())}`}
+              note={`по партии, из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
-              label="Остаток по партии"
+              label="Остаток"
               value={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? "оплачено" : auctionPay.remaining.lessThan(-0.005) ? `Переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
-              note={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? roundingRestHint(auctionPay.remaining.toNumber()) : auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
+              note={isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber()) ? roundingRestHint(auctionPay.remaining.toNumber()) : auctionPay.planned.greaterThan(0) ? `по партии, запланировано ${formatMoney(auctionPay.planned.toString())}` : "по партии"}
               warn={auctionPay.remaining.greaterThan(0) && !isRoundingRest(auctionPay.remaining.toNumber(), auctionPay.total.toNumber())}
             />
           </>
         ) : (
           <>
-            <SummaryCard label="Оплачено" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
-            <SummaryCard label="Остаток к оплате" note={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(balanceDue.toNumber()) : undefined} value={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0) && !isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber())} />
+            <SummaryCard label="Оплачено" note="по закупке" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
+            <SummaryCard label="Остаток" note={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? roundingRestHint(balanceDue.toNumber()) : "по закупке"} value={isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber()) ? "оплачено" : balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0) && !isRoundingRest(balanceDue.toNumber(), grandTotalRub.toNumber())} />
           </>
         )}
       </div>
@@ -745,7 +792,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             return { item, unit, qty: item.lot ? item.lot.quantityReceived : item.quantity, items: breakdownOf(item) };
           })
           .filter((r) => r.unit != null);
-        if (rows.length === 0) return null;
+        if (rows.length === 0) return calcHow ? <Card><CardHeader><CardTitle>Из чего сложилась цена единицы</CardTitle></CardHeader><CardContent>{calcHow}</CardContent></Card> : null;
         const num = (v: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(v);
         const totalAll = rows.reduce((a, r) => a.add(r.unit!.mul(r.qty)), new Decimal(0));
         return (
@@ -789,60 +836,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <span><TotalLabel extra="по лотам" /></span>
                 <span className="tabular-nums">{formatMoney(totalAll.toFixed(2))}</span>
               </div>
+              {calcHow}
             </CardContent>
           </Card>
         );
       })()}
-
-      {planItems.length > 0 && (
-        <CollapsibleBlock title="Расчёт себестоимости" summary={`${planItems.length} поз. · справочно`}>
-          <div className="flex flex-col gap-2">
-            <InfoHint label="О расчёте себестоимости" wide>
-                Себестоимость единицы в таблице позиций — предварительный расчёт из расчётного листа. При приёме на склад она
-                переходит в лот, а расходы закупки (блок «Расходы») добавляются сверху пропорционально стоимости лотов. 4% сюда не входит: оно добавляется только при списании в ТЗ.
-              </InfoHint>
-            
-            <div className="flex items-center gap-1 text-xs text-neutral-600">
-              {statusEditable ? "Править: «Править расчёт» в строке позиции" : "Расчёт закрыт для правок"}
-              <InfoHint wide label="Кто и как правит расчёт">
-                <p>
-              {statusEditable ? (
-                canEditRole ? (
-                  <>Цена, количество и расходы лота правятся кнопкой «Править расчёт» в строке позиции.</>
-                ) : (
-                  <>Расчёт могут менять только владелец, администратор и закупщик.</>
-                )
-              ) : (
-                <>
-                  Закупка уже {purchase.status === "RECEIVED" ? "принята на склад" : "закрыта"} — расчёт менять нельзя;
-                  обратитесь к администратору.
-                  {batchName && canEditRole && (
-                    <>
-                      {" "}
-                      Документы можно заменить или переименовать в режиме «Аукцион»:{" "}
-                      <Link href={`/lots?auction=${encodeURIComponent(batchName)}`} className="underline">
-                        открыть аукцион {batchName}
-                      </Link>
-                      .
-                    </>
-                  )}
-                </>
-              )}
-                </p>
-              </InfoHint>
-            </div>
-            {canEditPlan && (
-              <CostPlanRateForm
-                key={purchase.exchangeRate.toString()}
-                purchaseId={id}
-                currency={purchase.currency}
-                exchangeRate={purchase.exchangeRate.toString()}
-                orderDate={purchase.orderDate.toISOString().slice(0, 10)}
-              />
-            )}
-          </div>
-        </CollapsibleBlock>
-      )}
 
       <Card>
         <CardHeader>
@@ -944,18 +942,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             <p className="text-xs text-neutral-500">
               Расходы принятой закупки уже распределены по лотам, поэтому здесь не правятся: изменение сломало бы себестоимость лотов, которые могли уйти в ТЗ.
             </p>
-          )}
-          {purchase.expenses.length > 0 && expensesTotalInclVat.greaterThan(0) && (
-            <div className="text-sm text-neutral-600">
-              Расходы = {formatMoney(expensesTotalInclVat.toString())} (с НДС) → в цену единицы добавится ≈{" "}
-              {expensePerUnit
-                ? `${formatMoney(expensePerUnit.toFixed(2))} за 1 ${UNIT_LABELS[singleUnit!]}`
-                : expensePct
-                  ? `+${formatPercent(expensePct.toString())} к цене каждой единицы`
-                  : "—"}
-              {expensePct && expensePerUnit && ` (+${formatPercent(expensePct.toString())} к стоимости позиций)`}
-              <InfoHint label="Как распределяются расходы">Справочно: при приёме на склад расходы распределяются по позициям пропорционально их сумме.</InfoHint>
-            </div>
           )}
         </CardContent>
       </Card>

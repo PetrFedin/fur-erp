@@ -270,7 +270,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                     ))}
                     {met.lining.qty > 0 && (
                       <tr className="border-b border-neutral-100 align-top">
-                        <td className="py-1.5 pr-2">Подкладка<Src href="/lining" title="Подкладка: лоты и закупки" /></td>
+                        <td className="py-1.5 pr-2">Подкладка<Src href="/lots?tab=lining" title="Подкладка: лоты и закупки" /></td>
                         <td className={TD}>{formatQty(Math.round(met.lining.qty * 100) / 100)} м</td>
                         <td className={TD + BL}><CostTwo on={met.lining.on} off={met.lining.off} /></td>
                         <td className={TD}><CostTwo on={{ incl: met.lining.on.incl / met.lining.qty, excl: met.lining.on.excl / met.lining.qty }} off={{ incl: met.lining.off.incl / met.lining.qty, excl: met.lining.off.excl / met.lining.qty }} suffix="/м" /></td>

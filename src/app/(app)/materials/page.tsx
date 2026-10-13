@@ -60,7 +60,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы" }]} />
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Материалы" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Справочник материалов</h1>
         {canCreate && (

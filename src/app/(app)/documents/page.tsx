@@ -37,6 +37,7 @@ import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
 import { TodoSummary } from "./todo-summary";
+import { AnalysisSection } from "./analysis-section";
 import { BulkUpload } from "./bulk-upload";
 import { ACCESS, hasRole } from "@/lib/access";
 import { TILE_BOX, TileHead } from "@/app/(app)/dashboard/tile";
@@ -166,7 +167,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
             { type: "multi", name: "gaps", label: "Нужен файл", single: true, options: [{ value: "1", label: "Только где нужен файл" }], allLabel: "Все записи" },
             { type: "multi", name: "ver", label: "Подтверждение", options: [{ value: "yes", label: "Подтверждена" }, { value: "no", label: "Не подтверждена" }], allLabel: "Любое" },
-            { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
+            { type: "multi", name: "sort", label: "Сортировка", more: true, single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
           ]}
         />
       </div>
@@ -182,6 +183,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       </WidgetRow>
 
       <TodoSummary organizationId={orgId} year={yf} />
+
+      <AnalysisSection organizationId={orgId} year={yf} />
 
       {hasRole(session.user.role, ACCESS.purchases) && (
         <details className="rounded-lg border border-neutral-200 bg-white" open={false}>

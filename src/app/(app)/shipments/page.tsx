@@ -142,7 +142,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           controls={[
             { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
             { type: "multi", name: "model", label: "Артикул", options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
-            { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
+            { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
             { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
             { type: "date", name: "from", label: "Плановая дата с" },
             { type: "date", name: "to", label: "Плановая дата по" },

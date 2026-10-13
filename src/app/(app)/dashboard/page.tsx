@@ -96,10 +96,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: d.options.auction, allLabel: "Все партии" },
             { type: "multi", name: "fur", label: "Вид меха", options: d.options.fur },
             { type: "multi", name: "color", label: "Цвет", options: d.options.color, allLabel: "Все цвета", noneLabel: d.noColorLots > 0 ? "Цвет не указан в документах" : undefined, hint: "Цвет лота по справочнику" },
-            ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки", noneLabel: "Без признака", hint: "Признаки лота по справочнику: седина, дикий / клеточный, тонированный…" }] : []),
             { type: "multi", name: "batch", label: "Партия производства", options: d.options.batch, noneLabel: "Без партии", allLabel: "Все партии" },
-            { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: noGroupLabelFor(d.noGroup.repair, d.noGroup.other), allLabel: "Все группы", hint: "«Ремонт (без группы)»: у категории «Ремонт» в справочнике нет группы. Категории ремонта видны в таблице «Производство» (Группа → Категория)." },
             { type: "multi", name: "kind", label: "Тип", single: true, options: [{ value: "prod", label: KIND_LABELS.prod }, { value: "repair", label: KIND_LABELS.repair }], allLabel: "Все", hint: "Производство — все ТЗ кроме ремонта; Ремонт — только ремонтные ТЗ" },
+            ...(d.options.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: d.options.attr, allLabel: "Все признаки", more: true, noneLabel: "Без признака", hint: "Признаки лота по справочнику: седина, дикий / клеточный, тонированный…" }] : []),
+            { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: noGroupLabelFor(d.noGroup.repair, d.noGroup.other), allLabel: "Все группы", more: true, hint: "«Ремонт (без группы)»: у категории «Ремонт» в справочнике нет группы. Категории ремонта видны в таблице «Производство» (Группа → Категория)." },
           ]}
           footer={
             <div className="mt-2 flex items-center gap-1 text-[11px] leading-4 text-neutral-500">

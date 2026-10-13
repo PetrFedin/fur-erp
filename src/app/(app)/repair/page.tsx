@@ -66,9 +66,9 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
           title="Фильтры ремонта"
           controls={[
             { type: "multi", name: "model", label: "Артикул", options: modelOpts },
-            { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
+            { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
             { type: "multi", name: "fur", label: "Тип меха", aliases: ["kind"], options: tzOpts.fur },
-            { type: "multi", name: "color", label: "Цвет", options: tzOpts.color },
+            { type: "multi", name: "color", label: "Цвет", more: true, options: tzOpts.color },
             { type: "multi", name: "tz", label: "ТЗ", options: tzOpts.tz },
             { type: "multi", name: "tzyear", label: year === "all" ? "Год" : `Год (внутри ${year})`, options: tzOpts.tzyear },
             { type: "multi", name: "batch", label: "Партия пошива", options: tzOpts.batch, noneLabel: "Без партии" },

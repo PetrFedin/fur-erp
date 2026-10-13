@@ -315,7 +315,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, noneLabel: "Без аукциона", allLabel: "Все партии" },
             { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: furKinds.options.map((o) => (furKinds.noLots.includes(o.value) ? { ...o, label: `${o.label} (лотов нет)` } : o)), allLabel: "Все виды" },
             { type: "multi", name: "color", label: "Цвет", options: opts.color, allLabel: "Все цвета", hint: "Закупка подходит, если у неё есть лот этого цвета" },
-            { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", hint: "Закупка подходит, если у неё есть лот этого размера" },
+            { type: "multi", name: "size", label: "Размер", options: sizeOptions, noneLabel: "Размер не указан", allLabel: "Все размеры", more: true, hint: "Закупка подходит, если у неё есть лот этого размера" },
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "№ закупки, счёт, поставщик, лот" },
             { type: "multi", name: "usage", label: "Использование", options: USAGE_OPTIONS, allLabel: "Любое", more: true, hint: "Закупка подходит, если есть лот, использованный (не использованный) в ТЗ" },
             { type: "multi", name: "rest", label: "Остаток", options: REST_OPTIONS, allLabel: "Любой", more: true, hint: "Закупка подходит, если есть лот с остатком (или исчерпанный)" },

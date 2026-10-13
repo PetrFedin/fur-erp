@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Blocker } from "@/lib/verification";
-import { remarkOf, STATUS_LABEL } from "@/lib/verify-remark";
+import { remarkOf, STATUS_LABEL, verifiedLabel } from "@/lib/verify-remark";
 import { unverifyPurchases, unverifyRow, verifyPurchases, verifyRow, type VerifyState } from "@/app/(app)/verify/actions";
 
 /** Что нужно клиентскому компоненту о строке (сериализуемо). */
@@ -20,13 +20,15 @@ export type VerifyView = {
   note: string | null;
   ready: boolean;
   blockers: Blocker[];
+  /** Основание — письмо «оплачено», а не файл/п/п (см. verification.ts → refEvidence). */
+  letter?: boolean;
 };
 
 /** Статус одной строкой: «Подтверждено ✓ (дата · кем)» либо «Ждёт ручной проверки». Без действий. */
-export function VerifyBadge({ v, className }: { v: Pick<VerifyView, "verified" | "auto" | "stampText" | "ready" | "blockers" | "note">; className?: string }) {
+export function VerifyBadge({ v, className }: { v: Pick<VerifyView, "verified" | "auto" | "stampText" | "ready" | "blockers" | "note" | "letter">; className?: string }) {
   if (v.verified) {
     const remark = remarkOf(v.note);
-    const label = remark ? STATUS_LABEL.remark : v.auto ? STATUS_LABEL.docs : "подтверждено";
+    const label = verifiedLabel(v);
     return (
       <span
         className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", remark ? "border-amber-300 bg-amber-50 text-amber-900" : "border-emerald-300 bg-emerald-50 text-emerald-800", className)}
@@ -156,7 +158,7 @@ export function VerifyControl({
 }
 
 /** Компактная отметка для списков: «✓ подтверждено» / «не подтверждено»; ведёт в очередь /verify. */
-export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
+export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean; letter?: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
   if (!flag) return <span className="text-neutral-500">—</span>;
   return (
     <Link
@@ -168,7 +170,7 @@ export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean
       )}
       title={flag.verified ? (flag.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную") : "Не подтверждено — откройте очередь «Подтвердить»"}
     >
-      {flag.verified ? (flag.auto ? "✓ подтверждено документом" : "✓ подтверждено") : "не подтверждено"}
+      {flag.verified ? `✓ ${verifiedLabel({ note: null, letter: flag.letter })}` : `${STATUS_LABEL.none}`}
     </Link>
   );
 }

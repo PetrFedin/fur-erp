@@ -12,7 +12,7 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
   if (!report) return null;
 
   // Общую плашку «Данные не сходятся» на Сводке не показываем (решение владельца: не пугать).
-  // Список расхождений остаётся на странице «Контроль → Самопроверка» (/integrity).
+  // Список расхождений остаётся на странице «Контроль → Сверка → Проверка данных» (/reconciliation#integrity).
   if (!kind || !id) return null;
 
   const v = violationsForEntity(report, kind, id);
@@ -32,7 +32,7 @@ async function Body({ kind, id }: { kind?: string; id?: string }) {
                 <Link href={x.v.href} className="underline">где исправить</Link>
               </li>
             ))}
-            {v.length > 5 && <li>…и ещё {v.length - 5}. <Link href="/integrity" className="underline">Проверка данных</Link></li>}
+            {v.length > 5 && <li>…и ещё {v.length - 5}. <Link href="/reconciliation#integrity" className="underline">Проверка данных</Link></li>}
           </ul>
         </div>
       )}

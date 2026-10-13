@@ -30,7 +30,7 @@ const TABS: { id: string; label: string; kinds: VerifyKind[]; hint: string }[] =
 const FILTERS = [
   { id: "ready", label: "Не подтверждено, можно подтвердить" },
   { id: "blocked", label: "Не подтверждено, есть замечания" },
-  { id: "done", label: "Подтверждено" },
+  { id: "done", label: "Подтверждено документом" },
   { id: "remark", label: "Подтверждена с замечанием" },
 ];
 const VERIFY_FILTERS = defineFilters({
@@ -83,14 +83,14 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Подтверждения" }]} />
+      <Breadcrumbs items={[{ label: "Контроль", href: "/attention" }, { label: "Подтвердить" }]} />
       <ControlTabs active="verify" />
       <div>
         <div className="flex flex-wrap items-center gap-2"><h1 className="flex items-center gap-2 text-xl font-semibold">Подтвердить</h1><YearNote year={year} />
           <InfoHint wide label="Как работает подтверждение">
             <div className="space-y-2">
               <p>
-                <b>«Подтверждено ✓»</b> — вы или система убедились, что сумма корректна, документ загружен и суммы в нём сходятся с базой. Всё, что сопоставилось по документам на 100%, подтверждено автоматически (отметка «авто по документам»).
+                <b>«Подтверждено документом»</b> — вы или система убедились, что сумма корректна, документ загружен и суммы в нём сходятся с базой. Если основание оплаты — только письмо «оплачено» (без файла платёжки и п/п), строка называется <b>«Согласовано письмом»</b>. Всё, что сопоставилось по документам на 100%, подтверждено автоматически (отметка «авто по документам»).
               </p>
               <p>
                 <b>«Не подтверждено»</b> — чего-то не хватает. В строке написано, чего именно: нужно внести дату/сумму/номер п/п, проверить документы и нажать «Подтвердить».
@@ -117,7 +117,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
             >
               {t.label}
               <span className="rounded-full bg-amber-100 px-1.5 text-xs text-amber-900" title="не подтверждено">{c.waiting}</span>
-              <span className="rounded-full bg-emerald-100 px-1.5 text-xs text-emerald-900" title="подтверждено">{c.verified}</span>
+              <span className="rounded-full bg-emerald-100 px-1.5 text-xs text-emerald-900" title="подтверждено документом">{c.verified}</span>
             </Link>
           );
         })}
@@ -138,7 +138,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
       <WidgetRow id="verify" title="Очередь проверки — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
         {[
-          { label: "Строк подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
+          { label: "Строк подтверждено документом", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
           { label: "Не подтверждено, строк", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
           { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
           { label: "Всего, строк", v: total.total, sub: null, tone: "" },
@@ -200,7 +200,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
         </p>
       )}
       <p className="text-xs text-neutral-500">
-        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Что требует внимания</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
+        Что мешает подтвердить — в разделе «Контроль»: <Link className="text-blue-700 hover:underline" href="/attention">Задачи</Link> · <Link className="text-blue-700 hover:underline" href="/documents">Документы</Link> · <Link className="text-blue-700 hover:underline" href="/reconciliation">Сверка</Link>
       </p>
     </div>
   );

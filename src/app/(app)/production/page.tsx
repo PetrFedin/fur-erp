@@ -338,7 +338,6 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return {
       units: orderUnits(o),
       hides: furU.reduce((a, u) => a + u.quantity.toNumber(), 0),
-      cHides: o.contractorHides ?? 0,
       liningQty: linU.reduce((a, u) => a + u.quantity.toNumber(), 0),
       fur, lining, furNoC4, liningNoC4, noC4,
       work: o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0,
@@ -379,7 +378,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 ]}
                 details={[
                   { label: "Артикулов", value: "1" },
-                  { label: "Шкур", value: st.hides > 0 ? formatQty(st.hides) : st.cHides > 0 ? `${st.cHides} (подрядчика)` : undefined },
+                  { label: "Шкур", value: st.hides > 0 ? formatQty(st.hides) : undefined },
                   { label: <VatLabel base="Мех" />, value: st.fur.incl.isZero() ? undefined : <Money incl={st.fur.incl} excl={st.fur.excl} /> },
                   { label: "Подкладка, м", value: st.liningQty > 0 ? formatQty(st.liningQty) : undefined },
                   { label: <VatLabel base="Подкладка" />, value: st.lining.incl.isZero() ? undefined : <Money incl={st.lining.incl} excl={st.lining.excl} /> },
@@ -423,7 +422,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   </div>
                 </Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
-                <Td className={num}><Link href={href} className={link} title={st.hides === 0 && st.cHides > 0 ? "Шкуры подрядчика: его сырьё, закупки у нас нет" : undefined}>{st.hides > 0 ? formatQty(st.hides) : st.cHides > 0 ? <>{st.cHides} <span className="text-[11px] font-normal text-neutral-400">подр.</span></> : dash}</Link></Td>
+                <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatQty(st.hides) : dash}</Link></Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}{sub(st.furNoC4)}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatQty(st.liningQty) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}{sub(st.liningNoC4)}</Link></Td>
@@ -449,9 +448,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const zero = () => ({ incl: new Decimal(0), excl: new Decimal(0) });
     const add = (a: { incl: Decimal; excl: Decimal }, b: { incl: Decimal; excl: Decimal }) => ({ incl: a.incl.add(b.incl), excl: a.excl.add(b.excl) });
     const tot = rows.reduce((a, r) => ({
-      units: a.units + r.st.units, hides: a.hides + r.st.hides, cHides: a.cHides + r.st.cHides, liningQty: a.liningQty + r.st.liningQty, work: a.work + r.st.work,
+      units: a.units + r.st.units, hides: a.hides + r.st.hides, liningQty: a.liningQty + r.st.liningQty, work: a.work + r.st.work,
       fur: add(a.fur, r.st.fur), lining: add(a.lining, r.st.lining), full: add(a.full, r.full),
-    }), { units: 0, hides: 0, cHides: 0, liningQty: 0, work: 0, fur: zero(), lining: zero(), full: zero() });
+    }), { units: 0, hides: 0, liningQty: 0, work: 0, fur: zero(), lining: zero(), full: zero() });
     const first = g[0].o;
     const tzNo = first.workOrderNumber?.trim() || first.number;
     const batches = Array.from(new Set(g.map((x) => x.o.batch?.number ?? null)));
@@ -507,7 +506,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
-            <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : tot.cHides > 0 ? <>{tot.cHides} <span className="text-[11px] font-normal text-neutral-400">подр.</span></> : dash}</span></Td>
+            <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : dash}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.fur.incl.isZero() ? dash : <Money incl={tot.fur.incl} excl={tot.fur.excl} />}</span></Td>
             <Td className={num}><span className={link}>{tot.liningQty > 0 ? formatQty(tot.liningQty) : dash}</span></Td>
             <Td className={num}><span className={link}>{tot.lining.incl.isZero() ? dash : <Money incl={tot.lining.incl} excl={tot.lining.excl} />}</span></Td>
@@ -583,13 +582,13 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Артикул", options: opts.model },
-          { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
+          { type: "multi", name: "len", label: "Длина", more: true, options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP_ARTICLES_LABEL, allLabel: "Все группы", more: true },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },
           { type: "multi", name: "fur", label: "Вид меха", aliases: ["kind"], options: opts.fur },
           ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true, hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
-          { type: "multi", name: "color", label: "Цвет изделия", options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
+          { type: "multi", name: "color", label: "Цвет изделия", more: true, options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
           ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все", more: true },
           { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },

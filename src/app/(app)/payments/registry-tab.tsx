@@ -78,7 +78,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
           oneRow
           hideChips
           controls={[
-            { type: "multi", name: "dir", label: "Направление", options: [{ value: "out", label: "Мы платим" }, { value: "in", label: "Нам платят" }], allLabel: "Все" },
+            { type: "multi", name: "dir", label: "Направление", more: true, options: [{ value: "out", label: "Мы платим" }, { value: "in", label: "Нам платят" }], allLabel: "Все" },
             { type: "multi", name: "cp", label: "Контрагент", options: cpOptions, allLabel: "Все контрагенты" },
             { type: "multi", name: "st", label: "Статус", options: STATUSES.map((s) => ({ value: s, label: PAY_STATUS_LABEL[s] })), allLabel: "Все статусы" },
             { type: "date", name: "from", label: "Оплата с" },

@@ -14,7 +14,6 @@ import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput } from "@/lib/commission4";
 import { InfoHint } from "@/components/info-hint";
-import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { UsageForm, type MaterialOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
@@ -30,10 +29,8 @@ import { ExpenseRow } from "./expense-row";
 import { WorkRow } from "./work-row";
 import { OrderNav } from "./order-nav";
 import { uniqueOrderCount } from "@/lib/tz-key";
-import { CostSummary, type WeightedGroup } from "./cost-summary";
 import { ParamsTable, type ParamsData, type ParamsOptions } from "./params-table";
 import { OrderTiles } from "./order-tiles";
-import { CompositionTable } from "./composition-table";
 import { OrderColorsEditButton } from "./edit-buttons";
 import { AddMenu } from "./add-menu";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -47,7 +44,6 @@ import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, upda
 import { TotalLabel } from "@/components/total-label";
 import { allocatedCentsByOrder } from "@/lib/payment-alloc";
 import { canonicalFur } from "@/lib/fur-ref";
-import { LotsDetails } from "./lots-details";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -230,9 +226,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const boundUpdateExpense = updateProductionExpense.bind(null, id);
   const modelLocked = order.materialUsages.length > 0 || order.producedQuantity.greaterThan(0);
 
-  const vatRateByLot: Record<string, number> = {};
-  for (const u of order.materialUsages) vatRateByLot[u.lotId] = effectiveUsageVat(u);
-
   const usageRows = (list: typeof order.materialUsages, isLining: boolean) =>
     list.map((u) => {
       const line = lineWith4(usageInput(u), c4Mode);
@@ -308,14 +301,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   // Две цифры для средневзвешенных: «с 4%» и «без 4%» (не зависят от переключателя): те же функции, что у Главной.
   const furOn = sumUsagesWith4(furUsages, "on");
   const liningOn = sumUsagesWith4(liningUsages, "on");
-  const liningOff = sumUsagesWith4(liningUsages, "off");
-  const groupBy = (us: typeof furUsages, unit: string): WeightedGroup[] => {
-    const m = new Map<string, typeof furUsages>();
-    for (const u of us) m.set(u.rawMaterial.name, [...(m.get(u.rawMaterial.name) ?? []), u]);
-    return [...m.entries()].map(([name, list]) => ({ name, unit, qty: sumQty(list), on: sumUsagesWith4(list, "on"), off: sumUsagesWith4(list, "off") }));
-  };
-  const furGroups = groupBy(furUsages, "шк.");
-  const liningGroup: WeightedGroup | null = liningUsages.length > 0 ? { name: "Подкладка", unit: "м", qty: liningQty, on: liningOn, off: liningOff } : null;
 
   const cancelBlockedReason = order.materialUsages.length > 0 ? "Нельзя отменить ТЗ со списаниями — сначала удалите списания" : undefined;
   const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
@@ -387,8 +372,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             ←
           </Link>
           <h1 className="text-xl font-semibold">{tzTitle}</h1>
-          {order.workOrderNumber && <span className="text-xs text-neutral-400" title="Внутренний номер заказа в системе; в списках и документах ТЗ называется по номеру ТЗ">{order.number}</span>}
-          <TzVatBadge b={vatB} hint={false} />
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
@@ -449,11 +432,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         <OrderTiles
           order={drill}
           c4={c4Mode}
-          plannedQty={order.plannedQuantity.toString()}
-          producedQty={order.producedQuantity.toString()}
           completed={order.status === "COMPLETED"}
           noUsages={order.materialUsages.length === 0}
-          vatRows={vatB.rows.map((r) => ({ rate: r.rate, vat: Number(r.incl) - Number(r.excl), incl: Number(r.incl) }))}
         />
       ) : cancelled ? (
         <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списания, расходы и параметры по-прежнему можно править.</p>
@@ -574,16 +554,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Tbody>
         </Table>
 
-        <CostSummary qty={producedOrPlanned} qtyLabel={order.status === "COMPLETED" ? "факт" : "план"} furGroups={furGroups} liningGroup={liningGroup} noUsages={order.materialUsages.length === 0} />
 
         {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную и сводки не входит; правки сохраняются, но на итоги не влияют.</p>}
       </section>
-
-      {drill ? (
-        <LotsDetails summary="Состав по лотам">
-          <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} bare />
-        </LotsDetails>
-      ) : null}
 
       <div id="drive" className="scroll-mt-4">
         <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />

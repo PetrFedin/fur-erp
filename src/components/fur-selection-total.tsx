@@ -214,9 +214,10 @@ export function FurSelectionTotal({
     return o;
   }, [baseLots, filters, kind, lockItem, noLotsKinds]);
   // Основные: партия, вид, год, цвет, размер, признак, остаток, поиск. Остальные — «Ещё фильтры» (раскрыты сами, если в них есть выбор).
-  const shownKeys0: FilterKey[] = kind === "lining" ? ["auction", "item", "year", "color", "rest", "usage"] : ["auction", "item", "year", "color", "size", "attr", "rest", "usage"];
+  const shownKeys0: FilterKey[] = kind === "lining" ? ["auction", "item", "color", "rest", "year", "usage"] : ["auction", "item", "color", "rest", "year", "size", "attr", "usage"];
   const shownKeys = lockItem ? shownKeys0.filter((k) => k !== "item") : shownKeys0;
-  const MORE_KEYS: FilterKey[] = ["usage"];
+  // В строке — партия, вид, цвет, остаток и поиск; год, размер, признак, использование и даты — под «Показать ещё».
+  const MORE_KEYS: FilterKey[] = ["year", "size", "attr", "usage"];
 
 
   const setFilter = (k: FilterKey, v: string[]) => setFilters((f) => ({ ...f, [k]: v }));

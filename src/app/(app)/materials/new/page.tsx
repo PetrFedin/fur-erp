@@ -22,7 +22,7 @@ export default async function NewMaterialPage({ searchParams }: PageProps<"/mate
 
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Материалы", href: "/materials" }, { label: "Новый материал" }]} />
+      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Материалы", href: "/materials" }, { label: "Новый материал" }]} />
       <h1 className="text-xl font-semibold">Новый материал</h1>
       <Card>
         <CardContent className="pt-4">

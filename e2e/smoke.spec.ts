@@ -6,7 +6,8 @@ const PAGES = [
   "/dashboard", "/lots", "/lots?tab=lining", "/raw-materials", "/purchases", "/purchases/new",
   "/production", "/production/new", "/shipments", "/shipments/new", "/fittings", "/fittings/new",
   "/articles", "/settings", "/materials", "/materials/new", "/suppliers", "/clients", "/payments",
-  "/payments?tab=clients", "/supply-plan", "/attention", "/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/warehouses", "/expense-categories", "/users",
+  "/payments?tab=clients", "/supply-plan", "/attention", "/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/warehouses", "/settings/expense-categories", "/users",
+  "/budget", "/budget/compare", "/calendar",
 ];
 
 test.describe("смоук: страницы открываются", () => {
@@ -17,6 +18,7 @@ test.describe("смоук: страницы открываются", () => {
       const res = await page.goto(path);
       test.expect(res?.status()).toBeLessThan(400);
       await page.waitForLoadState("networkidle");
+      if (["/budget", "/budget/compare", "/calendar", "/attention"].includes(path)) await test.expect(page.locator("main")).toContainText(/Бюджет|Календарь|Контроль|Задачи/);
       await expectNoErrors(errors);
     });
   }

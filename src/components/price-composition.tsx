@@ -27,15 +27,12 @@ function ringPath(a0: number, a1: number): string {
 
 const HOVER_ROW = "bg-[#FFF1EB] shadow-[inset_3px_0_0_var(--ui-accent,#ff4a1c)]";
 
-export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal, qtyVals, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false, stacked = false }: {
+export function PriceCompositionChart({ slices, total, qty, qtyVals, unitName = "шкуру", totalLabel, caption, onSelect, selectTitle, ariaLabel, countLabel, compact = false, stacked = false }: {
   slices: CompSlice[];
   /** Итог для центра и строки «Всего»: сумма секторов, ₽. */
   total: number;
   /** Шкур в лоте/выборке — для колонки «₽ на шкуру». */
   qty: number;
-  /** Части сумм, приходящиеся на строки с количеством шкур (по ключу сектора) и их итог: деньги без количества (шкуры подрядчика) в «₽ на шкуру» не входят. Нет — берётся вся сумма. */
-  unitVals?: Record<string, number>;
-  unitTotal?: number;
   /** Сколько шкур приходится на каждую составляющую (по ключу сектора; шкуры лотов, где она есть). Есть — в таблице показывается колонка «Шкур»; итог — qty. */
   qtyVals?: Record<string, number>;
   unitName?: string;
@@ -63,7 +60,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
     return { s, d: ringPath(before * Math.PI * 2, (before + frac) * Math.PI * 2), frac };
   });
   const drawn = [...arcs.filter((a) => a.s.key !== hover), ...arcs.filter((a) => a.s.key === hover)];
-  const perUnit = (v: number, key?: string) => (qty > 0 ? formatMoney((((key != null && unitVals ? unitVals[key] ?? 0 : v)) / qty).toFixed(2)) : "—");
+  const perUnit = (v: number) => (qty > 0 ? formatMoney((v / qty).toFixed(2)) : "—");
   const money = (v: number) => formatMoney(v.toFixed(2));
   const interactive = !!onSelect;
   const enter = (k: string) => () => setHover(k);
@@ -112,7 +109,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
         </td>
         {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{(qtyVals[s.key] ?? 0) > 0 ? formatQty(qtyVals[s.key]) : "—"}</td> : null}
         <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(s.value)}</td>
-        <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(s.value, s.key)}</td>
+        <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(s.value)}</td>
         <td className="whitespace-nowrap px-1.5 py-1.5 text-right text-neutral-500 tabular-nums">{formatPercent(share(s.value))}</td>
       </tr>
     );
@@ -130,11 +127,11 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
             className={interactive ? "cursor-pointer" : undefined}
             onMouseEnter={enter(s.key)} onMouseLeave={leave}
             onClick={interactive ? () => onSelect?.(s.key) : undefined}>
-            <title>{`${s.label}: ${money(s.value)} · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value, s.key)} за ${unitName}` : ""}`}</title>
+            <title>{`${s.label}: ${money(s.value)} · ${formatPercent(frac * 100)}${qty > 0 ? ` · ${perUnit(s.value)} за ${unitName}` : ""}`}</title>
           </path>
         );
       })}
-      <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(unitTotal ?? total) : money(total)}</text>
+      <text x={C} y={C - 3} textAnchor="middle" className="fill-neutral-900 text-[9px] font-semibold" style={{ fontVariantNumeric: "tabular-nums" }}>{qty > 0 ? perUnit(total) : money(total)}</text>
       <text x={C} y={C + 8} textAnchor="middle" className="fill-neutral-500 text-[5.5px]">{qty > 0 ? `за ${unitName}` : "всего"}</text>
       {caption ? <text x={C} y={C + 16} textAnchor="middle" className="fill-neutral-500 text-[5px]">{caption}</text> : null}
     </svg>
@@ -167,7 +164,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
             {qtyVals ? <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vQty}>Шкур, шт.</th> : null}
             <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Всего, ₽</th>
             <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vAvg}>
-              {qty > 0 ? <>{stacked ? "Ср. цена, ₽" : "Ср. цена, ₽/шт."}<InfoHint label="Что такое ср. цена" align="right"><p>Средневзвешенное значение: сумма ÷ количество по лотам.</p>{unitTotal != null && total - unitTotal > 0.5 ? <p className="mt-1">В цене за {unitName} не учтены деньги без количества шкур: {money(total - unitTotal)} (шкуры подрядчика, расходы без количества). Поэтому здесь {perUnit(unitTotal)}, а в плитке «Куплено» — вся сумма ÷ все шкуры: {formatMoney((total / qty).toFixed(2))}.</p> : null}</InfoHint></> : "Всего, ₽"}
+              {qty > 0 ? <>{stacked ? "Ср. цена, ₽" : "Ср. цена, ₽/шт."}<InfoHint label="Что такое ср. цена" align="right"><p>Средневзвешенное значение: сумма ÷ количество по лотам.</p></InfoHint></> : "Всего, ₽"}
             </th>
             <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
           </tr>
@@ -178,7 +175,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
             <td className="py-1.5 pl-5 pr-2 text-sm font-semibold">{totalLabel}</td>
             {qtyVals ? <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vQty}>{qty > 0 ? formatQty(qty) : "—"}</td> : null}
             <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{money(total)}</td>
-            <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(unitTotal ?? total)}</td>
+            <td className={"whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums " + vAvg}>{perUnit(total)}</td>
             <td className="whitespace-nowrap px-1.5 py-1.5 text-right tabular-nums">{total !== 0 ? "100,0%" : "—"}</td>
           </tr>
         </tbody>
@@ -224,11 +221,12 @@ export function useChartVat(): { withVat: boolean; toggle: ReactNode } {
   return { withVat, toggle };
 }
 
-/** График состава цены одного лота: суммы за весь лот без НДС, НДС и режим. */
-export function LotPriceComposition({ cats, vat, qty, unitName, ariaLabel }: { cats: Record<CompCat, number>; vat: number; qty: number; unitName: string; ariaLabel: string }) {
+/** График состава цены одного лота: суммы за весь лот без НДС, НДС и режим. unallocated — часть цены лота без назначенной категории (без НДС). */
+export function LotPriceComposition({ cats, vat, qty, unitName, ariaLabel, unallocated = 0 }: { cats: Record<CompCat, number>; vat: number; qty: number; unitName: string; ariaLabel: string; unallocated?: number }) {
   const { withVat, toggle } = useChartVat();
-  const slices = sliceList(cats, { vat, withVat });
-  const exclTotal = Object.values(cats).reduce((a, v) => a + v, 0);
+  const slices = sliceList(cats, { nobd: unallocated, vat, withVat }).map((s) =>
+    s.key === "nobd" ? { ...s, label: "Не распределено", hint: "Часть цены лота, строкам которой в таблице расчёта не назначена категория (в том числе НДС молотка и округления). Назначьте категории строкам — доли появятся." } : s);
+  const exclTotal = Object.values(cats).reduce((a, v) => a + v, 0) + unallocated;
   const total = withVat ? exclTotal + vat : exclTotal;
   return (
     <div className="flex flex-col gap-3">

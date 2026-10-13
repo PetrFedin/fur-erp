@@ -42,21 +42,19 @@ function mergeOther(list: CompSlice[], nobdLots: number): CompSlice[] {
   return list.flatMap((s, i) => (i === at ? [merged] : s.key === "raw" || s.key === "nobd" ? [] : [s]));
 }
 
-type Agg = { cats: Record<CompCat, number>; nobd: number; vat: number; qty: number; unit: Record<string, number>; unitTotal: number; lots: PCLot[]; approx: number; nobdLots: number; planned: number };
+type Agg = { cats: Record<CompCat, number>; nobd: number; vat: number; qty: number; lots: PCLot[]; approx: number; nobdLots: number; planned: number };
 
 function aggregate(lots: PCLot[]): Agg {
   const cats = Object.fromEntries(COMP_CATS.map((c) => [c.key, 0])) as Record<CompCat, number>;
-  const unit: Record<string, number> = Object.fromEntries(KEYS.map((k) => [k, 0]));
-  let nobd = 0, vat = 0, qty = 0, unitTotal = 0, approx = 0, nobdLots = 0, planned = 0;
+  let nobd = 0, vat = 0, qty = 0, approx = 0, nobdLots = 0, planned = 0;
   for (const l of lots) {
-    COMP_CATS.forEach((c, i) => { cats[c.key] += l.excl[i]; if (l.qty > 0) unit[c.key] += l.excl[i]; });
+    COMP_CATS.forEach((c, i) => { cats[c.key] += l.excl[i]; });
     nobd += l.excl[NCAT]; vat += l.vat; qty += l.qty;
-    if (l.qty > 0) { unit.nobd += l.excl[NCAT]; unitTotal += l.excl.reduce((a, x) => a + x, 0); }
     if (l.approx) approx++;
     if (l.kind === "lot" && l.excl[NCAT] > 0) nobdLots++;
     if (l.kind === "planned") planned++;
   }
-  return { cats, nobd, vat, qty, unit, unitTotal, lots, approx, nobdLots, planned };
+  return { cats, nobd, vat, qty, lots, approx, nobdLots, planned };
 }
 
 function Modal({ title, onClose, children, returnTo }: { title: string; onClose: () => void; children: React.ReactNode; returnTo: HTMLElement | null }) {
@@ -124,8 +122,6 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
       : fur === "Рысь" && (sl.key === "other" || sl.key === "dress") ? { ...sl, note: LYNX_NOTE } : sl);
   const exclTotal = Object.values(a.cats).reduce((s, v) => s + v, 0) + a.nobd;
   const total = withVat ? exclTotal + a.vat : exclTotal;
-  const unitVals: Record<string, number> = { ...a.unit, ...Object.fromEntries(otherGroups.map(([k, e]) => [k, e.unit])), raw_o: a.unit.raw ?? 0, raw: (a.unit.raw ?? 0) + (a.unit.nobd ?? 0), vat: a.lots.reduce((s, l) => s + (l.qty > 0 ? l.vat : 0), 0) };
-  const unitTotal = withVat ? a.unitTotal + unitVals.vat : a.unitTotal;
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).reduce((n, l) => n + wt(l), 0);
@@ -172,7 +168,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
         {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
       </div>
       <PriceCompositionChart
-        slices={slices} total={total} qty={a.qty} unitVals={unitVals} unitTotal={unitTotal} qtyVals={qtyVals}
+        slices={slices} total={total} qty={a.qty} qtyVals={qtyVals}
         stacked totalLabel={withVat ? "Всего, с НДС" : "Всего, без НДС"}
         ariaLabel={`Из чего складывается стоимость меха: ${label}${withVat ? ", с НДС" : ", без НДС"}`}
         onSelect={sel} selectTitle="Показать лоты с этой составляющей"

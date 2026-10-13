@@ -35,7 +35,6 @@ const PAGES: { name: string; url: string }[] = [
   { name: "payments-auc", url: "/payments?auction=" + encodeURIComponent("СП 09.26") + "#auction-block" },
   { name: "articles", url: "/articles" },
   { name: "supply-plan", url: "/supply-plan" },
-  { name: "settings-supply-plan", url: "/settings/supply-plan" },
   { name: "attention", url: "/attention" },
   { name: "raw-materials", url: "/raw-materials" },
 ];

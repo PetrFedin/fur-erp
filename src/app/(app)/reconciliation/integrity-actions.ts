@@ -8,5 +8,5 @@ import { getIntegrityReport } from "@/lib/integrity";
 export async function recheckIntegrity() {
   const session = await requireSession();
   await getIntegrityReport(session.user.organizationId, { force: true });
-  revalidatePath("/integrity");
+  revalidatePath("/reconciliation");
 }

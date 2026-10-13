@@ -31,6 +31,7 @@ import {
 } from "./model";
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { ConfirmLine, CountsLine, INV_TONE, Progress, money } from "./parts";
+import { IntegritySection } from "./integrity-section";
 
 export const metadata = { title: "Сверка" };
 export const dynamic = "force-dynamic"; // цифры «в базе» читаются из БД при каждом заходе
@@ -355,12 +356,13 @@ export default async function ReconciliationPage() {
               </InfoHint>
             </h2>
             <div className="space-y-2">
-              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} />)}
+              {sorted.length === 0 ? <p className="text-sm text-neutral-500">Нет групп за выбранный год — выберите «Все годы» в шапке.</p> : sorted.map((g) => <GroupBlock key={g.id} g={g} ids={ids} live={live} ver={verifyMark(g, vf)} />)}
             </div>
           </section>
         );
       })}
 
+      <IntegritySection organizationId={session.user.organizationId} />
     </div>
   );
 }

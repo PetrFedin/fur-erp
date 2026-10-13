@@ -1,7 +1,6 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { THGroup } from "@/components/table-head";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { WidgetRow } from "@/components/widget-row";
@@ -61,7 +60,17 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   };
   const A = toSide(sp.a);
   const B = toSide(sp.b);
-  if (!A || !B || sp.a === sp.b) notFound();
+  if (!A || !B || sp.a === sp.b) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
+        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
+          <p>{sp.a === sp.b ? "Для сравнения нужны две разные версии бюджета." : "Одну из выбранных версий не удалось найти — возможно, она удалена."}</p>
+          <Link href="/budget" className="mt-2 inline-block text-blue-700 hover:underline">← К списку бюджетов</Link>
+        </div>
+      </div>
+    );
+  }
   const fa = byFur(A);
   const fb = byFur(B);
   const ta = grandTotal(A.nodes, A.params);
