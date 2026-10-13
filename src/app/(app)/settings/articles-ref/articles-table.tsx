@@ -8,6 +8,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { articleKey, searchArticleList } from "@/lib/article-key";
 import { LocalFilterBar } from "@/components/filters/filter-bar";
 import { CategorySelect, type CategorySelectOption } from "@/components/category-select";
+import { LENGTH_VALUES } from "@/lib/length-class";
 import { mergeArticles, saveArticle, type ArticleInput } from "./actions";
 
 export type ArticleRow = {
@@ -19,6 +20,7 @@ export type ArticleRow = {
   salesCode: string | null;
   salesName: string | null;
   aliases: string[];
+  lengthClass?: string | null;
   isActive: boolean;
   sellingPrice: number | null;
   seasons: string[];
@@ -27,7 +29,7 @@ export type ArticleRow = {
 };
 
 type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
-const EMPTY: ArticleInput = { name: "", sku: "", category: "", categoryRefId: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", isActive: true };
+const EMPTY: ArticleInput = { name: "", sku: "", category: "", categoryRefId: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", lengthClass: "", isActive: true };
 const toInput = (r: ArticleRow): ArticleInput => ({
   name: r.name,
   sku: r.sku ?? "",
@@ -37,6 +39,7 @@ const toInput = (r: ArticleRow): ArticleInput => ({
   salesName: r.salesName ?? "",
   aliases: r.aliases.join(", "),
   sellingPrice: r.sellingPrice == null ? "" : String(r.sellingPrice).replace(".", ","),
+  lengthClass: r.lengthClass ?? "",
   isActive: r.isActive,
 });
 const fmtPrice = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU") + " ₽");
@@ -72,6 +75,13 @@ function EditForm({ initial, onDone, onCancel, id, categories, canCreateCategory
         {f("Цена продажи, ₽", "sellingPrice")}
         {f("Код в системе продаж", "salesCode", "как в системе продаж")}
         {f("Название в системе продаж", "salesName", "как в системе продаж", "lg:col-span-2")}
+        <label className="flex flex-col gap-1 text-xs text-neutral-600">
+          Длина
+          <select value={v.lengthClass} onChange={set("lengthClass")} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm">
+            <option value="">— без длины —</option>
+            {LENGTH_VALUES.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
         {f("Другие написания (через запятую)", "aliases", "М012, M012/MINK BGL")}
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -254,6 +264,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
             {th("Наш код", "name")}
             {th("Категория / название", "category")}
             <Th>SKU</Th>
+            <Th>Длина</Th>
             {th("Код и название в продажах", "salesCode")}
             <Th>Другие написания</Th>
             {th("Цена, сезон", "price")}
@@ -266,16 +277,17 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
         <Tbody>
           {view.map((r) => {
             const noCode = !r.salesCode?.trim();
-            const cols = canEdit ? 10 : 9;
+            const cols = canEdit ? 11 : 10;
             return (
               <Fragment key={r.id}>
-                <Tr className={noCode ? "bg-amber-50/50" : ""}>
+                <Tr>
                   <Td className="whitespace-nowrap font-medium">{r.name}</Td>
                   <Td className="max-w-xs text-neutral-600">{(r.category ?? "").replace(/\s+/g, " ") || "—"}</Td>
                   <Td>{r.sku ?? "—"}</Td>
+                  <Td className="whitespace-nowrap">{r.lengthClass ?? "—"}</Td>
                   <Td className="min-w-48">
                     {noCode && !r.salesName ? (
-                      <Badge variant="warning">не сопоставлено с системой продаж</Badge>
+                      <span className="text-neutral-400">—</span>
                     ) : (
                       <>
                         <div className="font-medium">{r.salesCode ?? <span className="text-amber-700">кода нет</span>}</div>
@@ -308,7 +320,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
             );
           })}
           {view.length === 0 && (
-            <Tr><Td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-neutral-500">Ничего не найдено</Td></Tr>
+            <Tr><Td colSpan={canEdit ? 11 : 10} className="py-8 text-center text-neutral-500">Ничего не найдено</Td></Tr>
           )}
         </Tbody>
       </Table>

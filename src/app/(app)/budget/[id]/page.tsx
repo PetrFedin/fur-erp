@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { loadBudgetStats } from "@/lib/budget-stats";
 import { articleHint, articleLabel } from "@/lib/article-label";
-import { DEFAULT_PARAMS, parseNodes, type BudgetParams } from "@/lib/budget-calc";
+import { DEFAULT_PARAMS, LENGTHS, normKey, parseNodes, type BudgetParams } from "@/lib/budget-calc";
 import { getCommission4Mode } from "@/lib/commission4-mode";
 import { loadOrdersDrill } from "@/lib/orders-drill";
 import { BudgetEditor } from "../budget-editor";
@@ -24,10 +24,10 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
   const [stats, furs, cats, models, drill] = await Promise.all([
     loadBudgetStats(orgId),
     prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
-    prisma.categoryRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    prisma.categoryRef.findMany({ where: { organizationId: orgId }, select: { name: true, group: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.productModel.findMany({
       where: { organizationId: orgId, isActive: true },
-      select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true },
+      select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true, lengthClass: true },
       orderBy: { name: "asc" },
     }),
     loadOrdersDrill(orgId, "all", c4),
@@ -39,6 +39,11 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
     cat: (m.category ?? "").trim(),
     search: [m.name, m.sku, m.category, m.salesCode, m.salesName, ...m.aliases].filter(Boolean).join(" ").toLowerCase(),
   }));
+  // Длина артикула по справочнику (для факта по ТЗ) и группы категорий (у аксессуаров длина не вводится).
+  const lenOf: Record<string, string> = {};
+  for (const m of models) { const l = LENGTHS.find((x) => x.toLowerCase() === (m.lengthClass ?? "").trim().toLowerCase()); if (l) lenOf[m.id] = l; }
+  const catGroups: Record<string, string> = {};
+  for (const c of cats) if (c.group) catGroups[normKey(c.name)] = c.group;
   const bp: BudgetParams = { ...DEFAULT_PARAMS, ...(row.params as Partial<BudgetParams>) };
   const furNames = Array.from(new Set([...furs.map((f) => f.name), "Норка+Соболь"]));
   return (
@@ -56,6 +61,8 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
       fact={factRows(drill)}
       furNames={furNames}
       catNames={cats.map((c) => c.name)}
+      catGroups={catGroups}
+      lenOf={lenOf}
       articles={articles}
       canEdit={EDIT_ROLES.includes(session.user.role)}
       savedAt={row.updatedAt.toISOString()}

@@ -10,7 +10,7 @@ import { TileCarousel } from "@/components/tile-carousel";
 import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileCaption, TileHead, TileList, TileValue } from "../dashboard/tile";
 import {
-  autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, normKey, perUnit, reapplyParams, srcInfo, varPct,
+  autoCalc, blankNode, childrenMap, computeTree, defaultLines, effLocked, effUp, grandTotal, isAccessoryCat, normKey, perUnit, reapplyParams, srcInfo, varPct,
   type Agg, type BudgetNode, type BudgetParams, type BudgetStat, type EffUp,
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
@@ -20,7 +20,7 @@ import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
-  initialStats: BudgetStat[]; fact: FactRow[]; furNames: string[]; catNames: string[]; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
+  initialStats: BudgetStat[]; fact: FactRow[]; furNames: string[]; catNames: string[]; catGroups: Record<string, string>; lenOf: Record<string, string>; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
 };
 
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
@@ -46,7 +46,7 @@ function VarTag({ v }: { v: number | null }) {
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
 type NumKey = "pcs" | "hides" | "hidePrice" | "meters" | "meterPrice" | "work";
 type UpKey = "upFur" | "upLining" | "upWork";
-const KIND_LABEL = { fur: "тип сырья", cat: "категория", art: "артикул" } as const;
+const KIND_LABEL = { fur: "тип сырья", cat: "категория", len: "длина", art: "артикул" } as const;
 const ICON_BTN = "btn-accent inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-neutral-200 bg-white px-1.5 text-sm text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 disabled:opacity-40 md:h-8 md:min-w-8";
 const DOT = { ok: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-red-500", manual: "bg-neutral-400" } as const;
 
@@ -168,7 +168,7 @@ export function BudgetEditor(p: Props) {
   const total = useMemo(() => grandTotal(nodes, params), [nodes, params]);
   const furs = useMemo(() => kids.get(null) ?? [], [kids]);
   // Факт по ТЗ: те же ТЗ, что на Главной (без отменённых, ремонт отдельно).
-  const factMap = useMemo(() => factByNode(nodes, p.fact), [nodes, p.fact]);
+  const factMap = useMemo(() => factByNode(nodes, p.fact, p.lenOf), [nodes, p.fact, p.lenOf]);
   const ft = useMemo(() => factTotals(p.fact), [p.fact]);
   const factRest = useMemo(() => {
     const r = { ...ft.all };
@@ -197,22 +197,26 @@ export function BudgetEditor(p: Props) {
     setNodes((ns) => autoCalc(ns.map((x) => (x.id === id ? { ...x, statFur, statCat } : x)), stats, params, id));
   };
 
-  const addNode = (kind: AddKind, parentId: string | null, v: { name: string; modelId: string | null }) => {
-    const n = blankNode(kind, parentId, v.name, { modelId: v.modelId });
+  const addNode = (kind0: AddKind, parentId: string | null, v: { name: string; modelId: string | null; kind?: AddKind }) => {
+    const kind = v.kind ?? kind0;
+    // Первая длина в категории без деталей берёт штуки категории: итог не теряется (потом их можно разложить по длинам).
+    const par = parentId ? byId.get(parentId) : undefined;
+    const inherit = kind === "len" && par && par.kind === "cat" && (kids.get(par.id) ?? []).length === 0 ? par.pcs : 0;
+    const n = blankNode(kind, parentId, v.name, { modelId: v.modelId, pcs: inherit });
     setNodes((ns) => autoCalc([...ns, n], stats, params, n.id));
     if (parentId) setCollapsed((c) => { const x = new Set(c); x.delete(parentId); return x; });
     setAdding(null);
   };
   const removeNode = (id: string) => {
     const drop = new Set<string>([id]);
-    for (let i = 0; i < 4; i++) for (const n of nodes) if (n.parentId && drop.has(n.parentId)) drop.add(n.id);
+    for (let i = 0; i < 5; i++) for (const n of nodes) if (n.parentId && drop.has(n.parentId)) drop.add(n.id);
     setNodes((ns) => ns.filter((n) => !drop.has(n.id)));
     setRemoving(null);
   };
   const toggle = (id: string) => setCollapsed((c) => { const x = new Set(c); if (x.has(id)) x.delete(id); else x.add(id); return x; });
   const expandAll = () => setCollapsed(new Set());
   const hasArt = nodes.some((n) => n.kind === "art");
-  const collapseAll = () => setCollapsed(new Set(nodes.filter((n) => n.kind !== "art").map((n) => n.id)));
+  const collapseAll = () => setCollapsed(new Set(nodes.filter((n) => n.kind !== "art" && (kids.get(n.id) ?? []).some((c) => c.kind === "art")).map((n) => n.id)));
   const collapseToFurs = () => setCollapsed(new Set(furs.map((f) => f.id)));
 
   const runAuto = (scopeId?: string) => startBusy(async () => {
@@ -228,7 +232,8 @@ export function BudgetEditor(p: Props) {
       const locked = leaves.filter((n) => effLocked(n, byId)).length;
       const nodata = leaves.filter((n) => !effLocked(n, byId) && n.src === "none").length;
       const byArt = leaves.filter((n) => !effLocked(n, byId) && n.src === "art").length;
-      setMsg(`Пересчитано по данным системы: ${leaves.length - locked} строк${byArt ? ` (по ТЗ артикула: ${byArt})` : ""}.${locked ? ` С замком, не тронуты: ${locked}.` : ""}${nodata ? ` Нет данных в системе: ${nodata}.` : ""}`);
+      const byLen = leaves.filter((n) => !effLocked(n, byId) && n.src === "len").length;
+      setMsg(`Пересчитано по данным системы: ${leaves.length - locked} строк${byArt || byLen ? ` (${[byArt ? `по ТЗ артикула: ${byArt}` : "", byLen ? `по длине: ${byLen}` : ""].filter(Boolean).join(", ")})` : ""}.${locked ? ` С замком, не тронуты: ${locked}.` : ""}${nodata ? ` Нет данных в системе: ${nodata}.` : ""}`);
     } catch { setMsg("Не удалось получить данные системы. Попробуйте ещё раз."); }
   });
 
@@ -304,6 +309,17 @@ export function BudgetEditor(p: Props) {
   });
 
   const staff = p.canEdit;
+  /** Что можно добавить внутрь узла: у типа сырья — категорию; у категории — артикул и/или длину (длина — не у аксессуаров; артикулы и длины в одной категории не смешиваются); у длины — артикул. */
+  const addInfo = (n: BudgetNode) => {
+    const ch = kids.get(n.id) ?? [];
+    const lenOk = n.kind === "cat" && !isAccessoryCat(n, p.catGroups);
+    const hasLen = ch.some((c) => c.kind === "len");
+    const lenMode: "both" | "only" | undefined = lenOk && hasLen ? "only" : lenOk && !ch.some((c) => c.kind === "art") ? "both" : undefined;
+    const label = n.kind === "fur" ? "категория" : lenMode === "only" ? "длина" : lenMode === "both" ? "артикул / длина" : "артикул";
+    return { lenMode, label };
+  };
+  const catOf = (id: string) => { let c = byId.get(id); for (let i = 0; c && c.kind !== "cat" && i < 4; i++) c = c.parentId ? byId.get(c.parentId) : undefined; return c; };
+  const pathLabel = (id: string) => { const n = byId.get(id); const par = n?.parentId ? byId.get(n.parentId) : undefined; const cat = catOf(id); const fur = cat?.parentId ? byId.get(cat.parentId) : undefined; return n?.kind === "len" ? `${fur?.name ?? "тип сырья"} × ${cat?.name} × ${n.name}` : `${n?.name} (${par?.name ?? "тип сырья"})`; };
   const takenIn = (kind: AddKind, parentId: string | null) =>
     (kids.get(parentId) ?? []).filter((n) => n.kind === kind).map((n) => (kind === "art" ? (n.modelId ?? "") : n.name.toLowerCase()));
 
@@ -341,7 +357,7 @@ export function BudgetEditor(p: Props) {
             title={n.locked ? "Замок закрыт: значения ручные, автоматический расчёт не трогает. Нажмите, чтобы вернуть автоматический расчёт" : "Замок открыт: считается автоматически. Ручная правка значения закроет замок"}>{n.locked ? "🔒" : <svg aria-hidden viewBox="0 0 16 16" className="h-3.5 w-3.5 text-neutral-400" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>}</button>
           <button type="button" className={ICON_BTN} disabled={busy} onClick={() => runAuto(n.id)} aria-label="Автоматический расчёт для блока" title="Автоматический расчёт только для этого блока">↻</button>
           <button type="button" className={ICON_BTN + (hasOwnUp(n) ? " border-[var(--ui-accent)] bg-[var(--ui-soft)] text-[var(--ui-accent-text)]" : "")} onClick={() => setUpFor(n.id)} aria-label="Надбавки для этой строки" title="Надбавки для этой строки и всего, что внутри">%</button>
-          {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"} title={n.kind === "fur" ? "Добавить категорию" : "Добавить артикул"}>＋</button> : null}
+          {n.kind !== "art" ? <button type="button" className={ICON_BTN} onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} aria-label={"Добавить: " + addInfo(n).label} title={"Добавить: " + addInfo(n).label}>＋</button> : null}
           <button type="button" className={ICON_BTN + " hover:text-red-700"} onClick={() => (hasKids || n.pcs > 0 ? setRemoving(n.id) : removeNode(n.id))} aria-label={`Удалить: ${n.name}`} title="Удалить">×</button>
         </>
       ) : n.locked ? <span title="Замок: ручные значения" aria-label="Замок закрыт">🔒</span> : null}
@@ -455,6 +471,7 @@ export function BudgetEditor(p: Props) {
           {lockBtn(n, false)}
           <span className={n.kind === "fur" ? "text-base" : ""}>{n.name || "Без названия"}</span>
           {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
+          
         </div>
       );
       return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0, fact: factMap.get(n.id) }), ...(open ? summaryRows(n.id, depth + 1) : [])];
@@ -482,11 +499,12 @@ export function BudgetEditor(p: Props) {
             className={"min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 hover:border-neutral-300 focus-visible:border-neutral-900 focus-visible:bg-white focus-visible:outline-none " + (n.kind === "fur" ? "text-sm font-semibold" : n.kind === "cat" ? "text-sm font-medium" : "text-sm")} />
         ) : <span className={"min-w-0 flex-1 truncate px-1 " + (n.kind === "fur" ? "text-sm font-semibold" : "text-sm")}>{n.name}</span>}
         {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"} title={n.modelId ? "Артикул из каталога системы" : "Плановый артикул: есть только в бюджете"}>{n.modelId ? "арт." : "план"}</Badge> : null}
+        
         {dot(n)}
         {canEdit && n.kind !== "art" ? (
           <button type="button" onClick={() => setAdding({ kind: n.kind === "fur" ? "cat" : "art", parentId: n.id })} data-touch-ok
-            title={n.kind === "fur" ? "Добавить категорию в этот тип сырья" : "Добавить артикул в эту категорию: из списка системы или новый плановый"}
-            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:underline">+ {n.kind === "fur" ? "категория" : "артикул"}</button>
+            title={n.kind === "fur" ? "Добавить категорию в этот тип сырья" : n.kind === "len" ? "Добавить артикул в эту длину: из списка системы или новый плановый" : "Добавить в эту категорию: " + (addInfo(n).lenMode ? "длину (Short/Regular/Long) или артикул" : "артикул из списка системы или новый плановый")}
+            className="shrink-0 whitespace-nowrap rounded px-1 text-[11px] text-blue-700 hover:underline">+ {addInfo(n).label}</button>
         ) : null}
       </div>
     </td>
@@ -574,6 +592,7 @@ export function BudgetEditor(p: Props) {
               {canEdit ? <input value={n.name} onChange={(e) => patch(n.id, { name: e.target.value })} aria-label={`Название (${KIND_LABEL[n.kind]})`} className="min-h-10 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-sm font-semibold focus-visible:border-neutral-900 focus-visible:bg-white focus-visible:outline-none" />
                 : <span className="min-w-0 flex-1 px-1 text-sm font-semibold">{n.name}</span>}
               {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
+              
               {dot(n)}
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-2">
@@ -788,8 +807,11 @@ export function BudgetEditor(p: Props) {
       {renaming ? <EditCardDialog name={p.name} season={p.season} onClose={() => setRenaming(false)} onSave={async (name, seasonV) => { const r = await renameBudget(p.id, name, seasonV); if (r.ok) { setRenaming(false); router.refresh(); } return r.ok ? null : r.error ?? "Не удалось сохранить"; }} /> : null}
       {adding ? (
         <AddDialog kind={adding.kind} names={adding.kind === "fur" ? p.furNames : p.catNames} articles={p.articles} taken={takenIn(adding.kind, adding.parentId)}
-          catName={adding.kind === "art" && adding.parentId ? (byId.get(adding.parentId)?.statCat || byId.get(adding.parentId)?.name) : undefined}
-          context={adding.kind === "art" && adding.parentId ? `Артикул добавится в «${byId.get(adding.parentId)?.name}» (${byId.get(byId.get(adding.parentId)?.parentId ?? "")?.name ?? "тип сырья"}). Выберите из списка системы или создайте новый плановый.` : undefined}
+          catName={adding.kind === "art" && adding.parentId ? (catOf(adding.parentId)?.statCat || catOf(adding.parentId)?.name) : undefined}
+          lenMode={adding.kind === "art" && adding.parentId && byId.get(adding.parentId)?.kind === "cat" ? addInfo(byId.get(adding.parentId)!).lenMode : undefined}
+          takenLens={adding.parentId ? takenIn("len", adding.parentId) : undefined}
+          pairLabel={adding.parentId ? `${byId.get(byId.get(adding.parentId)?.parentId ?? "")?.name ?? "тип сырья"} × ${byId.get(adding.parentId)?.name}` : undefined}
+          context={adding.kind === "art" && adding.parentId ? `Артикул добавится в «${pathLabel(adding.parentId)}». Выберите из списка системы или создайте новый плановый.` : undefined}
           onClose={() => setAdding(null)} onPick={(v) => addNode(adding.kind, adding.parentId, v)} />
       ) : null}
       {statFor && byId.get(statFor) ? (

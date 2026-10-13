@@ -41,19 +41,58 @@ function add(a: FactAgg, r: FactRow): FactAgg {
   return a;
 }
 
-/** Факт по каждой строке бюджета. Плановый артикул без артикула в каталоге и строки без ТЗ — null («—»). Правила сопоставления те же, что у автоматического расчёта. */
-export function factByNode(nodes: BudgetNode[], rows: FactRow[]): Map<string, FactAgg | null> {
+/** Категория ТЗ (справочник категорий) → строка «категория» бюджета (названия по отчёту Budget PCS). Перебор по порядку: берётся первая, которая есть у этого меха в бюджете.
+ * Так факт попадает в строку «мех · категория», где ему место, и не остаётся «за бортом». */
+const CAT_TARGETS: Record<string, string[]> = {
+  "шарф": ["Шарфы"],
+  "жилет": ["Жилет меховой"],
+  "куртка": ["Куртки меховые"],
+  "жакет": ["Куртки меховые", "Шубы"],
+  "пальто": ["Пальто меховое", "Шубы"],
+  "полупальто": ["Полупальто меховое", "Шубы"],
+  "шубаполушубок": ["Шубы"],
+  "кейп": ["Шубы"],
+  "кардиган": ["Кардиган меховой", "Шубы"],
+  "юбка": ["Юбка меховая"],
+  "головнойубор": ["Шапка меховая", "Повязка меховая"],
+  "варежки": ["Манжеты, муфты, варежки"],
+  "манжеты": ["Манжеты, муфты, варежки"],
+  "муфта": ["Манжеты, муфты, варежки"],
+};
+/** Строка бюджета (нормализованное название категории), куда относится категория ТЗ; без совпадения — её собственное название. */
+function budgetCat(tzCat: string, have: Set<string>): string {
+  const k = normKey(tzCat);
+  if (have.has(k)) return k;
+  for (const t of CAT_TARGETS[k] ?? []) if (have.has(normKey(t))) return normKey(t);
+  return k;
+}
+
+/** Факт по каждой строке бюджета. Плановый артикул без артикула в каталоге и строки без ТЗ — null («—»). Правила сопоставления те же, что у автоматического расчёта.
+ * lenOf: артикул (ProductModel.id) → длина по справочнику (Short/Regular/Long); артикул без длины в строки-длины не попадает, но входит в факт категории. */
+export function factByNode(nodes: BudgetNode[], rows: FactRow[], lenOf: Record<string, string> = {}): Map<string, FactAgg | null> {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const own = rows.filter((r) => !r.repair);
   const out = new Map<string, FactAgg | null>();
+  const catsOfFur = new Map<string, Set<string>>();
   for (const n of nodes) {
-    const cat = n.kind === "cat" ? n : n.kind === "art" ? byId.get(n.parentId ?? "") : undefined;
+    if (n.kind !== "cat") continue;
+    const f = byId.get(n.parentId ?? "");
+    const k = furKey(f?.name || "");
+    (catsOfFur.get(k) ?? catsOfFur.set(k, new Set()).get(k)!).add(normKey(n.name));
+  }
+  const catOf = (r: FactRow) => budgetCat(r.cat, catsOfFur.get(furKey(r.fur)) ?? new Set());
+  for (const n of nodes) {
+    let cat: BudgetNode | undefined = n.kind === "cat" ? n : undefined;
+    for (let c: BudgetNode | undefined = n, i = 0; !cat && c && i < 4; c = byId.get(c.parentId ?? ""), i++) if (c.kind === "cat") cat = c;
     const fur = n.kind === "fur" ? n : cat ? byId.get(cat.parentId ?? "") : undefined;
-    const fk = furKey((n.kind === "fur" ? n.statFur : "") || (n.kind === "art" ? n.statFur : "") || cat?.statFur || fur?.statFur || fur?.name || "");
+    // Вид меха факта — только по названию строки «тип сырья»: статистика другого меха (statFur), на которую опирается расчёт цен, на факт не влияет.
+    const fk = furKey(fur?.name || "");
     let pick: FactRow[];
     if (n.kind === "fur") pick = own.filter((r) => furKey(r.fur) === fk);
     // Категория — по названию строки (статистика другой категории, на которую опирается расчёт цен, на факт не влияет: иначе факт задвоится).
-    else if (n.kind === "cat") pick = own.filter((r) => furKey(r.fur) === fk && normKey(r.cat) === normKey(n.name));
+    else if (n.kind === "cat") pick = own.filter((r) => furKey(r.fur) === fk && catOf(r) === normKey(n.name));
+    // Длина — ТЗ той же категории по артикулам этой длины.
+    else if (n.kind === "len") pick = cat ? own.filter((r) => furKey(r.fur) === fk && catOf(r) === normKey(cat.name) && normKey(lenOf[r.mid] ?? "") === normKey(n.name)) : [];
     else pick = n.modelId ? own.filter((r) => furKey(r.fur) === fk && r.mid === n.modelId) : [];
     out.set(n.id, pick.length ? pick.reduce(add, zeroFact()) : null);
   }

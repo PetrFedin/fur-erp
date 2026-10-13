@@ -35,7 +35,7 @@ export function ImportPanel() {
         <div className="flex flex-col gap-3 border-t border-neutral-200 p-4 text-sm">
           <p className="max-w-3xl text-neutral-600">
             Файл с первой строкой-заголовком. Колонки: <b>Наш код</b> (и/или Наше название), <b>Код в продажах</b>, <b>Название в продажах</b>,
-            при желании <b>Прочие написания</b>. Лучше всего взять файл «Скачать CSV», дополнить колонки продаж и загрузить обратно. Ничего не записывается,
+            при желании <b>Прочие написания</b> и <b>Длина</b> (Short / Regular / Long; NS и пустое — без длины). Лучше всего взять файл «Скачать CSV», дополнить колонки продаж и загрузить обратно. Ничего не записывается,
             пока вы не нажмёте «Записать» после предпросмотра.
           </p>
           <form
@@ -64,7 +64,7 @@ export function ImportPanel() {
               </p>
               <Table>
                 <Thead>
-                  <Tr><Th>Стр.</Th><Th>Наш код / название</Th><Th>Код в продажах</Th><Th>Название в продажах</Th><Th>Сопоставление</Th><Th>Записать</Th></Tr>
+                  <Tr><Th>Стр.</Th><Th>Наш код / название</Th><Th>Код в продажах</Th><Th>Название в продажах</Th><Th>Длина</Th><Th>Сопоставление</Th><Th>Записать</Th></Tr>
                 </Thead>
                 <Tbody>
                   {rows.map((r) => {
@@ -76,6 +76,7 @@ export function ImportPanel() {
                         <Td><b>{r.ourCode}</b> <span className="text-neutral-500">{r.ourName}</span></Td>
                         <Td>{r.salesCode || "—"}</Td>
                         <Td className="max-w-xs text-xs">{r.salesName || "—"}</Td>
+                        <Td>{r.length || "—"}</Td>
                         <Td>
                           <Badge variant={st.variant}>{st.label}</Badge>
                           {r.note && <div className="text-xs text-neutral-500">{r.note}</div>}
@@ -98,7 +99,7 @@ export function ImportPanel() {
                   disabled={pending || willApply.length === 0}
                   onClick={() =>
                     start(async () => {
-                      const r = await applyArticleImport(willApply.map((x) => ({ articleId: target(x)!, salesCode: x.salesCode, salesName: x.salesName, extra: x.extra })));
+                      const r = await applyArticleImport(willApply.map((x) => ({ articleId: target(x)!, salesCode: x.salesCode, salesName: x.salesName, extra: x.extra, length: x.length })));
                       if (r.error) setErr(r.error);
                       else {
                         setMsg(`Записано артикулов: ${r.updated}${r.skipped?.length ? `. Пропущено: ${r.skipped.join("; ")}` : ""}`);

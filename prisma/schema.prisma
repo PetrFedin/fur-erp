@@ -827,6 +827,8 @@ model ProductModel {
   salesCode      String?
   salesName      String?
   aliases        String[]
+  /// Длина изделия по системе продаж: Short / Regular / Long (пусто — не задана или не применима, например аксессуары).
+  lengthClass    String?
   sellingPrice   Decimal?     @db.Decimal(14, 2)
   description    String?
   isActive       Boolean      @default(true)

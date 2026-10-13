@@ -169,7 +169,8 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
           <ul className="mt-2 flex flex-col gap-2">
             {dups.slice(0, 20).map((g) => (
               <li key={g.id} className="rounded-md bg-white px-3 py-2">
-                <p className="text-xs text-neutral-600">{g.reason}: {g.rows.length} {g.rows.length < 5 ? "записи" : "записей"}</p>
+                <p className="text-xs text-neutral-600">{g.verifiedCase ? "Не повтор" : g.reason}: {g.rows.length} {g.rows.length < 5 ? "записи" : "записей"}</p>
+                {g.note && <p className={"text-xs " + (g.verifiedCase ? "text-emerald-800" : "text-amber-900")}>{g.note}</p>}
                 <p className="text-xs"><b>Оставить одну:</b> <Link className="text-blue-700 hover:underline" href={g.keep.href}>{g.keep.title}</Link>{g.keep.verified ? " (подтверждена)" : g.keep.ready ? " (готова к подтверждению)" : ""}</p>
                 <p className="text-xs text-neutral-600">Остальные проверьте и уберите вручную в карточке:{" "}
                   {g.rows.filter((x) => x.key !== g.keep.key).map((x, i) => (

@@ -15,7 +15,7 @@ import { candidatesFromList, resolveFromList, searchArticleList, type ArticleHit
 export async function loadArticleList(orgId: string): Promise<ArticleLite[]> {
   const rows = await prisma.productModel.findMany({
     where: { organizationId: orgId },
-    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true, isActive: true },
+    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true, isActive: true, lengthClass: true },
     orderBy: { name: "asc" },
   });
   return rows;

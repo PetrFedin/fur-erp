@@ -17,11 +17,12 @@ import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { dateRange, defineFilters, parseFilters, pick, yearOptionsFrom, yearRanges } from "@/lib/filters";
+import { LENGTH_OPTIONS, lengthWhere } from "@/lib/length-class";
 
 export const metadata = { title: "Отгрузки" };
 
 const SHIPMENT_FILTERS = defineFilters({
-  ...pick(["q", "year", "from", "to", "model"], {
+  ...pick(["q", "year", "from", "to", "model", "len"], {
     model: { label: "Артикул" },
     from: { label: "Плановая дата с" },
     to: { label: "Плановая дата по" },
@@ -54,6 +55,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
         : []),
     ],
     ...(f.model.length ? { lines: { some: { productionOrder: { productModelId: { in: f.model } } } } } : {}),
+    ...(f.len.length ? { lines: { some: { productionOrder: { productModel: lengthWhere(f.len) ?? {} } } } } : {}),
   };
   const include = {
     client: { select: { name: true } },
@@ -100,7 +102,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   const shippedCount = shipped.length;
   const overdueCount = planned.filter((r) => isoDay(r.plannedDate) < today).length;
   const totalQty = rows.reduce((a, r) => a + qtyOf(r), 0);
-  const hasFilters = Boolean(f.year.length || f.q || f.from || f.to || f.model.length);
+  const hasFilters = Boolean(f.year.length || f.q || f.from || f.to || f.model.length || f.len.length);
   const isEmpty = rows.length === 0 && !hasFilters && year === "all";
 
   return (
@@ -140,6 +142,7 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
           controls={[
             { type: "text", name: "q", label: "Поиск", placeholder: "№ ТЗ, заказчик, заметка" },
             { type: "multi", name: "model", label: "Артикул", options: articleOpts.map((m) => ({ value: m.id, label: m.name })) },
+            { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
             { type: "multi", name: "year", label: "Год отгрузки", options: yearOptionsFrom(allDates.map((d) => d.plannedDate)), hint: "По плановой дате; дополнительно к году в шапке" },
             { type: "date", name: "from", label: "Плановая дата с" },
             { type: "date", name: "to", label: "Плановая дата по" },

@@ -56,6 +56,7 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
     salesCode: m.salesCode,
     salesName: m.salesName,
     aliases: m.aliases,
+    lengthClass: m.lengthClass,
     isActive: m.isActive,
     sellingPrice: m.sellingPrice ? Number(m.sellingPrice) : null,
     seasons: Array.from(new Set(seasons.get(m.id) ?? [])).sort(),

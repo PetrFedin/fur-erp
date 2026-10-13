@@ -13,6 +13,7 @@ import { getCommission4Mode } from "@/lib/commission4-mode";
 import { formatMoney } from "@/lib/utils";
 import type { YearFilter } from "@/lib/year-filter";
 import { yearLabel } from "@/lib/year-filter";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { PayTiles } from "../dashboard/pay-tiles";
 import { PaymentsNav } from "./payments-nav";
 
@@ -100,6 +101,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         <Link href="/payments?tab=all" className="ml-auto text-blue-700 hover:underline">Разбор оплат по статьям →</Link>
       </div>
 
+      <ResponsiveRows table={
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full min-w-[1180px] text-sm">
           <thead>
@@ -134,7 +136,35 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
           ) : null}
         </table>
       </div>
+      }>
+        {rows.map((r) => <Card key={r.code} r={r} />)}
+        {rows.length === 0 ? <p className="py-8 text-center text-neutral-500">{filtered ? "По выбранным фильтрам оплат нет" : "Оплат пока нет"}</p> : null}
+        {(["out", "in"] as const).filter((d) => cnt(d) > 0).map((d) => (
+          <p key={d} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>Итого, {d === "out" ? "мы платим" : "нам платят"} · {cnt(d)}</span><span className="tabular-nums">{money(sumOf(d))}</span></p>
+        ))}
+      </ResponsiveRows>
     </div>
+  );
+}
+
+function Card({ r }: { r: RegistryRow }) {
+  const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
+  return (
+    <RowCard
+      title={`${ruDate(r.iso)} · ${money(r.amount)} ₽`}
+      href={href}
+      subtitle={`${r.direction === "out" ? "Мы платим" : "Нам платят"} · ${r.counterparty}`}
+      badge={<span className={"text-xs " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</span>}
+      fields={[
+        { label: "Тип", value: r.what },
+        { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ файл загружен</span> : <Link href={href + "#docs"} className="text-amber-700">○ нужно загрузить</Link> },
+      ]}
+      details={[
+        { label: "Счёт", value: r.invoice },
+        { label: "П/п", value: r.pp },
+        { label: "К чему отнесено", value: r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : <div className="flex flex-col gap-0.5">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700">{t.label}</Link>)}{r.unallocated > 0.5 ? <span className="text-xs text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div> },
+      ]}
+    />
   );
 }
 

@@ -23,7 +23,7 @@ export async function GET() {
   const stat = new Map(grouped.map((g) => [g.productModelId, g]));
   const producedBy = new Map(producedGrouped.map((g) => [g.productModelId, Number(g._sum.producedQuantity ?? 0)]));
   const body = toCsv(
-    ["Наш код", "Наше название", "Наш SKU", "Код в продажах", "Название в продажах", "Прочие написания", "Цена продажи, ₽", "ТЗ", "Произведено (завершённые ТЗ), шт.", "Активен"],
+    ["Наш код", "Наше название", "Наш SKU", "Код в продажах", "Название в продажах", "Прочие написания", "Длина", "Цена продажи, ₽", "ТЗ", "Произведено (завершённые ТЗ), шт.", "Активен"],
     models.map((m) => [
       m.name,
       (m.category ?? "").replace(/\s+/g, " ").trim(),
@@ -31,6 +31,7 @@ export async function GET() {
       m.salesCode,
       m.salesName,
       m.aliases.join(", "),
+      m.lengthClass ?? "",
       m.sellingPrice ? csvNum(Number(m.sellingPrice)) : "",
       stat.get(m.id)?._count._all ?? 0,
       csvNum(producedBy.get(m.id) ?? 0, 0),

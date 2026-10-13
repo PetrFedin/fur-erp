@@ -18,6 +18,7 @@ export type ArticleLite = {
   salesName: string | null;
   aliases: string[];
   isActive: boolean;
+  lengthClass?: string | null;
 };
 
 export function articleKey(s: string | null | undefined): string {

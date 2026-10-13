@@ -1,7 +1,8 @@
 // Бюджет: чистый расчёт (без базы и React) — им пользуются страницы /budget, серверные действия и сравнение версий.
 //
-// Бюджет = дерево «тип сырья (fur) → категория (cat) → артикул (art)». Значения вводятся на листе дерева:
-// у артикула, а если у категории нет артикулов — у самой категории. Итоги родителей — суммы по листьям.
+// Бюджет = дерево «тип сырья (fur) → категория (cat) → [длина (len)] → артикул (art)». Уровень «длина» (Short/Regular/Long)
+// необязателен и вводится только для конкретной склейки мех × категория (у аксессуаров длины нет). Значения вводятся на листе дерева:
+// у артикула, а если у него нет артикулов — у длины, а если и длины нет — у самой категории. Итоги родителей — суммы по листьям.
 // Лист: бюджет шт. × (шкур на изделие × цена шкуры + подкладка м × цена за м + работа) + надбавка c4 % на мех и подкладку.
 // «Автоматический расчёт» заполняет значения из статистики системы (средневзвешенно по ТЗ) с настраиваемыми надбавками
 // и не трогает листья с замком (в том числе под закрытым замком родителя).
@@ -22,9 +23,11 @@ export const DEFAULT_PARAMS: BudgetParams = { upFur: 10, upLining: 10, upWork: 1
 /** Текущие (по данным системы) значения на одно изделие — основа для надбавок и колонки «сейчас». */
 export type BudgetBase = { hides: number; hidePrice: number; meters: number; meterPrice: number; work: number };
 
-export type NodeKind = "fur" | "cat" | "art";
-/** Откуда взяты значения: ТЗ артикула, статистика «мех × категория», нет данных, вручную. */
-export type NodeSrc = "art" | "pair" | "none" | "manual";
+export type NodeKind = "fur" | "cat" | "len" | "art";
+/** Длины изделия (как в справочнике артикулов: ProductModel.lengthClass). */
+export const LENGTHS = ["Short", "Regular", "Long"] as const;
+/** Откуда взяты значения: ТЗ артикула, статистика «мех × категория × длина», статистика «мех × категория», нет данных, вручную. */
+export type NodeSrc = "art" | "len" | "pair" | "none" | "manual";
 
 export type BudgetNode = {
   id: string;
@@ -63,6 +66,8 @@ export type BudgetStat = {
   key: string; fur: string; cat: string; qty: number; orders: number;
   hidesPer: number; hidePrice: number; metersPer: number; meterPrice: number; workPer: number;
   modelId?: string;
+  /** Длина (Short/Regular/Long): запись «мех × категория × длина» (key "мех|категория|len:Длина"). */
+  len?: string;
 };
 
 export type Agg = {
@@ -141,11 +146,11 @@ export const normKey = (s: string) => s.toLowerCase().replace(/ё/g, "е").repla
 const FUR_ALIASES: Record<string, string> = { каракульча: "свакара", каракуль: "свакара" };
 const furKey = (s: string) => { const k = normKey(s); return FUR_ALIASES[k] ?? k; };
 
-/** Путь узла от корня: [тип сырья, категория, артикул] (то, что есть). */
+/** Путь узла от корня: [тип сырья, категория, длина, артикул] (то, что есть). */
 function pathOf(n: BudgetNode, byId: Map<string, BudgetNode>): BudgetNode[] {
   const out: BudgetNode[] = [n];
   let cur = n;
-  for (let i = 0; i < 4 && cur.parentId; i++) {
+  for (let i = 0; i < 5 && cur.parentId; i++) {
     const par = byId.get(cur.parentId);
     if (!par) break;
     out.unshift(par);
@@ -177,18 +182,21 @@ export function effLocked(n: BudgetNode, byId: Map<string, BudgetNode>): boolean
 function indexStats(stats: BudgetStat[]) {
   const pairs = new Map<string, BudgetStat>();
   const arts = new Map<string, BudgetStat>();
+  const lens = new Map<string, BudgetStat>();
   for (const s of stats) {
     if (s.modelId) arts.set(`${s.modelId}|${furKey(s.fur)}`, s);
+    else if (s.len) lens.set(`${furKey(s.fur)}|${normKey(s.cat)}|${normKey(s.len)}`, s);
     else pairs.set(`${furKey(s.fur)}|${normKey(s.cat)}`, s);
   }
-  return { pairs, arts };
+  return { pairs, arts, lens };
 }
 
 const toBase = (s: BudgetStat): BudgetBase => ({ hides: s.hidesPer, hidePrice: s.hidePrice, meters: s.metersPer, meterPrice: s.meterPrice, work: s.workPer });
 
 /**
  * Автоматический расчёт по данным системы. scopeId — пересчитать только поддерево (блок/категорию/один узел); без него — весь бюджет.
- * Артикул из каталога: сначала ТЗ этого артикула (в этом типе сырья), иначе статистика «мех × категория», иначе «нет данных».
+ * Артикул из каталога: сначала ТЗ этого артикула (в этом типе сырья), затем (если над ним стоит длина) статистика «мех × категория × длина»,
+ * иначе статистика «мех × категория», иначе «нет данных». Узел-длина без артикулов: «мех × категория × длина», иначе «мех × категория».
  * Узлы с замком (и узлы под замком родителя) не меняются.
  */
 export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetParams, scopeId?: string): BudgetNode[] {
@@ -202,6 +210,7 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
     const path = pathOf(n, byId);
     const fur = path.find((x) => x.kind === "fur");
     const cat = path.find((x) => x.kind === "cat");
+    const len = path.find((x) => x.kind === "len");
     const furName = cat?.statFur || n.statFur || fur?.statFur || fur?.name || "";
     const catName = n.kind === "cat" ? (n.statCat || n.name) : (n.statCat || cat?.statCat || cat?.name || "");
     const fk = furKey(furName);
@@ -210,6 +219,10 @@ export function autoCalc(nodes: BudgetNode[], stats: BudgetStat[], p: BudgetPara
     if (n.kind === "art" && n.modelId) {
       st = idx.arts.get(`${n.modelId}|${fk}`);
       if (st && st.qty > 0) src = "art"; else st = undefined;
+    }
+    if (!st && len) {
+      st = idx.lens.get(`${fk}|${normKey(catName)}|${normKey(len.name)}`);
+      if (st && st.qty > 0) src = "len"; else st = undefined;
     }
     if (!st) {
       st = idx.pairs.get(`${fk}|${normKey(catName)}`);
@@ -233,7 +246,7 @@ export function srcInfo(n: BudgetNode): { label: string; tone: "ok" | "warn" | "
   if (n.src === "manual" || (n.locked && n.sample <= 0)) return { label: "вручную", tone: "manual" };
   if (n.src === "none" || n.sample <= 0) return { label: "нет данных", tone: "bad" };
   const small = n.src === "art" ? n.sample < 5 : n.sample < 10;
-  const where = n.src === "art" ? "ТЗ артикула" : "по категории";
+  const where = n.src === "art" ? "ТЗ артикула" : n.src === "len" ? "по длине" : "по категории";
   return { label: `${where} · ${n.sample} изд.`, tone: small ? "warn" : "ok" };
 }
 
@@ -313,4 +326,13 @@ export function templateNodes(): BudgetNode[] {
 export function parseNodes(raw: unknown): BudgetNode[] {
   if (isLegacyLines(raw)) return legacyToNodes(raw);
   return Array.isArray(raw) ? (raw as BudgetNode[]) : [];
+}
+
+/** Узел-длина или категория: у категории с узлами-длинами штуки и значения лежат на длинах. */
+export const isSplitByLength = (cat: BudgetNode, kids: Map<string | null, BudgetNode[]>) => (kids.get(cat.id) ?? []).some((c) => c.kind === "len");
+
+/** Категория-аксессуар по справочнику категорий (group «Аксессуары»): длина у неё не вводится. catGroups: normKey(название) → группа. */
+export function isAccessoryCat(cat: BudgetNode, catGroups: Record<string, string | null | undefined>): boolean {
+  for (const nm of [cat.statCat, cat.name]) if (nm && catGroups[normKey(nm)] === "Аксессуары") return true;
+  return false;
 }

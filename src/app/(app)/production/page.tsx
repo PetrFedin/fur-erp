@@ -46,6 +46,7 @@ import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 import { ORDER_STATUS_OPTIONS } from "@/components/order-status-badge";
+import { LENGTH_OPTIONS, lengthWhere } from "@/lib/length-class";
 
 const SORTS: Record<string, string> = {
   num_desc: "№ ТЗ: по убыванию",
@@ -60,7 +61,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Не подтверждено" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "season", "status", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
+  ...pick(["q", "season", "status", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
     status: { allowed: ORDER_STATUS_OPTIONS.map((o) => o.value), label: "Статус" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -129,6 +130,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       orderYearWhere(year),
       ...toWhere<typeof f, Prisma.ProductionOrderWhereInput>(f, {
         model: (v) => ({ productModelId: { in: v } }),
+        len: (v) => ({ productModel: lengthWhere(v) ?? {} }),
         // Признак меха: назван в самом ТЗ или есть у лота, списанного в ТЗ; «none» — ни там, ни там признаков нет.
         attr: (v) => {
           const { none, rest } = splitNone(v);
@@ -580,6 +582,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           { type: "multi", name: "season", label: "Сезон", options: opts.season, noneLabel: "Без сезона", more: true },
           { type: "multi", name: "batch", label: "Партия пошива", options: opts.batch, noneLabel: "Без партии", allLabel: "Все партии" },
           { type: "multi", name: "model", label: "Артикул", options: opts.model },
+          { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа категорий", options: CATEGORY_GROUPS.map((g) => ({ value: g, label: g })), noneLabel: NO_GROUP_ARTICLES_LABEL, allLabel: "Все группы", more: true },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: opts.category, noneLabel: "Без категории" },
           { type: "multi", name: "auction", label: "Партия закупки (аукцион)", aliases: ["auc"], options: opts.auction, hint: "ТЗ, в которых списан мех этой партии закупки (аукциона)", more: true },

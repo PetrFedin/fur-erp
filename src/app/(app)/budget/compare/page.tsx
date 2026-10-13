@@ -15,18 +15,22 @@ export const metadata = { title: "Сравнение бюджетов" };
 
 type Side = { name: string; season: string; nodes: BudgetNode[]; params: BudgetParams };
 
-/** Итоги по типам сырья и по категориям внутри них. Категории с одинаковым названием в одном типе складываются. */
+/** Итоги по типам сырья, категориям внутри них и длинам внутри категорий. Категории (и длины) с одинаковым названием в одном типе складываются. */
 function byFur(s: Side) {
   const calc = computeTree(s.nodes, s.params);
-  const furs = new Map<string, { agg: Agg | null; cats: Map<string, Agg> }>();
+  const furs = new Map<string, { agg: Agg | null; cats: Map<string, Agg>; lens: Map<string, Agg> }>();
   const add = (a: Agg | null, b: Agg) => (a ? { ...a, pcs: a.pcs + b.pcs, total: a.total + b.total, hides: a.hides + b.hides } as Agg : b);
   for (const f of s.nodes.filter((n) => n.kind === "fur")) {
-    const e = furs.get(f.name) ?? { agg: null, cats: new Map<string, Agg>() };
+    const e = furs.get(f.name) ?? { agg: null, cats: new Map<string, Agg>(), lens: new Map<string, Agg>() };
     const fa = calc.get(f.id);
     if (fa) e.agg = add(e.agg, fa);
     for (const c of s.nodes.filter((n) => n.parentId === f.id)) {
       const ca = calc.get(c.id);
       if (ca) e.cats.set(c.name, add(e.cats.get(c.name) ?? null, ca));
+      for (const l of s.nodes.filter((n) => n.parentId === c.id && n.kind === "len")) {
+        const la = calc.get(l.id);
+        if (la) e.lens.set(`${c.name}\u0000${l.name}`, add(e.lens.get(`${c.name}\u0000${l.name}`) ?? null, la));
+      }
     }
     furs.set(f.name, e);
   }
@@ -65,11 +69,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const names = Array.from(new Set([...fa.keys(), ...fb.keys()])).sort((x, y) => furRank(x) - furRank(y) || x.localeCompare(y, "ru"));
 
   const cell = "whitespace-nowrap px-3 py-2 text-right tabular-nums";
-  const line = (label: string, a: Agg | null, b: Agg | null, sub = false) => {
+  const line = (label: string, a: Agg | null, b: Agg | null, sub = false, deep = false, kpre = "") => {
     const x = a?.total ?? 0, y = b?.total ?? 0;
     return (
-      <tr key={(sub ? "c:" : "f:") + label + (sub ? x + "|" + y : "")} className={sub ? "text-xs text-neutral-600" : "bg-neutral-50 font-medium"}>
-        <td className={"px-3 py-2 " + (sub ? "pl-8" : "")}>{label}</td>
+      <tr key={kpre + (deep ? "l:" : sub ? "c:" : "f:") + label + (sub ? x + "|" + y : "")} className={deep ? "text-xs text-neutral-500" : sub ? "text-xs text-neutral-600" : "bg-neutral-50 font-medium"}>
+        <td className={"px-3 py-2 " + (deep ? "pl-12" : sub ? "pl-8" : "")}>{label}</td>
         <td className={cell + " border-l border-neutral-200"}>{a ? qty(a.pcs, 0) : "—"}</td>
         <td className={cell}>{b ? qty(b.pcs, 0) : "—"}</td>
         <td className={cell + " border-l border-neutral-200"}>{a ? money(x) : "—"}</td>
@@ -107,7 +111,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         <table className="w-full min-w-[760px] table-fixed text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
-              <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория</th>
+              <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория / длина</th>
               <THGroup colSpan={2}>Изделий, шт.</THGroup>
               <THGroup colSpan={2}>Всего, ₽</THGroup>
               <THGroup colSpan={2}>Отклонение (Б к А)</THGroup>
@@ -120,7 +124,16 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             {names.flatMap((nm) => {
               const ea = fa.get(nm), eb = fb.get(nm);
               const cats = Array.from(new Set([...(ea?.cats.keys() ?? []), ...(eb?.cats.keys() ?? [])]));
-              return [line(nm, ea?.agg ?? null, eb?.agg ?? null), ...cats.map((c) => line(c, ea?.cats.get(c) ?? null, eb?.cats.get(c) ?? null, true))];
+              return [
+                line(nm, ea?.agg ?? null, eb?.agg ?? null),
+                ...cats.flatMap((c) => {
+                  const lens = Array.from(new Set([...(ea?.lens.keys() ?? []), ...(eb?.lens.keys() ?? [])])).filter((k) => k.startsWith(c + "\u0000"));
+                  return [
+                    line(c, ea?.cats.get(c) ?? null, eb?.cats.get(c) ?? null, true),
+                    ...lens.map((k) => line(k.slice(c.length + 1), ea?.lens.get(k) ?? null, eb?.lens.get(k) ?? null, true, true, nm + "|" + c + "|")),
+                  ];
+                }),
+              ];
             })}
             <tr className="row-total">
               <td className="px-3 py-2.5"><TotalLabel /></td>

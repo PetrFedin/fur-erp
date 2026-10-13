@@ -33,6 +33,7 @@ import { articleMetrics } from "@/lib/article-metrics";
 import { CostTwo } from "@/components/cost-two";
 import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
+import { LENGTH_OPTIONS } from "@/lib/length-class";
 
 export const metadata = { title: "Изделия" };
 
@@ -40,7 +41,7 @@ export const metadata = { title: "Изделия" };
 // подходящее под ВСЕ выбранные условия; её ср. взвеш. себестоимость и число ТЗ считаются только по таким ТЗ.
 // «Год ТЗ» (tzyear) — дополнительный фильтр внутри общего года из шапки (cookie), общий год не заменяет.
 const ARTICLE_FILTERS = defineFilters({
-  ...pick(["q", "category", "catgroup", "model", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, model: { label: "Артикул" } }),
+  ...pick(["q", "category", "catgroup", "model", "len", "fur", "color", "size", "season", "batch"], { q: { label: "Поиск" }, fur: { label: "Вид (тип) меха" }, batch: { label: "Партия" }, model: { label: "Артикул" } }),
   lining: { kind: "multi", label: "Подкладка", allowed: ["yes", "no"] },
   tzyear: { kind: "multi", label: "Год ТЗ", pattern: /^\d{4}$/ },
   tz: { kind: "multi", label: "ТЗ", maxLen: 60 },
@@ -137,7 +138,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   // Фильтры по ТЗ (вид меха, подкладка, год ТЗ, ТЗ, партия, цвет, размер, сезон): остаются артикулы, у которых есть подходящие ТЗ.
   const baseRows = year === "all" ? rows0.filter((r) => r.stockQty > 0 || r.orderCount > 0) : rows0.filter((r) => r.orderCount > 0);
   const emptyCount = tzActive ? 0 : rows0.length - baseRows.length;
-  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.price.length > 0;
+  const modelFilterOn = !!q || f.category.length > 0 || f.catgroup.length > 0 || f.model.length > 0 || f.len.length > 0 || f.price.length > 0;
   const rows = (tzActive ? rows0.filter((r) => r.orderCount > 0) : showEmpty || modelFilterOn ? rows0 : baseRows).sort((a, b) => {
     const wa = a.stockQty > 0 || a.orderCount > 0 ? 0 : 1;
     const wb = b.stockQty > 0 || b.orderCount > 0 ? 0 : 1;
@@ -225,6 +226,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
         controls={[
           { type: "text", name: "q", label: "Поиск", aliases: ["article"], placeholder: "код, название, код продаж" },
           { type: "multi", name: "model", label: "Артикул", options: articleOpts.model },
+          { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
           { type: "multi", name: "catgroup", label: "Группа", options: [...CATEGORY_GROUPS, NO_GROUP].map((g) => ({ value: g === NO_GROUP ? "none" : g, label: g })) },
           { type: "multi", name: "category", label: "Категория", aliases: ["cat"], options: articleOpts.category, noneLabel: "Без категории" },
           { type: "multi", name: "fur", label: "Тип меха", aliases: ["kind"], options: tzOpts.fur, hint: "по ТЗ изделия" },

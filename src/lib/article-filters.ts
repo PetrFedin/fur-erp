@@ -9,6 +9,7 @@ import { matchesMulti, splitNone, type FilterOption } from "@/lib/filters";
 import { modelCodeVariants } from "@/lib/model-code";
 import { UNDEFINED_COLOR, UNDEFINED_SIZE } from "@/lib/product-category";
 import { collectOrderSizes } from "@/lib/order-sizes";
+import { lengthWhere } from "@/lib/length-class";
 
 export type ArticleFilterValues = {
   q: string;
@@ -72,7 +73,7 @@ export function matchedOrderIds(rows: TzRow[], liningText: Map<string, boolean>,
 }
 
 /** Условие Prisma для моделей (уровень модели). Пустые фильтры — пустое условие. */
-export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q" | "category" | "price"> & { model?: string[]; catgroup?: string[] }): Prisma.ProductModelWhereInput {
+export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q" | "category" | "price"> & { model?: string[]; catgroup?: string[]; len?: string[] }): Prisma.ProductModelWhereInput {
   const cat = splitNone(f.category);
   const grp = splitNone(f.catgroup ?? []);
   const q = f.q;
@@ -114,6 +115,7 @@ export function articleModelWhere(orgId: string, f: Pick<ArticleFilterValues, "q
         : []),
     ],
     ...(f.model?.length ? { id: { in: f.model } } : {}),
+    ...(lengthWhere(f.len) ?? {}),
     ...(f.price.length === 1 ? { sellingPrice: f.price[0] === "yes" ? { not: null } : null } : {}),
   };
 }

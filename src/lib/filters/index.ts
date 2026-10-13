@@ -269,6 +269,8 @@ export const FILTER_CATALOG = {
   season: { kind: "multi", label: "Сезон" },
   vat: { kind: "multi", label: "Ставка НДС", aliases: ["nds"], allowed: ["20", "22", "mixed", "mix"] },
   model: { kind: "multi", label: "Модель" },
+  /** Длина изделия (ProductModel.lengthClass): Short / Regular / Long / none (без длины). */
+  len: { kind: "multi", label: "Длина", allowed: ["Short", "Regular", "Long", "none"] },
   material: { kind: "multi", label: "Материал" },
   q: { kind: "text", label: "Поиск", aliases: ["dq", "article"] },
   from: { kind: "date", label: "Дата с" },

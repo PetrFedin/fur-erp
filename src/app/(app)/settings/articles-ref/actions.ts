@@ -9,6 +9,7 @@ import { loadArticleList } from "@/lib/article-ref";
 import { articleKey, candidatesFromList, parseAliases, spellingsOf, type ArticleLite } from "@/lib/article-key";
 import { resolveCategoryInput } from "@/lib/categories";
 import { parseTableFile } from "@/lib/table-file";
+import { parseLength } from "@/lib/length-class";
 
 const ROLES = ACCESS.models;
 
@@ -21,6 +22,8 @@ export type ArticleInput = {
   salesName: string;
   aliases: string;
   sellingPrice: string;
+  /** Short / Regular / Long или пусто. */
+  lengthClass: string;
   isActive: boolean;
 };
 export type Res = { error?: string; ok?: true; id?: string };
@@ -59,6 +62,7 @@ function parseInput(i: ArticleInput) {
   if (name.length < 2) return { error: "Укажите наш код артикула" } as const;
   const price = normalizeNumberInput(i.sellingPrice);
   if (price !== undefined && (typeof price !== "number" || !Number.isFinite(price) || price < 0 || price > 999_999_999_999)) return { error: "Цена продажи: укажите число" } as const;
+  if (i.lengthClass?.trim() && !parseLength(i.lengthClass)) return { error: "Длина: Short, Regular или Long" } as const;
   const own = {
     name,
     sku: t(i.sku, 100),
@@ -71,6 +75,7 @@ function parseInput(i: ArticleInput) {
       category: t(i.category, 300) || null,
       salesName: t(i.salesName, 500) || null,
       sellingPrice: price === undefined ? null : (price as number),
+      lengthClass: parseLength(i.lengthClass),
       isActive: !!i.isActive,
     },
     own,
@@ -204,6 +209,8 @@ export type ImportRow = {
   salesCode: string;
   salesName: string;
   extra: string;
+  /** Длина из файла (Short/Regular/Long) или пусто. */
+  length: string;
   /** ok — сопоставлено однозначно; same — уже так записано; none — наш артикул не найден; ambiguous — несколько; conflict — код продаж занят другим */
   status: "ok" | "same" | "none" | "ambiguous" | "conflict";
   note: string;
@@ -218,6 +225,7 @@ const HEAD = {
   salesCode: /(код.*продаж|артикул.*продаж|продаж.*(код|артикул)|sales.*(code|article)|код в продажах|^sku$)/i,
   salesName: /(назв.*продаж|наимен.*продаж|продаж.*(назв|наимен)|sales.*name|розничн.*назв)/i,
   extra: /(синоним|написан|alias|прочие)/i,
+  length: /(^длин|^length)/i,
 };
 
 export async function previewArticleImport(formData: FormData): Promise<ImportPreview> {
@@ -239,7 +247,8 @@ export async function previewArticleImport(formData: FormData): Promise<ImportPr
   const iOurCode = idx(HEAD.ourCode, [iSalesCode, iSalesName]);
   const iOurName = idx(HEAD.ourName, [iSalesCode, iSalesName, iOurCode]);
   const iExtra = idx(HEAD.extra);
-  if (iSalesCode < 0 && iSalesName < 0) return { error: "Не найдены колонки «Код в продажах» / «Название в продажах». Первая строка файла должна быть заголовком.", header };
+  const iLen = idx(HEAD.length);
+  if (iSalesCode < 0 && iSalesName < 0 && iLen < 0) return { error: "Не найдены колонки «Код в продажах» / «Название в продажах» / «Длина». Первая строка файла должна быть заголовком.", header };
   if (iOurCode < 0 && iOurName < 0) return { error: "Не найдена колонка «Наш код» (или «Наше название»).", header };
 
   const list = await loadArticleList(session.user.organizationId);
@@ -256,7 +265,7 @@ export async function previewArticleImport(formData: FormData): Promise<ImportPr
     const salesCode = cell(r, iSalesCode);
     const salesName = cell(r, iSalesName);
     if (!ourCode && !ourName) continue;
-    const base: ImportRow = { line: n + 1, ourCode, ourName, salesCode, salesName, extra: cell(r, iExtra), status: "none", note: "", candidates: [], articleId: null };
+    const base: ImportRow = { line: n + 1, ourCode, ourName, salesCode, salesName, extra: cell(r, iExtra), length: parseLength(cell(r, iLen)) ?? "", status: "none", note: "", candidates: [], articleId: null };
     let cands: ArticleLite[] = ourCode ? candidatesFromList(list, ourCode) : [];
     if (cands.length === 0 && ourName) {
       const k = ourName.toLowerCase().replace(/ё/g, "е");
@@ -282,7 +291,7 @@ export async function previewArticleImport(formData: FormData): Promise<ImportPr
       } else if (dupFile && dupFile !== a.id) {
         base.status = "conflict";
         base.note = `код продаж «${salesCode}» в файле встречается у разных артикулов`;
-      } else if ((salesCode ? articleKey(full.salesCode) === sk : true) && (salesName ? (full.salesName ?? "") === salesName : true) && !base.extra) {
+      } else if ((salesCode ? articleKey(full.salesCode) === sk : true) && (salesName ? (full.salesName ?? "") === salesName : true) && !base.extra && (!base.length || full.lengthClass === base.length)) {
         base.status = "same";
         base.note = "уже записано";
       } else {
@@ -298,7 +307,7 @@ export async function previewArticleImport(formData: FormData): Promise<ImportPr
   return { rows, header };
 }
 
-export type ImportApplyRow = { articleId: string; salesCode: string; salesName: string; extra: string };
+export type ImportApplyRow = { articleId: string; salesCode: string; salesName: string; extra: string; length?: string };
 
 export async function applyArticleImport(items: ImportApplyRow[]): Promise<Res & { updated?: number; skipped?: string[] }> {
   const session = await requireRole(...ROLES);
@@ -331,7 +340,9 @@ export async function applyArticleImport(items: ImportApplyRow[]): Promise<Res &
         const k = articleKey(x);
         if (k && k !== articleKey(a.name) && !taken.has(k) && !aliases.some((y) => articleKey(y) === k)) aliases.push(x);
       }
-      const data: { salesCode?: string; salesName?: string; aliases?: string[] } = {};
+      const data: { salesCode?: string; salesName?: string; aliases?: string[]; lengthClass?: string } = {};
+      const len = parseLength(it.length);
+      if (len && len !== a.lengthClass) data.lengthClass = len;
       if (sc) data.salesCode = sc;
       if (sn) data.salesName = sn;
       if (aliases.length !== a.aliases.length) data.aliases = aliases;

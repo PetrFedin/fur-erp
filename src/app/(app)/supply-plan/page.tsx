@@ -1,3 +1,4 @@
+import { LENGTH_OPTIONS, matchesLength } from "@/lib/length-class";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -43,7 +44,7 @@ export const metadata = { title: "План поставок" };
 
 // Фильтры плана: артикул (поиск), год (по месяцу плана; дополнительно к году в шапке).
 const SUPPLY_FILTERS = defineFilters({
-  ...pick(["q", "year", "model"], { model: { label: "Артикул (точно)" }, q: { label: "Артикул" }, year: { label: "Год плана" } }),
+  ...pick(["q", "year", "model", "len"], { model: { label: "Артикул (точно)" }, q: { label: "Артикул" }, year: { label: "Год плана" } }),
 });
 
 export default async function SupplyPlanPage({ searchParams }: PageProps<"/supply-plan">) {
@@ -69,6 +70,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
   const entries = allEntries.filter(
     (e) =>
       (pf.model.length === 0 || pf.model.includes(e.productModelId)) &&
+      matchesLength(pf.len, e.productModel.lengthClass) &&
       (pf.year.length === 0 || pf.year.includes(String(new Date(e.month).getFullYear()))) &&
       (!needle || normCode(`${e.productModel.name} ${e.notes ?? ""}`.toLowerCase()).includes(needle)),
   );
@@ -164,6 +166,7 @@ export default async function SupplyPlanPage({ searchParams }: PageProps<"/suppl
           controls={[
             { type: "text", name: "q", label: "Артикул", placeholder: "Артикул или заметка" },
             { type: "multi", name: "model", label: "Артикул (точно)", options: allModels.map((m) => ({ value: m.id, label: m.name })) },
+            { type: "multi", name: "len", label: "Длина", options: LENGTH_OPTIONS, allLabel: "Любая" },
             { type: "multi", name: "year", label: "Год плана", options: yearOptions, hint: "По месяцу плана; дополнительно к году в шапке" },
           ]}
         />

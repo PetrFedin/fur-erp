@@ -19,20 +19,20 @@ function cleanParams(p: Partial<BudgetParams> | null | undefined): BudgetParams 
 /** Переопределение надбавки: число в разумных границах или null (наследуется). */
 const upv = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.min(Math.max(v, -100), 1000) : null);
 
-const SRC: NodeSrc[] = ["art", "pair", "none", "manual"];
+const SRC: NodeSrc[] = ["art", "len", "pair", "none", "manual"];
 
-/** Проверка дерева: допустимые виды и родители (тип сырья → категория → артикул), уникальные id, числа в границах. */
+/** Проверка дерева: допустимые виды и родители (тип сырья → категория → [длина] → артикул), уникальные id, числа в границах. */
 function cleanNodes(input: unknown): BudgetNode[] | null {
   if (!Array.isArray(input) || input.length > 800) return null;
   const out: BudgetNode[] = [];
   const kindById = new Map<string, string>();
   for (const raw of input as Partial<BudgetNode>[]) {
-    const kind = raw.kind === "fur" || raw.kind === "cat" || raw.kind === "art" ? raw.kind : null;
+    const kind = raw.kind === "fur" || raw.kind === "cat" || raw.kind === "len" || raw.kind === "art" ? raw.kind : null;
     const id = s(raw.id, 40);
     if (!kind || !id || kindById.has(id)) continue;
     const parentId = raw.parentId ? s(raw.parentId, 40) : null;
-    const need = kind === "fur" ? null : kind === "cat" ? "fur" : "cat";
-    if (kind === "fur" ? parentId !== null : kindById.get(parentId ?? "") !== need) continue;
+    const parentKind = kindById.get(parentId ?? "");
+    if (kind === "fur" ? parentId !== null : kind === "cat" ? parentKind !== "fur" : kind === "len" ? parentKind !== "cat" : parentKind !== "cat" && parentKind !== "len") continue;
     kindById.set(id, kind);
     const b = raw.base;
     out.push({
@@ -290,7 +290,7 @@ export async function exportBudgetXlsx(id: string): Promise<Res<{ name: string; 
     for (const nd of kids.get(pid) ?? []) {
       const a = calc.get(nd.id);
       if (a) {
-        const r = put(nd.name, a, nd.kind !== "art", depth);
+        const r = put(nd.name, a, nd.kind !== "art" && nd.kind !== "len", depth);
         if (nd.kind === "fur") r.eachCell((c) => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F3F3" } }; });
       }
       walk(nd.id, depth + 1);
