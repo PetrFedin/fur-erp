@@ -14,7 +14,7 @@ import type { Prisma } from "@prisma/client";
 import { PRODUCTION_EDIT_ROLES as EDIT_ROLES } from "@/lib/production-access";
 import { parseLotLines } from "@/lib/lot-lines";
 import { checkOrgRefs } from "@/lib/org-guard";
-import { MAX_QTY, parsePrice, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
+import { MAX_QTY, zNum, zNumOpt, parseNumber, parseDateInput } from "@/lib/input";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { resolveColorInput } from "@/lib/colors";
 import { staleError, ORDER_V, PRODUCTION_PAYMENT_V, BATCH_V } from "@/lib/concurrency";
@@ -684,60 +684,6 @@ async function afterBatchChange(orgId: string, orderId: string, r: BatchChange) 
   if (!r.changed) return;
   if (r.oldBatchId) await resetByBatch(orgId, r.oldBatchId);
   revalidateAll(orgId);
-}
-
-/** Быстрое назначение партии прямо из карточки ТЗ (блок «Партия»): выбрать из списка или ввести новый номер; пусто — «без партии». */
-export async function assignOrderBatch(orderId: string, formData: FormData): Promise<FormState> {
-  const session = await requireRole(...EDIT_ROLES);
-  const order = await prisma.productionOrder.findFirst({
-    where: { id: orderId, organizationId: session.user.organizationId },
-    select: { id: true, batchId: true, workOrderDate: true, endDate: true, startDate: true },
-  });
-  if (!order) return { error: "ТЗ не найдено" };
-  if (!formData.has("batchId")) formData.set("batchId", "");
-  const r = await resolveBatchChange(session.user.organizationId, order, formData, order.workOrderDate ?? order.endDate ?? order.startDate);
-  if ("error" in r) return { error: r.error };
-  if (r.changed) {
-    await prisma.productionOrder.update({ where: { id: orderId }, data: r.patch });
-    await resetByOrder(orderId);
-  }
-  await afterBatchChange(session.user.organizationId, orderId, r);
-  revalidateAll(session.user.organizationId);
-  return {};
-}
-
-// Retail price is really an attribute of the article, not of one specific
-// ТЗ (matches the source spreadsheet, where "ПРЦ" is one number per
-// article) — so setting it here also updates the ProductModel, and every
-// other open/completed order of that model, so /articles and every ТЗ of
-// this model show the same price and markup without drifting apart.
-export async function updateRetailPrice(orderId: string, formData: FormData): Promise<FormState> {
-  const session = await requireRole(...EDIT_ROLES);
-  // Empty must not become 0 (z.coerce turns "" into 0) and 0 must never
-  // overwrite the article's sellingPrice: both are rejected explicitly.
-  const priceRes = parsePrice(formData.get("retailPrice"));
-  if ("error" in priceRes) return { error: priceRes.error };
-  const price = priceRes.value;
-
-  const order = await prisma.productionOrder.findFirst({
-    where: { id: orderId, organizationId: session.user.organizationId },
-  });
-  if (!order) return { error: "ТЗ не найдено" };
-
-  await prisma.$transaction([
-    prisma.productionOrder.updateMany({
-      where: { productModelId: order.productModelId, organizationId: session.user.organizationId },
-      data: { retailPrice: price },
-    }),
-    prisma.productModel.update({
-      where: { id: order.productModelId },
-      data: { sellingPrice: price },
-    }),
-  ]);
-
-  await resetByOrder(orderId);
-  revalidateAll(session.user.organizationId);
-  return {};
 }
 
 // Any ТЗ can be edited regardless of status — completed orders are the

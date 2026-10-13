@@ -29,12 +29,6 @@ function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string
   return <div className="sub-cap mt-0.5 whitespace-normal text-[10px] font-normal leading-tight text-neutral-500">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
 }
 
-/** Мелкий процент под количеством изделий: доля от всего объёма заказа (бюджета). */
-function PcsShare({ pcs, all }: { pcs: number; all: number }) {
-  if (!(all > 0) || !(pcs > 0)) return null;
-  const v = (pcs / all) * 100;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-right text-[10px] font-normal leading-tight text-neutral-500">{formatPercent(v)} заказа</div>;
-}
 
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
 type NumKey = "pcs" | "hides" | "hidePrice" | "meters" | "meterPrice" | "work";
@@ -425,7 +419,7 @@ export function BudgetEditor(p: Props) {
         <td className={sumCell + " " + sepL}>{f ? qz(f.pcs) : "—"}</td>
         <td className={sumCell + " text-neutral-600"}>{f ? qz(f.hides) : "—"}{f ? <Avg sum={f.hides} per={f.pcs} unit="шк./изд." d={1} /> : null}</td>
         <td className={sumCell}>{f ? mt(f.mex) : "—"}{f ? <Avg sum={f.mex} per={f.hides} unit="₽/шт." /> : null}</td>
-        <td className={sumCell}>{f ? mt(f.lining) : "—"}{f ? <><Avg sum={f.lining} per={f.meters} unit="₽/м" /><Avg sum={f.meters} per={f.pcs} unit="м/изд." d={1} /></> : null}</td>
+        <td className={sumCell}>{f ? mt(f.lining) : "—"}{f ? <Avg sum={f.lining} per={f.meters} unit="₽/м" /> : null}</td>
         <td className={sumCell}>{f ? mt(f.work) : "—"}{f ? <Avg sum={f.work} per={f.pcs} unit="₽/изд." /> : null}</td>
         <td className={sumCell + " text-neutral-500"}>{f ? mt(f.c4) : "—"}</td>
         <td className={sumCell + " font-semibold"}>{f ? mt(f.total) : "—"}{f ? <Avg sum={f.total} per={f.pcs} unit="₽/изд." /> : null}</td>
@@ -437,12 +431,12 @@ export function BudgetEditor(p: Props) {
     return (
       <tr key={key} className={`${o.bg} ${o.bold ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid`}>
         <td className={`sticky left-0 z-10 min-w-[120px] max-w-[320px] border-r border-neutral-200 px-1.5 py-2 text-sm bg-inherit print:static`}>{label}</td>
-        <td className={sumCell}>{qz(a.pcs)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>
+        <td className={sumCell}>{qz(a.pcs)}</td>
         <td className={sumCell + " text-neutral-600"}>{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
         <td className={sumCell + " " + sepL}>{mt(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
         <td className={sumCell}>{mt(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
         <td className={sumCell}>{mt(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-        <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
+        <td className={sumCell + " text-neutral-500"}>{mt(a.c4)}</td>
         <td className={sumCell + " text-sm font-semibold " + sepL}>
           {mt(a.total)}
           <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-normal text-neutral-500">
@@ -529,7 +523,7 @@ export function BudgetEditor(p: Props) {
       const row = (
         <tr key={n.id} className={`${bg} ${n.kind === "fur" ? "font-semibold" : ""} [&>td]:border-b [&>td]:border-neutral-100`}>
           {nameCell(n, depth, hasKids, open)}
-          {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, <PcsShare pcs={a.pcs} all={total.pcs} />) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qz(a.pcs)}<PcsShare pcs={a.pcs} all={total.pcs} /></td>}
+          {leaf ? numCell(n, "pcs", "Бюджет, шт.", "w-[84px] min-w-[84px] " + sepL, undefined, ) : <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qz(a.pcs)}</td>}
           {leaf ? numCell(n, "hides", "Шкур на изделие", "w-[80px] min-w-[80px]") : g(av.hides)}
           <td className="px-2 text-right text-xs tabular-nums text-neutral-600">{qz(a.hides)}<Avg sum={a.hides} per={a.pcs} unit="шк./изд." d={1} /></td>
           {leaf ? numCell(n, "hidePrice", "Цена шкуры", "w-[150px] min-w-[150px] " + sepL, "upFur") : <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500 ${sepL}`}>{av.hidePrice == null ? "—" : money(av.hidePrice)}</td>}
@@ -539,7 +533,7 @@ export function BudgetEditor(p: Props) {
           <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600 ${sepL}`}>{mz(a.mex)}<Avg sum={a.mex} per={a.hides} unit="₽/шт." /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.lining)}<Avg sum={a.lining} per={a.meters} unit="₽/м" /></td>
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{mz(a.work)}<Avg sum={a.work} per={a.pcs} unit="₽/изд." /></td>
-          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
+          <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}</td>
           <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{mz(a.total)}</td>
           <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{mz(perUnit(a))}</td>
           {factDetail(factMap.get(n.id), a.total)}
@@ -552,14 +546,14 @@ export function BudgetEditor(p: Props) {
   const totalRowDetail = (
     <tr key="total" className="row-total">
       <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><TotalLabel /></td>
-      <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}<div className="sub-cap mt-0.5 text-right text-[10px] font-normal text-neutral-500">100,0% заказа</div></td>
+      <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}</td>
       <td />
       <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
       <td className={sepL} colSpan={4} />
       <td className={`whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700 ${sepL}`}>{money(total.mex)}<Avg sum={total.mex} per={total.hides} unit="₽/шт." /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.lining)}<Avg sum={total.lining} per={total.meters} unit="₽/м" /></td>
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-700">{money(total.work)}<Avg sum={total.work} per={total.pcs} unit="₽/изд." /></td>
-      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
+      <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}</td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}</td>
       {factDetail(ft.all, total.total)}
@@ -693,7 +687,7 @@ export function BudgetEditor(p: Props) {
             ))}
           </div>
           <label className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 text-xs text-neutral-600 md:min-h-0">
-            <input type="checkbox" checked={subOn} onChange={(e) => toggleSub(e.target.checked)} className="h-4 w-4" />Показывать мелкие подписи со средними
+            <input type="checkbox" checked={subOn} onChange={(e) => toggleSub(e.target.checked)} className="h-4 w-4" />Мелкие подписи под суммами: среднее (за шкуру, за метр, на изделие)
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">

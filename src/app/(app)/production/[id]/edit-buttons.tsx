@@ -5,74 +5,7 @@ import { useRouter } from "next/navigation";
 import { EditDialog, Field } from "@/components/edit-dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { setOrderColors, updateProductionBatch, updateProductionPayment } from "../actions";
-
-type OrderOpt = { id: string; label: string };
-
-/** «Изменить» оплату работы: сумма, тип, способ, дата, № п/п, заметка и ТЗ, которые она покрывает. */
-export function ProductionPaymentEditButton({
-  orderId,
-  paymentId,
-  version,
-  orders,
-  defaults,
-}: {
-  orderId: string;
-  paymentId: string;
-  version: string;
-  orders: OrderOpt[];
-  defaults: { amount: string; paymentType: string; method: string; paidAt: string; docRef: string; notes: string; orderIds: string[] };
-}) {
-  return (
-    <EditDialog
-      title="Изменить оплату работы"
-      variant="outline"
-      action={(fd) => updateProductionPayment(orderId, paymentId, fd)}
-      version={version}
-      wide
-      hint="Остаток по ТЗ и по партии пересчитается; отметка «подтверждено» сбросится. Платёжку (файл) заменяйте в блоке документов оплаты."
-    >
-      <Field label="Сумма, ₽">
-        <Input name="amount" inputMode="decimal" defaultValue={defaults.amount} required />
-      </Field>
-      <Field label="Дата оплаты">
-        <Input name="paidAt" type="date" defaultValue={defaults.paidAt} required />
-      </Field>
-      <Field label="Тип">
-        <Select name="paymentType" defaultValue={defaults.paymentType}>
-          <option value="ADVANCE">Аванс</option>
-          <option value="PARTIAL">Доплата</option>
-          <option value="FINAL">Окончательный расчёт</option>
-        </Select>
-      </Field>
-      <Field label="Способ оплаты">
-        <Select name="method" defaultValue={defaults.method}>
-          <option value="BANK_TRANSFER">Банк. перевод</option>
-          <option value="CASH">Наличные</option>
-          <option value="CARD">Карта</option>
-          <option value="OTHER">Другое</option>
-        </Select>
-      </Field>
-      <Field label="№ платёжного поручения">
-        <Input name="docRef" defaultValue={defaults.docRef} maxLength={200} />
-      </Field>
-      <Field label="Заметка">
-        <Input name="notes" defaultValue={defaults.notes} maxLength={1000} />
-      </Field>
-      <fieldset className="sm:col-span-2">
-        <legend className="mb-1 text-xs text-neutral-500">Какие ТЗ покрывает оплата</legend>
-        <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-neutral-200 p-2">
-          {orders.map((o) => (
-            <label key={o.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="orderIds" value={o.id} defaultChecked={defaults.orderIds.includes(o.id)} />
-              {o.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-    </EditDialog>
-  );
-}
+import { setOrderColors, updateProductionBatch } from "../actions";
 
 /** «Изменить» партию: номер, название, год, план, примечание. */
 export function BatchEditButton({

@@ -15,7 +15,7 @@ export function Sidebar() {
   // Свёрнутое меню запоминается в браузере; по умолчанию развёрнуто (до чтения настройки рисуем развёрнутым, без расхождения с сервером).
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
-    try { setCollapsed(localStorage.getItem(KEY) === "1"); } catch { /* без памяти браузера — развёрнуто */ }
+    try { if (localStorage.getItem(KEY) === "1") queueMicrotask(() => setCollapsed(true)); } catch { /* без памяти браузера — развёрнуто */ }
   }, []);
   const toggle = (v: boolean) => {
     setCollapsed(v);
