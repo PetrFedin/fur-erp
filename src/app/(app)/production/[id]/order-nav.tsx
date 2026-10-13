@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
 type Item = { key: string; label: string; href?: string; count: number | null; title: string; active?: boolean };
 
@@ -36,10 +37,10 @@ export function OrderNav({
     batchNumber != null
       ? { key: "batch", label: `Партия пошива ${batchNumber}`, href: `/production/batches/${batchNumber}`, count: batchCount, title: "Партия пошива этого ТЗ: состав партии, итоги (счётчик — ТЗ в партии)" }
       : { key: "batch", label: "Партия пошива", href: "#card-batch", count: null, title: "Партия не указана — выберите её в параметрах ТЗ" },
-    { key: "ship", label: "Отгрузки", href: `/shipments?q=${q}`, count: shipments, title: "Отгрузки с этим ТЗ" },
-    { key: "fit", label: "Примерки", href: `/fittings?q=${q}`, count: fittings, title: "Примерки этого ТЗ" },
-    { key: "plan", label: "План заказа", href: `/plan?q=${a}`, count: planCount, title: "План заказа по артикулу этого ТЗ" },
-    { key: "supply", label: "План поставок", href: `/supply-plan?q=${a}`, count: supplyCount, title: "Записи плана поставок по артикулу этого ТЗ" },
+    ...(HIDDEN_MODULES.shipments ? [] : [{ key: "ship", label: "Отгрузки", href: `/shipments?q=${q}`, count: shipments, title: "Отгрузки с этим ТЗ" }]),
+    ...(HIDDEN_MODULES.fittings ? [] : [{ key: "fit", label: "Примерки", href: `/fittings?q=${q}`, count: fittings, title: "Примерки этого ТЗ" }]),
+    ...(HIDDEN_MODULES.orderPlan ? [] : [{ key: "plan", label: "План заказа", href: `/plan?q=${a}`, count: planCount, title: "План заказа по артикулу этого ТЗ" }]),
+    ...(HIDDEN_MODULES.supplyPlan ? [] : [{ key: "supply", label: "План поставок", href: `/supply-plan?q=${a}`, count: supplyCount, title: "Записи плана поставок по артикулу этого ТЗ" }]),
   ];
   const cls = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-9";
   const pos = positions;

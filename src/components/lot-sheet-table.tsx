@@ -150,7 +150,7 @@ export function LotSheetTable({
       </div>
       {warn ? (
         <p role="status" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
-          Итог расчётного листа ≠ цене лота на {formatMoney(Math.abs(diff!).toFixed(2))} ₽ (лист: {formatMoney((sheetTotal as number).toFixed(2))}, лот: {formatMoney(lotTotal.toFixed(2))}, с НДС).
+          Итог расчётного листа ≠ цене лота на {formatMoney(Math.abs(diff!).toFixed(2))} (лист: {formatMoney((sheetTotal as number).toFixed(2))}, лот: {formatMoney(lotTotal.toFixed(2))}, с НДС).
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2 text-xs print:hidden">

@@ -163,6 +163,10 @@ export async function loadUnallocatedPayments(db: Db, orgId: string, opts: { cli
 
 // ---------- Долг заказчиков ----------
 
+/** Остаток платежа, названный в основании «шкурами подрядчика»: это сырьё, а не оплата работы — в «За производство» не учитывается. */
+export const isContractorHidesRest = (p: Pick<UnallocatedPayment, "docRef" | "notes" | "rest">): boolean =>
+  /шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) && p.rest.greaterThan(1);
+
 export type ClientDebtRow = {
   clientId: string;
   clientName: string;
@@ -271,7 +275,7 @@ export async function loadClientDebt(db: Db, orgId: string, scope: ClientDebtSco
       const e = rows.get(p.clientId);
       if (e) {
         // Остаток платежа, названный в основании «шкурами подрядчика», — сырьё, а не оплата работы: в «За производство» его не учитываем.
-        if (/шкур/i.test(`${p.docRef ?? ""} ${p.notes ?? ""}`) && p.rest.greaterThan(1)) hidesTotal += p.rest.toNumber();
+        if (isContractorHidesRest(p)) hidesTotal += p.rest.toNumber();
         else e.unallocated = e.unallocated.add(p.rest);
       }
     }

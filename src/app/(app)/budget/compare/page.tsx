@@ -1,5 +1,6 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { THGroup } from "@/components/table-head";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +39,17 @@ const dPct = (a: number, b: number) => (a > 0 ? pct((b / a - 1) * 100) : b > 0 ?
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
   const session = await requireSession();
   const sp = await searchParams;
+  if (!sp.a || !sp.b) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Breadcrumbs items={[{ label: "Бюджет", href: "/budget" }, { label: "Сравнение" }]} />
+        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
+          <p>Выберите две версии бюджета для сравнения</p>
+          <Link href="/budget" className="mt-2 inline-block text-blue-700 hover:underline">← К списку бюджетов</Link>
+        </div>
+      </div>
+    );
+  }
   const rows = await prisma.budgetScenario.findMany({ where: { organizationId: session.user.organizationId, id: { in: [sp.a ?? "", sp.b ?? ""] } } });
   const toSide = (id?: string): Side | null => {
     const r = rows.find((x) => x.id === id);
@@ -74,7 +86,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       <div>
         <h1 className="text-xl font-semibold">Сравнение версий
           <InfoHint label="Как читать сравнение" wide>
-            <p>Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Var — насколько Б больше или меньше А.</p>
+            <p>Версия А: {A.name} ({A.season}) · версия Б: {B.name} ({B.season}). Отклонение — насколько Б больше или меньше А.</p>
           </InfoHint>
         </h1>
       </div>
@@ -98,7 +110,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
               <th rowSpan={2} className="w-[170px] px-3 py-2 text-left font-medium">Тип сырья / категория</th>
               <THGroup colSpan={2}>Изделий, шт.</THGroup>
               <THGroup colSpan={2}>Всего, ₽</THGroup>
-              <THGroup colSpan={2}>Var (Б к А)</THGroup>
+              <THGroup colSpan={2}>Отклонение (Б к А)</THGroup>
             </tr>
             <tr className="border-b border-neutral-200 text-xs text-neutral-500">
               {["А", "Б", "А", "Б", "₽", "%"].map((h, i) => <th key={i} className={"px-3 pb-2 text-right font-medium" + (i % 2 === 0 ? " border-l border-neutral-200" : "")}>{h}</th>)}

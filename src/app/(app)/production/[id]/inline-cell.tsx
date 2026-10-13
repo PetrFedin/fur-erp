@@ -152,13 +152,21 @@ function AreaCellInner({ value, onSave, readOnly, label, className }: Common & {
 
 export type SelectOpt = { value: string; label: string };
 
+/** Ленивые варианты: в разметке — только текущий, полный список подставляется, когда список открывают. */
+export type LazyOptions = { current: SelectOpt; get: () => SelectOpt[] | null; warm: () => Promise<unknown> };
+
 /** Выпадающий список: выбор сразу сохраняется. */
-export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—" }: Common & { value: string; options: SelectOpt[]; emptyLabel?: string }) {
+export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy }: Common & { value: string; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions }) {
   const { pending, error, save, saved } = useSaver(onSave, value);
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
+  const [open, setOpen] = useState(false);
+  const [, setTick] = useState(0);
   if (seen !== value) { setSeen(value); setDraft(value); }
-  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{options.find((o) => o.value === value)?.label || <span className="text-neutral-300">—</span>}</span>;
+  const full = lazy && open ? lazy.get() : null;
+  const opts = lazy ? (full ? (full.some((o) => o.value === value) ? full : [lazy.current, ...full]) : [lazy.current]) : options;
+  if (readOnly) return <span className="block px-1.5 py-0.5 text-sm">{opts.find((o) => o.value === value)?.label || <span className="text-neutral-300">—</span>}</span>;
+  const warm = () => { if (lazy) lazy.warm().then(() => setTick((t) => t + 1), () => {}); };
   return (
     <span className="block">
       <select
@@ -166,11 +174,15 @@ export function SelectCell({ value, options, onSave, readOnly, label, className,
         aria-label={label}
         title={error ?? label}
         disabled={pending}
+        onPointerEnter={lazy ? warm : undefined}
+        onFocus={lazy ? () => { warm(); setOpen(true); } : undefined}
+        onMouseDown={lazy ? () => setOpen(true) : undefined}
+        onBlur={lazy ? () => setOpen(false) : undefined}
         onChange={(e) => { setDraft(e.target.value); save(e.target.value, () => setDraft(value)); }}
         className={cn(BOX, error && "border-red-500 bg-red-50", className)}
       >
-        {!options.some((o) => o.value === "") ? <option value="">{emptyLabel}</option> : null}
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {!opts.some((o) => o.value === "") ? <option value="">{emptyLabel}</option> : null}
+        {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <SaveMark pending={pending} saved={saved} />
       {error ? <span className="mt-0.5 block text-xs text-red-600">{error}</span> : null}

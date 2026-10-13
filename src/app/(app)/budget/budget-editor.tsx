@@ -28,7 +28,7 @@ function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string
   return <div className="mt-0.5 text-[10px] font-normal leading-tight text-neutral-500">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
 }
 
-/** Var мелким цветным текстом под «На 1 изделие»: красный — выше текущих цен на 15%+, жёлтый — на 5%+, зелёный — ниже на 5%+. */
+/** Отклонение (Var) мелким цветным текстом под «На 1 изделие»: красный — выше текущих цен на 15%+, жёлтый — на 5%+, зелёный — ниже на 5%+. */
 /** Мелкий процент под количеством изделий: доля от всего объёма заказа (бюджета). */
 function PcsShare({ pcs, all }: { pcs: number; all: number }) {
   if (!(all > 0) || !(pcs > 0)) return null;
@@ -39,7 +39,7 @@ function PcsShare({ pcs, all }: { pcs: number; all: number }) {
 function VarTag({ v }: { v: number | null }) {
   if (v == null || !Number.isFinite(v)) return null;
   const tone = v >= 15 ? "text-red-700" : v >= 5 ? "text-amber-700" : v <= -5 ? "text-emerald-700" : "text-neutral-500";
-  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Var {formatPercent(v, { sign: true })}</div>;
+  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Отклонение {formatPercent(v, { sign: true })}</div>;
 }
 
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
@@ -311,7 +311,7 @@ export function BudgetEditor(p: Props) {
   );
   // Плитка «Мех»: первым слайдом «Тотал», далее каждый тип меха.
   const furSlides = [
-    { id: "mex", name: "Тотал", a: total },
+    { id: "mex", name: "Все виды меха", a: total },
     ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO })),
   ].map((sl) => {
     const isMex = sl.id === "mex";
@@ -332,7 +332,7 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Var", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Отклонение", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
       {tile("w", "Работа", money(total.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
@@ -573,7 +573,7 @@ export function BudgetEditor(p: Props) {
           <h2 className="text-base font-semibold">Состав бюджета
             <InfoHint label="Как считается бюджет" wide>
               <p>Изделий × (шкур × цена шкуры + подкладка, м × цена за м + работа) + {formatPercent(params.c4)} на мех и подкладку.</p>
-              <p className="mt-1">Var под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
+              <p className="mt-1">Отклонение под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
               <p className="mt-1">Точка у строки — качество данных: зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную. Закрытый замок — строка ручная.</p>
             </InfoHint>
           </h2>
@@ -616,7 +616,7 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Работа = изделия × работа на изделие" unit="₽">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
-                  <Th tip="Всего, ₽ ÷ изделий. Под цифрой Var — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше" unit="₽/шт.">На 1 изд.</Th>
+                  <Th tip="Всего, ₽ ÷ изделий. Под цифрой «Отклонение» — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>
@@ -649,7 +649,7 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Работа = бюджет × работа на изделие" unit="₽">Работа</Th>
                   <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%" unit="₽">Всего</Th>
-                  <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой Var — бюджет к текущим ценам системы (без надбавок, с 4%)" unit="₽/шт.">На 1 изд.</Th>
+                  <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой «Отклонение» — бюджет к текущим ценам системы (без надбавок, с 4%)" unit="₽/шт.">На 1 изд.</Th>
                 </tr>
               </thead>
               <tbody>

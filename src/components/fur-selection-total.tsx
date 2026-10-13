@@ -18,7 +18,7 @@ import { rawRowsFromLots } from "@/lib/raw-rows";
 import { FurOrdersTable, type OrderInfo } from "@/components/fur-orders-table";
 import type { RawTableRow } from "@/lib/dashboard-data";
 import {
-  FILTER_KEYS, NO_AUCTION, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, planUsdAvg, parseFilters, rowsBy,
+  FILTER_KEYS, NO_AUCTION, allParamNames, buildFurTable, emptyFilters, filterOptions, filtersToEntries, figures, flowOf, hasFilters, lotCountLabel, planUsdAvg, parseFilters, rowsBy,
   type FilterKey, type FlowFigures, type FurFilters, type FurKind, type FurLot, type TableRow,
 } from "@/lib/fur-table";
 
@@ -363,7 +363,6 @@ export function FurSelectionTotal({
     level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
   const topRows: TableRow[] = group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year");
   const pad = (depth: number) => ({ paddingLeft: 12 + depth * (kind === "lining" ? 12 : 20) });
-  const lotWord = (n: number) => `${n} лот.`;
 
   /** Строка ТЗ: сколько лота ушло в это ТЗ, на какую сумму (без 4%), цена за единицу и надбавка 4%. */
   const renderUsage = (l: FurLot, u: FurLot["usages"][number], depth: number) => {
@@ -479,7 +478,7 @@ export function FurSelectionTotal({
               ) : (
                 <span className={cn(wrapName ? "line-clamp-2 whitespace-normal break-words leading-tight" : "truncate", depth === 0 ? "font-medium" : undefined)} title={row.label}>{shown(level, row)}</span>
               )}
-              <span className="ml-1.5 shrink-0 text-xs text-neutral-500">{lotWord(row.lots.length)}</span>
+              <span className="ml-1.5 shrink-0 text-xs text-neutral-500">{lotCountLabel(row.lots)}</span>
             </div>
             {isAuction ? <div className="truncate pl-4 text-[11px] text-neutral-500" title={auctionSub(row)}>{auctionSub(row)}</div> : null}
           </td>
@@ -502,7 +501,7 @@ export function FurSelectionTotal({
       <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" onClick={() => goSlide(slideIdx - 1)}>‹</button>
       <div className="flex items-center gap-1" role="tablist" aria-label="Вид">
         {["", ...slideKeys].map((k, i) => (
-          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={k || "Тотал"} title={k || "Тотал"} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={k || "Все виды меха"} title={k || "Все виды меха"} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
         ))}
       </div>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" onClick={() => goSlide(slideIdx + 1)}>›</button>

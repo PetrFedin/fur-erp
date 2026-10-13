@@ -36,6 +36,7 @@ import { sumOrders, sumTotal } from "@/lib/orders-sum";
 import { articleMetrics } from "@/lib/article-metrics";
 import { groupOf, NO_GROUP } from "@/lib/category-groups";
 import { canEditProduction } from "@/lib/production-access";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { cleanNote } from "@/lib/note-tags";
 
@@ -191,10 +192,10 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       <nav aria-label="Разделы артикула" className="flex flex-wrap gap-2">
         <SectionLink href={`/production?model=${id}`} label="ТЗ артикула" count={orders.filter((o) => o.status !== "CANCELLED").length} />
         <SectionLink href={`/production/batches?model=${id}`} label="Партии" count={batchCount} />
-        <SectionLink href={`/shipments?model=${id}`} label="Отгрузки" count={shipmentsCount} />
-        <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />
-        <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />
-        <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />
+        {!HIDDEN_MODULES.shipments && <SectionLink href={`/shipments?model=${id}`} label="Отгрузки" count={shipmentsCount} />}
+        {!HIDDEN_MODULES.fittings && <SectionLink href={`/fittings?model=${id}`} label="Примерки" count={fittingsCount} />}
+        {!HIDDEN_MODULES.orderPlan && <SectionLink href={`/plan?q=${encodeURIComponent(model.name)}`} label="План заказа" count={planCount} />}
+        {!HIDDEN_MODULES.supplyPlan && <SectionLink href={`/supply-plan?model=${id}`} label="План поставок" count={supplyCount} />}
         <SectionLink href="#stock" label="Остаток / движения" count={movementsCount} />
         <SectionLink href="#docs" label="Документы" count={docs.length} />
       </nav>

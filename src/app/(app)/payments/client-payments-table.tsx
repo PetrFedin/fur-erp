@@ -55,7 +55,7 @@ function Rest({ work, paid }: { work: number | null | undefined; paid: number | 
   if (work == null || work <= 0) return <span className="text-neutral-400">—</span>;
   const diff = work - (paid ?? 0);
   if (Math.abs(diff) <= 0.5) return <span className="text-neutral-500">—</span>;
-  return diff > 0 ? <span className="font-medium text-amber-700">{money(diff)}</span> : <span className="font-medium text-emerald-700">+{money(-diff)}</span>;
+  return diff > 0 ? <span className="font-medium text-amber-700">{money(diff)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-diff)}</span>;
 }
 
 /** Сумма оплаты и расхождение с тем, что разнесено на ТЗ. Остаток шкур подрядчика — не работа ТЗ, это не расхождение. */
@@ -176,7 +176,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                     <>
                       <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">+{money(-left)}</span>}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700">Переплата {money(-left)}</span>}</td>
                       <td colSpan={2} className="border-l border-neutral-200" />
                     </>
                   );
@@ -200,7 +200,7 @@ export function ClientPaymentsTable({ rows }: { rows: ClientPayRow[] }) {
                             <td className="whitespace-nowrap border-l border-neutral-200 px-3 py-2 text-right tabular-nums">{due > 0.5 ? money(due) : <span className="text-neutral-400">—</span>}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(paid)}</td>
                             <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                              {Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">+{money(-left)}</span>}
+                              {Math.abs(left) <= 0.5 ? <span className="text-neutral-400">—</span> : left > 0 ? <span className="font-medium text-amber-700">{money(left)}</span> : <span className="font-medium text-emerald-700" title="оплачено больше, чем к оплате по этой дате (аванс вперёд)">Переплата {money(-left)}</span>}
                             </td>
                           </>
                         );

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/info-hint";
 import { TH, THGroup } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -252,7 +253,7 @@ export function ProductionTable({ search }: { search: Record<string, string[]> }
                 <TH label="Мех" unit="₽" sep />
                 <TH label="Подкладка" unit="₽" />
                 <TH label="Работа" unit="₽" />
-                <TH label="4%" unit="₽" />
+                <TH label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />
                 {showOther ? <TH label="Расходы и прочее" unit="₽" /> : null}
                 <TH label="Шкур" unit="шт." sep />
                 <TH label="Ср. цена шкуры" unit="₽/шт." />

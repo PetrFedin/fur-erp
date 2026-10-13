@@ -18,14 +18,16 @@ import { InfoHint } from "@/components/info-hint";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { C4Hint } from "@/components/c4-note";
-import { UsageForm, type LotOption } from "./usage-form";
+import { UsageForm, type MaterialOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
 import { ProductionExpenseForm } from "./expense-form";
 import { ORDER_COLORS_INCLUDE, formatOrderColors, orderColors } from "@/lib/order-colors";
 import { batchLabel } from "@/lib/batch-label";
 import { ApplyBomButton, CompleteOrderForm, CancelOrderButton } from "./order-actions";
-import { UsageRow, type EditableLotOption } from "./usage-row";
+import { UsageRow } from "./usage-row";
+import { lotOptionLabel } from "./lot-label";
+import { CollapsibleRows } from "./collapsible-rows";
 import { ExpenseRow } from "./expense-row";
 import { WorkRow } from "./work-row";
 import { OrderNav } from "./order-nav";
@@ -136,14 +138,9 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
   // Списания и расходы правятся при любом статусе (исправление ошибки в завершённом ТЗ — норма, см. syncCompletedOrderCost).
   // allLots (без фильтра по остатку) нужен только выпадающему списку правки: свой лот списания часто выбран целиком.
-  const [availableLots, allLots, expenseCategories, models, warehouses, clients, categoryRefs, furRefs, articleTzCount] = await Promise.all([
+  const [availableLots, expenseCategories, models, warehouses, clients, categoryRefs, furRefs, articleTzCount] = await Promise.all([
     prisma.rawMaterialLot.findMany({
       where: { organizationId: orgId, warehouseId: order.rawWarehouseId, quantityRemaining: { gt: 0 } },
-      include: { rawMaterial: true },
-      orderBy: { receivedDate: "asc" },
-    }),
-    prisma.rawMaterialLot.findMany({
-      where: { organizationId: orgId, warehouseId: order.rawWarehouseId },
       include: { rawMaterial: true },
       orderBy: { receivedDate: "asc" },
     }),
@@ -167,23 +164,18 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   ).sort((a, b) => compareModelNames(a.name, b.name));
   const clientOptions = order.clientId && !clients.some((c) => c.id === order.clientId) ? [{ id: order.client!.id, name: order.client!.name }, ...clients] : clients;
 
-  const toLotOption = (l: (typeof availableLots)[number]) => ({
-    id: l.id,
-    lotNumber: l.lotNumber,
-    grade: l.grade,
-    color: l.color,
-    rawMaterialId: l.rawMaterialId,
-    rawMaterialName: l.rawMaterial.name,
-    unit: l.rawMaterial.unit,
-    quantityRemaining: l.quantityRemaining.toString(),
-    unitCost: l.unitCost.toString(),
-  });
-  const lotOptions: LotOption[] = availableLots.map(toLotOption);
-  const allLotOptions: EditableLotOption[] = allLots.map(toLotOption);
-  const furLots = lotOptions.filter((l) => l.unit !== "M");
-  const liningLots = lotOptions.filter((l) => l.unit === "M");
-  const allFurLots = allLotOptions.filter((l) => l.unit !== "M");
-  const allLiningLots = allLotOptions.filter((l) => l.unit === "M");
+  // Сами лоты в разметку не кладём: выпадающие списки подгружают их, когда их открывают (lot-catalog-action.ts).
+  // Для форм «Списать» нужны только материалы, у которых есть доступные лоты.
+  const materialsOf = (isLining: boolean): MaterialOption[] => {
+    const seen = new Map<string, MaterialOption>();
+    for (const l of availableLots) {
+      if ((l.rawMaterial.unit === "M") !== isLining || seen.has(l.rawMaterialId)) continue;
+      seen.set(l.rawMaterialId, { id: l.rawMaterialId, name: l.rawMaterial.name, unit: l.rawMaterial.unit });
+    }
+    return Array.from(seen.values());
+  };
+  const furMaterials = materialsOf(false);
+  const liningMaterials = materialsOf(true);
   const furUsages = order.materialUsages.filter((u) => u.rawMaterial.unit !== "M");
   const liningUsages = order.materialUsages.filter((u) => u.rawMaterial.unit === "M");
   // Строки подкладки в расчёте показываем, только если она есть в списаниях, указана в ТЗ или входит в состав модели.
@@ -224,7 +216,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const vatRateByLot: Record<string, number> = {};
   for (const u of order.materialUsages) vatRateByLot[u.lotId] = effectiveUsageVat(u);
 
-  const usageRows = (list: typeof order.materialUsages, lots: EditableLotOption[]) =>
+  const usageRows = (list: typeof order.materialUsages, isLining: boolean) =>
     list.map((u) => {
       const line = lineWith4(usageInput(u), c4Mode);
       const qty = u.quantity;
@@ -233,6 +225,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           key={u.id}
           usage={{
             id: u.id,
+            lotLabel: lotOptionLabel({ lotNumber: u.lot.lotNumber, grade: u.lot.grade, color: u.lot.color, rawMaterialName: u.rawMaterial.name, quantityRemaining: u.lot.quantityRemaining.toString() }),
             rawMaterialName: u.rawMaterial.name,
             lotId: u.lotId,
             lotNumber: u.lot.lotNumber,
@@ -254,7 +247,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             lotUnitCostExcl: lotUnitCostExclVat(u.lot).toString(),
             lotUnitCostIncl: u.lot.unitCost.toString(),
           }}
-          lots={lots}
+          orderId={id}
+          lining={isLining}
           readOnly={!canEdit}
           updateAction={boundUpdateUsage.bind(null, u.id)}
           vatAction={boundUpdateUsageVat.bind(null, u.id)}
@@ -458,8 +452,8 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
         {canWrite && (
           <AddMenu
-            fur={<UsageForm orderId={id} lots={furLots} defaultCommission4={defaultCommission4(order.batch?.number)} />}
-            lining={<UsageForm orderId={id} lots={liningLots} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            fur={<UsageForm orderId={id} materials={furMaterials} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            lining={<UsageForm orderId={id} materials={liningMaterials} defaultCommission4={defaultCommission4(order.batch?.number)} />}
             expense={<ProductionExpenseForm orderId={id} categories={expenseCategories} />}
             bulk={<BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />}
             bom={
@@ -527,28 +521,28 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Th className="text-right">Кол-во</Th>
               <Th className="text-right" unit="₽">Цена за ед. без НДС{c4}</Th>
               <Th className="text-right" unit="%">НДС</Th>
-              <Th className="text-center" unit="₽">4%</Th>
+              <Th className="text-center" unit="₽">4%<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint></Th>
               <Th className="text-right" unit="₽">Сумма с НДС{c4}</Th>
               <Th></Th>
             </Tr>
           </Thead>
           <Tbody>
             <SectionRow>Мех</SectionRow>
-            {usageRows(furUsages, allFurLots)}
+            <CollapsibleRows rows={usageRows(furUsages, false)} colSpan={8} what="списания меха" />
             {furUsages.length === 0 && <EmptyRow>Мех ещё не списан</EmptyRow>}
             <TotalRow label={<TotalLabel note={`мех${c4} · ${formatQty(furQty.toString())} шт.`} />} value={<Money incl={furCost} excl={furCostExcl} />} />
 
             {showLining && (
               <>
                 <SectionRow>Подкладка</SectionRow>
-                {usageRows(liningUsages, allLiningLots)}
+                <CollapsibleRows rows={usageRows(liningUsages, true)} colSpan={8} what="списания подкладки" />
                 {liningUsages.length === 0 && <EmptyRow>Подкладка не списана</EmptyRow>}
                 <TotalRow label={<TotalLabel note={`подкладка${c4} · ${formatQty(liningQty.toString())} м`} />} value={<Money incl={liningCost} excl={liningCostExcl} />} />
               </>
             )}
 
             <SectionRow>Расходы</SectionRow>
-            {expenseRows}
+            <CollapsibleRows rows={expenseRows} colSpan={8} what="расходы" />
             {order.expenses.length === 0 && <EmptyRow>Расходов нет</EmptyRow>}
             <TotalRow label={<TotalLabel note="расходы" />} value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
 

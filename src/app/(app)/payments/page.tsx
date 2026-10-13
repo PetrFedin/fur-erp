@@ -22,7 +22,7 @@ import { auctionName, loadAuctionSummaries, CLOSING_NOTE, PAY_EPS, type AuctionP
 import { rowVersion, PAYMENT_V } from "@/lib/concurrency";
 import { PaymentRowControls } from "./auction-payment-form";
 import { AdvanceRowControls, AllocateAdvanceControls, type AllocTarget } from "./advance-forms";
-import { PaymentFormButton } from "@/components/payment-form";
+import { PaymentWizardButton } from "@/components/payment-wizard";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { tidyDocRef } from "@/lib/pay-ref";
@@ -78,7 +78,7 @@ function isPastRu(date: string): boolean {
 
 function fmtRemaining(r: { toString(): string; lessThan(n: number): boolean; neg(): { toString(): string } }): string {
   // Остаток в пределах копейки — ноль, а не «-0 ₽».
-  return r.lessThan(-0.005) ? `+${formatMoney(r.neg().toString())}` : r.lessThan(0.005) ? formatMoney("0") : formatMoney(r.toString());
+  return r.lessThan(-0.005) ? `Переплата ${formatMoney(r.neg().toString())}` : r.lessThan(0.005) ? formatMoney("0") : formatMoney(r.toString());
 }
 
 const FRESH_MS = 365 * 24 * 3600 * 1000;
@@ -126,6 +126,8 @@ function payComment(docRef: string | null, dateText: string): string {
     .filter((x) => !/^п\/п\s*№?\s*\d+/i.test(x) && !INVOICE_RX.test(x))
     .join(" · ");
 }
+
+export const metadata = { title: "Оплаты" };
 
 export default async function PaymentsPage({
   searchParams,
@@ -644,7 +646,7 @@ export default async function PaymentsPage({
         <InfoHint wide label="О странице оплат">
           <p>Суммы с НДС. Год — из шапки: партия закупки по дате заказа, работа по дате оплаты.</p>
         </InfoHint>
-        {canPay && <span className="ml-auto"><PaymentFormButton label="+ Внести оплату" variant="default" size="default" requireYear /></span>}
+        {canPay && <span className="ml-auto"><PaymentWizardButton label="+ Внести оплату" /></span>}
       </div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>

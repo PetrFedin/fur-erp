@@ -219,7 +219,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
   const t = MODEL_TITLES[model] ?? model;
   switch (model) {
     case "Purchase": return `Закупка ${s("number") ?? ""}`.trim();
-    case "ProductionOrder": return `ТЗ №${s("number") ?? ""}`.trim();
+    case "ProductionOrder": return `ТЗ №${s("workOrderNumber") ?? s("number") ?? ""}`.trim();
     case "ProductionBatch": return `Партия №${s("number") ?? ""}${s("name") ? " " + s("name") : ""}`.trim();
     case "Payment": return `Оплата ${money(r.amount)} ${day(r.paidAt)}`.trim() + (s("auctionSession") ? ` · ${s("auctionSession")}` : "");
     case "ProductionPayment": return `Оплата производства ${money(r.amount)} ${day(r.paidAt)}`.trim();
@@ -276,6 +276,7 @@ export const FIELD_LABELS: Record<string, string> = {
   text: "текст", pagePath: "страница", pageTitle: "заголовок страницы", anchor: "блок", entityLabel: "запись", priority: "приоритет",
   resolutionNote: "как учтено", resolvedAt: "учтено (когда)", resolvedById: "закрыл",
 };
+FIELD_LABELS.colorRefId ??= "цвет (справочник)";
 export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k;
 
 /** Короткое отображение значения в журнале. */

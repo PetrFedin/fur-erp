@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { MODEL_TITLES, fieldLabel, showValue } from "@/lib/audit-core";
 
+const isComplex = (v: unknown) => (typeof v === "object" && v !== null) || (typeof v === "string" && /^c[a-z0-9]{20,}$/.test(v));
+
 export const PAGE_SIZE = 50;
 
 /** actor / model / action — мультивыбор (повтор параметра: `model=Purchase&model=Payment`); пусто — все. */
@@ -101,6 +103,19 @@ export function actorText(r: Pick<LogRow, "actorName" | "actorRole" | "source">)
 type Ch = Record<string, unknown>;
 const isPair = (v: unknown): v is [unknown, unknown] => Array.isArray(v) && v.length === 2;
 
+/** Строка «поле: было → стало»; для составных значений (JSON) и нераспознанных полей — «изменено: <поле>», полный вид — в «Подробнее». */
+function pairLine(k: string, v: [unknown, unknown], full: boolean): string {
+  const label = fieldLabel(k);
+  if (full) return `${label}: ${isComplex(v[0]) ? JSON.stringify(v[0]) : showValue(v[0])} → ${isComplex(v[1]) ? JSON.stringify(v[1]) : showValue(v[1])}`;
+  if (isComplex(v[0]) || isComplex(v[1]) || label === k) return `изменено: ${label}`;
+  return `${label}: ${showValue(v[0])} → ${showValue(v[1])}`;
+}
+
+/** Есть ли в записи изменения, свёрнутые в «изменено: <поле>» (для них нужен блок «Подробнее»). */
+export function hasCollapsed(r: Pick<LogRow, "action" | "changes">): boolean {
+  return summaryLines(r).some((l) => l.startsWith("изменено: "));
+}
+
 /** Краткое изменение: строки «поле: было → стало» (для update), либо описание для create/delete. */
 export function summaryLines(r: Pick<LogRow, "action" | "changes">): string[] {
   const c = (r.changes ?? {}) as Ch;
@@ -110,7 +125,7 @@ export function summaryLines(r: Pick<LogRow, "action" | "changes">): string[] {
     if (isPair(c.confirmedAt) && !c.verifiedAt) out.push(c.confirmedAt[1] ? "оплата подтверждена" : "подтверждение оплаты снято");
     for (const [k, v] of Object.entries(c)) {
       if (k === "verifiedAt" || k === "verifiedBy" || k === "confirmedAt" || k === "confirmedBy") continue;
-      if (isPair(v)) out.push(`${fieldLabel(k)}: ${showValue(v[0])} → ${showValue(v[1])}`);
+      if (isPair(v)) out.push(pairLine(k, v, false));
     }
     return out;
   }
@@ -122,7 +137,7 @@ export function summaryLines(r: Pick<LogRow, "action" | "changes">): string[] {
 export function detailLines(r: Pick<LogRow, "action" | "changes">): string[] {
   const c = (r.changes ?? {}) as Ch;
   if (r.action === "update" && !("ids" in c)) {
-    return Object.entries(c).filter(([, v]) => isPair(v)).map(([k, v]) => `${fieldLabel(k)}: ${showValue((v as [unknown, unknown])[0])} → ${showValue((v as [unknown, unknown])[1])}`);
+    return Object.entries(c).filter(([, v]) => isPair(v)).map(([k, v]) => pairLine(k, v as [unknown, unknown], true));
   }
   return [];
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
 const TABS = [
   { key: "orders", href: "/production", label: "ТЗ" },
@@ -9,13 +10,20 @@ const TABS = [
   { key: "supply", href: "/supply-plan", label: "План поставок" },
 ] as const;
 
+const HIDDEN_TABS: Record<string, boolean> = {
+  shipments: HIDDEN_MODULES.shipments,
+  fittings: HIDDEN_MODULES.fittings,
+  plan: HIDDEN_MODULES.orderPlan,
+  supply: HIDDEN_MODULES.supplyPlan,
+};
+
 export type ProductionTab = (typeof TABS)[number]["key"];
 
 /** Вкладки раздела «ТЗ»: сами ТЗ, партии, отгрузки, примерки, план заказа, план поставок. */
 export function ProductionTabs({ active }: { active: ProductionTab }) {
   return (
     <nav aria-label="Разделы ТЗ" className="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-neutral-200 pb-2">
-      {TABS.map((t) => (
+      {TABS.filter((t) => !HIDDEN_TABS[t.key]).map((t) => (
         <Link
           key={t.key}
           href={t.href}

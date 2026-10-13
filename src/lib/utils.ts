@@ -74,3 +74,17 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
 export function formatDate(value: Date | string) {
   return dateFormatter.format(new Date(value));
 }
+
+/** Порог (₽), с которого отрицательный долг считается переплатой; меньшие отклонения — округления, показываются как есть. */
+export const OVERPAY_FROM = 0.5;
+
+/** Долг/остаток к оплате: отрицательное значение — «Переплата N ₽» (положительное число); иначе обычная сумма. Только отображение, расчёты не меняются. */
+export function formatDebt(value: number | string, fmt: (v: number) => string = formatMoney): string {
+  const n = Number(value);
+  return n < -OVERPAY_FROM ? `Переплата ${fmt(Math.abs(n))}` : fmt(n);
+}
+
+/** Подпись колонки/плитки долга: «Переплата», когда вся величина отрицательна, иначе base («Долг», «К оплате»…). */
+export function debtLabel(value: number | string, base = "Долг"): string {
+  return Number(value) < -OVERPAY_FROM ? "Переплата" : base;
+}

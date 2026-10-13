@@ -4,7 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -162,7 +162,9 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       paidBatch: num(paidShare.sub(own.length > 0 ? ownSum : 0)),
       lots: p.items.length, fur: items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0), lining: items.filter(unitIsM).reduce((a, i) => a + i.qty, 0),
       usedValue: ls.reduce((a, l) => a + l.usedIncl, 0), recvValue: ls.reduce((a, l) => a + l.recvIncl, 0), hasLots: ls.length > 0,
-      remFur: ls.filter((l) => l.kind === "fur").reduce((a, l) => a + l.rem, 0), remLining: ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0),
+      // Остаток: по лотам; у принятой закупки без лотов нет; у заказанной, но не полученной (лотов ещё нет) — всё заказанное количество, как «Остаток» на Главной.
+      remFur: ls.length > 0 ? ls.filter((l) => l.kind === "fur").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter((i) => !unitIsM(i)).reduce((a, i) => a + i.qty, 0) : 0,
+      remLining: ls.length > 0 ? ls.filter((l) => l.kind === "lining").reduce((a, l) => a + l.rem, 0) : status === "DRAFT" ? items.filter(unitIsM).reduce((a, i) => a + i.qty, 0) : 0,
       items,
       expenses: p.expenses.map((e) => ({ id: e.id, label: e.category.name + (e.description ? ` · ${e.description}` : ""), sum: num(grossUp(e.amount, e.vatRate)) })),
       pays: own.map((x) => ({ id: x.id, date: formatDate(x.paidAt), amount: num(x.amount), doc: x.docRef?.trim() || null })),
@@ -196,7 +198,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       ...p, items: its, lots: its.length, fur: kind === "fur" ? p.fur : 0, lining: kind === "lining" ? p.lining : 0,
       total: p.total * sh, totalExcl: p.totalExcl * sh, paid: p.paid * sh, rest: p.rest * sh, paidBatch: p.paidBatch * sh,
       usedValue: ls.reduce((a, l) => a + l.usedIncl, 0), recvValue: ls.reduce((a, l) => a + l.recvIncl, 0), hasLots: ls.length > 0,
-      remFur: kind === "fur" ? ls.reduce((a, l) => a + l.rem, 0) : 0, remLining: kind === "lining" ? ls.reduce((a, l) => a + l.rem, 0) : 0,
+      remFur: kind === "fur" ? (ls.length > 0 ? ls.reduce((a, l) => a + l.rem, 0) : p.status === "DRAFT" ? p.fur : 0) : 0,
+      remLining: kind === "lining" ? (ls.length > 0 ? ls.reduce((a, l) => a + l.rem, 0) : p.status === "DRAFT" ? p.lining : 0) : 0,
     };
   };
   // Округление: у лота цена за единицу хранится округлённой, поэтому Σ лотов (так считает Главная) чуть отличается от Σ закупок по документам.
@@ -352,8 +355,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
               <TileCaption>{boughtTotal > 0 ? `${formatPercent((paidTotal / boughtTotal) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
             </div>
             <div className={TILE_BOX}>
-              <TileHead>К оплате</TileHead>
-              <TileValue compact className={restTotal > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(restTotal.toFixed(2))}</TileValue>
+              <TileHead>{restTotal < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
+              <TileValue compact className={restTotal > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(restTotal).toFixed(2))}</TileValue>
               <TileCaption>{boughtTotal > 0 ? `${formatPercent((restTotal / boughtTotal) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
             </div>
           </div>
@@ -410,7 +413,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
                   <div className={TILE_BOX}><TileHead>Закупок</TileHead><TileValue compact>{a.purchases}</TileValue><TileCaption>{sec.k === "fur" ? "с мехом" : "с подкладкой"}</TileCaption></div>
                   <div className={TILE_BOX}><TileHead>{sec.k === "fur" ? "Шкур, шт." : "Подкладка, м"}</TileHead><TileValue compact>{formatQty(q)}</TileValue><TileCaption>{a.lots} позиций</TileCaption></div>
                   <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney((a.total + exSum).toFixed(2))}</TileValue><TileCaption>{ex.length ? "с шкурами подрядчика и округлением" : "с НДС"}</TileCaption></div>
-                  <div className={TILE_BOX}><TileHead>Долг, ₽</TileHead><TileValue compact className={a.rest > 0.5 ? "text-amber-700" : ""}>{formatMoney(a.rest.toFixed(2))}</TileValue><TileCaption>Сумма − оплачено</TileCaption></div>
+                  <div className={TILE_BOX}><TileHead>{a.rest < -OVERPAY_FROM ? "Переплата, ₽" : "Долг, ₽"}</TileHead><TileValue compact className={a.rest > 0.5 ? "text-amber-700" : ""}>{formatMoney((a.rest < -OVERPAY_FROM ? -a.rest : a.rest).toFixed(2))}</TileValue><TileCaption>Сумма − оплачено</TileCaption></div>
                 </div>
                 <PurchasesList
                   id={`pur-list-${sec.k}`}

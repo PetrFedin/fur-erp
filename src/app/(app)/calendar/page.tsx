@@ -26,6 +26,7 @@ import { InfoHint } from "@/components/info-hint";
 import { EventForm, type EventInitial } from "./event-form";
 import { DayEventActions, DayKeys } from "./day-panel";
 import { articleLabel } from "@/lib/article-label";
+import { HIDDEN_MODULES } from "@/lib/hidden-modules";
 
 export const metadata = { title: "Производственный календарь" };
 
@@ -301,8 +302,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Link href="/plan" className={BTN}>План заказа</Link>
-          <Link href="/supply-plan" className={BTN}>План поставок</Link>
+          {!HIDDEN_MODULES.orderPlan && <Link href="/plan" className={BTN}>План заказа</Link>}
+          {!HIDDEN_MODULES.supplyPlan && <Link href="/supply-plan" className={BTN}>План поставок</Link>}
         </div>
       </div>
 

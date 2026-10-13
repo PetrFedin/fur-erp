@@ -1,7 +1,7 @@
 import { uniqueLabelCount } from "@/lib/tz-key";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
-import { formatMoney } from "@/lib/utils";
+import { debtLabel, formatMoney, OVERPAY_FROM } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { Goods, SplitLine, type ClientPayRow, type PaidGood } from "./client-payments-table";
 
@@ -29,7 +29,7 @@ export function ClientDateDetail({ date, rows, back, owedNote, owedGoods }: { da
             <dl className="grid gap-2 sm:grid-cols-3">
               <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">К оплате</dt><dd className="font-medium tabular-nums">{formatMoney(due.toFixed(2))}</dd></div>
               <div className="rounded-md bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">Оплачено</dt><dd className="font-medium tabular-nums">{formatMoney(paid.toFixed(2))}</dd></div>
-              <div className="rounded-md border border-amber-300 bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">Остаток к оплате</dt><dd className="font-medium tabular-nums text-amber-700">{formatMoney((due - paid).toFixed(2))}</dd></div>
+              <div className="rounded-md border border-amber-300 bg-neutral-50 px-3 py-2"><dt className="text-xs text-neutral-500">{debtLabel(due - paid, "Остаток к оплате")}</dt><dd className="font-medium tabular-nums text-amber-700">{formatMoney((due - paid < -OVERPAY_FROM ? paid - due : due - paid).toFixed(2))}</dd></div>
             </dl>
             {owedGoods && owedGoods.length > 0 ? (
               <details className="mt-3 border-t border-neutral-100 pt-3 text-sm">

@@ -22,6 +22,8 @@ export type PCLot = {
   /** НДС лота, ₽ (цена с НДС − цена без НДС). */
   vat: number;
   kind: "lot" | "planned" | "hides";
+  /** Заказано, не получено: сколько позиций закупки в строке (лотов ещё нет). */
+  positions?: number;
   /** Часть сумм вычислена (молоток из справочника Drive и т.п.). */
   approx: boolean;
 };
@@ -81,7 +83,7 @@ export async function priceComposition(orgId: string, d: Pick<DashboardData, "pr
       }
       const tw = w.reduce((a, x) => a + x, 0);
       const excl = tw > 0 ? w.map((x) => (x / tw) * s.recvExcl) : (() => { const e = new Array<number>(NCAT + 1).fill(0); e[NCAT] = s.recvExcl; return e; })();
-      out.push({ id: s.id, num: "Закупка", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, pack: tw > 0 ? (packW / tw) * s.recvExcl : 0, vat: s.recvIncl - s.recvExcl, kind: "planned", approx });
+      out.push({ id: s.id, num: "Закупка", fur: s.item, auction: s.auctionLabel, qty: s.recv, excl, pack: tw > 0 ? (packW / tw) * s.recvExcl : 0, vat: s.recvIncl - s.recvExcl, kind: "planned", positions: s.positions, approx });
     }
   }
 

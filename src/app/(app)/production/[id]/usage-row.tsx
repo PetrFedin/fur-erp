@@ -9,6 +9,8 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
 import { SelectCell, TextCell } from "./inline-cell";
+import { lotOptionLabel } from "./lot-label";
+import { invalidateLotCatalog, peekLotCatalog, warmLotCatalog } from "./lot-catalog-client";
 import { useEditGuard } from "./edit-guard";
 
 // Варианты лотов для выпадающего списка правки должны включать и лоты с нулевым остатком: собственный лот списания
@@ -29,6 +31,8 @@ const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "�
 
 export type UsageRowData = {
   id: string;
+  /** Подпись текущего лота (остальные варианты подгружаются, когда список открывают). */
+  lotLabel: string;
   rawMaterialName: string;
   lotId: string;
   lotNumber: string | null;
@@ -60,14 +64,17 @@ export type UsageRowData = {
  */
 export function UsageRow({
   usage,
-  lots,
+  orderId,
+  lining,
   updateAction,
   vatAction,
   removeAction,
   readOnly = false,
 }: {
   usage: UsageRowData;
-  lots: EditableLotOption[];
+  orderId: string;
+  /** Подкладка (единица «м») или мех: из какой части каталога лотов предлагать замену. */
+  lining: boolean;
   updateAction: (formData: FormData) => Promise<FormState>;
   vatAction: (formData: FormData) => Promise<FormState>;
   removeAction: () => Promise<void>;
@@ -105,11 +112,13 @@ export function UsageRow({
               value={usage.lotId}
               label="Лот"
               readOnly={readOnly}
-              options={lots.map((l) => ({
-                value: l.id,
-                label: `${l.lotNumber ?? "без номера"} · ${l.rawMaterialName}${[l.grade, l.color].filter(Boolean).length ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})` : ""} · ост. ${formatQty(l.quantityRemaining)}`,
-              }))}
-              onSave={(v) => updateAction(build({ lotId: v }))}
+              options={[]}
+              lazy={{
+                current: { value: usage.lotId, label: usage.lotLabel },
+                get: () => peekLotCatalog(orderId)?.filter((l) => (l.unit === "M") === lining).map((l) => ({ value: l.id, label: lotOptionLabel(l) })) ?? null,
+                warm: () => warmLotCatalog(orderId),
+              }}
+              onSave={async (v) => { const r = await updateAction(build({ lotId: v })); invalidateLotCatalog(orderId); return r; }}
             />
           </div>
           <Link href={`/analytics/raw/lot/${usage.lotId}`} className="shrink-0 text-xs text-blue-700 hover:underline" title="Карточка лота: закупка, где ещё использован, остаток">
@@ -119,7 +128,7 @@ export function UsageRow({
       </Td>
       <Td className="max-w-[14rem] truncate text-neutral-700" title={usage.rawMaterialName}>{usage.rawMaterialName}</Td>
       <Td className="min-w-[7.5rem]">
-        <TextCell value={usage.quantity} type="number" step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} onDraft={setQty} onSave={(v) => updateAction(build({ quantity: v }))} />
+        <TextCell value={usage.quantity} type="number" step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} onDraft={setQty} onSave={async (v) => { const r = await updateAction(build({ quantity: v })); invalidateLotCatalog(orderId); return r; }} />
       </Td>
       <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">—</span>}</Td>
       <Td className="min-w-[5.5rem]">
@@ -160,6 +169,7 @@ export function UsageRow({
             }
             startBusy(async () => {
               const r = await updateAction(build({ commission4: checked }));
+              invalidateLotCatalog(orderId);
               setC4Error(r?.error ?? null);
             });
           }}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { TH as Head } from "@/components/table-head";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty, formatShare } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
@@ -14,6 +14,8 @@ import { TotalLabel } from "@/components/total-label";
 const TH = "whitespace-nowrap px-2 py-1.5 text-xs font-medium text-neutral-500";
 const TD = "whitespace-nowrap px-2 py-1.5";
 const money = (v: number) => (Math.abs(v) < 0.5 ? <Dash /> : formatMoney(Math.round(v)));
+/** Строк больше — показываем первые LIMIT и кнопку «Показать все»; итоги ниже считаются по всем строкам. */
+const LIMIT = 8;
 const pct = (v: number) => (v > 0 ? formatShare(v) : "");
 
 type Row = {
@@ -42,6 +44,7 @@ type Row = {
  */
 export function CompositionTable({ order: o, c4, vatRateByLot, title = "Состав себестоимости по лотам" }: { order: DrillOrder; c4: "on" | "off"; vatRateByLot: Record<string, number>; title?: string }) {
   const { mode: vat } = useVatDisplay();
+  const [showAll, setShowAll] = useState(false);
   const incl = vat === "incl";
   const s = sumOrders([o], vat);
   const grand = sumTotal(s);
@@ -109,7 +112,7 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
               <Head label="Ставка НДС" unit="%" align="right" />
               <Head label={`Сумма ${modeLabel}`} unit="₽" align="right" sep />
               <Head label="в т.ч. НДС" unit="₽" align="right" />
-              {c4 === "on" ? <Head label="4%" unit="₽" align="right" /> : null}
+              {c4 === "on" ? <Head label="4%" unit="₽" align="right" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
               <Head label="Всего" unit="₽" align="right" sep />
               <Head label="Работа" unit="₽" align="right" />
               <Head label="Доля" unit="%" align="right" />
@@ -118,7 +121,7 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={c4 === "on" ? 14 : 13} className="px-3 py-6 text-center text-neutral-500">Списаний и расходов нет</td></tr>
-            ) : rows.map((r) => (
+            ) : (showAll ? rows : rows.slice(0, LIMIT)).map((r) => (
               <tr key={r.key} className="border-b border-neutral-100 hover:bg-neutral-50/60">
                 <td className={TD + " font-medium"}>{r.kind}</td>
                 <td className={TD}>{r.lot ?? ""}</td>
@@ -136,6 +139,15 @@ export function CompositionTable({ order: o, c4, vatRateByLot, title = "Сост
                 <td className={TD + " text-right tabular-nums text-neutral-500"}>{grand ? pct(r.total / grand) : ""}</td>
               </tr>
             ))}
+            {rows.length > LIMIT ? (
+              <tr>
+                <td colSpan={c4 === "on" ? 14 : 13} className="px-2 py-1 text-left">
+                  <button type="button" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll} className="text-xs text-blue-700 hover:underline">
+                    {showAll ? `Свернуть (показаны все ${rows.length})` : `Показать все (${rows.length})`}
+                  </button>
+                </td>
+              </tr>
+            ) : null}
           </tbody>
           <tfoot>
             <tr className="row-total">

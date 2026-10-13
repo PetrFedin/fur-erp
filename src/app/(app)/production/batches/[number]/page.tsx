@@ -179,12 +179,13 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               <TileCaption>{overpaid ? "оплачено сверх работы" : "задолженность: работа − оплачено"}</TileCaption>
               <TileList items={[
                 { k: "Работа заказчику", v: mny(workN) },
-                { k: "Оплачено", v: mny(paidN), share: workN ? paidN / workN : null },
+                { k: "Оплачено (разнесено на партию)", v: mny(paidN), share: workN ? paidN / workN : null },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата" wide align="right">
                 <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>Остаток</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
+                <p className="mt-1">«Оплачено всего» на Главной и в «Оплатах» больше: туда входят и авансы, не разнесённые на ТЗ. Мост — в «Партии пошива» → плитка «Оплата работы».</p>
               </InfoHint>
             </div>
           </div>

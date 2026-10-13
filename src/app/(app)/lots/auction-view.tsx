@@ -1,7 +1,7 @@
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, OVERPAY_FROM } from "@/lib/utils";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -398,9 +398,9 @@ export async function AuctionView({
             </div>
             {paySummaries.length > 0 && (
               <div>
-                <dt className="text-xs text-neutral-500">Остаток к оплате (с НДС)</dt>
+                <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата (с НДС)" : "Остаток к оплате (с НДС)"}</dt>
                 <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) ? "text-amber-700" : "")}>
-                  {formatMoney(payRemaining.toString())}
+                  {formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
                 </dd>
                 <dd className="text-xs text-neutral-500">
                   {payPaid.greaterThan(0.005) ? `оплачено ${formatMoney(payPaid.toString())}` : "оплат нет"} ·{" "}

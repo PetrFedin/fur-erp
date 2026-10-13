@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { addMaterialUsage } from "../actions";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { invalidateLotCatalog, warmLotCatalog, type CatalogLot } from "./lot-catalog-client";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -14,19 +15,10 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
-export type LotOption = {
-  id: string;
-  lotNumber: string | null;
-  grade: string | null;
-  color: string | null;
-  rawMaterialId: string;
-  rawMaterialName: string;
-  unit: string;
-  quantityRemaining: string;
-  unitCost: string;
-};
+export type MaterialOption = { id: string; name: string; unit: string };
 
-export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderId: string; lots: LotOption[]; defaultCommission4?: boolean }) {
+/** Материалы — малый список с сервера; лоты выбранного материала подгружаются по требованию, а не лежат в разметке. */
+export function UsageForm({ orderId, materials, defaultCommission4 = true }: { orderId: string; materials: MaterialOption[]; defaultCommission4?: boolean }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -34,15 +26,15 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
   const [filter, setFilter] = useState("");
   const bound = addMaterialUsage.bind(null, orderId);
 
-  const materials = useMemo(() => {
-    const seen = new Map<string, { id: string; name: string; unit: string }>();
-    for (const lot of lots) {
-      if (!seen.has(lot.rawMaterialId)) {
-        seen.set(lot.rawMaterialId, { id: lot.rawMaterialId, name: lot.rawMaterialName, unit: lot.unit });
-      }
-    }
-    return Array.from(seen.values());
-  }, [lots]);
+  const [catalog, setCatalog] = useState<CatalogLot[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  useEffect(() => {
+    if (!materialId) return;
+    let alive = true;
+    warmLotCatalog(orderId).then((l) => { if (alive) { setCatalog(l); setLoadError(false); } }, () => { if (alive) setLoadError(true); });
+    return () => { alive = false; };
+  }, [materialId, orderId]);
+  const lots = (catalog ?? []).filter((l) => Number(l.quantityRemaining) > 0);
 
   const filterLower = filter.trim().toLowerCase();
   const lotsForMaterial = lots
@@ -63,6 +55,7 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
+          invalidateLotCatalog(orderId);
           if (!result.error) {
             formRef.current?.reset();
             setMaterialId("");
@@ -97,7 +90,7 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
         <label className="mb-1 block text-xs text-neutral-500">Лот</label>
         <Select name="lotId" required defaultValue="" disabled={!materialId}>
           <option value="" disabled>
-            {materialId ? "Выберите лот" : "Сначала выберите материал"}
+            {materialId ? (catalog ? "Выберите лот" : "Загружаем лоты…") : "Сначала выберите материал"}
           </option>
           {lotsForMaterial.map((l) => (
             <option key={l.id} value={l.id}>
@@ -123,7 +116,8 @@ export function UsageForm({ orderId, lots, defaultCommission4 = true }: { orderI
         {pending ? "Списываем..." : "+ Списать"}
       </Button>
       {error && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">{error}</p>}
-      {materialId && lotsForMaterial.length === 0 && (
+      {materialId && loadError && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">Не удалось загрузить лоты — выберите материал ещё раз</p>}
+      {materialId && catalog && lotsForMaterial.length === 0 && (
         <p className="sm:col-span-2 lg:col-span-5 text-sm text-amber-700">
           {filter ? "Ничего не найдено по фильтру" : "Нет доступных лотов этого материала на складе"}
         </p>

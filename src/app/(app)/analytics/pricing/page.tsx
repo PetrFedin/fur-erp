@@ -47,7 +47,7 @@ export const metadata = { title: "Себестоимость и цены" };
 
 const rub = (x: number) => formatMoney(x.toFixed(2));
 const pct1 = (x: number) => formatPercent(x);
-const orderLabel = (r: { workOrderNumber: string | null; number: string }) => r.number;
+const orderLabel = (r: { workOrderNumber: string | null; number: string }) => r.workOrderNumber ?? r.number;
 
 type Seg = { key: string; label: string; value: number; cls: string };
 
@@ -284,7 +284,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         .sort((x, y) => x.number.localeCompare(y.number, "ru", { numeric: true }))
         .map((r) => (
           <div key={r.id} className="flex flex-wrap gap-x-2">
-            <Link href={`/production/${r.id}`} className="font-medium text-neutral-800 underline underline-offset-2">ТЗ {orderLabel(r)}</Link>
+            <Link href={`/production/${r.id}`} title={`Внутренний номер ${r.number}`} className="font-medium text-neutral-800 underline underline-offset-2">ТЗ {orderLabel(r)}</Link>
             {!a.modelId && <span title={r.modelHint}>{r.modelLabel}</span>}
             <span>{formatQty(r.qty)} ед.</span>
             <span>{r.costIncl > 0 ? <><Money incl={r.costIncl / Math.max(r.qty, 1)} excl={r.costExcl / Math.max(r.qty, 1)} /> за ед.</> : "себестоимость 0"}</span>
@@ -455,7 +455,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const linkList = (rs: { id: string; workOrderNumber: string | null; number: string }[], limit = 40) => (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
       {rs.slice(0, limit).map((r) => (
-        <Link key={r.id} href={`/production/${r.id}`} className="underline underline-offset-2">{orderLabel(r)}</Link>
+        <Link key={r.id} href={`/production/${r.id}`} title={`Внутренний номер ${r.number}`} className="underline underline-offset-2">{orderLabel(r)}</Link>
       ))}
       {rs.length > limit && <span className="text-neutral-500">…и ещё {rs.length - limit}</span>}
     </span>

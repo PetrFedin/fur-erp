@@ -294,7 +294,7 @@ export function OrdersTree({
               <Head label="Мех" unit="₽" align="right" />
               <Head label="Подкладка" unit="₽" align="right" />
               <Head label="Работа" unit="₽" align="right" />
-              {c4 === "on" ? <Head label="4%" unit="₽" align="right" /> : null}
+              {c4 === "on" ? <Head label="4%" unit="₽" align="right" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
               {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
               {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате" unit="₽" align="right" /></> : null}
             </tr>

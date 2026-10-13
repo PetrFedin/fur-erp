@@ -429,7 +429,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
 
       {markupTotal ? (
         <details className="rounded-lg border border-neutral-200 bg-white" data-testid="articles-markup">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">Маркап по меху и категориям</summary>
+          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">Наценка по меху и категориям</summary>
           <div className="overflow-x-auto border-t border-neutral-200">
           <table className="w-full min-w-[520px] text-sm">
             <thead>
@@ -439,8 +439,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 <Th className="text-right" unit="шт.">Артикулов</Th>
                 <Th className="text-right" unit="₽">Ср. розничная цена</Th>
                 <Th className="text-right">
-                  Ср. маркап
-                  <InfoHint label="Как считается средневзвешенный маркап">Взвешено по выпуску (артикулы с ценой): цена = Σ(цена × выпуск) ÷ Σ выпуск, маркап = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Мех артикула — тот, на который списано больше всего меха в его ТЗ. Считается по артикулам после фильтров.</InfoHint>
+                  Ср. наценка
+                  <InfoHint label="Как считается средневзвешенная наценка">Взвешено по выпуску (артикулы с ценой): цена = Σ(цена × выпуск) ÷ Σ выпуск, наценка = Σ(цена × выпуск) ÷ Σ(себестоимость ед. × выпуск). Мех артикула — тот, на который списано больше всего меха в его ТЗ. Считается по артикулам после фильтров.</InfoHint>
                 </Th>
               </tr>
             </thead>

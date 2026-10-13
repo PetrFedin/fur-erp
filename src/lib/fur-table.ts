@@ -94,6 +94,8 @@ export type FurLot = {
   /** Строка-заглушка «заказано, не получено»: цена в $ из расчёта ПОЗИЦИЙ закупки (costPlan) — шт. и Σ $. В потоки/плитки не входит; показывается у вида меха без лотов с $ (рысь), как в окне «Цена по видам сырья» на Главной. */
   usdPlanQty?: number;
   usdPlanSubtotal?: number;
+  /** Строка-заглушка «заказано, не получено»: сколько позиций закупки в ней (лотов ещё нет). */
+  positions?: number;
   /** Молоток лота, ₽ за шкуру (без / с НДС) и откуда взят (lotHammer); нет цены молотка в расчёте — null. */
   hammerExcl: number | null;
   hammerIncl: number | null;
@@ -476,4 +478,19 @@ export function planUsdAvg(lots: FurLot[], flow: Flow): number | null {
   let q = 0, sum = 0;
   for (const l of lots) { q += l.usdPlanQty ?? 0; sum += l.usdPlanSubtotal ?? 0; }
   return q > 0 ? sum / q : null;
+}
+
+/**
+ * Подпись «сколько лотов» у строки таблицы: считаются только настоящие лоты склада; заказанное, но не полученное (лотов ещё нет, считаем позиции закупки)
+ * и шкуры подрядчика (оплачены в составе пошива, лота нет) называются отдельно, а не «лотами».
+ */
+export function lotCountLabel(lots: { id: string; positions?: number }[]): string {
+  let real = 0, pos = 0, hides = 0;
+  for (const l of lots) {
+    if (l.id.startsWith("ordered:")) pos += l.positions ?? 1;
+    else if (l.id.startsWith("hides:")) hides += 1;
+    else real += 1;
+  }
+  const parts = [real > 0 || (pos === 0 && hides === 0) ? `${real} лот.` : null, pos > 0 ? `${pos} поз. заказано` : null, hides > 0 ? "шкуры подрядчика" : null].filter(Boolean);
+  return parts.join(" + ");
 }

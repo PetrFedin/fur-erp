@@ -17,6 +17,14 @@ const RAW_IDX = KEYS.indexOf("raw");
 const OTHER_IDX = KEYS.indexOf("other");
 const NOBD_IDX = KEYS.indexOf("nobd");
 
+/** Вес строки в счёте «лотов»: заказанное, но не полученное (лотов ещё нет) считается по позициям закупки — каждая станет лотом. */
+const wt = (l: PCLot) => (l.kind === "planned" ? l.positions ?? 1 : 1);
+/** «23 лот. + 71 поз. заказано»: настоящие лоты и позиции заказанного, но не полученного — раздельно. */
+const lotsLine = (lots: PCLot[]) => {
+  const real = lots.filter((l) => l.kind === "lot").length;
+  const pos = lots.filter((l) => l.kind === "planned").reduce((n, l) => n + wt(l), 0);
+  return [real > 0 || pos === 0 ? `${real} лот.` : null, pos > 0 ? `${pos} поз. заказано` : null].filter(Boolean).join(" + ");
+};
 const lotsWord = (n: number) => { const m = n % 100, d = n % 10; return m >= 11 && m <= 14 ? "лотов" : d === 1 ? "лот" : d >= 2 && d <= 4 ? "лота" : "лотов"; };
 
 /** «Нет расчётного листа» входит в сектор «Сырьё» (в цене лота без разбивки в основном шкуры) подстрокой; сумма сектора = сумма подстрок. */
@@ -88,7 +96,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
   const a = useMemo(() => aggregate(lots), [lots]);
   const [open, setOpen] = useState<string | null>(null);
   const [opener, setOpener] = useState<HTMLElement | null>(null);
-  const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).length, [lots]);
+  const nobdLotsN = useMemo(() => lots.filter((l) => l.excl[NOBD_IDX] > 0.005).reduce((n, l) => n + wt(l), 0), [lots]);
   // «Прочие расходы» раскрываются по сути: упаковка (строка расчёта) и остаток до цены лота (округления, не разложенное).
   const otherGroups = useMemo(() => {
     const defs = [
@@ -102,7 +110,7 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
       const parts = [l.pack, v - l.pack];
       parts.forEach((x, i) => {
         if (!(Math.abs(x) >= 0.005)) return;
-        g[i].value += x; g[i].n++;
+        g[i].value += x; g[i].n += wt(l);
         if (l.qty > 0) { g[i].unit += x; g[i].qty += l.qty; }
       });
     }
@@ -118,9 +126,9 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
   const unitTotal = withVat ? a.unitTotal + unitVals.vat : a.unitTotal;
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).length;
-    m.raw = lots.filter((l) => l.excl[RAW_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005).length;
-    m.raw_o = lots.filter((l) => l.excl[RAW_IDX] > 0.005).length;
+    for (const k of KEYS) m[k] = lots.filter((l) => l.excl[KEYS.indexOf(k)] > 0.005).reduce((n, l) => n + wt(l), 0);
+    m.raw = lots.filter((l) => l.excl[RAW_IDX] > 0.005 || l.excl[NOBD_IDX] > 0.005).reduce((n, l) => n + wt(l), 0);
+    m.raw_o = lots.filter((l) => l.excl[RAW_IDX] > 0.005).reduce((n, l) => n + wt(l), 0);
     return m;
   }, [lots]);
   // Сколько шкур приходится на каждую составляющую: сумма шкур лотов, где эта составляющая есть (данные лотов, не расчёт).
@@ -152,11 +160,11 @@ function Slide({ lots, fur, label, withVat, hideLink = false }: { lots: PCLot[];
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Вид меха</div>
-          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Тотал · все виды меха"}</h3>
+          <h3 className="truncate text-base font-semibold leading-tight">{fur ?? "Все виды меха"}</h3>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-neutral-500 tabular-nums">
             <span>{withVat ? "с НДС" : "без НДС"}</span>
-            <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))} ₽</span>
-            <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lots.filter((l) => l.kind !== "hides").length} лот.</span>
+            <span className="font-semibold text-neutral-900">{formatMoney(total.toFixed(2))}</span>
+            <span>{a.qty > 0 ? `${formatQty(a.qty)} шт.` : "без количества"} · {lotsLine(lots)}</span>
           </div>
         </div>
         {fur && !hideLink ? <Link href={href} className="shrink-0 text-xs text-blue-700 hover:underline print:hidden">→ {fur}</Link> : null}
@@ -221,7 +229,7 @@ export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots:
   }, [lots]);
   if (lots.length === 0) return null;
   const slides = onlyFur ? [{ key: `fur:${onlyFur}`, label: onlyFur, body: <Slide lots={lots} fur={onlyFur} label={onlyFur} withVat={withVat} hideLink /> }] : [
-    { key: "total", label: "Тотал", body: <Slide lots={lots} fur={null} label="Тотал" withVat={withVat} /> },
+    { key: "total", label: "Все виды меха", body: <Slide lots={lots} fur={null} label="Все виды меха" withVat={withVat} /> },
     ...furs.map((f) => ({ key: `fur:${f}`, label: f, body: <Slide lots={lots.filter((l) => l.fur === f)} fur={f} label={f} withVat={withVat} /> })),
   ];
   return (
@@ -239,7 +247,7 @@ export function PriceCompositionBlock({ lots, onlyFur, href = "/lots" }: { lots:
               <p className="mt-1">Наведите на сектор или строку — подсветится парная; клик открывает лоты с этой составляющей. Фильтры Главной действуют.</p>
             </>
           }
-          slidesLabel="слайды: тотал и виды меха" dotsLabel="Вид меха"
+          slidesLabel="слайды: все виды меха и отдельные виды" dotsLabel="Вид меха"
           slides={slides}
         />
       </div>

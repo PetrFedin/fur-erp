@@ -7,6 +7,13 @@ import { MaterialForm } from "../material-form";
 import { CategoryQuickAdd } from "../category-quick-add";
 import { updateMaterial } from "../actions";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const m = await prisma.rawMaterial.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
+  return { title: m ? `Материал: ${m.name}` : "Материал" };
+}
+
 export default async function EditMaterialPage({ params }: PageProps<"/materials/[id]">) {
   const { id } = await params;
   const session = await requireSession();

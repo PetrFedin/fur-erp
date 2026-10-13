@@ -240,7 +240,7 @@ export function ProductionModal({
                           {showFurQ ? <TH label="Шкур" unit="шт." sep /> : null}
                           {showLinQ ? <TH label="Подкладка" unit="м" sep={!showFurQ} /> : null}
                           <TH label="Себестоимость" unit="₽" sep />
-                          {rich ? <><TH label="Мех" unit="₽" /><TH label="Подкладка" unit="₽" /><TH label="4%" unit="₽" />{showOther ? <TH label={workCol ? "Прочее" : "Расходы и прочее"} unit="₽" /> : null}</> : null}
+                          {rich ? <><TH label="Мех" unit="₽" /><TH label="Подкладка" unit="₽" /><TH label="4%" unit="₽" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} />{showOther ? <TH label={workCol ? "Прочее" : "Расходы и прочее"} unit="₽" /> : null}</> : null}
                           {workCol ? <TH label="Работа" unit="₽" /> : null}
                           <TH label="Доля уровня" unit="%" sep />
                         </tr>

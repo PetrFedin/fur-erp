@@ -66,7 +66,7 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
             <p className="mt-1">Так же считаются себестоимость, таблица ниже и окно состава. «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают тотал). Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
-            { key: "total", label: "Тотал", body: (
+            { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Произведено изделий — открыть себестоимость по статьям" className={SLIDE_BTN}>
                 <TileValue>{formatQty(fact.qty)} шт.</TileValue>
                 <TileCaption>{kind === "repair" ? `Ремонт: ${fact.repairOrders} ТЗ` : `${fact.orders} ТЗ${fact.repairOrders > 0 ? ` / ${fact.repairOrders} ТЗ ремонт` : ""}`}</TileCaption>
@@ -88,10 +88,10 @@ export function ProductionBlock({ href = "/production", vatCost, kind = "", hide
           hint={<>
             <p>Факт по всем ТЗ: сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа. Вся сумма = мех + подкладка + надбавка 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Себестоимость» без работы: <b>{money(cost(fact))}</b>. Считается по факту списания меха и подкладки во всех ТЗ (завершённых и в работе) — отметка «завершён» не важна.</p>
             <p className="mt-1">Средняя на изделие (без работы) = Σ себестоимость ÷ Σ изделий: <b>{avg != null ? money(avg) : "—"}</b>. Режимы: {vatW}, {c4W}.</p>
-            <p className="mt-1">«Тотал» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы. Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
+            <p className="mt-1">«Всего» включает ремонт; «Одежда» и «Аксессуары» — только изделия группы. Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p>
           </>}
           slides={[
-            { key: "total", label: "Тотал", body: (
+            { key: "total", label: "Всего", body: (
               <button type="button" onClick={() => setOpen("all")} aria-haspopup="dialog" aria-label="Себестоимость (факт списания по всем ТЗ) — открыть гистограмму по партиям, годам, категориям и меху" className={SLIDE_BTN}>
                 <TileValue>{money(total)}</TileValue>
                 <div className="min-h-4 text-[11px] leading-4 tabular-nums text-neutral-400">{c4 === "on" ? `${money(total - D.c4)} без 4%` : null}</div>

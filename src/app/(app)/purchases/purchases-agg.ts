@@ -37,7 +37,8 @@ export function aggregate(list: TreePurchase[]): Agg {
     if (p.status === "DRAFT") a.draft += 1;
     a.lots += p.lots; a.fur += p.fur; a.lining += p.lining;
     a.total += p.total; a.totalExcl += p.totalExcl; a.paid += p.paid; a.rest += p.rest;
-    if (p.hasLots) { a.hasLots = true; a.usedValue += p.usedValue; a.recvValue += p.recvValue; a.remFur += p.remFur; a.remLining += p.remLining; }
+    if (p.hasLots) { a.hasLots = true; a.usedValue += p.usedValue; a.recvValue += p.recvValue; }
+    a.remFur += p.remFur; a.remLining += p.remLining;
     if (!a.suppliers.includes(p.supplier)) a.suppliers.push(p.supplier);
   }
   return a;

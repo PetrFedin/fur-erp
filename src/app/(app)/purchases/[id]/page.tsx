@@ -11,7 +11,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { formatCurrency, formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
 import { purchaseTotalInclVat, purchaseTotalExclVat } from "@/lib/purchase-totals";
 import { Money } from "@/components/money";
@@ -28,6 +28,8 @@ import { PurchaseEditForm } from "./purchase-edit-form";
 import { ItemRowShared, PurchaseItemRow } from "./item-row";
 import { PurchaseDocumentsList, buildDocGroups } from "./documents-block";
 import { toDriveView } from "@/lib/drive-docs-server";
+import { getFurIndex } from "@/lib/fur-ref-server";
+import { canonicalFur } from "@/lib/fur-ref";
 import { countLabel } from "@/lib/drive-docs-group";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
@@ -66,6 +68,13 @@ const UNIT_LABELS: Record<string, string> = {
   SET: "компл.",
 };
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const p = await prisma.purchase.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { number: true } });
+  return { title: p ? `Закупка ${p.number}` : "Закупка" };
+}
+
 export default async function PurchaseDetailPage({ params }: PageProps<"/purchases/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -82,6 +91,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
     },
   });
   if (!purchase) notFound();
+  const furIdx = await getFurIndex(session.user.organizationId);
 
   // Документы партии (спецификация, расчётный лист, счёт на аванс) лежат на
   // аукционе целиком: показываем их на каждой закупке с тем же auctionSession.
@@ -286,6 +296,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
   const expensePct = itemsInclVatRub.greaterThan(0) ? expensesTotalInclVat.div(itemsInclVatRub).mul(100) : null;
 
   const itemRow = (item: (typeof purchase.items)[number], variant: "row" | "card") => {
+                  const furKind = canonicalFur(item.rawMaterial.name, furIdx)?.name ?? null;
                   const subtotalExclVatRub = item.subtotal.mul(purchase.exchangeRate);
                   const subtotalInclVatRub = grossUp(subtotalExclVatRub, item.vatRate);
                   const consumed = item.lot ? !item.lot.quantityRemaining.equals(item.lot.quantityReceived) : false;
@@ -403,7 +414,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         version: rowVersion(item, PURCHASE_ITEM_V),
                       }}
                     >
-                      <Td>{item.rawMaterial.name}</Td>
+                      <Td>{furKind ? <Link href={`/lots/fur/${encodeURIComponent(furKind)}`} className="text-blue-700 hover:underline" title="Вид меха: все лоты и аукционы">{item.rawMaterial.name}</Link> : item.rawMaterial.name}</Td>
                       <Td>{item.lotId && item.lotNumber ? <Link href={`/analytics/raw/lot/${item.lotId}`} className="text-blue-700 hover:underline" title="Карточка лота: куплено, использовано, остаток, ТЗ">{item.lotNumber}</Link> : (item.lotNumber ?? "—")}</Td>
                       {showGradeColor && <Td>{[item.grade, item.color].filter(Boolean).join(" / ") || "—"}</Td>}
                       <Td>
@@ -593,7 +604,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
             />
             <SummaryCard
               label="Остаток по партии"
-              value={auctionPay.remaining.lessThan(-0.005) ? `переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
+              value={auctionPay.remaining.lessThan(-0.005) ? `Переплата ${formatMoney(auctionPay.remaining.abs().toString())}` : formatMoney(auctionPay.remaining.abs().lessThan(0.005) ? "0" : auctionPay.remaining.toString())}
               note={auctionPay.planned.greaterThan(0) ? `запланировано ${formatMoney(auctionPay.planned.toString())}` : undefined}
               warn={auctionPay.remaining.greaterThan(0)}
             />
@@ -601,7 +612,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         ) : (
           <>
             <SummaryCard label="Оплачено" value={formatMoney(grandTotalRub.sub(balanceDue).toString())} />
-            <SummaryCard label="Остаток к оплате" value={formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
+            <SummaryCard label="Остаток к оплате" value={balanceDue.lessThan(-OVERPAY_FROM) ? `Переплата ${formatMoney(balanceDue.abs().toString())}` : formatMoney(balanceDue.toString())} warn={balanceDue.greaterThan(0)} />
           </>
         )}
       </div>
@@ -722,8 +733,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 <details key={item.id} className="rounded-md border border-neutral-200">
                   <summary className="grid cursor-pointer grid-cols-2 gap-x-2 gap-y-0.5 px-2 py-1.5 text-sm sm:grid-cols-[1fr_6rem_9rem_9rem]">
                     <span className="col-span-2 sm:col-span-1">
-                      <span className="font-medium">{item.rawMaterial.name}</span>
-                      <span className="ml-2 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
+                      <span className="font-medium">{item.rawMaterial.name}</span>{" "}
+                      <span className="ml-1 text-xs text-neutral-500">{item.lotNumber ? `лот ${item.lotNumber}` : "лот без номера"}</span>
                     </span>
                     <span className="text-right tabular-nums">{formatQty(qty.toString())} {UNIT_LABELS[item.rawMaterial.unit] ?? ""}</span>
                     <span className="text-right font-medium tabular-nums">{formatMoney(unit!.toFixed(2))}</span>

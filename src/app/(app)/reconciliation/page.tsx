@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { loadVerifyFlags, type VerifyFlags } from "@/lib/verification";
 import { LazyDetails } from "../lots/lazy-details";
 import { loadReconGroup } from "./group-action";
+import { loadReconBridge, type BridgeRow, type ReconBridge } from "./bridge";
 
 import {
   ALL_INVOICES,
@@ -146,6 +147,44 @@ function GroupBlock({ g, ids, live, ver }: { g: Group; ids: Set<string>; live: L
   );
 }
 
+const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${money(Math.abs(v))}`;
+
+/** Короткий мост «Реестр документов → разница по статьям → Главная» (по всем годам; чтение, данные не меняются). */
+function BridgeCard({ b }: { b: ReconBridge }) {
+  const rows = (list: BridgeRow[]) => list.map((r, i) => (
+    <tr key={i} className="border-t border-neutral-100 align-top">
+      <td className="py-1 pl-4 pr-3">{r.label}{r.note ? <InfoHint label={r.label} wide>{r.note}</InfoHint> : null}</td>
+      <td className="whitespace-nowrap py-1 text-right tabular-nums">{signed(r.value)}</td>
+    </tr>
+  ));
+  const sp = b.purchase.reduce((a, r) => a + r.value, 0), sw = b.production.reduce((a, r) => a + r.value, 0);
+  const ok = Math.abs(b.registry.total + sp + sw - b.main.total) < 1;
+  return (
+    <Card className="p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2 font-semibold">
+        Мост: реестр документов → Главная
+        <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>{ok ? "сходится до рубля" : "не сходится"}</span>
+        <InfoHint label="Откуда две суммы" wide>
+          <p><b>Реестр</b> — Σ сумм всех счетов Веллмех из документов (закупки сырья и производство). <b>Главная</b> — «Общая стоимость» = оплачено + к оплате по сырью (мех, подкладка) и по работе: закупки и ТЗ в базе, а не счета.</p>
+          <p className="mt-1">Разница — не ошибка расчёта: это разные меры одного и того же. «Есть в документах, нет в базе» ({money(b.missingInDb)}) — про оплаты, а не про суммы счетов, и в этот мост не входит. Мост строится по всем годам; цифры базы читаются при каждом заходе.</p>
+        </InfoHint>
+      </div>
+      <table className="mt-2 w-full max-w-4xl">
+        <tbody>
+          <tr className="border-t border-neutral-200 font-medium"><td className="py-1">Реестр документов ({ALL_INVOICES.length} счетов, все годы)</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.registry.total)}</td></tr>
+          <tr className="text-neutral-600"><td className="py-1 pl-4">в т. ч. закупки сырья {money(b.registry.purchase)} · производство {money(b.registry.production)}</td><td /></tr>
+          <tr className="font-medium"><td className="pt-2">Закупки сырья: Главная − реестр ({signed(sp)})</td><td /></tr>
+          {rows(b.purchase)}
+          <tr className="font-medium"><td className="pt-2">Производство, работа: Главная − реестр ({signed(sw)})</td><td /></tr>
+          {rows(b.production)}
+          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(b.main.raw)} + работа {money(b.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.main.total)}</td></tr>
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-neutral-500">Реестр {money(b.registry.total)} {signed(sp + sw)} = Главная {money(b.main.total)}.</p>
+    </Card>
+  );
+}
+
 function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: React.ReactNode }) {
   return (
     <div className={TILE_BOX + " gap-2 shadow-sm print:shadow-none"}>
@@ -190,6 +229,7 @@ export default async function ReconciliationPage() {
     })
     .filter((x) => x.miss > 1);
   const missingRub = missingInDb.reduce((a, x) => a + x.miss, 0);
+  const bridge = year === "all" ? await loadReconBridge(session.user.organizationId, live) : null;
 
   return (
     <div className="space-y-6">
@@ -245,6 +285,7 @@ export default async function ReconciliationPage() {
             </div>
           </div>
         </WidgetRow>
+        {bridge ? <BridgeCard b={bridge} /> : <Card className="p-3 text-sm text-neutral-600">Мост «реестр документов → Главная» строится по всем годам: выберите в шапке «Все годы».</Card>}
         <Card className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
           <span>
             Есть в документах, нет в базе: <b className="tabular-nums">{money(missingRub)}</b> по {missingInDb.length} счетам

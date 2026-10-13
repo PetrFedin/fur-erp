@@ -18,7 +18,7 @@ export function FilteredPayTiles({ figs, paid, due, c4 }: { figs: FlowFigures; p
     return { used: amount * u, stock: amount * (1 - u) };
   };
   const list = (s: { stock: number; used: number }, c4v: number): TileItem[] => [
-    { k: "остаток (сток)", v: dash(s.stock) },
+    { k: "остаток на складе", v: dash(s.stock) },
     { k: "использовано", v: dash(s.used) },
     { k: "4%", v: dash(c4v) },
   ];

@@ -519,7 +519,7 @@ function FormBody({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-neutral-100 pt-3 text-sm">
             <h3 className="font-medium">Работа</h3>
             <span className="text-neutral-500">
-              {Number.isFinite(workPrice) && workPrice > 0 ? formatMoney(workPrice) : "—"} ₽/шт. × {Number.isFinite(qtyPlan) && qtyPlan > 0 ? formatQty(qtyPlan) : "—"} шт. =
+              {Number.isFinite(workPrice) && workPrice > 0 ? `${formatMoney(workPrice)}/шт.` : "— ₽/шт."} × {Number.isFinite(qtyPlan) && qtyPlan > 0 ? formatQty(qtyPlan) : "—"} шт. =
             </span>
             <b className="tabular-nums">{T.work > 0 ? formatMoney(T.work) : "—"}</b>
             <a href="#params" className="text-xs text-blue-700 hover:underline">изменить в параметрах</a>

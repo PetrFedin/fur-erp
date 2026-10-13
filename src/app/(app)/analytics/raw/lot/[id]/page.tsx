@@ -34,7 +34,12 @@ import { LotPassport, type PassportSection } from "@/components/lot-passport";
 import { LotSheetTable } from "@/components/lot-sheet-table";
 import { LotProducts, type ProdModel } from "@/components/lot-products";
 
-export const metadata = { title: "Карточка лота" };
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const l = await prisma.rawMaterialLot.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { lotNumber: true, rawMaterial: { select: { name: true } } } });
+  return { title: l ? `Лот ${l.lotNumber ?? l.rawMaterial.name}` : "Карточка лота" };
+}
 
 const q2 = (d: Decimal) => d.toFixed(2);
 const H2 = "text-base font-semibold";
@@ -356,7 +361,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
               purchaseLink={purLink}
             />
           ) : (
-            <p className="rounded-lg border border-neutral-200 bg-white p-3 text-center text-sm text-neutral-500">Нет расчётного листа: цена лота {formatMoney(q2(l.unitIncl))} ₽ за {unitWord} без разбивки.</p>
+            <p className="rounded-lg border border-neutral-200 bg-white p-3 text-center text-sm text-neutral-500">Нет расчётного листа: цена лота {formatMoney(q2(l.unitIncl))} за {unitWord} без разбивки.</p>
           )}
         </div>
       )}

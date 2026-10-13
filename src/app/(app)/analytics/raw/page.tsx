@@ -31,6 +31,8 @@ import { figures } from "@/lib/fur-table";
 import { flowOfRawLots } from "@/lib/fur-table-server";
 import { TILE_BOX, TileHead, TileValue } from "@/app/(app)/dashboard/tile";
 import { TotalLabel } from "@/components/total-label";
+import { loadDashboard } from "@/lib/dashboard-data";
+import { parseDashFilters } from "@/lib/dashboard-calc";
 
 export const metadata = { title: "Аналитика сырья" };
 
@@ -49,6 +51,15 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
     isUsageBy(by) ? loadUsageRows(session.user.organizationId, year) : Promise.resolve([] as Awaited<ReturnType<typeof loadUsageRows>>),
   ]);
   const unit = f.scope === "lining" ? "м" : "шт.";
+  // Мост до Главной: «Куплено/Остаток» меха на Главной включают заказанное, но не полученное (лотов ещё нет), а «Использовано» — шкуры подрядчика.
+  // Числа берутся из того же расчёта, что и Главная (loadDashboard); показываем только для меха без фильтров таблицы.
+  const noFilters = !f.auction.length && !f.kind.length && !f.pyear.length && !f.size.length && !f.attr.length && !f.onlyRem && !f.q && !f.model;
+  const bridge = f.scope === "fur" && noFilters ? await loadDashboard(session.user.organizationId, year, parseDashFilters({}), c4) : null;
+  const ordQ = bridge ? new Decimal(bridge.ordered.qty) : null;
+  const ordIncl = bridge ? new Decimal(bridge.ordered.incl) : null;
+  const ordExcl = bridge ? new Decimal(bridge.ordered.excl) : null;
+  const hideIncl = bridge ? new Decimal(bridge.hides.incl) : null;
+  const hideExcl = bridge ? new Decimal(bridge.hides.excl) : null;
 
   const scoped = data.lots.filter((l) => (f.scope === "lining") === (l.unit === "M"));
   const lots = applyFilters(data.lots, f);
@@ -196,6 +207,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <p className="mt-1">Год — общий, из шапки (по дате заказа закупки). Для выбранного года считаются лоты закупок этого года и всё, что из них списано в ТЗ (в любом году).</p>
             <p className="mt-1">Деньги — по цене лота за единицу (с учётом курса, НДС и расходов закупки); «Без НДС» переключается в шапке. Среднее везде средневзвешенное: Σ(цена × кол-во) ÷ Σ кол-во. 4% (режим в шапке) показан справочной строкой «с 4%» и в самой цене лота не учтён.</p>
             <p className="mt-1">Мех (шт.) и подкладка (м) считаются отдельно — единицы разные.</p>
+            <p className="mt-1">Здесь только лоты склада (принятые закупки). Заказанное, но ещё не полученное (лотов нет), и шкуры подрядчика входят в цифры меха на Главной и в таблице «Сырьё → Мех» — под плитками дана строка «до Главной»; в таблице по видам этих позиций нет (поэтому остаток вида может быть меньше, чем на Главной).</p>
           </InfoHint></div>
         <div className="flex flex-wrap gap-2">
           <Link href="/analytics/raw/recon" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -243,8 +255,18 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <>
               <p>Σ «получено» по лотам. Стоимость = Σ(кол-во лота × цена лота за единицу).</p>
               <p className="mt-1">Сейчас: {qty(total.recv, unit)} в {lots.length} лотах. Сверка с закупками в статусе «Принята» — в блоке «Качество данных».</p>
+              {bridge && ordQ && ordIncl && ordExcl && (
+                <p className="mt-1">На Главной «Куплено» по меху больше: {qty(total.recv.add(ordQ), unit)} — туда добавлено заказанное, но ещё не полученное ({qty(ordQ, unit)}, лотов пока нет) и шкуры подрядчика (только в рублях). Здесь только лоты склада.</p>
+              )}
             </>
           }
+          sub={bridge && ordQ && ordIncl && ordExcl && ordQ.greaterThan(0) ? (
+            <div className="text-xs text-neutral-500">
+              + заказано, не получено: {qty(ordQ, unit)} · <Money incl={q2(ordIncl)} excl={q2(ordExcl)} />
+              {hideIncl && hideExcl && hideIncl.greaterThan(0) && (<><br />+ шкуры подрядчика: <Money incl={q2(hideIncl)} excl={q2(hideExcl)} /></>)}
+              <br />= на Главной: {qty(total.recv.add(ordQ), unit)} · <Money incl={q2(total.recvIncl.add(ordIncl).add(hideIncl ?? 0))} excl={q2(total.recvExcl.add(ordExcl).add(hideExcl ?? 0))} />
+            </div>
+          ) : null}
         />
         <Tile unit={unit} c4={c4}
           title="Использовано"
@@ -258,8 +280,17 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
               <p>Σ списаний сырья в ТЗ по этим лотам; стоимость — по цене лота на момент списания.</p>
               <p className="mt-1">Сейчас: {qty(total.used, unit)} = {pctText(pctAll)} от купленного.</p>
               <p className="mt-1">4% начисляется только на списания, где оно применяется (флаг строки), — строка «с 4%».</p>
+              {bridge && hideIncl && hideIncl.greaterThan(0) && (
+                <p className="mt-1">На Главной в «Использовано» по меху добавлены шкуры подрядчика (оплачены в составе пошива, в ТЗ не списаны): {rub(hideIncl)} с НДС. Здесь только списания лотов.</p>
+              )}
             </>
           }
+          sub={bridge && hideIncl && hideExcl && hideIncl.greaterThan(0) ? (
+            <div className="text-xs text-neutral-500">
+              + шкуры подрядчика: <Money incl={q2(hideIncl)} excl={q2(hideExcl)} />
+              <br />= на Главной: <Money incl={q2(total.usedIncl.add(hideIncl))} excl={q2(total.usedExcl.add(hideExcl))} />
+            </div>
+          ) : null}
         />
         <Tile unit={unit} c4={c4}
           title="Списано иначе"
@@ -285,8 +316,17 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
             <>
               <p>Σ остатков лотов. Стоимость = Σ(остаток лота × цена лота за единицу) — так же считает карточка «Итого стоимость остатков» на странице «Сырьё».</p>
               <p className="mt-1">Сейчас: {qty(total.rem, unit)} × средняя цена {avgPrice(total) ? rub(avgPrice(total)!.incl) : "—"} ≈ {rub(total.remIncl)} (средняя цена остатка может отличаться от средней закупки — остаток лежит в других лотах).</p>
+              {bridge && ordQ && (
+                <p className="mt-1">На Главной остаток по меху больше на заказанное, но не полученное ({qty(ordQ, unit)}): {qty(total.rem.add(ordQ), unit)}. Здесь только лоты склада.</p>
+              )}
             </>
           }
+          sub={bridge && ordQ && ordIncl && ordExcl && ordQ.greaterThan(0) ? (
+            <div className="text-xs text-neutral-500">
+              + заказано, не получено: {qty(ordQ, unit)} · <Money incl={q2(ordIncl)} excl={q2(ordExcl)} />
+              <br />= на Главной: {qty(total.rem.add(ordQ), unit)} · <Money incl={q2(total.remIncl.add(ordIncl))} excl={q2(total.remExcl.add(ordExcl))} />
+            </div>
+          ) : null}
         />
         <div className="relative col-span-2 lg:col-span-1">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>

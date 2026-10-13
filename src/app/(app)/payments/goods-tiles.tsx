@@ -35,7 +35,7 @@ function BatchTable({ rows, advances }: { rows: BatchRow[]; advances: number }) 
   const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => (a ?? 9999) - (b ?? 9999));
   const work = rows.reduce((s, r) => s + r.work, 0);
   const paid = rows.reduce((s, r) => s + r.paid, 0) + advances;
-  const rest = (w: number, p: number) => (Math.abs(w - p) <= 0.5 ? <span className="text-neutral-500">—</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">+{rub(p - w)}</span>);
+  const rest = (w: number, p: number) => (Math.abs(w - p) <= 0.5 ? <span className="text-neutral-500">—</span> : w > p ? <span className="font-medium text-amber-700">{rub(w - p)}</span> : <span className="font-medium text-emerald-700">Переплата {rub(p - w)}</span>);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] table-fixed text-sm">

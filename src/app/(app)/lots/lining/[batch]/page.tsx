@@ -20,7 +20,12 @@ import { LiningFabrics } from "./view";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchasesSourceDocs } from "@/lib/source-docs-server";
 
-export const metadata = { title: "Партия подкладки" };
+export async function generateMetadata({ params }: { params: Promise<{ batch: string }> }) {
+  const { batch } = await params;
+  let name = batch;
+  try { name = decodeURIComponent(batch); } catch { /* оставляем как есть */ }
+  return { title: `Партия подкладки: ${name}` };
+}
 
 /**
  * Карточка партии подкладки («Подкладка 05.26»): плитки куплено / использовано / остаток (м, ₽, цена ₽/м, НДС), паспорт партии, ткани партии и

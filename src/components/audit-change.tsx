@@ -1,4 +1,4 @@
-import { actorText, ACTION_LABEL, detailLines, fmtAt, summaryLines, snapshotText, type LogRow } from "@/lib/audit-query";
+import { actorText, ACTION_LABEL, detailLines, fmtAt, summaryLines, hasCollapsed, snapshotText, type LogRow } from "@/lib/audit-query";
 import { MODEL_TITLES } from "@/lib/audit-core";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,9 +19,9 @@ export function ChangeCell({ row, compact }: { row: LogRow; compact?: boolean })
         <span key={i}>{l}</span>
       ))}
       {lines.length > shown.length && <span className="text-neutral-500">и ещё {lines.length - shown.length}…</span>}
-      {row.action === "update" && details.length > shown.length && (
+      {row.action === "update" && (details.length > shown.length || hasCollapsed(row)) && (
         <details>
-          <summary className="cursor-pointer text-neutral-500">все изменения ({details.length})</summary>
+          <summary className="cursor-pointer text-neutral-500">Подробнее ({details.length})</summary>
           <ul className="mt-1 list-disc pl-4">
             {details.map((d, i) => (
               <li key={i}>{d}</li>

@@ -24,7 +24,12 @@ import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
 
-export const metadata = { title: "Вид меха" };
+export async function generateMetadata({ params }: { params: Promise<{ fur: string }> }) {
+  const { fur } = await params;
+  let name = fur;
+  try { name = decodeURIComponent(fur); } catch { /* оставляем как есть */ }
+  return { title: `Вид меха: ${name}` };
+}
 
 /**
  * Страница вида меха (Сырьё → Мех → «Лиса»): плитки «Куплено / Использовано / Остаток» и оплаты по виду, таблица «По аукционам» и «По годам»

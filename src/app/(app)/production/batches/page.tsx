@@ -4,7 +4,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
 import { batchExtraName, batchTotals, loadBatchesWithOrders } from "@/lib/batch-stats";
@@ -32,6 +32,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { TotalLabel } from "@/components/total-label";
 import { Dash } from "@/components/tree-table";
 import { Decimal } from "@prisma/client/runtime/library";
+import { loadClientDebt, isContractorHidesRest } from "@/lib/payment-alloc";
 
 export const metadata = { title: "Партии пошива" };
 
@@ -89,6 +90,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
     for (const o of r.b.orders) payBy[`order:${o.id}`] = o.payShares.reduce((a, x) => (x.productionPayment.status === "CANCELLED" ? a : a + Number(x.amount)), 0);
   }
   const payRest = payWork - payPaid;
+  // Мост к Главной и «Оплатам»: там оплачено всё, что заказчик перечислил (разнесено на ТЗ + аванс без разнесения), а работа — по всем ТЗ, в том числе без партии.
+  // Без фильтров партий — тот же расчёт долга заказчиков (loadClientDebt), что на Главной.
+  const bridgeOn = !need && modelSel.length === 0;
+  const debt = bridgeOn ? await loadClientDebt(prisma, orgId, { year, orderIds: drillAll.map((o) => o.id), orderFiltersActive: false }) : null;
+  const outAlloc = debt ? debt.allocated - payPaid : 0; // разнесено на ТЗ без партии
+  const outWork = debt ? debt.billable - payWork : 0; // работа ТЗ без партии
+  const unallocList = debt ? debt.payments.filter((p) => !isContractorHidesRest(p) && p.rest.greaterThan(0.005)) : [];
   // Итог таблицы — только показанные партии (как строки выше); ТЗ каждой партии свои, двойного счёта нет.
   const sumOrders = rows.reduce((a, r) => a + r.t.orders, 0);
   const sumItems = rows.reduce((a, r) => a + r.t.items, 0);
@@ -157,14 +165,38 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <TileValue className={payRest > 0.5 ? "text-amber-700" : ""}>{money(Math.max(payRest, 0))}</TileValue>
               <TileCaption>задолженность: работа − оплачено</TileCaption>
               <TileList items={[
-                { k: "Работа", v: money(payWork) },
-                { k: "Оплачено", v: money(payPaid), share: payWork ? payPaid / payWork : null },
+                { k: "Работа (партии)", v: money(payWork) },
+                { k: "Оплачено (разнесено на партии)", v: money(payPaid), share: payWork ? payPaid / payWork : null },
                 ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
+                ...(debt ? [
+                  { k: "Оплачено всего (Главная, Оплаты)", v: money(debt.paid) },
+                  { k: "из них разнесено на партии", v: money(payPaid), sub: true },
+                  ...(Math.abs(outAlloc) > 0.5 ? [{ k: "разнесено на ТЗ без партии", v: money(outAlloc), sub: true }] : []),
+                  { k: "не разнесено на партии (аванс)", v: money(debt.unallocated), sub: true },
+                  { k: "Работа всего (Главная)", v: money(debt.billable) },
+                  ...(Math.abs(outWork) > 0.5 ? [{ k: "в т. ч. ТЗ без партии", v: money(outWork), sub: true }] : []),
+                ] : []),
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата работы" wide align="right">
                 <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>Задолженность</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
+                {debt && (
+                  <>
+                    <p className="mt-1"><b>До Главной и «Оплат»:</b> там «оплачено» — всё, что перечислил заказчик ({money(debt.paid)}), а работа — по всем ТЗ ({money(debt.billable)}). Здесь по партиям: оплачено {money(payPaid)}, работа {money(payWork)}. Разница в оплате — {money(debt.unallocated)} аванса, не разнесённого на ТЗ{Math.abs(outAlloc) > 0.5 ? `, и ${money(outAlloc)} на ТЗ без партии` : ""}; в работе — {money(outWork)} по ТЗ без партии. Долг на Главной {money(debt.balance)} = {money(Math.max(payRest, 0))} здесь − {money(debt.unallocated)} аванса{Math.abs(outAlloc - outWork) > 0.5 ? ` ${outAlloc - outWork > 0 ? "+" : "−"} ${money(Math.abs(outAlloc - outWork))} по ТЗ без партии` : ""}.</p>
+                    {unallocList.length > 0 && (
+                      <>
+                        <p className="mt-1">Платежи с неразнесённым остатком (аванс):</p>
+                        <ul className="mt-0.5 list-disc pl-4">
+                          {unallocList.map((p) => (
+                            <li key={p.id}>{formatDate(p.paidAt)} — {money(p.rest.toNumber())}{p.docRef ? ` · ${p.docRef}` : ""}</li>
+                          ))}
+                        </ul>
+                        <p className="mt-1">Разнести их на ТЗ можно в <Link href="/attention" className="underline">Контроль → Задачи → Неразнесённые авансы</Link>.</p>
+                      </>
+                    )}
+                  </>
+                )}
               </InfoHint>
             </div>
           </div>

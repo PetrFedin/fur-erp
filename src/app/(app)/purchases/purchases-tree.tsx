@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useState, type ReactNode } from "react";
-import { cn, formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { cn, formatDebt, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { useVatDisplay } from "@/lib/vat-display";
 import { InfoHint } from "@/components/info-hint";
 import { Chevron, Dash, SCROLL_BOX, TD, rowTone } from "@/components/tree-table";
@@ -23,13 +23,14 @@ export type ExtraRow = { key: string; label: string; sub?: string; href?: string
 // ───────────────────────────── общие расчёты и ячейки ─────────────────────────────
 
 const money = (v: number) => (Math.abs(v) < 0.005 ? <Dash /> : formatMoney(v.toFixed(2)));
+/** Долг: отрицательный — «Переплата N ₽» (только отображение). */
+const restMoney = (v: number) => (v < -OVERPAY_FROM ? formatDebt(v) : money(v));
 const qty = (v: number) => (Math.abs(v) < 0.0005 ? <Dash /> : formatQty(v));
 const restCls = (v: number) => (v > 0.5 ? " text-amber-700" : v < -0.5 ? " text-emerald-700" : "");
 const BL = " border-l border-neutral-200";
 const cnt = (n: number, one: string, few: string, many: string) => `${n} ${n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? few : many}`;
 const usedPct = (a: Pick<Agg, "usedValue" | "recvValue" | "hasLots">) => (a.hasLots && a.recvValue > 0.5 ? (a.usedValue / a.recvValue) * 100 : null);
 const remText = (a: Pick<Agg, "remFur" | "remLining" | "hasLots">) => {
-  if (!a.hasLots) return <Dash />;
   const parts = [a.remFur > 0.0005 ? `${formatQty(a.remFur)} шт.` : null, a.remLining > 0.0005 ? `${formatQty(a.remLining)} м` : null].filter(Boolean);
   return parts.length ? parts.join(" · ") : <Dash />;
 };
@@ -57,7 +58,7 @@ function HelpHint() {
     <InfoHint label="Как читать таблицу закупок" wide>
       <p><b>Год → партия закупки (аукцион) → закупка → позиции (лоты), расходы, оплаты.</b> Год — по дате заказа закупки. Нажмите ›, чтобы раскрыть вглубь; ↗ ведёт в карточку закупки или лота.</p>
       <p className="mt-1"><b>Сумма</b> — позиции плюс расходы закупки (режим «с НДС / без НДС» из шапки); <b>Оплачено</b> — оплаты закупки и её доля в оплатах партии (пропорционально сумме); <b>Долг</b> = Сумма с НДС − Оплачено. Оплата и долг всегда с НДС; 4% к закупкам не применяется.</p>
-      <p className="mt-1"><b>Использовано, %</b> — доля стоимости лотов закупки, списанных в ТЗ (без 4%); <b>Остаток</b> — шкуры (шт.) и подкладка (м) на складе. У закупок без лотов (черновик) — «—».</p>
+      <p className="mt-1"><b>Использовано, %</b> — доля стоимости лотов закупки, списанных в ТЗ (без 4%); <b>Остаток</b> — шкуры (шт.) и подкладка (м) на складе. У заказанной, но ещё не полученной закупки (лотов нет) остаток — всё заказанное количество; использовано — «—».</p>
       <p className="mt-1">«Всего, ₽» совпадает с плитками выше и с Главной. Отменённые закупки в итог не входят.</p>
     </InfoHint>
   );
@@ -94,7 +95,7 @@ export function PurchasesTree({ years, extras = [] }: { years: TreeYear[]; extra
       <td className={TD + BL}>{usedPct(a) != null ? formatPercent(usedPct(a)) : <Dash />}</td>
       <td className={TD + " text-xs"}>{remText(a)}</td>
       <td className={TD + BL}>{money(a.paid)}</td>
-      <td className={TD + restCls(a.rest)}>{money(a.rest)}</td>
+      <td className={TD + restCls(a.rest)}>{restMoney(a.rest)}</td>
     </>
   );
   const empty = (n: number) => Array.from({ length: n }, (_, i) => <td key={i} className={TD} />);
@@ -346,11 +347,11 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
               { label: `Кол-во, ${unitLabel}`, value: qty(qtyOf(p)) },
               { label: "Использовано", value: usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash /> },
               { label: "Оплачено", value: p.status === "CANCELLED" ? <Dash /> : money(p.paid) },
-              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{money(p.rest)}</span> },
+              { label: "Долг", value: p.status === "CANCELLED" || Math.abs(p.rest) < 0.5 ? <Dash /> : <span className={restCls(p.rest)}>{restMoney(p.rest)}</span> },
             ]}
             details={[
               { label: "Лотов", value: p.lots > 0 ? p.lots : null },
-              { label: "Остаток", value: p.hasLots ? remText(p) : null },
+              { label: "Остаток", value: p.hasLots || p.remFur + p.remLining > 0 ? remText(p) : null },
               { label: "Счёт", value: p.invoice },
               { label: "УПД", value: p.upd },
             ]}
@@ -403,7 +404,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                   <td className={TD + BL}>{usedPct(p) != null ? formatPercent(usedPct(p)) : <Dash />}</td>
                   <td className={TD + " text-xs"}>{remText(p)}</td>
                   <td className={TD + BL}>{cancelled ? <Dash /> : money(p.paid)}</td>
-                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : money(p.rest)}</td>
+                  <td className={TD + restCls(p.rest)}>{cancelled ? <Dash /> : restMoney(p.rest)}</td>
                 </tr>
               );
             })}
@@ -427,7 +428,7 @@ export function PurchasesList({ id, title, unitLabel, rows, allRows, extras = []
                 <td className={TD + BL}>{usedPct(tot) != null ? formatPercent(usedPct(tot)) : <Dash />}</td>
                 <td className={TD + " text-xs"}>{remText(tot)}</td>
                 <td className={TD + BL}>{money(tot.paid + exPaid)}</td>
-                <td className={TD + restCls(tot.rest)}>{money(tot.rest)}</td>
+                <td className={TD + restCls(tot.rest)}>{restMoney(tot.rest)}</td>
               </tr>
             ) : null}
           </tbody>
