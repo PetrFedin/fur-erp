@@ -26,7 +26,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     );
   }
   const orgId = session.user.organizationId;
-  const [models, warehouses, clients, lots, contractRows, batches, expenseCategories, furs, colorOptions] = await Promise.all([
+  const [models, warehouses, clients, lots, contractRows, batches, expenseCategories, furs, colorOptions, numberRows] = await Promise.all([
     prisma.productModel.findMany({
       where: { organizationId: orgId, isActive: true },
       select: { id: true, name: true, sellingPrice: true, category: true, categoryRef: { select: { group: true } } },
@@ -51,7 +51,19 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     prisma.expenseCategory.findMany({ where: { organizationId: orgId, kind: "PRODUCTION", isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
     getColorOptions(orgId),
+    prisma.productionOrder.findMany({ where: { organizationId: orgId, workOrderNumber: { not: null } }, select: { workOrderNumber: true } }),
   ]);
+
+  // № ТЗ: сколько позиций уже заведено под каждым номером (для предупреждения о дубле) и следующий свободный номер (наибольший числовой + 1).
+  const tzNumberCounts: Record<string, number> = {};
+  let maxNumber = 0;
+  for (const r of numberRows) {
+    const n = (r.workOrderNumber ?? "").trim();
+    if (!n) continue;
+    tzNumberCounts[n.toLowerCase()] = (tzNumberCounts[n.toLowerCase()] ?? 0) + 1;
+    if (/^\d{1,6}$/.test(n)) maxNumber = Math.max(maxNumber, Number(n));
+  }
+  const nextTzNumber = maxNumber > 0 ? String(maxNumber + 1) : "";
 
   // Последний договор заказчика — только подсказка, правится в форме.
   const lastContractByClient: Record<string, string> = {};
@@ -91,7 +103,9 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
       colorOptions={colorOptions}
       canAddColor={hasRole(session.user.role, ACCESS.colors)}
       canAddFur={hasRole(session.user.role, ACCESS.furRefs)}
-      batches={batches.map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }))}
+      batches={batches.map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders), empty: b.orders.length === 0 }))}
+      nextTzNumber={nextTzNumber}
+      tzNumberCounts={tzNumberCounts}
       expenseCategories={expenseCategories}
       furs={furs.map((f) => f.name)}
     />

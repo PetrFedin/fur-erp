@@ -306,6 +306,7 @@ export async function receiveFinishedGoodsStock(
     totalCost: Prisma.Decimal | number;
     type: Extract<FinishedGoodsMovementType, "PRODUCTION_IN" | "ADJUSTMENT_IN" | "TRANSFER_IN">;
     productionOrderId?: string;
+    notes?: string;
   }
 ) {
   await tx.finishedGoodsMovement.create({
@@ -318,6 +319,7 @@ export async function receiveFinishedGoodsStock(
       unitCost: args.unitCost,
       totalCost: args.totalCost,
       productionOrderId: args.productionOrderId,
+      notes: args.notes,
     },
   });
 

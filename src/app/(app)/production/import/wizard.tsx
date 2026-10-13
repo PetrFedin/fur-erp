@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { emptyDraft, type TzDraft } from "@/lib/tz-import-core";
 import type { TzAnalysis, TzIssue } from "@/lib/tz-import-server";
 import { parseTzInput, checkTzDrafts, createTzBatch, type ImportResult } from "../import-actions";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
 const qtyFmt = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
@@ -39,6 +40,7 @@ export function TzImportWizard() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [pending, start] = useTransition();
+  const { ask, node: confirmNode } = useConfirm();
 
   const active = drafts.filter((d) => !skip.has(d.key));
   const blocking = analysis ? active.some((d) => analysis[d.key]?.blocking) : true;
@@ -83,11 +85,26 @@ export function TzImportWizard() {
       }
     });
   }
-  function create() {
+  async function create() {
     if (pending) return; // защита от двойной отправки
+    // Мягкие предупреждения (повтор № ТЗ, нет цены работы) не блокируют, но требуют подтверждения.
+    const soft = active.flatMap((d) => (analysis?.[d.key]?.issues ?? []).filter((i) => i.level === "warn" && (i.field === "number" || i.field === "price")).map((i) => `ТЗ ${d.number || "без номера"}: ${i.text}`));
+    if (soft.length > 0) {
+      const ok = await ask(
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Проверьте перед созданием</p>
+          <ul className="list-disc pl-5 text-neutral-700">{soft.slice(0, 12).map((x, i) => <li key={i}>{x}</li>)}</ul>
+          {soft.length > 12 ? <p className="text-xs text-neutral-500">…и ещё {soft.length - 12}</p> : null}
+        </div>,
+        { ok: "Всё равно создать", wide: true },
+      );
+      if (!ok) return;
+    }
     setError("");
     const fd = new FormData();
     fd.set("drafts", JSON.stringify(active));
+    // Повтор № ТЗ подтверждён в окне выше: только с этим флагом сервер создаёт ТЗ с уже занятым номером (защита от повторной отправки).
+    fd.set("confirmDuplicates", active.some((d) => analysis?.[d.key]?.issues.some((i) => i.field === "number" && i.level === "warn")) ? "1" : "0");
     fd.set("createRefs", createRefs ? "1" : "0");
     for (const f of files) fd.append("files", f);
     start(async () => {
@@ -221,6 +238,7 @@ export function TzImportWizard() {
       )}
 
       {step === 3 && result?.ok && <ResultView r={result} />}
+      {confirmNode}
     </div>
   );
 }

@@ -156,7 +156,7 @@ export type SelectOpt = { value: string; label: string };
 export type LazyOptions = { current: SelectOpt; get: () => SelectOpt[] | null; warm: () => Promise<unknown> };
 
 /** Выпадающий список: выбор сразу сохраняется. */
-export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy }: Common & { value: string; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions }) {
+export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy, confirmChange }: Common & { value: string; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions; /** Подтверждение смены значения (false — выбор отменяется, прежнее значение возвращается). */ confirmChange?: (next: string, prev: string) => Promise<boolean> }) {
   const { pending, error, save, saved } = useSaver(onSave, value);
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
@@ -178,7 +178,12 @@ export function SelectCell({ value, options, onSave, readOnly, label, className,
         onFocus={lazy ? () => { warm(); setOpen(true); } : undefined}
         onMouseDown={lazy ? () => setOpen(true) : undefined}
         onBlur={lazy ? () => setOpen(false) : undefined}
-        onChange={(e) => { setDraft(e.target.value); save(e.target.value, () => setDraft(value)); }}
+        onChange={async (e) => {
+          const next = e.target.value;
+          setDraft(next);
+          if (confirmChange && next !== value && !(await confirmChange(next, value))) { setDraft(value); return; }
+          save(next, () => setDraft(value));
+        }}
         className={cn(BOX, error && "border-red-500 bg-red-50", className)}
       >
         {!opts.some((o) => o.value === "") ? <option value="">{emptyLabel}</option> : null}

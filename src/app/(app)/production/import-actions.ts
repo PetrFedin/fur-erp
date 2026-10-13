@@ -134,6 +134,10 @@ export async function createTzBatch(formData: FormData): Promise<ImportResult> {
         await lockAuction(tx, orgId, "tz-import");
         const analysis = await analyzeDrafts(tx, orgId, drafts, { createRefs });
         if (analysis.some((a) => a.blocking)) return { error: "В ТЗ есть ошибки — ничего не создано. Исправьте подсвеченное и повторите.", analysis };
+        // Повтор № ТЗ — мягкое предупреждение: без подтверждения (confirmDuplicates=1) ничего не создаём — так повторная отправка тех же ТЗ не задвоит их.
+        if (formData.get("confirmDuplicates") !== "1" && analysis.some((a) => a.issues.some((i) => i.field === "number" && i.level === "warn"))) {
+          return { error: "Номера ТЗ повторяются — подтвердите создание в окне подтверждения (позиции одного ТЗ допустимы) или исправьте номера. Ничего не создано.", analysis };
+        }
 
         const ws = await tx.warehouse.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } });
         const wid = ws.find((w) => w.isDefault)?.id ?? ws[0]?.id;

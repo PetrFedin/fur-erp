@@ -90,6 +90,8 @@ export type OrderRow = {
   /** done — завершён; work — запланирован или в работе. */
   group: "done" | "work";
   qty: number;
+  /** Шкуры подрядчика, шт. (его сырьё без закупки у нас; только справка, в суммы не входит). */
+  contractorHides: number;
   // мех и подкладка без надбавки 4% (с НДС / без НДС); надбавка — отдельно ниже
   furIncl: number;
   furExcl: number;
@@ -179,6 +181,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
         endDate: true,
         startDate: true,
         clientWorkPricePerUnit: true,
+        contractorHides: true,
         retailPrice: true,
         totalCost: true,
         materialUsages: {
@@ -341,6 +344,7 @@ export async function loadOrderRows(orgId: string, year: YearFilter, mode: Commi
       status: o.status as OrderRow["status"],
       group: o.status === "COMPLETED" ? "done" : "work",
       qty: q,
+      contractorHides: o.contractorHides ?? 0,
       // мех и подкладка — БЕЗ надбавки 4% (она отдельной строкой c4*)
       furIncl: Number(fs.incl.sub(fs.extraIncl)),
       furExcl: Number(fs.excl.sub(fs.extraExcl)),

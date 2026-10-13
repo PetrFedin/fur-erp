@@ -1,4 +1,4 @@
-// Основное меню (9 пунктов). `also` — вложенные и переехавшие разделы: на них
+// Основное меню (9 пунктов; «Настройки» сразу после «Календаря», «Контроль» внизу). `also` — вложенные и переехавшие разделы: на них
 // подсвечивается тот же пункт, чтобы человек не терял, "где он".
 export const NAV_LINKS = [
   { href: "/dashboard", label: "Главная", also: [] },
@@ -9,11 +9,11 @@ export const NAV_LINKS = [
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
   { href: "/calendar", label: "Календарь", also: [] },
+  // «Настройки» — только справочники и параметры.
+  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/expense-categories", "/users"] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · Анализ документов · История.
   // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity"] },
-  // «Настройки» — только справочники и параметры.
-  { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/expense-categories", "/users"] },
 ] as const;
 
 /**
@@ -32,4 +32,4 @@ export function activeNavHref(pathname: string): string | null {
 }
 
 /** Служебные разделы: в меню стоят отдельно внизу, мельче и без заливки, как неосновные. */
-export const SECONDARY_NAV_HREFS: readonly string[] = ["/attention", "/settings"];
+export const SECONDARY_NAV_HREFS: readonly string[] = ["/attention"];

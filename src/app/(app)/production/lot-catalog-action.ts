@@ -15,6 +15,8 @@ export type CatalogLot = {
   unit: string;
   quantityRemaining: string;
   unitCost: string;
+  /** Ставка НДС лота, %. */
+  vatRate: string;
 };
 
 /**
@@ -43,5 +45,6 @@ export async function loadLotCatalog(orderId: string): Promise<CatalogLot[]> {
     unit: l.rawMaterial.unit,
     quantityRemaining: l.quantityRemaining.toString(),
     unitCost: l.unitCost.toString(),
+    vatRate: l.vatRate.toString(),
   }));
 }

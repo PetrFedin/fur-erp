@@ -122,7 +122,7 @@ async function main() {
   const by = Object.fromEntries((chk.analysis ?? []).map((a) => [a.key, a]));
   const has = (k: string, f: string, lv = "error") => by[k]?.issues.some((i) => i.field === f && i.level === lv);
   ok(has("p1", "number") && has("p1", "article") && has("p1", "colors") && has("p1", "materials"), "ошибки: нет №, неизвестные артикул/цвет, лот не найден");
-  ok(has("p3", "number"), "дубль № ТЗ внутри загрузки");
+  ok(has("p3", "number", "warn") && !has("p3", "number"), "дубль № ТЗ внутри загрузки — предупреждение (позиции одного ТЗ допустимы)");
   ok(has("p3", "materials"), "остаток лота меньше нужного");
   ok(has("p4", "sum", "warn") && !by.p4.blocking, "сумма расчёта ≠ сумме списаний — предупреждение");
   ok(has("p6", "materials"), "общий остаток лота считается по всем ТЗ загрузки");

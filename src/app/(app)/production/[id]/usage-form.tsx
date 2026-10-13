@@ -6,6 +6,8 @@ import { Input, Select } from "@/components/ui/input";
 import { addMaterialUsage } from "../actions";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { invalidateLotCatalog, warmLotCatalog, type CatalogLot } from "./lot-catalog-client";
+import { useConfirm } from "@/components/confirm-dialog";
+import { canonicalFur } from "@/lib/fur-ref";
 
 const UNIT_LABELS: Record<string, string> = {
   PIECE: "шт.",
@@ -18,7 +20,8 @@ const UNIT_LABELS: Record<string, string> = {
 export type MaterialOption = { id: string; name: string; unit: string };
 
 /** Материалы — малый список с сервера; лоты выбранного материала подгружаются по требованию, а не лежат в разметке. */
-export function UsageForm({ orderId, materials, defaultCommission4 = true }: { orderId: string; materials: MaterialOption[]; defaultCommission4?: boolean }) {
+export function UsageForm({ orderId, materials, defaultCommission4 = true, expectedFur = [] }: { orderId: string; materials: MaterialOption[]; defaultCommission4?: boolean; /** Виды меха ТЗ (ручной вид, материал и артикул ТЗ, уже списанные лоты): пусто — не проверяем. */ expectedFur?: string[] }) {
+  const { ask, node: confirmNode } = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -49,9 +52,16 @@ export function UsageForm({ orderId, materials, defaultCommission4 = true }: { o
     <form
       ref={formRef}
       // onSubmit, а не action: React 19 стирает поля формы после action даже при ошибке — человек терял выбор лота и количество.
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
+        // Вид меха лота не совпадает с видом меха ТЗ — предупреждаем (не блокируем: ТЗ бывают из нескольких видов).
+        const lot = lots.find((l) => l.id === formData.get("lotId"));
+        const lotKind = lot ? canonicalFur(lot.rawMaterialName)?.name : undefined;
+        if (lot && lotKind && expectedFur.length > 0 && !expectedFur.includes(lotKind)) {
+          const ok = await ask(`Лот ${lot.lotNumber ?? "без номера"} — ${lotKind}, а в ТЗ мех: ${expectedFur.join(" + ")}. Всё равно списать?`, { ok: "Списать" });
+          if (!ok) return;
+        }
         startTransition(async () => {
           const result = await bound(formData);
           setError(result.error ?? null);
@@ -98,7 +108,7 @@ export function UsageForm({ orderId, materials, defaultCommission4 = true }: { o
               {[l.grade, l.color].filter(Boolean).length > 0
                 ? ` (${[l.grade, l.color].filter(Boolean).join(", ")})`
                 : ""}{" "}
-              — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)}
+              — остаток {formatQty(l.quantityRemaining)} по {formatMoney(l.unitCost)} (НДС {Number(l.vatRate)}%)
             </option>
           ))}
         </Select>
@@ -115,6 +125,7 @@ export function UsageForm({ orderId, materials, defaultCommission4 = true }: { o
       <Button type="submit" variant="outline" size="sm" disabled={pending}>
         {pending ? "Списываем..." : "+ Списать"}
       </Button>
+      {confirmNode}
       {error && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">{error}</p>}
       {materialId && loadError && <p className="sm:col-span-2 lg:col-span-5 text-sm text-red-600">Не удалось загрузить лоты — выберите материал ещё раз</p>}
       {materialId && catalog && lotsForMaterial.length === 0 && (

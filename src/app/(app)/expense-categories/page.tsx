@@ -6,7 +6,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { createExpenseCategory, toggleExpenseCategoryActive } from "./actions";
+import { createExpenseCategory, toggleExpenseCategoryActive, updateExpenseCategory } from "./actions";
 
 const KIND_LABELS: Record<string, string> = {
   PURCHASE: "Закупка",
@@ -59,17 +59,28 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
       <Table>
         <Thead>
           <Tr>
-            <Th>Название</Th>
-            <Th>Тип</Th>
+            <Th>Название и тип (можно править)</Th>
+            <Th>Статус</Th>
             <Th></Th>
           </Tr>
         </Thead>
         <Tbody>
           {categories.map((c) => (
             <Tr key={c.id}>
-              <Td className="font-medium">{c.name}</Td>
               <Td>
-                <Badge variant="info">{KIND_LABELS[c.kind]}</Badge>
+                <form action={updateExpenseCategory} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="id" value={c.id} />
+                  <Input name="name" required defaultValue={c.name} aria-label="Название статьи" className="min-w-48 flex-1" />
+                  <Select name="kind" defaultValue={c.kind} aria-label="Тип статьи" className="w-auto">
+                    <option value="PURCHASE">{KIND_LABELS.PURCHASE}</option>
+                    <option value="PRODUCTION">{KIND_LABELS.PRODUCTION}</option>
+                    <option value="GENERAL">{KIND_LABELS.GENERAL}</option>
+                  </Select>
+                  <Button type="submit" variant="ghost" size="sm">Сохранить</Button>
+                </form>
+              </Td>
+              <Td>
+                <Badge variant={c.isActive ? "info" : "default"}>{c.isActive ? "Действует" : "Отключена"}</Badge>
               </Td>
               <Td>
                 <form

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { consumeFromLot, returnToLot, receiveFinishedGoodsStock } from "@/lib/stock";
+import { FG_FULL_COST_NOTE, fullFinishedCost, orderStockContribution } from "@/lib/finished-goods-cost";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -566,6 +567,11 @@ export async function updateProductionOrder(orderId: string, formData: FormData)
     },
   });
 
+  // Цена работы входит в полную себестоимость на складе готовой продукции (только у ТЗ, которые ведутся по ней — см. syncCompletedOrderCost).
+  if (order.status === "COMPLETED" && !(clientWorkPricePerUnit ?? new Decimal(0)).equals(order.clientWorkPricePerUnit ?? new Decimal(0))) {
+    await prisma.$transaction((tx) => syncCompletedOrderCost(tx, orderId, session.user.organizationId));
+  }
+
   await resetByOrder(orderId);
   await afterBatchChange(session.user.organizationId, orderId, batchRes);
   revalidateAll(session.user.organizationId);
@@ -775,14 +781,20 @@ async function syncCompletedOrderCost(tx: Prisma.TransactionClient, orderId: str
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const totalCost = materialCost.add(expenseCost);
   const unitCost = totalCost.div(order.producedQuantity);
-  const delta = totalCost.sub(order.totalCost ?? new Decimal(0));
+  const snapshotDelta = totalCost.sub(order.totalCost ?? new Decimal(0));
+
+  // Стоимость ТЗ на складе ГП: если ТЗ уже ведётся по полной себестоимости (с работой и 4%) — приводим вклад ТЗ к ней;
+  // иначе (старое завершённое ТЗ, пересчёт не делали) — как раньше, только изменение снимка.
+  const contribution = await orderStockContribution(tx, orderId);
+  const full = fullFinishedCost(order, order.producedQuantity);
+  const stockDelta = contribution.marked ? full.total.sub(contribution.count === 0 ? (order.totalCost ?? new Decimal(0)) : contribution.net) : snapshotDelta;
 
   await tx.productionOrder.update({
     where: { id: orderId },
     data: { materialCost, expenseCost, totalCost, unitCost },
   });
 
-  if (delta.isZero()) return;
+  if (stockDelta.abs().lt(0.005)) return;
 
   const stock = await tx.finishedGoodsStock.findUnique({
     where: {
@@ -791,7 +803,7 @@ async function syncCompletedOrderCost(tx: Prisma.TransactionClient, orderId: str
   });
   if (!stock) return;
 
-  const newTotalValue = stock.quantity.mul(stock.avgUnitCost).add(delta);
+  const newTotalValue = stock.quantity.mul(stock.avgUnitCost).add(stockDelta);
   const newAvgUnitCost = stock.quantity.isZero() ? stock.avgUnitCost : newTotalValue.div(stock.quantity);
   await tx.finishedGoodsStock.update({ where: { id: stock.id }, data: { avgUnitCost: newAvgUnitCost } });
   await tx.finishedGoodsMovement.create({
@@ -799,12 +811,12 @@ async function syncCompletedOrderCost(tx: Prisma.TransactionClient, orderId: str
       organizationId,
       warehouseId: order.finishedWarehouseId,
       productModelId: order.productModelId,
-      type: delta.greaterThan(0) ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+      type: stockDelta.greaterThan(0) ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
       quantity: 0,
-      unitCost: order.producedQuantity.isZero() ? 0 : delta.abs().div(order.producedQuantity),
-      totalCost: delta.abs(),
+      unitCost: order.producedQuantity.isZero() ? 0 : stockDelta.abs().div(order.producedQuantity),
+      totalCost: stockDelta.abs(),
       productionOrderId: orderId,
-      notes: "Корректировка себестоимости после правки завершённого ТЗ",
+      notes: contribution.marked ? `Корректировка себестоимости после правки завершённого ТЗ. ${FG_FULL_COST_NOTE}` : "Корректировка себестоимости после правки завершённого ТЗ",
     },
   });
 }
@@ -1251,20 +1263,25 @@ export async function completeProductionOrder(
     include: { materialUsages: true, expenses: true },
   });
   if (!order) return { error: "ТЗ не найдено" };
-  if (order.materialUsages.length === 0) {
+  // Без списаний завершать можно только после явного подтверждения (форма шлёт confirmNoUsages=1): ТЗ с лоскутом или давальческим сырьём бывают.
+  if (order.materialUsages.length === 0 && formData.get("confirmNoUsages") !== "1") {
     return {
       error:
-        "Нельзя завершить ТЗ без списаний сырья — продукция встала бы на склад с нулевой себестоимостью. Сначала спишите сырьё.",
+        "В ТЗ нет списаний сырья — на склад готовой продукции продукция встанет без стоимости сырья. Подтвердите завершение без списаний.",
     };
   }
 
   const parsed = completeSchema.safeParse({ producedQuantity: formData.get("producedQuantity") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  // Снимок ТЗ (Главная, партии, «Изделия») — сырьё + расходы, как и раньше.
   const materialCost = order.materialUsages.reduce((s, u) => s.add(u.totalCost), new Decimal(0));
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const totalCost = materialCost.add(expenseCost);
   const unitCost = totalCost.div(parsed.data.producedQuantity);
+  // Склад готовой продукции — по ПОЛНОЙ себестоимости: плюс 4% и работа (lib/finished-goods-cost.ts).
+  const fg = fullFinishedCost(order, parsed.data.producedQuantity);
+  const fgUnitCost = fg.total.div(parsed.data.producedQuantity);
 
   const raced = await prisma.$transaction(async (tx) => {
     // Атомарный переход статуса: две вкладки не должны оприходовать продукцию дважды.
@@ -1291,10 +1308,11 @@ export async function completeProductionOrder(
       warehouseId: order.finishedWarehouseId,
       productModelId: order.productModelId,
       quantity: parsed.data.producedQuantity,
-      unitCost,
-      totalCost,
+      unitCost: fgUnitCost,
+      totalCost: fg.total,
       type: "PRODUCTION_IN",
       productionOrderId: orderId,
+      notes: FG_FULL_COST_NOTE,
     });
     return false;
   });
@@ -1321,6 +1339,7 @@ export async function updateProducedQuantity(
 
   const order = await prisma.productionOrder.findFirst({
     where: { id: orderId, organizationId: session.user.organizationId, status: "COMPLETED" },
+    include: { materialUsages: true, expenses: true },
   });
   if (!order) return { error: "ТЗ не найдено или ещё не завершено" };
 
@@ -1329,10 +1348,21 @@ export async function updateProducedQuantity(
 
   const totalCost = order.totalCost ?? new Decimal(0);
   const newUnitCost = totalCost.div(newQuantity);
-  const oldContribution = order.producedQuantity.mul(order.unitCost ?? new Decimal(0));
-  const newContribution = newQuantity.mul(newUnitCost);
+  let oldContribution = order.producedQuantity.mul(order.unitCost ?? new Decimal(0));
+  let newContribution = newQuantity.mul(newUnitCost);
+  let fgUnit = newUnitCost;
+  let fgNote = "Корректировка фактически произведённого количества после завершения ТЗ";
 
   await prisma.$transaction(async (tx) => {
+    // ТЗ ведётся на складе по полной себестоимости (с работой и 4%): работа зависит от количества, поэтому вклад пересчитываем целиком.
+    const contribution = await orderStockContribution(tx, orderId);
+    if (contribution.marked) {
+      const full = fullFinishedCost(order, newQuantity);
+      oldContribution = contribution.net;
+      newContribution = full.total;
+      fgUnit = full.total.div(newQuantity);
+      fgNote = `${fgNote}. ${FG_FULL_COST_NOTE}`;
+    }
     await tx.productionOrder.update({
       where: { id: orderId },
       data: { producedQuantity: newQuantity, unitCost: newUnitCost },
@@ -1360,10 +1390,10 @@ export async function updateProducedQuantity(
         productModelId: order.productModelId,
         type: newQuantity.greaterThan(order.producedQuantity) ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
         quantity: newQuantity.sub(order.producedQuantity).abs(),
-        unitCost: newUnitCost,
+        unitCost: fgUnit,
         totalCost: newContribution.sub(oldContribution).abs(),
         productionOrderId: orderId,
-        notes: "Корректировка фактически произведённого количества после завершения ТЗ",
+        notes: fgNote,
       },
     });
   });

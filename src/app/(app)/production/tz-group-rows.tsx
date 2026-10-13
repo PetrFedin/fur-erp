@@ -8,7 +8,7 @@ import { Td, Tr } from "@/components/ui/table";
  * before — ячейка «Партия», label — содержимое ячейки «ТЗ» (после стрелки), after — остальные ячейки; children — строки-позиции.
  * Строки приходят с сервера готовыми, здесь только состояние «раскрыто».
  */
-export function TzGroupRows({ before, label, after, count, children, defaultOpen = false }: { before: ReactNode; label: ReactNode; after: ReactNode; count: string; children: ReactNode; defaultOpen?: boolean }) {
+export function TzGroupRows({ before, label, after, count, n, children, defaultOpen = false }: { before: ReactNode; label: ReactNode; after: ReactNode; count: string; n: number; children: ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <>
@@ -18,8 +18,10 @@ export function TzGroupRows({ before, label, after, count, children, defaultOpen
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={`${open ? "Свернуть" : "Раскрыть"}: ${count}`} className="flex w-full items-center gap-1 whitespace-nowrap px-3 py-2 text-left hover:underline">
             <span aria-hidden className={"inline-block w-3 text-neutral-500 transition-transform " + (open ? "rotate-90" : "")}>›</span>
             {label}
-            <span className="ml-1 text-xs font-normal text-neutral-500">{count}</span>
           </button>
+        </Td>
+        <Td className="p-0 text-right tabular-nums">
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={`${open ? "Свернуть" : "Раскрыть"}: ${count}`} className="block w-full px-3 py-2 text-right hover:underline">{n}</button>
         </Td>
         {after}
       </Tr>

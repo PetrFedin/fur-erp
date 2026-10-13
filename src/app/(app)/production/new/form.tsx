@@ -17,6 +17,7 @@ import { vatPeriodLabel } from "@/lib/vat-by-date";
 import { draftTotals, lineCalc, vatByRate, type CalcLine } from "@/lib/tz-calc";
 import { formatQty, formatMoney } from "@/lib/utils";
 import { LotPicker, type LotOpt } from "./lot-picker";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export type { LotOpt } from "./lot-picker";
 
@@ -80,7 +81,11 @@ export function ProductionCreateForm(props: {
   colorOptions: ColorSelectOption[];
   canAddColor: boolean;
   canAddFur: boolean;
-  batches: { id: string; number: number; label: string }[];
+  batches: { id: string; number: number; label: string; /** Партия без ТЗ («пусто») — в выборе не показываем, пока не выбрана. */ empty?: boolean }[];
+  /** Следующий свободный № ТЗ (наибольший числовой + 1); пусто — предложить нечего. */
+  nextTzNumber?: string;
+  /** Сколько позиций уже заведено под каждым № ТЗ (ключ — номер в нижнем регистре): для предупреждения о дубле. */
+  tzNumberCounts?: Record<string, number>;
   expenseCategories: Opt[];
   furs: string[];
 }) {
@@ -111,7 +116,7 @@ export function ProductionCreateForm(props: {
 }
 
 function FormBody({
-  initialArticleId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, expenseCategories, furs,
+  initialArticleId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, nextTzNumber = "", tzNumberCounts = {}, expenseCategories, furs,
   state, formAction, pending,
 }: Parameters<typeof ProductionCreateForm>[0] & { state: CreateOrderState; formAction: (fd: FormData) => void; pending: boolean }) {
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
@@ -119,7 +124,11 @@ function FormBody({
   const defaultWarehouse = warehouses.find((w) => w.isDefault)?.id ?? warehouses[0]?.id ?? "";
 
   const [modelId, setModelId] = useState(initialArticleId ?? "");
-  const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today, rawWarehouseId: defaultWarehouse });
+  const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today, rawWarehouseId: defaultWarehouse, workOrderNumber: nextTzNumber });
+  const { ask, node: confirmNode } = useConfirm();
+  const formEl = useRef<HTMLFormElement | null>(null);
+  const confirmed = useRef(false);
+  const [batchQuery, setBatchQuery] = useState("");
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const [clientId, setClientId] = useState("");
   const [contract, setContract] = useState("");
@@ -220,12 +229,40 @@ function FormBody({
   const serverErrs = state.errors ?? (state.error ? [state.error] : []);
   const allErrs = clientErrs.length ? clientErrs : serverErrs;
 
+  // Мягкие предупреждения: ничего не блокируют, но перед сохранением просят подтвердить.
+  function softWarnings(): string[] {
+    const w: string[] = [];
+    const no = (f.workOrderNumber ?? "").trim();
+    const dup = no ? tzNumberCounts[no.toLowerCase()] ?? 0 : 0;
+    if (dup > 0) w.push(`№ ТЗ ${no} уже есть в базе (позиций: ${dup}). Позиции одного ТЗ допустимы — если это ещё одна позиция того же ТЗ, всё верно; иначе исправьте номер.`);
+    if (!(workPrice > 0)) w.push("Цена работы не указана: сумму работы и оплату по ТЗ определить нельзя.");
+    return w;
+  }
+
   const onSubmit = (ev: React.FormEvent<HTMLFormElement>) => {
     const errs = validate();
     setClientErrs(errs);
     if (errs.length) {
       ev.preventDefault();
       setTimeout(() => errRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
+      return;
+    }
+    const warns = confirmed.current ? [] : softWarnings();
+    if (warns.length) {
+      ev.preventDefault();
+      const submitter = (ev.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+      void ask(
+        <div className="flex flex-col gap-2">
+          <p className="font-medium">Проверьте перед сохранением</p>
+          <ul className="list-disc pl-5 text-neutral-700">{warns.map((x, i) => <li key={i}>{x}</li>)}</ul>
+        </div>,
+        { ok: "Всё равно сохранить", wide: true },
+      ).then((ok) => {
+        if (!ok) return;
+        confirmed.current = true;
+        formEl.current?.requestSubmit(submitter ?? undefined);
+        confirmed.current = false;
+      });
       return;
     }
     keepSubmit(ev);
@@ -352,7 +389,7 @@ function FormBody({
   const clientName = clients.find((c) => c.id === clientId)?.name;
 
   return (
-    <form ref={keepRef} onSubmit={onSubmit} className="flex flex-col gap-5 pb-4" noValidate>
+    <form ref={(n) => { formEl.current = n; keepRef(n); }} onSubmit={onSubmit} className="flex flex-col gap-5 pb-4" noValidate>
       <input type="hidden" name="productModelId" value={modelId} />
       <input type="hidden" name="draft" value={draft} />
       {/* Склад в интерфейсе не указывается: подставляется склад по умолчанию (сервер при пустом значении берёт его сам). */}
@@ -387,7 +424,10 @@ function FormBody({
               <p className="mt-1 text-xs text-neutral-400">Категория и группа подтянутся из артикула</p>
             )}
           </Field>
-          <Field htmlFor="workOrderNumber" label="№ ТЗ"><Input id="workOrderNumber" name="workOrderNumber" placeholder="141" value={f.workOrderNumber ?? ""} onChange={set("workOrderNumber")} /></Field>
+    <Field htmlFor="workOrderNumber" label="№ ТЗ" hint="Предложен следующий свободный номер (наибольший числовой + 1); можно изменить. Если номер уже есть, перед сохранением спросим: позиции одного ТЗ допустимы.">
+            <Input id="workOrderNumber" name="workOrderNumber" placeholder="№ ТЗ" value={f.workOrderNumber ?? ""} onChange={set("workOrderNumber")} />
+            {nextTzNumber && f.workOrderNumber === nextTzNumber ? <p className="mt-1 text-xs text-neutral-400">следующий свободный</p> : null}
+          </Field>
           <Field htmlFor="workOrderDate" label="Дата ТЗ"><Input id="workOrderDate" name="workOrderDate" type="date" value={f.workOrderDate ?? ""} onChange={set("workOrderDate")} /></Field>
 
           <Field htmlFor="clientId" label="Заказчик" hint="Из справочника клиентов. «Собственное производство» — без заказчика." link={clientId ? <Link href="/clients" target="_blank" className="text-blue-700 hover:underline">→</Link> : null}>
@@ -403,9 +443,14 @@ function FormBody({
             <Input id="contractNumber" name="contractNumber" placeholder="№ 1605 от 16.05.2025" value={contract} onChange={(e) => { setContract(e.target.value); setContractTouched(true); }} />
           </Field>
           <Field label="Партия пошива" hint="Партия поставки. Партия 6 — без надбавки 4%. Можно выбрать из списка или завести новую по номеру.">
+            {batches.length > 8 ? (
+              <Input className="mb-1" placeholder="Поиск партии: номер или год" aria-label="Поиск партии пошива" value={batchQuery} onChange={(e) => setBatchQuery(e.target.value)} />
+            ) : null}
             <Select value={batchSel} onChange={(e) => { setBatchSel(e.target.value); onBatch(e.target.value); }} aria-label="Партия пошива">
               <option value="">Партия не указана</option>
-              {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+              {batches
+                .filter((b) => b.id === batchSel || (!b.empty && (!batchQuery.trim() || b.label.toLowerCase().includes(batchQuery.trim().toLowerCase()))))
+                .map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
               <option value="__new__">＋ Новая партия…</option>
             </Select>
             {batchSel === "__new__" && (
@@ -593,6 +638,7 @@ function FormBody({
           <Button type="submit" name="intent" value="open" disabled={pending}>{pending ? "Сохраняем…" : "Сохранить ТЗ"}</Button>
         </div>
       </div>
+      {confirmNode}
     </form>
   );
 }

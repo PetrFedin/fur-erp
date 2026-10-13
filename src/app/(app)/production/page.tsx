@@ -45,6 +45,7 @@ import { vatBreakdown } from "@/lib/tz-vat";
 import { furKindsOfOrder, withOrderFurOptions } from "@/lib/order-fur";
 import { loadOrderRows } from "@/lib/analytics-orders";
 import { HIDDEN_MODULES } from "@/lib/hidden-modules";
+import { ORDER_STATUS_OPTIONS } from "@/components/order-status-badge";
 
 const SORTS: Record<string, string> = {
   num_desc: "№ ТЗ: по убыванию",
@@ -59,7 +60,8 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Ждёт проверки" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "season", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
+  ...pick(["q", "season", "status", "batch", "model", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
+    status: { allowed: ORDER_STATUS_OPTIONS.map((o) => o.value), label: "Статус" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
     verified: { allowed: ["yes", "no"], label: "Проверка" },
@@ -157,6 +159,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         },
         auction: () => ({ id: { in: lotOrderIds ?? [] } }),
         fur: () => ({ id: { in: lotOrderIds ?? [] } }),
+        status: (v) => ({ status: { in: v as ("PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED")[] } }),
         verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
         q: (text) => ({
           OR: [
@@ -332,6 +335,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     return {
       units: orderUnits(o),
       hides: furU.reduce((a, u) => a + u.quantity.toNumber(), 0),
+      cHides: o.contractorHides ?? 0,
       liningQty: linU.reduce((a, u) => a + u.quantity.toNumber(), 0),
       fur, lining, furNoC4, liningNoC4, noC4,
       work: o.clientWorkPricePerUnit ? o.clientWorkPricePerUnit.toNumber() * orderUnits(o) : 0,
@@ -371,7 +375,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                   { label: "Изделий", value: st.units > 0 ? `${formatQty(st.units)} шт.` : "—" },
                 ]}
                 details={[
-                  { label: "Шкур", value: st.hides > 0 ? formatQty(st.hides) : undefined },
+                  { label: "Артикулов", value: "1" },
+                  { label: "Шкур", value: st.hides > 0 ? formatQty(st.hides) : st.cHides > 0 ? `${st.cHides} (подрядчика)` : undefined },
                   { label: <VatLabel base="Мех" />, value: st.fur.incl.isZero() ? undefined : <Money incl={st.fur.incl} excl={st.fur.excl} /> },
                   { label: "Подкладка, м", value: st.liningQty > 0 ? formatQty(st.liningQty) : undefined },
                   { label: <VatLabel base="Подкладка" />, value: st.lining.incl.isZero() ? undefined : <Money incl={st.lining.incl} excl={st.lining.excl} /> },
@@ -406,15 +411,16 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                     {matchOf(o)?.label && <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>}
                   </Link>
                 </Td>
+                <Td className={num}><Link href={href} className={link}>1</Link></Td>
                 <Td className={`${cell} text-neutral-700`}><Link href={href} className={`${link} whitespace-nowrap`}>{fur}</Link></Td>
                 <Td className={cell}>
-                  <Link href={href} className={`${link} max-w-[16rem]`}>
-                    <ArticleName model={o.productModel} compact />
-                    <span className="block truncate text-xs text-neutral-500">{[o.productModel.category?.trim(), orderColorNames(o).join("; "), showClient ? o.client?.name : ""].filter(Boolean).join(" · ")}</span>
-                  </Link>
+                  <div className={`${link} max-w-[16rem]`}>
+                    <Link href={`/models/${o.productModel.id}`} className="hover:underline" title="Открыть артикул"><ArticleName model={o.productModel} compact /></Link>
+                    <Link href={href} className="block truncate text-xs text-neutral-500 hover:underline">{[o.productModel.category?.trim(), orderColorNames(o).join("; "), showClient ? o.client?.name : ""].filter(Boolean).join(" · ")}</Link>
+                  </div>
                 </Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.units > 0 ? formatQty(st.units) : dash}</Link></Td>
-                <Td className={num}><Link href={href} className={link}>{st.hides > 0 ? formatQty(st.hides) : dash}</Link></Td>
+                <Td className={num}><Link href={href} className={link} title={st.hides === 0 && st.cHides > 0 ? "Шкуры подрядчика: его сырьё, закупки у нас нет" : undefined}>{st.hides > 0 ? formatQty(st.hides) : st.cHides > 0 ? <>{st.cHides} <span className="text-[11px] font-normal text-neutral-400">подр.</span></> : dash}</Link></Td>
                 <Td className={`${num} border-l border-neutral-200`}><Link href={href} className={link}>{st.fur.incl.isZero() ? dash : <Money incl={st.fur.incl} excl={st.fur.excl} />}{sub(st.furNoC4)}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.liningQty > 0 ? formatQty(st.liningQty) : dash}</Link></Td>
                 <Td className={num}><Link href={href} className={link}>{st.lining.incl.isZero() ? dash : <Money incl={st.lining.incl} excl={st.lining.excl} />}{sub(st.liningNoC4)}</Link></Td>
@@ -440,9 +446,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const zero = () => ({ incl: new Decimal(0), excl: new Decimal(0) });
     const add = (a: { incl: Decimal; excl: Decimal }, b: { incl: Decimal; excl: Decimal }) => ({ incl: a.incl.add(b.incl), excl: a.excl.add(b.excl) });
     const tot = rows.reduce((a, r) => ({
-      units: a.units + r.st.units, hides: a.hides + r.st.hides, liningQty: a.liningQty + r.st.liningQty, work: a.work + r.st.work,
+      units: a.units + r.st.units, hides: a.hides + r.st.hides, cHides: a.cHides + r.st.cHides, liningQty: a.liningQty + r.st.liningQty, work: a.work + r.st.work,
       fur: add(a.fur, r.st.fur), lining: add(a.lining, r.st.lining), full: add(a.full, r.full),
-    }), { units: 0, hides: 0, liningQty: 0, work: 0, fur: zero(), lining: zero(), full: zero() });
+    }), { units: 0, hides: 0, cHides: 0, liningQty: 0, work: 0, fur: zero(), lining: zero(), full: zero() });
     const first = g[0].o;
     const tzNo = first.workOrderNumber?.trim() || first.number;
     const batches = Array.from(new Set(g.map((x) => x.o.batch?.number ?? null)));
@@ -481,6 +487,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <TzGroupRows
         key={`tz-${orderKey(first)}`}
         count={count}
+        n={g.length}
         before={
           <Td className={`${cell} font-medium`}>
             {batches.length === 1 && first.batch ? (
@@ -496,7 +503,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Td className={`${cell} text-neutral-700`}><span className={`${link} whitespace-nowrap`}>{furs.join(" + ")}</span></Td>
             <Td className={cell}><span className={`${link} max-w-[16rem] truncate text-xs text-neutral-600`}>{models.join(", ")}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.units > 0 ? formatQty(tot.units) : dash}</span></Td>
-            <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : dash}</span></Td>
+            <Td className={num}><span className={link}>{tot.hides > 0 ? formatQty(tot.hides) : tot.cHides > 0 ? <>{tot.cHides} <span className="text-[11px] font-normal text-neutral-400">подр.</span></> : dash}</span></Td>
             <Td className={`${num} border-l border-neutral-200`}><span className={link}>{tot.fur.incl.isZero() ? dash : <Money incl={tot.fur.incl} excl={tot.fur.excl} />}</span></Td>
             <Td className={num}><span className={link}>{tot.liningQty > 0 ? formatQty(tot.liningQty) : dash}</span></Td>
             <Td className={num}><span className={link}>{tot.lining.incl.isZero() ? dash : <Money incl={tot.lining.incl} excl={tot.lining.excl} />}</span></Td>
@@ -610,7 +617,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       <Table anchor="table:production" label="Таблица ТЗ" stickyHeader className="min-w-[1040px]">
         <Thead>
           <Tr>
-            <Th colSpan={4} aria-hidden />
+            <Th colSpan={5} aria-hidden />
             <Th colSpan={2} className={GH + BLH}>Производство</Th>
             <Th colSpan={3} className={GH + BLH}>Сырьё</Th>
             <Th colSpan={3} className={GH + BLH}>Итого</Th>
@@ -618,6 +625,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           <Tr>
             <Th>Партия</Th>
             <Th>ТЗ</Th>
+            <Th className="text-right">Артикулов</Th>
             <Th>Мех</Th>
             <Th>Артикул</Th>
             <Th className={"text-right" + BLH} unit="шт.">Изделий</Th>
@@ -639,7 +647,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           })}
           {orders.length === 0 && (
             <Tr>
-              <Td colSpan={12} className="py-8 text-center text-neutral-500">
+              <Td colSpan={13} className="py-8 text-center text-neutral-500">
                 {hasFilters ? "Ничего не найдено" : emptyForYear(year, "ТЗ", "ТЗ пока нет")}
               </Td>
             </Tr>

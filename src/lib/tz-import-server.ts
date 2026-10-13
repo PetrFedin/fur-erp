@@ -65,8 +65,9 @@ export async function analyzeDrafts(db: Db, orgId: string, drafts: TzDraft[], op
 
     const no = d.number.trim();
     if (!no) err("number", "не указан № ТЗ");
-    else if (taken.has(no.toLowerCase())) err("number", `ТЗ № ${no} уже есть в базе (дубль)`);
-    else if (dups.has(no.toLowerCase())) err("number", `№ ТЗ ${no} повторяется в этой загрузке`);
+    // Позиции одного ТЗ (несколько артикулов под одним номером) допустимы — это предупреждение с подтверждением, а не ошибка.
+    else if (taken.has(no.toLowerCase())) warn("number", `ТЗ № ${no} уже есть в базе. Позиции одного ТЗ допустимы — если это новая позиция того же ТЗ, всё верно; иначе исправьте номер`);
+    else if (dups.has(no.toLowerCase())) warn("number", `№ ТЗ ${no} повторяется в этой загрузке. Позиции одного ТЗ допустимы — если это разные артикулы одного ТЗ, всё верно`);
 
     let articleId: string | null = null;
     let articleName: string | null = null;

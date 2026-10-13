@@ -941,6 +941,8 @@ model ProductionOrder {
   // Price charged to the client per produced unit for the manufacturing
   // work itself (revenue) — separate from our internal production cost.
   clientWorkPricePerUnit Decimal?  @db.Decimal(14, 2)
+  /// Шкуры подрядчика (его сырьё, закупки у нас нет), шт.: только для справки о расходе, в деньги и остатки не входят.
+  contractorHides        Int?
 
   /// Составной цвет ТЗ («Тёмно-синий ×2 (42, 46); Чёрный ×1 (42)»): по строке на цвет. У обычных ТЗ пусто — цвет в colorRefId.
   colors ProductionOrderColor[]

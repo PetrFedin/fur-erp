@@ -50,3 +50,20 @@ export async function toggleExpenseCategoryActive(id: string) {
   });
   revalidatePath("/expense-categories");
 }
+
+export async function updateExpenseCategory(formData: FormData) {
+  const session = await requireRole(...EDIT_ROLES);
+  const id = String(formData.get("id") ?? "");
+  const parsed = schema.safeParse({ name: formData.get("name"), kind: formData.get("kind") });
+  if (!parsed.success) {
+    redirect(`/expense-categories?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Проверьте поля формы")}`);
+  }
+  const category = await prisma.expenseCategory.findFirst({ where: { id, organizationId: session.user.organizationId } });
+  if (!category) return;
+  const clash = await prisma.expenseCategory.findFirst({
+    where: { organizationId: session.user.organizationId, name: parsed.data.name, kind: parsed.data.kind, NOT: { id } },
+  });
+  if (clash) redirect(`/expense-categories?error=${encodeURIComponent("Такая статья с этим типом уже есть")}`);
+  await prisma.expenseCategory.update({ where: { id }, data: parsed.data });
+  revalidatePath("/expense-categories");
+}

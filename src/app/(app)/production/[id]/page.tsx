@@ -13,11 +13,10 @@ import { Money } from "@/components/money";
 import { canEditProduction } from "@/lib/production-access";
 import { lotUnitCostExclVat } from "@/lib/purchase-totals";
 import { getCommission4Mode } from "@/lib/commission4-mode";
-import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput, base4AndExtra } from "@/lib/commission4";
+import { c4Suffix, effectiveUsageVat, lineWith4, sumUsagesWith4, usageInput } from "@/lib/commission4";
 import { InfoHint } from "@/components/info-hint";
 import { TzVatBadge } from "@/components/tz-vat-badge";
 import { vatBreakdown } from "@/lib/tz-vat";
-import { C4Hint } from "@/components/c4-note";
 import { UsageForm, type MaterialOption } from "./usage-form";
 import { BulkUsageForm } from "./bulk-usage-form";
 import { defaultCommission4 } from "@/lib/commission4-const";
@@ -46,7 +45,11 @@ import { loadOrdersDrill } from "@/lib/orders-drill";
 import { articleLabel } from "@/lib/article-label";
 import { EditGuard } from "./edit-guard";
 import { removeMaterialUsage, removeProductionExpense, updateMaterialUsage, updateProductionExpense, updateUsageVat } from "../actions";
+import { OrderStatusBadge } from "@/components/order-status-badge";
 import { TotalLabel } from "@/components/total-label";
+import { allocatedCentsByOrder } from "@/lib/payment-alloc";
+import { canonicalFur } from "@/lib/fur-ref";
+import { LotsDetails } from "./lots-details";
 
 const UNIT_LABELS: Record<string, string> = { PIECE: "шт.", KG: "кг", M2: "м²", M: "м", SET: "компл." };
 
@@ -125,7 +128,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       orderBy: { number: "asc" },
       select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
     })
-  ).map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
+  )
+    // Пустые партии без ТЗ («Партия 15 · пусто») в выборе не показываем — кроме текущей партии этого ТЗ.
+    .filter((b) => b.orders.length > 0 || b.id === order.batchId)
+    .map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders) }));
 
   const open = order.status === "PLANNED" || order.status === "IN_PROGRESS";
   // canEdit: the role may change ТЗ at all (OWNER/ADMIN/TECHNOLOGIST).
@@ -190,14 +196,27 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const expenseCost = order.expenses.reduce((s, e) => s.add(e.amount), new Decimal(0));
   const projectedTotal = materialCost.add(expenseCost);
   const projectedTotalExclVat = materialCostExcl.add(expenseCost);
-  // Расшифровка 4% по этому ТЗ: сырьё и подкладка × 4% (не зависит от переключателя).
-  const c4Calc = base4AndExtra(order.materialUsages);
-  const c4HasData = order.materialUsages.length > 0;
   // Ставки НДС лотов в списаниях (20% / 22% / смешанные): суммы построчно, по ставке каждого лота.
   const vatB = vatBreakdown(order.materialUsages, c4Mode);
 
   const producedOrPlanned = orderUnitsDec(order);
   const clientRevenue = order.clientWorkPricePerUnit ? order.clientWorkPricePerUnit.mul(producedOrPlanned) : null;
+
+  // Оплата работы: разнесено на этот ТЗ (PaymentAllocation, без отменённых платежей) против работы ТЗ.
+  const paidCents = (await allocatedCentsByOrder(prisma, orgId, [order.id])).get(order.id) ?? 0;
+  const workCents = clientRevenue ? Math.round(clientRevenue.toNumber() * 100) : 0;
+  const payRemainCents = workCents - paidCents;
+  const payLink = `/payments?tab=clients${order.batch ? `&batch=${order.batch.number}` : ""}`;
+
+  // Виды меха ТЗ для проверки лота при списании: ручной вид, материал и артикул ТЗ (по частям «соболь; норка»).
+  const expectedFur = Array.from(
+    new Set(
+      [order.furTypeOverride, order.materialDescription, order.productModel.name]
+        .flatMap((t) => (t ?? "").split(/[;,+/]| и /))
+        .map((t) => canonicalFur(t)?.name)
+        .filter((x): x is string => !!x),
+    ),
+  );
 
   // Состав себестоимости этого ТЗ — те же строки и суммы, что в окне «Стоимость производства» на Главной (отменённое ТЗ в Главную не входит).
   const compositionOrders = cancelled ? [] : await loadOrdersDrill(orgId, "all", c4Mode, { ids: new Set([order.id]) });
@@ -225,7 +244,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           key={u.id}
           usage={{
             id: u.id,
-            lotLabel: lotOptionLabel({ lotNumber: u.lot.lotNumber, grade: u.lot.grade, color: u.lot.color, rawMaterialName: u.rawMaterial.name, quantityRemaining: u.lot.quantityRemaining.toString() }),
+            lotLabel: lotOptionLabel({ lotNumber: u.lot.lotNumber, grade: u.lot.grade, color: u.lot.color, rawMaterialName: u.rawMaterial.name, quantityRemaining: u.lot.quantityRemaining.toString(), unitCost: u.lot.unitCost.toString(), vatRate: u.lot.vatRate.toString() }),
             rawMaterialName: u.rawMaterial.name,
             lotId: u.lotId,
             lotNumber: u.lot.lotNumber,
@@ -288,15 +307,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const grandExcl = projectedTotalExclVat.add(workAmount).add(hidesE);
   const unitDiv = producedOrPlanned.isZero() ? null : producedOrPlanned;
 
-  // Две цифры: «с 4%» и «без 4%» (не зависят от переключателя): те же функции, что у Главной.
+  // Две цифры для средневзвешенных: «с 4%» и «без 4%» (не зависят от переключателя): те же функции, что у Главной.
   const furOn = sumUsagesWith4(furUsages, "on");
-  const furOff = sumUsagesWith4(furUsages, "off");
   const liningOn = sumUsagesWith4(liningUsages, "on");
   const liningOff = sumUsagesWith4(liningUsages, "off");
-  const grandOn = { incl: furOn.incl.add(liningOn.incl).add(expenseCost).add(workAmount).add(hidesI), excl: furOn.excl.add(liningOn.excl).add(expenseCost).add(workAmount).add(hidesE) };
-  const grandOff = { incl: furOff.incl.add(liningOff.incl).add(expenseCost).add(workAmount).add(hidesI), excl: furOff.excl.add(liningOff.excl).add(expenseCost).add(workAmount).add(hidesE) };
-  const extra4 = furOn.incl.add(liningOn.incl).sub(furOff.incl).sub(liningOff.incl);
-  const vatOn = vatBreakdown(order.materialUsages, "on");
   const groupBy = (us: typeof furUsages, unit: string): WeightedGroup[] => {
     const m = new Map<string, typeof furUsages>();
     for (const u of us) m.set(u.rawMaterial.name, [...(m.get(u.rawMaterial.name) ?? []), u]);
@@ -343,7 +357,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     workSum: clientRevenue ? clientRevenue.toFixed(2) : null,
     rawWarehouseId: order.rawWarehouseId,
     notes: order.notes ?? "",
-    vatAmount: (drill ? drill.lines.reduce((a, l) => a + (l.i - l.ci) - (l.e - l.ce), 0) : vatB.rows.reduce((a, r) => a + (Number(r.incl) - Number(r.excl)), 0)).toFixed(2),
     vat: vatB.rows.map((r) => ({ rate: r.rate, lines: r.lines, incl: r.incl.toFixed(2), excl: r.excl.toFixed(2) })),
     colorRows: order.colors.length > 0 ? order.colors.map((c) => ({ name: c.colorRef.name, quantity: c.quantity != null ? String(c.quantity) : "", sizes: c.sizes ?? "" })) : [],
   };
@@ -377,23 +390,29 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             ←
           </Link>
           <h1 className="text-xl font-semibold">{tzTitle}</h1>
-          {order.workOrderNumber && <InfoHint label="Номер заказа">Внутренний номер заказа в системе: {order.number}. В списках и документах ТЗ называется по номеру ТЗ.</InfoHint>}
-          <TzVatBadge b={vatB} />
+          <OrderStatusBadge status={order.status} className="text-xs" />
+          {order.workOrderNumber && <span className="text-xs text-neutral-400" title="Внутренний номер заказа в системе; в списках и документах ТЗ называется по номеру ТЗ">{order.number}</span>}
+          <TzVatBadge b={vatB} hint={false} />
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
           </Link>
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета" aria-label="Ещё: документы, оплаты, история, Word, цвета">⋯</summary>
+            <summary className="cursor-pointer list-none rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ" aria-label="Ещё: документы, оплаты, история, Word, цвета, отмена ТЗ">⋯</summary>
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2 shadow">
               <a href="#drive" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Перейти к блоку «Документы-основания» внизу этой страницы">Документы-основания ↓</a>
               <Link href={`/documents?q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Документы ТЗ: приложение, акты, счета — в разделе «Документы»">Документы</Link>
-              {order.client && <Link href="/payments?tab=clients" className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Оплаты от заказчика, разнесение по ТЗ">Оплаты заказчика</Link>}
+              {order.client && <Link href={payLink} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title={order.batch ? `Оплаты от заказчика по партии ${order.batch.number} (фильтра по одному ТЗ в оплатах нет); оплачено именно на это ТЗ — в строке «Оплата работы» ниже` : "Оплаты от заказчика, разнесение по ТЗ"}>Оплаты заказчика</Link>}
               <Link href={`/verify?tab=orders&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Подтверждение ТЗ в разделе «Контроль → Подтвердить»">Подтверждение</Link>
               <Link href={`/history?model=ProductionOrder&q=${tzSearch}`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="История изменений и комментарии — в разделе «Контроль»">История</Link>
               <a href={`/api/production/${id}/docx`} className="rounded px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Скачать печатную форму ТЗ в формате Word">
                 Скачать .docx
               </a>
+              {open && canEdit && (
+                <div className="border-t border-neutral-100 pt-2">
+                  <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
+                </div>
+              )}
               {canEdit && (
                 <OrderColorsEditButton
                   key={order.colors.map((c) => `${c.colorRefId}:${c.quantity ?? ""}:${c.sizes ?? ""}`).join("|")}
@@ -405,15 +424,13 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             </div>
           </details>
           {open && canEdit && (
-            <CompleteOrderForm orderId={id} hasUsages={order.materialUsages.length > 0} plannedQuantity={order.plannedQuantity.toString()} />
-          )}
-          {open && canEdit && (
-            <details className="relative">
-              <summary className="cursor-pointer list-none rounded px-2 py-1 text-neutral-500 hover:bg-neutral-100" title="Ещё: отмена ТЗ" aria-label="Ещё: отмена ТЗ">⋯</summary>
-              <div className="absolute right-0 z-10 mt-1 rounded-md border border-neutral-200 bg-white p-2 shadow">
-                <CancelOrderButton orderId={id} blockedReason={cancelBlockedReason} />
-              </div>
-            </details>
+            <CompleteOrderForm
+              orderId={id}
+              tzLabel={order.workOrderNumber ? `ТЗ №${order.workOrderNumber}` : `заказ ${order.number}`}
+              hasUsages={order.materialUsages.length > 0}
+              plannedQuantity={order.plannedQuantity.toString()}
+              costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}
+            />
           )}
         </div>
         <div className="mt-2">
@@ -433,9 +450,27 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
       </div>
 
       {drill ? (
-        <OrderTiles order={drill} c4={c4Mode} plannedQty={order.plannedQuantity.toString()} producedQty={order.producedQuantity.toString()} completed={order.status === "COMPLETED"} />
+        <OrderTiles
+          order={drill}
+          c4={c4Mode}
+          plannedQty={order.plannedQuantity.toString()}
+          producedQty={order.producedQuantity.toString()}
+          completed={order.status === "COMPLETED"}
+          noUsages={order.materialUsages.length === 0}
+          vatRows={vatB.rows.map((r) => ({ rate: r.rate, vat: Number(r.incl) - Number(r.excl), incl: Number(r.incl) }))}
+        />
       ) : cancelled ? (
         <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную, «Изделия» и сводки не входит; списания, расходы и параметры по-прежнему можно править.</p>
+      ) : null}
+
+      {workCents > 0 || paidCents > 0 ? (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" id="work-pay">
+          <b className="font-semibold">Оплата работы</b>
+          <span>работа <b className="font-medium tabular-nums">{formatMoney((workCents / 100).toFixed(2))}</b></span>
+          <span>оплачено <b className="font-medium tabular-nums">{formatMoney((paidCents / 100).toFixed(2))}</b></span>
+          <span>{payRemainCents < -1 ? "оплачено сверх работы" : "остаток"} <b className={"font-medium tabular-nums " + (payRemainCents > 1 ? "text-amber-700" : "")}>{formatMoney((Math.abs(payRemainCents) / 100).toFixed(2))}</b></span>
+          {order.client ? <Link href={payLink} className="ml-auto text-xs text-blue-700 hover:underline" title="Оплаты заказчика: в оплатах нет фильтра по одному ТЗ, открывается список по партии этого ТЗ">{order.batch ? `оплаты партии ${order.batch.number} →` : "оплаты заказчиков →"}</Link> : null}
+        </p>
       ) : null}
 
       <ParamsTable d={paramsData} o={paramsOptions} />
@@ -452,7 +487,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
 
         {canWrite && (
           <AddMenu
-            fur={<UsageForm orderId={id} materials={furMaterials} defaultCommission4={defaultCommission4(order.batch?.number)} />}
+            fur={<UsageForm orderId={id} materials={furMaterials} defaultCommission4={defaultCommission4(order.batch?.number)} expectedFur={expectedFur} />}
             lining={<UsageForm orderId={id} materials={liningMaterials} defaultCommission4={defaultCommission4(order.batch?.number)} />}
             expense={<ProductionExpenseForm orderId={id} categories={expenseCategories} />}
             bulk={<BulkUsageForm orderId={id} defaultCommission4={defaultCommission4(order.batch?.number)} />}
@@ -485,34 +520,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
             }
           />
         )}
-        <CostSummary
-          fur={{ on: furOn, off: furOff }}
-          lining={showLining ? { on: liningOn, off: liningOff } : null}
-          expenses={expenseCost}
-          work={workAmount}
-          hides={hidesI.isZero() ? null : { incl: hidesI, excl: hidesE }}
-          grand={{ on: grandOn, off: grandOff }}
-          perUnit={unitDiv ? { on: { incl: grandOn.incl.div(unitDiv), excl: grandOn.excl.div(unitDiv) }, off: { incl: grandOff.incl.div(unitDiv), excl: grandOff.excl.div(unitDiv) } } : null}
-          qty={producedOrPlanned}
-          qtyLabel={order.status === "COMPLETED" ? "факт" : "план"}
-          furGroups={furGroups}
-          liningGroup={liningGroup}
-          vatRows={vatOn.rows.map((r) => ({ rate: r.rate, vat: r.incl.sub(r.excl), incl: r.incl }))}
-          extra4={extra4}
-          c4Hint={
-            <C4Hint mode={c4Mode} base={c4HasData ? c4Calc.base.toFixed(2) : null} extra={c4HasData ? c4Calc.extra.toFixed(2) : null} excluded={c4Calc.excluded.toFixed(2)} total={projectedTotal.toFixed(2)} title="Себестоимость и 4%">
-                        {c4HasData && (
-                          <>
-                            <p className="mt-1">
-                              Мех {formatMoney(furUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, подкладка {formatMoney(liningUsages.reduce((a, u) => a.add(u.totalCost), new Decimal(0)).toFixed(2))}, расходы {formatMoney(expenseCost.toFixed(2))} (без 4%).
-                            </p>
-                            {c4Calc.extra.isZero() && <p className="mt-1">В списаниях этого ТЗ 4% не применяется (например, партия 6, лоскут), поэтому цифры в обоих режимах равны.</p>}
-                          </>
-                        )}
-                      </C4Hint>
-          }
-        />
-
         <Table className="min-w-[860px]">
           <Thead>
             <Tr>
@@ -521,7 +528,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               <Th className="text-right">Кол-во</Th>
               <Th className="text-right" unit="₽">Цена за ед. без НДС{c4}</Th>
               <Th className="text-right" unit="%">НДС</Th>
-              <Th className="text-center" unit="₽">4%<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint></Th>
+              <Th className="text-center" unit="₽">4%</Th>
               <Th className="text-right" unit="₽">Сумма с НДС{c4}</Th>
               <Th></Th>
             </Tr>
@@ -541,10 +548,10 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
               </>
             )}
 
-            <SectionRow>Расходы</SectionRow>
+            <SectionRow>Доп. расходы</SectionRow>
             <CollapsibleRows rows={expenseRows} colSpan={8} what="расходы" />
-            {order.expenses.length === 0 && <EmptyRow>Расходов нет</EmptyRow>}
-            <TotalRow label={<TotalLabel note="расходы" />} value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
+            {order.expenses.length === 0 && <EmptyRow>Доп. расходов нет</EmptyRow>}
+            <TotalRow label={<TotalLabel note="доп. расходы" />} value={expenseCost.isZero() ? "—" : formatMoney(expenseCost.toString())} />
 
             {!hidesI.isZero() && (
               <>
@@ -571,10 +578,16 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           </Tbody>
         </Table>
 
+        <CostSummary qty={producedOrPlanned} qtyLabel={order.status === "COMPLETED" ? "факт" : "план"} furGroups={furGroups} liningGroup={liningGroup} noUsages={order.materialUsages.length === 0} />
+
         {cancelled && <p className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600">ТЗ отменено — в Главную и сводки не входит; правки сохраняются, но на итоги не влияют.</p>}
       </section>
 
-      {drill ? <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} /> : null}
+      {drill ? (
+        <LotsDetails summary="Состав по лотам">
+          <CompositionTable order={drill} c4={c4Mode} vatRateByLot={vatRateByLot} bare />
+        </LotsDetails>
+      ) : null}
 
       <div id="drive" className="scroll-mt-4">
         <SourceDocs data={await loadOrderSourceDocs({ organizationId: orgId, role: session.user.role }, order.id)} />
