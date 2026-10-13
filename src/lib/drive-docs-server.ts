@@ -1,4 +1,5 @@
 import { rowVersion, DRIVE_DOC_V } from "@/lib/concurrency";
+import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
 import type { DriveDocument } from "@prisma/client";
 import type { DriveDocView } from "@/lib/drive-docs";
@@ -26,7 +27,7 @@ export function toDriveView(d: DriveDocument, scope?: string | null, role?: stri
     hasLink: !!d.viewUrl,
     drivePath: d.drivePath,
     scope: scope ?? null,
-    hasFile: !!d.storagePath,
+    hasFile: storedFileExists(d.storagePath),
     storedName: d.storedName,
     storedMime: d.storedMime,
     storedSize: d.storedSize,

@@ -2,6 +2,7 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
 import { fixFileNameExt } from "@/lib/purchase-files";
+import { fileNotLoaded } from "@/lib/stored-file-check";
 
 const MIME_EXT: Record<string, string> = {
   "application/pdf": "pdf",
@@ -24,7 +25,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/purchase-doc
   });
   if (!doc) return new Response("Not found", { status: 404 });
   const buf = await readStoredFile(doc.storagePath);
-  if (!buf) return new Response("Not found", { status: 404 });
+  if (!buf || buf.length === 0) return fileNotLoaded("Файл не загружен: на диске его нет");
   // RFC 5987: кодируем и «'», «(», «)», «*»; для старых клиентов — ASCII-запасной filename без кавычек.
   // Расширение — по реальному типу файла (у старых документов имя могло быть с подменённым расширением).
   const ext = MIME_EXT[doc.mimeType];

@@ -1,4 +1,5 @@
 import "server-only";
+import { storedFileExists } from "@/lib/stored-file-check";
 import { auctionKey } from "@/lib/auction-key";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -150,7 +151,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
     select: {
       id: true, amount: true, paidAt: true, status: true, kind: true, docRef: true, confirmed: true, documentId: true,
       purchaseId: true, auctionSession: true, notes: true,
-      document: { select: { id: true, title: true } },
+      document: { select: { id: true, title: true, storagePath: true } },
       purchase: { select: { number: true } },
     },
     orderBy: { paidAt: "asc" },
@@ -158,7 +159,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
   const [pdocs, ddocs] = await Promise.all([
     db.purchaseDocument.findMany({
       where: { organizationId, OR: [{ purchaseId: { in: allIds } }, ...(auctionNames.length ? [{ batch: { in: auctionNames } }] : [])] },
-      select: { id: true, purchaseId: true, batch: true, kind: true, title: true, originalName: true, createdAt: true, sizeBytes: true },
+      select: { id: true, storagePath: true, purchaseId: true, batch: true, kind: true, title: true, originalName: true, createdAt: true, sizeBytes: true },
       orderBy: { createdAt: "asc" },
     }),
     db.driveDocument.findMany({
@@ -229,7 +230,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
         id: d.id,
         title: d.title,
         meta: `${DOC_KIND_LABELS[d.kind] ?? d.kind} · ${d.purchaseId ? "эта закупка" : "весь аукцион"} · ${formatDate(d.createdAt)}`,
-        href: `/api/purchase-docs/${d.id}`,
+        href: storedFileExists(d.storagePath) ? `/api/purchase-docs/${d.id}` : null,
         replace: { action: "purchaseDoc", id: d.id },
       });
     }
@@ -241,8 +242,8 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
       addDoc(d.docType, [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`], {
         id: d.id,
         title: d.title,
-        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · файл не загружен"}`,
-        href: d.storagePath ? `/api/drive-docs/${d.id}` : null,
+        meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · файл в приложении" : " · файл не загружен"}`,
+        href: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
         replace: { action: "driveDoc", id: d.id },
       });
     }
@@ -253,7 +254,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
           id: p.document.id,
           title: p.document.title,
           meta: `Платёжка · ${formatDate(p.paidAt)}`,
-          href: `/api/purchase-docs/${p.document.id}`,
+          href: storedFileExists(p.document.storagePath) ? `/api/purchase-docs/${p.document.id}` : null,
           replace: { action: "purchaseDoc", id: p.document.id },
         });
       }
@@ -345,7 +346,7 @@ export async function loadAuctionPanels(db: Db, organizationId: string, opts: Lo
         confirmed: p.confirmed,
         hasProof,
         proofTitle: proofDoc?.title ?? driveProofs[0]?.title ?? null,
-        proofHref: proofDoc ? `/api/purchase-docs/${proofDoc.id}` : driveProofs[0]?.storagePath ? `/api/drive-docs/${driveProofs[0].id}` : null,
+        proofHref: proofDoc && storedFileExists(proofDoc.storagePath) ? `/api/purchase-docs/${proofDoc.id}` : storedFileExists(driveProofs[0]?.storagePath) ? `/api/drive-docs/${driveProofs[0].id}` : null,
         scopeText: p.purchaseId ? `закупка ${p.purchase?.number ?? ""}` : null,
         manual,
         rollback: manual ? (p.purchaseId ? { action: "purchase", id: p.id, ownerId: p.purchaseId } : { action: "auction", id: p.id, ownerId: null }) : null,

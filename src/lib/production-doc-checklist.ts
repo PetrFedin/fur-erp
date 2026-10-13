@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
@@ -52,12 +53,12 @@ const orderTitle = (o: { workOrderNumber: string | null; number: string }) => (o
 const toDoc = (d: DocRow): PanelDoc => ({
   id: d.id,
   title: d.title,
-  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${d.storagePath ? " · файл в приложении" : " · файл не загружен"}`,
-  href: d.storagePath ? `/api/drive-docs/${d.id}` : null,
+  meta: `${DRIVE_DOC_TYPE_LABELS[d.docType]}${d.docNumber ? ` №${d.docNumber}` : ""}${d.docDate ? ` · ${formatDate(d.docDate)}` : ""}${storedFileExists(d.storagePath) ? " · файл в приложении" : " · файл не загружен"}`,
+  href: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
   replace: { action: "driveDoc", id: d.id },
 });
 
-const covDoc = (d: DocRow): CovDoc => ({ type: d.docType, keys: [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`], original: !!d.storagePath });
+const covDoc = (d: DocRow): CovDoc => ({ type: d.docType, keys: [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`], original: storedFileExists(d.storagePath) });
 
 /** Уникальные документы (один и тот же файл, привязанный несколько раз, считается один раз). */
 function uniqueDocs(rows: DocRow[]): DocRow[] {
@@ -123,7 +124,7 @@ function paymentRowsOf(m: Model, orders: OrderRow[], rollbackOwner: string | nul
       confirmed: p.confirmed,
       hasProof,
       proofTitle: driveProofs[0]?.title ?? null,
-      proofHref: driveProofs[0]?.storagePath ? `/api/drive-docs/${driveProofs[0].id}` : null,
+      proofHref: storedFileExists(driveProofs[0]?.storagePath) ? `/api/drive-docs/${driveProofs[0].id}` : null,
       scopeText: null,
       manual,
       rollback: manual && rollbackOwner ? { action: "production", id: p.id, ownerId: rollbackOwner } : null,

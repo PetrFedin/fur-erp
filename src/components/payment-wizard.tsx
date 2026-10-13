@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { useConfirm } from "@/components/confirm-dialog";
 import { PaymentForm } from "@/components/payment-form";
-import { DOC_ROLES, PAY_KINDS, guessDocRole, canConfirm, type DocRole, type PayKind } from "@/lib/payment-form-core";
+import { PAY_KINDS, canConfirm, type PayKind } from "@/lib/payment-form-core";
 import { centsOf, remainingOf, rubOf, suggestSupplierAlloc, suggestWorkAlloc } from "@/lib/payment-wizard-core";
 import { getWizardData, saveWizardPayment, type WizardData, type WizardResult } from "@/app/(app)/payments/wizard-actions";
 
 const money = (c: number) => (c / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
+/** Подпись остатка цели в списке: остаток / оплачено / переплата (минус не показываем). */
+const remLabel = (c: number) => (c >= 100 ? `остаток ${money(c)}` : c <= -100 ? `переплата ${money(-c)}` : "оплачено");
 const rub = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽");
 const today = () => {
   const d = new Date();
@@ -18,7 +20,6 @@ const today = () => {
 const STEPS = ["Оплата", "Разнесение", "Что изменится"];
 const KINDS = PAY_KINDS.filter((k) => !k.supplierOnly && k.v !== "PERCENT");
 type Line = { key: string; amount: string; why: string };
-type Pick = { file: File; role: DocRole };
 
 /**
  * Мастер «Внести оплату и разнести»: 1) оплата, 2) разнесение по закупкам / аукционам / ТЗ с остатком «не разнесено»,
@@ -39,14 +40,13 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
   const [basis, setBasis] = useState("");
   const [note, setNote] = useState("");
   const [method, setMethod] = useState("BANK_TRANSFER");
-  const [files, setFiles] = useState<Pick[]>([]);
   const [markConfirmed, setMarkConfirmed] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
+  const [hint, setHint] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<WizardResult | null>(null);
   const [pending, start] = useTransition();
   const { ask, node } = useConfirm();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getWizardData().then((d) => {
@@ -77,7 +77,9 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
     if (side === "supplier") {
       const r = suggestSupplierAlloc(amountC, targets as WizardData["supTargets"], basis);
       setLines(r.parts.map((p) => ({ key: p.key, amount: rubOf(p.cents), why: p.why })));
+      setHint(r.hint ?? "");
     } else {
+      setHint("");
       const r = suggestWorkAlloc(amountC, targets as WizardData["workTargets"], basis);
       setLines(r.parts.map((p) => ({ key: p.id, amount: rubOf(p.cents), why: p.why })));
     }
@@ -90,7 +92,7 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
   if (side === "supplier" && !supplierId) step1Problems.push("Выберите поставщика");
   if (side === "work" && !clientId) step1Problems.push("Выберите заказчика");
   if (kind === "OTHER" && note.trim().length < 3) step1Problems.push("Для вида «Другое» напишите пометку");
-  if (markConfirmed && !canConfirm({ hasProofFile: files.some((f) => f.role === "PAYMENT_PROOF"), ppNo, paidAt, amount: amountC / 100 })) step1Problems.push("«Подтверждено» — только с № п/п или платёжкой");
+  if (markConfirmed && !canConfirm({ hasProofFile: false, ppNo, paidAt, amount: amountC / 100 })) step1Problems.push("«Подтверждено» — только с № п/п");
 
   const step2Problems: string[] = [];
   if (lines.some((l) => !(centsOf(l.amount) >= 1))) step2Problems.push("У каждой строки сумма должна быть больше нуля");
@@ -111,7 +113,6 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
   function buildForm(confirmOverpay: boolean): FormData {
     const fd = new FormData();
     fd.set("payload", JSON.stringify({ side, kind, paidAt, amount, ppNo, basis, note, method, supplierId, clientId, markConfirmed, confirmOverpay, parts: lines.map((l) => ({ key: l.key, amount: l.amount })) }));
-    for (const f of files) { fd.append("files", f.file); fd.append("fileRoles", f.role); }
     return fd;
   }
   function save(confirmOverpay = false) {
@@ -179,21 +180,7 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
             <div className="sm:col-span-2"><Label htmlFor="pw-basis">Основание (по нему система предложит разнесение)</Label><Input id="pw-basis" value={basis} onChange={(e) => { setBasis(e.target.value); setLines([]); }} placeholder={side === "supplier" ? "например: счёт 2004, спецификация 13, СП 09.26" : "например: ТЗ 88, ТЗ 91"} /></div>
             {(kind === "OTHER" || note) && <div className="sm:col-span-2"><Label htmlFor="pw-note">Пометка</Label><Input id="pw-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>}
           </div>
-          <div className="flex flex-col gap-2 rounded-md border border-neutral-200 p-2">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <input ref={fileRef} type="file" multiple accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png" className="hidden" onChange={(e) => { const add = [...(e.target.files ?? [])].map((file) => ({ file, role: guessDocRole(file.name) })); setFiles((f) => [...f, ...add].slice(0, 10)); e.target.value = ""; }} />
-              <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()}>Приложить документ (платёжка, счёт…)</Button>
-              <span className="text-xs text-neutral-500">необязательно; до 10 файлов</span>
-            </div>
-            {files.map((f, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="max-w-[16rem] break-words">{f.file.name}</span>
-                <Select className="h-8 w-48 text-xs" value={f.role} onChange={(e) => setFiles((fs) => fs.map((x, j) => (j === i ? { ...x, role: e.target.value as DocRole } : x)))} aria-label="Тип документа">{DOC_ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</Select>
-                <button type="button" className="text-neutral-500 underline" onClick={() => setFiles((fs) => fs.filter((_, j) => j !== i))}>убрать</button>
-              </div>
-            ))}
-          </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={markConfirmed} onChange={(e) => setMarkConfirmed(e.target.checked)} /> Отметить оплату подтверждённой (нужен № п/п или платёжка)</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={markConfirmed} onChange={(e) => setMarkConfirmed(e.target.checked)} /> Отметить оплату подтверждённой (нужен № п/п)</label>
         </div>
       )}
 
@@ -201,9 +188,10 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" className="btn-accent" variant="outline" onClick={autoAlloc}>Разнести автоматически</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setLines([])}>Оставить авансом</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => { setLines([]); setHint(""); }}>Оставить авансом</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, { key: "", amount: restC > 0 ? rubOf(restC) : "", why: "добавлено вручную" }])} disabled={targets.length === 0}>+ Строка</Button>
           </div>
+          {hint && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note" data-wizard-hint>{hint}</p>}
           {targets.length === 0 && <p className="text-sm text-amber-800">{side === "supplier" ? "У этого поставщика нет закупок для разнесения — оплата будет внесена авансом." : "У этого заказчика нет ТЗ для разнесения — оплата будет внесена как неразнесённый аванс."}</p>}
           {lines.length > 0 && (
             <div className="overflow-x-auto">
@@ -212,7 +200,7 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
                 <tbody>
                   {lines.map((l, i) => (
                     <tr key={i} className="border-t border-neutral-100 align-top">
-                      <td className="py-1 pr-2"><Select className="h-8 text-xs" value={l.key} onChange={(e) => patchLine(i, { key: e.target.value, why: "выбрано вручную" })} aria-label="Цель разнесения"><option value="">Выберите…</option>{targetOptions(l.key).map((t) => { const k = "key" in t ? t.key : t.id; return <option key={k} value={k}>{t.label} · остаток {money("key" in t ? remainingOf(t) : t.workCents - t.paidCents)}</option>; })}</Select></td>
+                      <td className="py-1 pr-2"><Select className="h-8 text-xs" value={l.key} onChange={(e) => patchLine(i, { key: e.target.value, why: "выбрано вручную" })} aria-label="Цель разнесения"><option value="">Выберите…</option>{targetOptions(l.key).map((t) => { const k = "key" in t ? t.key : t.id; return <option key={k} value={k}>{t.label} · {remLabel("key" in t ? remainingOf(t) : t.workCents - t.paidCents)}</option>; })}</Select></td>
                       <td className="py-1 text-right tabular-nums">{l.key ? money(remOf(l.key)) : "—"}</td>
                       <td className="py-1"><Input className="h-8 text-right text-xs" inputMode="decimal" value={l.amount} onChange={(e) => patchLine(i, { amount: e.target.value, why: "изменено вручную" })} aria-label="Сумма" /></td>
                       <td className="py-1 pl-2 text-xs text-neutral-500">{l.why}</td>
@@ -244,7 +232,7 @@ export function PaymentWizard({ onDone }: { onDone?: () => void }) {
           ) : (
             <div className="rounded-md bg-[var(--ui-soft)] px-3 py-2 text-sm">Долг заказчика уменьшится на {money(amountC)}: на ТЗ разнесено {money(sumC)}{restC > 0 ? `, ещё ${money(restC)} учитывается отдельной строкой «неразнесённые авансы»` : ""}. В Контроле неразнесённое остаётся в списке авансов до разнесения.</div>
           )}
-          <p className="text-xs text-neutral-500">Подтверждение связанных закупок / ТЗ сбрасывается — проверьте их в «Подтвердить». {files.length ? `Документов приложено: ${files.length}.` : "Документ не приложен: оплата будет ждать платёжки или № п/п."}</p>
+          <p className="text-xs text-neutral-500">Подтверждение связанных закупок / ТЗ сбрасывается — проверьте их в «Подтвердить». Файлы в мастере не прикрепляются: назовите документ-основание в поле «Основание» (счёт, п/п).</p>
         </div>
       )}
 

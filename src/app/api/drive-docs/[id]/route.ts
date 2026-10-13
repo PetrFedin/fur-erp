@@ -2,6 +2,7 @@ import { getFreshSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { readStoredFile } from "@/lib/fitting-files";
 import { fixFileNameExt } from "@/lib/purchase-files";
+import { fileNotLoaded } from "@/lib/stored-file-check";
 
 const MIME_EXT: Record<string, string> = {
   "application/pdf": "pdf",
@@ -29,11 +30,11 @@ export async function GET(request: Request, ctx: RouteContext<"/api/drive-docs/[
   if (!doc) return new Response("Not found", { status: 404 });
 
   if (!doc.storagePath || !doc.storedMime || !(doc.storedMime in MIME_EXT)) {
-    return new Response("Файл не загружен", { status: 404 });
+    return fileNotLoaded();
   }
   const buf = await readStoredFile(doc.storagePath);
-  if (!buf) {
-    return new Response("Файл не найден на диске", { status: 404 });
+  if (!buf || buf.length === 0) {
+    return fileNotLoaded("Файл не загружен: на диске его нет");
   }
   const ext = MIME_EXT[doc.storedMime];
   const fileName = fixFileNameExt((doc.storedName || doc.title || "документ").replace(/["\u0000-\u001f]/g, "'"), ext);

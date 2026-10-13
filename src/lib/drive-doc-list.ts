@@ -1,4 +1,5 @@
 import "server-only";
+import { storedFileExists } from "@/lib/stored-file-check";
 import type { PrismaClient } from "@prisma/client";
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 
@@ -115,9 +116,9 @@ export async function loadDocList(db: PrismaClient, organizationId: string): Pro
     items.push({
       id: `d-${d.id}`, source: "drive", title: d.title, docType: d.docType, number: d.docNumber, date,
       year: d.year ?? (date ? date.getUTCFullYear() : null),
-      hasOriginal: !!d.storagePath,
+      hasOriginal: storedFileExists(d.storagePath),
       size: d.sizeBytes ?? d.storedSize,
-      openHref: d.storagePath ? `/api/drive-docs/${d.id}` : null,
+      openHref: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
       links,
     });
   }

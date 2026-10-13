@@ -86,7 +86,7 @@ export function VerifyQueue({ items, readyAll }: { items: Item[]; readyAll: { ke
           </>
         )}
         {readyAll.length > 0 ? (
-          <Button type="button" size="sm" disabled={pending} onClick={() => run(readyAll.map((x) => x.row), "все готовые")} className="max-md:h-9">Подтвердить все готовые ({readyAll.length})…</Button>
+          <Button type="button" size="sm" disabled={pending} onClick={() => run(readyAll.map((x) => x.row), "все готовые")} className="max-md:h-9">Подтвердить все готовые ({readyAll.length}, по всем вкладкам)…</Button>
         ) : (
           <span className="text-xs text-neutral-500">Готовых к подтверждению строк без замечаний сейчас нет.</span>
         )}

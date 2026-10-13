@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DRIVE_DOC_TYPE_LABELS, type DriveDocTypeKey } from "@/lib/drive-docs";
 import { stripServiceTags } from "@/lib/note-tags";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
+import { existingStoredPaths, storedFileExists } from "@/lib/stored-file-check";
 
 /**
  * Документы, прикреплённые к строкам: единый источник для значка «📎 N» и окна DocViewer.
@@ -130,9 +131,9 @@ export async function listDocs(orgId: string, entity: DocEntity, id: string): Pr
       date: d.docDate ? d.docDate.toISOString().slice(0, 10) : null,
       size: d.storedSize ?? d.sizeBytes,
       mime: d.storedMime,
-      hasFile: !!d.storagePath,
+      hasFile: storedFileExists(d.storagePath),
       scope,
-      fileUrl: d.storagePath ? `/api/drive-docs/${d.id}` : null,
+      fileUrl: storedFileExists(d.storagePath) ? `/api/drive-docs/${d.id}` : null,
     });
   };
   own.forEach((d) => addDrive(d, null));
@@ -149,9 +150,9 @@ export async function listDocs(orgId: string, entity: DocEntity, id: string): Pr
       date: p.createdAt.toISOString().slice(0, 10),
       size: p.sizeBytes,
       mime: p.mimeType,
-      hasFile: true,
+      hasFile: storedFileExists(p.storagePath),
       scope: p.purchaseId ? (entity === "purchase" ? null : "Закупка") : `Партия ${p.batch ?? ""}`.trim(),
-      fileUrl: `/api/purchase-docs/${p.id}`,
+      fileUrl: storedFileExists(p.storagePath) ? `/api/purchase-docs/${p.id}` : null,
     });
   }
   return out;
@@ -178,21 +179,23 @@ export async function docCounts(orgId: string, entity: DocEntity, ids: string[])
       const files = new Map<string, boolean>();
       for (const d of rows) {
         const mine = d.productionBatchId === bid || (d.productionOrderId != null && sc.orders.has(d.productionOrderId)) || (d.productionPaymentId != null && sc.payIds.has(d.productionPaymentId));
-        if (mine) files.set(d.driveFileId, (files.get(d.driveFileId) ?? false) || !!d.storagePath);
+        if (mine) files.set(d.driveFileId, (files.get(d.driveFileId) ?? false) || storedFileExists(d.storagePath));
       }
       if (files.size) res.set(bid, { total: files.size, stored: [...files.values()].filter(Boolean).length });
     }
     return res;
   }
   const col = Prisma.raw(`"${DRIVE_COL[entity]}"`);
+  // «С файлом» — только пути, которые реально лежат на диске (пустой массив: ни одного файла).
+  const okPaths = await existingStoredPaths();
   const rows =
     entity === "lot"
       ? await prisma.$queryRaw<{ id: string; total: bigint; stored: bigint }[]>`
-    select l.id as id, count(distinct d."driveFileId") as total, count(distinct d."driveFileId") filter (where d."storagePath" is not null) as stored
+    select l.id as id, count(distinct d."driveFileId") as total, count(distinct d."driveFileId") filter (where d."storagePath" = any(${okPaths}::text[])) as stored
     from "RawMaterialLot" l join "DriveDocument" d on d."lotId" = l.id or (l."purchaseId" is not null and d."purchaseId" = l."purchaseId")
     where l."organizationId" = ${orgId} and d."organizationId" = ${orgId} and l.id in (${Prisma.join(ids)}) group by l.id`
       : await prisma.$queryRaw<{ id: string; total: bigint; stored: bigint }[]>`
-    select ${col} as id, count(distinct "driveFileId") as total, count(distinct "driveFileId") filter (where "storagePath" is not null) as stored
+    select ${col} as id, count(distinct "driveFileId") as total, count(distinct "driveFileId") filter (where "storagePath" = any(${okPaths}::text[])) as stored
     from "DriveDocument" where "organizationId" = ${orgId} and ${col} in (${Prisma.join(ids)}) group by ${col}`;
   for (const r of rows) res.set(r.id, { total: Number(r.total), stored: Number(r.stored) });
   if (entity === "purchase" || entity === "lot") {
@@ -207,17 +210,28 @@ export async function docCounts(orgId: string, entity: DocEntity, ids: string[])
     const pIds = [...new Set(ps.map((p) => ("purchaseId" in p ? p.purchaseId : p.id)).filter((x): x is string => !!x))];
     const sessions = [...new Set(ps.map((p) => p.auctionSession).filter((x): x is string => !!x))];
     const [byPurchase, bySession] = await Promise.all([
-      pIds.length ? prisma.purchaseDocument.groupBy({ by: ["purchaseId"], where: { organizationId: orgId, purchaseId: { in: pIds } }, _count: true }) : [],
-      sessions.length ? prisma.purchaseDocument.groupBy({ by: ["batch"], where: { organizationId: orgId, purchaseId: null, batch: { in: sessions } }, _count: true }) : [],
+      pIds.length ? prisma.purchaseDocument.findMany({ where: { organizationId: orgId, purchaseId: { in: pIds } }, select: { purchaseId: true, storagePath: true } }) : [],
+      sessions.length ? prisma.purchaseDocument.findMany({ where: { organizationId: orgId, purchaseId: null, batch: { in: sessions } }, select: { batch: true, storagePath: true } }) : [],
     ]);
-    const pc = new Map(byPurchase.map((r) => [r.purchaseId, r._count]));
-    const sc = new Map(bySession.map((r) => [r.batch, r._count]));
+    type PC = { total: number; stored: number };
+    const pc = new Map<string | null, PC>();
+    const sc = new Map<string | null, PC>();
+    const bump = (m: Map<string | null, PC>, k: string | null, path: string) => {
+      const c = m.get(k) ?? { total: 0, stored: 0 };
+      c.total++;
+      if (storedFileExists(path)) c.stored++;
+      m.set(k, c);
+    };
+    byPurchase.forEach((r) => bump(pc, r.purchaseId, r.storagePath));
+    bySession.forEach((r) => bump(sc, r.batch, r.storagePath));
     for (const p of ps) {
       const pid = ("purchaseId" in p ? p.purchaseId : p.id) as string | null;
-      const extra = (pid ? (pc.get(pid) ?? 0) : 0) + (p.auctionSession ? (sc.get(p.auctionSession) ?? 0) : 0);
+      const a = pid ? pc.get(pid) : undefined;
+      const b = p.auctionSession ? sc.get(p.auctionSession) : undefined;
+      const extra = (a?.total ?? 0) + (b?.total ?? 0);
       if (!extra) continue;
       const cur = res.get(p.id) ?? { total: 0, stored: 0 };
-      res.set(p.id, { total: cur.total + extra, stored: cur.stored + extra });
+      res.set(p.id, { total: cur.total + extra, stored: cur.stored + (a?.stored ?? 0) + (b?.stored ?? 0) });
     }
   }
   return res;

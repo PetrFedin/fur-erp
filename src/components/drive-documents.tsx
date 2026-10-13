@@ -109,7 +109,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium break-words" title={d.drivePath ? `Исходная папка: ${d.drivePath}` : undefined}>{stripServiceTags(d.title)}</span>
           <Badge>{DRIVE_DOC_TYPE_LABELS[d.docType]}</Badge>
-          {d.hasFile ? <Badge variant="success">Файл в приложении</Badge> : <Badge variant="warning">Файл не приложен</Badge>}
+          {d.hasFile ? <Badge variant="success">Файл в приложении</Badge> : <Badge variant="warning">Файл не загружен</Badge>}
           {date && <span className="text-xs text-neutral-500">{date}</span>}
           {d.docNumber && <span className="text-xs text-neutral-500">№ {d.docNumber}</span>}
           {d.scope && !copies && <span className="text-xs text-neutral-500">· {d.scope}</span>}
@@ -159,7 +159,7 @@ function DocItem({ d, canEdit, copies }: { d: DriveDocView; canEdit: boolean; co
             )}
           </>
         ) : (
-          <span className="text-xs text-neutral-500">Файл не приложен</span>
+          <span className="text-xs text-neutral-500">Файл не загружен</span>
         )}
         {canEdit && d.canRemove === false && (
           <span className="text-xs text-neutral-500">Управляют владелец и администратор</span>

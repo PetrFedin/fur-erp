@@ -105,19 +105,22 @@ function ItemRow({ it, canUpload }: { it: PanelItem; canUpload: boolean }) {
             <span className={cn("text-base font-bold leading-none", markCls)} aria-hidden>{mark}</span>
             <span className="font-medium">{it.label}</span>
             {it.docs.length > 0 && <span className="text-xs text-emerald-700">есть: {it.docs.length}</span>}
+            {it.docs.some((d) => !d.href) && <span className="text-xs text-amber-700">файл не загружен: {it.docs.filter((d) => !d.href).length}</span>}
             {it.note && <InfoHint wide label={`Пояснение: ${it.label}`}><p>{it.note}</p></InfoHint>}
-            <span className="ml-auto text-xs text-neutral-500">файлы ›</span>
+            <span className="ml-auto text-xs text-neutral-500">документы ›</span>
           </summary>
           <ul className="mt-2 flex flex-col gap-1">
             {it.docs.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <span className="min-w-0 break-words font-medium text-neutral-800">{d.title}</span>
                 <InfoHint label="Подробности файла"><p>{d.meta}</p></InfoHint>
-                {d.href && (
+                {d.href ? (
                   <>
                     <a href={d.href} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Открыть</a>
                     <a href={`${d.href}${d.href.includes("?") ? "&" : "?"}download=1`} className="text-blue-600 hover:underline">Скачать</a>
                   </>
+                ) : (
+                  <span className="text-neutral-500">файл не загружен</span>
                 )}
               </li>
             ))}

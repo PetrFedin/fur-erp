@@ -1,4 +1,5 @@
 import "server-only";
+import { storedFileExists } from "@/lib/stored-file-check";
 import { prisma } from "@/lib/prisma";
 import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
@@ -56,7 +57,7 @@ const isoDay = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 const sizeText = (n: number | null | undefined) => (n ? `${formatMb(n)} МБ` : "");
 
 function fromDrive(d: DriveRow): PoolDoc {
-  const file: SourceDocFile | null = d.storagePath
+  const file: SourceDocFile | null = storedFileExists(d.storagePath)
     ? {
         id: d.id,
         src: "drive",
@@ -70,11 +71,11 @@ function fromDrive(d: DriveRow): PoolDoc {
   return { file, recordId: d.id, src: "drive", docType: d.docType, number: d.docNumber, date: isoDay(d.docDate), title: d.title };
 }
 
-type PurchaseDocRow = { id: string; kind: string; title: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: Date };
+type PurchaseDocRow = { id: string; storagePath: string; kind: string; title: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: Date };
 function fromPurchaseDoc(d: PurchaseDocRow): PoolDoc {
   const docType = PURCHASE_KIND_TO_TYPE[d.kind] ?? "OTHER";
   return {
-    file: {
+    file: !storedFileExists(d.storagePath) ? null : {
       id: d.id,
       src: "purchase",
       title: d.title || d.originalName,
@@ -142,6 +143,13 @@ function buildRows(session: SourceSession, refs: RefSrc[], pool: PoolDoc[], ownT
       canUpload: !!ownTarget && can(session.role, ownTarget),
     });
   }
+  // Ключи строк уникальны: два упоминания одного вида и номера в разной записи (например, «№ 5» и «№5/1» с общей датой) не дают одинаковый key в React.
+  const seenKeys = new Map<string, number>();
+  for (const r of rows) {
+    const n = (seenKeys.get(r.key) ?? 0) + 1;
+    seenKeys.set(r.key, n);
+    if (n > 1) r.key = `${r.key}#${n}`;
+  }
   return { rows, hiddenLinks: withExtras ? unclaimed.filter((d) => !d.file).length : 0 };
 }
 
@@ -188,7 +196,7 @@ async function purchaseRefsAndPool(orgId: string, purchaseIds: string[]) {
     }),
     prisma.purchaseDocument.findMany({
       where: { organizationId: orgId, OR: [{ purchaseId: { in: purchaseIds } }, ...(sessions.length ? [{ purchaseId: null, batch: { in: sessions } }] : [])] },
-      select: { id: true, kind: true, title: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
+      select: { id: true, storagePath: true, kind: true, title: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -320,7 +328,7 @@ export async function loadPaymentsSourceDocs(
     purchaseIds.length
       ? prisma.purchaseDocument.findMany({
           where: { organizationId: orgId, purchaseId: { in: purchaseIds } },
-          select: { id: true, kind: true, title: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true, purchaseId: true },
+          select: { id: true, storagePath: true, kind: true, title: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true, purchaseId: true },
         })
       : [],
   ]);

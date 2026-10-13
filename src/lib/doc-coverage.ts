@@ -1,4 +1,5 @@
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
 import type { PrismaClient } from "@prisma/client";
 import { auctionName } from "@/lib/auction-payments";
@@ -260,7 +261,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     }),
     db.purchaseDocument.findMany({
       where: { organizationId },
-      select: { id: true, purchaseId: true, batch: true, kind: true, title: true, originalName: true },
+      select: { id: true, storagePath: true, purchaseId: true, batch: true, kind: true, title: true, originalName: true },
     }),
     db.driveDocument.findMany({
       where: { organizationId },
@@ -319,7 +320,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
     const doc: CovDoc = {
       type: d.docType,
       keys: [`${d.docType}|t:${normTitle(d.title)}`, `${d.docType}|f:${d.driveFileId}`],
-      original: !!d.storagePath,
+      original: storedFileExists(d.storagePath),
     };
     push(dPurchase, d.purchaseId ?? d.lot?.purchaseId, doc);
     push(dOrder, d.productionOrderId, doc);
@@ -334,7 +335,7 @@ export async function computeDocCoverage(db: PrismaClient, organizationId: strin
   const pdocOfAuction = new Map<string, CovDoc[]>();
   for (const d of pdocs) {
     const type = PURCHASE_KIND_TO_TYPE[d.kind] ?? "OTHER";
-    const doc: CovDoc = { type, keys: [`${type}|t:${normTitle(d.title)}`, `${type}|t:${normTitle(d.originalName)}`], original: true };
+    const doc: CovDoc = { type, keys: [`${type}|t:${normTitle(d.title)}`, `${type}|t:${normTitle(d.originalName)}`], original: storedFileExists(d.storagePath) };
     pdocById.set(d.id, doc);
     if (d.purchaseId) push(pdocOfPurchase, d.purchaseId, doc);
     else push(pdocOfAuction, d.batch ? auctionName(d.batch) : null, doc);

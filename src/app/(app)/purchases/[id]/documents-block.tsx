@@ -3,6 +3,7 @@ import { DocFileButtons } from "@/components/doc-preview";
 import { ConfirmSubmitButton } from "./documents-form";
 import { DOC_KIND_LABELS } from "@/lib/purchase-files";
 import { formatDate } from "@/lib/utils";
+import { storedFileExists } from "@/lib/stored-file-check";
 import { deletePurchaseDocument } from "../doc-actions";
 import type { DriveDocView } from "@/lib/drive-docs";
 import { copiesLabel, docGroupKey, groupBy, matchDriveToFiles } from "@/lib/drive-docs-group";
@@ -16,6 +17,8 @@ export type FileDocRow = {
   sizeBytes: number;
   createdAt: Date;
   batch: boolean;
+  /** Путь файла в хранилище: по нему определяем, лежит ли файл на диске. */
+  storagePath?: string;
   /** Документ прикреплён к лоту — управляется в карточке лота (первоисточник). */
   lotId?: string | null;
 };
@@ -79,12 +82,17 @@ export function PurchaseDocumentsList({
   const list = buildDocGroups(files, drives);
 
   function fileRow(d: FileDocRow, drive?: DriveDocRow[]) {
+    const stored = d.storagePath === undefined || storedFileExists(d.storagePath);
     return (
       <div key={d.id} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">
-          <a href={`/api/purchase-docs/${d.id}`} target="_blank" rel="noreferrer" className="break-words font-medium hover:underline">
-            {d.title}
-          </a>
+          {stored ? (
+            <a href={`/api/purchase-docs/${d.id}`} target="_blank" rel="noreferrer" className="break-words font-medium hover:underline">
+              {d.title}
+            </a>
+          ) : (
+            <span className="break-words font-medium">{d.title}</span>
+          )}
           <span className="ml-2 text-xs text-neutral-500">
             {DOC_KIND_LABELS[d.kind as keyof typeof DOC_KIND_LABELS]}
             {d.batch ? ` · вся партия ${batchName}` : d.lotId ? "" : " · эта закупка"} · {formatDate(d.createdAt)}
@@ -92,7 +100,7 @@ export function PurchaseDocumentsList({
           </span>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} />
+          {stored ? <DocFileButtons href={`/api/purchase-docs/${d.id}`} mime={d.mimeType} title={d.title} /> : <span className="text-xs text-neutral-500">Файл не загружен</span>}
           {canEdit && !d.lotId && (
             <form
               action={async () => {

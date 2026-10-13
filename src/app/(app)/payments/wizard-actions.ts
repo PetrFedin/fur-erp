@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -8,9 +7,6 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { parseDateInput } from "@/lib/input";
 import { revalidateAll } from "@/lib/revalidate-all";
-import { removeStoredFiles } from "@/lib/fitting-files";
-import { isPickedFile, readDocumentFiles, writeDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
-import { writeDriveFile } from "@/lib/drive-files";
 import { auctionName, lockAuction, loadAuctionSummaries, PAY_EPS } from "@/lib/auction-payments";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
@@ -18,7 +14,7 @@ import { resetVerification } from "@/lib/verification";
 import { allocatedCentsByOrder, orderWorkCents } from "@/lib/payment-alloc";
 import { fromCents, toCents } from "@/lib/payment-alloc-core";
 import { refFromField, extractDocRefs } from "@/lib/source-docs";
-import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type DocRole, type PayKind } from "@/lib/payment-form-core";
+import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type PayKind } from "@/lib/payment-form-core";
 import { normRef, type SupTarget, type WorkTarget } from "@/lib/payment-wizard-core";
 import { formatMoney } from "@/lib/utils";
 
@@ -52,7 +48,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
   if (!canSupplier && !canWork) return { error: "Недостаточно прав для внесения оплаты" };
   const out: WizardData = { canSupplier, canWork, suppliers: [], supTargets: [], clients: [], workTargets: [], debtNow: null };
   if (canSupplier) {
-    const [sums, purchases, suppliers, debt] = await Promise.all([
+    const [sums, purchases, suppliers, debt, invoiceDocs, paidRefs] = await Promise.all([
       loadAuctionSummaries(prisma, orgId),
       prisma.purchase.findMany({
         where: { organizationId: orgId, status: { not: "CANCELLED" } },
@@ -61,8 +57,24 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
       }),
       prisma.supplier.findMany({ where: { organizationId: orgId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       loadSupplierDebt(prisma, orgId),
+      // Номера счетов Веллмех на оплату (PAYMENT_INVOICE), приложенных к закупкам: «счёт №83» → какие аукционы он покрывает.
+      prisma.driveDocument.findMany({ where: { organizationId: orgId, docType: "PAYMENT_INVOICE", docNumber: { not: null }, purchaseId: { not: null } }, select: { purchaseId: true, docNumber: true, docDate: true } }),
+      // Счета, уже названные в основании внесённых оплат: следующая доплата по тому же счёту идёт на ту же цель.
+      prisma.payment.findMany({ where: { organizationId: orgId, status: "COMPLETED", docRef: { not: null } }, select: { purchaseId: true, auctionSession: true, docRef: true } }),
     ]);
     out.suppliers = suppliers;
+    const invoiceOfPurchase = new Map<string, string[]>();
+    // Номера счетов повторяются из года в год (№117 в 2025 и в 2026): помним год документа — «117@2026».
+    const datedRef = (num: string, date: string | Date | null | undefined) => `${normRef(num)}${date ? "@" + (typeof date === "string" ? date : date.toISOString()).slice(0, 4) : ""}`;
+    for (const d of invoiceDocs) if (d.purchaseId && d.docNumber) invoiceOfPurchase.set(d.purchaseId, [...(invoiceOfPurchase.get(d.purchaseId) ?? []), datedRef(d.docNumber, d.docDate)]);
+    const invoiceOfPurchasePay = new Map<string, string[]>();
+    const invoiceOfAuctionPay = new Map<string, string[]>();
+    for (const x of paidRefs) {
+      const nums = extractDocRefs(x.docRef).filter((r) => r.docType === "PAYMENT_INVOICE" && r.number).map((r) => datedRef(r.number!, r.date));
+      if (!nums.length) continue;
+      if (x.purchaseId) invoiceOfPurchasePay.set(x.purchaseId, [...(invoiceOfPurchasePay.get(x.purchaseId) ?? []), ...nums]);
+      if (x.auctionSession) invoiceOfAuctionPay.set(x.auctionSession, [...(invoiceOfAuctionPay.get(x.auctionSession) ?? []), ...nums]);
+    }
     out.debtNow = d2(debt.debt);
     const refsOfPurchase = (p: (typeof purchases)[number]) => {
       const r: string[] = [normRef(p.number)];
@@ -71,6 +83,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
       const upd = refFromField("UPD", p.transferDocument);
       if (upd?.number) r.push(normRef(upd.number));
       for (const x of extractDocRefs(p.notes)) if (x.number && (x.docType === "SPECIFICATION" || x.docType === "PAYMENT_INVOICE" || x.docType === "UPD")) r.push(normRef(x.number));
+      r.push(...(invoiceOfPurchase.get(p.id) ?? []), ...(invoiceOfPurchasePay.get(p.id) ?? []));
       return r.filter(Boolean);
     };
     for (const s of sums.filter((x) => x.purchases > 0)) {
@@ -81,7 +94,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
         supplierIds: s.suppliers.map((x) => x.id),
         totalCents: toCents(s.total.toFixed(2)),
         paidCents: toCents(s.paid.toFixed(2)),
-        refs: [...new Set([normRef(s.name), ...ps.flatMap(refsOfPurchase)])],
+        refs: [...new Set([normRef(s.name), ...ps.flatMap(refsOfPurchase), ...(invoiceOfAuctionPay.get(s.name) ?? [])])],
         date: iso(ps[0]?.orderDate),
       });
     }
@@ -184,23 +197,11 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
   if (sumC > amountC) return { error: `Разнесено ${formatMoney(sumC / 100)} — больше суммы оплаты ${formatMoney(amountC / 100)}. Уменьшите суммы в таблице.` };
   const restC = amountC - sumC;
 
-  // файлы: платёжка / счёт / письмо / другое
-  const entries = formData.getAll("files").filter(isPickedFile);
-  const roles = formData.getAll("fileRoles").map(String);
-  const docs: { doc: ReadDoc; role: DocRole }[] = [];
-  if (entries.length > 10) return { error: "За один раз можно приложить не больше 10 файлов" };
-  for (let i = 0; i < entries.length; i++) {
-    const r = await readDocumentFiles([entries[i]]);
-    if ("error" in r) return { error: r.error };
-    docs.push({ doc: r.files[0], role: (["PAYMENT_PROOF", "PAYMENT_INVOICE", "APPROVAL_EMAIL", "OTHER"].includes(roles[i]) ? roles[i] : "OTHER") as DocRole });
-  }
-  const hasProof = docs.some((d) => d.role === "PAYMENT_PROOF");
-  if (p.markConfirmed && !canConfirm({ hasProofFile: hasProof, ppNo, paidAt: paidIso, amount: amountC / 100 })) {
-    return { error: "«Подтверждено» можно отметить, только если указан № п/п (с датой и суммой) или приложена платёжка." };
+  // Файлы в мастере пока не прикрепляем (решение владельца 13.10.2026): документ-основание называется в поле «Основание».
+  if (p.markConfirmed && !canConfirm({ hasProofFile: false, ppNo, paidAt: paidIso, amount: amountC / 100 })) {
+    return { error: "«Подтверждено» можно отметить, только если указан № п/п (с датой и суммой)." };
   }
 
-  const stored: string[] = [];
-  const storedDrive: string[] = [];
   const debtBefore = side === "supplier" ? d2((await loadSupplierDebt(prisma, orgId)).debt) : null;
   let result: WizardResult;
   try {
@@ -209,11 +210,8 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         const warn = [...warns];
         const lines: string[] = [];
         const docRef = docRefOf(ppNo, paidIso);
-        const kindLabel = kindDef.label;
         const baseNotes = [kindNote(p.kind), basis ? `Основание: ${basis}` : "", noteIn, "внесена в мастере оплаты"].filter(Boolean);
-        const proof = docs.find((d) => d.role === "PAYMENT_PROOF");
-        const others = docs.filter((d) => d !== proof);
-        const confirmedFlag = p.markConfirmed || !!proof;
+        const confirmedFlag = p.markConfirmed;
         const confirmStamp = p.markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {};
         const dupSince = new Date(Date.now() - 2 * 60 * 1000);
 
@@ -249,14 +247,6 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
           if (dup > 0) warn.push("Такая же оплата (сумма, дата, поставщик) только что уже записана — возможно, это двойная отправка.");
           if (warn.length > 0 && !p.confirmOverpay) return { confirm: `${warn.join(" ")} Всё равно записать?` };
 
-          let documentId: string | null = null;
-          if (proof) {
-            const w = await writeDocumentFiles(orgId, "payments", [proof.doc]);
-            stored.push(w[0].storagePath);
-            const first = links[0];
-            const pd = await tx.purchaseDocument.create({ data: { organizationId: orgId, purchaseId: first?.purchaseForDoc ?? null, batch: first?.auction ?? null, kind: "PAYMENT_PROOF", title: `Платёжка: ${kindLabel} ${paidIso}`, ...w[0] } });
-            documentId = pd.id;
-          }
           const rows = [...links.map((l) => ({ c: l.c, ...l.link, title: l.title })), ...(restC > 0 ? [{ c: restC, auctionSession: null, purchaseId: null, title: "Аванс без привязки (остаток)" }] : [])];
           const ids: string[] = [];
           for (let i = 0; i < rows.length; i++) {
@@ -266,16 +256,11 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
                 organizationId: orgId, supplierId, purchaseId: r.purchaseId, auctionSession: r.auctionSession, amount: new Decimal(r.c / 100),
                 currency: "RUB", method, status: "COMPLETED", paidAt, kind: kindDef.db,
                 notes: [...baseNotes, rows.length > 1 ? `часть ${i + 1} из ${rows.length} оплаты ${formatMoney(amountC / 100)}` : "", !r.purchaseId && !r.auctionSession ? SAVED_LATER_NOTE : ""].filter(Boolean).join(" · ").slice(0, 1000),
-                documentId, docRef, confirmed: confirmedFlag, ...confirmStamp,
+                docRef, confirmed: confirmedFlag, ...confirmStamp,
               },
             });
             ids.push(pay.id);
             lines.push(`${r.title}: ${formatMoney(r.c / 100)}`);
-          }
-          for (const s of others) {
-            const f = await writeDriveFile(orgId, s.doc);
-            storedDrive.push(f.storagePath);
-            await tx.driveDocument.create({ data: { organizationId: orgId, driveFileId: `local-${randomUUID()}`, title: `${s.role === "PAYMENT_INVOICE" ? "Счёт" : s.role === "APPROVAL_EMAIL" ? "Письмо-согласование" : "Документ"}: ${s.doc.originalName}`.slice(0, 200), docType: s.role, mimeType: f.storedMime, sizeBytes: f.storedSize, ...f, storedAt: new Date(), paymentId: ids[0], purchaseId: links[0]?.purchaseForDoc ?? null } });
           }
           await resetVerification(tx, orgId, { auctions: links.map((l) => l.auction), purchaseIds: links.map((l) => l.purchaseForDoc), paymentIds: ids });
           return { ok: true, paymentIds: ids, summary: { lines, debtBefore, debtAfter: null } };
@@ -312,11 +297,6 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         if (parts.length) {
           await tx.paymentAllocation.createMany({ data: parts.map((x) => ({ organizationId: orgId, productionPaymentId: pay.id, productionOrderId: x.key, amount: fromCents(x.c), source: "MANUAL" as const, note: "Разнесено в мастере оплаты" })) });
         }
-        for (const s of docs) {
-          const f = await writeDriveFile(orgId, s.doc);
-          storedDrive.push(f.storagePath);
-          await tx.driveDocument.create({ data: { organizationId: orgId, driveFileId: `local-${randomUUID()}`, title: `${s.role === "PAYMENT_PROOF" ? "Платёжка" : s.role === "PAYMENT_INVOICE" ? "Счёт" : s.role === "APPROVAL_EMAIL" ? "Письмо-согласование" : "Документ"}: ${s.doc.originalName}`.slice(0, 200), docType: s.role, mimeType: f.storedMime, sizeBytes: f.storedSize, ...f, storedAt: new Date(), productionPaymentId: pay.id } });
-        }
         await resetVerification(tx, orgId, { orderIds, batchIds: orders.map((o) => o.batchId).filter((x): x is string => !!x), prodPaymentIds: [pay.id] });
         for (const x of parts) {
           const o = orders.find((y) => y.id === x.key)!;
@@ -328,13 +308,9 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
       { timeout: 60000, maxWait: 15000 },
     );
   } catch (e) {
-    await removeStoredFiles([...stored, ...storedDrive]);
     return { error: e instanceof Error ? e.message : "Не удалось сохранить оплату" };
   }
-  if (!result.ok) {
-    await removeStoredFiles([...stored, ...storedDrive]);
-    return result;
-  }
+  if (!result.ok) return result;
   if (side === "supplier" && result.summary) result.summary.debtAfter = d2((await loadSupplierDebt(prisma, orgId)).debt);
   revalidateAll(orgId);
   return result;
