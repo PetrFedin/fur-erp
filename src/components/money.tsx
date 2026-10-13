@@ -27,5 +27,5 @@ export function Money({
   excl?: MoneyLike | null;
   className?: string;
 }) {
-  return <MoneyClient incl={incl.toString()} excl={excl != null ? excl.toString() : null} className={className} />;
+  return <MoneyClient incl={incl.toString()} excl={excl != null ? excl.toString() : null} {...(className ? { className } : {})} />;
 }

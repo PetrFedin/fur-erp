@@ -59,3 +59,27 @@ export function sumOrders(os: DrillOrder[], vat: VatSel): Sum {
   s.repairOrders = rep.size;
   return s;
 }
+
+/**
+ * Облегчённая копия ТЗ для плиток итогов (ProdTiles): плиткам нужны только суммы по атомам, поэтому строки списаний одного вида
+ * (мех / подкладка) схлопываются в одну с теми же суммами, количеством и долей 4%; названия, лоты и партии закупки не передаются в браузер.
+ * Суммы плиток те же (sumOrders считает по атомам); подробный состав остаётся в OrdersTree, которому нужны полные ТЗ.
+ */
+export function slimForTiles(orders: DrillOrder[]): DrillOrder[] {
+  return orders.map((o) => {
+    const lines: DrillOrder["lines"] = [];
+    for (const k of ["f", "l"] as const) {
+      const part = o.lines.filter((l) => l.k === k);
+      if (part.length === 0) continue;
+      lines.push({
+        k, n: "", fu: "", lot: "", ln: null, au: "", pid: null, pn: null,
+        q: part.reduce((a, l) => a + l.q, 0),
+        i: part.reduce((a, l) => a + l.i, 0),
+        e: part.reduce((a, l) => a + l.e, 0),
+        ci: part.reduce((a, l) => a + l.ci, 0),
+        ce: part.reduce((a, l) => a + l.ce, 0),
+      });
+    }
+    return { id: o.id, number: o.number, wo: o.wo, bk: "", bl: "", y: o.y, st: o.st, cat: o.cat, grp: o.grp, mid: "", ml: "", fur: "", qty: o.qty, work: o.work, exp: o.exp, hI: o.hI, hE: o.hE, resI: o.resI, resE: o.resE, lines };
+  });
+}

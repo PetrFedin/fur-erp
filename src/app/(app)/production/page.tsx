@@ -30,6 +30,7 @@ import { furMaterialIdsByKind, getFilterOptions, purchaseIdsByAuction } from "@/
 import { OrdersTree } from "@/components/orders-tree";
 import { ProdTiles } from "@/components/prod-tiles";
 import { loadOrdersDrill } from "@/lib/orders-drill";
+import { slimForTiles } from "@/lib/orders-sum";
 import { modelCodeVariants } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { getYearFilter } from "@/lib/year-filter";
@@ -599,7 +600,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       />
       </div>
 
-      <ProdTiles orders={drill} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
+      <ProdTiles orders={grouped ? drill : slimForTiles(drill)} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
       {grouped ? (
         <OrdersTree

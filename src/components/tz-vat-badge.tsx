@@ -2,7 +2,7 @@ import { InfoHint } from "./info-hint";
 import { Money } from "./money";
 import { formatMoney } from "@/lib/utils";
 import { vatKindLabel, type VatBreakdown } from "@/lib/tz-vat";
-import { TotalLabel } from "@/components/total-label";
+import { TzVatHintBody } from "./tz-vat-hint";
 
 const TONE: Record<string, string> = {
   "20": "border-sky-300 bg-sky-50 text-sky-800",
@@ -19,6 +19,7 @@ const TONE: Record<string, string> = {
 export function TzVatBadge({ b, compact = false, hint = true, className = "" }: { b: VatBreakdown; compact?: boolean; hint?: boolean; className?: string }) {
   if (b.kind === "none") return <span className="text-neutral-500">—</span>;
   const total = b.rows.reduce((s, r) => s.add(r.incl), b.share20.incl.mul(0));
+  const totalExcl = b.rows.reduce((s, r) => s.add(r.excl), total.mul(0));
   return (
     <span className={`inline-flex flex-wrap items-center gap-1 ${className}`}>
       <span className={`rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${TONE[b.kind]}`}>
@@ -31,44 +32,10 @@ export function TzVatBadge({ b, compact = false, hint = true, className = "" }: 
         </span>
       )}
       {hint && <InfoHint label="Ставки НДС в списаниях ТЗ">
-        <b>Ставки НДС в списаниях этого ТЗ</b>
-        <p className="mt-1">
-          Ставка НДС — у лота: закупки 2025 г. — 20%, 2026 г. и далее — 22% (по УПД). В одном ТЗ могут быть лоты разных закупок и лет, поэтому и ставки разные.
-        </p>
-        <table className="mt-1 w-full text-xs">
-          <thead>
-            <tr className="text-left text-neutral-500">
-              <th className="pr-2 font-normal">Ставка</th>
-              <th className="pr-2 font-normal">Строк</th>
-              <th className="pr-2 text-right font-normal">С НДС</th>
-              <th className="pr-2 text-right font-normal">Без НДС</th>
-              <th className="text-right font-normal">НДС</th>
-            </tr>
-          </thead>
-          <tbody>
-            {b.rows.map((r) => (
-              <tr key={r.rate}>
-                <td className="pr-2">{r.rate}%</td>
-                <td className="pr-2">{r.lines}</td>
-                <td className="pr-2 text-right">{formatMoney(r.incl.toFixed(2))}</td>
-                <td className="pr-2 text-right">{formatMoney(r.excl.toFixed(2))}</td>
-                <td className="text-right">{formatMoney(r.incl.sub(r.excl).toFixed(2))}</td>
-              </tr>
-            ))}
-            {b.rows.length > 1 && (
-              <tr className="row-total">
-                <td className="pr-2"><TotalLabel /></td>
-                <td className="pr-2">{b.rows.reduce((s, r) => s + r.lines, 0)}</td>
-                <td className="pr-2 text-right">{formatMoney(total.toFixed(2))}</td>
-                <td className="pr-2 text-right">{formatMoney(b.rows.reduce((s, r) => s.add(r.excl), total.mul(0)).toFixed(2))}</td>
-                <td className="text-right">{formatMoney(total.sub(b.rows.reduce((s, r) => s.add(r.excl), total.mul(0))).toFixed(2))}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        <p className="mt-1">
-          Σ с НДС = Σ (количество × цена лота с его ставкой), Σ без НДС = Σ (количество × цена лота без НДС): каждая строка по ставке своего лота, а не итог × одна ставка. Сырьё и подкладка (расходы и работа в таблице не участвуют).
-        </p>
+        <TzVatHintBody
+          rows={b.rows.map((r) => ({ rate: String(r.rate), lines: r.lines, incl: formatMoney(r.incl.toFixed(2)), excl: formatMoney(r.excl.toFixed(2)), vat: formatMoney(r.incl.sub(r.excl).toFixed(2)) }))}
+          total={b.rows.length > 1 ? { lines: b.rows.reduce((s, r) => s + r.lines, 0), incl: formatMoney(total.toFixed(2)), excl: formatMoney(totalExcl.toFixed(2)), vat: formatMoney(total.sub(totalExcl).toFixed(2)) } : null}
+        />
       </InfoHint>}
     </span>
   );
