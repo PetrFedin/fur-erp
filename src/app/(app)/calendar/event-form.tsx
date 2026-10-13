@@ -27,7 +27,7 @@ export type EventInitial = {
 };
 
 const init: EventFormState = {};
-export type OrderOption = { id: string; label: string; fur: string | null; articleCode: string | null };
+export type OrderOption = { id: string; label: string; /** Внутренний номер «П-2026-…» — только в подсказке. */ hint?: string; fur: string | null; articleCode: string | null };
 const KNOWN = CALENDAR_ACTIONS.map((a) => a.label);
 
 export function EventForm({
@@ -161,7 +161,7 @@ export function EventForm({
         <Label htmlFor="ev-order">ТЗ (необязательно)</Label>
         <Select id="ev-order" name="orderId" value={orderId} onChange={(e) => onOrder(e.target.value)} className={FIELD}>
           <option value="">Не привязано</option>
-          {shownOrders.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          {shownOrders.map((o) => <option key={o.id} value={o.id} title={o.hint}>{o.label}</option>)}
         </Select>
       </div>
       <div className={c2}>

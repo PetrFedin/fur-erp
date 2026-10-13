@@ -190,13 +190,13 @@ export const BASIS_LABEL: Record<Basis, string> = {
   credit: "зачёт",
 };
 export const CONFIRM_LABEL: Record<Confirm, string> = {
-  docs: "документами",
-  letter: "только письмом",
-  approved: "только согласовано",
-  none: "нет подтверждения",
+  docs: "подтверждено документом",
+  letter: "согласовано письмом",
+  approved: "согласовано письмом, не оплата",
+  none: "не подтверждено",
 };
 export const INV_STATUS_LABEL = (c: InvCalc) =>
-  c.status === "closed" ? "ЗАКРЫТ" : c.status === "partial" ? `ЧАСТИЧНО (${Math.round(c.pct)} %)` : c.status === "approved" ? "ТОЛЬКО СОГЛАСОВАН" : "НЕ ОПЛАЧЕН";
+  c.status === "closed" ? "ПОДТВЕРЖДЕНО ДОКУМЕНТОМ" : c.status === "partial" ? `ЧАСТИЧНО (${Math.round(c.pct)} %)` : c.status === "approved" ? "СОГЛАСОВАНО ПИСЬМОМ" : "НЕ ПОДТВЕРЖДЕНО";
 
 export const invLabel = (i: Invoice) => (i.no ? `№${i.no}` : "без счёта");
 

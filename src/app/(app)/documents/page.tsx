@@ -32,6 +32,7 @@ import {
 import { DRIVE_DOC_TYPES, DRIVE_DOC_TYPE_LABELS } from "@/lib/drive-docs";
 import { registryCoverage, type RegStat } from "@/lib/registry-coverage";
 import { formatDate, formatMoney, formatPercent } from "@/lib/utils";
+import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { InfoHint } from "@/components/info-hint";
 import { getYearFilter } from "@/lib/year-filter";
 import { cn } from "@/lib/utils";
@@ -126,8 +127,9 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
               <div className="space-y-2">
                 <p>Какие документы нужны по правилам, какие уже есть и чего не хватает: по закупкам, ТЗ, партиям, оплатам и договорам. Считается по базе прямо сейчас — загрузили файл или добавили ссылку на карточке, и пробел исчезает.</p>
                 <p>
-                  <b>Процент</b> — сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
+                  <b>Процент</b> — «документы привязаны»: сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
                 </p>
+                <p>{RELIABILITY_NOTE}</p>
                 <p>
                   <b>Год</b> берётся из шапки (Все / 2025 / 2026): закупка — по дате закупки, ТЗ — по году партии или даты ТЗ, оплата — по дате оплаты, документ — по дате документа. Плитки сверху и таблицы пересчитываются.
                 </p>
@@ -347,7 +349,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>
       <div className="mt-1 text-xs text-neutral-500">
-        есть {stat.have} из {stat.required}
+        документы привязаны: {stat.have} из {stat.required}
       </div>
       <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
         {stat.rowsWithGaps > 0 ? `пробелы: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов (${stat.rows})`}

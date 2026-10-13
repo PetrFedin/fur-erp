@@ -91,7 +91,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
   }
 
   // Переплата: оплата больше работы партии. Если в заметке платежа сказано про шкуры подрядчика — объясняем.
-  const overpaid = t.remaining.lessThan(-0.005);
+  const overpaid = t.remaining.lessThan(-1);
   const hidesInPay = payments
     .map((x) => contractorHidesFromNotes(x.p.notes))
     .reduce<Decimal | null>((s, v) => (v ? (s ? s.add(v) : v) : s), null);
@@ -174,18 +174,18 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-              <TileHead>Оплата работы</TileHead>
-              <TileValue className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{mny(Math.abs(Number(t.remaining)))}</TileValue>
+              <TileHead>Работа подрядчику</TileHead>
+              <TileValue className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{t.remaining.abs().lessThan(1) ? "—" : mny(Math.abs(Number(t.remaining)))}</TileValue>
               <TileCaption>{overpaid ? "оплачено сверх работы" : "К оплате по партиям: работа − оплачено"}</TileCaption>
               <TileList items={[
-                { k: "Работа заказчику", v: mny(workN) },
+                { k: "Работа подрядчику", v: mny(workN) },
                 { k: "Оплачено (разнесено на партии)", v: mny(paidN), share: workN ? paidN / workN : null },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата" wide align="right">
                 <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>К оплате по партиям</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
-                <p className="mt-1">«Оплачено всего» на Главной и в «Оплатах» больше: разница = неразнесённый аванс (аванс заказчика, ещё не отнесён к партиям). Мост — в «Партии пошива» → плитка «Оплата работы».</p>
+                <p className="mt-1">«Оплачено всего» на Главной и в «Оплатах» больше: разница = неразнесённый аванс (аванс заказчика, ещё не отнесён к партиям). Мост — в «Партии пошива» → плитка «Работа подрядчику».</p>
               </InfoHint>
             </div>
           </div>
@@ -270,7 +270,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                   <Td className="hidden whitespace-nowrap sm:table-cell">{t.cost.isZero() ? <Dash /> : formatMoney(t.cost.toString())}</Td>
                   <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? <Dash /> : formatMoney(t.work.toString())}</Td>
                   <Td className="hidden whitespace-nowrap md:table-cell">{t.paid.isZero() ? <Dash /> : formatMoney(t.paid.toString())}</Td>
-                  <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() && t.paid.isZero() ? <Dash /> : formatMoney(t.remaining.toString())}</Td>
+                  <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() && t.paid.isZero() ? <Dash /> : t.remaining.abs().lessThan(1) ? "оплачено" : formatMoney(t.remaining.toString())}</Td>
                   <Td className="hidden md:table-cell" />
                 </Tr>
               )}

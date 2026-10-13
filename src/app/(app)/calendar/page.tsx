@@ -10,7 +10,7 @@ import { modelCodeVariants, compareModelNames } from "@/lib/model-code";
 import { actionDef, CALENDAR_ACTIONS, LAYER_STYLES, STAGE_ORDER, STAGE_STYLES } from "@/lib/calendar-actions";
 import { addDays, dayLabel, fmtRu, monthGridDays, monthTitle, parseMonth, parseYmd, shiftMonth, startOfWeek, todayYmd, WEEKDAYS, ymd } from "@/lib/calendar-grid";
 import { loadFactLayer, type FactItem } from "@/lib/calendar-layers";
-import { loadPipeline, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
+import { loadPipeline, pipeInner, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { PipeCard, StageChip, StageLegend, StagesView } from "./pipe-views";
 import { MonthsMode } from "./month-views";
@@ -196,7 +196,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     : [];
   const formOrders = orderOptions.map((o) => {
     const pi = pipeBy.get(o.id);
-    return { id: o.id, label: `${o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : o.number} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, fur: pi?.fur ?? null, articleCode: o.productModel.name };
+    return { id: o.id, label: `${pi ? pipeTitle(pi) : o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `ТЗ ${o.number}`} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, hint: o.number, fur: pi?.fur ?? null, articleCode: o.productModel.name };
   });
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));
@@ -222,7 +222,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     const p = e.orderId ? pipeBy.get(e.orderId) : undefined;
     const fur = p?.fur ?? furOfArticle(e.articleCode);
     return (
-      <Link key={e.id + dayIso} href={href({ day: dayIso, event: e.id })} scroll={false} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
+      <Link key={e.id + dayIso} href={href({ day: dayIso, event: e.id })} scroll={false} title={`${e.articleCode} × ${e.quantity} — ${e.action}${fur ? ` · ${fur}` : ""}${p ? ` · ${pipeTitle(p)}${pipeInner(p)}: ${p.stageWord}` : ""}${e.done ? " (выполнено)" : ""}`}
         className={`block rounded border px-1.5 py-0.5 text-xs leading-tight ${def.chip} ${e.done ? "opacity-60" : ""} ${e.overdue ? "ring-1 ring-red-500" : ""} ${selected?.id === e.id ? "outline outline-2 outline-neutral-900" : ""}`}>
         <span className={`block truncate ${e.done ? "line-through" : ""}`}>{cont ? "↳ " : ""}{e.articleCode} ×{e.quantity}{fur ? ` · ${fur}` : ""}</span>
         <span className="flex flex-wrap items-center gap-x-1 text-[11px] opacity-90">

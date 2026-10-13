@@ -59,7 +59,7 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
   const shownLabel = (r: LogRow): { text: string; title?: string } => {
     const o = r.model === "ProductionOrder" ? woById.get(r.recordId) : undefined;
     const wo = o?.workOrderNumber?.trim();
-    if (wo) return { text: `ТЗ №${wo}`, title: `внутренний номер ${o!.number}` };
+    if (wo) return { text: `ТЗ ${wo}`, title: `внутренний номер ${o!.number}` };
     const idRe = /\s*\bc[a-z0-9]{20,}\b/;
     if (r.model === "RawMaterialLot" && r.label && idRe.test(r.label)) {
       const n = lotById.get(r.recordId);

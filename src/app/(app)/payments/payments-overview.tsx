@@ -157,7 +157,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
                 <th className={TH_LEFT}>Год / оплата</th>
                 <Head label="Мех" unit="₽" align="right" sep />
                 <Head label="Подкладка" unit="₽" align="right" />
-                <Head label="Работа" unit="₽" align="right" />
+                <Head label="Работа подрядчику" unit="₽" align="right" />
                 <Head label="Оплачено" unit="₽" align="right" sep />
                 <Head label="Задолженность" unit="₽" align="right" />
               </tr>

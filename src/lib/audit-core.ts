@@ -214,13 +214,13 @@ export const MODEL_TITLES: Record<string, string> = {
   BatchIntake: "Новая партия закупки",
 };
 
-/** Понятное название записи: «Закупка З-2026-0014», «ТЗ №19», «Оплата 34 825 000 ₽ 28.02.2025». */
+/** Понятное название записи: «Закупка З-2026-0014», «ТЗ 19», «Оплата 34 825 000 ₽ 28.02.2025». */
 export function labelFor(model: string, r: Record<string, unknown>): string {
   const s = (k: string) => (r[k] === null || r[k] === undefined || r[k] === "" ? null : String(r[k]));
   const t = MODEL_TITLES[model] ?? model;
   switch (model) {
     case "Purchase": return `Закупка ${s("number") ?? ""}`.trim();
-    case "ProductionOrder": return `ТЗ №${s("workOrderNumber") ?? s("number") ?? ""}`.trim();
+    case "ProductionOrder": return `ТЗ ${s("workOrderNumber") ?? s("number") ?? ""}`.trim();
     case "ProductionBatch": return `Партия №${s("number") ?? ""}${s("name") ? " " + s("name") : ""}`.trim();
     case "Payment": return `Оплата ${money(r.amount)} ${day(r.paidAt)}`.trim() + (s("auctionSession") ? ` · ${s("auctionSession")}` : "");
     case "ProductionPayment": return `Оплата производства ${money(r.amount)} ${day(r.paidAt)}`.trim();

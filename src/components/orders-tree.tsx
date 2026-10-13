@@ -166,7 +166,7 @@ export function OrdersTree({
     }
     const res = v === "incl" ? o.resI : o.resE;
     if (Math.abs(res) > 0.5) out.push(cell("Прочее", "разница между итогом ТЗ и суммой строк", { res }, "r"));
-    if (Math.abs(o.work) > 0.5) out.push(cell("Работа заказчику", o.qty > 0 ? <>{formatMoney(Math.round(o.work / o.qty))} за изделие × {formatQty(o.qty)} шт.</> : "цена работы × количество", { work: o.work }, "w", undefined, true));
+    if (Math.abs(o.work) > 0.5) out.push(cell("Работа подрядчику", o.qty > 0 ? <>{formatMoney(Math.round(o.work / o.qty))} за изделие × {formatQty(o.qty)} шт.</> : "цена работы × количество", { work: o.work }, "w", undefined, true));
     if (out.length === 0) out.push(<tr key="none" className={tone}><td className={ARROW_TD} /><td colSpan={cols - 1} className={`py-1.5 pr-2 text-left text-neutral-400 ${ind}`}>Списаний и расходов нет</td></tr>);
     return out;
   };

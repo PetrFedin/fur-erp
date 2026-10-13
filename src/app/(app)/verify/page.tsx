@@ -1,3 +1,4 @@
+import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
@@ -92,6 +93,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
               <p>
                 Подтвердить можно и с расхождением — только с примечанием (это ваше решение, оно сохраняется). Любая правка суммы, документа или даты <b>сбрасывает</b> подтверждение этой строки и связанных с ней — всё пересчитывается автоматически.
               </p>
+              <p>{RELIABILITY_NOTE}</p>
               <p>Долг поставщику считается как раньше: оплаты без подтверждения остаются в расчёте, но помечены в подсказке долга.</p>
             </div>
           </InfoHint></div>
@@ -131,7 +133,7 @@ export default async function VerifyPage({ searchParams }: PageProps<"/verify">)
       <WidgetRow id="verify" title="Очередь проверки — итоги">
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
         {[
-          { label: "Подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
+          { label: "Строк подтверждено", v: total.verified, sub: total.auto ? `из них авто по документам: ${total.auto}` : null, tone: "text-emerald-700" },
           { label: "Ждёт проверки", v: total.waiting, sub: null, tone: total.waiting > 0 ? "text-amber-700" : "" },
           { label: "Готово к подтверждению", v: total.ready, sub: null, tone: "" },
           { label: "Всего, строк", v: total.total, sub: null, tone: "" },

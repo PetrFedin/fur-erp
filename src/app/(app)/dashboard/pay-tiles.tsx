@@ -46,7 +46,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const totalAll = paidAll + leftAll + roundAll;
   void rawPaid;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
-  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean, workLabel = "Работа"): TileItem[] => [
+  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean, workLabel = "Работа подрядчику"): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
       { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
@@ -96,14 +96,16 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
         <TileHead>К оплате всего</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
-            <p>Долг по работе (общий баланс): работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям — сколько предстоит заплатить, если все авансы отработают (договор №1605: аванс 70 %, доплата 30 % после сдачи).</p>
+            <p>К оплате всего = за мех и подкладку {money(d.left.fur + d.left.lining)} + за работу подрядчику {money(d.left.prod)}.</p>
+            <p className="mt-1">Долг по работе подрядчику (общий баланс): работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям — сколько предстоит заплатить, если все авансы отработают (договор №1605: аванс 70 %, доплата 30 % после сдачи).</p>
             <p className="mt-1">Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
             <p className="mt-1">Части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
-        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true, "Долг по работе (общий баланс)")} />
+        {inWork && !only ? <div className="text-xs text-neutral-500">за мех и подкладку {money(d.left.fur + d.left.lining)} + за работу подрядчику {money(d.left.prod)}</div> : null}
+        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true, "Долг по работе подрядчику")} />
         {d.invoiceDeadlines.length > 0 && !only ? (
           <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
             <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>

@@ -167,7 +167,7 @@ export function PriceCompositionChart({ slices, total, qty, unitVals, unitTotal,
             {qtyVals ? <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vQty}>Шкур, шт.</th> : null}
             <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Всего, ₽</th>
             <th scope="col" className={"whitespace-nowrap px-1.5 py-1.5 text-right " + vAvg}>
-              {qty > 0 ? <>{stacked ? "Ср. цена, ₽" : "Ср. цена, ₽/шт."}<InfoHint label="Что такое ср. цена" align="right"><p>Средневзвешенное значение: сумма ÷ количество по лотам.</p></InfoHint></> : "Всего, ₽"}
+              {qty > 0 ? <>{stacked ? "Ср. цена, ₽" : "Ср. цена, ₽/шт."}<InfoHint label="Что такое ср. цена" align="right"><p>Средневзвешенное значение: сумма ÷ количество по лотам.</p>{unitTotal != null && total - unitTotal > 0.5 ? <p className="mt-1">В цене за {unitName} не учтены деньги без количества шкур: {money(total - unitTotal)} (шкуры подрядчика, расходы без количества). Поэтому здесь {perUnit(unitTotal)}, а в плитке «Куплено» — вся сумма ÷ все шкуры: {formatMoney((total / qty).toFixed(2))}.</p> : null}</InfoHint></> : "Всего, ₽"}
             </th>
             <th scope="col" className="whitespace-nowrap px-1.5 py-1.5 text-right">Доля, %</th>
           </tr>

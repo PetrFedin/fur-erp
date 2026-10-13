@@ -27,7 +27,7 @@ export function Bar({ paid, approved = 0, total, className }: { paid: number; ap
   const a = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
   const b = total > 0 ? Math.min(100 - a, (approved / total) * 100) : 0;
   return (
-    <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-neutral-200", className)} role="img" aria-label={`закрыто ${pct(a)}`}>
+    <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-neutral-200", className)} role="img" aria-label={`подтверждено документами ${pct(a)}`}>
       <div className="h-full bg-emerald-500" style={{ width: `${a}%` }} />
       <div className="h-full bg-sky-300" style={{ width: `${b}%` }} />
     </div>
@@ -38,12 +38,12 @@ export function StatusPill({ c }: { c: InvCalc }) {
   return <span className={cn("inline-block whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium", INV_TONE[c.status].cls)}>{INV_STATUS_LABEL(c)}</span>;
 }
 
-/** Блок «закрыто X % на сумму Y из Z» + разбивка по подтверждению. */
+/** Блок «подтверждено документами X % на сумму Y из Z» + разбивка по подтверждению. */
 export function Progress({ t, db }: { t: Totals; db?: { paid: number; pct: number } | null }) {
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <b className="font-medium tabular-nums">закрыто {pct(t.pct)}</b>
+        <b className="font-medium tabular-nums">подтверждено документами {pct(t.pct)}</b>
         <span className="tabular-nums text-neutral-600">
           на {money(t.paid)} из {money(t.amount)}
         </span>
@@ -64,11 +64,11 @@ export function CountsLine({ t }: { t: Totals }) {
   );
   return (
     <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-      {item("closed", "закрыто", t.closed, t.closedRub)}
+      {item("closed", "подтверждено документом", t.closed, t.closedRub)}
       {item("partial", "частично", t.partial, t.partialRub)}
-      {item("approved", "только согласован", t.approved, t.approvedStatusRub)}
-      {item("unpaid", "не оплачен", t.unpaid, t.unpaidRub)}
-      <span className="text-neutral-500">из {t.count} счетов</span>
+      {item("approved", "согласовано письмом", t.approved, t.approvedStatusRub)}
+      {item("unpaid", "не подтверждено", t.unpaid, t.unpaidRub)}
+      <span className="text-neutral-500">всего {t.count} счетов</span>
     </div>
   );
 }
@@ -77,19 +77,19 @@ export function ConfirmLine({ t }: { t: Totals }) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-neutral-700">
       <span>
-        Подтверждено документами: <b className="tabular-nums">{money(t.paidDocs)}</b>
+        Подтверждено документом: <b className="tabular-nums">{money(t.paidDocs)}</b>
       </span>
       {t.noneRub > 0 && (
         <span>
-          нет подтверждения: <b className="tabular-nums">{money(t.noneRub)}</b>
+          не подтверждено: <b className="tabular-nums">{money(t.noneRub)}</b>
         </span>
       )}
       <InfoHint wide label="Чем подтверждена оплата">
         <ul className="space-y-1">
-          <li>Подтверждена документами: <b className="tabular-nums">{money(t.paidDocs)}</b></li>
-          <li>Только письмом: <b className="tabular-nums">{money(t.paidLetter)}</b></li>
-          <li>Только согласовано (не оплата): <b className="tabular-nums">{money(t.approvedRub)}</b></li>
-          <li>Нет подтверждения: <b className="tabular-nums">{money(t.noneRub)}</b></li>
+          <li>Подтверждено документом: <b className="tabular-nums">{money(t.paidDocs)}</b></li>
+          <li>Согласовано письмом (оплачено, без даты и п/п): <b className="tabular-nums">{money(t.paidLetter)}</b></li>
+          <li>Согласовано письмом, не оплата: <b className="tabular-nums">{money(t.approvedRub)}</b></li>
+          <li>Не подтверждено: <b className="tabular-nums">{money(t.noneRub)}</b></li>
         </ul>
       </InfoHint>
     </div>

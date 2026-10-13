@@ -172,11 +172,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         extra={
           <div className="relative">
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-              <TileHead>Оплата работы</TileHead>
-              <TileValue className={payRest > 0.5 ? "text-amber-700" : ""}>{money(Math.max(payRest, 0))}</TileValue>
+              <TileHead>Работа подрядчику</TileHead>
+              <TileValue className={payRest > 1 ? "text-amber-700" : ""}>{payRest < 1 ? "—" : money(payRest)}</TileValue>
               <TileCaption>К доплате по партиям (до зачёта аванса без партии)</TileCaption>
               <TileList items={[
-                { k: "Работа (партии)", v: money(payWork) },
+                { k: "Работа подрядчику (партии)", v: money(payWork) },
                 { k: "Оплачено (разнесено на партии)", v: money(payPaid), share: payWork ? payPaid / payWork : null },
                 ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
                 ...(debt ? [
@@ -184,13 +184,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                   { k: "из них разнесено на партии", v: money(payPaid), sub: true },
                   ...(Math.abs(outAlloc) > 0.5 ? [{ k: "разнесено на ТЗ без партии", v: money(outAlloc), sub: true }] : []),
                   { k: "не разнесено на партии (аванс)", v: money(debt.unallocated), sub: true },
-                  { k: "Работа всего (Главная)", v: money(debt.billable) },
+                  { k: "Работа подрядчику всего (Главная)", v: money(debt.billable) },
                   ...(Math.abs(outWork) > 0.5 ? [{ k: "в т. ч. ТЗ без партии", v: money(outWork), sub: true }] : []),
                 ] : []),
               ]} />
             </div>
             <div className="absolute right-3 top-3">
-              <InfoHint label="Как считается оплата работы" wide align="right">
+              <InfoHint label="Как считается работа подрядчику" wide align="right">
                 <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>К доплате по партиям (до зачёта аванса без партии)</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
                 {debt && (
                   <>
@@ -267,9 +267,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               </Td>
               <Td className="hidden whitespace-nowrap md:table-cell">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</Td>
               <Td className="hidden whitespace-nowrap lg:table-cell">{t.paid.isZero() ? "—" : formatMoney(t.paid.toString())}</Td>
-              <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(0.005) ? "text-amber-700" : "")}>
+              <Td className={"whitespace-nowrap " + (t.remaining.greaterThan(1) ? "text-amber-700" : "")}>
                 {t.work.isZero() && t.paid.isZero()
                   ? "—"
+                  : t.remaining.abs().lessThan(1)
+                    ? "оплачено"
                   : t.remaining.lessThan(-0.005)
                     ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
                     : formatMoney(t.remaining.toString())}
@@ -319,6 +321,8 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         {rows.map(({ b, t, docs }) => {
           const rem = t.work.isZero() && t.paid.isZero()
             ? "—"
+            : t.remaining.abs().lessThan(1)
+              ? "оплачено"
             : t.remaining.lessThan(-0.005)
               ? `сверх работы ${formatMoney(t.remaining.abs().toString())}`
               : formatMoney(t.remaining.toString());
@@ -329,7 +333,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               href={`/production/batches/${b.number}`}
               subtitle={batchExtraName(b.name)}
               fields={[
-                { label: "Остаток", value: <span className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
+                { label: "Остаток", value: <span className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
                 { label: "ТЗ", value: <><Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link>{itemsSuffix(t.orders, t.items)}</> },
                 { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
@@ -364,7 +368,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           К доплате по партиям <b className="tabular-nums">{money(Math.max(payRest, 0))}</b>
           {" · "}Аванс без партии <b className="tabular-nums">−{money(debt.unallocated)}</b>
           {debt.unallocated > 1 ? <> <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline print:hidden">Разнести…</Link></> : null}
-          {" → "}Долг по работе = Главная <b className="tabular-nums">{money(debt.balance)}</b>
+          {" → "}Долг по работе подрядчику = Главная <b className="tabular-nums">{money(debt.balance)}</b>
         </p>
       ) : null}
 

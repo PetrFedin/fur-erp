@@ -240,7 +240,7 @@ export function ClientPaymentsTable({ rows, rest }: { rows: ClientPayRow[]; rest
           <tfoot>
             <tr className="border-t border-neutral-200 bg-neutral-50">
               <td colSpan={2} className="px-3 py-2 text-sm">
-                <span className="inline-flex items-center gap-1">Работа без оплат по датам
+                <span className="inline-flex items-center gap-1">Работа подрядчику без оплат по датам
                   <InfoHint label="Что это за строка" wide><p>Работа по ТЗ, по которой ещё не было ни одной оплаты, поэтому она не попала ни в одну дату выше. Эта строка добавляет её к итогу таблицы, чтобы он сходился с плитками сверху: «Общая стоимость» {money(rest.headCost)}, долг {money(rest.headDebt)}. Расчёты не менялись: сумма — разность плиток и дат.</p></InfoHint>
                 </span>
               </td>

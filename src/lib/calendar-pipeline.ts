@@ -19,6 +19,8 @@ export type PipeItem = {
   id: string;
   number: string;
   wo: string | null;
+  /** Позиция внутри ТЗ с общим номером («поз. 2/3»); null — ТЗ из одной позиции или без номера. */
+  pos: { i: number; n: number } | null;
   articleCode: string;
   articleLabel: string;
   fur: string;
@@ -139,12 +141,23 @@ export async function loadPipeline(orgId: string, year: YearFilter, today: strin
 
     const overdue = !done && !repair && expected != null && expected.date < today && (expected.source === "по плану ТЗ" || expected.source === "по событию календаря");
     out.push({
-      id: d.id, number: d.number, wo: d.wo, articleCode: o.productModel.name, articleLabel: d.ml, fur: d.fur, grp: d.grp, cat: d.cat, qty: d.qty, status: d.st,
+      id: d.id, number: d.number, wo: d.wo, pos: null, articleCode: o.productModel.name, articleLabel: d.ml, fur: d.fur, grp: d.grp, cat: d.cat, qty: d.qty, status: d.st,
       units, stage, stageWord, batchLabel: d.bl, batchNo: d.bk, year: d.y, startDate, endDate, workOrderDate, expected, bucket, overdue, raw, rawDate,
       eventIds: (evBy.get(d.id) ?? []).map((e) => e.id),
     });
   }
+  // Позиции одного ТЗ (общий номер из документа): «поз. 2/3» по порядку внутренних номеров.
+  const byWo = new Map<string, PipeItem[]>();
+  for (const p of out) if (p.wo) { const g = byWo.get(p.wo); if (g) g.push(p); else byWo.set(p.wo, [p]); }
+  for (const g of byWo.values()) {
+    if (g.length < 2) continue;
+    g.sort((a, b) => a.number.localeCompare(b.number, "ru"));
+    g.forEach((p, i) => { p.pos = { i: i + 1, n: g.length }; });
+  }
   return out;
 }
 
-export const pipeTitle = (p: PipeItem) => (p.wo ? `ТЗ №${p.wo}` : `ТЗ ${p.number}`);
+/** Единый номер ТЗ: «ТЗ 182», позиции — «ТЗ 182 · поз. 2/3». Внутренний «П-2026-…» — только в подсказках (pipeInner). */
+export const pipeTitle = (p: PipeItem) => (p.wo ? `ТЗ ${p.wo}${p.pos ? ` · поз. ${p.pos.i}/${p.pos.n}` : ""}` : `ТЗ ${p.number}`);
+/** Внутренний номер для title/«i»: « (П-2026-0129)»; пусто, если рабочего номера нет (он и так в заголовке). */
+export const pipeInner = (p: PipeItem) => (p.wo ? ` (${p.number})` : "");

@@ -147,7 +147,7 @@ export default async function BatchPrintPage({
               <td className={tdr}>{formatMoney(t.cost.toString())}</td>
             </tr>
             <tr>
-              <td className={td}>Работа заказчику</td>
+              <td className={td}>Работа подрядчику</td>
               <td className={tdr}>{formatMoney(t.work.toString())}</td>
             </tr>
             <tr>

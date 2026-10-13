@@ -106,9 +106,10 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
       <Link
         href={filterHref(LOT_FILTERS, "/lots", { ...carry, tab: t === "fur" ? "" : t }, {})}
         aria-current={tab === t ? "page" : undefined}
+        title={t === "summary" ? "Те же таблицы, что на Главной (динамика по годам и по сырью)" : undefined}
         className={
           "inline-flex items-center rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 max-md:min-h-10 " +
-          (tab === t ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-100")
+          (tab === t ? "bg-neutral-900 text-white" : t === "summary" ? "ml-auto text-xs text-neutral-500 hover:bg-neutral-100" : "text-neutral-700 hover:bg-neutral-100")
         }
       >
         {label}

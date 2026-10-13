@@ -1,5 +1,6 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { formatPercent } from "@/lib/utils";
+import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import Link from "next/link";
 import { WidgetRow } from "@/components/widget-row";
 import { ControlTabs } from "@/components/control-tabs";
@@ -81,13 +82,13 @@ export default async function DocumentAnalysisPage() {
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>Документы папки «Мех»</TileHead>
           <TileValue>{formatPercent(driveSyncSnapshot.meaningfulCoveragePct)}</TileValue>
-          <TileCaption>файлов с привязкой<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p></InfoHint></TileCaption>
+          <TileCaption>документы привязаны (файлов)<InfoHint label="Подробности"><p>{driveSyncSnapshot.dbUniqueDriveFiles} канонических файлов · {driveSyncSnapshot.recognizedDuplicateCopies} дублей распознано.</p><p className="mt-1">{RELIABILITY_NOTE}</p></InfoHint></TileCaption>
           <div className={"mt-2 text-xs " + (driveSyncSnapshot.meaningfulUnlinkedFiles ? "text-red-700" : "text-emerald-700")}>Значимых непривязанных: {driveSyncSnapshot.meaningfulUnlinkedFiles}</div>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-          <TileHead>Документы на месте</TileHead>
+          <TileHead>Документы привязаны</TileHead>
           <TileValue>{coverage.total.percent == null ? "—" : formatPercent(coverage.total.percent)}</TileValue>
-          <TileCaption>документы есть<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p></InfoHint></TileCaption>
+          <TileCaption>документы привязаны: {coverage.total.have} из {coverage.total.required}<InfoHint label="Подробности"><p>Есть {coverage.total.have} из {coverage.total.required} обязательных доказательств.</p><p className="mt-1">{RELIABILITY_NOTE}</p></InfoHint></TileCaption>
           <div className="mt-2 text-xs text-amber-700">Записей с пробелами: {coverage.total.rowsWithGaps}</div>
         </div>
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>

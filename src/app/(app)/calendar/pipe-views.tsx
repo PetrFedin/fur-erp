@@ -44,7 +44,7 @@ const dateText = (p: PipeItem) => (p.expected ? `${fmtRu(p.expected.date)}` : "�
 export function PipeRow({ p, cardHref }: { p: PipeItem; cardHref: string }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded border bg-white px-2 py-1 text-xs ${p.overdue ? "border-red-500 ring-1 ring-red-500" : "border-neutral-200"}`}>
-      <Link href={cardHref} className="font-medium text-blue-700 hover:underline">{pipeTitle(p)}</Link>
+      <Link href={cardHref} className="font-medium text-blue-700 hover:underline" title={p.wo ? `Внутренний номер ${p.number}` : undefined}>{pipeTitle(p)}</Link>
       <span>{p.articleLabel}</span>
       <span className="text-neutral-500">{p.fur}</span>
       <span className="tabular-nums">×{formatQty(p.qty)}</span>
@@ -73,7 +73,7 @@ export function PipeCard({ p, closeHref, eventHref }: { p: PipeItem; closeHref: 
     ["Артикул", p.articleLabel],
     ["Мех", p.fur],
     ["Количество", `${formatQty(p.qty)} шт.${p.stage === "ready" || p.stage === "shipped" ? ` (${[p.units.shipped ? `отгружено ${p.units.shipped}` : "", p.units.ready ? `на складе ${p.units.ready}` : ""].filter(Boolean).join(", ")})` : ""}`],
-    ["ТЗ", <Link key="tz" href={`/production/${p.id}`} className="text-blue-700 hover:underline">{pipeTitle(p)} → открыть</Link>],
+    ["ТЗ", <Link key="tz" href={`/production/${p.id}`} className="text-blue-700 hover:underline" title={p.wo ? `Внутренний номер ${p.number}` : undefined}>{pipeTitle(p)} → открыть</Link>],
     ["Партия пошива", p.batchNo === "none" ? p.batchLabel : <Link key="b" href={`/production/batches/${p.batchNo}`} className="text-blue-700 hover:underline">{p.batchLabel}</Link>],
     ["Стадия", <span key="st" className="inline-flex items-center gap-1"><StageChip stage={p.stage} word={p.stageWord} /><span className="text-neutral-500">{st.hint}</span></span>],
     ...(p.status === "COMPLETED" ? [] : [["Плановая дата", p.endDate ? fmtRu(p.endDate) : "—"] as [string, React.ReactNode]]),

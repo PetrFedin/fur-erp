@@ -222,6 +222,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   }] : []);
   const furExtras = [...hidesRow, ...roundRow("round-fur", roundFur)];
   const liningExtras = roundRow("round-lin", roundLin);
+  // В общей таблице «по годам и партиям» округление мех + подкладка — одной строкой (сумма та же).
+  const treeExtras = [...hidesRow, ...roundRow("round", roundFur + roundLin)];
   const boughtTotal = tot.total + hides + roundFur + roundLin;
   const boughtExcl = tot.totalExcl + hides + roundFur + roundLin;
   const paidTotal = tot.paid + hides;
@@ -388,7 +390,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           )}
         </p>
       ) : tree ? (
-        <PurchasesTree years={treeYears} extras={[...furExtras, ...liningExtras]} />
+        <PurchasesTree years={treeYears} extras={treeExtras} />
       ) : (
         <>
           <div role="tablist" aria-label="Раздел списка" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">

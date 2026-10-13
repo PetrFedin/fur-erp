@@ -3,7 +3,7 @@ import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { STAGE_ORDER, STAGE_STYLES, type Stage } from "@/lib/calendar-actions";
 import { fmtRu } from "@/lib/calendar-grid";
-import { pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
+import { pipeInner, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { NO_DATE, buildMonthGrid, gridCellItems, inScope, monthText, sumOf, unitsFor, type StageSums, type TableFilters } from "@/lib/calendar-table";
 import { formatQty } from "@/lib/utils";
 import { TotalLabel } from "@/components/total-label";
@@ -227,11 +227,11 @@ function MonthGantt({ items, filters, my, href, cardHref, today, gall, gpage }: 
     const dayW = 1 / (n * 30);
     if (r - l < dayW) r = l + dayW;
     const st = STAGE_STYLES[p.stage];
-    const tip = `${pipeTitle(p)} · ${p.articleLabel} · ${formatQty(p.qty)} шт.\n${p.fur} · ${p.stageWord}\n${b.s === b.e ? fmtRu(b.s) : `${fmtRu(b.s)} → ${fmtRu(b.e)}`}${p.expected ? `\nОжидаем: ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}${approx ? `\nДаты приблизительные${b.why ? `: ${b.why}` : ""}` : ""}${p.overdue ? "\nПросрочено" : ""}`;
+    const tip = `${pipeTitle(p)}${pipeInner(p)} · ${p.articleLabel} · ${formatQty(p.qty)} шт.\n${p.fur} · ${p.stageWord}\n${b.s === b.e ? fmtRu(b.s) : `${fmtRu(b.s)} → ${fmtRu(b.e)}`}${p.expected ? `\nОжидаем: ${fmtRu(p.expected.date)} (${p.expected.source})` : ""}${approx ? `\nДаты приблизительные${b.why ? `: ${b.why}` : ""}` : ""}${p.overdue ? "\nПросрочено" : ""}`;
     rows.push(
       <div key={p.id} className="flex border-b border-neutral-100">
-        <div className={`sticky left-0 z-10 ${LABEL} truncate border-r border-neutral-200 bg-white px-2 py-1.5 text-xs`} title={`${pipeTitle(p)} · ${p.articleLabel} · ${formatQty(p.qty)} шт.`}>
-          <span className="font-medium">{p.wo ? `№${p.wo}` : p.number}</span> · {p.articleLabel} · {formatQty(p.qty)} шт.
+        <div className={`sticky left-0 z-10 ${LABEL} truncate border-r border-neutral-200 bg-white px-2 py-1.5 text-xs`} title={`${pipeTitle(p)}${pipeInner(p)} · ${p.articleLabel} · ${formatQty(p.qty)} шт.`}>
+          <span className="font-medium">{pipeTitle(p)}</span> · {p.articleLabel} · {formatQty(p.qty)} шт.
         </div>
         <div className="relative h-9 flex-1" style={{ ...grid, minWidth: n * COL_W }}>
           {todayF != null && <i className="absolute inset-y-0 z-[5] w-0.5 bg-red-500" style={{ left: `${todayF * 100}%` }} aria-hidden />}
@@ -263,7 +263,7 @@ function MonthGantt({ items, filters, my, href, cardHref, today, gall, gpage }: 
       <div className="scroll-hint max-h-[75vh] max-w-full overflow-auto rounded-lg border border-neutral-200 bg-white">
         <div style={{ minWidth: 240 + n * COL_W }} className="min-w-full">
           <div className="sticky top-0 z-20 flex border-b border-neutral-200 bg-white">
-            <div className={`sticky left-0 z-30 ${LABEL} border-r border-neutral-200 bg-white px-2 py-1.5 text-xs font-medium text-neutral-500`}>№ТЗ · артикул · шт.</div>
+            <div className={`sticky left-0 z-30 ${LABEL} border-r border-neutral-200 bg-white px-2 py-1.5 text-xs font-medium text-neutral-500`}>ТЗ · артикул · шт.</div>
             <div className="flex flex-1" style={{ minWidth: n * COL_W }}>
               {cols.map((c) => (
                 <div key={c} className="flex-1 border-l border-neutral-200 px-1 py-1.5 text-right text-xs font-medium text-neutral-500" style={{ minWidth: COL_W }}>

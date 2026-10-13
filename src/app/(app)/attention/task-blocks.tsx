@@ -94,7 +94,7 @@ function DecisionCard({ v, canDecide }: { v: DecisionView; canDecide: boolean })
           <div className="flex flex-wrap gap-2">
             {d.options.map((o) => (
               <button key={o.key} name="choice" value={o.key} title={o.then} className="min-h-8 rounded-md border border-neutral-300 bg-white px-3 py-1 text-left text-xs hover:bg-neutral-100">
-                Решено: {o.label}
+                {o.label}
               </button>
             ))}
           </div>

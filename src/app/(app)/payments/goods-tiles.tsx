@@ -123,9 +123,9 @@ export function GoodsTiles({ total, paid, balance, unallocated, rows, owed, hint
   }, [open]);
   return (
     <>
-      <WidgetRow id="goods" title="Оплата работы — итоги" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
+      <WidgetRow id="goods" title="Работа подрядчику — итоги" headerEnd={<Link href="/production" className="text-xs text-blue-700 hover:underline print:hidden">→ ТЗ</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 print:grid-cols-3" data-goods-tiles>
-        <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} note="работа по ТЗ" />
+        <Tile label="Общая стоимость" value={rub(total)} onOpen={() => setOpen("bars")} note="работа подрядчику по ТЗ" />
         <Tile label="Оплачено" value={rub(paid)} onOpen={() => setOpen("bars")} note={total > 0.5 ? `${formatPercent((paid / total) * 100)} от стоимости` : undefined} />
         <Tile label="К оплате" value={rub(balance)} onOpen={() => setOpen("debt")} valueClass={balance > 0.5 ? "text-amber-700" : ""} hint={hint} note={total > 0.5 ? `${formatPercent((balance / total) * 100)} от стоимости` : undefined} />
       </div>

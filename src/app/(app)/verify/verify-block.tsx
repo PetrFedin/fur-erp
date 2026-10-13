@@ -25,7 +25,7 @@ export async function VerifyBlock({ kind, id, title = "Подтверждени�
       <details className="group rounded-lg border border-neutral-200 bg-white" data-verify-block={`${kind}:${id}`} open={false}>
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 text-sm hover:bg-neutral-50 sm:px-4">
           <span className="font-semibold">{title}</span>
-          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? "✓ подтверждена" : `ждёт проверки${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
+          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? "✓ подтверждено" : `ждёт проверки${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
           <InfoHint wide label="Что значит «подтверждено»">
             <p>{HINT[kind]}</p>
             <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова.</p>
@@ -88,7 +88,7 @@ export async function AuctionVerify({ organizationId, names }: { organizationId:
           <section key={name} className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" data-verify-block={`auction:${name}`}>
             <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
               Подтверждение · {shortAuctionName(name, 60)}
-              <span className="text-sm font-normal text-neutral-500">закупок подтверждено: {rows.length - waiting.length} из {rows.length}</span>
+              <span className="text-sm font-normal text-neutral-500">строк подтверждено: {rows.length - waiting.length} из {rows.length}</span>
               <InfoHint wide label="Что значит «подтверждено»">
                 <p>{HINT.purchase}</p>
                 <p className="mt-2">Кнопка действует на все закупки аукциона сразу; закупки с замечаниями подтверждаются только с примечанием.</p>

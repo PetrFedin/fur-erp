@@ -29,6 +29,7 @@ import {
   type RecStatus,
   type Totals,
 } from "./model";
+import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { ConfirmLine, CountsLine, INV_TONE, Progress, money } from "./parts";
 
 export const metadata = { title: "Сверка" };
@@ -53,27 +54,28 @@ function groupTone(list: InvCalc[]): keyof typeof INV_TONE | null {
 
 function HowToRead() {
   return (
-    <InfoHint wide label="Как читать реестр: статусы и «закрыто %»" className="ml-1.5">
+    <InfoHint wide label="Как читать реестр: статусы и «подтверждено документами, %»" className="ml-1.5">
       <div className="space-y-2">
         <div className="font-semibold text-neutral-900">Как читать статусы счёта</div>
         <ul className="list-disc space-y-1 pl-4">
-          <li><b>ЗАКРЫТ</b> — по документам оплачено всё, остаток не превышает 3,96 ₽ (согласованный допуск на округление).</li>
+          <li><b>ПОДТВЕРЖДЕНО ДОКУМЕНТОМ</b> — по документам оплачено всё, остаток не превышает 3,96 ₽ (согласованный допуск на округление).</li>
           <li><b>ЧАСТИЧНО (N %)</b> — часть оплачена подтверждённо; N — доля оплаченного от суммы счёта.</li>
-          <li><b>ТОЛЬКО СОГЛАСОВАН</b> — в переписке написано «согласовано / ок», но факта оплаты (платёжки, баланса, письма «оплачено») нет. Это не оплата.</li>
-          <li><b>НЕ ОПЛАЧЕН</b> — ни оплаты, ни согласования в документах нет.</li>
+          <li><b>СОГЛАСОВАНО ПИСЬМОМ</b> — в переписке написано «согласовано / ок», но факта оплаты (платёжки, баланса, письма «оплачено») нет. Это не оплата.</li>
+          <li><b>НЕ ПОДТВЕРЖДЕНО</b> — ни оплаты, ни согласования в документах нет.</li>
         </ul>
         <div className="font-semibold text-neutral-900">Чем подтверждена оплата</div>
         <ul className="list-disc space-y-1 pl-4">
-          <li><b>документами</b> — номер п/п (из УПД и единого реестра), баланс 040226, УПД, расчёт fin с отметкой «оплачено».</li>
-          <li><b>только письмом</b> — в письме Веллмех/Меркури Мода сказано «оплачено», но без даты и п/п.</li>
-          <li><b>только согласовано</b> — только «согласовано» (не деньги).</li>
-          <li><b>нет подтверждения</b> — вообще ничего. Банковских выписок и платёжек Меркури Мода в папке «мех» нет, поэтому «документами» — это косвенное подтверждение; полное — только выпиской.</li>
+          <li><b>подтверждено документом</b> — номер п/п (из УПД и единого реестра), баланс 040226, УПД, расчёт fin с отметкой «оплачено».</li>
+          <li><b>согласовано письмом</b> (оплачено) — в письме Веллмех/Меркури Мода сказано «оплачено», но без даты и п/п.</li>
+          <li><b>согласовано письмом, не оплата</b> — только «согласовано» (не деньги).</li>
+          <li><b>не подтверждено</b> — вообще ничего. Банковских выписок и платёжек Меркури Мода в папке «мех» нет, поэтому «документами» — это косвенное подтверждение; полное — только выпиской.</li>
         </ul>
-        <div className="font-semibold text-neutral-900">Как считается «закрыто %»</div>
+        <div className="font-semibold text-neutral-900">Как считается «подтверждено документами, %»</div>
         <p>
-          Закрыто % = оплачено по документам ÷ сумма счетов × 100. Считаются только счета Веллмех (платим только посреднику ООО «Веллмех»).
+          Подтверждено документами, % = оплачено по документам ÷ сумма счетов × 100. Считаются только счета Веллмех (платим только посреднику ООО «Веллмех»).
           Для группы (аукцион или партия) — сумма по её счетам; для общего счёта на несколько групп берётся доля группы (по УПД). Полоса: зелёная — оплачено, голубая — только согласовано, серая — остаток.
         </p>
+        <p className="text-neutral-600">{RELIABILITY_NOTE}</p>
         <div className="font-semibold text-neutral-900">«В базе»</div>
         <p>
           Живой расчёт при каждом заходе: платежи Payment / ProductionPayment из базы, привязанные к группе (по закупкам, аукциону, ТЗ партии) и к счёту (по ссылке «счёт №N» в платеже).
@@ -175,9 +177,9 @@ function BridgeCard({ b }: { b: ReconBridge }) {
           <tr className="text-neutral-600"><td className="py-1 pl-4">в т. ч. закупки сырья {money(b.registry.purchase)} · производство {money(b.registry.production)}</td><td /></tr>
           <tr className="font-medium"><td className="pt-2">Закупки сырья: Главная − реестр ({signed(sp)})</td><td /></tr>
           {rows(b.purchase)}
-          <tr className="font-medium"><td className="pt-2">Производство, работа: Главная − реестр ({signed(sw)})</td><td /></tr>
+          <tr className="font-medium"><td className="pt-2">Работа подрядчику: Главная − реестр ({signed(sw)})</td><td /></tr>
           {rows(b.production)}
-          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(b.main.raw)} + работа {money(b.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.main.total)}</td></tr>
+          <tr className="border-t border-neutral-300 font-semibold"><td className="py-1">Главная: сырьё {money(b.main.raw)} + работа подрядчику {money(b.main.work)}</td><td className="whitespace-nowrap py-1 text-right tabular-nums">{money(b.main.total)}</td></tr>
         </tbody>
       </table>
       <p className="mt-2 text-xs text-neutral-500">Реестр {money(b.registry.total)} {signed(sp + sw)} = Главная {money(b.main.total)}.</p>

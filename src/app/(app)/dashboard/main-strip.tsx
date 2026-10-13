@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
+import { RELIABILITY_NOTE } from "@/lib/reliability-note";
 import { WidgetRow } from "@/components/widget-row";
 import { TILE_BOX, TileHead, TileList, TileValue } from "./tile";
 import { formatCompactMoney } from "./compact";
@@ -59,9 +60,9 @@ export function MainStrip({ s, r, hrefs }: { s: StripData; r: ReliabilityData; h
           <TileList items={[{ k: "ТЗ", v: formatQty(s.prod.orders) }]} />
         </StripTile>
 
-        <StripTile title="Работа" href="/payments?tab=clients" hintLabel="Что такое «Работа» в полосе" value={mln(s.work.accrued)}
-          hint={<><p>Долг по работе (общий баланс) = работа по всем ТЗ минус все оплаты работы, включая авансы, ещё не привязанные к партиям (договор №1605: аванс 70 %, доплата 30 % после сдачи). Начислено = оплачено + долг. Оплачено и к оплате — те же цифры, что в «Оплаты → За производство» и в плитках «Оплачено» и «К оплате» на этой странице (всегда с НДС).</p></>}>
-          <TileList items={[{ k: "Начислено", v: full(s.work.accrued) }, { k: "оплачено", v: full(s.work.paid), sub: true }, { k: "Долг по работе (общий баланс)", v: full(s.work.left), sub: true, tone: s.work.left > 0 ? "text-amber-700" : undefined }]} />
+        <StripTile title="Работа подрядчику" href="/payments?tab=clients" hintLabel="Что такое «Работа подрядчику» в полосе" value={mln(s.work.accrued)}
+          hint={<><p>Работа подрядчику — расход на пошив (Веллмех). Долг по работе подрядчику (общий баланс) = работа по всем ТЗ минус все оплаты работы, включая авансы, ещё не привязанные к партиям (договор №1605: аванс 70 %, доплата 30 % после сдачи). Начислено = оплачено + долг. Оплачено и к оплате — те же цифры, что в «Оплаты → За производство» и в плитках «Оплачено» и «К оплате» на этой странице (всегда с НДС).</p></>}>
+          <TileList items={[{ k: "Начислено", v: full(s.work.accrued) }, { k: "оплачено", v: full(s.work.paid), sub: true }, { k: "Долг по работе подрядчику", v: full(s.work.left), sub: true, tone: s.work.left > 0 ? "text-amber-700" : undefined }]} />
         </StripTile>
 
         <StripTile title="Оплачено поставщикам" href="/payments?tab=suppliers" hintLabel="Что такое «Оплачено поставщикам»" value={mln(s.supplier.paid)}
@@ -70,7 +71,7 @@ export function MainStrip({ s, r, hrefs }: { s: StripData; r: ReliabilityData; h
         </StripTile>
 
         <StripTile title="Общая задолженность" href="/payments" hintLabel="Что такое общая задолженность" value={mln(s.total.left)} valueClass={s.total.left > 0 ? "text-amber-700" : ""}
-          hint={<><p>К оплате всего = долг по сырью + долг по работе — цифра «К оплате» плиток оплат на этой странице.</p><p className="mt-1">Оплачено всего {full(s.total.paid)}; общая стоимость = оплачено + к оплате = {full(s.total.all)}.</p></>}>
+          hint={<><p>К оплате всего = за мех и подкладку {full(s.supplier.debt)} + за работу подрядчику {full(s.work.left)} — цифра «К оплате» плиток оплат на этой странице.</p><p className="mt-1">Оплачено всего {full(s.total.paid)}; общая стоимость = оплачено + к оплате = {full(s.total.all)}.</p></>}>
           <TileList items={[{ k: "К оплате всего", v: full(s.total.left) }, { k: "Оплачено всего", v: full(s.total.paid) }]} />
         </StripTile>
 
@@ -81,16 +82,17 @@ export function MainStrip({ s, r, hrefs }: { s: StripData; r: ReliabilityData; h
 
         <StripTile wide title="Надёжность данных" href="/reconciliation" hintLabel="Что значит «Надёжность данных»" value={<span title={`${full(r.paidDocs)} из ${full(r.amount)}`}>{`${formatCompactMoney(r.paidDocs)} из ${formatCompactMoney(r.amount)} (${formatPercent(docsPct)})`}</span>}
           hint={<>
-            <p><b>Подтверждено документами</b> — оплаты счетов, у которых есть п/п, баланс, УПД или расчёт с отметкой «оплачено».</p>
-            <p className="mt-1"><b>Согласовано письмом</b> — в письме сказано «оплачено», но без даты и п/п. «Только согласовано» — не оплата. <b>Без подтверждения</b> — документов нет.</p>
-            <p className="mt-1">Закрыто {formatPercent(closedPct)} ({full(r.paid)} из {full(r.amount)}) — оплачено по документам и письмом от суммы счетов реестра (все годы). «Подтверждено строк» — оплаты, закупки, ТЗ и партии, проверенные вручную или авто по документам. «Решения владельца» — вопросы, ждущие ответа в «Контроле».</p>
+            <p><b>Подтверждено документом</b> — оплаты счетов, у которых есть п/п, баланс, УПД или расчёт с отметкой «оплачено».</p>
+            <p className="mt-1"><b>Согласовано письмом</b> — в письме сказано «оплачено», но без даты и п/п; «согласовано письмом, не оплата» — деньгами не считается. <b>Не подтверждено</b> — документов нет.</p>
+            <p className="mt-1">Главное число — подтверждено документами, {formatPercent(docsPct)} по сумме счетов реестра (все годы). Вместе с «согласовано письмом» — {formatPercent(closedPct)} ({full(r.paid)} из {full(r.amount)}). «Решения владельца» — вопросы, ждущие ответа в «Контроле».</p>
+            <p className="mt-1">{RELIABILITY_NOTE}</p>
           </>}>
           <TileList items={[
-            { k: "Подтверждено документами", v: full(r.paidDocs) },
-            { k: "письмом согласовано", v: full(r.paidLetter), sub: true },
-            { k: "только согласовано, не оплата", v: full(r.approved), sub: true },
-            { k: "без подтверждения", v: full(r.none), sub: true, tone: r.none > 0 ? "text-amber-700" : undefined },
-            { k: "Подтверждено строк", v: `${r.rowsVerified} из ${r.rowsTotal}` },
+            { k: "Подтверждено документом", v: full(r.paidDocs) },
+            { k: "согласовано письмом", v: full(r.paidLetter), sub: true },
+            { k: "согласовано письмом, не оплата", v: full(r.approved), sub: true },
+            { k: "не подтверждено", v: full(r.none), sub: true, tone: r.none > 0 ? "text-amber-700" : undefined },
+            { k: "строк подтверждено", v: `${r.rowsVerified} из ${r.rowsTotal}` },
             { k: "Решений владельца", v: String(r.decisions), tone: r.decisions > 0 ? "text-amber-700" : undefined },
           ]} />
         </StripTile>
