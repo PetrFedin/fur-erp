@@ -1,3 +1,4 @@
+import { orderLabel as baseOrderLabel } from "@/lib/order-label";
 // Общие функции раздела «Отгрузки» (годятся и для сервера, и для клиента).
 
 export const SHIPMENT_STATUS: Record<
@@ -11,9 +12,9 @@ export const SHIPMENT_STATUS: Record<
 
 export type SizeRow = { size: string; quantity: string };
 
-/** «ТЗ №141» или, если номера ТЗ нет, «Заказ П-2026-0141». */
+/** «ТЗ 141» или, если номера ТЗ нет, «Заказ П-2026-0141» (единый формат — order-label.ts). */
 export function orderLabel(o: { workOrderNumber: string | null; number: string }) {
-  return o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`;
+  return baseOrderLabel(o);
 }
 
 /** Числовой № ТЗ для сортировки; ТЗ без числового номера идут в конец. */

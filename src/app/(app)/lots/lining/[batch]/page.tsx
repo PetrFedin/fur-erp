@@ -16,6 +16,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InfoHint } from "@/components/info-hint";
 import { FurOrdersTable } from "@/components/fur-orders-table";
 import { RawCards } from "../../../dashboard/raw-block";
+import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { LiningFabrics } from "./view";
 import { SourceDocs } from "@/components/source-docs";
 import { loadPurchasesSourceDocs } from "@/lib/source-docs-server";
@@ -85,7 +86,8 @@ export default async function LiningBatchPage({ params, searchParams }: PageProp
       </div>
 
       <div data-raw-tiles>
-        <RawCards view="lining" rows={rawRowsFromLots(lots)} fur={pair} lining={pair} c4={c4} headerEnd={headerEnd} vatRates={{ recv: vatBy("recv"), used: vatBy("used"), rem: vatBy("rem") }} />
+        <RawCards view="lining" rows={rawRowsFromLots(lots)} fur={pair} lining={pair} c4={c4} headerEnd={headerEnd} vatRates={{ recv: vatBy("recv"), used: vatBy("used"), rem: vatBy("rem") }}
+          pay={pay ? <FilteredPayTiles figs={pair.incl} paid={pay.paid.toNumber()} due={Math.max(0, pay.total.toNumber() - pay.paid.toNumber())} c4={c4} /> : <p className="self-center px-2 text-xs text-neutral-500">Оплаты по партии — в <Link href="/payments" className="text-blue-700 hover:underline">«Оплатах»</Link></p>} />
       </div>
 
       <section aria-labelledby="lb-pass" className="rounded-lg border border-neutral-200 bg-white p-3">

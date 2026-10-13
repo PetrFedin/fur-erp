@@ -585,7 +585,7 @@ function LotRowView({
           : r.usages.map((u) => (
               <div key={u.id} className="whitespace-nowrap">
                 <Link href={`/production/${u.orderId}`} className="hover:underline">
-                  ТЗ {u.number}
+                  {u.label}
                 </Link>
                 {" — "}
                 {formatQty(u.qty)} {r.unit}
@@ -671,7 +671,7 @@ function LotCardView({
                 {r.usages.map((u) => (
                   <div key={u.id}>
                     <Link href={`/production/${u.orderId}`} className="underline">
-                      ТЗ {u.number}
+                      {u.label}
                     </Link>
                     {" — "}
                     {formatQty(u.qty)} {r.unit}

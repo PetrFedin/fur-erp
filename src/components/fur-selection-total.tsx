@@ -95,7 +95,6 @@ export function FurSelectionTotal({
 }) {
   const router = useRouter();
   const unit = kind === "lining" ? "м" : "шт.";
-  const unitWord = kind === "lining" ? "метр" : "шкуру";
   // Как в таблицах Главной: «Использовано» всегда без 4% (4% — отдельно, в виджетах и себестоимости).
   const c4 = "off" as "on" | "off";
   const { mode: vat } = useVatDisplay();
@@ -115,7 +114,9 @@ export function FurSelectionTotal({
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<ViewMode>("all");
   // «Строки по»: вид меха (ткань) либо год закупки — год раскрывается в вид → партию → лот → ТЗ.
-  const [group, setGroup] = useState<"item" | "year" | "auction">(lockItem ? "auction" : "item");
+  const [group, setGroup] = useState<"item" | "year" | "auction" | "lots">(lockItem ? "auction" : "item");
+  // «Списком лотов»: плоская таблица лотов (те же строки-лоты, что внутри дерева) с сортировкой; поиск и фильтры — общие, над таблицей.
+  const [lotSort, setLotSort] = useState<"num" | "recv" | "used" | "rem">("num");
 
   // Состояние фильтров — в адресной строке (повтор параметров: fur=a&fur=b), без перезагрузки страницы.
   const first = useRef(true);
@@ -149,7 +150,7 @@ export function FurSelectionTotal({
   const table = useMemo(() => buildFurTable({ lots: baseLots, filters, selected, onlySelected, mode }), [baseLots, filters, selected, onlySelected, mode]);
   // Слайды ряда плиток. Мех — два уровня: источник («Вся закупка | На аукционах | У поставщика») → слайды типов меха внутри него
   // («Все типы» → Лиса → Норка → …, только типы с данными). Ткань — один уровень: «Все ткани» → по тканям. Слайд меняет только плитки.
-  const hasSlides = Boolean(raw) && !lockItem;
+  const hasSlides = Boolean(raw) && !lockItem && kind === "fur"; // подкладка: один виджет «Все ткани» без слайдов по тканям
   const srcList: FurSrc[] = kind === "fur" ? FUR_SRC_KEYS : ["all"];
   const typesBySrc = useMemo(() => {
     const out: Partial<Record<FurSrc, string[]>> = {};
@@ -203,10 +204,10 @@ export function FurSelectionTotal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw, lockItem, hasTypes, src, slideKeys, table.filteredLots, isFiltered]);
   const tileData = useMemo(() => {
-    if (!raw || !isFiltered || !lockItem) return null;
+    if (!raw || !isFiltered || !(lockItem || kind === "lining")) return null;
     return tilesOf(table.filteredLots, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, isFiltered, lockItem, table.filteredLots]);
+  }, [raw, isFiltered, lockItem, kind, table.filteredLots]);
   const options = useMemo(() => {
     const o = Object.fromEntries(FILTER_KEYS.map((k) => [k, filterOptions(baseLots, filters, k)])) as Record<FilterKey, ReturnType<typeof filterOptions>>;
     // Вид меха без лотов (сырьё подрядчика): есть в списке с пометкой «лотов нет» — как на Главной; выбор даёт пустую таблицу с пояснением.
@@ -221,7 +222,6 @@ export function FurSelectionTotal({
 
 
   const setFilter = (k: FilterKey, v: string[]) => setFilters((f) => ({ ...f, [k]: v }));
-  const toggleSel = (key: string) => setSelected((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]));
   const toggleExp = (key: string) =>
     setExpanded((s) => {
       const n = new Set(s);
@@ -238,18 +238,9 @@ export function FurSelectionTotal({
   }, [selectedHere, allChecked]);
 
   const t = table.totalFigures;
-  const vatWord = vat === "excl" ? "без НДС" : "с НДС";
-  const c4Word = c4 === "on" ? "с 4%" : "без 4%";
 
   const showQty = view !== "money";
   const showMoney = view !== "qty";
-  const avgHint = (what: string, extra?: string) => (
-    <InfoHint label={`Как считается средняя цена ${what}`} align="right">
-      <p><b>Средневзвешенная цена {what}</b></p>
-      <p className="mt-1">= Σ ₽ {what === "закупки" ? "куплено" : what === "использования" ? "использовано" : "остатка"} ÷ Σ {unit === "м" ? "метров" : "шкур"} (отношение сумм, а не среднее цен лотов).</p>
-      <p className="mt-1">Сейчас: {vatWord}{what === "использования" ? `, ${c4Word}` : ""}. {extra}</p>
-    </InfoHint>
-  );
 
   // Колонки по показателям: Куплено (шт., ₽, ср. цена) → Использовано (…) → Остаток (…); режим шт./₽/Все прячет лишнее.
   const GROUPS = [
@@ -264,16 +255,18 @@ export function FurSelectionTotal({
   const colsOf = (key: string) => (showQty ? 1 : 0) + (showMoney ? 1 : 0) + 1 + (showUsd ? 1 : 0) + (showHam && key === "recv" ? 1 : 0);
   // Мех и подкладка: четвёртый блок «НДС» (ставка · НДС, ₽ · НДС в ТЗ) сразу после «Остаток».
   const showVat = false; // блок «НДС» в таблице убран: НДС показан в «Использовании по ТЗ» и в плитках
-  const totalCols = GROUPS.reduce((a, g) => a + colsOf(g.key), 0) + (showVat ? 2 : 0);
+  const showPay = kind === "lining"; // подкладка: блок «Оплата» (оплачено · долг) — доли оплат партии по стоимости лота, как в плитках
+  const totalCols = GROUPS.reduce((a, g) => a + colsOf(g.key), 0) + (showVat ? 2 : 0) + (showPay ? 2 : 0);
   const priceUnit = kind === "lining" ? "м" : "шт.";
   const groupHead = (
     <tr>
       <th rowSpan={2} className="sticky left-0 z-10 bg-neutral-50 px-3 py-2 text-left align-middle font-medium">
-        <span>{group === "year" ? "Год закупки" : group === "auction" ? "Партия закупки (аукцион)" : kind === "lining" ? "Подкладка" : "Мех"}</span>
+        <span>{group === "lots" ? "Лот" : group === "year" ? "Год закупки" : group === "auction" ? "Партия закупки (аукцион)" : kind === "lining" ? "Подкладка" : "Мех"}</span>
       </th>
       {GROUPS.map((g) => (
         <THGroup key={g.key} colSpan={colsOf(g.key)}>{g.title}</THGroup>
       ))}
+      {showPay && <THGroup colSpan={2}>Оплата</THGroup>}
       {showVat && <th colSpan={2} className="border-b border-l border-neutral-200 px-3 pb-1 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-600">НДС</th>}
     </tr>
   );
@@ -288,6 +281,12 @@ export function FurSelectionTotal({
           {showUsd && <TH label="Ср. цена" unit={`$/${priceUnit}`} after={<InfoHint label="Почему цена в $ не у всех" align="right">Цена в $ записана в расчёте не у всех лотов; закупки в рублях (КФХ, прочее) и подкладка без цены в $. Средневзвешенная $ считается только по лотам с ценой в $ (Σ $ × кол-во ÷ кол-во этих лотов); курс на сегодня не применяется.</InfoHint>} />}
         </Fragment>
       ))}
+      {showPay && (
+        <>
+          <TH sep label="Оплачено" unit={UNIT.rub} />
+          <TH label="Долг" unit={UNIT.rub} />
+        </>
+      )}
       {showVat && (
         <>
           <TH sep label="Ставка" />
@@ -314,6 +313,18 @@ export function FurSelectionTotal({
           {R(sum)}
           {rates.length > 1 ? <div className="text-[10px] font-normal leading-tight text-neutral-500">{detail}</div> : null}
         </Num>
+      </>
+    );
+  };
+  /** Оплачено и долг по набору лотов (поля лота paid/due — те же, что питают плитки оплат). */
+  const payCells = (ls: FurLot[], o: { strong?: boolean; small?: boolean } = {}) => {
+    if (!showPay) return null;
+    const paid = ls.reduce((a, l) => a + (l.paid ?? 0), 0);
+    const due = ls.reduce((a, l) => a + (l.due ?? 0), 0);
+    return (
+      <>
+        <Num first strong={o.strong} small={o.small}>{R(paid)}</Num>
+        <Num strong={o.strong} small={o.small}><span className={due > 0.5 ? "text-amber-700" : undefined}>{R(due)}</span></Num>
       </>
     );
   };
@@ -368,41 +379,24 @@ export function FurSelectionTotal({
   };
   const nCols = 1 + totalCols;
   // Ширины колонок рассчитаны под Inter (он шире Arial): сумма до 9 знаков + ₽ влезает без слипания с соседней колонкой.
-  const widthClass = kind === "lining" ? "min-w-[1100px]" : "min-w-[1500px]";
+  const widthClass = kind === "lining" ? "min-w-[1300px]" : "min-w-[1500px]";
 
-  // «Лоты без ТЗ» (не использованы в производстве) — отдельным блоком в конце таблицы; основные строки — лоты со списаниями в ТЗ.
-  // Σ «с ТЗ» + Σ «без ТЗ» = «Итого» (блок без ТЗ считается по тем же строкам, что и «Итого»: выбранным, а без выбора — показанным).
-  const hasTz = (l: FurLot) => l.usages.length > 0 || l.used > 0;
   const totalRowKeys = new Set(table.selectedKeys.length > 0 ? table.selectedKeys : table.rows.map((r) => r.key));
-  const noTzRows = useMemo(
-    () => rowsBy(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots).filter((l) => !hasTz(l)), mode, (l) => l.item),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [table, mode],
-  );
-  const mainRows = useMemo(
-    () => table.rows.flatMap((r) => {
-      const withTz = r.lots.filter(hasTz);
-      if (withTz.length === 0) return [];
-      const flow = flowOf(withTz);
-      return [{ ...r, lots: withTz, flow, figures: figures(flow, mode) } as TableRow];
-    }),
-    [table, mode],
-  );
-  const mainTotal = useMemo(
-    () => figures(flowOf(mainRows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots)), mode),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mainRows, table, mode],
-  );
-  const noTzLots = noTzRows.reduce((n, r) => n + r.lots.length, 0);
-  const noTzTotal = useMemo(() => figures(flowOf(noTzRows.flatMap((r) => r.lots)), mode), [noTzRows, mode]);
-  const noTzOpen = expanded.has("z:block");
 
   // Строки таблицы раскрываются вглубь: [год →] вид → партия закупки → лот → ТЗ, где лот списан. Уровни зависят от «Строки по».
   type Level = "year" | "item" | "auction";
   const levels: Level[] = group === "auction" ? ["auction"] : group === "year" ? (lockItem ? ["year", "auction"] : ["year", "item", "auction"]) : ["item", "auction"];
   const rowsFor = (list: FurLot[], level: Level): TableRow[] =>
     level === "year" ? rowsBy(list, mode, (l) => String(l.year)) : level === "item" ? rowsBy(list, mode, (l) => l.item) : rowsBy(list, mode, (l) => l.auction, (l) => l.auctionLabel);
-  const topRows: TableRow[] = group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year");
+  const topRows: TableRow[] = group === "lots" ? [] : group === "item" ? table.rows : rowsFor(table.rows.flatMap((r) => r.lots), group === "auction" ? "auction" : "year");
+  const flatLots = useMemo(() => {
+    if (group !== "lots") return [];
+    const key = (l: FurLot) => { const f = figures(flowOf([l]), mode); return lotSort === "recv" ? f.recvValue : lotSort === "used" ? f.usedValue : f.remValue; };
+    const list = [...table.filteredLots];
+    if (lotSort === "num") list.sort((a, b) => (a.lotNumber ?? "").localeCompare(b.lotNumber ?? "", "ru", { numeric: true }));
+    else list.sort((a, b) => key(b) - key(a));
+    return list;
+  }, [group, lotSort, table.filteredLots, mode]);
   const pad = (depth: number) => ({ paddingLeft: 12 + depth * (kind === "lining" ? 12 : 20) });
 
   /** Строка ТЗ: сколько лота ушло в это ТЗ, на какую сумму (без 4%), цена за единицу и надбавка 4%. */
@@ -428,6 +422,7 @@ export function FurSelectionTotal({
             {showUsd && <Num small muted><span className="text-neutral-300">—</span></Num>}
           </Fragment>
         ))}
+        {showPay && <><Num first small muted><span className="text-neutral-300">—</span></Num><Num small muted><span className="text-neutral-300">—</span></Num></>}
         {showVat && <><Num first small muted><span className="text-neutral-300">—</span></Num><Num small muted><span className="text-neutral-300">—</span></Num></>}
       </tr>
     );
@@ -437,7 +432,7 @@ export function FurSelectionTotal({
     const lk = `${path}/l:${l.id}`;
     const lOpen = expanded.has(lk);
     const canOpen = l.usages.length > 0;
-    const sub = [l.materialName !== parentLabel ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year), ...l.attrs].filter(Boolean).join(" · ");
+    const sub = [path === "flat" ? l.auctionLabel : null, l.materialName !== parentLabel ? l.materialName : null, l.color !== "Не указан" ? l.color : null, l.size !== "Не указан" ? l.size : null, String(l.year), ...l.attrs].filter(Boolean).join(" · ");
     const purchaseTitle = [l.supplier, l.purchaseNumber].filter(Boolean).join(" · ");
     const pct = l.recv > 0 ? Math.min(100, (l.used / l.recv) * 100) : 0;
     return (
@@ -463,6 +458,7 @@ export function FurSelectionTotal({
             <div className="truncate pl-4 text-[11px] text-neutral-500" title={[sub, purchaseTitle].filter(Boolean).join(" · ")}>{sub}</div>
           </td>
           {cells(figures(flowOf([l]), mode), { small: true, usedBar: l.recv > 0 ? pct : undefined, plan: planUsdAvg([l], flowOf([l])), lot: l })}
+          {payCells([l], { small: true })}
           {showVat && vatCells([l], { small: true, single: true })}
         </tr>
         {lOpen ? l.usages.map((u) => renderUsage(l, u, depth + 1)) : null}
@@ -524,6 +520,7 @@ export function FurSelectionTotal({
             {isAuction ? <div className="truncate pl-4 text-[11px] text-neutral-500" title={auctionSub(row)}>{auctionSub(row)}</div> : null}
           </td>
           {cells(row.figures, { ...(depth === 0 ? {} : { small: true }), plan: planUsdAvg(row.lots, row.flow) })}
+          {payCells(row.lots, depth === 0 ? {} : { small: true })}
           {showVat && vatCells(row.lots, { small: depth !== 0 })}
         </tr>
         {inner}
@@ -643,10 +640,10 @@ export function FurSelectionTotal({
                 lining={kind === "lining" && curData ? curData.pair : raw.lining}
                 c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={(kind === "fur" ? FUR_SRC_LABEL[src] + (slideNow ? ` · ${slideNow}` : "") : slideNow) || undefined} headerExtra={slideCtl} />
             );
-          })() : lockItem ? (
+          })() : lockItem || kind === "lining" ? (
             <>
               {tileData ? (
-                <RawCards key="raw-filtered" view={kind} rows={tileData.rows} fur={tileData.pair} lining={raw.lining} c4={raw.c4} headerEnd={raw.headerEnd}
+                <RawCards key="raw-filtered" view={kind} rows={tileData.rows} fur={kind === "fur" ? tileData.pair : raw.fur} lining={kind === "lining" ? tileData.pair : raw.lining} c4={raw.c4} headerEnd={raw.headerEnd}
                   pay={<FilteredPayTiles figs={tileData.pair.incl} paid={tileData.paid} due={tileData.due} c4={raw.c4} />} />
               ) : raw.tiles}
             </>
@@ -667,11 +664,22 @@ export function FurSelectionTotal({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-neutral-500">
         <div role="tablist" aria-label="Строки по" className="flex flex-wrap items-center gap-1.5">
           <span>Строки по:</span>
-          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ["year", "Году закупки"]]) as ReadonlyArray<readonly ["item" | "year" | "auction", string]>).map(([id, label]) => (
+          {((lockItem ? [["auction", "Аукциону"], ["year", "Году закупки"], ["lots", "Списком лотов"]] : [["item", kind === "lining" ? "Ткани" : "Виду меха"], ["year", "Году закупки"], ["lots", "Списком лотов"]]) as ReadonlyArray<readonly ["item" | "year" | "auction" | "lots", string]>).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(new Set()); }}
               className={"rounded-lg border px-3 py-1.5 text-xs " + (group === id ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</button>
           ))}
         </div>
+        {group === "lots" && (
+          <label className="inline-flex items-center gap-1.5">
+            Сортировка:
+            <select value={lotSort} onChange={(e) => setLotSort(e.target.value as typeof lotSort)} className="rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-xs text-neutral-700">
+              <option value="num">№ лота</option>
+              <option value="recv">Куплено, ₽ (по убыванию)</option>
+              <option value="used">Использовано, ₽ (по убыванию)</option>
+              <option value="rem">Остаток, ₽ (по убыванию)</option>
+            </select>
+          </label>
+        )}
         {selectedHere > 0 && (
           <span>
             Выбрано: <b className="text-neutral-900">{selectedHere}</b> из {allVisible.length}
@@ -693,13 +701,14 @@ export function FurSelectionTotal({
             <tr>{colsHead}</tr>
           </thead>
           <tbody>
-            {topRows.map((r) => renderNode(r, 0, "g"))}
+            {group === "lots" ? flatLots.map((l) => renderLot(l, 0, "flat", "")) : topRows.map((r) => renderNode(r, 0, "g"))}
             {kind === "fur" && group === "item" && !lockItem && (noLotsKinds ?? []).filter((k) => !filters.item.length || filters.item.includes(k)).map((k) => (
               <tr key={`nolots:${k}`} className="border-t border-neutral-100 text-neutral-600" data-sub="no-lots">
                 <td className="sticky left-0 z-10 bg-white py-2 pr-3" style={pad(0)}>
                   <div className="flex items-center whitespace-nowrap">
                     <span aria-hidden className="mr-1 inline-block w-3" />
                     <Link href={`/lots/fur/${encodeURIComponent(k)}`} className="font-medium hover:underline">{k}<span aria-hidden className="ml-1 text-[10px] text-neutral-400">↗</span></Link>
+                    <span className="ml-1.5 text-xs text-neutral-500">(сырьё подрядчика)</span>
                     <InfoHint label="Что такое строка без лотов" align="left">Закупок и лотов {k.toLowerCase()} нет; значения — по ТЗ изделий из этого меха (как на Главной). В итоги не входят.</InfoHint>
                   </div>
                 </td>
@@ -719,6 +728,7 @@ export function FurSelectionTotal({
               <tr data-total className="row-total text-[14px]">
                 <td className="sticky left-0 z-10 px-3 py-2.5 text-left font-semibold"><TotalLabel unit="₽" avg /></td>
                 {cells(t, { strong: true, altUsed: true })}
+                {payCells(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots), { strong: true })}
                 {showVat && vatCells(table.rows.filter((r) => totalRowKeys.has(r.key)).flatMap((r) => r.lots), { strong: true })}
               </tr>
             )}

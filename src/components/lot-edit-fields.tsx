@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { LotEditCtx } from "@/components/lot-edit-ctx";
 import { useConfirm } from "@/components/confirm-dialog";
 import { SaveStatus, InlineSelect, InlineText } from "@/components/lot-inline";
 import { formatMoney, formatQty } from "@/lib/utils";
@@ -16,6 +17,13 @@ const BOX =
   "border-neutral-200 hover:border-neutral-400 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-300";
 
 const m2 = (v: number | string) => formatMoney(Number(v).toFixed(2));
+/** Число из строки «было / станет» с разделителями разрядов: 1198366.61 → 1 198 366,61. */
+const fmtLine = (label: string, v: string) => {
+  const n = Number(v);
+  if (v.trim() === "" || !Number.isFinite(n)) return v;
+  const money = /₽|\$|закупке|позиции|Молоток/.test(label);
+  return n.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: money ? 2 : 3 });
+};
 
 /** Окно «что изменится» перед пересчётом лота: сам лот, списания по ТЗ и их себестоимость, состав цены. */
 export function PlanView({ plan, title }: { plan: LotPlan; title: string }) {
@@ -29,7 +37,7 @@ export function PlanView({ plan, title }: { plan: LotPlan; title: string }) {
           <thead><tr className="border-b border-neutral-200"><th className={th}>Показатель</th><th className={cn(th, "text-right")}>Было</th><th className={cn(th, "text-right")}>Станет</th></tr></thead>
           <tbody>
             {plan.lines.map((l) => (
-              <tr key={l.label} className="border-b border-neutral-100"><td className="px-1.5 py-1">{l.label}</td><td className={cn(td, "text-right text-neutral-500")}>{l.before}</td><td className={cn(td, "text-right font-medium")}>{l.after}</td></tr>
+              <tr key={l.label} className="border-b border-neutral-100"><td className="px-1.5 py-1">{l.label}</td><td className={cn(td, "text-right text-neutral-500")}>{fmtLine(l.label, l.before)}</td><td className={cn(td, "text-right font-medium")}>{fmtLine(l.label, l.after)}</td></tr>
             ))}
           </tbody>
         </table>
@@ -39,7 +47,7 @@ export function PlanView({ plan, title }: { plan: LotPlan; title: string }) {
           <p className="mb-1 text-sm font-medium">Затронутые ТЗ ({plan.orders.length})</p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[30rem] text-left text-sm">
-              <thead><tr className="border-b border-neutral-200"><th className={th}>ТЗ</th><th className={cn(th, "text-right")}>Списано, шт.</th><th className={cn(th, "text-right")}>Сырьё из лота до → после, ₽</th><th className={cn(th, "text-right")}>Себестоимость ТЗ до → после, ₽</th></tr></thead>
+              <thead><tr className="border-b border-neutral-200"><th className={th}>ТЗ</th><th className={cn(th, "text-right")}>Списано, шт.</th><th className={cn(th, "text-right")}>Сырьё из лота до → после, ₽</th><th className={cn(th, "text-right")}>Себестоимость сырья ТЗ до → после, ₽</th></tr></thead>
               <tbody>
                 {plan.orders.map((o) => (
                   <tr key={o.id} className="border-b border-neutral-100">
@@ -115,13 +123,36 @@ export function LotNumberField({ lotId, field, value, label, suffix }: { lotId: 
   const [nonce, setNonce] = useState(0);
   const [keep, setKeep] = useState<"incl" | "excl">("incl");
   const ch = useLotChange(lotId);
+  const ctx = useContext(LotEditCtx);
   const dirty = draft.trim().replace(",", ".") !== value;
-  const commit = () => {
-    if (!dirty) return;
+  const buildChange = (): LotChange => {
     const change: LotChange = { [field]: draft.trim() };
     if (field === "vatRate") change.vatKeep = keep;
-    void ch.run(change, TITLES[field], () => { setDraft(value); setNonce((n) => n + 1); });
+    return change;
   };
+  const commit = () => {
+    if (!dirty || ctx) return; // в паспорте сохраняет кнопка «Сохранить»
+    void ch.run(buildChange(), TITLES[field], () => { setDraft(value); setNonce((n) => n + 1); });
+  };
+  // Для кнопки «Сохранить» паспорта: открыть окно «что изменится» именно для этого поля.
+  const latest = useRef({ run: async () => true, reset: () => {} });
+  useEffect(() => {
+    latest.current = {
+      run: async () => (dirty ? ch.run(buildChange(), TITLES[field]) : true),
+      reset: () => { setDraft(value); setNonce((n) => n + 1); },
+    };
+  });
+  const handler = useRef({ commit: () => latest.current.run(), reset: () => latest.current.reset() });
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.report(field, dirty, handler.current);
+    return () => ctx.unregister(field);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, field, ctx?.report, ctx?.unregister]);
+  useEffect(() => {
+    if (ctx) latest.current.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx?.epoch]);
   return (
     <span className="block" key={nonce}>
       <span className="flex items-center gap-1">

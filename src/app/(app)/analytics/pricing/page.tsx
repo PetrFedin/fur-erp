@@ -153,7 +153,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const exampleModel = models.find((a) => a.price && calcOf(a).markupX && a.unitsCosted >= 3) ?? models.find((a) => a.price && calcOf(a).markupX);
   const exCalc = exampleModel ? calcOf(exampleModel) : null;
 
-  const baseLabel = p.base === "full" ? "материалы + работа" : "материалы + расходы (как в «Изделиях»)";
+  const baseLabel = p.base === "full" ? "полная себестоимость (с работой)" : "себестоимость сырья (без работы)";
   const basis = `наценка ${target ?? "—"}%, база — ${baseLabel}, ${c4Mode === "on" ? "с 4%" : "без 4%"}`;
   const qs = pricingParams(p).toString();
   const here = (over: Partial<PricingParams> = {}) => {
@@ -218,7 +218,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
             </Tr>
           )}
           {row("Расходы ТЗ", a.expenses, a.expenses, a.expenses)}
-          {row(`Себестоимость системы${c4}`, a.costIncl, a.costExcl, a.costIncl, { strong: true })}
+          {row(`Себестоимость сырья${c4}`, a.costIncl, a.costExcl, a.costIncl, { strong: true })}
           {row("Работа (цена работы × кол-во)", a.work, a.work, a.work)}
           {row(`Полная себестоимость с работой${c4}`, a.costIncl + a.work, a.costExcl + a.work, full, { strong: true })}
         </Tbody>
@@ -315,7 +315,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     const r = recommend(a, p.base, target);
     const dash = <span className="text-neutral-500">—</span>;
     const items: [string, React.ReactNode][] = [
-      ["Произведено", <>{formatQty(a.units)} ед. · ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</>],
+      ["Готово (завершённые ТЗ)", <>{formatQty(a.units)} ед. · ТЗ {a.orders}{a.inWorkOrders ? ` (+${a.inWorkOrders} в работе)` : ""}</>],
       ["По годам", breakdown(a, "year") || dash],
       ["По сезонам", a.rows.some((x) => x.seasonCode) ? breakdown(a, "season") : <span className="text-neutral-500">сезон в ТЗ не указан</span>],
       ["По партиям", breakdown(a, "batch") || dash],
@@ -325,7 +325,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
       [`Мех за шкуру${c4}`, d.furPerSkin ? <Money incl={d.furPerSkin.incl} excl={d.furPerSkin.excl} /> : dash],
       ["Молоток за шкуру", d.hammerPerSkin ? <><Money incl={d.hammerPerSkin.incl} excl={d.hammerPerSkin.excl} /> <span className="text-neutral-500">(данные: {pct0(d.hammerSkinShare ?? 0)} шкур, лотов {a.m.lotsHammer} из {a.m.lots})</span></> : <span className="text-neutral-500">нет данных (лотов {a.m.lots})</span>],
       ["Работа за ед.", d.workPerUnit != null ? formatMoney(d.workPerUnit.toFixed(2)) : dash],
-      [`Себестоимость за ед.${c4}`, d.costPerUnit ? <><Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />{a.m.minCostIncl != null && a.m.maxCostIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minCostIncl} excl={a.m.minCostExcl} /> до <Money incl={a.m.maxCostIncl} excl={a.m.maxCostExcl} />)</span>}</> : dash],
+      [`Себестоимость сырья за ед.${c4}`, d.costPerUnit ? <><Money incl={d.costPerUnit.incl} excl={d.costPerUnit.excl} />{a.m.minCostIncl != null && a.m.maxCostIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minCostIncl} excl={a.m.minCostExcl} /> до <Money incl={a.m.maxCostIncl} excl={a.m.maxCostExcl} />)</span>}</> : dash],
       [`Полная с работой${c4}`, d.fullPerUnit ? <><Money incl={d.fullPerUnit.incl} excl={d.fullPerUnit.excl} />{a.m.minFullIncl != null && a.m.maxFullIncl != null && a.costedOrders > 1 && <span className="text-neutral-500"> (от <Money incl={a.m.minFullIncl} excl={a.m.minFullExcl} /> до <Money incl={a.m.maxFullIncl} excl={a.m.maxFullExcl} />)</span>}</> : dash],
     ];
     if (a.modelId) {
@@ -414,6 +414,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <div className={c.belowCost ? "text-red-700" : ""}>
           <span className="font-semibold">×{c.markupX.toFixed(2).replace(".", ",")}</span>
           <div className="text-[11px] text-neutral-500">маржа {pct1(c.marginPct ?? 0)}{c.belowCost ? " — ниже себестоимости" : ""}</div>
+          <div className="text-[11px] text-neutral-400">база: {p.base === "full" ? "с работой" : "сырьё без работы"}, завершённые ТЗ</div>
         </div>
       );
     }
@@ -478,7 +479,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const mobileSortItems = [
     { key: "label", label: labelHead, href: thHref("label") },
     { key: "units", label: "Единиц", href: thHref("units") },
-    { key: "cost", label: "Себестоимость за ед.", href: thHref("cost") },
+    { key: "cost", label: "Себестоимость сырья за ед.", href: thHref("cost") },
     ...cols.map((c) => ({ key: c, label: colLabel(c, c4), href: thHref(c) })),
     { key: "price", label: "Цена", href: thHref("price") },
     { key: "markup", label: "Наценка", href: thHref("markup") },
@@ -494,7 +495,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           <InfoHint label="О странице" wide>
             <p>Из чего складывается себестоимость единицы по моделям (артикулам), категориям и видам меха, сколько в ней мех, подкладка, 4%, расходы и работа, сколько шкур и метров подкладки уходит на единицу, какой был молоток закупки и какую цену заводить, чтобы получить нужную наценку. Считается по <b>завершённым</b> ТЗ выбранного года.</p>
             <p className="mt-1">
-              <b>Себестоимость единицы</b> = (мех + подкладка + 4% + расходы ТЗ) ÷ произведено единиц — средневзвешенная: Σ сумм ÷ Σ единиц. Мех и подкладка — по лотам, из которых списано в ТЗ. 4% ({COMMISSION_RATE * 100}% — наценка при купле-продаже меха и подкладки подрядчику, не комиссия Веллмеха) добавляется к сырью и подкладке в режиме «С 4%»; работа им не облагается. НДС входит в цены лотов; «Без НДС» переключается в шапке.
+              <b>Себестоимость сырья единицы</b> (без работы) = (мех + подкладка + 4% + расходы ТЗ) ÷ произведено единиц — средневзвешенная: Σ сумм ÷ Σ единиц. Мех и подкладка — по лотам, из которых списано в ТЗ. 4% ({COMMISSION_RATE * 100}% — наценка при купле-продаже меха и подкладки подрядчику, не комиссия Веллмеха) добавляется к сырью и подкладке в режиме «С 4%»; работа им не облагается. НДС входит в цены лотов; «Без НДС» переключается в шапке.
             </p>
             <p className="mt-1">
               <b>Среднее — только средневзвешенное:</b> стоимость шкуры и молоток — вес в шкурах; шкуры, подкладка, работа и себестоимость на единицу — вес в единицах изделия. Формула каждой колонки — в подсказке у её заголовка. <b>Молоток</b> — цена шкуры на аукционе до сборов и выделки; лоты без молотка («нет данных») в среднее не входят.
@@ -524,7 +525,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         aucOf={aucOf}
         lead={[
           { type: "text", name: "m", label: "Целевая наценка, %", state: true, inputMode: "decimal", placeholder: defRounded != null ? String(defRounded) : "например 300", className: "sm:w-40" },
-          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Материалы + расходы (как в «Изделиях»)", options: [{ value: "full", label: "Материалы + расходы + работа" }], className: "sm:w-72" },
+          { type: "multi", name: "base", label: "База наценки", single: true, state: true, allLabel: "Себестоимость сырья (без работы)", options: [{ value: "full", label: "Полная себестоимость (с работой)" }], className: "sm:w-72" },
           { type: "multi", name: "only", label: "Показывать", single: true, state: true, allLabel: "Все", options: [{ value: "noprice", label: "Только без цены" }, { value: "issues", label: "Только с замечаниями" }] },
         ]}
       />
@@ -596,7 +597,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 <SortTh left label={labelHead} href={thHref("label")} active={sortState.sort === "label"} dir={sortState.dir} />
                 <SortTh label="Ед." href={thHref("units")} active={sortState.sort === "units"} dir={sortState.dir} hint="Σ изделий по завершённым ТЗ строки (ниже — число ТЗ)." />
                 <SortTh
-                  label="Себестоимость за ед."
+                  label="Себестоимость сырья за ед."
                   suffix={c4}
                   href={thHref("cost")}
                   active={sortState.sort === "cost"}
@@ -608,7 +609,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 ))}
                 <Th>Структура</Th>
                 <SortTh label="Цена" href={thHref("price")} active={sortState.sort === "price"} dir={sortState.dir} hint="Розничная цена модели (поле на странице «Изделия»); у категорий и видов меха своей цены нет." />
-                <SortTh label="Наценка" href={thHref("markup")} active={sortState.sort === "markup"} dir={sortState.dir} hint="Цена ÷ себестоимость (с НДС, по выбранной базе наценки)." />
+                <SortTh label="Наценка" href={thHref("markup")} active={sortState.sort === "markup"} dir={sortState.dir} hint="Цена ÷ себестоимость (с НДС, по выбранной базе наценки: по умолчанию себестоимость сырья без работы, только завершённые ТЗ). В «Изделиях» наценка считается от полной себестоимости (с работой) по всем ТЗ — поэтому у одной модели числа разные." />
                 <SortTh label="Рекомендуемая цена" href={thHref("rec")} active={sortState.sort === "rec"} dir={sortState.dir} hint="Себестоимость × (1 + целевая наценка), округлено до 100 ₽. Расчёт, не факт." />
               </Tr>
             </Thead>
@@ -669,7 +670,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               subtitle={a.modelId ? a.category : `${a.modelCount} моделей`}
               fields={[
                 { label: "Единиц", value: `${formatQty(a.units)} (ТЗ ${a.orders})`, strong: true },
-                { label: `Себестоимость за ед.${c4}`, value: costCell(a) },
+                { label: `Себестоимость сырья за ед.${c4}`, value: costCell(a) },
                 { label: "Цена", value: priceCell(a) },
                 { label: "Наценка", value: markupCell(a) },
               ]}

@@ -191,7 +191,7 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
             <Th>Другие написания</Th>
             {th("Цена, сезон", "price")}
             {th("ТЗ", "tz", "text-right")}
-            {th("Произведено", "produced", "text-right")}
+            {th("Готово", "produced", "text-right")}
             <Th>Статус</Th>
             {canEdit && <Th />}
           </Tr>

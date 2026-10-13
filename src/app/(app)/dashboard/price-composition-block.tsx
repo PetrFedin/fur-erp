@@ -9,6 +9,7 @@ import { PriceCompositionChart, useChartVat } from "@/components/price-compositi
 import { COMP_CATS, CAT_LABEL, COMP_COLOR, sliceList, type CompCat, type CompSlice } from "@/lib/price-composition";
 import type { PCLot } from "@/lib/price-composition-server";
 import { formatMoney, formatPercent, formatQty } from "@/lib/utils";
+import { lotsText } from "@/lib/cost-labels";
 
 const NCAT = COMP_CATS.length;
 const KEYS: string[] = [...COMP_CATS.map((c) => c.key), "nobd"];
@@ -19,11 +20,11 @@ const NOBD_IDX = KEYS.indexOf("nobd");
 
 /** Вес строки в счёте «лотов»: заказанное, но не полученное (лотов ещё нет) считается по позициям закупки — каждая станет лотом. */
 const wt = (l: PCLot) => (l.kind === "planned" ? l.positions ?? 1 : 1);
-/** «23 лот. + 71 поз. заказано»: настоящие лоты и позиции заказанного, но не полученного — раздельно. */
+/** «лотов 23, позиций заказано 71» (lotsText, LOTS_RULE): настоящие лоты и позиции заказанного, но не полученного — раздельно. */
 const lotsLine = (lots: PCLot[]) => {
   const real = lots.filter((l) => l.kind === "lot").length;
   const pos = lots.filter((l) => l.kind === "planned").reduce((n, l) => n + wt(l), 0);
-  return [real > 0 || pos === 0 ? `${real} лот.` : null, pos > 0 ? `${pos} поз. заказано` : null].filter(Boolean).join(" + ");
+  return lotsText(real, pos);
 };
 const lotsWord = (n: number) => { const m = n % 100, d = n % 10; return m >= 11 && m <= 14 ? "лотов" : d === 1 ? "лот" : d >= 2 && d <= 4 ? "лота" : "лотов"; };
 

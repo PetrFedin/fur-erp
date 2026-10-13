@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
+import { lotsText, LOTS_RULE } from "@/lib/cost-labels";
 import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -26,7 +27,8 @@ import { loadFurKinds } from "@/lib/fur-kinds-server";
 import { loadFurLots } from "@/lib/fur-table-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { NOT_SET, emptyFilters, filterLots, type FurLot } from "@/lib/fur-table";
-import { TILE_BOX, TileHead, TileValue, TileCaption } from "../dashboard/tile";
+import { TILE_BOX, TileHead, TileValue, TileCaption, TileList } from "../dashboard/tile";
+import { VatLine } from "../dashboard/vat-line";
 import { PurchasesList, PurchasesTree, type ExtraRow } from "./purchases-tree";
 import { aggregate, type PurchaseStatus, type TreeBatch, type TreePurchase, type TreeYear } from "./purchases-agg";
 
@@ -155,7 +157,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         color: lot && lot.color !== NOT_SET ? lot.color : null, size: lot && lot.size !== NOT_SET ? lot.size : null, grade: lot?.grade || null,
         sum, priceRub: q > 0 ? sum / q : null, priceUsd: lot?.usdPrice ?? null,
         recv: lot ? lot.recv : null, used: lot?.used ?? 0, rem: lot?.rem ?? 0,
-        usages: (lot?.usages ?? []).map((u) => ({ orderId: u.orderId, number: u.number, qty: u.qty, sum: u.incl })),
+        usages: (lot?.usages ?? []).map((u) => ({ orderId: u.orderId, number: u.label, qty: u.qty, sum: u.incl })),
       };
     });
     const unitIsM = (i: (typeof items)[number]) => i.unit === "м";
@@ -232,10 +234,15 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   // В общей таблице «по годам и партиям» округление мех + подкладка — одной строкой (сумма та же).
   const treeExtras = [...hidesRow, ...roundRow("round", roundFur + roundLin)];
   // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
+  const itemVat = new Map<string, [string, number]>();
+  for (const p of found) for (const i of p.items) { const r = i.vatRate.toNumber(); if (r > 0) itemVat.set(i.id, [String(r), num(itemTotalInclVat(i, p.exchangeRate)) * r / (100 + r)]); }
   const mkBlock = (key: string, title: string | null, rs: TreePurchase[], h: number, rf: number, rl: number) => {
     const t = aggregate(rs);
     const bought = t.total + h + rf + rl;
-    return { key, title, t, h, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: Math.abs(t.rest) <= 0.5 ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
+    // НДС позиций по ставкам (как «в т.ч. НДС» на Главной): позиции живых закупок набора; расходы, шкуры подрядчика и округление не входят.
+    const vat: Record<string, number> = {};
+    for (const p of rs) if (p.status !== "CANCELLED") for (const i of p.items) { const v = itemVat.get(i.id); if (v) vat[v[0]] = (vat[v[0]] ?? 0) + v[1]; }
+    return { key, title, t, h, vat, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: Math.abs(t.rest) <= 0.5 ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
   };
   // «Все»: в одном виджете две секции — вверху Мех, внизу Подкладка; «Мех» / «Подкладка» — только своя секция. Общий итог — в шапке.
   const grand = mkBlock("all", null, rowsSel, hides, roundFur, roundLin);
@@ -245,6 +252,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         mkBlock("fur", "Мех", rows.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAll.toNumber(), roundFur, 0),
         mkBlock("lining", "Подкладка", rows.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLin),
       ];
+
+  // Переплата по подкладке: в «К оплате» по меху не вычитается (на Главной — вычитается).
+  const liningBlock = blocks.find((x) => x.kind === "lining");
+  const liningOverpay = liningBlock && liningBlock.rest < -OVERPAY_FROM ? -liningBlock.rest : 0;
 
   // Дерево «год → партия → закупка → позиции / расходы / оплаты».
   const treeYears: TreeYear[] = [];
@@ -370,39 +381,37 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             {blocks.map((b) => (
               <div key={b.key} className="flex flex-col gap-1.5" data-testid={`purchases-totals-${b.key}`}>
                 {b.title ? <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{b.title}</div> : null}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 print:grid-cols-6">
-                  <div className={TILE_BOX}>
-                    <TileHead>Закупок</TileHead>
-                    <TileValue compact>{b.t.purchases}</TileValue>
-                  </div>
-                  <div className={TILE_BOX}>
-                    <TileHead>Лотов</TileHead>
-                    <TileValue compact>{b.t.lots}</TileValue>
-                    <TileCaption>позиций закупок</TileCaption>
-                  </div>
-                  <div className={TILE_BOX}>
-                    <TileHead>{b.kind === "lining" ? "Подкладка, м" : "Шкур, шт."}</TileHead>
-                    <TileValue compact>{formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)}</TileValue>
-                                      </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 print:grid-cols-3">
                   <div className={TILE_BOX}>
                     <TileHead><VatLabel base="Куплено" /></TileHead>
                     <div className="absolute right-3 top-3">
                       <InfoHint label="О «Куплено»" align="right">
                         <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
+                        <p className="mt-1">Цена ср. — куплено ÷ {b.kind === "lining" ? "метры" : "штуки"} закупок набора; шкуры подрядчика, у которых нет закупки и количества, в знаменатель и в числитель не входят.</p>
+                        <p className="mt-1">{LOTS_RULE}</p>
+                        <p className="mt-1">НДС по ставкам — по позициям закупок набора (расходы, шкуры подрядчика и округление не входят); внутри суммы «с НДС».</p>
                       </InfoHint>
                     </div>
-                    <TileValue compact><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
-                    <TileCaption>{b.h > 0.5 ? `с шкурами подрядчика ${formatMoney(b.h.toFixed(2))}` : "позиции + расходы"}</TileCaption>
+                    <TileValue><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
+                    <TileCaption>{`${b.t.purchases} ${b.t.purchases === 1 ? "закупка" : "закупок"} · ${lotsText(b.t.lots - b.t.ordered, b.t.ordered)} · ${formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)} ${b.kind === "lining" ? "м" : "шт."}`}</TileCaption>
+                    <TileList items={[{
+                      k: `Цена, ₽/${b.kind === "lining" ? "м" : "шт."} (ср.)`,
+                      v: (b.kind === "lining" ? b.t.lining : b.t.fur) > 0
+                        ? <Money incl={(b.t.total / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} excl={(b.t.totalExcl / (b.kind === "lining" ? b.t.lining : b.t.fur)).toFixed(2)} />
+                        : "—",
+                    }]} />
+                    <VatLine v={b.vat} className="mt-1" />
+                    {b.h > 0.5 ? <div className="mt-1 text-[11px] leading-4 text-neutral-500">с шкурами подрядчика {formatMoney(b.h.toFixed(2))}</div> : null}
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>Оплачено</TileHead>
-                    <TileValue compact>{formatMoney(b.paid.toFixed(2))}</TileValue>
+                    <TileValue>{formatMoney(b.paid.toFixed(2))}</TileValue>
                     <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
                   </div>
                   <div className={TILE_BOX}>
                     <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
-                    <TileValue compact className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
-                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
+                    <TileValue className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}{b.kind === "fur" && liningOverpay > 0.5 ? `. К оплате по меху; переплата по подкладке ${formatMoney(liningOverpay.toFixed(2))} не вычтена (на Главной она вычтена, поэтому там меньше)` : ""}</TileCaption>
                   </div>
                 </div>
               </div>

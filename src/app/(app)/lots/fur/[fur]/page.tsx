@@ -19,6 +19,8 @@ import { loadFurKinds } from "@/lib/fur-kinds-server";
 import { furKindsOfOrder } from "@/lib/order-fur";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../../dashboard/tile";
 import { formatMoney } from "@/lib/utils";
+import { orderLabel } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { RawCards } from "../../../dashboard/raw-block";
 import { FilteredPayTiles } from "../../../dashboard/filtered-pay-tiles";
 import { PriceCompositionBlock } from "../../../dashboard/price-composition-block";
@@ -58,6 +60,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
     const kinds = await loadFurKinds(orgId);
     if (!kinds.noLots.includes(name)) notFound();
     const ords = kinds.orders.filter((o) => furKindsOfOrder(o.fur).includes(name)).sort((a, b) => a.number.localeCompare(b.number, "ru", { numeric: true }));
+    const tzPos = await loadTzPositions(orgId, ords);
     const units = ords.reduce((a, o) => a + o.qty, 0);
     return (
       <div className="flex flex-col gap-4">
@@ -82,7 +85,7 @@ export default async function FurKindPage({ params, searchParams }: PageProps<"/
               <tbody>
                 {ords.map((o) => (
                   <tr key={o.id} className="border-t border-neutral-100">
-                    <td className="px-2 py-1.5"><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">ТЗ {o.number}</Link></td>
+                    <td className="px-2 py-1.5"><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{orderLabel({ ...o, ...tzPos.get(o.id) })}</Link></td>
                     <td className="truncate px-2 py-1.5 text-xs" title={o.modelHint}>{o.modelLabel || o.modelName}</td>
                     <td className="truncate px-2 py-1.5 text-xs">{o.batchText ?? "—"}</td>
                     <td className="px-2 py-1.5 text-right">{o.qty}</td>

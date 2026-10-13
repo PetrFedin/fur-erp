@@ -11,6 +11,7 @@ import { SourceDocs } from "@/components/source-docs";
 import { PaymentWizardButton } from "@/components/payment-wizard";
 import { loadPaymentsSourceDocs, loadPurchasesSourceDocs } from "@/lib/source-docs-server";
 import { loadSupplierDebt } from "@/lib/supplier-debt";
+import { loadPaymentsOverview } from "@/lib/payments-overview";
 import { purchaseTotalInclVat } from "@/lib/purchase-totals";
 import { STATUS_LABELS } from "@/lib/fur-table";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -59,6 +60,8 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
     }),
     loadSupplierDebt(prisma, orgId, "all", id),
   ]);
+  // Шкуры подрядчика не входят в закупки поставщика, но входят в «Куплено / Оплачено» на странице «Оплаты → За сырьё» и на Главной.
+  const contractorHides = (await loadPaymentsOverview(orgId)).reduce((a, r) => a + r.hides, 0);
   const live = purchases.filter((p) => p.status !== "CANCELLED");
   const totalAll = live.reduce((s, p) => s + Number(purchaseTotalInclVat(p).toString()), 0);
   const done = payments.filter((p) => p.status === "COMPLETED");
@@ -81,9 +84,10 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
 
       <WidgetRow id="supplier-debt" title="Долг и оплаты" headerEnd={canPay ? <PaymentWizardButton label="+ Внести оплату" preset={{ side: "supplier", supplierId: id }} /> : undefined}>
         <div className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-sm" data-supplier-summary>
-          <div className={row}><span className="text-neutral-600">Куплено (закупки, с НДС)</span><b className="tabular-nums">{rub(totalAll)}</b></div>
+          <div className={row}><span className="text-neutral-600">Куплено (закупки этого поставщика, с НДС)</span><b className="tabular-nums">{rub(totalAll)}</b></div>
           <div className={row}><span className="text-neutral-600">Оплачено</span><b className="tabular-nums">{rub(paidAll)}</b></div>
           {unlinked > 0.5 && <div className={row}><span className="text-neutral-600">в том числе аванс без привязки</span><span className="tabular-nums">{rub(unlinked)}</span></div>}
+          {contractorHides > 0.5 && <p className="py-1.5 text-xs text-neutral-500">Здесь только закупки и оплаты этого поставщика. Шкуры подрядчика ({rub(contractorHides)}) оплачены в составе счетов за пошив и сюда не входят: на странице «Оплаты → За сырьё» и на Главной они добавлены и в «Куплено», и в «Оплачено» — поэтому там обе суммы больше на эту величину, а долг тот же.</p>}
           <div className={row}><span className="font-medium">Долг</span><b className="tabular-nums">{rub(debt.debt.toString())}</b></div>
         </div>
       </WidgetRow>

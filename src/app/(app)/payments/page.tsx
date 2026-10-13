@@ -1,3 +1,4 @@
+import { orderLabel, positionsOf } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { uniqueLabelCount } from "@/lib/tz-key";
 import { Fragment } from "react";
@@ -488,6 +489,8 @@ export default async function PaymentsPage({
 
   const pdate = clientsTab && typeof sp.pdate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.pdate) ? sp.pdate : "";
   const orderInfo = clientsTab ? new Map((await loadOrderRows(orgId, "all", "on")).map((o) => [o.id, o])) : new Map<string, Awaited<ReturnType<typeof loadOrderRows>>[number]>();
+  // Единая подпись ТЗ («ТЗ 182 · поз. 1/3»): позиции — по всем ТЗ организации.
+  const tzPos = positionsOf(Array.from(orderInfo.values()));
   // Всего оплачено по каждому ТЗ (все платежи) — для расхождений внутри даты.
   const allocTotals = new Map<string, number>();
   if (clientsTab) {
@@ -534,7 +537,7 @@ export default async function PaymentsPage({
       return Array.from(byId, ([oid, po]) => ({
         id: oid,
         number: po.number,
-        label: po.workOrderNumber || po.number,
+        label: orderLabel({ workOrderNumber: po.workOrderNumber, number: po.number, ...tzPos.get(oid) }),
         model: po.productModel?.salesName || po.productModel?.name || "—",
         qty: Number(po.plannedQuantity.toString()),
         batch: po.batch?.number ?? null,
@@ -579,7 +582,7 @@ export default async function PaymentsPage({
   // ТЗ с неоплаченной работой (в том числе совсем без оплат) — расшифровка остатка в виджете.
   const owedOrders: OwedOrder[] = Array.from(orderInfo.values())
       .filter((o) => o.clientName && o.work - (allocTotals.get(o.id) ?? 0) > 0.5 && (year === "all" || o.year === Number(year)))
-    .map((o) => ({ id: o.id, label: o.workOrderNumber || o.number, article: o.modelName, fur: o.fur, batch: o.batchNumber, year: o.year, qty: o.qty, work: o.work, paid: allocTotals.get(o.id) ?? 0 }));
+    .map((o) => ({ id: o.id, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), article: o.modelName, fur: o.fur, batch: o.batchNumber, year: o.year, qty: o.qty, work: o.work, paid: allocTotals.get(o.id) ?? 0 }));
   // «За производство»: общие виджеты — работа, оплачено, долг заказчиков и разбивка по партиям.
   let goodsTotals: { work: number; hides: number; surcharge: number; total: number; paid: number; balance: number; unallocated: number; rows: BatchRow[] } | null = null;
   if (clientsTab) {

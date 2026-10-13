@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         l.lotNumber, l.auction === "__none" ? l.auctionLabel : l.auction, l.year, l.kind, l.cat, l.size,
         num(l.recv, 3), num(l.used, 3), num(l.rem, 3), usedPct(a)?.toFixed(1) ?? null,
         num(l.unitIncl), num(l.unitExcl), num(a.remIncl), num(a.remExcl), num(l.jNet, 3),
-        l.usages.map((u) => `${u.number} (${u.qty.toString()})`).join("; "),
+        l.usages.map((u) => `${u.label} (${u.qty.toString()})`).join("; "),
       ]));
     }
   } else if (isUsageBy(by)) {

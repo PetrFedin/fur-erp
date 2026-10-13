@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -51,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const session = await requireSession();
   const o = await prisma.productionOrder.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { number: true, workOrderNumber: true } });
-  return { title: o ? `ТЗ ${o.workOrderNumber ?? o.number}` : "ТЗ" };
+  return { title: o ? orderLabel(o) : "ТЗ" };
 }
 
 export default async function ProductionOrderPage({ params }: PageProps<"/production/[id]">) {
@@ -94,14 +95,15 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
     : [];
   const sameTzCount = siblings.length;
   const posIndex = siblings.findIndex((x) => x.id === order.id);
-  const tzTitle = order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · ${articleLabel(order.productModel)}` : ""}` : `Заказ ${order.number}`;
+  const tzBase = orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number, posIndex: posIndex + 1, posCount: sameTzCount });
+  const tzTitle = order.workOrderNumber && sameTzCount > 1 ? `${tzBase} · ${articleLabel(order.productModel)}` : tzBase;
   const tzPositions = sameTzCount > 1 && posIndex >= 0
     ? {
         index: posIndex + 1,
         total: sameTzCount,
-        prev: posIndex > 0 ? { id: siblings[posIndex - 1].id, label: `${articleLabel(siblings[posIndex - 1].productModel)} · ${siblings[posIndex - 1].number}` } : null,
-        next: posIndex < sameTzCount - 1 ? { id: siblings[posIndex + 1].id, label: `${articleLabel(siblings[posIndex + 1].productModel)} · ${siblings[posIndex + 1].number}` } : null,
-        all: siblings.map((x) => ({ id: x.id, label: `${articleLabel(x.productModel)} · ${x.number}`, current: x.id === order.id })),
+        prev: posIndex > 0 ? { id: siblings[posIndex - 1].id, label: `поз. ${posIndex}/${sameTzCount} · ${articleLabel(siblings[posIndex - 1].productModel)}` } : null,
+        next: posIndex < sameTzCount - 1 ? { id: siblings[posIndex + 1].id, label: `поз. ${posIndex + 2}/${sameTzCount} · ${articleLabel(siblings[posIndex + 1].productModel)}` } : null,
+        all: siblings.map((x, i) => ({ id: x.id, label: `поз. ${i + 1}/${sameTzCount} · ${articleLabel(x.productModel)}`, current: x.id === order.id })),
       }
     : null;
   const tzSearch = encodeURIComponent(order.workOrderNumber ?? order.number);
@@ -364,7 +366,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
         items={[
           { label: "ТЗ", href: "/production" },
           ...(order.batch ? [{ label: "Партии пошива", href: "/production/batches" }, { label: `Партия ${order.batch.number}`, href: `/production/batches/${order.batch.number}` }] : []),
-          { label: order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · позиция ${posIndex + 1} из ${sameTzCount}` : ""}` : `Заказ ${order.number}` },
+          { label: tzBase },
         ]}
       />
       <div>
@@ -372,7 +374,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           <Link href="/production" className="rounded px-1.5 py-1 text-lg leading-none text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="К списку ТЗ" aria-label="Назад к списку ТЗ">
             ←
           </Link>
-          <h1 className="text-xl font-semibold">{tzTitle}</h1>
+          <h1 className="text-xl font-semibold" title={`Внутренний номер заказа ${order.number}`}>{tzTitle}</h1>
           <div className="ml-auto" />
           <Link href={`/production/${id}/print`} className="rounded border border-neutral-300 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-50" title="Печатная форма ТЗ (приложение к договору) — A4, печать или PDF">
             Печать / PDF
@@ -406,7 +408,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           {open && canEdit && (
             <CompleteOrderForm
               orderId={id}
-              tzLabel={order.workOrderNumber ? `ТЗ №${order.workOrderNumber}` : `заказ ${order.number}`}
+              tzLabel={orderLabel({ workOrderNumber: order.workOrderNumber, number: order.number })}
               hasUsages={order.materialUsages.length > 0}
               plannedQuantity={order.plannedQuantity.toString()}
               costs={{ material: furOn.incl.add(liningOn.incl).sub(furOn.extraIncl).sub(liningOn.extraIncl).toFixed(2), extra4: furOn.extraIncl.add(liningOn.extraIncl).toFixed(2), expenses: expenseCost.toFixed(2), workPerUnit: order.clientWorkPricePerUnit?.toString() ?? "" }}

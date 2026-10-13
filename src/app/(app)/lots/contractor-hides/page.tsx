@@ -1,3 +1,5 @@
+import { orderLabel } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { getYearFilter } from "@/lib/year-filter";
@@ -24,10 +26,11 @@ export default async function ContractorHidesPage() {
   const [orders, ov] = await Promise.all([loadOrderRows(orgId, "all", c4), loadPaymentsOverview(orgId)]);
   const shares = allocateHides(orders.map((o) => ({ id: o.id, number: o.number, batch: o.batchNumber == null ? "none" : String(o.batchNumber), qty: o.qty })), hidesByPayYear(ov), year);
   const byId = new Map(orders.map((o) => [o.id, o]));
+  const tzPos = await loadTzPositions(orgId, orders);
   const rows: HidesOrderRow[] = shares.map((s) => {
     const o = byId.get(s.id)!;
     return {
-      orderId: o.id, number: o.number, batch: o.batchNumber == null ? "без партии" : String(o.batchNumber), payYear: s.payYear,
+      orderId: o.id, number: o.number, label: orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) }), batch: o.batchNumber == null ? "без партии" : String(o.batchNumber), payYear: s.payYear,
       article: o.modelLabel || o.modelName, category: o.category, units: o.qty, incl: s.incl, excl: s.excl, pinned: s.pinned ?? false,
     };
   });

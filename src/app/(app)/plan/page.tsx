@@ -223,7 +223,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                 linkLabel="→ ТЗ"
                 tiles={[
                   { key: "plan", label: "План, шт.", value: n0(totals.plan), caption: "по позициям плана" },
-                  { key: "done", label: "Произведено", value: n0(totals.produced), caption: "завершённые ТЗ (по статусу)" },
+                  { key: "done", label: "Готово", value: n0(totals.produced), caption: "завершённые ТЗ (по статусу)" },
                   { key: "work", label: "В работе", value: n0(totals.inWork), caption: "ТЗ в работе" },
                   { key: "todo", label: "Не начато", value: n0(totals.notStarted), caption: "нет ТЗ" },
                   { key: "left", label: "Осталось произвести", value: n0(Math.max(totals.plan - totals.produced, 0)), caption: "план − завершённые" },
@@ -262,7 +262,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                   {seasonId === "" && <Th>Сезон</Th>}
                   <Th>План по размерам</Th>
                   <Th className="text-right" unit="шт.">План</Th>
-                  <Th className="text-right" unit="шт.">Произведено</Th>
+                  <Th className="text-right" unit="шт.">Готово</Th>
                   <Th className="text-right" unit="шт.">В работе</Th>
                   <Th className="text-right" unit="шт.">Не начато</Th>
                   <Th className="text-right" unit="шт.">План − факт</Th>
@@ -321,7 +321,7 @@ export default async function PlanPage({ searchParams }: PageProps<"/plan">) {
                 badge={<Badge variant={pct(f.produced, plan) >= 100 ? "success" : "info"}>{formatPercent(pct(f.produced, plan))}</Badge>}
                 fields={[
                   { label: "План", value: formatQty(plan), strong: true },
-                  { label: "Произведено", value: formatQty(f.produced) },
+                  { label: "Готово", value: formatQty(f.produced) },
                   { label: "В работе", value: formatQty(f.inWork) },
                   { label: "План − факт", value: formatQty(plan - f.produced) },
                 ]}

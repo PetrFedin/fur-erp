@@ -144,10 +144,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
               <b>Остаток</b> = работа заказчику (цена за ед. × количество) минус оплаты заказчика по ТЗ партии; каждая оплата учитывается один раз.
             </p>
             <p className="mt-1">
-              <b>Себестоимость</b> = сырьё и подкладка + расходы ТЗ. «С 4%» добавляет 4% к сырью и подкладке (работа не облагается); оплаты и остаток от 4% не меняются. Суммы партий всегда с НДС: переключатель «Без НДС» вверху на них не действует (в списке ТЗ и в аналитике он работает).
+              <b>Себестоимость сырья</b> = сырьё и подкладка + расходы ТЗ (без работы); <b>полная себестоимость</b> = она + работа подрядчика. «С 4%» добавляет 4% к сырью и подкладке (работа не облагается); оплаты и остаток от 4% не меняются. Суммы партий всегда с НДС: переключатель «Без НДС» вверху на них не действует (в списке ТЗ и в аналитике он работает).
             </p>
             <p className="mt-1">
-              Группировка ТЗ по партиям — вид «По партиям» на странице <Link href="/production?view=batches" className="underline">ТЗ</Link>.
+              Группировка ТЗ по партиям — этот экран; список ТЗ — на странице <Link href="/production" className="underline">ТЗ</Link>.
             </p>
           </InfoHint></div>
       </div>
@@ -221,12 +221,12 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <Th>Партия</Th>
             <Th>ТЗ</Th>
             <Th>
-              Произведено, шт.
-              <InfoHint label="Что значит произведено">Все ТЗ партии без отменённых и без ремонта: завершённые и в работе (как на Главной).</InfoHint>
+              В выпуске, шт.
+              <InfoHint label="Что значит «в выпуске»">Все ТЗ партии без отменённых и без ремонта: готово (завершённые ТЗ) + в работе (план ТЗ «В работе» и «Запланировано») — как «В выпуске» на Главной. Разбивка «готово / в работе» — на карточке партии.</InfoHint>
             </Th>
             <Th className="hidden md:table-cell">
-              <span className="inline-block max-w-[13rem] whitespace-normal align-middle leading-tight">Себестоимость (мех, подкладка, 4 %) без работы, ₽</span>
-              <InfoHint label="Чем отличается от «Себестоимость с работой»">Здесь себестоимость материалов: мех, подкладка и 4 % (при включённом «С 4%»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Себестоимость с работой» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
+              <span className="inline-block max-w-[13rem] whitespace-normal align-middle leading-tight">Себестоимость сырья (мех, подкладка, 4 %), без работы, ₽</span>
+              <InfoHint label="Чем отличается от «Полная себестоимость (с работой)»">Здесь себестоимость сырья: мех, подкладка и 4 % (при включённом «С 4%»), плюс расходы ТЗ — без работы подрядчика. В таблице «Партии → ТЗ → состав» ниже столбец «Полная себестоимость (с работой)» — это та же сумма плюс работа, поэтому цифры по одной партии там больше.</InfoHint>
               <Mode4Badge mode={c4Mode} />
               <C4Hint mode={c4Mode} base={c4Lines ? c4Base.toFixed(2) : null} extra={c4Lines ? c4Extra.toFixed(2) : null} excluded={c4Excl.toFixed(2)} title="4% по партиям списка" />
             </Th>
@@ -334,10 +334,10 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                 { label: "Остаток", value: <span className={t.remaining.greaterThan(1) ? "text-amber-700" : ""}>{rem}</span>, strong: true },
                 { label: "Оплачено", value: t.paid.isZero() ? "—" : formatMoney(t.paid.toString()) },
                 { label: "ТЗ", value: <><Link href={`/production?batch=${b.number}`} className="underline">{t.orders}</Link>{itemsSuffix(t.orders, t.items)}</> },
-                { label: "Произведено", value: `${formatQty(t.producedUnits.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
+                { label: "В выпуске", value: `${formatQty(t.producedUnits.toString())}${b.plannedUnits != null ? ` (план ${b.plannedUnits})` : ""}` },
               ]}
               details={[
-                { label: `Себестоимость${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
+                { label: `Себестоимость сырья${anyC4 ? c4Suffix(c4Mode) : ""}`, value: t.cost.isZero() ? "—" : formatMoney(t.cost.toString()) },
                 { label: "Работа", value: t.work.isZero() ? "—" : formatMoney(t.work.toString()) },
                 { label: "Год", value: b.year },
                 { label: "Проверка", value: <VerifyPill flag={vflags.batchByNumber.get(b.number)} tab="batches" /> },
@@ -374,10 +374,15 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         orders={drill}
         c4={c4Mode}
         title="Партии → ТЗ → состав"
-        costLabel="Себестоимость с работой"
-        costHint={<p>Мех + подкладка + 4 % + расходы + работа подрядчика. В таблице «Партии» выше себестоимость показана без работы (мех, подкладка, 4 %), поэтому у одной партии суммы разные.</p>}
+        costLabel="Полная себестоимость (с работой)"
+        costHint={<p>Мех + подкладка + 4 % + расходы + работа подрядчика. В таблице «Партии» выше показана «Себестоимость сырья» — без работы, поэтому у одной партии суммы разные (разница = работа).</p>}
         payBy={payBy}
-        modes={[{ id: "batch", label: "Партии", dims: ["batch", "order"] }]}
+        modes={[
+          { id: "batch", label: "Партии", dims: ["batch", "order"] },
+          { id: "year", label: "Годы → партии", dims: ["year", "batch", "order"] },
+          { id: "article", label: "Артикулы", dims: ["article", "order"] },
+          { id: "cat", label: "Категории", dims: ["category", "article", "order"] },
+        ]}
         hint={<p>Те же ТЗ и суммы, что в плитках выше и в блоке «Производство» на Главной. «Оплачено» — оплаты заказчика, разнесённые на партию и ТЗ; «К оплате» = работа − оплачено (сверх — оплачено больше работы).</p>}
         empty={emptyForYear(year, "партий", "Партий пока нет.")}
       />

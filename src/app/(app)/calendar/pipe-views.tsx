@@ -186,7 +186,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
             <tr className="border-b border-neutral-200">
               <th className="sticky left-0 z-10 bg-white px-2 py-1.5 text-left text-xs font-medium text-neutral-500">Вид меха</th>
               {stages.map((k, i) => <Head key={k} label={STAGE_STYLES[k].label} unit="шт." align="right" sep={i === 0} className={STAGE_STYLES[k].text} title={STAGE_STYLES[k].hint} />)}
-              <Head label="Всего" unit="шт." align="right" sep className="text-neutral-500" />
+              <Head label={stages.includes("repair") ? "Всего с ремонтом" : "Всего"} unit="шт." align="right" sep className="text-neutral-500" />
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -216,7 +216,7 @@ export function StagesView({ items, filters, href, cell, cardHref }: { items: Pi
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <StageLegend />
-        <InfoHint wide label="Как читать стадии">Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «Произведено» не входит. Число изделий без ремонта: {formatQty(sumOf(t.grand, false))} шт.</InfoHint>
+        <InfoHint wide label="Как читать стадии">Изделие проходит стадии слева направо: план → сырьё (мех уже закуплен и списан) → в работе (раскрой / пошив) → готово → отгружено. Под числом — ожидаемые сроки ТЗ этой стадии (от самого раннего до самого позднего), «без срока» — ТЗ, у которых срока нет. Ремонт — отдельно, в «В выпуске» не входит: итог «Всего с ремонтом» ({formatQty(sumOf(t.grand, true))} шт.) = «В выпуске» {formatQty(sumOf(t.grand, false))} шт. + ремонт {formatQty(t.grand.repair)} шт. Число изделий без ремонта: {formatQty(sumOf(t.grand, false))} шт.</InfoHint>
       </div>
       {open.length > 0 && (
         <section id="cell" aria-label="ТЗ ячейки" className="flex flex-col gap-1 rounded-lg border border-neutral-200 bg-white p-3">

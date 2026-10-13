@@ -30,7 +30,7 @@ import {
   type Totals,
 } from "./model";
 import { RELIABILITY_NOTE } from "@/lib/reliability-note";
-import { ConfirmLine, CountsLine, INV_TONE, Progress, money } from "./parts";
+import { CountsLine, INV_TONE, Progress, money } from "./parts";
 import { IntegritySection } from "./integrity-section";
 
 export const metadata = { title: "Сверка" };
@@ -199,7 +199,6 @@ function SummaryCard({ title, t, hint }: { title: string; t: Totals; hint?: Reac
         <>
           <Progress t={t} />
           <CountsLine t={t} />
-          <ConfirmLine t={t} />
         </>
       ) : (
         <p className="text-sm text-neutral-500">Нет счетов за выбранный год.</p>

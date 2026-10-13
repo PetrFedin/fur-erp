@@ -12,7 +12,7 @@ import { TotalLabel } from "@/components/total-label";
 import { TILE_BOX, TileHead, TileValue, TileCaption } from "../../dashboard/tile";
 
 export type HidesOrderRow = {
-  orderId: string; number: string; batch: string; payYear: number; article: string; category: string; units: number;
+  orderId: string; number: string; label: string; batch: string; payYear: number; article: string; category: string; units: number;
   incl: number; excl: number; pinned: boolean;
 };
 export type HidesPayment = { id: string; iso: string; date: string; year: number; label: string; doc: string | null; hides: number; amount: number; href: string; confirmed: boolean };
@@ -34,7 +34,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
   const batches = useMemo(() => Array.from(new Set(orders.map((o) => o.batch))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true })), [orders]);
   const needle = q.trim().toLowerCase();
   const shown = useMemo(
-    () => orders.filter((o) => (batch === "all" || o.batch === batch) && (!needle || [o.number, o.article, o.category].some((x) => x.toLowerCase().includes(needle)))).sort((a, b) => b.incl - a.incl),
+    () => orders.filter((o) => (batch === "all" || o.batch === batch) && (!needle || [o.number, o.label, o.article, o.category].some((x) => x.toLowerCase().includes(needle)))).sort((a, b) => b.incl - a.incl),
     [orders, batch, needle],
   );
   const T = shown.reduce((a, o) => ({ incl: a.incl + o.incl, excl: a.excl + o.excl, units: a.units + o.units }), { incl: 0, excl: 0, units: 0 });
@@ -120,7 +120,7 @@ export function HidesView({ orders, payments }: { orders: HidesOrderRow[]; payme
             <tbody>
               {shown.map((o) => (
                 <tr key={o.orderId} className="border-t border-neutral-100">
-                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline">ТЗ {o.number}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
+                  <td className="px-2 py-1.5 text-left"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link>{o.pinned ? <span className="ml-1.5 rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-500" title="Сумма закреплена за этим ТЗ по документам">по документу</span> : null}</td>
                   <td className={TD}>{o.batch}</td><td className={TD}>{o.payYear}</td>
                   <td className="truncate px-2 py-1.5 text-left text-xs" title={`${o.article} · ${o.category}`}>{o.article}<span className="text-neutral-500"> · {o.category}</span></td>
                   <td className={TD}>{o.units > 0 ? o.units : <D />}</td>

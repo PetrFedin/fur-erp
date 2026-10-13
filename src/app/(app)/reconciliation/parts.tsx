@@ -63,29 +63,14 @@ export function CountsLine({ t }: { t: Totals }) {
     </span>
   );
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
       {item("closed", "подтверждено документом", t.closed, t.closedRub)}
-      {item("partial", "частично", t.partial, t.partialRub)}
       {item("approved", "согласовано письмом", t.approved, t.approvedStatusRub)}
       {item("unpaid", "не подтверждено", t.unpaid, t.unpaidRub)}
       <span className="text-neutral-500">всего {t.count} счетов</span>
-    </div>
-  );
-}
-
-export function ConfirmLine({ t }: { t: Totals }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-neutral-700">
-      <span>
-        Подтверждено документом: <b className="tabular-nums">{money(t.paidDocs)}</b>
-      </span>
-      {t.noneRub > 0 && (
-        <span>
-          не подтверждено: <b className="tabular-nums">{money(t.noneRub)}</b>
-        </span>
-      )}
       <InfoHint wide label="Чем подтверждена оплата">
         <ul className="space-y-1">
+          <li>Частично: <b>{t.partial}</b> <span className="tabular-nums">{money(t.partialRub)}</span></li>
           <li>Подтверждено документом: <b className="tabular-nums">{money(t.paidDocs)}</b></li>
           <li>Согласовано письмом (оплачено, без даты и п/п): <b className="tabular-nums">{money(t.paidLetter)}</b></li>
           <li>Согласовано письмом, не оплата: <b className="tabular-nums">{money(t.approvedRub)}</b></li>

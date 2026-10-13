@@ -7,8 +7,10 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillLine, DrillOrder } from "@/lib/dashboard-drill";
-import { articlesWord, orderKey, tzCountText, tzLabel, uniqueOrderCount } from "@/lib/tz-key";
+import { articlesWord, orderKey, tzCountText, uniqueOrderCount } from "@/lib/tz-key";
+import { orderLabel, posText } from "@/lib/order-label";
 import { isRepair, sumOrders, sumTotal, type Sum, type VatSel } from "@/lib/orders-sum";
+import { COST_FULL_LABEL } from "@/lib/cost-labels";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
 import { pathBlock } from "@/lib/block-hover";
@@ -27,7 +29,7 @@ function keyLabel(dim: TreeDim, o: DrillOrder): [string, string] {
     case "group": return [o.grp, o.grp];
     case "fur": return [o.fur || "none", o.fur || "Мех не указан"];
     // Узел ТЗ — по номеру ТЗ из документа: артикулы одного ТЗ лежат внутри одного узла.
-    case "order": return [orderKey(o), `ТЗ ${tzLabel(o)}`];
+    case "order": return [orderKey(o), orderLabel({ workOrderNumber: o.wo, number: o.number })];
   }
 }
 
@@ -39,7 +41,7 @@ const money = (v: number) => (Math.abs(v) < 0.5 ? <Dash /> : formatMoney(Math.ro
  * Режимы НДС и 4% — общие переключатели шапки (суммы с НДС / без НДС; 4% учтён в данных).
  */
 export function OrdersTree({
-  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.", costLabel = "Себестоимость", costHint,
+  orders, modes, c4, title, hint, id = "orders-tree", defaultOpenDepth = 0, countRepairQty = false, payBy, empty = "ТЗ нет.", costLabel = COST_FULL_LABEL, costHint,
 }: {
   orders: DrillOrder[];
   modes: TreeMode[];
@@ -173,7 +175,7 @@ export function OrdersTree({
 
   // Позиции многопозиционного ТЗ: артикул × количество, каждая раскрывается в состав (как отдельное ТЗ).
   const positionRows = (list: DrillOrder[], depth: number, path: string, anc: string[]): ReactNode =>
-    [...list].sort((a, b) => naturalSort.compare(a.number, b.number)).map((o) => {
+    [...list].sort((a, b) => naturalSort.compare(a.number, b.number)).map((o, idx, all) => {
       const p = `${path}/${o.id}`;
       const open = isOpen(p, depth);
       const s = sumOrders([o], v);
@@ -184,7 +186,7 @@ export function OrdersTree({
             <td className={ARROW_TD}>{arrow(open, `${o.ml} (${o.number})`, p)}</td>
             <td className={`py-1.5 pr-2 text-left ${INDENT[Math.min(depth, 3)]}`}>
               <Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.ml}</Link>
-              <span className="ml-2 font-normal text-neutral-500">{formatQty(o.qty)} шт. · {o.number}</span>
+              <span className="ml-2 font-normal text-neutral-500" title={`Внутренний номер заказа ${o.number}`}>{formatQty(o.qty)} шт.{all.length > 1 ? ` · ${posText(idx + 1, all.length)}` : ""}</span>
             </td>
             {figs(s, { pay: payBy ? { paid: payBy[`order:${o.id}`], work: s.work } : undefined })}
           </tr>
@@ -261,7 +263,7 @@ export function OrdersTree({
           <InfoHint label={`Как читать: ${title}`} wide>
             {hint}
             <p className="mt-1">Нажмите ›, чтобы раскрыть вглубь: группа → ТЗ → состав (мех и подкладка по лотам со ссылками на лот и закупку, шкуры подрядчика, работа и доп. расходы). Номер ТЗ ведёт в карточку ТЗ.</p>
-            <p className="mt-1"><b>Себестоимость</b> = мех + подкладка + 4%{c4 === "on" ? "" : " (сейчас «Без 4%»)"} + работа. В столбце «Работа» — работа и доп. расходы ТЗ («Доп. расходы · статья»); у таких строк состава «Себестоимость» — «—», а в итог узла они входят как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
+            <p className="mt-1"><b>Полная себестоимость (с работой)</b> = мех + подкладка + 4%{c4 === "on" ? "" : " (сейчас «Без 4%»)"} + расходы ТЗ + работа. В столбце «Работа и доп. расходы» — работа подрядчику и доп. расходы ТЗ («Доп. расходы · статья»); у таких строк состава «Полная себестоимость» — «—», а в итог узла они входят как раньше. «Шкур, шт.» и «Подкладка, м» — сколько использовано по списаниям. «Изд., шт.» — без ремонта. Режим «С НДС / Без НДС» — общий переключатель в шапке.</p>
           </InfoHint>
         </div>
         {modes.length > 1 ? (
@@ -296,7 +298,7 @@ export function OrdersTree({
               <Head label={costLabel} unit="₽" align="right" sep after={costHint ? <InfoHint label={`Что в столбце «${costLabel}»`} wide>{costHint}</InfoHint> : undefined} />
               <Head label="Мех" unit="₽" align="right" />
               <Head label="Подкладка" unit="₽" align="right" />
-              <Head label="Работа" unit="₽" align="right" />
+              <Head label="Работа и доп. расходы" unit="₽" align="right" after={<InfoHint label="Что в столбце «Работа и доп. расходы»" wide><p>Работа подрядчику (цена работы × количество — это «Работа» в плитках, оплатах и карточке заказчика) плюс доп. расходы ТЗ (фурнитура, прочее — строки «Доп. расходы · статья»). Поэтому итог столбца больше плитки «Работа» ровно на доп. расходы ТЗ, а оплачивается подрядчику только работа.</p></InfoHint>} />
               {c4 === "on" ? <Head label="4%" unit="₽" align="right" after={<InfoHint label="Что такое 4%"><p>Надбавка 4% к сырью (меху и подкладке).</p></InfoHint>} /> : null}
               {showRes ? <Head label="Прочее" unit="₽" align="right" /> : null}
               {showPay ? <><Head label="Оплачено" unit="₽" align="right" sep /><Head label="К оплате" unit="₽" align="right" /></> : null}
@@ -311,7 +313,7 @@ export function OrdersTree({
                     <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="без ремонта" /></td>{figs(nonRepair, { pay: payBy ? { paid: undefined, work: 0 } : undefined })}
                   </tr>
                   <tr className="border-b border-neutral-100">
-                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link><span className="ml-1.5 text-xs text-neutral-500">{repair.repairOrders} ТЗ, не входит в «Произведено»</span></td>{figs(repair, { qty: false })}
+                    <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><Link href="/repair" className="text-blue-700 hover:underline">Ремонт ›</Link><span className="ml-1.5 text-xs text-neutral-500">{repair.repairOrders} ТЗ, не входит в «В выпуске»</span></td>{figs(repair, { qty: false })}
                   </tr>
                   <tr className="row-total">
                     <td className={ARROW_TD} /><td className="px-2 py-1.5 text-left"><TotalLabel note="с ремонтом" /></td>{figs(grand, { qty: false })}

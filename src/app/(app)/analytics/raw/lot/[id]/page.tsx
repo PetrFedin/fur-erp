@@ -142,7 +142,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     let m = prodMap.get(o.modelId);
     if (!m) prodMap.set(o.modelId, (m = { modelId: o.modelId, name: o.modelName, sku: o.sku, category: o.category, group: groupOf.get(o.modelId) ?? "", orders: [] }));
     m.orders.push({
-      orderId: o.orderId, number: o.number, batchNumber: o.batchNumber, date: o.orderDate ? formatDate(o.orderDate) : null,
+      orderId: o.orderId, number: o.number, label: o.label, batchNumber: o.batchNumber, date: o.orderDate ? formatDate(o.orderDate) : null,
       qty: o.qty.toNumber(), produced: o.produced.toNumber(),
       incl: q2(o.incl), excl: q2(o.excl), incl4: q2(o.incl.add(o.extraIncl)), excl4: q2(o.excl.add(o.extraExcl)),
     });
@@ -152,7 +152,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
   const zeroD = new Decimal(0);
   const usageSegs: UsageSeg[] = [
     ...orders.map((o): UsageSeg => ({
-      key: `tz-${o.orderId}`, kind: "order", label: `ТЗ ${o.number}`, sku: o.sku ?? o.modelName, href: `/production/${o.orderId}`,
+      key: `tz-${o.orderId}`, kind: "order", label: o.label, sku: o.sku ?? o.modelName, href: `/production/${o.orderId}`,
       qty: o.qty.toNumber(), date: o.orderDate ? formatDate(o.orderDate) : null,
       cost: <CostCell incl={o.incl} excl={o.excl} extraIncl={o.extraIncl} extraExcl={o.extraExcl} c4={c4} />,
     })),
@@ -392,6 +392,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
           </InfoHint>
         </h2>
         <LotProducts models={prodModels} recv={l.recv.toNumber()} unit={unit} />
+        {l.lotNumber && <p className="mt-2 text-sm"><Link href={`/production?q=${encodeURIComponent(l.lotNumber)}`} className="text-blue-700 hover:underline">→ все ТЗ с этим лотом</Link></p>}
       </div>
 
       {/* 5. Расход и остаток по времени — внизу, под изделиями */}

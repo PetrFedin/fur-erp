@@ -86,7 +86,7 @@ function LotRowView({ l, unit, c4, showAuction }: { l: RawLot; unit: string; c4:
             {l.usages.map((u, i) => (
               <span key={u.orderId}>
                 {i > 0 && ", "}
-                <Link href={`/production/${u.orderId}`} className="underline hover:text-neutral-900">№ {u.number}</Link> ({formatQty(u.qty.toString())})
+                <Link href={`/production/${u.orderId}`} className="underline hover:text-neutral-900">{u.label}</Link> ({formatQty(u.qty.toString())})
               </span>
             ))}
             {" · "}

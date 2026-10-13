@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import "server-only";
 // «Конвейер» изделий для календаря (режимы «По месяцам» и «Стадии», карточки): одна запись на ТЗ.
 // Количество, вид меха, группа, статус и состав сырья — из loadOrdersDrill (те же числа, что на Главной, в «ТЗ», «Партиях», «Изделиях»):
@@ -157,7 +158,7 @@ export async function loadPipeline(orgId: string, year: YearFilter, today: strin
   return out;
 }
 
-/** Единый номер ТЗ: «ТЗ 182», позиции — «ТЗ 182 · поз. 2/3». Внутренний «П-2026-…» — только в подсказках (pipeInner). */
-export const pipeTitle = (p: PipeItem) => (p.wo ? `ТЗ ${p.wo}${p.pos ? ` · поз. ${p.pos.i}/${p.pos.n}` : ""}` : `ТЗ ${p.number}`);
+/** Единая подпись ТЗ (order-label.ts): «ТЗ 182 · поз. 2/3», «ТЗ 182», без рабочего № — «Заказ П-…». Внутренний «П-2026-…» — только в подсказках (pipeInner). */
+export const pipeTitle = (p: PipeItem) => orderLabel({ workOrderNumber: p.wo, number: p.number, posIndex: p.pos?.i, posCount: p.pos?.n });
 /** Внутренний номер для title/«i»: « (П-2026-0129)»; пусто, если рабочего номера нет (он и так в заголовке). */
 export const pipeInner = (p: PipeItem) => (p.wo ? ` (${p.number})` : "");

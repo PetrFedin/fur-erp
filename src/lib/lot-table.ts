@@ -34,7 +34,7 @@ export type LotRow = {
   source: "lot" | "plan" | "price";
   onStock: boolean;
   remaining: number;
-  usages: { id: string; orderId: string; number: string; qty: number }[];
+  usages: { id: string; orderId: string; number: string; wo: string | null; label: string; qty: number }[];
   parts: Part[];
   expIncl: number;
   extra: Record<string, ExtraValue>;

@@ -43,7 +43,7 @@ export function producedAndInWork(produced: number, inWork: number, fmt: (v: num
 }
 
 /** Одинаковые подписи везде. */
-export const PRODUCED_LABEL = "Произведено";
+export const PRODUCED_LABEL = "В выпуске";
 export const IN_WORK_LABEL = "В работе";
-export const PRODUCED_RULE = "Произведено — все ТЗ (завершённые и в работе), без отменённых и без ремонта.";
+export const PRODUCED_RULE = "В выпуске — все ТЗ: готово (завершённые) + в работе, без отменённых и без ремонта.";
 export const IN_WORK_RULE = "В работе — план ТЗ «В работе» и «Запланировано»; себестоимость — по списаниям сырья на сегодня.";

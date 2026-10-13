@@ -34,6 +34,8 @@ export function MiniLabel({ children }: { children: React.ReactNode }) {
 }
 
 const STAGE_TILES: Stage[] = ["plan", "raw", "work", "ready", "shipped"];
+/** Плитки на экране: «Сырьё» и «Отгружено» вынесены во вторую строку плитки «В выпуске» (в сумму входят по-прежнему). */
+const SHOWN_TILES: Stage[] = ["plan", "work", "ready"];
 
 /**
  * Плитки-итоги календаря (внутри WidgetRow): «Произведено» (ремонт отдельно), стадии, «Просрочено».
@@ -51,7 +53,7 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
 }) {
   const prod = STAGE_TILES.reduce((a, k) => a + grand[k], 0);
   const num = (v: number) => (v > 0 ? formatQty(v) : "—");
-  const cols = period ? "2xl:grid-cols-8" : "2xl:grid-cols-7";
+  const cols = period ? "xl:grid-cols-6" : "xl:grid-cols-5";
   return (
     <div className={`grid grid-cols-1 items-stretch gap-3 md:grid-cols-4 ${cols} print:grid-cols-4`}>
       {period && (
@@ -62,25 +64,28 @@ export function SummaryTiles({ grand, overdue, overdueEvents, stageHref, activeS
         </div>
       )}
       <div className={TILE_BOX}>
-        <TileHead>Произведено</TileHead>
+        <TileHead>В выпуске</TileHead>
         <div className="absolute right-3 top-3">
-          <InfoHint label="Что такое «Произведено»" wide>
-            <p>Все изделия ТЗ без отменённых и без ремонта (как «Произведено» на Главной за тот же год). Ремонт считается отдельно и сюда не входит.</p>
+          <InfoHint label="Что такое «В выпуске»" wide>
+            <p>Все изделия ТЗ без отменённых и без ремонта (как «В выпуске» на Главной за тот же год): готово + в работе. Ремонт считается отдельно и сюда не входит; в режиме «Стадии» итог «Всего с ремонтом» больше на число изделий в ремонте.</p>
             <p className="mt-1">Стадии справа: план → сырьё (мех закуплен и списан) → в работе (раскрой / пошив) → готово (на складе) → отгружено. Нажмите стадию — таблицы отфильтруются по ней.</p>
             <p className="mt-1">Число изделий — в штуках; количество шкур в данных ТЗ отдельно не хранится.</p>
           </InfoHint>
         </div>
         <TileValue>{num(prod)}{prod > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">шт.</span>}</TileValue>
-        <TileCaption>{grand.repair > 0 ? <span className="text-rose-700">ремонт отдельно: {formatQty(grand.repair)} шт.</span> : null}</TileCaption>
+        <TileCaption>
+          {grand.raw > 0 || grand.shipped > 0 ? <span title={`${STAGE_STYLES.raw.hint}; ${STAGE_STYLES.shipped.hint.toLowerCase()}`}>{[grand.raw > 0 ? `сырьё ${formatQty(grand.raw)}` : "", grand.shipped > 0 ? `отгружено ${formatQty(grand.shipped)}` : ""].filter(Boolean).join(" · ")}</span> : null}
+          {grand.repair > 0 ? <span className="block text-rose-700">ремонт отдельно: {formatQty(grand.repair)} шт.</span> : null}
+        </TileCaption>
       </div>
-      {STAGE_TILES.map((k) => {
+      {SHOWN_TILES.map((k) => {
         const st = STAGE_STYLES[k];
         const on = activeStage.length === 1 && activeStage[0] === k;
         return (
           <Link key={k} href={stageHref(k)} title={st.hint} aria-current={on ? "true" : undefined} className={TILE_BOX + " tile-click"} style={on ? { borderColor: "var(--ui-accent)" } : undefined}>
             <TileHead><i className={`mt-1 size-2 shrink-0 rounded-full ${st.dot}`} aria-hidden />{st.label}</TileHead>
             <TileValue>{num(grand[k])}{grand[k] > 0 && <span className="ml-1 text-xs font-normal text-neutral-500">шт.</span>}</TileValue>
-            <TileCaption>{prod > 0 && grand[k] > 0 ? `${formatShare(grand[k] / prod)} от произведено` : null}</TileCaption>
+            <TileCaption>{prod > 0 && grand[k] > 0 ? `${formatShare(grand[k] / prod)} от выпуска` : null}</TileCaption>
           </Link>
         );
       })}

@@ -25,18 +25,18 @@ export function RepairTiles({ orders, c4, filtered = false }: { orders: DrillOrd
       <a href="#orders-tree" aria-label="Ремонт — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
         <TileHead>Ремонт</TileHead>
         <TileValue>{s.repairOrders} ТЗ</TileValue>
-        <TileCaption>{formatQty(s.repairQty)} шт. · не входят в «Произведено»</TileCaption>
+        <TileCaption>{formatQty(s.repairQty)} шт. · не входят в «В выпуске»</TileCaption>
         <TileList items={[{ k: "Штук", v: formatQty(s.repairQty) }, { k: "Работа на штуку", v: s.repairQty > 0 ? money(s.work / s.repairQty) : "—" }]} />
       </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое ремонт" wide align="right">
-            <p>ТЗ на ремонт не входят в «Произведено» и в средние цены изделий. Их затраты остаются в общей себестоимости на Главной («Всего с ремонтом»).</p>
+            <p>ТЗ на ремонт не входят в «В выпуске» и в средние цены изделий. Их затраты остаются в общей себестоимости на Главной («Всего с ремонтом»).</p>
           </InfoHint>
         </div>
       </div>
       <div className="relative">
-      <a href="#orders-tree" aria-label="Себестоимость ремонта — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
-        <TileHead>Себестоимость ремонта</TileHead>
+      <a href="#orders-tree" aria-label="Полная себестоимость ремонта — перейти к составу ТЗ" className={TILE_BOX + " w-full shadow-sm tile-click print:shadow-none"}>
+        <TileHead>Полная себестоимость ремонта</TileHead>
         <TileValue>{money(total)}</TileValue>
         <TileCaption>сырьё{c4 === "on" ? " + 4%" : ""} + расходы ТЗ + работа</TileCaption>
         <TileList items={[

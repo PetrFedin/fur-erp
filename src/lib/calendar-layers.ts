@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { ymd, parseYmd } from "@/lib/calendar-grid";
@@ -62,10 +63,10 @@ export async function loadFactLayer(organizationId: string, from: string, to: st
   }
   for (const f of fittings) {
     const o = f.productionOrder;
-    items.push({ id: `ft-${f.id}`, kind: "fitting", date: ymd(f.fittingDate), title: articleLabel(o.productModel), qty: null, label: `Примерка${f.size ? ` (${f.size})` : ""} · ${o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `ТЗ ${o.number}`}`, href: `/fittings/${f.id}`, orderId: o.id });
+    items.push({ id: `ft-${f.id}`, kind: "fitting", date: ymd(f.fittingDate), title: articleLabel(o.productModel), qty: null, label: `Примерка${f.size ? ` (${f.size})` : ""} · ${orderLabel(o)}`, href: `/fittings/${f.id}`, orderId: o.id });
   }
   for (const o of orders) {
-    items.push({ id: `or-${o.id}`, kind: "order", date: ymd(o.endDate!), title: articleLabel(o.productModel), qty: Number(o.plannedQuantity), label: `Окончание ${o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `ТЗ ${o.number}`}`, href: `/production/${o.id}`, orderId: o.id });
+    items.push({ id: `or-${o.id}`, kind: "order", date: ymd(o.endDate!), title: articleLabel(o.productModel), qty: Number(o.plannedQuantity), label: `Окончание ${orderLabel(o)}`, href: `/production/${o.id}`, orderId: o.id });
   }
   return { items, monthLevel };
 }

@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { ClampText } from "@/components/clamp-text";
 import { Input } from "@/components/ui/input";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { deleteFur, mergeFurs, saveFur, type FurInput } from "./actions";
@@ -96,7 +97,7 @@ export function FursTable({ rows, allRows = rows, canEdit }: { rows: FurRow[]; a
           {rows.map((r) => (
             <Fragment key={r.id}>
               <Tr>
-                <Td className="font-medium">{r.name}{r.note && <div className="text-xs font-normal text-neutral-500">{r.note}</div>}</Td>
+                <Td className="font-medium">{r.name}{r.note && <div className="text-xs font-normal text-neutral-500"><ClampText text={r.note} /></div>}</Td>
                 <Td>{r.nameEn ?? <span className="text-amber-700">не указано</span>}</Td>
                 <Td className="max-w-md text-xs text-neutral-600">{r.aliases.length ? r.aliases.join(", ") : "—"}</Td>
                 <Td className="text-right">{r.lots}</Td>

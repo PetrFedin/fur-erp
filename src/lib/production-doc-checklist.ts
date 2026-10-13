@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import { tzCountText, uniqueOrderCount } from "@/lib/tz-key";
 import { storedFileExists } from "@/lib/stored-file-check";
 import "server-only";
@@ -48,7 +49,7 @@ async function loadRaw(db: Db, organizationId: string) {
   return { batches, orders, docs };
 }
 
-const orderTitle = (o: { workOrderNumber: string | null; number: string }) => (o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`);
+const orderTitle = (o: { workOrderNumber: string | null; number: string }) => orderLabel(o);
 
 const toDoc = (d: DocRow): PanelDoc => ({
   id: d.id,
@@ -267,7 +268,7 @@ export function buildBatchPanel(m: Model, batch: Model["raw"]["batches"][number]
   const panel: Panel = {
     id: `batch-${batch.id}`,
     title: `Партия ${batch.number}${name ? ` «${name}»` : ""}`,
-    subtitle: `${tzCountText(uniqueOrderCount(live), live.length)} · произведено ${t.producedUnits.toDecimalPlaces(0).toString()} шт.`,
+    subtitle: `${tzCountText(uniqueOrderCount(live), live.length)} · в выпуске ${t.producedUnits.toDecimalPlaces(0).toString()} шт.`,
     href: `/production/batches/${batch.number}`,
     pay,
     payments: pr.rows,

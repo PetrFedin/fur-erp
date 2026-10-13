@@ -1,5 +1,6 @@
 "use server";
 
+import { orderLabel, positionsOf } from "@/lib/order-label";
 import { randomUUID } from "node:crypto";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -85,7 +86,8 @@ export async function getPaymentTargets(): Promise<TargetList> {
       }),
     ]);
     out.batches = batches.map((b) => ({ id: b.id, number: b.number, name: b.name, orders: b._count.orders }));
-    out.orders = orders.map((o) => ({ id: o.id, label: `ТЗ ${o.workOrderNumber || o.number}`, batch: o.batch?.number ?? null, client: o.client?.name ?? null }));
+    const tzPos = positionsOf(orders);
+    out.orders = orders.map((o) => ({ id: o.id, label: orderLabel({ ...o, ...tzPos.get(o.id) }), batch: o.batch?.number ?? null, client: o.client?.name ?? null }));
   }
   return out;
 }

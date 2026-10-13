@@ -10,6 +10,7 @@ import { modelCodeVariants, compareModelNames } from "@/lib/model-code";
 import { actionDef, CALENDAR_ACTIONS, LAYER_STYLES, STAGE_ORDER, STAGE_STYLES } from "@/lib/calendar-actions";
 import { addDays, dayLabel, fmtRu, monthGridDays, monthTitle, parseMonth, parseYmd, shiftMonth, startOfWeek, todayYmd, WEEKDAYS, ymd } from "@/lib/calendar-grid";
 import { loadFactLayer, type FactItem } from "@/lib/calendar-layers";
+import { orderLabel } from "@/lib/order-label";
 import { loadPipeline, pipeInner, pipeTitle, type PipeItem } from "@/lib/calendar-pipeline";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
 import { PipeCard, StageChip, StageLegend, StagesView } from "./pipe-views";
@@ -196,7 +197,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     : [];
   const formOrders = orderOptions.map((o) => {
     const pi = pipeBy.get(o.id);
-    return { id: o.id, label: `${pi ? pipeTitle(pi) : o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `ТЗ ${o.number}`} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, hint: o.number, fur: pi?.fur ?? null, articleCode: o.productModel.name };
+    return { id: o.id, label: `${pi ? pipeTitle(pi) : orderLabel(o)} · ${articleLabel(o.productModel)}${pi ? ` · ${pi.fur}` : ""}`, hint: o.number, fur: pi?.fur ?? null, articleCode: o.productModel.name };
   });
   const formSeasons = seasons.map((x) => ({ id: x.id, code: x.code }));
   const formPlans = plans.map((p) => ({ id: p.id, label: planLabel(p), seasonId: p.seasonId, articleCode: p.articleCode, modelId: p.modelId, articleName: p.articleName ?? "" }));

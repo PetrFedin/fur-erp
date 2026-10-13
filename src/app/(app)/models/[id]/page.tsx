@@ -1,3 +1,5 @@
+import { orderLabel as tzOrderLabel } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
@@ -123,7 +125,9 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         take: 200,
       })
     : [];
+  const tzPos = await loadTzPositions(orgId, orders);
   const orderById = new Map(orders.map((o) => [o.id, o]));
+  const tzOf = (o: { id: string; number: string; workOrderNumber: string | null }) => tzOrderLabel({ ...o, ...tzPos.get(o.id) });
   const cancelled = orders.filter((o) => o.status === "CANCELLED");
   const batchCount = new Set(orders.filter((o) => o.status !== "CANCELLED" && o.batchId).map((o) => o.batchId)).size;
   const colors = Array.from(new Set(orderRows.filter((r) => r.modelId === id && drill.some((d) => d.id === r.id)).flatMap((r) => r.colors))).sort((a, b) => a.localeCompare(b, "ru"));
@@ -145,7 +149,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <YearNote year={year} />
         <span className="ml-2 inline-flex">
           <InfoHint label="О карточке артикула" wide>
-            <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «Произведено» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость.</p>
+            <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «В выпуске» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость.</p>
             <p className="mt-1">Кнопки ниже ведут в разделы с фильтром по этому артикулу; число — сколько записей, «—» — нет.</p>
           </InfoHint>
         </span>
@@ -397,7 +401,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
                       </Td>
                       <Td className="text-neutral-600">{DRIVE_DOC_TYPE_LABELS[d.docType as DriveDocTypeKey] ?? d.docType}</Td>
                       <Td>{d.docDate ? formatDate(d.docDate) : "—"}</Td>
-                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link> : "—"}</Td>
+                      <Td>{o ? <Link href={`/production/${o.id}#drive`} className="text-blue-700 hover:underline">{tzOf(o)}</Link> : "—"}</Td>
                     </Tr>
                   );
                 })}
@@ -420,7 +424,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         <p className="text-xs text-neutral-500">
           Отменённые ТЗ в расчёты не входят:{" "}
           {cancelled.map((o, i) => (
-            <span key={o.id}>{i > 0 ? ", " : ""}<Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{orderLabel(o)}</Link></span>
+            <span key={o.id}>{i > 0 ? ", " : ""}<Link href={`/production/${o.id}`} className="text-blue-700 hover:underline">{tzOf(o)}</Link></span>
           ))}
         </p>
       )}

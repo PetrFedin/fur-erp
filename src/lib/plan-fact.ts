@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import { producedUnits } from "@/lib/production-totals";
 import "server-only";
 import { prisma } from "@/lib/prisma";
@@ -105,7 +106,7 @@ export async function loadPlanFacts(organizationId: string, plans: PlanKey[], mo
       const produced = producedUnits(o);
       const fo: FactOrder = {
         id: o.id,
-        label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+        label: orderLabel(o),
         status: o.status as FactOrder["status"],
         planned,
         produced,
@@ -134,7 +135,7 @@ export async function loadOffPlan(organizationId: string, seasonId: string, plan
   });
   return orders.map((o) => ({
     id: o.id,
-    label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber}` : `Заказ ${o.number}`,
+    label: orderLabel(o),
     model: articleLabel(o.productModel),
     produced: producedUnits(o),
     planned: Number(o.plannedQuantity),

@@ -73,6 +73,16 @@ const draftSchema = z.object({
   furType: z.string().trim().max(100).optional(),
 });
 
+// Дополнительные позиции того же ТЗ из формы «Новое ТЗ» («+ ещё артикул»): общие поля берутся с первой позиции.
+const extraSchema = z.array(z.object({
+  productModelId: z.string().min(1),
+  plannedQuantity: z.number().positive().max(MAX_QTY),
+  color: z.string().trim().max(200).optional(),
+  colorRefId: z.string().trim().optional(),
+  size: z.string().trim().max(200).optional(),
+  clientWorkPricePerUnit: z.number().min(0).max(1e9).optional(),
+})).max(50);
+
 type ResolvedLot = { line: number; lotId: string; quantity: number };
 
 // Resolves parsed lot lines against lots that still have stock. An ambiguous
@@ -234,6 +244,22 @@ export async function createProductionOrder(
     if (draft.batchNumber && (!/^\d{1,4}$/.test(draft.batchNumber) || Number(draft.batchNumber) < 1)) errors.push("Номер партии — целое число от 1 до 9999");
   }
 
+  let extras: z.infer<typeof extraSchema> = [];
+  const extrasRaw = formData.get("extras");
+  if (typeof extrasRaw === "string" && extrasRaw) {
+    try {
+      const x = extraSchema.safeParse(JSON.parse(extrasRaw));
+      if (!x.success) return { errors: ["Не удалось прочитать дополнительные позиции — проверьте артикулы и количество"] };
+      extras = x.data;
+    } catch {
+      return { errors: ["Не удалось прочитать дополнительные позиции — обновите страницу и повторите"] };
+    }
+  }
+  const extraModels = extras.length
+    ? await prisma.productModel.findMany({ where: { id: { in: [...new Set(extras.map((x) => x.productModelId))] }, organizationId }, select: { id: true, sellingPrice: true } })
+    : [];
+  if (extras.some((x) => !extraModels.some((m) => m.id === x.productModelId))) return { errors: ["Один из артикулов дополнительных позиций не найден"] };
+
   const badRef = await checkOrgRefs(organizationId, {
     productModel: parsed.data.productModelId,
     client: parsed.data.clientId,
@@ -367,7 +393,43 @@ export async function createProductionOrder(
         await tx.productionOrder.update({ where: { id: order.id }, data: { status: "IN_PROGRESS" } });
       }
 
-      return { id: order.id, label: parsed.data.workOrderNumber ? `ТЗ №${parsed.data.workOrderNumber}` : number };
+      // Остальные позиции того же ТЗ: тот же № ТЗ, дата, заказчик, договор, партия, склады; списания вводятся на карточке позиции.
+      if (extras.length) {
+        const first = await tx.productionOrder.findUniqueOrThrow({ where: { id: order.id }, select: { batchId: true, furTypeOverride: true } });
+        for (const x of extras) {
+          const xNumber = await nextDocumentNumber(tx, "productionOrder", organizationId, "П");
+          const xColor = await resolveColorInput(tx, organizationId, { color: x.color, colorRefId: x.colorRefId ?? null });
+          await tx.productionOrder.create({
+            data: {
+              organizationId,
+              number: xNumber,
+              productModelId: x.productModelId,
+              rawWarehouseId: parsed.data.rawWarehouseId,
+              finishedWarehouseId: parsed.data.finishedWarehouseId,
+              plannedQuantity: x.plannedQuantity,
+              color: xColor.color ?? undefined,
+              colorRefId: xColor.colorRefId ?? undefined,
+              size: x.size || undefined,
+              materialDescription: parsed.data.materialDescription,
+              lining: parsed.data.lining,
+              startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : new Date(),
+              notes: parsed.data.notes,
+              clientId: parsed.data.clientId || undefined,
+              contractNumber: parsed.data.contractNumber,
+              workOrderNumber: parsed.data.workOrderNumber,
+              workOrderDate: parsed.data.workOrderDate ? new Date(parsed.data.workOrderDate) : undefined,
+              clientWorkPricePerUnit: x.clientWorkPricePerUnit,
+              retailPrice: extraModels.find((m) => m.id === x.productModelId)?.sellingPrice ?? undefined,
+              batchId: first.batchId ?? undefined,
+              furTypeOverride: first.furTypeOverride ?? undefined,
+              createdById: session.user.id,
+            },
+          });
+        }
+      }
+
+      const tzLabel = parsed.data.workOrderNumber ? `ТЗ №${parsed.data.workOrderNumber}` : number;
+      return { id: order.id, label: extras.length ? `${tzLabel} (позиций: ${extras.length + 1})` : tzLabel };
     });
   } catch (e) {
     return { errors: [e instanceof Error ? e.message : "Не удалось создать ТЗ"] };

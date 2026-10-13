@@ -1,3 +1,4 @@
+import { uniqueOrderCount } from "@/lib/tz-key";
 import { orderUnits } from "@/lib/production-totals";
 import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -75,6 +76,8 @@ export type VerifyRow = {
   edit: { date?: string; amount?: string; ref?: string; number?: string } | null;
   /** Оплата: основание — только письмо «оплачено» (без файла платёжки и п/п) → подпись «согласовано письмом». */
   letter?: boolean;
+  /** Оплата на 0 ₽ (напр. «вынесено в оплату закупки»): проверять нечего — в счётчики «ждут проверки» не входит (isCountedPayment). */
+  zero?: boolean;
   /** Чем подтверждено реестром сверки (п/п, сумма и дата совпали) — только для оплат. */
   registryFact: string | null;
   /** Пояснение «из чего состоит» для строки (аукцион: закупки). */
@@ -287,7 +290,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes), letter: !hasFile && ev === "letter",
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
-        registryFact: reg, members: [],
+        registryFact: reg, members: [], zero: !isCountedPayment(amount),
       });
       extra.paymentPp.set(`payment:${p.id}`, { ppNo, amount, paidIso });
     }
@@ -340,7 +343,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes), letter: !hasFile && ev === "letter",
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
-        registryFact: reg, members: [],
+        registryFact: reg, members: [], zero: !isCountedPayment(amount),
       });
       extra.paymentPp.set(`prodPayment:${p.id}`, { ppNo, amount, paidIso });
     }
@@ -488,7 +491,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         const unverified = live.filter((o) => !orderRows.get(o.id)?.verified);
         if (unverified.length > 0) {
           const nums = unverified.map((o) => o.workOrderNumber ?? o.number);
-          blockers.push({ text: `ТЗ не подтверждены: ${unverified.length} из ${live.length} (${nums.slice(0, 8).join(", ")}${nums.length > 8 ? "…" : ""})`, href: `/verify?tab=orders&q=${encodeURIComponent(`Партия ${b.number}`)}` });
+          blockers.push({ text: `ТЗ не подтверждены: ${uniqueOrderCount(unverified)} из ${uniqueOrderCount(live)}${live.length > uniqueOrderCount(live) ? ` ТЗ · позиций ${unverified.length} из ${live.length}` : ""} (${nums.slice(0, 8).join(", ")}${nums.length > 8 ? "…" : ""})`, href: `/verify?tab=orders&q=${encodeURIComponent(`Партия ${b.number}`)}` });
         }
         for (const it of bp.panel.items) {
           if (it.key === "TZ_APPENDIX") continue; // по ТЗ — выше
@@ -536,7 +539,7 @@ export async function loadVerifyFlags(db: Db, orgId: string, year?: string): Pro
     db.productionBatch.findMany({ where: { organizationId: orgId }, select: { number: true, year: true, verifiedAt: true, verifiedBy: true, orders: { select: { status: true } } } }),
     db.productionOrder.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { id: true, verifiedAt: true, verifiedBy: true, workOrderDate: true, endDate: true, startDate: true, batch: { select: { year: true } } } }),
     db.payment.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { amount: true, status: true, paidAt: true, confirmed: true, confirmedAt: true, confirmedBy: true } }),
-    db.productionPayment.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { paidAt: true, confirmed: true, confirmedAt: true, confirmedBy: true } }),
+    db.productionPayment.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" } }, select: { amount: true, paidAt: true, confirmed: true, confirmedAt: true, confirmedBy: true } }),
   ]);
   const y = year && year !== "all" ? Number(year) : null;
   const counts: VerifyFlags["counts"] = {
@@ -570,7 +573,7 @@ export async function loadVerifyFlags(db: Db, orgId: string, year?: string): Pro
   const paid = { verified: 0, waiting: 0, noProof: 0 };
   for (const p of pays) {
     const ok = p.confirmed && !!p.confirmedAt;
-    add("payment", p.paidAt.getUTCFullYear(), ok, p.confirmedBy);
+    if (isCountedPayment(p.amount)) add("payment", p.paidAt.getUTCFullYear(), ok, p.confirmedBy);
     if (p.status !== "COMPLETED" || (y != null && p.paidAt.getUTCFullYear() !== y)) continue;
     const a = Number(p.amount);
     if (ok) paid.verified += a;
@@ -579,7 +582,7 @@ export async function loadVerifyFlags(db: Db, orgId: string, year?: string): Pro
       if (!p.confirmed) paid.noProof += a;
     }
   }
-  for (const p of prodPays) add("prodPayment", p.paidAt.getUTCFullYear(), p.confirmed && !!p.confirmedAt, p.confirmedBy);
+  for (const p of prodPays) if (isCountedPayment(p.amount)) add("prodPayment", p.paidAt.getUTCFullYear(), p.confirmed && !!p.confirmedAt, p.confirmedBy);
   return { counts, purchaseByNumber, batchByNumber, orderById, paid };
 }
 
@@ -602,7 +605,11 @@ export async function loadVerifyRows(db: Db, orgId: string, kind: VerifyKind, op
 }
 
 export type VerifyCounts = { total: number; verified: number; waiting: number; ready: number; auto: number };
-export function countRows(rows: VerifyRow[]): VerifyCounts {
+/** Оплата с суммой больше нуля — единственные оплаты, которые считаются «ждут документа или проверки» (и в реестре оплат, и в «Подтвердить»). */
+export const isCountedPayment = (amount: number | string | { toString(): string }) => Number(amount.toString()) > 0;
+
+export function countRows(allRows: VerifyRow[]): VerifyCounts {
+  const rows = allRows.filter((r) => !r.zero);
   const verified = rows.filter((r) => r.verified).length;
   const waiting = rows.length - verified;
   return { total: rows.length, verified, waiting, ready: rows.filter((r) => !r.verified && r.ready).length, auto: rows.filter((r) => r.verified && r.auto).length };

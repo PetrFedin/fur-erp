@@ -50,7 +50,7 @@ export function OrderNav({
     <>
     {pos ? (
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Позиции этого ТЗ">
-        <span className="font-medium text-neutral-800">{tzLabel.split(" · ")[0]} · позиция {pos.index} из {pos.total}</span>
+        <span className="font-medium text-neutral-800">{tzLabel.split(" · ")[0]} · поз. {pos.index}/{pos.total}</span>
         <span className="text-xs text-neutral-500">один ТЗ из документа, артикулы:</span>
         {pos.prev ? <Link href={`/production/${pos.prev.id}`} className={step} title={`Предыдущая позиция: ${pos.prev.label}`} aria-label={`Предыдущая позиция: ${pos.prev.label}`}>‹</Link> : <span className={stepOff} aria-hidden>‹</span>}
         {pos.next ? <Link href={`/production/${pos.next.id}`} className={step} title={`Следующая позиция: ${pos.next.label}`} aria-label={`Следующая позиция: ${pos.next.label}`}>›</Link> : <span className={stepOff} aria-hidden>›</span>}

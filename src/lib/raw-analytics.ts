@@ -4,6 +4,8 @@ import "server-only";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { orderLabel } from "@/lib/order-label";
+import { relabelOrders as relabel } from "@/lib/order-label-db";
 import { requireSession } from "@/lib/session";
 import { classifyProduct } from "@/lib/product-category";
 import { canonicalFur } from "@/lib/fur-ref";
@@ -44,7 +46,11 @@ export const GROUPS: { key: GroupBy; label: string }[] = [
 
 export const NO_AUCTION_KEY = "__none";
 const zero = () => new Decimal(0);
-export type UsageRef = { id: string; orderId: string; number: string; modelId: string; qty: Decimal };
+/** label — единая подпись ТЗ («ТЗ 182 · поз. 1/3», см. order-label.ts); number — внутренний номер (для подсказки); wo — рабочий № ТЗ. */
+export type UsageRef = { id: string; orderId: string; number: string; wo: string | null; label: string; modelId: string; qty: Decimal };
+
+const usageRefPick = (i: UsageRef) => i;
+const usageRowPick = (r: UsageRow) => ({ orderId: r.orderId, number: r.orderNumber, wo: r.wo });
 
 export type RawLot = {
   id: string;
@@ -125,7 +131,7 @@ const LOT_INCLUDE = {
   usages: {
     select: {
       id: true, quantity: true, totalCost: true, commission4: true, vatRate: true,
-      productionOrder: { select: { id: true, number: true, productModelId: true } },
+      productionOrder: { select: { id: true, number: true, workOrderNumber: true, productModelId: true } },
     },
     orderBy: { date: "asc" },
   },
@@ -167,7 +173,7 @@ function buildLot(l: LotRow): RawLot {
   for (const u of l.usages) {
     const cur = byOrder.get(u.productionOrder.id);
     if (cur) cur.qty = cur.qty.add(u.quantity);
-    else byOrder.set(u.productionOrder.id, { id: u.id, orderId: u.productionOrder.id, number: u.productionOrder.number, modelId: u.productionOrder.productModelId, qty: u.quantity });
+    else byOrder.set(u.productionOrder.id, { id: u.id, orderId: u.productionOrder.id, number: u.productionOrder.number, wo: u.productionOrder.workOrderNumber, label: orderLabel(u.productionOrder), modelId: u.productionOrder.productModelId, qty: u.quantity });
   }
   return {
     id: l.id,
@@ -238,6 +244,7 @@ export async function loadRawData(organizationId: string, year: YearFilter): Pro
     if (lot.unit !== "M") lot.kind = canonicalFur(lot.materialName, furIdx)?.name ?? lot.kind;
     return lot;
   });
+  await relabel(organizationId, lots.flatMap((l) => l.usages), usageRefPick);
   return {
     lots,
     purchasedByItems: items._sum.quantity ?? zero(),
@@ -454,6 +461,7 @@ const K4 = new Decimal(COMMISSION_RATE);
 const producedDec = (o: { status: string; producedQuantity: Decimal; plannedQuantity: Decimal }) => new Decimal(orderUnits(o).toFixed(3));
 
 type OrderBrief = {
+  workOrderNumber: string | null;
   id: string;
   number: string;
   status: string;
@@ -467,7 +475,7 @@ type OrderBrief = {
   productModel: { id: string; name: string; sku: string | null; category: string | null; categoryRef: { name: string } | null };
 };
 const ORDER_BRIEF = {
-  id: true, number: true, status: true, producedQuantity: true, plannedQuantity: true, workOrderDate: true, endDate: true, startDate: true, materialDescription: true,
+  id: true, number: true, workOrderNumber: true, status: true, producedQuantity: true, plannedQuantity: true, workOrderDate: true, endDate: true, startDate: true, materialDescription: true,
   batch: { select: { id: true, number: true, year: true } },
   productModel: { select: { id: true, name: true, sku: true, category: true, categoryRef: { select: { name: true } } } },
 } satisfies Prisma.ProductionOrderSelect;
@@ -482,6 +490,10 @@ export type UsageRow = {
   lotId: string;
   orderId: string;
   orderNumber: string;
+  /** Рабочий № ТЗ из документа. */
+  wo: string | null;
+  /** Единая подпись ТЗ («ТЗ 182 · поз. 1/3»). */
+  label: string;
   orderDate: Date | null;
   modelId: string;
   modelName: string;
@@ -505,6 +517,8 @@ const usageRowOf = (u: {
   lotId: u.lotId,
   orderId: u.productionOrder.id,
   orderNumber: u.productionOrder.number,
+  wo: u.productionOrder.workOrderNumber,
+  label: orderLabel(u.productionOrder),
   orderDate: orderDateOf(u.productionOrder),
   modelId: u.productionOrder.productModel.id,
   modelName: u.productionOrder.productModel.name,
@@ -532,7 +546,9 @@ export async function loadUsageRows(organizationId: string, year: YearFilter): P
     select: USAGE_SELECT,
     orderBy: { date: "asc" },
   });
-  return rows.map(usageRowOf);
+  const out = rows.map(usageRowOf);
+  await relabel(organizationId, out, usageRowPick);
+  return out;
 }
 
 export type UsageGroup = {
@@ -559,7 +575,7 @@ export function groupUsage(rows: UsageRow[], by: UsageGroupBy): UsageGroup[] {
     if (!g) {
       g = {
         key,
-        label: by === "article" ? r.modelName : `ТЗ № ${r.orderNumber}`,
+        label: by === "article" ? r.modelName : r.label,
         sub: by === "article" ? `${r.sku ? `${r.sku} · ` : ""}${r.category}` : `${r.modelName} · ${r.category}${r.batchNumber != null ? ` · партия ${r.batchNumber}` : ""}`,
         orders: 0, lots: 0, produced: zero(), qty: zero(), incl: zero(), excl: zero(), extraIncl: zero(), extraExcl: zero(), rows: [],
         _o: new Set(), _l: new Set(),
@@ -586,7 +602,7 @@ export function groupUsage(rows: UsageRow[], by: UsageGroupBy): UsageGroup[] {
 }
 
 /** Строки списаний → по лотам (внутри изделия или ТЗ): сколько из какого лота ушло. */
-export type UsageByLot = { lotId: string; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal; orders: { orderId: string; number: string; qty: Decimal }[] };
+export type UsageByLot = { lotId: string; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal; orders: { orderId: string; number: string; label: string; qty: Decimal }[] };
 export function usageByLot(rows: UsageRow[]): UsageByLot[] {
   const map = new Map<string, UsageByLot>();
   for (const r of rows) {
@@ -601,7 +617,7 @@ export function usageByLot(rows: UsageRow[]): UsageByLot[] {
     }
     const o = g.orders.find((x) => x.orderId === r.orderId);
     if (o) o.qty = o.qty.add(r.qty);
-    else g.orders.push({ orderId: r.orderId, number: r.orderNumber, qty: r.qty });
+    else g.orders.push({ orderId: r.orderId, number: r.orderNumber, label: r.label, qty: r.qty });
   }
   return Array.from(map.values()).sort((a, b) => b.incl.comparedTo(a.incl));
 }
@@ -611,6 +627,9 @@ export function usageByLot(rows: UsageRow[]): UsageByLot[] {
 export type LotOrderRow = {
   orderId: string;
   number: string;
+  wo: string | null;
+  /** Единая подпись ТЗ («ТЗ 182 · поз. 1/3»). */
+  label: string;
   orderDate: Date | null;
   modelId: string;
   modelName: string;
@@ -719,7 +738,7 @@ export async function loadLotUsage(lotId: string, organizationId?: string): Prom
     if (!r) {
       const sib = siblings.filter((s) => s.productionOrderId === o.id);
       r = {
-        orderId: o.id, number: o.number, orderDate: orderDateOf(o), modelId: o.productModel.id, modelName: o.productModel.name, sku: o.productModel.sku,
+        orderId: o.id, number: o.number, wo: o.workOrderNumber, label: orderLabel(o), orderDate: orderDateOf(o), modelId: o.productModel.id, modelName: o.productModel.name, sku: o.productModel.sku,
         category: categoryOfOrder(o), batchId: o.batch?.id ?? null, batchNumber: o.batch?.number ?? null, produced: producedDec(o), planned: o.plannedQuantity,
         qty: zero(), orderQty: sib.reduce((s, x) => s.add(x._sum.quantity ?? zero()), zero()), orderLots: sib.length, unitsFromLot: null,
         incl: zero(), excl: zero(), extraIncl: zero(), extraExcl: zero(),
@@ -736,6 +755,7 @@ export async function loadLotUsage(lotId: string, organizationId?: string): Prom
     }
   }
   const orders = Array.from(byOrder.values());
+  await relabel(orgId, orders, (r) => ({ orderId: r.orderId, number: r.number, wo: r.wo }));
   for (const r of orders) r.unitsFromLot = r.orderQty.greaterThan(0) ? r.produced.mul(r.qty).div(r.orderQty) : null;
   orders.sort((a, b) => (a.orderDate?.getTime() ?? 0) - (b.orderDate?.getTime() ?? 0) || a.number.localeCompare(b.number, "ru", { numeric: true }));
 
@@ -768,7 +788,7 @@ export type ArticleLot = {
   excl: Decimal;
   extraIncl: Decimal;
   extraExcl: Decimal;
-  orders: { orderId: string; number: string; qty: Decimal }[];
+  orders: { orderId: string; number: string; label: string; qty: Decimal }[];
 };
 export type ArticleLots = {
   model: { id: string; name: string; sku: string | null; category: string };
@@ -788,6 +808,7 @@ export async function loadArticleLots(modelId: string, organizationId?: string):
     orderBy: { date: "asc" },
   });
   const rows = lines.map((u) => usageRowOf({ ...u, lot: { ...u.lot, rawMaterial: u.lot.rawMaterial } }));
+  await relabel(orgId, rows, usageRowPick);
   const lotById = new Map(lines.map((u) => [u.lotId, buildLot(u.lot)]));
   const orders = new Map<string, Decimal>();
   for (const r of rows) orders.set(r.orderId, r.produced);

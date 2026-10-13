@@ -63,7 +63,7 @@ export function YearsTable({ rows, c4, info }: { rows: YearRow[]; c4: "on" | "of
   void info;
   const { mode: vat } = useVatDisplay();
   // По умолчанию видны три тотала (Мех, Подкладка, Всего); по клику на «›» строка раскрывается по годам.
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Set<string>>(new Set(["all"])); // «Всего, ₽ мех+подкладка» по годам развёрнуто по умолчанию
   const toggle = (k: string) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const sum = (a: Cells, b: Cells): Cells => ({ rq: a.rq + b.rq, rv: a.rv + b.rv, ra: null, uq: a.uq + b.uq, uv: a.uv + b.uv, ua: null, mq: a.mq + b.mq, mv: a.mv + b.mv, ma: null, uo: a.uo + b.uo, uoa: null });
 

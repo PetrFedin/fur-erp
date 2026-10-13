@@ -25,6 +25,8 @@ export const NOT_SET = "Не указан";
 /** Списание лота в одно ТЗ: количество и суммы (с НДС / без НДС, 4% — надбавка только по строкам с commission4). */
 export type FurLotUsage = {
   orderId: string; number: string; qty: number;
+  /** Рабочий № ТЗ и единая подпись («ТЗ 182 · поз. 1/3»); number — внутренний номер. */
+  wo: string | null; label: string;
   incl: number; excl: number; extraIncl: number; extraExcl: number;
 };
 

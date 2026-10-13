@@ -1,7 +1,9 @@
+import { relabelOrders } from "@/lib/order-label-db";
 import { escapeLike } from "@/lib/input";
 import { NO_AUCTION_LABEL, isServiceAuction, shortAuctionName } from "@/lib/auction-names";
 import { auctionName as auctionNameLib, loadAuctionSummaries } from "@/lib/auction-payments";
-import { formatMoney, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { formatMoney, isRoundingRest, OVERPAY_FROM } from "@/lib/utils";
+import { isDebtDust } from "@/lib/raw-rounding";
 import Link from "next/link";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -205,6 +207,7 @@ export async function AuctionView({
   const payTotal = paySummaries.reduce((s, a) => s.add(a.total), new Decimal(0));
   const payPaid = paySummaries.reduce((s, a) => s.add(a.paid), new Decimal(0));
   const payRemaining = payTotal.sub(payPaid);
+  const payDust = isRoundingRest(payRemaining.toNumber()) || isDebtDust(payRemaining.toNumber());
   // Авансы без привязки к аукциону не относятся к этому аукциону — только короткая отсылка в «Оплаты».
   const hasUnlinkedAdvances = paySummaries.length > 0 ? (await loadSupplierDebt(prisma, organizationId)).unlinkedAdvances.greaterThan(0.005) : false;
   // Без фильтра показываем все закупки аукциона (и пустые); с фильтром — только те, где что-то нашлось.
@@ -274,6 +277,7 @@ export async function AuctionView({
     select: { id: true, name: true, type: true, position: true },
   });
   const lotsData = buildAuctionRows(blocks, UNIT_LABELS, canEdit);
+  await relabelOrders(organizationId, lotsData.rows.flatMap((r) => r.usages), (u) => ({ orderId: u.orderId, number: u.number, wo: u.wo }));
   const lotDocCnt = await docCounts(organizationId, "lot", lotsData.rows.map((r) => r.lotId).filter((x): x is string => !!x));
   for (const r of lotsData.rows) if (r.lotId) r.docs = lotDocCnt.get(r.lotId)?.total ?? 0;
 
@@ -400,8 +404,8 @@ export async function AuctionView({
             {paySummaries.length > 0 && (
               <div>
                 <dt className="text-xs text-neutral-500">{payRemaining.lessThan(-OVERPAY_FROM) ? "Переплата (с НДС)" : "Остаток к оплате (с НДС)"}</dt>
-                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) && !isRoundingRest(payRemaining.toNumber()) ? "text-amber-700" : "")}>
-                  {isRoundingRest(payRemaining.toNumber()) ? <span title={roundingRestHint(payRemaining.toNumber())} className="cursor-help">оплачено</span> : formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
+                <dd className={"text-lg font-semibold " + (payRemaining.greaterThan(0.005) && !payDust ? "text-amber-700" : "")}>
+                  {payDust ? <span title={`округление (${formatMoney(payRemaining.abs().toFixed(2))})`} className="cursor-help">оплачено</span> : formatMoney(payRemaining.lessThan(-OVERPAY_FROM) ? payRemaining.neg().toString() : payRemaining.toString())}
                 </dd>
                 <dd className="text-xs text-neutral-500">
                   {payPaid.greaterThan(0.005) ? `оплачено ${formatMoney(payPaid.toString())}` : "оплат нет"} ·{" "}

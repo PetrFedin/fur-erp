@@ -1,5 +1,7 @@
 // Загрузка лотов для таблицы «Мех / Подкладка» (расчёт — в fur-table.ts). Без "server-only":
 // функцию вызывают и страницы (клиент БД — общий prisma), и scripts/test-fur-table.ts (свой PrismaClient).
+import { orderLabel } from "@/lib/order-label";
+import { relabelOrders } from "@/lib/order-label-db";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { canonicalFur, type FurIndex } from "./fur-ref";
@@ -41,7 +43,7 @@ const LOT_SELECT = {
   purchaseItems: { select: { quantity: true, subtotal: true, costPlan: true } },
   usages: {
     where: { productionOrder: { status: { not: "CANCELLED" as const } } },
-    select: { quantity: true, totalCost: true, commission4: true, vatRate: true, productionOrder: { select: { id: true, number: true } } },
+    select: { quantity: true, totalCost: true, commission4: true, vatRate: true, productionOrder: { select: { id: true, number: true, workOrderNumber: true } } },
     orderBy: { date: "asc" as const },
   },
 } satisfies Prisma.RawMaterialLotSelect;
@@ -61,7 +63,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
   let usedExcl = zero();
   let extraIncl = zero();
   let extraExcl = zero();
-  const byOrder = new Map<string, { orderId: string; number: string; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal }>();
+  const byOrder = new Map<string, { orderId: string; number: string; wo: string | null; qty: Decimal; incl: Decimal; excl: Decimal; extraIncl: Decimal; extraExcl: Decimal }>();
   for (const u of l.usages) {
     used = used.add(u.quantity);
     usedIncl = usedIncl.add(u.totalCost);
@@ -77,7 +79,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     if (cur) {
       cur.qty = cur.qty.add(u.quantity); cur.incl = cur.incl.add(u.totalCost); cur.excl = cur.excl.add(ex);
       cur.extraIncl = cur.extraIncl.add(uExtraIncl); cur.extraExcl = cur.extraExcl.add(uExtraExcl);
-    } else byOrder.set(u.productionOrder.id, { orderId: u.productionOrder.id, number: u.productionOrder.number, qty: u.quantity, incl: u.totalCost, excl: ex, extraIncl: uExtraIncl, extraExcl: uExtraExcl });
+    } else byOrder.set(u.productionOrder.id, { orderId: u.productionOrder.id, number: u.productionOrder.number, wo: u.productionOrder.workOrderNumber, qty: u.quantity, incl: u.totalCost, excl: ex, extraIncl: uExtraIncl, extraExcl: uExtraExcl });
   }
   const name = auctionName(l.purchase?.auctionSession);
   const d = l.purchase?.orderDate ?? l.receivedDate;
@@ -143,7 +145,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     source: l.purchase?.isContractorRaw ? "supplier" : classifyPurchaseSource(l.purchase?.auction),
     purchaseStatus: l.purchase ? (l.purchase.status === "RECEIVED" ? "RECEIVED" : l.purchase.status === "CANCELLED" ? "CANCELLED" : "DRAFT") : "RECEIVED",
     orderDate: l.purchase?.orderDate ? l.purchase.orderDate.toISOString().slice(0, 10) : undefined,
-    usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
+    usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, wo: u.wo, label: orderLabel({ workOrderNumber: u.wo, number: u.number }), qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),
   };
 }
 
@@ -166,7 +168,9 @@ export async function loadFurLots(
     select: LOT_SELECT,
     orderBy: [{ receivedDate: "asc" }, { lotNumber: "asc" }],
   });
-  return rows.map((r) => furLotFromRecord(r, opts.furIdx));
+  const lots = rows.map((r) => furLotFromRecord(r, opts.furIdx));
+  await relabelOrders(organizationId, lots.flatMap((l) => l.usages), (u) => u, db);
+  return lots;
 }
 
 /**

@@ -101,7 +101,7 @@ export function Goods({ goods }: { goods: PaidGood[] }) {
         <tbody>
           {goods.map((g) => (
             <tr key={g.id} className="border-b border-neutral-100">
-              <td className="whitespace-nowrap py-1.5 pr-2"><Link href={`/production/${g.id}`} className="text-blue-700 hover:underline">ТЗ {g.label ?? g.number} ›</Link></td>
+              <td className="whitespace-nowrap py-1.5 pr-2"><Link href={`/production/${g.id}`} className="text-blue-700 hover:underline">{g.label ?? `Заказ ${g.number}`} ›</Link></td>
               <td className="whitespace-nowrap px-2 py-1.5">{g.article ?? g.model}</td>
               <td className="px-2 py-1.5 text-neutral-600">{g.fur ?? "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-neutral-600">{g.batch ?? "—"}</td>

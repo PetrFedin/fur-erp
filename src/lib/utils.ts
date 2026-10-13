@@ -17,7 +17,8 @@ export const MONEY_WHOLE_FROM = 1000;
 
 /** Сумма в рублях: от 1 000 ₽ — целые рубли, меньше — с копейками (целые без «,00»). */
 export function formatMoney(value: number | string) {
-  const n = Number(value);
+  let n = Number(value);
+  if (Math.abs(n) < 0.005) n = 0; // «-0 ₽» не показываем
   if (Math.abs(n) >= MONEY_WHOLE_FROM) return rubWhole.format(n);
   return rubFormatter.format(n).replace(/,00(?=[\s\u00a0]?₽)/, "");
 }

@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -81,7 +82,7 @@ export default async function SeasonsOrdersPage({ searchParams }: PageProps<"/pl
   const outside = verdicts.filter((v) => v.kind === "none").length;
   const multi = verdicts.filter((v) => v.kind === "multi").length;
   const rangedSeasons = seasons.filter((x) => x.startDate && x.endDate);
-  const label = (o: { workOrderNumber: string | null; number: string }) => (o.workOrderNumber ? `ТЗ ${o.workOrderNumber}` : `Заказ ${o.number}`);
+  const label = (o: { workOrderNumber: string | null; number: string }) => orderLabel(o);
 
   return (
     <div className="flex flex-col gap-4">

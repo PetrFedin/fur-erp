@@ -83,3 +83,13 @@ export function slimForTiles(orders: DrillOrder[]): DrillOrder[] {
     return { id: o.id, number: o.number, wo: o.wo, bk: "", bl: "", y: o.y, st: o.st, cat: o.cat, grp: o.grp, mid: "", ml: "", fur: "", qty: o.qty, work: o.work, exp: o.exp, hI: o.hI, hE: o.hE, resI: o.resI, resE: o.resE, lines };
   });
 }
+
+/** «В выпуске» = готово (завершённые ТЗ) + в работе (план ТЗ «В работе» / «Запланировано»); без ремонта. Только для подписи-расшифровки, итоги не затрагивает. */
+export function outputSplit(os: DrillOrder[]): { done: number; inWork: number } {
+  let done = 0, inWork = 0;
+  for (const o of os) {
+    if (isRepair(o)) continue;
+    if (o.st === "COMPLETED") done += o.qty; else inWork += o.qty;
+  }
+  return { done, inWork };
+}

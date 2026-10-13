@@ -18,7 +18,7 @@ import { cleanNote } from "@/lib/note-tags";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
 import { PaymentCardEdit } from "./card-edit";
-import { PAY_STATUS_LABEL, loadPaymentsRegistryFull, parsePaymentCode, type PayStatus } from "@/lib/payments-registry";
+import { PAY_STATUS_LABEL, loadInvoiceLinks, loadPaymentsRegistryFull, parsePaymentCode, type PayStatus } from "@/lib/payments-registry";
 
 const money = (n: number) => formatMoney(n.toFixed(2));
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -121,6 +121,8 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
   const inv = dbRow?.invoiceNo ? null : INV_RX.exec(ov.doc ?? "");
   const ppText = dbRow?.ppNo ? `№ ${dbRow.ppNo}` : pp ? `№ ${pp[1]}${pp[2] ? ` от ${pp[2]}` : ""}` : r.pp || "—";
   const invText = dbRow?.invoiceNo ? `№${dbRow.invoiceNo}` : inv ? `№${inv[1]}${inv[2] ? ` от ${inv[2]}` : ""}` : r.invoice || "—";
+  const invHref = (await loadInvoiceLinks(orgId, [{ ...r, invoice: invText !== "—" ? invText : "" }])).get(r.code);
+  const cpHref = r.cpId ? `/${parsed.kind === "raw" ? "suppliers" : "clients"}/${r.cpId}` : null;
   const invRec = info?.invoice ?? null;
   const invOthers = invRec ? invRec.purchases.filter((x) => x.id !== info?.purchaseId) : [];
   const invoiceInBase: ReactNode | null = invRec ? (
@@ -154,7 +156,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
       <section className="rounded-lg border border-neutral-200 bg-white p-3 sm:p-4" aria-label="Оплата">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold tabular-nums">{money(r.amount)}</h1>
-          <span className="text-sm text-neutral-600">{r.direction === "out" ? "Мы платим" : "Нам платят"} · {r.counterparty}</span>
+          <span className="text-sm text-neutral-600">{r.direction === "out" ? "Мы платим" : "Нам платят"} · {cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span>{r.what} · {dateText}</span>
@@ -173,9 +175,9 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
         <Dl items={[
           ["Дата оплаты", dateText],
           ["Сумма", money(r.amount)],
-          [r.direction === "out" ? "Получатель" : "Плательщик", r.counterparty],
+          [r.direction === "out" ? "Получатель" : "Плательщик", cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty} ›</Link> : r.counterparty],
           ["Тип", r.what],
-          ["Счёт", invText],
+          ["Счёт", invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{invText} ›</Link> : invText],
           ...(invoiceInBase ? [["Счёт в базе", invoiceInBase] as [string, ReactNode]] : []),
           ["П/п", ppText],
           ...(method ? [["Способ", method] as [string, ReactNode]] : []),

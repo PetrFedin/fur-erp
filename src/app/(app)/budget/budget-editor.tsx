@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { formatPercent } from "@/lib/utils";
+import { useConfirm } from "@/components/confirm-dialog";
 import { WidgetRow } from "@/components/widget-row";
 import { InfoHint } from "@/components/info-hint";
 import { TileCarousel } from "@/components/tile-carousel";
@@ -60,6 +61,7 @@ const qz = (v: number | null | undefined, d = 0) => (v ? qty(v, d) : "—");
 
 export function BudgetEditor(p: Props) {
   const router = useRouter();
+  const { ask: askConfirm, node: confirmNode } = useConfirm();
   const [params, setParams] = useState(p.initialParams);
   const [nodes, setNodes] = useState(p.initialNodes);
   const [comment, setComment] = useState(p.initialComment);
@@ -230,13 +232,32 @@ export function BudgetEditor(p: Props) {
       const fresh = await refreshBudgetStats();
       setStats(fresh);
       const before = nodes;
-      const next = autoCalc(before, fresh, params, scopeId);
-      setNodes(next);
+      const next = autoCalc(before, fresh, params, scopeId); // временная копия: в состояние — только после «Применить»
       const hasKid = new Set(before.map((n) => n.parentId));
       const inScope = (n: BudgetNode) => { let c: BudgetNode | undefined = n; for (let i = 0; c && i < 5; i++) { if (!scopeId || c.id === scopeId) return true; c = c.parentId ? byId.get(c.parentId) : undefined; } return false; };
       const leaves = next.filter((n) => n.kind !== "fur" && !hasKid.has(n.id) && inScope(n));
       const locked = leaves.filter((n) => effLocked(n, byId)).length;
       const nodata = leaves.filter((n) => !effLocked(n, byId) && n.src === "none").length;
+      const prevTotal = grandTotal(before, params).total;
+      const nextTotal = grandTotal(next, params).total;
+      const changed = next.filter((n, i) => {
+        const o = before[i];
+        return o.hides !== n.hides || o.hidePrice !== n.hidePrice || o.meters !== n.meters || o.meterPrice !== n.meterPrice || o.work !== n.work || o.src !== n.src;
+      }).length;
+      const delta = nextTotal - prevTotal;
+      const furOf = (n: BudgetNode) => { let c: BudgetNode | undefined = n; for (let i = 0; c && i < 5; i++) { if (c.kind === "fur") return c.name; c = c.parentId ? byId.get(c.parentId) : undefined; } return n.name; };
+      const lockedNames = Array.from(new Set(leaves.filter((n) => effLocked(n, byId)).map(furOf)));
+      const ok = await askConfirm(
+        <div className="space-y-1">
+          <div className="font-semibold">Автоматический расчёт{scopeId ? " блока" : ""}</div>
+          <div>Итог: было {Math.round(prevTotal).toLocaleString("ru-RU")} ₽ → станет {Math.round(nextTotal).toLocaleString("ru-RU")} ₽ ({delta > 0 ? "+" : ""}{Math.round(delta).toLocaleString("ru-RU")} ₽)</div>
+          <div>Изменится строк: {changed}. С замком, не тронуты: {locked}{lockedNames.length ? ` (${lockedNames.slice(0, 4).join(", ")} заперт${lockedNames.length > 1 ? "ы" : "а"})` : ""}.</div>
+          <div className="text-xs text-neutral-500">Это черновик: в базу попадёт после «Сохранить».</div>
+        </div>,
+        { ok: "Применить" },
+      );
+      if (!ok) return;
+      setNodes(next);
       const byArt = leaves.filter((n) => !effLocked(n, byId) && n.src === "art").length;
       const byLen = leaves.filter((n) => !effLocked(n, byId) && n.src === "len").length;
       setMsg(`Пересчитано по данным системы: ${leaves.length - locked} строк${byArt || byLen ? ` (${[byArt ? `по ТЗ артикула: ${byArt}` : "", byLen ? `по длине: ${byLen}` : ""].filter(Boolean).join(", ")})` : ""}.${locked ? ` С замком, не тронуты: ${locked}.` : ""}${nodata ? ` Нет данных в системе: ${nodata}.` : ""}`);
@@ -763,6 +784,7 @@ export function BudgetEditor(p: Props) {
         </>
       )}
 
+      {confirmNode}
       {renaming ? <EditCardDialog name={p.name} season={p.season} onClose={() => setRenaming(false)} onSave={async (name, seasonV) => { const r = await renameBudget(p.id, name, seasonV); if (r.ok) { setRenaming(false); router.refresh(); } return r.ok ? null : r.error ?? "Не удалось сохранить"; }} /> : null}
       {adding ? (
         <AddDialog kind={adding.kind} names={adding.kind === "fur" ? p.furNames : p.catNames} articles={p.articles} taken={takenIn(adding.kind, adding.parentId)}

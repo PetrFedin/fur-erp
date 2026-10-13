@@ -263,7 +263,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <InfoHint label="О странице" wide>
             <p>Какие ТЗ сделаны и во что они обошлись: по категориям, видам меха, размерам, моделям (артикулам), партиям, годам, цветам и по каждому ТЗ. Одна строка источника = одно ТЗ (отменённые не считаются).</p>
             <p className="mt-1">
-              <b>Себестоимость</b> = сырьё + подкладка (по лотам) + расходы ТЗ; в режиме «С 4%» к сырью и подкладке добавляется 4% (работа не облагается). Это та же себестоимость, что на страницах «Партии» и «Изделия». <b>Работа</b> (цена работы по ТЗ × количество) в неё не входит; <b>полная себестоимость</b> = себестоимость + работа.
+              <b>Себестоимость сырья</b> = сырьё + подкладка (по лотам) + расходы ТЗ; в режиме «С 4%» к сырью и подкладке добавляется 4% (работа не облагается). Это та же «Себестоимость сырья», что в таблице «Партии»; в «Изделиях», в списке ТЗ и на Главной показана «Полная себестоимость (с работой)». <b>Работа</b> (цена работы по ТЗ × количество) в неё не входит; <b>полная себестоимость</b> = себестоимость + работа.
             </p>
             <p className="mt-1">
               <b>Среднее — только средневзвешенное</b> (Σ сумм ÷ Σ весов): стоимость шкуры и молоток — вес в шкурах; шкуры, подкладка, работа и себестоимость на единицу — вес в единицах изделия. Знаменатель каждой колонки — только ТЗ, где данные есть; это написано в подсказке у заголовка колонки.
@@ -310,17 +310,17 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>Произведено</TileHead>
+            <TileHead>В выпуске</TileHead>
             <TileValue>{formatQty(sOwn.m.units)} шт.</TileValue>
             <TileCaption>{tzCountText(sOwn.m.orders, sOwn.m.items)} · {sAll.batches} {sAll.batches === 1 ? "партия" : "партий"} пошива{repairUnits > 0 ? ` · ремонт ${formatQty(repairUnits)} шт. отдельно` : ""}</TileCaption>
             <TileList items={[
-              { k: "Сделано", v: `${formatQty(sOwnDone.m.units)} шт.`, share: sOwn.m.units ? sOwnDone.m.units / sOwn.m.units : null },
+              { k: "Готово", v: `${formatQty(sOwnDone.m.units)} шт.`, share: sOwn.m.units ? sOwnDone.m.units / sOwn.m.units : null },
               { k: "В работе", v: `${formatQty(sOwnWork.m.units)} шт.`, share: sOwn.m.units ? sOwnWork.m.units / sOwn.m.units : null },
             ]} />
           </div>
           <div className="absolute right-3 top-3">
-            <InfoHint label="Что такое «произведено»" wide align="right">
-              <p><b>Произведено</b> — все ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Строки «Сделано» и «В работе» (в работе и запланированные) — разбивка по статусу ТЗ. Остальные плитки (шкуры, работа, себестоимость, молоток) считаются по всем ТЗ года, включая ремонт, как «Себестоимость» на Главной.</p>
+            <InfoHint label="Что такое «в выпуске»" wide align="right">
+              <p><b>В выпуске</b> — все ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной за {year === "all" ? "все годы" : `${year} год`}). Строки «Готово» (завершённые ТЗ) и «В работе» (в работе и запланированные) — разбивка по статусу ТЗ. Остальные плитки (шкуры, работа, себестоимость, молоток) считаются по всем ТЗ года, включая ремонт, как «Полная себестоимость» на Главной.</p>
             </InfoHint>
           </div>
         </div>
@@ -329,7 +329,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <TileValue>{formatQty(sAll.m.skins)}</TileValue>
           <TileCaption>списано в ТЗ</TileCaption>
           <TileList items={[
-            { k: "Сделано", v: formatQty(sDone.m.skins) },
+            { k: "Готово", v: formatQty(sDone.m.skins) },
             { k: "В работе", v: formatQty(sWork.m.skins) },
           ]} />
         </div>
@@ -339,7 +339,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <TileValue>{formatMoney(sAll.m.work.toFixed(2))}</TileValue>
             <TileCaption>цена работы по ТЗ × количество</TileCaption>
             <TileList items={[
-              { k: "Сделано", v: formatMoney(sDone.m.work.toFixed(2)), share: sAll.m.work ? sDone.m.work / sAll.m.work : null },
+              { k: "Готово", v: formatMoney(sDone.m.work.toFixed(2)), share: sAll.m.work ? sDone.m.work / sAll.m.work : null },
               { k: "В работе", v: formatMoney(sWork.m.work.toFixed(2)), share: sAll.m.work ? sWork.m.work / sAll.m.work : null },
             ]} />
           </div>
@@ -349,17 +349,17 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
         <div className="relative">
           <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
-            <TileHead>Себестоимость{c4}</TileHead>
+            <TileHead>Себестоимость сырья{c4}</TileHead>
             <TileValue><Money incl={sAll.m.costIncl} excl={sAll.m.costExcl} /></TileValue>
             <TileCaption>сырьё + подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}, без работы{contractorHides > 0.5 ? ` · без шкур подрядчика (${formatMoney(contractorHides.toFixed(2))} с НДС: на Главной входят в мех)` : ""}</TileCaption>
             <TileList items={[
-              { k: "Сделано", v: <Money incl={sDone.m.costIncl} excl={sDone.m.costExcl} /> },
+              { k: "Готово", v: <Money incl={sDone.m.costIncl} excl={sDone.m.costExcl} /> },
               { k: "В работе", v: <Money incl={sWork.m.costIncl} excl={sWork.m.costExcl} /> },
             ]} />
           </div>
           <div className="absolute right-3 top-3">
             <InfoHint label="Что в сумме" wide align="right">
-              Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У ТЗ «в работе» часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»). Работа в эту плитку не входит — она отдельной плиткой рядом (на Главной «Себестоимость» считается вместе с работой).
+              Сумма по ТЗ, у которых себестоимость известна (больше 0): сырьё и подкладка + расходы ТЗ{c4Mode === "on" ? " + 4%" : ""}. У ТЗ «в работе» часто ещё нет списаний — они в сумму не попадают (см. «Качество данных»). Работа в эту плитку не входит — она отдельной плиткой рядом (на Главной «Полная себестоимость (с работой)» считается вместе с работой).
             </InfoHint>
           </div>
         </div>
@@ -369,7 +369,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             <TileValue>{sAll.d.hammerPerSkin ? <Money incl={sAll.d.hammerPerSkin.incl} excl={sAll.d.hammerPerSkin.excl} /> : <span className="text-neutral-500">нет данных</span>}</TileValue>
             <TileCaption>{sAll.d.hammerPerSkin ? `по шкурам с данными: ${pct0(sAll.d.hammerSkinShare ?? 0)}` : "у лотов нет молотка"}</TileCaption>
             <TileList items={[
-              { k: "Сделано", v: sDone.d.hammerPerSkin ? <Money incl={sDone.d.hammerPerSkin.incl} excl={sDone.d.hammerPerSkin.excl} /> : "—" },
+              { k: "Готово", v: sDone.d.hammerPerSkin ? <Money incl={sDone.d.hammerPerSkin.incl} excl={sDone.d.hammerPerSkin.excl} /> : "—" },
               { k: "В работе", v: sWork.d.hammerPerSkin ? <Money incl={sWork.d.hammerPerSkin.incl} excl={sWork.d.hammerPerSkin.excl} /> : "—" },
             ]} />
           </div>
@@ -465,7 +465,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
             Единицы
           </Link>
           <Link href={href({ mx: "cost" })} className={f.mx === "cost" ? "rounded-md bg-neutral-900 px-3 py-1 text-white" : "rounded-md px-3 py-1 hover:bg-neutral-100"}>
-            Себестоимость{c4}
+            Себестоимость сырья{c4}
           </Link>
         </div>
       </div>

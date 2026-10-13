@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { updateSellingPrice } from "@/app/(app)/models/actions";
+import { useConfirm } from "@/components/confirm-dialog";
+import { countOpenOrdersForModel } from "./actions";
 
 /**
  * «Принять рекомендацию»: записывает рекомендуемую цену как розничную цену модели — тем же действием,
@@ -31,13 +33,19 @@ export function AcceptPriceButton({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const { ask, node } = useConfirm();
 
-  const onClick = () => {
-    const ok = window.confirm(
-      `Модель ${modelName}: установить розничную цену ${priceText}?\n` +
-        (currentText ? `Сейчас: ${currentText}.\n` : "Сейчас цена не задана.\n") +
-        `Основание: ${basis}.\n` +
-        "Цена применится и к незавершённым ТЗ этой модели (в плане и в работе); у завершённых не меняется.",
+  const onClick = async () => {
+    let n: number | null = null;
+    try { n = await countOpenOrdersForModel(modelId); } catch { n = null; }
+    const ok = await ask(
+      <div className="space-y-1">
+        <div className="font-semibold">Цена артикула {modelName}</div>
+        <div>{currentText ? `было ${currentText}` : "было: не задана"} → станет {priceText}</div>
+        <div className="text-xs text-neutral-600">Основание: {basis}.</div>
+        <div className="text-xs text-neutral-600">{n == null ? "Цена перенесётся на ТЗ в плане и в работе" : `Перенесётся на ${n} ТЗ в плане и в работе`}; у завершённых не меняется.</div>
+      </div>,
+      { ok: "Принять" },
     );
     if (!ok) return;
     setError(null);
@@ -59,6 +67,7 @@ export function AcceptPriceButton({
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onClick} className="max-md:h-10">
         {pending ? "Сохраняю…" : "Принять рекомендацию"}
       </Button>
+      {node}
       {error && (
         <span role="alert" className="text-xs text-red-600">
           {error}

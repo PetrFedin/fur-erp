@@ -664,7 +664,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
       <WidgetRow id="purchase" title="Закупка — итоги" headerEnd={<Link href={auctionPay ? `/payments?auction=${encodeURIComponent(auctionPay.name)}#auction-block` : "/payments"} className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3">
         <SummaryCard
-          label={<VatLabel base="Всего, ₽" />}
+          label={<VatLabel base="Всего по закупке, ₽" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
           note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы без НДС ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
@@ -678,7 +678,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                 </Link>
               }
               value={auctionPay.paid.greaterThan(0.005) ? formatMoney(auctionPay.paid.toString()) : "—"}
-              note={`по партии, из ${formatMoney(auctionPay.total.toString())}`}
+              note={`по всей партии «${auctionPay.name}» (не только этой закупки), из ${formatMoney(auctionPay.total.toString())}`}
             />
             <SummaryCard
               label="Остаток"

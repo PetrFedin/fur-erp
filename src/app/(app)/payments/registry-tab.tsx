@@ -6,7 +6,8 @@ import { TH } from "@/components/table-head";
 import { TotalLabel } from "@/components/total-label";
 import { PaymentWizardButton } from "@/components/payment-wizard";
 import { defineFilters, filterHref, parseFilters, stateParam, activeCount, type SearchParamsLike } from "@/lib/filters";
-import { PAY_STATUS_LABEL, loadPaymentsRegistry, type PayStatus, type RegistryRow } from "@/lib/payments-registry";
+import { PAY_STATUS_LABEL, loadInvoiceLinks, loadPaymentsRegistry, type PayStatus, type RegistryRow } from "@/lib/payments-registry";
+import { isCountedPayment } from "@/lib/verification";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -25,7 +26,8 @@ export const REGISTRY_FILTERS = defineFilters({
   st: { kind: "multi", label: "Статус", allowed: STATUSES },
   from: { kind: "date", label: "Оплата с" },
   to: { kind: "date", label: "Оплата по" },
-  q: { kind: "text", label: "Счёт или п/п", maxLen: 40 },
+  // rq, а не q: общий q на /payments означает «название партии» и уводит на вкладку «За сырьё».
+  rq: { kind: "text", label: "Поиск", maxLen: 60 },
   tab: stateParam("Раздел"),
   sort: stateParam("Сортировка", { allowed: ["asc", "desc"] }),
 });
@@ -39,23 +41,24 @@ const STATUS_MARK: Record<PayStatus, string> = { verified: "✓", docs: "○", c
 export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: { sp: SearchParamsLike; orgId: string; year: YearFilter; canPay: boolean; flashError: string }) {
   const f = parseFilters(REGISTRY_FILTERS, sp);
   const all = (await loadPaymentsRegistry(orgId)).filter((r) => year === "all" || r.year === Number(year));
-  const q = f.q.toLowerCase().replace(/^№\s*/, "");
+  const q = f.rq.toLowerCase().replace(/^№\s*/, "").replace(/ё/g, "е");
   const rows = all
     .filter((r) => f.dir.length === 0 || f.dir.includes(r.direction))
     .filter((r) => f.cp.length === 0 || f.cp.includes(r.counterparty))
     .filter((r) => f.st.length === 0 || f.st.includes(r.status))
     .filter((r) => !f.from || r.iso >= f.from)
     .filter((r) => !f.to || r.iso <= f.to)
-    .filter((r) => !q || `${r.invoice} ${r.pp}`.toLowerCase().includes(q));
+    .filter((r) => !q || r.search.replace(/ё/g, "е").includes(q));
   const asc = f.sort === "asc";
   if (asc) rows.reverse();
   const cpOptions = Array.from(new Set(all.map((r) => r.counterparty))).sort((a, b) => a.localeCompare(b, "ru")).map((c) => ({ value: c, label: c }));
+  const invLinks = await loadInvoiceLinks(orgId, rows);
   const dash = await loadDashboard(orgId, year, { status: [], ...parseFilters(DASH_FILTERS, {}) } as unknown as DashFilters, await getCommission4Mode());
   const sumOf = (dir: "out" | "in") => rows.filter((r) => r.direction === dir).reduce((a, r) => a + r.amount, 0);
   const cnt = (dir: "out" | "in") => rows.filter((r) => r.direction === dir).length;
   const sortHref = filterHref(REGISTRY_FILTERS, "/payments", f, { sort: asc ? "desc" : "asc" });
   const filtered = activeCount(REGISTRY_FILTERS, f) > 0;
-  const waiting = all.filter((r) => r.status !== "verified").length;
+  const waiting = all.filter((r) => isCountedPayment(r.amount) && r.status !== "verified").length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,7 +86,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
             { type: "multi", name: "st", label: "Статус", options: STATUSES.map((s) => ({ value: s, label: PAY_STATUS_LABEL[s] })), allLabel: "Все статусы" },
             { type: "date", name: "from", label: "Оплата с" },
             { type: "date", name: "to", label: "Оплата по" },
-            { type: "text", name: "q", label: "Счёт или п/п", placeholder: "№ счёта или п/п" },
+            { type: "text", name: "rq", label: "Поиск", placeholder: "№ п/п, счёта, контрагент, закупка, ТЗ" },
           ]}
         />
       </div>
@@ -119,7 +122,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => <Row key={r.code} r={r} />)}
+            {rows.map((r) => <Row key={r.code} r={r} invHref={invLinks.get(r.code)} />)}
             {rows.length === 0 ? <tr><td colSpan={10} className="px-3 py-8 text-center text-neutral-500">{filtered ? "По выбранным фильтрам оплат нет" : "Оплат пока нет"}</td></tr> : null}
           </tbody>
           {rows.length > 0 ? (
@@ -137,7 +140,7 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
         </table>
       </div>
       }>
-        {rows.map((r) => <Card key={r.code} r={r} />)}
+        {rows.map((r) => <Card key={r.code} r={r} invHref={invLinks.get(r.code)} />)}
         {rows.length === 0 ? <p className="py-8 text-center text-neutral-500">{filtered ? "По выбранным фильтрам оплат нет" : "Оплат пока нет"}</p> : null}
         {(["out", "in"] as const).filter((d) => cnt(d) > 0).map((d) => (
           <p key={d} className="flex justify-between gap-2 px-1 text-sm font-semibold"><span>Итого, {d === "out" ? "мы платим" : "нам платят"} · {cnt(d)}</span><span className="tabular-nums">{money(sumOf(d))}</span></p>
@@ -147,20 +150,22 @@ export async function PaymentsRegistry({ sp, orgId, year, canPay, flashError }: 
   );
 }
 
-function Card({ r }: { r: RegistryRow }) {
+const cpHref = (r: RegistryRow) => (r.cpId ? `/${r.kind === "raw" ? "suppliers" : "clients"}/${r.cpId}` : null);
+
+function Card({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
   return (
     <RowCard
       title={`${ruDate(r.iso)} · ${money(r.amount)} ₽`}
       href={href}
-      subtitle={`${r.direction === "out" ? "Мы платим" : "Нам платят"} · ${r.counterparty}`}
+      subtitle={<>{r.direction === "out" ? "Мы платим" : "Нам платят"} · {cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700">{r.counterparty}</Link> : r.counterparty}</>}
       badge={<span className={"text-xs " + STATUS_TONE[r.status]}>{STATUS_MARK[r.status]} {PAY_STATUS_LABEL[r.status]}</span>}
       fields={[
         { label: "Тип", value: r.what },
         { label: "Документ", value: r.fileOk ? <span className="text-emerald-700">✓ файл загружен</span> : <Link href={href + "#docs"} className="text-amber-700">○ нужно загрузить</Link> },
       ]}
       details={[
-        { label: "Счёт", value: r.invoice },
+        { label: "Счёт", value: invHref && r.invoice ? <Link href={invHref} className="text-blue-700">{r.invoice}</Link> : r.invoice },
         { label: "П/п", value: r.pp },
         { label: "К чему отнесено", value: r.targets.length === 0 ? <span className="text-amber-700">Не отнесено</span> : <div className="flex flex-col gap-0.5">{r.targets.map((t) => <Link key={t.href + t.label} href={t.href} className="text-blue-700">{t.label}</Link>)}{r.unallocated > 0.5 ? <span className="text-xs text-amber-700">не разнесено {money(r.unallocated)}</span> : null}</div> },
       ]}
@@ -168,13 +173,13 @@ function Card({ r }: { r: RegistryRow }) {
   );
 }
 
-function Row({ r }: { r: RegistryRow }) {
+function Row({ r, invHref }: { r: RegistryRow; invHref?: string }) {
   const href = `/payments/${r.code}?from=${encodeURIComponent("/payments")}`;
   return (
     <tr className="border-b border-neutral-100 align-top">
       <td className="whitespace-nowrap px-3 py-2"><Link href={href} className="text-blue-700 hover:underline" title="Открыть карточку оплаты">{ruDate(r.iso)} ›</Link></td>
       <td className="whitespace-nowrap px-3 py-2">{r.direction === "out" ? "Мы платим" : "Нам платят"}</td>
-      <td className="max-w-[16rem] px-3 py-2">{r.counterparty}</td>
+      <td className="max-w-[16rem] px-3 py-2">{cpHref(r) ? <Link href={cpHref(r)!} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</td>
       <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{money(r.amount)}</td>
       <td className="whitespace-nowrap px-3 py-2">{r.what}</td>
       <td className="px-3 py-2">
@@ -185,7 +190,7 @@ function Row({ r }: { r: RegistryRow }) {
           </div>
         )}
       </td>
-      <td className="whitespace-nowrap px-3 py-2">{r.invoice || <span className="text-neutral-400">—</span>}</td>
+      <td className="whitespace-nowrap px-3 py-2">{r.invoice ? (invHref ? <Link href={invHref} className="text-blue-700 hover:underline">{r.invoice}</Link> : r.invoice) : <span className="text-neutral-400">—</span>}</td>
       <td className="whitespace-nowrap px-3 py-2">{r.pp || <span className="text-neutral-400">—</span>}</td>
       <td className="whitespace-nowrap px-3 py-2">
         {r.fileOk ? <span className="text-emerald-700">✓ файл загружен</span> : <Link href={href + "#docs"} className="text-amber-700 hover:underline">○ нужно загрузить</Link>}

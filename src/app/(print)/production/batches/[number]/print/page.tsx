@@ -92,7 +92,7 @@ export default async function BatchPrintPage({
               <th className={th}>Цвет / размеры</th>
               <Head label="Кол-во" unit="шт." align="right" />
               <th className={th}>Статус</th>
-              <th className={th + " text-right"}>Себестоимость{c4}</th>
+              <th className={th + " text-right"}>Себестоимость сырья{c4}</th>
               <th className={th + " text-right"}>Работа</th>
             </tr>
           </thead>
@@ -139,11 +139,11 @@ export default async function BatchPrintPage({
               <td className={tdr}>{t.orders}{itemsSuffix(t.orders, t.items)}</td>
             </tr>
             <tr>
-              <td className={td}>Произведено (все ТЗ без ремонта)</td>
+              <td className={td}>В выпуске (все ТЗ без отменённых и без ремонта)</td>
               <td className={tdr}>{formatQty(t.producedUnits.toString())}</td>
             </tr>
             <tr>
-              <td className={td}>Себестоимость{c4}</td>
+              <td className={td}>Себестоимость сырья{c4} (без работы)</td>
               <td className={tdr}>{formatMoney(t.cost.toString())}</td>
             </tr>
             <tr>

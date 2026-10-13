@@ -9,6 +9,8 @@ import { ArticleName } from "@/components/article-name";
 import { notFound, redirect } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { orderLabel, orderHint } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { requireSession } from "@/lib/session";
 import { RecordHistory } from "@/components/record-history";
 import { RecordComments } from "@/components/comments/record-comments";
@@ -74,12 +76,16 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     return (Number.isNaN(x) ? 1e9 : x) - (Number.isNaN(y) ? 1e9 : y);
   });
 
+  const tzPos = await loadTzPositions(orgId, orders);
+  const labelOf = (o: (typeof orders)[number]) => orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) });
+
   // Оплаты партии: каждая — один раз, со списком ТЗ партии, которые она покрывает.
   const payMap = new Map<string, { p: (typeof orders)[number]["paymentAllocations"][number]["productionPayment"]; tz: string[] }>();
   for (const o of orders) {
     for (const a of o.paymentAllocations) {
       const e = payMap.get(a.productionPayment.id) ?? { p: a.productionPayment, tz: [] };
-      e.tz.push(o.workOrderNumber ?? o.number);
+      const tzNo = o.workOrderNumber?.trim() || `Заказ ${o.number}`;
+      if (!e.tz.includes(tzNo)) e.tz.push(tzNo);
       payMap.set(a.productionPayment.id, e);
     }
   }
@@ -115,7 +121,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
     toDriveView(
       d,
       d.productionOrder
-        ? `ТЗ №${d.productionOrder.workOrderNumber ?? d.productionOrder.number}`
+        ? orderLabel(d.productionOrder)
         : d.productionPaymentId
           ? "оплата"
           : null,
@@ -241,7 +247,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 <Th>Изделие</Th>
                 <Th unit="шт.">Кол-во</Th>
                 <Th className="hidden sm:table-cell">
-                  Себестоимость, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
+                  Себестоимость сырья, ₽{t.c4Applies ? c4Suffix(c4Mode) : ""}
+                  <InfoHint label="Чем отличается от полной себестоимости">Мех + подкладка + расходы ТЗ (и 4 % в режиме «С 4%») — без работы подрядчика. В дереве ниже «Полная себестоимость (с работой)» = эта сумма + работа.</InfoHint>
                   <InfoHint label="Что значит 4%" wide>4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха; его вознаграждение 4,5% за сопровождение закупки сырья — отдельно, в расходах закупки): в ТЗ мы платим на 4% больше за мех и подкладку в ТЗ; работа, расходы, фурнитура и прочее не облагаются. Столбец «НДС» — ставки НДС лотов в списаниях ТЗ. «Оплачено» — разнесено на это ТЗ из оплат заказчика; «Остаток» — работа минус оплачено.</InfoHint>
                 </Th>
                 <Th className="hidden md:table-cell" unit="₽">Работа</Th>
@@ -256,8 +263,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
                 return (
                   <Tr key={o.id}>
                     <Td className="font-medium">
-                      <Link href={`/production/${o.id}`} className="hover:underline">
-                        {o.workOrderNumber ?? o.number}
+                      <Link href={`/production/${o.id}`} className="hover:underline" title={orderHint(o)}>
+                        {labelOf(o)}
                       </Link>
                     </Td>
                     <Td>
@@ -292,7 +299,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               {orders.length === 0 && (
                 <Tr>
                   <Td colSpan={8} className="py-6 text-center text-neutral-500">
-                    К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production?view=batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
+                    К партии пока не привязано ни одного ТЗ. Привязать: откройте ТЗ → «Изменить» → поле «Партия» (ТЗ без партии видны в виде <Link href="/production/batches" className="underline underline-offset-2">«По партиям»</Link>, группа «Без партии»)
                   </Td>
                 </Tr>
               )}
@@ -306,12 +313,12 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               return (
                 <RowCard
                   key={o.id}
-                  title={`ТЗ ${o.workOrderNumber ?? o.number}`}
+                  title={labelOf(o)}
                   href={`/production/${o.id}`}
                   subtitle={<><ArticleName model={o.productModel} />{o.client ? ` · ${o.client.name}` : ""}</>}
                   fields={[
                     { label: "Кол-во, шт.", value: formatQty(s.qty.toString()) },
-                    { label: "Себестоимость, ₽", value: s.cost.isZero() ? "—" : formatMoney(s.cost.toString()) },
+                    { label: "Себестоимость сырья, ₽", value: s.cost.isZero() ? "—" : formatMoney(s.cost.toString()) },
                     { label: "Работа, ₽", value: s.work.isZero() ? "—" : formatMoney(s.work.toString()) },
                     { label: "Остаток, ₽", value: left == null ? "—" : <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span> },
                   ]}

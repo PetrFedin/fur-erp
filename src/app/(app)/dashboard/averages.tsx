@@ -232,7 +232,7 @@ function AveragesModal({ initialGroup, orders: allOrders, onClose }: { initialGr
                 <tr className="border-b border-neutral-200 text-xs text-neutral-500">
                   <th className="py-1.5 pr-2 text-left font-medium">Строка</th>
                   <TH label="Изделий" unit="шт." />
-                  <TH label="Себестоимость изделия" unit="₽/шт." />
+                  <TH label="Полная себестоимость изделия" unit="₽/шт." />
                   <TH label="Мех на изделие" unit="₽/шт." sep />
                   <TH label="Шкур на изделие" unit="шт./изд." />
                   <TH label="Ср. цена шкуры" unit="₽/шт." />

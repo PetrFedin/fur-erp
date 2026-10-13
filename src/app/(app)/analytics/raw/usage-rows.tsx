@@ -39,7 +39,7 @@ export function UsageGroupLots({ rows, lots, unit, c4, by }: { rows: UsageRow[];
                 g.orders.map((o, i) => (
                   <span key={o.orderId}>
                     {i > 0 && ", "}
-                    <Link href={`/production/${o.orderId}`} className="underline hover:text-neutral-900">№ {o.number}</Link> ({formatQty(o.qty.toString())})
+                    <Link href={`/production/${o.orderId}`} className="underline hover:text-neutral-900">{o.label}</Link> ({formatQty(o.qty.toString())})
                   </span>
                 ))
               ) : l ? (

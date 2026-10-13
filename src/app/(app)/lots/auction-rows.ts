@@ -1,3 +1,4 @@
+import { orderLabel } from "@/lib/order-label";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { lineParts } from "@/lib/auction-cost-parts";
@@ -20,7 +21,7 @@ type Line = {
     extra: unknown;
     rawMaterialId: string;
     rawMaterial: { name: string; unit: string };
-    lot: { id?: string; attrs?: { attr: { name: string } }[]; quantityRemaining: Decimal; usages: { id: string; productionOrderId: string; quantity: Decimal; productionOrder: { number: string } }[] } | null;
+    lot: { id?: string; attrs?: { attr: { name: string } }[]; quantityRemaining: Decimal; usages: { id: string; productionOrderId: string; quantity: Decimal; productionOrder: { number: string; workOrderNumber?: string | null } }[] } | null;
   };
   unitIncl: Decimal;
   unitExcl: Decimal;
@@ -118,7 +119,7 @@ export function buildAuctionRows(
         onStock: Boolean(i.lot),
         lotId: i.lot?.id ?? null,
         remaining: i.lot ? n(i.lot.quantityRemaining) : 0,
-        usages: (i.lot?.usages ?? []).map((u) => ({ id: u.id, orderId: u.productionOrderId, number: u.productionOrder.number, qty: n(u.quantity) })),
+        usages: (i.lot?.usages ?? []).map((u) => ({ id: u.id, orderId: u.productionOrderId, number: u.productionOrder.number, wo: u.productionOrder.workOrderNumber ?? null, label: orderLabel({ workOrderNumber: u.productionOrder.workOrderNumber, number: u.productionOrder.number }), qty: n(u.quantity) })),
         parts,
         expIncl,
         extra: readExtra(i.extra),

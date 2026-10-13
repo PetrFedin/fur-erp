@@ -2,6 +2,7 @@ import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { TopbarModes } from "@/components/topbar-modes";
+import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export function Topbar({
         <div className="truncate text-sm font-medium text-neutral-700 max-md:min-w-[3.25rem]">{organizationName}</div>
       </div>
       <div className="flex shrink-0 items-center gap-2 md:gap-3">
+        <GlobalSearch />
         <ThemeToggle className="hidden xl:flex" />
         <TopbarModes />
         <div className="hidden text-right text-sm sm:block">

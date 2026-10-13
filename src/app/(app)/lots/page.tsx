@@ -92,7 +92,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const materialIds = f.material.length
     ? materials.filter((m) => f.material.includes(m.id) || (m.unit !== "M" && f.material.includes(canonOf(m.name)))).map((m) => m.id)
     : [];
-  const materialNames = f.material.map((v) => materials.find((m) => m.id === v)?.name ?? v);
 
   const canEditDocs = ["OWNER", "ADMIN", "PURCHASER"].includes(session.user.role);
 
@@ -166,8 +165,19 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
                   ]}
                 />
               </div>
-              <YearsTable rows={d.years} c4={c4} info={info} />
-              <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
+              <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+                Сводка по годам — на Главной:{" "}
+                <Link href="/dashboard#years-table" className="text-blue-700 underline">Динамика по годам</Link>
+                {" · "}
+                <Link href="/dashboard#raw-table" className="text-blue-700 underline">Динамика по сырью</Link>
+              </p>
+              <details className="group">
+                <summary className="cursor-pointer text-sm text-neutral-600 hover:text-neutral-900">Показать таблицы здесь</summary>
+                <div className="mt-3 flex flex-col gap-4">
+                  <YearsTable rows={d.years} c4={c4} info={info} />
+                  <RawTable rows={d.rawTable} total={d.rawTableTotal} money={d.rawMoneyTotal} c4={c4} info={info} orderFilters={orderFiltersOn(sf)} />
+                </div>
+              </details>
             </>
           );
         })()}

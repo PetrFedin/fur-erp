@@ -34,8 +34,8 @@ export function AnalyticsFilterBar({ opts, lead = [], title = "Фильтры", 
     ...multi("attr", "Признак меха", opts.attr, { more: true, hint: "Признаки ТЗ и списанных в него лотов: седина, дикий / клеточный, тонированный…" }),
     { type: "multi", name: "onlyH", label: "Молоток", single: true, more: true, allLabel: "Все", options: [{ value: "1", label: "Только с молотком" }] },
     { type: "multi", name: "onlyL", label: "Подкладка", single: true, more: true, allLabel: "Все", options: [{ value: "1", label: "Только с подкладкой" }] },
-    { type: "text", name: "cmin", label: "Себестоимость от, ₽", placeholder: "от", inputMode: "decimal", more: true, className: "sm:w-36" },
-    { type: "text", name: "cmax", label: "Себестоимость до, ₽", placeholder: "до", inputMode: "decimal", more: true, className: "sm:w-36" },
+    { type: "text", name: "cmin", label: "Себестоимость сырья за ед. от, ₽", placeholder: "от", inputMode: "decimal", more: true, className: "sm:w-36" },
+    { type: "text", name: "cmax", label: "Себестоимость сырья за ед. до, ₽", placeholder: "до", inputMode: "decimal", more: true, className: "sm:w-36" },
   ];
   return (
     <div className="print:hidden">

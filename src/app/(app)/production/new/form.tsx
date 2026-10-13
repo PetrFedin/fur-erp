@@ -27,6 +27,7 @@ const initialState: CreateOrderState = {};
 type ModelOption = { id: string; name: string; retailPrice: string | null; category: string | null; group: string | null };
 type Opt = { id: string; name: string };
 type Line = { key: number; lotId: string; qty: string; c4: boolean; c4Touched: boolean };
+type Extra = { key: number; modelId: string; qty: string; color: string; colorRefId: string | null; size: string; work: string };
 type ExpLine = { key: number; categoryId: string; amount: string; desc: string };
 /** Что остаётся в форме после «Сохранить и добавить ещё»: заказчик, договор, партия, даты, цвет, вид меха и т.п. (артикул, количество и строки очищаются). */
 type Carry = {
@@ -161,8 +162,10 @@ function FormBody({
   const [fur, setFur] = useState<Line[]>([]);
   const [lining, setLining] = useState<Line[]>([]);
   const [exps, setExps] = useState<ExpLine[]>([]);
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const multi = extras.length > 0;
   const [touched, setTouched] = useState(false);
-  const guard = useUnsavedGuard(touched || fur.length > 0 || lining.length > 0 || exps.length > 0);
+  const guard = useUnsavedGuard(touched || multi || fur.length > 0 || lining.length > 0 || exps.length > 0);
   const [paste, setPaste] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [pasteErrs, setPasteErrs] = useState<string[]>([]);
@@ -235,6 +238,11 @@ function FormBody({
         if (!l.lotId) e.push(`${name}, строка ${i + 1}: выберите лот`);
         else if (!(num(l.qty) > 0)) e.push(`${name}, строка ${i + 1}: укажите количество больше 0`);
       });
+    extras.forEach((x, i) => {
+      if (!x.modelId) e.push(`Позиция ${i + 2}: выберите артикул`);
+      if (!(num(x.qty) > 0)) e.push(`Позиция ${i + 2}: количество должно быть больше 0`);
+      if (x.work.trim() !== "" && !(num(x.work) >= 0)) e.push(`Позиция ${i + 2}: работа ₽/шт. — число`);
+    });
     chk(fur, "Мех");
     chk(lining, "Подкладка");
     for (const [id, q] of Object.entries(taken)) {
@@ -416,6 +424,10 @@ function FormBody({
       {guard}
       <input type="hidden" name="productModelId" value={modelId} />
       <input type="hidden" name="draft" value={draft} />
+      <input type="hidden" name="extras" value={JSON.stringify(extras.map((x) => ({
+        productModelId: x.modelId, plannedQuantity: num(x.qty), color: x.color || undefined, colorRefId: x.colorRefId || undefined, size: x.size || undefined,
+        clientWorkPricePerUnit: x.work.trim() !== "" && Number.isFinite(num(x.work)) ? num(x.work) : undefined,
+      })))} />
       {/* Склад в интерфейсе не указывается: подставляется склад по умолчанию (сервер при пустом значении берёт его сам). */}
       <input type="hidden" name="rawWarehouseId" value={f.rawWarehouseId ?? defaultWarehouse} />
       <input type="hidden" name="finishedWarehouseId" value={f.rawWarehouseId ?? defaultWarehouse} />
@@ -434,7 +446,7 @@ function FormBody({
         </ul>
       )}
 
-      <Step n={1} title="Параметры" id="params" hint={<><p>Что заведено в ТЗ — те же поля, что на карточке. Артикул, цвет, вид меха, партия, заказчик выбираются из справочников или вносятся новые.</p><p className="mt-1">Количество → «Произведено» и «Изделия»; работа ₽/ед. × количество → себестоимость и оплаты заказчика; партия → «Партии пошива»; артикул → категория, группа и цена продажи.</p></>}>
+      <Step n={1} title="Параметры" id="params" hint={<><p>Что заведено в ТЗ — те же поля, что на карточке. Артикул, цвет, вид меха, партия, заказчик выбираются из справочников или вносятся новые.</p><p className="mt-1">Количество → «В выпуске» и «Изделия»; работа ₽/ед. × количество → себестоимость и оплаты заказчика; партия → «Партии пошива»; артикул → категория, группа и цена продажи.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field label="Артикул *" className="sm:col-span-2" hint="Выберите артикул из справочника или «+ Ввести новый артикул» — он сразу сохранится в справочник артикулов.">
             <ArticleSelect name="articleText" onlyActive defaultValue={initialArticleId || undefined} onChange={(a) => setModelId(a?.id ?? "")} />
@@ -499,7 +511,7 @@ function FormBody({
           </Field>
 
           <Field htmlFor="size" label="Размеры"><Input id="size" name="size" placeholder="42, 44" value={f.size ?? ""} onChange={set("size")} /></Field>
-          <Field htmlFor="plannedQuantity" label="Кол-во изделий, шт *" hint="Плановое количество. Уходит в «Произведено», «Изделия», себестоимость на 1 изделие и работу.">
+          <Field htmlFor="plannedQuantity" label="Кол-во изделий, шт *" hint="Плановое количество. Уходит в «В выпуске», «Изделия», себестоимость на 1 изделие и работу.">
             <Input id="plannedQuantity" name="plannedQuantity" type="number" step="1" min="1" inputMode="numeric" value={f.plannedQuantity ?? ""} onChange={set("plannedQuantity")} />
           </Field>
           <Field htmlFor="clientWorkPricePerUnit" label="Работа, ₽ за шт." hint="Цена работы заказчику за единицу. Сумма = цена × количество — входит в себестоимость и оплаты заказчика.">
@@ -546,9 +558,37 @@ function FormBody({
             <Field htmlFor="notes" label="Заметки" className="sm:col-span-2"><Textarea id="notes" name="notes" rows={2} value={f.notes ?? ""} onChange={set("notes")} /></Field>
           </div>
         </details>
+
+        {extras.map((x, i) => (
+          <div key={x.key} className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+            <Field label={`Артикул * (позиция ${i + 2})`} className="sm:col-span-2">
+              <ArticleSelect name={`articleText_x${x.key}`} onlyActive onChange={(a) => setExtras((p) => p.map((y) => (y.key === x.key ? { ...y, modelId: a?.id ?? "" } : y)))} />
+            </Field>
+            <Field label="Кол-во изделий, шт *"><Input type="number" step="1" min="1" inputMode="numeric" value={x.qty} onChange={(e) => setExtras((p) => p.map((y) => (y.key === x.key ? { ...y, qty: e.target.value } : y)))} /></Field>
+            <Field label="Работа, ₽ за шт."><Input type="number" step="0.01" min="0" inputMode="decimal" value={x.work} onChange={(e) => setExtras((p) => p.map((y) => (y.key === x.key ? { ...y, work: e.target.value } : y)))} /></Field>
+            <Field label="Цвет"><ColorSelect refs={colorOptions} canCreate={canAddColor} placeholder="Коричневый" defaultValue="" defaultRefId={null} onChange={(t, r) => setExtras((p) => p.map((y) => (y.key === x.key ? { ...y, color: t, colorRefId: r } : y)))} /></Field>
+            <Field label="Размеры"><Input placeholder="42, 44" value={x.size} onChange={(e) => setExtras((p) => p.map((y) => (y.key === x.key ? { ...y, size: e.target.value } : y)))} /></Field>
+            <div className="flex items-end"><Button type="button" variant="outline" size="sm" onClick={() => setExtras((p) => p.filter((y) => y.key !== x.key))}>Убрать позицию</Button></div>
+          </div>
+        ))}
+        <div>
+          <Button
+            type="button" variant="outline" size="sm"
+            disabled={fur.length > 0 || lining.length > 0 || exps.length > 0}
+            title={fur.length > 0 || lining.length > 0 || exps.length > 0 ? "Сначала уберите строки расчёта: в ТЗ с несколькими артикулами списания вводятся на карточке каждой позиции" : undefined}
+            onClick={() => { setExtras((p) => [...p, { key: nextKey(), modelId: "", qty: "", color: "", colorRefId: null, size: "", work: "" }]); setTouched(true); }}
+          >
+            + ещё артикул
+          </Button>
+          <span className="ml-2 text-xs text-neutral-500">Общие поля (№ ТЗ, дата, заказчик, договор, партия) одни на все позиции.</span>
+        </div>
       </Step>
 
-      <Step n={2} title="Расчёт" id="calc" hint={<><p>Лот → цена и НДС подтягиваются из закупки автоматически; сумма = количество × цена лота. Лоты списываются со склада при сохранении ТЗ (остаток лота уменьшится, в «Сырьё» вырастет использование).</p><p className="mt-1">«4%» — надбавка посредника (Веллмех) к меху и подкладке: {COMMISSION_RATE * 100}% от цены без НДС. Работа и расходы не облагаются.</p></>}>
+      {multi ? (
+        <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">Списания меха, подкладки и расходы вводятся на карточке каждой позиции после создания.</p>
+      ) : null}
+
+      {!multi && <Step n={2} title="Расчёт" id="calc" hint={<><p>Лот → цена и НДС подтягиваются из закупки автоматически; сумма = количество × цена лота. Лоты списываются со склада при сохранении ТЗ (остаток лота уменьшится, в «Сырьё» вырастет использование).</p><p className="mt-1">«4%» — надбавка посредника (Веллмех) к меху и подкладке: {COMMISSION_RATE * 100}% от цены без НДС. Работа и расходы не облагаются.</p></>}>
         <div className={`${cardCls} flex flex-col gap-3`}>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">Мех <span className="font-normal text-neutral-500">· {formatQty(T.fur.qty)} шт.</span></h3>
@@ -607,9 +647,9 @@ function FormBody({
             <a href="#params" className="text-xs text-blue-700 hover:underline">изменить в параметрах</a>
           </div>
         </div>
-      </Step>
+      </Step>}
 
-      <Step n={3} title="Итоги" hint={<><p>Пересчитывается на лету, до сохранения; формулы те же, что в карточке ТЗ: мех + подкладка (с 4% или без) + расходы + работа. «С 4%» — основная цифра, под ней «без 4%». Показ «С НДС / Без НДС» — общий переключатель шапки.</p><p className="mt-1">Средневзвешенная цена — сумма по лотам ÷ количество; расход на 1 изделие — количество шкур (метров) ÷ количество изделий.</p></>}>
+      {!multi && <Step n={3} title="Итоги" hint={<><p>Пересчитывается на лету, до сохранения; формулы те же, что в карточке ТЗ: мех + подкладка (с 4% или без) + расходы + работа. «С 4%» — основная цифра, под ней «без 4%». Показ «С НДС / Без НДС» — общий переключатель шапки.</p><p className="mt-1">Средневзвешенная цена — сумма по лотам ÷ количество; расход на 1 изделие — количество шкур (метров) ÷ количество изделий.</p></>}>
         <div className={`${cardCls} grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6`}>
           {[
             ["Мех", T.fur.incl4, T.fur.excl4, T.fur.baseIncl, T.fur.baseExcl],
@@ -630,7 +670,7 @@ function FormBody({
             <div className="font-medium tabular-nums">{T.work > 0 ? formatMoney(T.work) : "—"}</div>
           </div>
           <div>
-            <div className="text-xs text-neutral-500">Себестоимость ТЗ · с 4%</div>
+            <div className="text-xs text-neutral-500">Полная себестоимость ТЗ (с работой) · с 4%</div>
             <div className="text-base font-semibold tabular-nums">{T.grandIncl4 > 0 ? <M incl={T.grandIncl4} excl={T.grandExcl4} /> : "—"}</div>
             {T.grandIncl0 > 0 && <div className="text-[11px] text-neutral-400">без 4%: <M incl={T.grandIncl0} excl={T.grandExcl0} /></div>}
           </div>
@@ -662,13 +702,13 @@ function FormBody({
           </div>
         </div>
         {clientName && <p className="text-xs text-neutral-500">Заказчик: {clientName}. Оплаты заказчика разносятся на ТЗ в «Оплаты → Заказчики».</p>}
-      </Step>
+      </Step>}
 
       <div className="sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-t border-neutral-200 bg-white px-1 py-2">
         <div className="min-w-0 text-sm">
-          <span className="text-neutral-500">Себестоимость: </span>
+          {multi ? <span className="text-neutral-500">Позиций в ТЗ: {extras.length + 1}</span> : <><span className="text-neutral-500">Полная себестоимость: </span>
           <b className="tabular-nums">{T.grandIncl4 > 0 ? <M incl={T.grandIncl4} excl={T.grandExcl4} /> : "—"}</b>
-          {T.perUnitIncl4 != null && T.grandIncl4 > 0 && <span className="text-neutral-500"> · на 1 изд. <span className="tabular-nums"><M incl={T.perUnitIncl4} excl={T.perUnitExcl4 ?? 0} /></span></span>}
+          {T.perUnitIncl4 != null && T.grandIncl4 > 0 && <span className="text-neutral-500"> · на 1 изд. <span className="tabular-nums"><M incl={T.perUnitIncl4} excl={T.perUnitExcl4 ?? 0} /></span></span>}</>}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button type="submit" name="intent" value="again" variant="outline" size="sm" disabled={pending}>Сохранить и добавить ещё</Button>

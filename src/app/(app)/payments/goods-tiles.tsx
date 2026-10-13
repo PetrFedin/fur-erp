@@ -193,7 +193,7 @@ function OwedTable({ owed, advances, balance }: { owed: OwedOrder[]; advances: n
                   </tr>
                   {list.map((o) => (
                     <tr key={o.id} className="border-b border-neutral-100">
-                      <td className="whitespace-nowrap py-1.5 pr-2"><a href={`/production/${o.id}`} className="text-blue-700 hover:underline">ТЗ {o.label} ›</a></td>
+                      <td className="whitespace-nowrap py-1.5 pr-2"><a href={`/production/${o.id}`} className="text-blue-700 hover:underline">{o.label} ›</a></td>
                       <td className="whitespace-nowrap px-2 py-1.5">{o.article}</td>
                       <td className="px-2 py-1.5 text-neutral-600">{o.fur}</td>
                       <td className="whitespace-nowrap border-l border-neutral-200 px-2 py-1.5 text-right tabular-nums">{o.qty.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} шт.</td>

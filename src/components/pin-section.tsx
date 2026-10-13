@@ -55,7 +55,7 @@ export function PinSection({ id, title, headerExtra, value, onRestore, children,
 
   const btn = "inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs transition btn-accent";
   return (
-    <section aria-label={title} className={className}>
+    <section id={id} aria-label={title} className={`${className} scroll-mt-4`}>
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="block-title">

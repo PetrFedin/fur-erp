@@ -25,7 +25,7 @@ const REPAIR_FILTERS = defineFilters({
 
 export const metadata = { title: "Ремонт" };
 
-/** Ремонт — отдельно от производства изделий: ТЗ на ремонт не входят в «Произведено» и в средние цены, считаются здесь (данные те же, что на Главной). */
+/** Ремонт — отдельно от производства изделий: ТЗ на ремонт не входят в «В выпуске» и в средние цены, считаются здесь (данные те же, что на Главной). */
 export default async function RepairPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const f = parseFilters(REPAIR_FILTERS, await searchParams);
   const session = await requireSession();
@@ -51,7 +51,7 @@ export default async function RepairPage({ searchParams }: { searchParams: Promi
           <h1 className="text-xl font-semibold">Ремонт</h1>
           <YearNote year={year} />
           <span className="ml-2 inline-flex">
-            <InfoHint label="О странице «Ремонт»">Отдельно от производства: ТЗ на ремонт не входят в «Произведено» и в средние цены изделий. Затраты ремонта остаются в общей себестоимости на Главной («из них ремонт»).</InfoHint>
+            <InfoHint label="О странице «Ремонт»">Отдельно от производства: ТЗ на ремонт не входят в «В выпуске» и в средние цены изделий. Затраты ремонта остаются в общей себестоимости на Главной («из них ремонт»).</InfoHint>
           </span>
         </div>
         <div className="flex gap-3 text-sm">

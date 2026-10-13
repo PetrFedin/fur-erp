@@ -26,16 +26,16 @@ export type TreeBatch = { key: string; label: string; title?: string; href?: str
 export type TreeYear = { year: number; batches: TreeBatch[] };
 
 export type Agg = {
-  purchases: number; draft: number; lots: number; fur: number; lining: number; total: number; totalExcl: number; paid: number; rest: number;
+  purchases: number; draft: number; lots: number; /** из них позиции без лота (заказано, не получено). */ ordered: number; fur: number; lining: number; total: number; totalExcl: number; paid: number; rest: number;
   usedValue: number; recvValue: number; hasLots: boolean; remFur: number; remLining: number; suppliers: string[];
 };
 const live = (list: TreePurchase[]) => list.filter((p) => p.status !== "CANCELLED");
 export function aggregate(list: TreePurchase[]): Agg {
-  const a: Agg = { purchases: 0, draft: 0, lots: 0, fur: 0, lining: 0, total: 0, totalExcl: 0, paid: 0, rest: 0, usedValue: 0, recvValue: 0, hasLots: false, remFur: 0, remLining: 0, suppliers: [] };
+  const a: Agg = { purchases: 0, draft: 0, lots: 0, ordered: 0, fur: 0, lining: 0, total: 0, totalExcl: 0, paid: 0, rest: 0, usedValue: 0, recvValue: 0, hasLots: false, remFur: 0, remLining: 0, suppliers: [] };
   for (const p of live(list)) {
     a.purchases += 1;
     if (p.status === "DRAFT") a.draft += 1;
-    a.lots += p.lots; a.fur += p.fur; a.lining += p.lining;
+    a.lots += p.lots; a.ordered += p.items.filter((i) => i.lotId == null).length; a.fur += p.fur; a.lining += p.lining;
     a.total += p.total; a.totalExcl += p.totalExcl; a.paid += p.paid; a.rest += p.rest;
     if (p.hasLots) { a.hasLots = true; a.usedValue += p.usedValue; a.recvValue += p.recvValue; }
     a.remFur += p.remFur; a.remLining += p.remLining;

@@ -6,7 +6,8 @@ import { useVatDisplay } from "@/lib/vat-display";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import type { DrillOrder } from "@/lib/dashboard-drill";
-import { sumOrders, sumTotal } from "@/lib/orders-sum";
+import { outputSplit, sumOrders, sumTotal } from "@/lib/orders-sum";
+import { COST_FULL_LABEL, OUTPUT_LABEL, outputHint } from "@/lib/cost-labels";
 import { TileCarousel } from "@/components/tile-carousel";
 import { GroupCostSlide, GroupProducedSlide, PROD_GROUPS } from "@/components/prod-group-slides";
 import { WidgetRow } from "@/components/widget-row";
@@ -24,6 +25,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
   const all = sumOrders(orders, vat);
   const own = sumOrders(orders.filter((o) => o.cat !== "Ремонт"), vat);
   const total = sumTotal(all);
+  const split = outputSplit(orders);
   const totalOwn = sumTotal(own);
   const years = new Map<string, number>();
   for (const o of orders) if (o.cat !== "Ремонт") { const k = o.y == null ? "Без года" : String(o.y); years.set(k, (years.get(k) ?? 0) + o.qty); }
@@ -59,41 +61,41 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
     <WidgetRow id={id} title={title} headerEnd={headerEnd}>
     <div className={"grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 " + (["xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"][Math.min(4, (hideProduced ? 0 : 1) + 1 + (hidePerUnit ? 0 : 1) + extraCount - 1)])}>
       {hideProduced ? null : carousel ? (
-        <TileCarousel clickable hoverBlocks title="Произведено" hintLabel="Что такое «произведено»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
-          hint={<><p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
+        <TileCarousel clickable hoverBlocks title={OUTPUT_LABEL} hintLabel="Что такое «в выпуске»" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+          hint={<><p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе. {outputHint(split.done, split.inWork, formatQty)} «Всего» — все изделия страницы; «Одежда» и «Аксессуары» — то же по группе категорий (в сумме дают «Всего» без ремонта). Ремонт — только в «Всего» и отдельной страницей.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
-            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Произведено — перейти к составу">{producedTotal}</a> },
-            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Произведено: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
+            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="В выпуске — перейти к составу">{producedTotal}</a> },
+            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`В выпуске: ${g} — перейти к составу`}><GroupProducedSlide all={orders} grp={g} vat={vat} link /></a> })),
           ]} />
       ) : (
       <div className="relative">
-        <a {...link(`#${treeId}`)} aria-label="Произведено — перейти к составу">
-          <TileHead>Произведено</TileHead>
+        <a {...link(`#${treeId}`)} aria-label="В выпуске — перейти к составу">
+          <TileHead>{OUTPUT_LABEL}</TileHead>
           {producedTotal}
         </a>
         <div className="absolute right-3 top-3">
-          <InfoHint label="Что такое «произведено»" wide align="right">
-            <p><b>Произведено</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной). Ремонт считается отдельно (страница «Ремонт»).</p>
+          <InfoHint label="Что такое «в выпуске»" wide align="right">
+            <p><b>{OUTPUT_LABEL}</b> — изделия по всем ТЗ без отменённых и без ремонта: завершённые и в работе (как на Главной). {outputHint(split.done, split.inWork, formatQty)} Ремонт считается отдельно (страница «Ремонт»).</p>
           </InfoHint>
         </div>
       </div>
       )}
       {carousel ? (
-        <TileCarousel clickable hoverBlocks title="Себестоимость" hintLabel="Что такое себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
+        <TileCarousel clickable hoverBlocks title={COST_FULL_LABEL} hintLabel="Что такое полная себестоимость" slidesLabel="слайды: всего, одежда, аксессуары" dotsLabel="Группа"
           hint={<><p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. «Всего» включает ремонт (строка «из них ремонт»); «Одежда» и «Аксессуары» — только изделия группы, в сумме дают «из них изделия». Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4% (мелко — без 4%)" : "без 4%"}.</p><p className="mt-1">Листайте вправо-влево, стрелками ‹ › (или клавишами ← →) или точками.</p></>}
           slides={[
-            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Себестоимость — перейти к составу">{costTotal}</a> },
-            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Себестоимость: ${g} — перейти к составу`}><GroupCostSlide all={orders} grp={g} vat={vat} c4={c4} /></a> })),
+            { key: "total", label: "Всего", body: <a href={`#${treeId}`} className={slideLink} aria-label="Полная себестоимость — перейти к составу">{costTotal}</a> },
+            ...PROD_GROUPS.map((g) => ({ key: g, label: g, body: <a href={`#${treeId}`} className={slideLink} aria-label={`Полная себестоимость: ${g} — перейти к составу`}><GroupCostSlide all={orders} grp={g} vat={vat} c4={c4} /></a> })),
           ]} />
       ) : (
       <div className="relative">
-        <a {...link(`#${treeId}`)} aria-label="Себестоимость — перейти к составу">
-          <TileHead>Себестоимость</TileHead>
+        <a {...link(`#${treeId}`)} aria-label="Полная себестоимость — перейти к составу">
+          <TileHead>{COST_FULL_LABEL}</TileHead>
           {costTotal}
         </a>
         <div className="absolute right-3 top-3">
           <InfoHint label="Что такое себестоимость" wide align="right">
-            <p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. Это та же «Себестоимость», что в блоке «Производство» на Главной; в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4%" : "без 4%"}.</p>
+            <p>Мех (с шкурами подрядчика) + подкладка + 4% (в режиме «С 4%») + расходы ТЗ и прочее + работа. Это та же «Полная себестоимость (с работой)», что в блоке «Производство» на Главной; без работы она называется «Себестоимость сырья» (таблица партий, «Аналитика → Изделия»); в неё входит ремонт (отдельной строкой «из них ремонт»). Режимы шапки: {vat === "incl" ? "с НДС" : "без НДС"}, {c4 === "on" ? "с 4%" : "без 4%"}.</p>
           </InfoHint>
         </div>
       </div>
@@ -102,7 +104,7 @@ export function ProdTiles({ orders, c4, extra, treeId = "orders-tree", extraCoun
         <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
           <TileHead>На 1 изделие</TileHead>
           <TileValue>{own.qty > 0 ? money(totalOwn / own.qty) : "—"}</TileValue>
-          <TileCaption>{own.qty > 0 ? "себестоимость с работой ÷ произведено, без ремонта" : "изделий нет"}</TileCaption>
+          <TileCaption>{own.qty > 0 ? "полная себестоимость ÷ в выпуске, без ремонта" : "изделий нет"}</TileCaption>
           {own.qty > 0 ? (
             <TileList items={[
               { k: "Сырьё (мех + подкладка)", v: money((own.fur + own.lining) / own.qty), share: share(own.fur + own.lining, totalOwn) },

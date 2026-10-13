@@ -1,11 +1,14 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CATEGORY_GROUPS, NO_GROUP_ARTICLES_LABEL } from "@/lib/category-groups";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { orderKey, articlesWord, tzCountText } from "@/lib/tz-key";
+import { orderKey, articlesWord, tzCountText, positionsWord } from "@/lib/tz-key";
+import { orderLabel, orderHint, posText } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { TzGroupRows } from "./tz-group-rows";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -62,7 +65,7 @@ const VERIFIED_OPTIONS = [
   { value: "no", label: "Не подтверждено" },
 ];
 const PROD_FILTERS = defineFilters({
-  ...pick(["q", "season", "status", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view"], {
+  ...pick(["q", "season", "status", "batch", "model", "len", "category", "catgroup", "auction", "fur", "color", "attr", "size", "docs", "verified", "from", "to", "sort", "view", "client"], {
     status: { allowed: ORDER_STATUS_OPTIONS.map((o) => o.value), label: "Статус" },
     batch: { pattern: /^(\d{1,6}|none)$/ },
     docs: { allowed: ["docs", "pay"] },
@@ -89,7 +92,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const f = parseFilters(PROD_FILTERS, sp);
   const q = f.q;
   const sort = f.sort;
-  const grouped = f.view === "batches";
+  if (f.view === "batches") redirect("/production/batches");
+  const grouped = false;
   const filtersOn = activeCount(PROD_FILTERS, f) > 0;
   // Сколько строк рисуем (итог внизу считается по всем ТЗ списка): в dev-режиме и на телефоне 180+ строк — это секунды.
   const PAGE_SIZE = 50;
@@ -124,6 +128,22 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   // Поиск по артикулу — по любому написанию из справочника (наш код, код в продажах, другие написания, название).
   const qArticleIds = f.q ? (await searchArticles(f.q, orgId, 50)).map((h) => h.article.id) : [];
+  // Поиск по лоту и закупке: ТЗ, в которые списан лот с таким номером или лот закупки с таким номером / номером счёта (один запрос).
+  const lotHits = new Map<string, string>();
+  if (f.q) {
+    const lk = { contains: escapeLike(f.q), mode: "insensitive" as const };
+    const hits = await prisma.productionMaterialUsage.findMany({
+      where: { productionOrder: { organizationId: orgId }, lot: { OR: [{ lotNumber: lk }, { purchase: { OR: [{ number: lk }, { invoiceNumber: lk }] } }] } },
+      select: { productionOrderId: true, lot: { select: { lotNumber: true, purchase: { select: { number: true, invoiceNumber: true } } } } },
+      take: 2000,
+    });
+    const ql0 = f.q.toLowerCase();
+    for (const h of hits) {
+      if (lotHits.has(h.productionOrderId)) continue;
+      const ln = h.lot.lotNumber ?? "";
+      lotHits.set(h.productionOrderId, ln.toLowerCase().includes(ql0) ? `совпал лот ${ln}` : `совпала закупка ${h.lot.purchase?.number ?? h.lot.purchase?.invoiceNumber ?? ""}`.trim());
+    }
+  }
   const where: Prisma.ProductionOrderWhereInput = {
     organizationId: orgId,
     AND: [
@@ -162,6 +182,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         },
         auction: () => ({ id: { in: lotOrderIds ?? [] } }),
         fur: () => ({ id: { in: lotOrderIds ?? [] } }),
+        client: (v) => ({ clientId: { in: v } }),
         status: (v) => ({ status: { in: v as ("PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED")[] } }),
         verified: (v) => (v.includes("yes") && v.includes("no") ? undefined : v.includes("yes") ? { verifiedAt: { not: null } } : v.includes("no") ? { verifiedAt: null } : undefined),
         q: (text) => ({
@@ -171,6 +192,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             ...modelCodeVariants(text).map((v) => ({ productModel: { name: { contains: escapeLike(v), mode: "insensitive" as const } } })),
             ...(qArticleIds.length ? [{ productModelId: { in: qArticleIds } }] : []),
             { client: { name: { contains: escapeLike(text), mode: "insensitive" } } },
+            ...(lotHits.size ? [{ id: { in: Array.from(lotHits.keys()) } }] : []),
           ],
         }),
       }),
@@ -208,7 +230,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
   const attr = await loadOrderAttrOptions(orgId);
   const colorSel = splitNone(f.color);
   const sizeSel = splitNone(f.size);
-  const optsBase = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr"]);
+  const optsBase = await getFilterOptions(orgId, year, ["season", "batch", "model", "category", "auction", "fur", "attr", "client"]);
   const opts = { ...optsBase, fur: withOrderFurOptions(optsBase.fur, orderFurRows) };
   const hasFilters = filtersOn;
 
@@ -220,16 +242,19 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     const wo = (o.workOrderNumber ?? "").toLowerCase();
     const no = o.number.toLowerCase();
     if (wo === ql) return { rank: 0, label: null };
-    if (no === ql) return { rank: 1, label: "совпал № заказа" };
-    if (wo.includes(ql)) return { rank: 2, label: "совпал № ТЗ" };
+    if (wo.includes(ql)) return { rank: 1, label: "совпал № ТЗ" };
+    if (no === ql) return { rank: 2, label: "совпал № заказа" };
     if (no.includes(ql)) return { rank: 3, label: "совпал № заказа" };
     if (qArticleIds.includes(o.productModel.id) || modelCodeVariants(q).some((v) => o.productModel.name.toLowerCase().includes(v.toLowerCase()))) return { rank: 4, label: "совпала модель" };
-    return { rank: 5, label: "совпал заказчик" };
+    if (lotHits.has(o.id)) return { rank: 5, label: lotHits.get(o.id)! };
+    return { rank: 6, label: "совпал заказчик" };
   };
   const woNum = (o: (typeof rawOrders)[number]) => {
     const n = parseInt(o.workOrderNumber ?? "", 10);
     return Number.isNaN(n) ? null : n;
   };
+  const tzPos = await loadTzPositions(orgId, rawOrders);
+  const labelOf = (o: (typeof rawOrders)[number]) => orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) });
   const indicators = await loadOrderIndicators(prisma, orgId, { c4Mode, canUpload: false, canMark: false });
   const orders = rawOrders.filter((o) => {
     // Цвет: подходит ЛЮБОЙ из цветов ТЗ (составной ТЗ — под каждый свой цвет); «без цвета» — цвет в документах не указан.
@@ -365,12 +390,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             const card = (
               <RowCard
                 key={o.id}
-                title={`ТЗ ${o.workOrderNumber ?? "—"}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
+                title={`${labelOf(o)}${matchOf(o)?.label ? ` (${matchOf(o)!.label})` : ""}`}
                 href={href}
                 subtitle={`${articleLabel(o.productModel)}${fur !== "—" ? ` · ${fur}` : ""}`}
                 fields={[
                   {
-                    label: <VatLabel base={`Себестоимость${c4}`} />,
+                    label: <VatLabel base={`Полная себестоимость (с работой)${c4}`} />,
                     value: full.incl.isZero() ? "—" : <><Money incl={full.incl} excl={full.excl} />{st.noC4 ? <span className="block whitespace-nowrap text-[11px] font-normal text-neutral-400">без 4%: <Money incl={st.noC4.incl} excl={st.noC4.excl} /></span> : null}</>,
                     strong: true,
                   },
@@ -409,7 +434,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
                 </Td>
                 <Td className={`${cell} font-medium`}>
                   <Link href={href} className={`${link} whitespace-nowrap hover:underline`}>
-                    {child ? <span className="pl-4 text-xs font-normal text-neutral-600">{o.number}</span> : (o.workOrderNumber ?? "—")}
+                    {child ? <span className="pl-4 text-xs font-normal text-neutral-600" title={orderHint(o)}>{[posText(tzPos.get(o.id)?.posIndex, tzPos.get(o.id)?.posCount), articleLabel(o.productModel)].filter(Boolean).join(" · ")}</span> : <span title={orderHint(o)}>{labelOf(o)}</span>}
                     {matchOf(o)?.label && <span className="ml-2 text-xs font-normal text-neutral-500">({matchOf(o)!.label})</span>}
                   </Link>
                 </Td>
@@ -452,7 +477,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
       fur: add(a.fur, r.st.fur), lining: add(a.lining, r.st.lining), full: add(a.full, r.full),
     }), { units: 0, hides: 0, liningQty: 0, work: 0, fur: zero(), lining: zero(), full: zero() });
     const first = g[0].o;
-    const tzNo = first.workOrderNumber?.trim() || first.number;
+    const tzNo = orderLabel({ workOrderNumber: first.workOrderNumber, number: first.number });
     const batches = Array.from(new Set(g.map((x) => x.o.batch?.number ?? null)));
     const furs = Array.from(new Set(g.flatMap((x) => (furOf.get(x.o.id) || "—").split(" + "))));
     const models = Array.from(new Set(g.map((x) => articleLabel(x.o.productModel))));
@@ -467,11 +492,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     cards.push(
       <RowCard
         key={`tz-${orderKey(first)}`}
-        title={`ТЗ ${tzNo} · ${count}`}
+        title={`${tzNo} · ${count}`}
         subtitle={`${models.slice(0, 4).join(", ")}${models.length > 4 ? "…" : ""}${furs[0] !== "—" ? ` · ${furs.join(" + ")}` : ""}${match ? ` (${match})` : ""}`}
         badge={<span className="text-xs text-neutral-500">один ТЗ</span>}
         fields={[
-          { label: <VatLabel base={`Себестоимость${c4}`} />, value: tot.full.incl.isZero() ? "—" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
+          { label: <VatLabel base={`Полная себестоимость (с работой)${c4}`} />, value: tot.full.incl.isZero() ? "—" : <Money incl={tot.full.incl} excl={tot.full.excl} />, strong: true },
           { label: "Изделий", value: tot.units > 0 ? `${formatQty(tot.units)} шт.` : "—" },
         ]}
         details={[
@@ -480,7 +505,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           ...rows.map((r) => ({
             key: r.x.o.id,
             label: <Link href={`/production/${r.x.o.id}`} className="text-blue-700 hover:underline">{articleLabel(r.x.o.productModel)}</Link>,
-            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "—"}${r.x.o.workOrderNumber ? ` · ТЗ ${r.x.o.workOrderNumber}` : ` · ${r.x.o.number}`}`,
+            value: `${r.st.units > 0 ? `${formatQty(r.st.units)} шт.` : "—"} · ${labelOf(r.x.o)}`,
           })),
         ]}
       />,
@@ -554,7 +579,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             ] as const
           ).map(([g, text]) => {
             // Вид переключается без потери фильтров.
-            const href = filterHref(PROD_FILTERS, "/production", f, { view: g ? "batches" : "" });
+            const href = g ? "/production/batches" : filterHref(PROD_FILTERS, "/production", f, { view: "" });
             return (
               <Link
                 key={text}
@@ -590,6 +615,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
           ...(opts.attr.length > 0 ? [{ type: "multi" as const, name: "attr", label: "Признак меха", options: opts.attr, noneLabel: "Без признака", allLabel: "Все признаки", more: true, hint: "Признаки ТЗ и лотов, списанных в ТЗ: седина, дикий / клеточный, тонированный…" }] : []),
           { type: "multi", name: "color", label: "Цвет изделия", more: true, options: attr.color, noneLabel: attr.noColor > 0 ? NO_COLOR_LABEL : undefined, hint: "Все цвета ТЗ: составное ТЗ попадает под каждый свой цвет" },
           ...(attr.size.length > 1 ? [{ type: "multi" as const, name: "size", label: "Размер", more: true, options: attr.size, noneLabel: attr.noSize > 0 ? NO_SIZE_LABEL : undefined, hint: "Размеры из ТЗ: ТЗ с несколькими размерами попадает под каждый" }] : []),
+          { type: "multi", name: "client", label: "Заказчик", options: opts.client, more: true },
           { type: "multi", name: "docs", label: "Документы и оплата", aliases: ["need"], options: DOCS_OPTIONS, allLabel: "Все", more: true },
           { type: "multi", name: "verified", label: "Проверка", options: VERIFIED_OPTIONS, allLabel: "Любая", more: true },
           { type: "date", name: "from", label: "Дата ТЗ с", more: true },
@@ -598,6 +624,10 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         ]}
       />
       </div>
+
+      {filtersOn && (
+        <p className="text-sm text-neutral-600">Найдено: {tzGroups.length} ТЗ · {priced.length} {positionsWord(priced.length)}</p>
+      )}
 
       <ProdTiles orders={grouped ? drill : slimForTiles(drill)} c4={c4Mode} treeId="orders-tree" id="orders" title="ТЗ — итоги" headerEnd={<Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии пошива</Link>} />
 
@@ -639,7 +669,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             <Th className="text-right" unit="₽"><VatLabel base="Подкладка" /></Th>
             <Th className={"text-right" + BLH} unit="₽">Работа</Th>
             <Th className="text-right" unit="₽">
-              <VatLabel base={`Себестоимость${c4}`} />
+              <VatLabel base={`Полная себестоимость (с работой)${c4}`} />
             </Th>
             <Th>НДС</Th>
           </Tr>
@@ -694,7 +724,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
             align="right"
           >
             <p className="mt-1">
-              Сумма по всем ТЗ списка, кроме отменённых: сырьё и подкладка (списания, с 4%) + расходы + работа + шкуры подрядчика. Сходится с «Себестоимостью» на Главной и итогом в «Изделиях». Год: {year === "all" ? "все годы" : `${year} (по дате ТЗ)`}.
+              Сумма по всем ТЗ списка, кроме отменённых: сырьё и подкладка (списания, с 4%) + расходы + работа + шкуры подрядчика. Это «Полная себестоимость (с работой)» — сходится с одноимённой плиткой на Главной и итогом в «Изделиях». В таблице партий и в «Аналитика → Изделия» показана «Себестоимость сырья» — без работы. Год: {year === "all" ? "все годы" : `${year} (по дате ТЗ)`}.
             </p>
             <p className="mt-1">Цифры с НДС; переключатель «Без НДС» показывает ту же сумму без НДС.</p>
           </C4Hint>

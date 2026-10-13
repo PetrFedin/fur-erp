@@ -10,6 +10,8 @@ import { formatPercent, formatQty } from "@/lib/utils";
 export type ProdOrder = {
   orderId: string;
   number: string;
+  /** Единая подпись ТЗ («ТЗ 182 · поз. 1/3»); number — внутренний номер для подсказки. */
+  label: string;
   batchNumber: number | null;
   date: string | null;
   qty: number;
@@ -96,7 +98,7 @@ export function LotProducts({ models, recv, unit }: { models: ProdModel[]; recv:
                   </tr>,
                   ...m.orders.map((o) => (
                     <tr key={o.orderId} className="border-b border-neutral-100 text-xs">
-                      <td className="px-1.5 py-1.5 pl-5"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline">ТЗ {o.number}</Link></td>
+                      <td className="px-1.5 py-1.5 pl-5"><Link href={`/production/${o.orderId}`} className="text-blue-700 hover:underline" title={`Внутренний номер заказа ${o.number}`}>{o.label}</Link></td>
                       <td className={TD}>{o.batchNumber != null ? <Link href={`/production/batches/${o.batchNumber}`} className="hover:underline">{o.batchNumber}</Link> : "—"}</td>
                       <td className={TD}>{o.date ?? "—"}</td>
                       <td className={TD}>{dash(o.qty)}</td>

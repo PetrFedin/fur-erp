@@ -21,7 +21,7 @@ type Grp = "all" | "cloth" | "acc";
 const GRP_NAME: Record<Exclude<Grp, "all">, string> = { cloth: "Одежда", acc: "Аксессуары" };
 
 type Row = {
-  orderId: string; number: string; info: OrderInfo | null;
+  orderId: string; number: string; label: string; info: OrderInfo | null;
   qty: number; excl: number; incl: number; extraExcl: number; extraIncl: number;
   usdQty: number; usdSum: number;
   lots: Map<string, { lot: FurLot; qty: number; excl: number; incl: number }>;
@@ -66,7 +66,7 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
     const m = new Map<string, Row>();
     for (const l of lots) {
       for (const u of l.usages) {
-        const r = m.get(u.orderId) ?? { orderId: u.orderId, number: u.number, info: orderInfo[u.orderId] ?? null, qty: 0, excl: 0, incl: 0, extraExcl: 0, extraIncl: 0, usdQty: 0, usdSum: 0, lots: new Map(), auctions: new Set<string>(), remQty: 0, remIncl: 0, remExcl: 0, vatBy: new Map<number, number>() };
+        const r = m.get(u.orderId) ?? { orderId: u.orderId, number: u.number, label: u.label, info: orderInfo[u.orderId] ?? null, qty: 0, excl: 0, incl: 0, extraExcl: 0, extraIncl: 0, usdQty: 0, usdSum: 0, lots: new Map(), auctions: new Set<string>(), remQty: 0, remIncl: 0, remExcl: 0, vatBy: new Map<number, number>() };
         r.qty += u.qty; r.excl += u.excl; r.incl += u.incl; r.extraExcl += u.extraExcl; r.extraIncl += u.extraIncl;
         if (l.usdPrice != null) { r.usdQty += u.qty; r.usdSum += u.qty * l.usdPrice; }
         r.vatBy.set(l.vatRate, (r.vatBy.get(l.vatRate) ?? 0) + (u.incl - u.excl));
@@ -96,10 +96,10 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
   }, [rows, vat]);
   const years = useMemo(() => Array.from(new Set(rows.map((r) => r.info?.year).filter((y): y is number => y != null))).sort((a, b) => b - a), [rows]);
   const shown = useMemo(() => {
-    const list = inGrp.filter((r) => (yearSel === "all" || r.info?.year === yearSel) && (!needle || [r.number, r.info?.article, r.info?.category, r.info?.batch].some((x) => (x ?? "").toLowerCase().includes(needle))));
+    const list = inGrp.filter((r) => (yearSel === "all" || r.info?.year === yearSel) && (!needle || [r.number, r.label, r.info?.article, r.info?.category, r.info?.batch].some((x) => (x ?? "").toLowerCase().includes(needle))));
     const val = (r: Row): number | string => {
       switch (sort.key) {
-        case "number": return r.number;
+        case "number": return r.label;
         case "year": return r.info?.year ?? 0;
         case "qty": return r.qty;
         case "sum": return base(r);
@@ -222,8 +222,8 @@ export function FurOrdersTable({ lots, kind, orderInfo, initialGrp }: { lots: Fu
                 <Fragment key={r.orderId}>
                   <tr className="border-t border-neutral-100 bg-white">
                     <td className="sticky left-0 z-[1] bg-white px-2 py-1.5 text-left">
-                      <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"} лоты ТЗ ${r.number}`} onClick={() => toggle(r.orderId)} className="mr-1 align-middle"><span aria-hidden className={cn("inline-block w-3 text-neutral-500 transition-transform", isOpen && "rotate-90")}>›</span></button>
-                      <Link href={`/production/${r.orderId}`} className="whitespace-nowrap text-blue-700 hover:underline">ТЗ {r.number}</Link>
+                      <button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? "Свернуть" : "Раскрыть"} лоты ${r.label}`} onClick={() => toggle(r.orderId)} className="mr-1 align-middle"><span aria-hidden className={cn("inline-block w-3 text-neutral-500 transition-transform", isOpen && "rotate-90")}>›</span></button>
+                      <Link href={`/production/${r.orderId}`} className="whitespace-nowrap text-blue-700 hover:underline" title={`Внутренний номер заказа ${r.number}`}>{r.label}</Link>
                       <div className="truncate pl-4 text-[11px] text-neutral-500" title={info?.batch}>{info?.batch ?? " "}</div>
                     </td>
                     <td className="truncate px-2 py-1.5 text-left text-xs" title={`${info?.article ?? ""} · ${info?.category ?? ""}`}>{info ? <>{info.article.split(" · ")[0]}<div className="truncate text-[11px] text-neutral-500">{info.category}</div></> : <D />}</td>

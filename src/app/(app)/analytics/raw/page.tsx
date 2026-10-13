@@ -159,17 +159,22 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       {l.lotNumber}
     </Link>
   );
-  const lotList = (arr: RawLot[], extra?: (l: RawLot) => string) => (
-    <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-      {arr.slice(0, 40).map((l) => (
-        <li key={l.id}>
-          {lotLink(l)}
-          {extra ? <span className="text-neutral-500"> ({extra(l)})</span> : null}
-        </li>
-      ))}
-      {arr.length > 40 && <li className="text-neutral-500">…и ещё {arr.length - 40}</li>}
-    </ul>
-  );
+  const lotList = (arr: RawLot[], extra?: (l: RawLot) => string) => {
+    const noNum = arr.filter((l) => l.lotNumber === "Без номера");
+    const list = arr.filter((l) => l.lotNumber !== "Без номера");
+    return (
+      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        {list.slice(0, 40).map((l) => (
+          <li key={l.id}>
+            {lotLink(l)}
+            {extra ? <span className="text-neutral-500"> ({extra(l)})</span> : null}
+          </li>
+        ))}
+        {list.length > 40 && <li className="text-neutral-500">…и ещё {list.length - 40}</li>}
+        {noNum.length > 0 && <li>Без номера — {noNum.length} {noNum.length % 10 === 1 && noNum.length % 100 !== 11 ? "лот" : noNum.length % 10 >= 2 && noNum.length % 10 <= 4 && (noNum.length % 100 < 12 || noNum.length % 100 > 14) ? "лота" : "лотов"}</li>}
+      </ul>
+    );
+  };
 
   const pctAll = usedPct(total);
   const ex = (l: Decimal) => formatQty(l.toString());
@@ -619,7 +624,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
     return (
       <>
         <span className="tabular-nums"><span className={lab}>{single ? "Лотов" : "ТЗ / лотов"}</span>{single ? g.lots : `${g.orders} / ${g.lots}`}</span>
-        <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(g.produced.toString())} шт.</span>
+        <span className="tabular-nums"><span className={lab}>Готово</span>{formatQty(g.produced.toString())} шт.</span>
         <span className="font-medium tabular-nums"><span className={lab}>Списано</span>{qty(g.qty, unit)}</span>
         <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{pu ? `${formatQty(pu.toFixed(2))} ${unit}` : "—"}</span>
         <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={g.incl} excl={g.excl} extraIncl={g.extraIncl} extraExcl={g.extraExcl} c4={c4} /></span>
@@ -635,12 +640,12 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
       <div className={`hidden gap-2 border-b border-neutral-200 px-3 pb-2 text-xs font-medium text-neutral-500 md:grid ${USAGE_COLS}`}>
         <span>{by === "article" ? "Изделие (артикул)" : "ТЗ"}</span>
         <span>{by === "article" ? "ТЗ / лотов" : "Лотов"}</span>
-        <span>Произведено</span>
+        <span>Готово</span>
         <span>Списано</span>
         <span className="inline-flex items-center gap-1">
           На 1 изделие
           <InfoHint label="На 1 изделие" wide>
-            <p>«Произведено» здесь — выпуск завершённых ТЗ (по статусу; у ТЗ в работе — 0, их план показан отдельно), а не «Произведено» с Главной. Списано ÷ произведено — средневзвешенно: Σ списано ÷ Σ произведено по всем ТЗ изделия, а не среднее из средних. Если в ТЗ идёт несколько лотов, цифра — общая по ним.</p>
+            <p>«Готово» здесь — выпуск завершённых ТЗ (по статусу; у ТЗ в работе — 0, их план показан отдельно), а не «В выпуске» с Главной (там готово + в работе). Списано ÷ произведено — средневзвешенно: Σ списано ÷ Σ готово по всем ТЗ изделия, а не среднее из средних. Если в ТЗ идёт несколько лотов, цифра — общая по ним.</p>
           </InfoHint>
         </span>
         <span>Стоимость списания</span>
@@ -668,7 +673,7 @@ function UsageTable({ groups, by, f, unit, c4, lots, year }: { groups: UsageGrou
         <div className={`row-total grid grid-cols-2 gap-2 px-3 py-2 text-sm ${USAGE_COLS}`}>
           <span className="col-span-2 md:col-span-1"><TotalLabel extra={`${groups.length} · лотов в выборке: ${lots}`} /></span>
           <span />
-          <span className="tabular-nums"><span className={lab}>Произведено</span>{formatQty(tot.produced.toString())} шт.</span>
+          <span className="tabular-nums"><span className={lab}>Готово</span>{formatQty(tot.produced.toString())} шт.</span>
           <span className="tabular-nums"><span className={lab}>Списано</span>{qty(tot.qty, unit)}</span>
           <span className="tabular-nums"><span className={lab}>На 1 изделие</span>{tot.produced.greaterThan(0) ? `${formatQty(tot.qty.div(tot.produced).toFixed(2))} ${unit}` : "—"}</span>
           <span className="tabular-nums"><span className={lab}>Стоимость списания</span><CostCell incl={tot.incl} excl={tot.excl} extraIncl={tot.ei} extraExcl={tot.ee} c4={c4} /></span>

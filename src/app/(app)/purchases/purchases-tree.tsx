@@ -297,7 +297,7 @@ function ItemRows({ x, open, flip, pk }: { x: TreeItem; open: Set<string>; flip:
       </tr>
       {isOpen ? x.usages.map((u) => (
         <tr key={u.orderId} className={rowTone(3)}>
-          <td className={NAME_CELL + " pl-28"}><Link href={`/production/${u.orderId}`} className={LINK}>ТЗ {u.number}</Link></td>
+          <td className={NAME_CELL + " pl-28"}><Link href={`/production/${u.orderId}`} className={LINK}>{u.number}</Link></td>
           <td className={TD + BL} /><td className={TD} /><td className={TD} />
           <td className={TD}>{isFur ? formatQty(u.qty) : <Dash />}</td>
           <td className={TD}>{!isFur ? formatQty(u.qty) : <Dash />}</td>

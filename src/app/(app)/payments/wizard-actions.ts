@@ -2,6 +2,8 @@
 
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { orderLabel } from "@/lib/order-label";
+import { loadTzPositions } from "@/lib/order-label-db";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
@@ -118,13 +120,14 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
       select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, client: { select: { name: true } }, batch: { select: { id: true, number: true } } },
       orderBy: { createdAt: "asc" },
     });
+    const tzPos = await loadTzPositions(orgId, orders);
     const alloc = await allocatedCentsByOrder(prisma, orgId, orders.map((o) => o.id));
     const clients = new Map<string, string>();
     for (const o of orders) {
       if (o.clientId && o.client) clients.set(o.clientId, o.client.name);
       out.workTargets.push({
         id: o.id,
-        label: `ТЗ ${o.workOrderNumber ?? o.number}${o.workOrderNumber && o.workOrderNumber !== o.number ? ` (${o.number})` : ""}${o.batch ? ` · партия ${o.batch.number}` : ""}`,
+        label: `${orderLabel({ workOrderNumber: o.workOrderNumber, number: o.number, ...tzPos.get(o.id) })}${o.batch ? ` · партия ${o.batch.number}` : ""}`,
         clientId: o.clientId,
         batch: o.batch?.number ?? null,
         batchId: o.batch?.id ?? null,
