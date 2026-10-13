@@ -98,4 +98,6 @@ export type AllocOrderOpt = {
   workCents: number;
   /** Уже разнесено на ТЗ от ДРУГИХ платежей, коп. */
   otherCents: number;
+  /** Номер партии ТЗ (для «Разнести на партию»). */
+  batch?: number | null;
 };

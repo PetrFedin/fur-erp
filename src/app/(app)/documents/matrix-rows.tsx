@@ -3,6 +3,7 @@ import type { RegCell } from "@/lib/registry-coverage";
 import { cn } from "@/lib/utils";
 import { RowCard } from "@/components/responsive-rows";
 import Link from "next/link";
+import type { VerMap } from "./ver-status";
 
 // Строки матрицы покрытия: общий код страницы и серверного действия «раскрыть группу» (loadDocGroup).
 
@@ -14,12 +15,25 @@ export function OrigCell({ have, total }: { have: number; total: number }) {
   );
 }
 
-export function MatrixRow({ r, cols, template, withReg }: { r: CovRow; cols: ColKey[]; template: string; withReg: boolean }) {
+/** Две отметки записи: «подтверждена» (не требует файла) и «нужен файл» (есть пробелы по документам). Без подтверждения в матрице — ничего. */
+export function RowState({ r, ver }: { r: CovRow; ver?: VerMap }) {
+  const v = ver?.get(r.id);
+  if (v !== true && r.gaps.length === 0) return null;
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1 text-[11px]">
+      {v === true && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-800" title="Подтверждена: сумма и данные проверены. Файл для этого не обязателен.">подтверждена</span>}
+      {r.gaps.length > 0 && <span className="rounded-full bg-red-50 px-1.5 py-0.5 font-medium text-red-700" title={r.gaps.map((g) => g.label).join(", ")}>нужен файл: {r.gaps.length}</span>}
+    </span>
+  );
+}
+
+export function MatrixRow({ r, cols, template, withReg, ver }: { r: CovRow; cols: ColKey[]; template: string; withReg: boolean; ver?: VerMap }) {
   return (
     <Link href={r.href} className="grid items-center gap-1 px-3 py-2 hover:bg-neutral-50" style={{ gridTemplateColumns: template }}>
       <span className="min-w-0">
         <span className="block break-words text-sm font-medium text-neutral-900">{r.title}</span>
         <span className="block break-words text-xs text-neutral-500">{r.sub}</span>
+        <RowState r={r} ver={ver} />
         {r.extras.map((e, i) => (
           <span key={i} className={cn("block text-xs", e.ok ? "text-emerald-700" : "font-medium text-red-600")}>
             {e.text}
@@ -48,7 +62,7 @@ export function CellView({ cell }: { cell: Cell }) {
   return <span className="text-center text-[11px] text-neutral-500">необяз.</span>;
 }
 
-export function MobileCard({ r }: { r: CovRow }) {
+export function MobileCard({ r, ver }: { r: CovRow; ver?: VerMap }) {
   const have = COLUMNS.filter((c) => r.cells[c.key].ok).map((c) => (r.cells[c.key].count > 0 ? `${c.label} (${r.cells[c.key].count})` : `${c.label} (№)`));
   return (
     <RowCard
@@ -63,7 +77,8 @@ export function MobileCard({ r }: { r: CovRow }) {
         )
       }
       fields={[
-        { label: "Не хватает", value: r.gaps.length > 0 ? <span className="font-medium text-red-700">{r.gaps.map((g) => g.label).join(", ")}</span> : <span className="text-emerald-700">всё есть</span> },
+        ...(ver?.has(r.id) ? [{ label: "Подтверждение", value: ver.get(r.id) ? <span className="text-emerald-700">подтверждена</span> : <span>не подтверждена</span> }] : []),
+        { label: "Нужен файл", value: r.gaps.length > 0 ? <span className="font-medium text-red-700">{r.gaps.map((g) => g.label).join(", ")}</span> : <span className="text-emerald-700">всё есть</span> },
         { label: "Оригинал", value: r.origTotal === 0 ? "—" : `${r.origHave} из ${r.origTotal}` },
         ...(r.registry.state !== "none" ? [{ label: "Реестр", value: <RegView reg={r.registry} inline /> }] : []),
       ]}
@@ -118,22 +133,22 @@ export function sectionLayout(rows: CovRow[]) {
 }
 
 /** Содержимое группы для таблицы (≥ md). */
-export function GroupTableRows({ rows, cols, template, withReg }: { rows: CovRow[]; cols: ColKey[]; template: string; withReg: boolean }) {
+export function GroupTableRows({ rows, cols, template, withReg, ver }: { rows: CovRow[]; cols: ColKey[]; template: string; withReg: boolean; ver?: VerMap }) {
   return (
     <div className="divide-y divide-neutral-100 border-t border-neutral-100">
       {rows.map((r) => (
-        <MatrixRow key={r.id} r={r} cols={cols} template={template} withReg={withReg} />
+        <MatrixRow key={r.id} r={r} cols={cols} template={template} withReg={withReg} ver={ver} />
       ))}
     </div>
   );
 }
 
 /** Содержимое группы для карточек (< md). */
-export function GroupCards({ rows }: { rows: CovRow[] }) {
+export function GroupCards({ rows, ver }: { rows: CovRow[]; ver?: VerMap }) {
   return (
     <div className="flex flex-col gap-2 p-2 pt-0">
       {rows.map((r) => (
-        <MobileCard key={r.id} r={r} />
+        <MobileCard key={r.id} r={r} ver={ver} />
       ))}
     </div>
   );

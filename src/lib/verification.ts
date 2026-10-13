@@ -44,6 +44,8 @@ import { articleLabel } from "@/lib/article-label";
 export const ROUND_TOL_RUB = 50;
 
 export { VERIFY_KINDS, KIND_LABEL, type VerifyKind } from "@/lib/verification-kinds";
+import { payNoteOf } from "@/lib/verify-remark";
+export { remarkOf, payNoteOf } from "@/lib/verify-remark";
 
 /** Основание автоподтверждения (verifiedBy = «auto:<основание>»). */
 export const AUTO_BASIS = "auto:docs-chain-2026-10-04";
@@ -280,7 +282,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         key: `payment:${p.id}`, kind: "payment", id: p.id,
         title: `${formatDate(p.paidAt)} · ${fmtRub(p.amount)}`, sub: `${p.supplier.name} · ${target}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
         href, group: auctionName(p.auctionSession) ?? p.purchase?.number ?? null, year: p.paidAt.getUTCFullYear(), amountText: fmtRub(p.amount),
-        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: null,
+        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes),
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
         registryFact: reg, members: [],
@@ -333,7 +335,7 @@ export async function loadVerifyModel(db: Db, orgId: string, opts: VerifyOpts = 
         title: `${formatDate(p.paidAt)} · ${fmtRub(p.amount)}`,
         sub: `${p.client?.name ?? "заказчик не указан"} · ${batches.length ? `партия ${batches.join(", ")}` : "без партии"}${p.docRef ? ` · ${p.docRef.slice(0, 80)}` : ""}`,
         href, group: batches.length === 1 ? `Партия ${batches[0]}` : null, year: p.paidAt.getUTCFullYear(), amountText: fmtRub(p.amount),
-        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: null,
+        verified, auto: verified && st.auto, stampText: verified ? st.text : null, note: payNoteOf(p.notes),
         ready: blockers.length === 0, blockers,
         edit: { date: paidIso, amount: new Decimal(p.amount).toFixed(2), ref: p.docRef ?? "" },
         registryFact: reg, members: [],

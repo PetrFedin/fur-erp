@@ -32,7 +32,6 @@ import { toDriveView } from "@/lib/drive-docs-server";
 import { getFurIndex } from "@/lib/fur-ref-server";
 import { canonicalFur } from "@/lib/fur-ref";
 import { countLabel } from "@/lib/drive-docs-group";
-import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import { CostPlanItemEditor, CostPlanRateForm } from "./cost-plan-editor";
 import { deriveCostPlanInputs } from "@/lib/cost-plan";
 import { CUSTOM_FIELD_ENTITY, formatExtra, readExtra } from "@/lib/custom-fields";
@@ -344,14 +343,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                       { label: <VatLabel key="total-label" base={hasPlan ? "Всего, ₽" : `Сумма${isForeignCurrency ? ", RUB" : ""}`} />, value: totalNode, strong: true },
                     ],
                     details: customFields.map((f) => ({ label: f.name, value: formatExtra(f.type, readExtra(item.extra)[f.id]) || "—" })),
-                    // То же, что в ячейках десктопной строки: «Из чего цена», пометка о ручной правке, «Править расчёт».
+                    // То же, что в ячейках десктопной строки: пометка о ручной правке, «Править расчёт».
                     extra: planInfo ? (
                       <div key="extra" className="flex flex-col items-start gap-1.5">
-                        <CostBreakdownToggle
-                          breakdown={planInfo.plan.costBreakdown}
-                          unitCostExcl={planInfo.excl.toString()}
-                          unitCostIncl={planInfo.plan.unitCostInclVat}
-                        />
                         {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
                           <div className="text-xs text-amber-700">
                             изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}
@@ -433,11 +427,6 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                         <>
                           <Td className="whitespace-nowrap">
                             <Money incl={planInfo.plan.unitCostInclVat} excl={planInfo.excl.toString()} />
-                            <CostBreakdownToggle
-                              breakdown={planInfo.plan.costBreakdown}
-                              unitCostExcl={planInfo.excl.toString()}
-                              unitCostIncl={planInfo.plan.unitCostInclVat}
-                            />
                             {planInfo.plan.manualEditedAt && !Number.isNaN(Date.parse(planInfo.plan.manualEditedAt)) && (
                               <div className="text-xs font-normal text-amber-700">
                                 изменён вручную {formatDate(new Date(planInfo.plan.manualEditedAt))}

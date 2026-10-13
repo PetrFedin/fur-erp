@@ -77,6 +77,22 @@ function AllocationRows({ amount, orders, initial }: { amount: string; orders: A
     setRows(order.map((id) => ({ orderId: id, amount: fromCents(next.get(id) ?? 0) })));
   };
 
+  // «Разнести остаток на партию целиком»: тот же расчёт, что и «пропорционально работе», но по ТЗ выбранной партии (любые ТЗ заказчика).
+  const [batchPick, setBatchPick] = useState("");
+  const batches = [...new Set(orders.map((o) => o.batch).filter((b): b is number => b != null))].sort((a, b) => a - b);
+  const spreadBatch = () => {
+    const n = Number(batchPick);
+    if (rest <= 0 || !batchPick) return;
+    const cur = new Map(rows.filter((r) => r.orderId).map((r) => [r.orderId, parse(r.amount)]));
+    const items = orders.filter((o) => o.batch === n).map((o) => ({ id: o.id, weight: o.workCents, cap: Math.max(0, o.workCents - o.otherCents - (cur.get(o.id) ?? 0)) }));
+    const split = splitByWeights(rest, items);
+    if (split.size === 0) return;
+    const next = new Map(cur);
+    for (const [id, c] of split) next.set(id, (next.get(id) ?? 0) + c);
+    const order = [...rows.filter((r) => r.orderId).map((r) => r.orderId), ...[...split.keys()].filter((id) => !cur.has(id))];
+    setRows(order.map((id) => ({ orderId: id, amount: fromCents(next.get(id) ?? 0) })));
+  };
+
   const payload = JSON.stringify(rows.filter((r) => r.orderId && parse(r.amount) > 0).map((r) => ({ orderId: r.orderId, amount: fromCents(parse(r.amount)) })));
   const linked = orders.filter((o) => o.linked);
   const others = orders.filter((o) => !o.linked);
@@ -146,6 +162,12 @@ function AllocationRows({ amount, orders, initial }: { amount: string; orders: A
         <Button type="button" variant="outline" size="sm" onClick={spreadRest} disabled={rest <= 0 || linked.length === 0} className="max-md:h-10" title="Делит неразнесённый остаток между ТЗ этой оплаты пропорционально работе, не больше остатка работы каждого ТЗ">
           Разнести остаток пропорционально работе
         </Button>
+        {batches.length > 0 && (
+          <>
+            <Select value={batchPick} onChange={(e) => setBatchPick(e.target.value)} aria-label="Партия" className="h-9 w-44 text-xs max-md:h-10"><option value="">Партия целиком…</option>{batches.map((b) => <option key={b} value={b}>Партия {b}</option>)}</Select>
+            <Button type="button" variant="outline" size="sm" onClick={spreadBatch} disabled={rest <= 0 || !batchPick} className="max-md:h-10" title="Делит неразнесённый остаток между ТЗ выбранной партии пропорционально работе, не больше остатка работы каждого ТЗ">Разнести на партию</Button>
+          </>
+        )}
       </div>
     </div>
   );

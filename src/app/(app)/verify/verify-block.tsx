@@ -1,3 +1,4 @@
+import { remarkOf } from "@/lib/verify-remark";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { VerifyControl, type VerifyView } from "@/components/verify-control";
@@ -9,12 +10,12 @@ import { shortAuctionName } from "@/lib/auction-names";
 const HINT: Record<VerifyKind, string> = {
   payment: "Платёж подтверждён, если есть документ-основание (файл платёжки либо п/п с номером или письмо «оплачено» с датой), он привязан к закупке или аукциону и сумма с датой заданы.",
   prodPayment: "Оплата подтверждена, если есть документ-основание (файл платёжки либо п/п или письмо «оплачено» с датой) и она привязана к ТЗ или партии.",
-  purchase: "Закупка подтверждена, если все обязательные документы приложены, сумма в базе равна УПД/счёту (±1 ₽), лоты и количество сошлись, оплата завершена и у каждой оплаты есть платёжка. Подтвердить можно и вопреки замечаниям — только с примечанием.",
+  purchase: "Закупка подтверждена, если все обязательные документы приложены, сумма в базе равна УПД/счёту (±1 ₽), лоты и количество сошлись, оплата завершена и у каждой оплаты есть платёжка. Подтвердить можно и вопреки замечаниям — только с замечанием текстом (будет «подтверждена с замечанием»).",
   order: "ТЗ подтверждено, если приложение ТЗ загружено, дата настоящая (не шаблонная), заданы партия, заказчик, количество, цена работы и состав материалов, а количество и работа совпали с приложением. Правка суммы, даты или документа снимает подтверждение.",
   batch: "Партия подтверждена, если подтверждены все её ТЗ, есть расчёт и счёт, а оплата за работу сопоставлена (оплачено, у каждой оплаты есть платёжка или п/п).",
 };
 
-/** Блок «Подтверждено ✓ / Ждёт ручной проверки» для карточки (закупка, ТЗ, партия). */
+/** Блок «Подтверждено ✓ / Не подтверждено» для карточки (закупка, ТЗ, партия). */
 export async function VerifyBlock({ kind, id, title = "Подтверждение", collapsed = false }: { kind: VerifyKind; id: string; title?: string; collapsed?: boolean }) {
   const session = await requireSession();
   const row = await loadVerifyRow(prisma, session.user.organizationId, kind, id, { userId: session.user.id as string, canUpload: true, canMark: true });
@@ -25,7 +26,7 @@ export async function VerifyBlock({ kind, id, title = "Подтверждени�
       <details className="group rounded-lg border border-neutral-200 bg-white" data-verify-block={`${kind}:${id}`} open={false}>
         <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 p-3 text-sm hover:bg-neutral-50 sm:px-4">
           <span className="font-semibold">{title}</span>
-          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? "✓ подтверждено" : `ждёт проверки${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
+          <span className={row.verified ? "text-emerald-700" : "text-amber-800"}>{row.verified ? (remarkOf(row.note) ? "✓ подтверждена с замечанием" : row.auto ? "✓ подтверждено документом" : "✓ подтверждено") : `не подтверждено${row.blockers.length ? ` · замечаний: ${row.blockers.length}` : ""}`}</span>
           <InfoHint wide label="Что значит «подтверждено»">
             <p>{HINT[kind]}</p>
             <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова.</p>
@@ -44,7 +45,7 @@ export async function VerifyBlock({ kind, id, title = "Подтверждени�
         {title}
         <InfoHint wide label="Что значит «подтверждено»">
           <p>{HINT[kind]}</p>
-          <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова. Очередь всех строк — «Ждёт проверки».</p>
+          <p className="mt-2">Любая правка суммы, документа или даты после подтверждения сбрасывает его — проверьте и подтвердите снова. Очередь всех строк — «Подтвердить».</p>
         </InfoHint>
       </h3>
       <VerifyControl v={row} canEdit={canVerify(session.user.role, kind)} />
@@ -91,7 +92,7 @@ export async function AuctionVerify({ organizationId, names }: { organizationId:
               <span className="text-sm font-normal text-neutral-500">строк подтверждено: {rows.length - waiting.length} из {rows.length}</span>
               <InfoHint wide label="Что значит «подтверждено»">
                 <p>{HINT.purchase}</p>
-                <p className="mt-2">Кнопка действует на все закупки аукциона сразу; закупки с замечаниями подтверждаются только с примечанием.</p>
+                <p className="mt-2">Кнопка действует на все закупки аукциона сразу; закупки с замечаниями подтверждаются только с замечанием текстом (будет «подтверждена с замечанием»).</p>
               </InfoHint>
             </h3>
             <VerifyControl v={v} canEdit={canEdit} purchaseIds={rows.map((r) => r.id)} />

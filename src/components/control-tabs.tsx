@@ -25,7 +25,7 @@ function count(key: ControlTab, c: ControlCounts | null, comments: number, integ
   if (key === "integrity") return integrity && integrity.n > 0 ? { n: integrity.n, tone: integrity.red ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: "расхождений в данных" } : null;
   if (!c) return null;
   if (key === "tasks") return { n: c.tasks, tone: c.urgent > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900", title: `задач: ${c.tasks}${c.urgent ? `, срочных блоков: ${c.urgent}` : ""}` };
-  if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: "ждёт проверки" };
+  if (key === "verify") return { n: c.waiting, tone: "bg-amber-100 text-amber-900", title: "не подтверждено" };
   if (key === "documents") return { n: c.docGaps, tone: "bg-amber-100 text-amber-900", title: "записей, где не хватает документов" };
   return null;
 }

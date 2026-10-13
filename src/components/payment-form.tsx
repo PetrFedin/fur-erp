@@ -4,6 +4,7 @@ import { batchNameText } from "@/lib/batch-name";
 import { InfoHint } from "@/components/info-hint";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { PaymentWizardButton } from "@/components/payment-wizard";
 import { availableYears } from "@/lib/year-list";
 import { Input, Select } from "@/components/ui/input";
 import { PAY_KINDS, PRESET_PERCENTS, canConfirm, percentAmount, type DocRole, type PayKind } from "@/lib/payment-form-core";
@@ -20,7 +21,7 @@ const num = (s: string) => {
 };
 const lab = "mb-1 block text-xs text-neutral-500";
 
-export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind };
+export type PaymentPreset = Partial<Pick<Spec, "side" | "auction" | "purchaseId" | "supplierId" | "batchId" | "orderIds">> & { kind?: PayKind; /** Заказчик (карточка заказчика): мастер подставит его в «За производство». */ clientId?: string };
 
 /**
  * ЕДИНАЯ форма оплаты: шаг 1 «Что оплачиваем» → 2 «Вид, сумма, дата, основание» → 3 «Проверить и сохранить» → экран «Что пересчиталось».
@@ -451,28 +452,10 @@ export function PaymentForm({ preset, onDone, requireYear }: { preset?: PaymentP
   );
 }
 
-/** Кнопка, открывающая единую форму оплаты в окне (карточки закупки, ТЗ, панель «Документы и оплата»). */
-export function PaymentFormButton({ label = "Внести оплату", preset, variant = "outline", size = "sm", requireYear }: { label?: string; preset?: PaymentPreset; variant?: "outline" | "default"; size?: "sm" | "default"; requireYear?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (open && d && !d.open) d.showModal();
-  }, [open]);
-  return (
-    <>
-      <Button type="button" variant={variant} size={size} onClick={() => setOpen(true)} className="max-md:h-10">{label}</Button>
-      {open && (
-        <dialog ref={ref} aria-labelledby="pf-dlg-title" onClose={() => { setOpen(false); }} className="m-auto w-[calc(100vw-2rem)] max-w-2xl rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40">
-          <div className="max-h-[88vh] overflow-y-auto p-4">
-            <div className="mb-3 flex items-start justify-between gap-3 border-b border-neutral-200 pb-3">
-              <h2 id="pf-dlg-title" className="text-base font-semibold">Внести оплату</h2>
-              <button type="button" onClick={() => ref.current?.close()} aria-label="Закрыть окно" className="btn-accent rounded-lg border border-neutral-300 px-2.5 py-1 text-sm">✕</button>
-            </div>
-            <PaymentForm preset={preset} requireYear={requireYear} onDone={() => { ref.current?.close(); window.location.reload(); }} />
-          </div>
-        </dialog>
-      )}
-    </>
-  );
+/**
+ * Кнопка «Внести оплату» на карточках закупки, ТЗ и в панели «Документы и оплата»: открывает ЕДИНЫЙ мастер оплаты
+ * (components/payment-wizard) с зафиксированной целью. Эта форма остаётся только для «Возврата / зачёта» внутри мастера.
+ */
+export function PaymentFormButton({ label = "Внести оплату", preset, variant = "outline", size = "sm" }: { label?: string; preset?: PaymentPreset; variant?: "outline" | "default"; size?: "sm" | "default"; requireYear?: boolean }) {
+  return <PaymentWizardButton label={label} preset={preset} variant={variant} size={size} />;
 }

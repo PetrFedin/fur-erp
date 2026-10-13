@@ -94,7 +94,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
       }),
     ],
   };
+  // Независимые загрузки — одной пачкой (справочник видов, виды без лотов, реестр оплат шкур подрядчика — раньше шли по очереди).
   const furIdx = await getFurIndex(orgId);
+  const furKindsP = loadFurKinds(orgId);
+  const hidesP = !filtersOn ? loadPaymentsOverview(orgId) : null;
   const [found, furLots, liningLots, opts, sizeRows] = await Promise.all([
     prisma.purchase.findMany({
       where,
@@ -106,7 +109,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     getFilterOptions(orgId, year, ["auction", "pyear", "fur", "color", "attr"]),
     prisma.rawMaterialLot.findMany({ where: { organizationId: orgId, sizeGrade: { not: null } }, select: { sizeGrade: true } }),
   ]);
-  const furKinds = await loadFurKinds(orgId);
+  const furKinds = await furKindsP;
   const lotsOf = new Map<string, FurLot[]>();
   const lotById = new Map<string, FurLot>();
   for (const l of [...furLots, ...liningLots]) {
@@ -183,7 +186,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const tot = aggregate(rows);
   const live = rows.filter((p) => p.status !== "CANCELLED");
   // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
-  const hidesAll = !filtersOn ? new Decimal((await loadPaymentsOverview(orgId)).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
+  const hidesAll = hidesP ? new Decimal((await hidesP).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
   const hides = hidesAll.toNumber();
 
   // Часть закупки по виду (мех / подкладка): кол-во и позиции вида; сумма, оплата и долг — по доле стоимости позиций вида (расходы — пропорционально).
@@ -364,8 +367,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
           </div>
           {/* Колонка действий справа. */}
           <div className="flex flex-row flex-wrap items-stretch gap-2 print:hidden xl:flex-col xl:flex-nowrap" aria-label="Действия">
-            {canCreate ? <Link href="/purchases/new" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>+ Новая закупка</Link> : null}
-            {canCreate ? <Link href="/purchases/batch" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Новая партия (мастер)</Link> : null}
+            {canCreate ? <Link href="/purchases/batch" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>+ Закупка меха</Link> : null}
             <Link href="/payments" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Оплаты</Link>
             <Link href="/analytics/raw" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Аналитика сырья</Link>
           </div>

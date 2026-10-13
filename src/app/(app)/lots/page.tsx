@@ -52,19 +52,22 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   const auctionView: "invoices" | "lots" = f.view === "lots" ? "lots" : "invoices";
   const orgId = session.user.organizationId;
 
-  const [materials, auctions] = await Promise.all([
+  // Независимые загрузки идут одной пачкой (раньше — по очереди); результаты и расчёты те же.
+  const [materials, auctions, aucOf, pyearOptionsAll, auctionValues, furIdx] = await Promise.all([
     prisma.rawMaterial.findMany({
       where: { organizationId: orgId },
       select: { id: true, name: true, unit: true, minStockLevel: true },
       orderBy: { name: "asc" },
     }),
     tab === "fur" ? loadAuctions(orgId, year) : Promise.resolve([]),
+    auctionLabeler(orgId),
+    getFilterOptions(orgId, year, ["pyear"]),
+    tab === "fur" ? resolveAuctionValues(orgId, f.auction) : Promise.resolve([] as string[]),
+    getFurIndex(orgId),
   ]);
-  const aucOf = await auctionLabeler(orgId);
-  const pyearOptions = (await getFilterOptions(orgId, year, ["pyear"])).pyear;
+  const pyearOptions = pyearOptionsAll.pyear;
 
   // Режим «Аукцион»: каждое выбранное значение — точное название, иначе вхождение в название (без учёта регистра).
-  const auctionValues = tab === "fur" ? await resolveAuctionValues(orgId, f.auction) : [];
   const auctionNames: string[] = [];
   const auctionMissing: string[] = [];
   for (const v of auctionValues) {
@@ -85,7 +88,6 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
   }
   const auctionLabel = auctionNames.length === 1 ? auctionNames[0] : `${auctionNames.length} партий закупки`;
   // Материал: id материала либо название вида меха («Лиса» включает «Лиса красная»).
-  const furIdx = await getFurIndex(orgId);
   const canonOf = (name: string) => canonicalFur(name, furIdx)?.name ?? name;
   const materialIds = f.material.length
     ? materials.filter((m) => f.material.includes(m.id) || (m.unit !== "M" && f.material.includes(canonOf(m.name)))).map((m) => m.id)
@@ -205,7 +207,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
           <div className="flex flex-wrap gap-2">
             {canEditDocs && (
               <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
-                Новая партия закупки
+                + Закупка меха
               </Link>
             )}
             <Link href="/materials/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>
@@ -253,23 +255,24 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     ...(f.material.length ? { rawMaterialId: { in: materialIds.length > 0 ? materialIds : ["__none"] } } : {}),
   };
   // Таблицы «Мех» и «Подкладка»: строки-лоты, расчёт — src/lib/fur-table.ts (тот же, что на Сводке и в аналитике сырья).
-  const tableLots = await loadFurLots(prisma, orgId, {
-    kind: tab === "lining" ? "lining" : "fur",
-    year,
-    furIdx,
-    extraWhere: tab === "lining" ? undefined : searchWhere,
-  });
-
   // Плитки и таблица «Мех» сходятся с Главной: считаются той же функцией (с общим годом и без фильтров панели); к лотам добавлены
-  // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика.
-  const c4Mode = await getCommission4Mode();
-  const dash = await loadDashboard(orgId, year, parseDashFilters({}), c4Mode);
+  // заказанное, но не полученное (FH 06.26, СП 09.26) и шкуры подрядчика. Три независимых загрузки идут вместе.
+  const c4AndDash = getCommission4Mode().then(async (c4) => ({ c4, dash: await loadDashboard(orgId, year, parseDashFilters({}), c4) }));
+  const [tableLots, { c4: c4Mode, dash }, furKinds] = await Promise.all([
+    loadFurLots(prisma, orgId, {
+      kind: tab === "lining" ? "lining" : "fur",
+      year,
+      furIdx,
+      extraWhere: tab === "lining" ? undefined : searchWhere,
+    }),
+    c4AndDash,
+    loadFurKinds(orgId),
+  ]);
   // Деньги по лотам (доля аукциона по стоимости лота) — для фильтра «Оплата» и плиток оплат при фильтрах таблицы.
   const withMoney = (l: (typeof tableLots)[number]) => ({ ...l, paid: dash.lotMoney[l.id]?.paid ?? 0, due: dash.lotMoney[l.id]?.due ?? 0 });
   const furTabLots = tab === "fur" ? [...tableLots.map(withMoney), ...dash.syntheticLots] : tableLots.map(withMoney);
   const kindTitle = tab === "lining" ? "Подкладка" : "Мех";
   // Один ряд виджетов: «Сырьё | Оплаты» — шесть плиток в строку на мониторе, тонкая линия между группами (как на Главной).
-  const furKinds = await loadFurKinds(orgId);
   const noLotsInfo = Object.fromEntries(furKinds.noLots.map((k) => {
     const os = furKinds.orders.filter((o) => furKindsOfOrder(o.fur).includes(k));
     return [k, { units: os.reduce((a, o) => a + o.qty, 0), orders: os.length, work: os.reduce((a, o) => a + o.work, 0) }];
@@ -326,7 +329,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
             <>
               {canEditDocs && (
                 <Link href="/purchases/batch" className={buttonVariants({ variant: "outline" })}>
-                  Новая партия закупки
+                  + Закупка меха
                 </Link>
               )}
               <Link href="/materials/new" className={`${buttonVariants()} max-md:order-first max-md:w-full`}>

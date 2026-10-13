@@ -30,7 +30,7 @@ import { rawSheetItems, sheetRowsOf } from "@/lib/lot-sheet";
 import { analyzeRows } from "@/lib/price-composition";
 import { LotDocuments, type LotDocRow } from "@/components/lot-documents";
 import { LotNumberField, LotRemainingField, LotDateField, LotChoiceField, LotPurchaseText } from "@/components/lot-edit-fields";
-import { LotPassport, type PassportSection } from "@/components/lot-passport";
+import { LotPassport, type PassportField, type PassportSection } from "@/components/lot-passport";
 import { LotSheetTable } from "@/components/lot-sheet-table";
 import { LotProducts, type ProdModel } from "@/components/lot-products";
 import { CollapsibleBlock } from "@/components/collapsible-block";
@@ -250,6 +250,20 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
     }]),
   ];
 
+  // Ключевые поля — наверху, всегда на виду; остальное («справочные») — ниже, свёрнуто. Те же поля, та же правка по месту, без дублей.
+  const KEY_LABELS = [
+    lining ? "Ткань" : "Вид меха", lining ? "Цвет / описание" : "Цвет", lining ? "Описание" : "Сорт / описание",
+    "Получено", `Цена за ${unitWord} с НДС, ₽`, "НДС, %", "Закупка №", "Партия закупки (аукцион)",
+  ];
+  const allFields = sections.flatMap((sec) => sec.fields);
+  const keySection: PassportSection = {
+    title: "Главное",
+    fields: KEY_LABELS.map((lb) => allFields.find((f) => f.label === lb)).filter((f): f is PassportField => !!f),
+  };
+  const keySet = new Set(keySection.fields.map((f) => f.label));
+  const restSections: PassportSection[] = sections
+    .map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !keySet.has(f.label)) }))
+    .filter((sec) => sec.fields.length > 0);
   const sheetWithSplit = comp && compSplit;
   const unitLbl = lining ? "за м" : "за шт.";
 
@@ -315,14 +329,28 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         </div>
       </WidgetRow>
 
-      {/* 2. Паспорт — справочные поля: свёрнут */}
-      <CollapsibleBlock title="Паспорт лота" summary="справочные поля лота · правка по месту">
-        <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">О паспорте <InfoHint label="Паспорт лота" wide>
-            <p>Карточка лота — первоисточник: все поля правятся здесь по месту (Enter или уход из поля — сохранить, Esc — отмена). Цена, количество и НДС перед записью показывают окно «что изменится»: пересчитываются сумма лота и позиции закупки, остаток, стоимость списаний по ТЗ, себестоимость ТЗ, состав цены и молоток. Поля закупки-основания (поставщик, аукцион, счёт, УПД, дата) действуют на всю закупку; в закупке и таблицах они только показываются.</p>
-          </InfoHint></div>
+      {/* 2. Паспорт: ключевые поля сверху, остальные ниже (свёрнуты) */}
+      <div className="flex flex-col gap-2">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          Паспорт лота
+          <InfoHint label="Паспорт лота" wide>
+            <p>Карточка лота — первоисточник: все поля правятся здесь по месту (Enter или уход из поля — сохранить, Esc — отмена). Цена и количество пересчитываются через окно «что изменится»: видно, как изменятся лот, ТЗ, где он списан, и состав цены; запись — только после подтверждения.</p>
+          </InfoHint>
+        </h2>
         <LotPassport
           lotId={id}
-          sections={sections}
+          sections={[keySection]}
+          canEdit={canEdit}
+          canAddColor={hasRole(session.user.role, ACCESS.colors)}
+          colorOptions={colorOptions}
+          attrOptions={attrRefs}
+          attrIds={row.attrs.map((a) => a.attrId)}
+        />
+      </div>
+      <CollapsibleBlock title="Остальные поля лота" summary="идентификация, закупка, количество, цена, примечания · правка по месту">
+        <LotPassport
+          lotId={id}
+          sections={restSections}
           canEdit={canEdit}
           canAddColor={hasRole(session.user.role, ACCESS.colors)}
           colorOptions={colorOptions}

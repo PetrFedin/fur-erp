@@ -488,6 +488,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         key={`tz-${orderKey(first)}`}
         count={count}
         n={g.length}
+        href={firstHref}
         before={
           <Td className={`${cell} font-medium`}>
             {batches.length === 1 && first.batch ? (

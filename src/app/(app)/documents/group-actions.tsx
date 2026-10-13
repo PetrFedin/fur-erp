@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { computeDocCoverage, filterCovRows, parseCovFilters, SECTION_ORDER, type SectionKey } from "@/lib/doc-coverage";
 import { getYearFilter } from "@/lib/year-filter";
+import { loadCovVer } from "./ver-status";
 import { GroupCards, GroupTableRows, sectionLayout, sortGroupRows } from "./matrix-rows";
 
 /**
@@ -19,7 +20,8 @@ export async function loadDocGroup(section: string, groupKey: string, variant: "
   const cov = await computeDocCoverage(prisma, session.user.organizationId);
   const sectionRows = filterCovRows(cov.rows, f).filter((r) => r.section === section);
   const rows = sortGroupRows(section as SectionKey, sectionRows.filter((r) => r.groupKey === String(groupKey)), f);
-  if (variant === "cards") return <GroupCards rows={rows} />;
+  const ver = await loadCovVer(session.user.organizationId, rows);
+  if (variant === "cards") return <GroupCards rows={rows} ver={ver} />;
   const { cols, template, withReg } = sectionLayout(sectionRows);
-  return <GroupTableRows rows={rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} />;
+  return <GroupTableRows rows={rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} />;
 }

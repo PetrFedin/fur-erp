@@ -17,6 +17,13 @@ import { refFromField, extractDocRefs } from "@/lib/source-docs";
 import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type PayKind } from "@/lib/payment-form-core";
 import { normRef, type SupTarget, type WorkTarget } from "@/lib/payment-wizard-core";
 import { formatMoney } from "@/lib/utils";
+import { randomUUID } from "node:crypto";
+import { removeStoredFiles } from "@/lib/fitting-files";
+import { isPickedFile, readDocumentFiles, type ReadDoc } from "@/lib/purchase-files";
+import { writeDriveFile } from "@/lib/drive-files";
+import type { DocRole } from "@/lib/payment-form-core";
+
+const DOC_TITLE: Record<DocRole, string> = { PAYMENT_PROOF: "Платёжка", PAYMENT_INVOICE: "Счёт", APPROVAL_EMAIL: "Письмо-согласование", OTHER: "Документ" };
 
 /**
  * Мастер «Внести оплату и разнести»: данные для шагов и ЕДИНАЯ запись оплаты вместе с разнесением в одной транзакции.
@@ -96,17 +103,18 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
         paidCents: toCents(s.paid.toFixed(2)),
         refs: [...new Set([normRef(s.name), ...ps.flatMap(refsOfPurchase), ...(invoiceOfAuctionPay.get(s.name) ?? [])])],
         date: iso(ps[0]?.orderDate),
+        purchaseIds: ps.map((x) => x.id),
       });
     }
     for (const p of purchases.filter((x) => !auctionName(x.auctionSession))) {
       const paid = p.payments.reduce((x, y) => x.add(y.amount), new Decimal(0));
-      out.supTargets.push({ key: `p:${p.id}`, label: `Закупка ${p.number}`, supplierIds: [p.supplierId], totalCents: toCents(purchaseTotalInclVat(p).toFixed(2)), paidCents: toCents(paid.toFixed(2)), refs: refsOfPurchase(p), date: iso(p.orderDate) });
+      out.supTargets.push({ key: `p:${p.id}`, label: `Закупка ${p.number}`, supplierIds: [p.supplierId], totalCents: toCents(purchaseTotalInclVat(p).toFixed(2)), paidCents: toCents(paid.toFixed(2)), refs: refsOfPurchase(p), date: iso(p.orderDate), purchaseIds: [p.id] });
     }
   }
   if (canWork) {
     const orders = await prisma.productionOrder.findMany({
       where: { organizationId: orgId, status: { not: "CANCELLED" }, clientId: { not: null } },
-      select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, client: { select: { name: true } }, batch: { select: { number: true } } },
+      select: { id: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, clientId: true, client: { select: { name: true } }, batch: { select: { id: true, number: true } } },
       orderBy: { createdAt: "asc" },
     });
     const alloc = await allocatedCentsByOrder(prisma, orgId, orders.map((o) => o.id));
@@ -118,6 +126,7 @@ export async function getWizardData(): Promise<WizardData | { error: string }> {
         label: `ТЗ ${o.workOrderNumber ?? o.number}${o.workOrderNumber && o.workOrderNumber !== o.number ? ` (${o.number})` : ""}${o.batch ? ` · партия ${o.batch.number}` : ""}`,
         clientId: o.clientId,
         batch: o.batch?.number ?? null,
+        batchId: o.batch?.id ?? null,
         workCents: orderWorkCents(o),
         paidCents: alloc.get(o.id) ?? 0,
         refs: [o.workOrderNumber, o.number].filter((v): v is string => !!v).map(normRef),
@@ -142,6 +151,8 @@ type Payload = {
   paidAt: string;
   amount: string;
   ppNo: string;
+  /** Номер счёта (обязателен): пишется в основание платежа, по нему следующая доплата находит ту же цель. */
+  invoiceNo: string;
   basis: string;
   note: string;
   method: string;
@@ -200,6 +211,9 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
   const amountC = cents(p.amount);
   if (!Number.isFinite(amountC) || amountC < 1) return { error: "Сумма оплаты: укажите положительное число" };
   const ppNo = String(p.ppNo ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40);
+  const invoiceNo = String(p.invoiceNo ?? "").replace(/[\u0000-\u001f]/g, " ").replace(/^\s*(?:сч[её]т\p{L}*\s*)?№?\s*/iu, "").trim().slice(0, 40);
+  if (!invoiceNo) return { error: "Укажите номер счёта" };
+  if (!docRefOf(ppNo, "2000-01-01")) return { error: "Укажите № п/п" };
   const basis = String(p.basis ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 300);
   const noteIn = String(p.note ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 600);
   if (p.kind === "OTHER" && noteIn.length < 3) return { error: "Для вида «Другое» напишите пометку — что это за платёж" };
@@ -215,8 +229,17 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
   if (sumC > amountC) return { error: `Разнесено ${formatMoney(sumC / 100)} — больше суммы оплаты ${formatMoney(amountC / 100)}. Уменьшите суммы в таблице.` };
   const restC = amountC - sumC;
 
-  // Файлы в мастере пока не прикрепляем (решение владельца 13.10.2026): документ-основание называется в поле «Основание».
-  if (p.markConfirmed && !canConfirm({ hasProofFile: false, ppNo, paidAt: paidIso, amount: amountC / 100 })) {
+  // Файл по желанию (один): платёжка, счёт или другой документ. Читаем до транзакции, пишем после проверок.
+  const picked = formData.getAll("file").filter(isPickedFile);
+  let doc: { read: ReadDoc; role: DocRole } | null = null;
+  if (picked.length > 0) {
+    const r = await readDocumentFiles([picked[0]]);
+    if ("error" in r) return { error: r.error };
+    const roleRaw = String(formData.get("fileRole") ?? "");
+    doc = { read: r.files[0], role: (["PAYMENT_PROOF", "PAYMENT_INVOICE", "APPROVAL_EMAIL", "OTHER"].includes(roleRaw) ? roleRaw : "OTHER") as DocRole };
+  }
+  const storedFiles: string[] = [];
+  if (p.markConfirmed && !canConfirm({ hasProofFile: doc?.role === "PAYMENT_PROOF", ppNo, paidAt: paidIso, amount: amountC / 100 })) {
     return { error: "«Подтверждено» можно отметить, только если указан № п/п (с датой и суммой)." };
   }
 
@@ -227,7 +250,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
       async (tx): Promise<WizardResult> => {
         const warn = [...warns];
         const lines: string[] = [];
-        const docRef = docRefOf(ppNo, paidIso);
+        const docRef = `${docRefOf(ppNo, paidIso)}, счёт № ${invoiceNo}`;
         const baseNotes = [kindNote(p.kind), basis ? `Основание: ${basis}` : "", noteIn, "внесена в мастере оплаты"].filter(Boolean);
         const confirmedFlag = p.markConfirmed;
         const confirmStamp = p.markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {};
@@ -279,6 +302,11 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
             ids.push(pay.id);
             lines.push(`${r.title}: ${formatMoney(r.c / 100)}`);
           }
+          if (doc) {
+            const f = await writeDriveFile(orgId, doc.read);
+            storedFiles.push(f.storagePath);
+            await tx.driveDocument.create({ data: { organizationId: orgId, driveFileId: `local-${randomUUID()}`, title: `${DOC_TITLE[doc.role]}: ${doc.read.originalName}`.slice(0, 200), docType: doc.role, mimeType: f.storedMime, sizeBytes: f.storedSize, ...f, storedAt: new Date(), paymentId: ids[0], purchaseId: links[0]?.link.purchaseId ?? null } });
+          }
           await resetVerification(tx, orgId, { auctions: links.map((l) => l.auction), purchaseIds: links.map((l) => l.purchaseForDoc), paymentIds: ids });
           return { ok: true, paymentIds: ids, summary: { lines, debtBefore, debtAfter: null } };
         }
@@ -314,6 +342,11 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         if (parts.length) {
           await tx.paymentAllocation.createMany({ data: parts.map((x) => ({ organizationId: orgId, productionPaymentId: pay.id, productionOrderId: x.key, amount: fromCents(x.c), source: "MANUAL" as const, note: "Разнесено в мастере оплаты" })) });
         }
+        if (doc) {
+          const f = await writeDriveFile(orgId, doc.read);
+          storedFiles.push(f.storagePath);
+          await tx.driveDocument.create({ data: { organizationId: orgId, driveFileId: `local-${randomUUID()}`, title: `${DOC_TITLE[doc.role]}: ${doc.read.originalName}`.slice(0, 200), docType: doc.role, mimeType: f.storedMime, sizeBytes: f.storedSize, ...f, storedAt: new Date(), productionPaymentId: pay.id } });
+        }
         await resetVerification(tx, orgId, { orderIds, batchIds: orders.map((o) => o.batchId).filter((x): x is string => !!x), prodPaymentIds: [pay.id] });
         for (const x of parts) {
           const o = orders.find((y) => y.id === x.key)!;
@@ -325,9 +358,13 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
       { timeout: 60000, maxWait: 15000 },
     );
   } catch (e) {
+    await removeStoredFiles(storedFiles);
     return { error: e instanceof Error ? e.message : "Не удалось сохранить оплату" };
   }
-  if (!result.ok) return result;
+  if (!result.ok) {
+    await removeStoredFiles(storedFiles);
+    return result;
+  }
   if (side === "supplier" && result.summary) result.summary.debtAfter = d2((await loadSupplierDebt(prisma, orgId)).debt);
   revalidateAll(orgId);
   return result;

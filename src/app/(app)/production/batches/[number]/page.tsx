@@ -16,6 +16,7 @@ import { canEditProduction } from "@/lib/production-access";
 import { ProductionTabs } from "@/components/production-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
+import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { DriveDocuments } from "@/components/drive-documents";
 import { SourceDocs } from "@/components/source-docs";
 import { loadBatchSourceDocs } from "@/lib/source-docs-server";
@@ -219,6 +220,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <ResponsiveRows
+            table={
           <Table>
             <Thead>
               <Tr>
@@ -283,6 +286,38 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               )}
             </Tbody>
           </Table>
+            }
+          >
+            {orders.map((o) => {
+              const s = orderStat(o, c4Mode);
+              const left = s.work.isZero() || o.status === "CANCELLED" ? null : s.work.sub(paidByOrder.get(o.id) ?? 0);
+              return (
+                <RowCard
+                  key={o.id}
+                  title={`ТЗ ${o.workOrderNumber ?? o.number}`}
+                  href={`/production/${o.id}`}
+                  subtitle={<><ArticleName model={o.productModel} />{o.client ? ` · ${o.client.name}` : ""}</>}
+                  fields={[
+                    { label: "Кол-во, шт.", value: formatQty(s.qty.toString()) },
+                    { label: "Себестоимость, ₽", value: s.cost.isZero() ? "—" : formatMoney(s.cost.toString()) },
+                    { label: "Работа, ₽", value: s.work.isZero() ? "—" : formatMoney(s.work.toString()) },
+                    { label: "Остаток, ₽", value: left == null ? "—" : <span className={left.greaterThan(0.005) ? "text-amber-700" : left.lessThan(-0.005) ? "text-red-600" : ""}>{formatMoney(left.toString())}</span> },
+                  ]}
+                  details={[
+                    { label: "Оплачено, ₽", value: paidByOrder.has(o.id) ? formatMoney(paidByOrder.get(o.id)!.toString()) : "—" },
+                    { label: "НДС", value: <TzVatBadge b={vatBreakdown(o.materialUsages, c4Mode)} compact /> },
+                  ]}
+                />
+              );
+            })}
+            {orders.length > 0 && (
+              <div className="row-total flex flex-wrap justify-between gap-x-3 gap-y-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                <span><TotalLabel unit="₽" /> · {tzCountText(t.orders, t.items)}</span>
+                <span className="tabular-nums">{t.work.isZero() ? "—" : formatMoney(t.work.toString())}</span>
+              </div>
+            )}
+            {orders.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">К партии пока не привязано ни одного ТЗ.</p>}
+          </ResponsiveRows>
         </CardContent>
       </Card>
 
@@ -305,6 +340,8 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Какие ТЗ покрывает каждая оплата ({payments.length})</summary>
       <Card className="border-0 shadow-none">
         <CardContent>
+          <ResponsiveRows
+            table={
           <Table>
             <Thead>
               <Tr>
@@ -340,6 +377,23 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
               )}
             </Tbody>
           </Table>
+            }
+          >
+            {payments.map(({ p, tz }) => (
+              <RowCard
+                key={p.id}
+                title={`${formatDate(p.paidAt)} · ${PAY_TYPE[p.paymentType] ?? p.paymentType}`}
+                subtitle={<>{p.status === "PENDING" && "план"}{!p.confirmed && <span className="text-amber-700">{p.status === "PENDING" ? " · " : ""}не подтверждена</span>}</>}
+                fields={[
+                  { label: "Сумма, ₽", value: formatMoney(p.amount.toString()), strong: true },
+                  { label: "На ТЗ партии, ₽", value: shareByPay.has(p.id) ? formatMoney(shareByPay.get(p.id)!.toString()) : "—" },
+                  { label: "Документ", value: p.docRef ?? "—" },
+                  { label: "ТЗ", value: tz.join(", ") || "—" },
+                ]}
+              />
+            ))}
+            {payments.length === 0 && <p className="py-4 text-center text-sm text-neutral-500">Оплат по ТЗ партии пока нет</p>}
+          </ResponsiveRows>
         </CardContent>
       </Card>
       </details>

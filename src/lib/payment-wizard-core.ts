@@ -25,6 +25,8 @@ export type SupTarget = {
   refs: string[];
   /** yyyy-mm-dd для порядка «старые вперёд». */
   date: string;
+  /** id закупок цели (для кнопок «Отметить оплату» на карточке закупки: закупка внутри аукциона → цель-аукцион). */
+  purchaseIds?: string[];
 };
 export type SupPart = { key: string; cents: number; why: string };
 
@@ -124,6 +126,8 @@ export type WorkTarget = {
   label: string;
   clientId: string | null;
   batch: number | null;
+  /** id партии (для кнопок «Отметить оплату» на карточке партии). */
+  batchId?: string | null;
   workCents: number;
   paidCents: number;
   /** Нормализованные номера ТЗ (рабочий номер и системный). */

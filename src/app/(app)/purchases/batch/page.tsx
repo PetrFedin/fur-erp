@@ -7,7 +7,7 @@ import { loadIntakeRefs } from "@/lib/batch-intake-server";
 import { ACCESS, hasRole } from "@/lib/access";
 import { BatchWizard } from "./wizard";
 
-export const metadata = { title: "Новая партия закупки" };
+export const metadata = { title: "Закупка меха" };
 
 export default async function NewBatchPage() {
   const session = await requireSession();
@@ -20,7 +20,7 @@ export default async function NewBatchPage() {
       <div className="text-sm">
         <Link href="/purchases" className="text-neutral-500 hover:underline">← Закупки</Link>
       </div>
-      <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Новая партия закупки</h1><span className="ml-2 align-middle text-sm font-normal">
+      <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Закупка меха</h1><span className="ml-2 align-middle text-sm font-normal">
           <InfoHint wide label="Как завести новую партию">
 
           <p className="font-medium text-neutral-900">Как завести новую партию</p>

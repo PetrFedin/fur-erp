@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Blocker } from "@/lib/verification";
+import { remarkOf, STATUS_LABEL } from "@/lib/verify-remark";
 import { unverifyPurchases, unverifyRow, verifyPurchases, verifyRow, type VerifyState } from "@/app/(app)/verify/actions";
 
 /** Что нужно клиентскому компоненту о строке (сериализуемо). */
@@ -24,12 +25,14 @@ export type VerifyView = {
 /** Статус одной строкой: «Подтверждено ✓ (дата · кем)» либо «Ждёт ручной проверки». Без действий. */
 export function VerifyBadge({ v, className }: { v: Pick<VerifyView, "verified" | "auto" | "stampText" | "ready" | "blockers" | "note">; className?: string }) {
   if (v.verified) {
+    const remark = remarkOf(v.note);
+    const label = remark ? STATUS_LABEL.remark : v.auto ? STATUS_LABEL.docs : "подтверждено";
     return (
       <span
-        className={cn("inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800", className)}
-        title={`${v.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную"}${v.note ? `. ${v.note}` : ""}`}
+        className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", remark ? "border-amber-300 bg-amber-50 text-amber-900" : "border-emerald-300 bg-emerald-50 text-emerald-800", className)}
+        title={`${v.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную"}${remark ? `. Замечание: ${remark}` : v.note ? `. ${v.note}` : ""}`}
       >
-        <span aria-hidden>✓</span> Подтверждено{v.stampText ? ` (${v.stampText})` : ""}
+        <span aria-hidden>✓</span> {label.charAt(0).toUpperCase() + label.slice(1)}{v.stampText ? ` (${v.stampText})` : ""}
       </span>
     );
   }
@@ -37,9 +40,9 @@ export function VerifyBadge({ v, className }: { v: Pick<VerifyView, "verified" |
   return (
     <span
       className={cn("inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900", className)}
-      title={v.ready ? "Замечаний нет — можно подтвердить" : `Ждёт ручной проверки: ${first}`}
+      title={v.ready ? "Замечаний нет — можно подтвердить" : `Не подтверждено: ${first}`}
     >
-      {v.ready ? "Готово к подтверждению" : "Ждёт ручной проверки"}
+      {STATUS_LABEL.none.charAt(0).toUpperCase() + STATUS_LABEL.none.slice(1)}{v.ready ? " · можно подтвердить" : ""}
     </span>
   );
 }
@@ -102,17 +105,17 @@ export function VerifyControl({
         {canEdit && !v.verified && !forcing && (
           <>
             <Button type="button" size="sm" variant={v.ready ? "default" : "outline"} disabled={pending} className="max-md:h-9" onClick={() => (v.ready ? confirmAction() : setForcing(true))}>
-              {v.ready ? "Подтвердить" : "Подтвердить с расхождением…"}
+              {v.ready ? "Подтвердить" : "Подтвердить с замечанием…"}
             </Button>
           </>
         )}
         {pending && <span className="text-xs text-neutral-500">Выполняем…</span>}
         {msg.ok && <span className="text-xs text-emerald-700">{msg.ok}</span>}
       </div>
-      {v.verified && v.note && <p className="text-xs text-neutral-600">Примечание: {v.note}</p>}
+      {v.verified && v.note && <p className="text-xs text-neutral-600">{remarkOf(v.note) ? `Замечание: ${remarkOf(v.note)}` : `Примечание: ${v.note}`}</p>}
       {!v.verified && v.blockers.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2">
-          <li className="text-xs font-semibold text-amber-900">Ждёт ручной проверки — что не сходится:</li>
+          <li className="text-xs font-semibold text-amber-900">Не подтверждено — что не сходится:</li>
           {v.blockers.map((b, i) => (
             <li key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-amber-950">
               <span aria-hidden>•</span>
@@ -130,8 +133,8 @@ export function VerifyControl({
       {canEdit && !v.verified && forcing && (
         <div className="flex flex-col gap-2 rounded-md border border-neutral-300 bg-white p-3">
           <label className="flex flex-col gap-1 text-xs text-neutral-600">
-            Почему подтверждаете с расхождением (обязательно, сохранится в примечании)
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={400} className="rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="напр.: проверил по выписке банка, сумма верна" />
+            Замечание текстом (обязательно): почему подтверждаете, хотя что-то не сходится
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={400} className="rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="напр.: проверил по выписке банка, сумма верна, платёжки пока нет" />
           </label>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" disabled={pending || note.trim().length < 3} onClick={() => confirmAction(note)}>
@@ -152,7 +155,7 @@ export function VerifyControl({
   );
 }
 
-/** Компактная отметка для списков: «✓ подтверждено» / «ждёт проверки»; ведёт в очередь /verify. */
+/** Компактная отметка для списков: «✓ подтверждено» / «не подтверждено»; ведёт в очередь /verify. */
 export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean; auto: boolean } | undefined; tab: "payments" | "purchases" | "orders" | "batches"; className?: string }) {
   if (!flag) return <span className="text-neutral-500">—</span>;
   return (
@@ -163,9 +166,9 @@ export function VerifyPill({ flag, tab, className }: { flag: { verified: boolean
         flag.verified ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-900",
         className,
       )}
-      title={flag.verified ? (flag.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную") : "Ждёт ручной проверки — откройте «Ждёт проверки»"}
+      title={flag.verified ? (flag.auto ? "Подтверждено автоматически по документам" : "Подтверждено вручную") : "Не подтверждено — откройте очередь «Подтвердить»"}
     >
-      {flag.verified ? (flag.auto ? "✓ авто по документам" : "✓ подтверждено") : "ждёт проверки"}
+      {flag.verified ? (flag.auto ? "✓ подтверждено документом" : "✓ подтверждено") : "не подтверждено"}
     </Link>
   );
 }

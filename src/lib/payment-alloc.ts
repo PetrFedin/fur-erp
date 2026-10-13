@@ -323,9 +323,9 @@ export async function loadAllocEditorData(
   const out = new Map<string, { orders: AllocOrderOpt[]; initial: { orderId: string; amount: string }[] }>();
   if (payments.length === 0) return out;
   const clientIds = [...new Set(payments.map((p) => p.clientId).filter((x): x is string => !!x))];
-  const orders: (OrderQty & { id: string; clientId: string | null; number: string; workOrderNumber: string | null })[] = await db.productionOrder.findMany({
+  const orders: (OrderQty & { id: string; clientId: string | null; number: string; workOrderNumber: string | null; batch: { number: number } | null })[] = await db.productionOrder.findMany({
     where: { organizationId: orgId, status: { not: "CANCELLED" }, OR: [{ clientId: { in: clientIds } }, { id: { in: payments.flatMap((p) => p.linkedOrderIds) } }] },
-    select: { id: true, clientId: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true },
+    select: { id: true, clientId: true, number: true, workOrderNumber: true, status: true, plannedQuantity: true, producedQuantity: true, clientWorkPricePerUnit: true, batch: { select: { number: true } } },
   });
   const allocs: { productionOrderId: string; productionPaymentId: string; amount: Decimal }[] = await db.paymentAllocation.findMany({
     where: { organizationId: orgId, productionOrderId: { in: orders.map((o) => o.id) }, productionPayment: { status: { not: "CANCELLED" } } },
@@ -340,6 +340,7 @@ export async function loadAllocEditorData(
         label: o.workOrderNumber ? `ТЗ №${o.workOrderNumber} (${o.number})` : `Заказ ${o.number}`,
         linked: linked.has(o.id),
         workCents: orderWorkCents(o),
+        batch: o.batch?.number ?? null,
         otherCents: allocs.filter((a) => a.productionOrderId === o.id && a.productionPaymentId !== p.id).reduce((s, a) => s + toCents(a.amount), 0),
       }))
       .sort((a, b) => Number(b.linked) - Number(a.linked) || a.label.localeCompare(b.label, "ru", { numeric: true }));

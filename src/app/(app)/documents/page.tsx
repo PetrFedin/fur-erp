@@ -44,6 +44,7 @@ import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, filterHref, parseFilters, pick, stateParam } from "@/lib/filters";
 import { LazyDetails } from "../lots/lazy-details";
 import { loadDocGroup } from "./group-actions";
+import { loadCovVer, type VerMap } from "./ver-status";
 import { GroupCards, GroupTableRows, MatrixRow, MobileCard, OrigCell, RegGroupCell, sectionLayout, sortGroupRows } from "./matrix-rows";
 
 export const metadata = { title: "Документы" };
@@ -54,12 +55,13 @@ type SP = Record<string, string | string[] | undefined>;
 const DOC_FILTERS = defineFilters({
   ...pick(["q", "auction", "sort"], { auction: { label: "Партия закупки", aliases: [] }, sort: { role: "filter", label: "Сортировка", allowed: ["gaps"] } }),
   section: { kind: "multi", label: "Раздел", allowed: SECTION_ORDER },
-  gaps: { kind: "multi", label: "Пробелы", allowed: ["1"] },
+  gaps: { kind: "multi", label: "Нужен файл", allowed: ["1"] },
+  ver: { kind: "multi", label: "Подтверждение", allowed: ["yes", "no"] },
   dtype: { kind: "multi", label: "Тип документа" },
   dlink: { kind: "multi", label: "Привязан к" },
   page: stateParam("Страница", { aliases: ["dpage"], pattern: /^\d{1,6}$/ }),
 });
-const MULTI_KEYS = new Set(["section", "auction", "gaps", "dtype", "dlink"]);
+const MULTI_KEYS = new Set(["section", "auction", "gaps", "ver", "dtype", "dlink"]);
 
 const pctTone = (p: number | null) =>
   p === null ? "text-neutral-500" : p >= 90 ? "text-emerald-700" : p >= 60 ? "text-amber-700" : "text-red-600";
@@ -95,7 +97,13 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   const sum = yNum === null ? { sections: cov.sections, total: cov.total } : summarize(yearRows);
   const aucOf = await auctionLabeler(orgId);
   const auctions = [...new Set(cov.rows.map((r) => r.auction).filter((a): a is string => !!a))].sort();
-  const visible = filterCovRows(cov.rows, f);
+  const verMap = await loadCovVer(orgId, cov.rows);
+  const verSel = pf.ver;
+  const visible = filterCovRows(cov.rows, f).filter((r) => {
+    if (verSel.length !== 1) return true;
+    const v = verMap.get(r.id);
+    return verSel[0] === "yes" ? v === true : v === false;
+  });
   const exportQs = new URLSearchParams();
   for (const v of f.section) exportQs.append("section", v);
   for (const v of f.auction) exportQs.append("auction", v);
@@ -129,6 +137,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
                 <p>
                   <b>Процент</b> — «документы привязаны»: сколько обязательных документов уже есть из тех, что нужны по правилам (правила заданы в программе). «100 %» ставится только при нуле пробелов. <b>Оригинал</b> — лежит ли сам файл в приложении, а не только запись без файла: сейчас {withOriginal} из {docList.length} документов.
                 </p>
+                <p>У записи две независимые отметки: <b>подтверждена</b> (данные проверены, файл для этого не нужен) и <b>нужен файл</b> (обязательного документа ещё нет). Фильтры «Нужен файл» и «Подтверждение» над таблицей. Нажмите на запись — откроется её карточка с документами.</p>
                 <p>{RELIABILITY_NOTE}</p>
                 <p>
                   <b>Год</b> берётся из шапки (Все / 2025 / 2026): закупка — по дате закупки, ТЗ — по году партии или даты ТЗ, оплата — по дате оплаты, документ — по дате документа. Плитки сверху и таблицы пересчитываются.
@@ -155,7 +164,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
             { type: "text", name: "q", label: "Поиск", aliases: ["dq"], placeholder: "номер, название…" },
             { type: "multi", name: "section", label: "Раздел", options: SECTION_ORDER.map((k) => ({ value: k, label: SECTION_TITLES[k] })), allLabel: "Все разделы" },
             { type: "multi", name: "auction", label: "Партия закупки (аукцион)", options: auctions.map((a) => ({ value: a, label: aucOf(a).label, title: aucOf(a).title })), allLabel: "Все партии" },
-            { type: "multi", name: "gaps", label: "Пробелы", single: true, options: [{ value: "1", label: "Только с пробелами" }], allLabel: "Все записи" },
+            { type: "multi", name: "gaps", label: "Нужен файл", single: true, options: [{ value: "1", label: "Только где нужен файл" }], allLabel: "Все записи" },
+            { type: "multi", name: "ver", label: "Подтверждение", options: [{ value: "yes", label: "Подтверждена" }, { value: "no", label: "Не подтверждена" }], allLabel: "Любое" },
             { type: "multi", name: "sort", label: "Сортировка", single: true, options: [{ value: "gaps", label: "По числу пробелов" }], allLabel: "По порядку" },
           ]}
         />
@@ -189,7 +199,7 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         </Card>
       ) : (
         SECTION_ORDER.filter((k) => visible.some((r) => r.section === k)).map((k) => (
-          <SectionMatrix key={k} section={k} rows={visible.filter((r) => r.section === k)} f={f} />
+          <SectionMatrix key={k} section={k} rows={visible.filter((r) => r.section === k)} f={f} ver={verMap} verFilter={verSel.length === 1} />
         ))
       )}
       <Legend totalGaps={totalGaps} />
@@ -352,7 +362,7 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
         документы привязаны: {stat.have} из {stat.required}
       </div>
       <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
-        {stat.rowsWithGaps > 0 ? `пробелы: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов (${stat.rows})`}
+        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов (${stat.rows})`}
       </div>
     </Link>
   );
@@ -379,7 +389,7 @@ function Legend({ totalGaps }: { totalGaps: number }) {
 
 type Group = { key: string; title: string; sort: number; rows: CovRow[] };
 
-function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow[]; f: CovFilters }) {
+function SectionMatrix({ section, rows, f, ver, verFilter }: { section: SectionKey; rows: CovRow[]; f: CovFilters; ver: VerMap; verFilter: boolean }) {
   const { cols, withReg, template } = sectionLayout(rows);
 
   const groupMap = new Map<string, Group>();
@@ -395,7 +405,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
   else if (section === "tz") groups.sort((a, b) => b.sort - a.sort);
   for (const g of groups) g.rows = sortGroupRows(section, g.rows, f);
   const grouped = groups.length > 1 || (groups.length === 1 && (section === "purchases" || section === "tz"));
-  const openAll = !!f.gaps || !!f.q || groups.length === 1;
+  const openAll = !!f.gaps || !!f.q || verFilter || groups.length === 1;
 
   const header = (
     <div className="grid items-end gap-1 border-b border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] font-medium leading-tight text-neutral-500" style={{ gridTemplateColumns: template }}>
@@ -427,7 +437,7 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
                     <span className="block truncate text-sm font-medium" title={g.title}>{g.title}</span>
                     <span className="block text-xs text-neutral-500">
                       {g.rows.length} зап. ·{" "}
-                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `пробелов: ${gapsOf(g)}` : "без пробелов"}</span>
+                      <span className={gapsOf(g) > 0 ? "text-red-600" : "text-emerald-700"}>{gapsOf(g) > 0 ? `нужен файл: ${gapsOf(g)}` : "без пробелов"}</span>
                     </span>
                   </span>
                 </span>
@@ -444,13 +454,13 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
                 <OrigCell have={g.rows.reduce((s, r) => s + r.origHave, 0)} total={g.rows.reduce((s, r) => s + r.origTotal, 0)} />
               </summary>}
             >
-              {openAll ? <GroupTableRows rows={g.rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} /> : null}
+              {openAll ? <GroupTableRows rows={g.rows} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} /> : null}
             </LazyDetails>
           ))
         : (
           <div className="divide-y divide-neutral-100">
             {groups.flatMap((g) => g.rows).map((r) => (
-              <MatrixRow key={r.id} r={r} cols={cols.map((c) => c.key)} template={template} withReg={withReg} />
+              <MatrixRow key={r.id} r={r} cols={cols.map((c) => c.key)} template={template} withReg={withReg} ver={ver} />
             ))}
           </div>
         )}
@@ -473,11 +483,11 @@ function SectionMatrix({ section, rows, f }: { section: SectionKey; rows: CovRow
           </summary>
         }
       >
-        {openAll ? <GroupCards rows={g.rows} /> : null}
+        {openAll ? <GroupCards rows={g.rows} ver={ver} /> : null}
       </LazyDetails>
     ))
   ) : (
-    groups.flatMap((g) => g.rows).map((r) => <MobileCard key={r.id} r={r} />)
+    groups.flatMap((g) => g.rows).map((r) => <MobileCard key={r.id} r={r} ver={ver} />)
   );
 
   return (
@@ -562,7 +572,7 @@ function RegistryBlock() {
               </span>
               {it.note ? <span className="text-amber-700">{it.note}</span> : null}
               {it.kind === "purchase" ? (
-                <Link href="/purchases/new" className="underline hover:text-neutral-900">
+                <Link href="/purchases/batch" className="underline hover:text-neutral-900">
                   Как добавить
                 </Link>
               ) : (
