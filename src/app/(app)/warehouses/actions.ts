@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -15,7 +15,7 @@ const warehouseSchema = z.object({
   isDefault: z.coerce.boolean().default(false),
 });
 
-export type WarehouseFormState = { error?: string };
+export type WarehouseFormState = { error?: string; ok?: boolean };
 
 function parse(formData: FormData) {
   return warehouseSchema.safeParse({
@@ -40,6 +40,12 @@ export async function createWarehouse(
   const parsed = parse(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const dup = await prisma.warehouse.findFirst({
+    where: { organizationId: session.user.organizationId, name: { equals: parsed.data.name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (dup) return { error: "Такой склад уже есть: откройте его в списке или измените название" };
+
   const warehouse = await prisma.warehouse.create({
     data: { organizationId: session.user.organizationId, ...parsed.data },
   });
@@ -47,8 +53,8 @@ export async function createWarehouse(
     await clearOtherDefaults(session.user.organizationId, warehouse.id);
   }
 
-  revalidatePath("/warehouses");
-  redirect("/warehouses");
+  revalidateAll(session.user.organizationId);
+  return { ok: true };
 }
 
 export async function updateWarehouse(
@@ -69,6 +75,6 @@ export async function updateWarehouse(
     await clearOtherDefaults(session.user.organizationId, id);
   }
 
-  revalidatePath("/warehouses");
+  revalidateAll(session.user.organizationId);
   redirect("/warehouses");
 }

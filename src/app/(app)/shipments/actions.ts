@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, MAX_TOTAL_QTY, isDateInRange } from "@/lib/shipments";
@@ -76,11 +76,8 @@ const toLines = (input: z.infer<typeof inputSchema>) =>
     quantity: l.quantity,
   }));
 
-function revalidate(id?: string) {
-  revalidatePath("/shipments");
-  if (id) revalidatePath(`/shipments/${id}`);
-  revalidatePath("/production", "layout");
-  revalidatePath("/articles");
+function revalidate(orgId: string) {
+  revalidateAll(orgId);
 }
 
 export async function createShipment(raw: ShipmentInput): Promise<ShipmentState> {
@@ -100,7 +97,7 @@ export async function createShipment(raw: ShipmentInput): Promise<ShipmentState>
       lines: { create: toLines(parsed.data) },
     },
   });
-  revalidate(s.id);
+  revalidate(session.user.organizationId);
   return { id: s.id };
 }
 
@@ -128,7 +125,7 @@ export async function updateShipment(id: string, raw: ShipmentInput): Promise<Sh
       },
     }),
   ]);
-  revalidate(id);
+  revalidate(session.user.organizationId);
   return { id };
 }
 
@@ -140,7 +137,7 @@ export async function markShipped(id: string, shippedDate: string): Promise<Ship
   if (!cur) return { error: "Отгрузка не найдена" };
   if (cur.status !== "PLANNED") return { error: "Отметить можно только запланированную отгрузку" };
   await prisma.shipment.update({ where: { id }, data: { status: "SHIPPED", shippedDate: new Date(d.data) } });
-  revalidate(id);
+  revalidate(session.user.organizationId);
   return { id };
 }
 
@@ -157,7 +154,7 @@ export async function updateShippedShipment(id: string, shippedDate: string, not
     where: { id },
     data: { shippedDate: new Date(d.data), notes: notes.trim().slice(0, 2000) || null },
   });
-  revalidate(id);
+  revalidate(session.user.organizationId);
   return { id };
 }
 
@@ -167,6 +164,6 @@ export async function cancelShipment(id: string): Promise<ShipmentState> {
   if (!cur) return { error: "Отгрузка не найдена" };
   if (cur.status !== "PLANNED") return { error: "Отменить можно только запланированную отгрузку" };
   await prisma.shipment.update({ where: { id }, data: { status: "CANCELLED" } });
-  revalidate(id);
+  revalidate(session.user.organizationId);
   return { id };
 }

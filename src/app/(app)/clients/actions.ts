@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -17,7 +17,7 @@ const clientSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type ClientFormState = { error?: string };
+export type ClientFormState = { error?: string; ok?: boolean };
 
 const EDIT_ROLES = ACCESS.clients;
 
@@ -43,12 +43,18 @@ export async function createClient(
     return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
   }
 
+  const dup = await prisma.client.findFirst({
+    where: { organizationId: session.user.organizationId, name: { equals: parsed.data.name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (dup) return { error: "Такой заказчик уже есть: откройте его в списке или измените название" };
+
   await prisma.client.create({
     data: { organizationId: session.user.organizationId, ...parsed.data },
   });
 
-  revalidatePath("/clients");
-  redirect("/clients");
+  revalidateAll(session.user.organizationId);
+  return { ok: true };
 }
 
 export async function updateClient(
@@ -70,7 +76,7 @@ export async function updateClient(
     return { error: "Заказчик не найден" };
   }
 
-  revalidatePath("/clients");
+  revalidateAll(session.user.organizationId);
   redirect("/clients");
 }
 
@@ -85,5 +91,5 @@ export async function toggleClientActive(id: string) {
     where: { id },
     data: { isActive: !client.isActive },
   });
-  revalidatePath("/clients");
+  revalidateAll(session.user.organizationId);
 }

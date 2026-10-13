@@ -22,7 +22,7 @@ const materialSchema = z.object({
   defaultVatRate: z.number().min(0, "НДС: от 0 до 100").max(100, "НДС: от 0 до 100").nullable(),
 });
 
-export type MaterialFormState = { error?: string };
+export type MaterialFormState = { error?: string; ok?: boolean };
 
 function parse(formData: FormData) {
   return materialSchema.safeParse({
@@ -63,8 +63,8 @@ export async function createMaterial(
     throw e;
   }
 
-  revalidateAll();
-  redirect("/materials");
+  revalidateAll(session.user.organizationId);
+  return { ok: true };
 }
 
 export async function updateMaterial(
@@ -91,7 +91,7 @@ export async function updateMaterial(
   }
   if (result.count === 0) return { error: "Материал не найден" };
 
-  revalidateAll();
+  revalidateAll(session.user.organizationId);
   redirect("/materials");
 }
 
@@ -105,5 +105,5 @@ export async function createCategory(formData: FormData) {
     create: { organizationId: session.user.organizationId, name },
     update: {},
   });
-  revalidateAll();
+  revalidateAll(session.user.organizationId);
 }

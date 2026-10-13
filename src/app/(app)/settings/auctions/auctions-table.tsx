@@ -94,7 +94,7 @@ export function AuctionsTable({ rows, canEdit }: { rows: AuctionRowData[]; canEd
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-xl font-semibold">Справочник аукционов</h1>
         <Hint />
-        <span className="text-xs text-neutral-500">Имя правится прямо в строке (Enter)</span>
+        <span className="text-xs text-neutral-500">Имя правится в строке: измените и нажмите «Сохранить»</span>
       </div>
       {flash?.error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flash.error}</p>}
       {flash?.ok && <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{flash.ok}</p>}
@@ -208,16 +208,17 @@ function NameEditor({ row, canEdit, onResult }: { row: AuctionRowData; canEdit: 
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   if (!canEdit) return <span className="font-medium">{row.name}</span>;
+  const clean = value.replace(/\s+/g, " ").trim();
+  const dirty = clean !== row.name;
   const save = () => {
-    const v = value.replace(/\s+/g, " ").trim();
-    if (v === row.name) { setValue(row.name); return; }
+    if (!dirty) return;
     start(async () => {
-      const r = await renameAuctionAction(row.id, v, row.version);
+      const r = await renameAuctionAction(row.id, clean, row.version);
       setErr(r.error ?? null);
       onResult(r);
-      if (r.error) setValue(v); // ввод не стираем: человек поправит и сохранит снова
     });
   };
+  const cancel = () => { setValue(row.name); setErr(null); };
   return (
     <div className="w-40 max-w-full">
       <Input
@@ -227,10 +228,15 @@ function NameEditor({ row, canEdit, onResult }: { row: AuctionRowData; canEdit: 
         aria-label={`Короткое имя аукциона «${row.name}»`}
         aria-invalid={!!err}
         onChange={(e) => setValue(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } if (e.key === "Escape") { setValue(row.name); setErr(null); } }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") cancel(); }}
         className={err ? "border-red-400" : ""}
       />
+      {dirty && (
+        <div className="mt-1 flex gap-1">
+          <Button type="button" size="sm" disabled={pending || !clean} onClick={save}>{pending ? "Сохраняем…" : "Сохранить"}</Button>
+          <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={cancel}>Отмена</Button>
+        </div>
+      )}
       {err && <div className="mt-1 text-xs text-red-600">{err}</div>}
     </div>
   );

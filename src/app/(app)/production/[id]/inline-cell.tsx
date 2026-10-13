@@ -39,7 +39,7 @@ export function SaveMark({ pending, saved }: { pending: boolean; saved: boolean 
   return null;
 }
 
-export function useSaver(onSave: Common["onSave"], current: string) {
+export function useSaver(onSave: Common["onSave"], current: string, skipGuard = false) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -55,7 +55,7 @@ export function useSaver(onSave: Common["onSave"], current: string) {
     asking.current = true;
     let ok = false;
     try {
-      ok = await guard();
+      ok = skipGuard ? true : await guard();
     } finally {
       asking.current = false;
     }
@@ -156,7 +156,7 @@ export type SelectOpt = { value: string; label: string };
 export type LazyOptions = { current: SelectOpt; get: () => SelectOpt[] | null; warm: () => Promise<unknown> };
 
 /** Выпадающий список: выбор сразу сохраняется. */
-export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy, confirmChange }: Common & { value: string; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions; /** Подтверждение смены значения (false — выбор отменяется, прежнее значение возвращается). */ confirmChange?: (next: string, prev: string) => Promise<boolean> }) {
+export function SelectCell({ value, options, onSave, readOnly, label, className, emptyLabel = "—", lazy, confirmChange, onPick }: Common & { value: string; /** Черновой режим: выбор не сохраняется сразу, а передаётся наверх (значение приходит назад через value). */ onPick?: (value: string) => void; options: SelectOpt[]; emptyLabel?: string; lazy?: LazyOptions; /** Подтверждение смены значения (false — выбор отменяется, прежнее значение возвращается). */ confirmChange?: (next: string, prev: string) => Promise<boolean> }) {
   const { pending, error, save, saved } = useSaver(onSave, value);
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
@@ -181,6 +181,7 @@ export function SelectCell({ value, options, onSave, readOnly, label, className,
         onChange={async (e) => {
           const next = e.target.value;
           setDraft(next);
+          if (onPick) { onPick(next); return; }
           if (confirmChange && next !== value && !(await confirmChange(next, value))) { setDraft(value); return; }
           save(next, () => setDraft(value));
         }}
@@ -203,6 +204,42 @@ export function ComboFrame({ onSave, children }: { onSave: (value: string) => Pr
       {children((v) => save(v, () => {}))}
       <SaveMark pending={pending} saved={saved} />
       {error ? <span className="mt-0.5 block text-xs text-red-600">{error}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * Поле с явным сохранением (финансовые значения): ничего не пишет при вводе и уходе фокуса — правка копится в строке,
+ * Enter = «Сохранить», Esc = «Отменить». Подсвечено, пока значение отличается от сохранённого.
+ */
+export function DraftInput({
+  value, draft, onChange, onEnter, onEscape, type = "number", step, min, suffix, label, align, placeholder, readOnly, disabled, className,
+}: {
+  value: string; draft: string; onChange: (v: string) => void; onEnter: () => void; onEscape: () => void;
+  type?: "text" | "number"; step?: string; min?: string; suffix?: string; label?: string; align?: "left" | "right"; placeholder?: string; readOnly?: boolean; disabled?: boolean; className?: string;
+}) {
+  if (readOnly) return <span className={cn("block px-1.5 py-0.5 text-sm", align === "right" && "text-right tabular-nums", className)}>{value || <span className="text-neutral-300">—</span>}{suffix ? ` ${suffix}` : ""}</span>;
+  const dirty = draft.trim() !== value.trim();
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        type={type}
+        value={draft}
+        step={step}
+        min={min}
+        placeholder={placeholder}
+        aria-label={label}
+        title={label}
+        disabled={disabled}
+        inputMode={type === "number" ? "decimal" : undefined}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); onEnter(); }
+          if (e.key === "Escape") { e.preventDefault(); onEscape(); }
+        }}
+        className={cn(BOX, align === "right" && "text-right", dirty && "border-amber-500 bg-amber-50", className)}
+      />
+      {suffix ? <span className="shrink-0 text-xs text-neutral-500">{suffix}</span> : null}
     </span>
   );
 }

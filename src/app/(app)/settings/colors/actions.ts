@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +17,9 @@ function back(msg?: string, ok?: string): never {
   redirect(`/settings/colors${q}`);
 }
 
-function touch() {
+function touch(orgId: string) {
   // Цвет показывается в ТЗ, закупках, лотах и аналитике — сбрасываем кэш всех страниц.
-  revalidatePath("/", "layout");
+  revalidateAll(orgId);
 }
 
 /** «a, b; c» или по строкам → список без пустых и повторов (по ключу сравнения), без совпадающих с названием. */
@@ -55,7 +55,7 @@ export async function createColor(formData: FormData) {
   const taken = await nameTaken(orgId, name, aliases);
   if (taken) back(taken);
   await prisma.colorRef.create({ data: { organizationId: orgId, name, aliases } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Цвет «${name}» добавлен`);
 }
 
@@ -83,7 +83,7 @@ export async function updateColor(formData: FormData) {
       await tx.purchaseItem.updateMany({ where: { purchase: { organizationId: orgId }, colorRefId: id }, data: { color: name } });
     }
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Цвет «${name}» сохранён`);
 }
 
@@ -95,7 +95,7 @@ export async function confirmColor(formData: FormData) {
   if (!ref) back("Цвет не найден");
   const rest = (ref.note ?? "").trim().replace(new RegExp(`^${PROPOSED_MARK}\\.?\\s*`), "");
   await prisma.colorRef.update({ where: { id }, data: { note: rest || null } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Цвет «${ref.name}» подтверждён`);
 }
 
@@ -127,7 +127,7 @@ export async function mergeColors(formData: FormData) {
     await tx.colorRef.update({ where: { id: intoId }, data: { aliases: merged } });
     await tx.colorRef.delete({ where: { id: fromId } });
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `«${from.name}» объединён с «${into.name}»`);
 }
 
@@ -143,7 +143,7 @@ export async function deleteColor(formData: FormData) {
   const n = ref._count.orders + ref._count.lots + ref._count.purchaseItems;
   if (n > 0) back(`«${ref.name}» используется (${n} строк) — удалить нельзя. Объедините с другим цветом.`);
   await prisma.colorRef.delete({ where: { id } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Цвет «${ref.name}» удалён`);
 }
 
@@ -184,7 +184,7 @@ export async function bindColorText(formData: FormData) {
     await tx.colorRef.update({ where: { id: target.id }, data: { ...(known || !k ? {} : { aliases: [...target.aliases, base.base] }), note: rest } });
     return orders.length + lots.count + items.count;
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `«${text.trim()}» → «${target.name}»: обновлено строк ${n}`);
 }
 
@@ -194,6 +194,6 @@ export async function createColorInline(rawName: string): Promise<{ ok: true; id
   const p = nameSchema.safeParse(splitColorCode(rawName).base || rawName);
   if (!p.success) return { ok: false, error: p.error.issues[0].message };
   const ref = await ensureColorRef(prisma, session.user.organizationId, p.data);
-  revalidatePath("/settings/colors");
+  revalidateAll(session.user.organizationId);
   return { ok: true, id: ref.id, name: ref.name };
 }

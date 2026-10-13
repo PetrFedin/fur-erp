@@ -1,11 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
 import { DECISIONS, DECISION_KEY_PREFIX } from "@/lib/task-docs-catalog";
-import { invalidateControlCounts } from "@/lib/control-counts";
 
 /**
  * «Решено: …» в блоке «Решения владельца». Выбор из вариантов каталога (task-docs-catalog.ts) пишется в SystemState
@@ -38,9 +37,7 @@ export async function decideAction(formData: FormData): Promise<void> {
     create: { organizationId, key, value },
     update: { value },
   });
-  invalidateControlCounts(organizationId);
-  revalidatePath("/attention");
-  revalidatePath("/dashboard");
+  revalidateAll(organizationId);
 }
 
 /** Снять решение (вернуть вопрос в открытые). Запись удаляется, факт остаётся в журнале изменений. */
@@ -51,7 +48,5 @@ export async function reopenDecisionAction(formData: FormData): Promise<void> {
   if (!DECISIONS.some((d) => d.id === id)) return;
   const organizationId = session.user.organizationId;
   await prisma.systemState.deleteMany({ where: { organizationId, key: DECISION_KEY_PREFIX + id } });
-  invalidateControlCounts(organizationId);
-  revalidatePath("/attention");
-  revalidatePath("/dashboard");
+  revalidateAll(organizationId);
 }

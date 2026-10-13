@@ -1,9 +1,11 @@
+import { MaterialCreate } from "./material-create";
+import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { buttonVariants } from "@/components/ui/button";
+
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatQty } from "@/lib/utils";
 import { FilterBar } from "@/components/filters/filter-bar";
@@ -33,7 +35,11 @@ export const metadata = { title: "Справочник материалов" };
 export default async function MaterialsPage({ searchParams }: PageProps<"/materials">) {
   const session = await requireSession();
   const canCreate = hasRole(session.user.role, ACCESS.materials);
-  const f = parseFilters(MATERIAL_FILTERS, await searchParams);
+  const sp = await searchParams;
+  const newOpen = sp.new === "1";
+  const unitParam = typeof sp.unit === "string" ? sp.unit : undefined;
+  const defaultUnit = unitParam && ["PIECE", "KG", "M2", "M", "SET"].includes(unitParam) ? unitParam : undefined;
+  const f = parseFilters(MATERIAL_FILTERS, sp);
   const cat = splitNone(f.category);
   const orgId = session.user.organizationId;
   const [materials, categories] = await Promise.all([
@@ -48,7 +54,7 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
       include: { category: true },
       orderBy: { name: "asc" },
     }),
-    prisma.rawMaterialCategory.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.rawMaterialCategory.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
   ]);
 
   const vatBy = await loadMaterialVat(orgId);
@@ -64,9 +70,9 @@ export default async function MaterialsPage({ searchParams }: PageProps<"/materi
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Справочник материалов</h1>
         {canCreate && (
-          <Link href="/materials/new" className={buttonVariants()}>
-            + Добавить материал
-          </Link>
+          <CreateDialog label="+ Добавить материал" title="Новый материал" defaultOpen={newOpen}>
+            <MaterialCreate categories={categories} defaultUnit={defaultUnit} />
+          </CreateDialog>
         )}
       </div>
 

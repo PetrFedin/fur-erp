@@ -8,10 +8,11 @@ import { Money } from "@/components/money";
 import { useConfirm } from "@/components/confirm-dialog";
 import { CostBreakdownToggle } from "../../lots/cost-breakdown-toggle";
 import type { FormState } from "../actions";
-import { SelectCell, TextCell } from "./inline-cell";
+import { DraftInput, SelectCell, TextCell } from "./inline-cell";
+import { DraftBar, useDraftEdit } from "./change-window";
 import { lotOptionLabel } from "./lot-label";
 import { invalidateLotCatalog, peekLotCatalog, warmLotCatalog } from "./lot-catalog-client";
-import { useEditGuard } from "./edit-guard";
+import { useDirtyMark } from "./edit-guard";
 
 // Варианты лотов для выпадающего списка правки должны включать и лоты с нулевым остатком: собственный лот списания
 // часто выбран этим же списанием целиком. updateMaterialUsage сначала возвращает старое количество в лот, затем списывает новое.
@@ -59,8 +60,8 @@ export type UsageRowData = {
 };
 
 /**
- * Строка списания в таблице «Расчёт и списание»: лот, количество и «4%» правятся по месту (Enter / уход фокуса),
- * сумма пересчитывается сразу при вводе и окончательно — после сохранения. Цена и НДС — свойства лота (закупки): ссылка ведёт в закупку.
+ * Строка списания в таблице «Расчёт и списание»: лот, количество и «4%» копятся в строке («Не сохранено»), кнопка «Сохранить» (или Enter в поле)
+ * открывает окно «что изменится», запись — после «Сохранить» в окне; сумма пересчитывается сразу при вводе. Цена и НДС — свойства лота (закупки): ссылка ведёт в закупку.
  */
 export function UsageRow({
   usage,
@@ -81,27 +82,49 @@ export function UsageRow({
   readOnly?: boolean;
 }) {
   const [qty, setQty] = useState(usage.quantity);
-  const [seenQty, setSeenQty] = useState(usage.quantity);
-  if (seenQty !== usage.quantity) {
-    setSeenQty(usage.quantity);
+  const [lotId, setLotId] = useState(usage.lotId);
+  const [lotLabel, setLotLabel] = useState(usage.lotLabel);
+  const [c4, setC4] = useState(usage.commission4);
+  const sig = `${usage.quantity}|${usage.lotId}|${usage.commission4}`;
+  const [seenSig, setSeenSig] = useState(sig);
+  if (seenSig !== sig) {
+    setSeenSig(sig);
     setQty(usage.quantity);
+    setLotId(usage.lotId);
+    setLotLabel(usage.lotLabel);
+    setC4(usage.commission4);
   }
   const [busy, startBusy] = useTransition();
-  const [c4Error, setC4Error] = useState<string | null>(null);
+  const ch = useDraftEdit(orderId);
   const { ask, node } = useConfirm();
-  const guard = useEditGuard();
   const unit = UNIT_LABELS[usage.unit] ?? usage.unit;
 
-  const build = (patch: { lotId?: string; quantity?: string; commission4?: boolean }) => {
+  const qtyDirty = qty.trim().replace(",", ".") !== usage.quantity.trim();
+  const dirty = qtyDirty || lotId !== usage.lotId || c4 !== usage.commission4;
+  useDirtyMark(dirty);
+  const cancel = () => { setQty(usage.quantity); setLotId(usage.lotId); setLotLabel(usage.lotLabel); setC4(usage.commission4); ch.setError(null); };
+  const save = async () => {
+    if (!dirty || ch.busy) return;
+    const quantity = qty.trim().replace(",", ".");
     const fd = new FormData();
-    fd.set("lotId", patch.lotId ?? usage.lotId);
-    fd.set("quantity", patch.quantity ?? usage.quantity);
+    fd.set("lotId", lotId);
+    fd.set("quantity", quantity);
     fd.set("c4form", "1");
-    if (patch.commission4 ?? usage.commission4) fd.set("commission4", "on");
-    return fd;
+    if (c4) fd.set("commission4", "on");
+    const fields: { label: string; before: string; after: string }[] = [];
+    if (lotId !== usage.lotId) fields.push({ label: "Лот", before: usage.lotLabel, after: lotLabel });
+    if (qtyDirty) fields.push({ label: "Количество", before: `${formatQty(usage.quantity)} ${unit}`, after: `${formatQty(quantity)} ${unit}` });
+    if (c4 !== usage.commission4) fields.push({ label: "4%", before: usage.commission4 ? "начисляется" : "нет", after: c4 ? "начисляется" : "нет" });
+    await ch.run(
+      `Изменить списание: ${usage.rawMaterialName}`,
+      { kind: "usage", usageId: usage.id, lotId, quantity, commission4: c4 },
+      fields,
+      async () => { const r = await updateAction(fd); invalidateLotCatalog(orderId); return r; },
+    );
   };
-  const dirty = qty.trim() !== usage.quantity.trim() && qty.trim() !== "" && Number.isFinite(Number(qty));
-  const live = (unitPrice: string) => (Number(qty) * Number(unitPrice)).toFixed(2);
+  const qtyNum = Number(qty.replace(",", "."));
+  const live = (unitPrice: string) => (qtyNum * Number(unitPrice)).toFixed(2);
+  const liveOk = qtyDirty && qty.trim() !== "" && Number.isFinite(qtyNum);
 
   return (
     <Tr>
@@ -109,16 +132,21 @@ export function UsageRow({
         <div className="flex items-center gap-1">
           <div className="min-w-0 flex-1">
             <SelectCell
-              value={usage.lotId}
+              value={lotId}
               label="Лот"
               readOnly={readOnly}
               options={[]}
+              onSave={async () => undefined}
+              onPick={(v) => {
+                setLotId(v);
+                const l = peekLotCatalog(orderId)?.find((x) => x.id === v);
+                setLotLabel(v === usage.lotId ? usage.lotLabel : l ? lotOptionLabel(l) : lotLabel);
+              }}
               lazy={{
-                current: { value: usage.lotId, label: usage.lotLabel },
+                current: { value: lotId, label: lotLabel },
                 get: () => peekLotCatalog(orderId)?.filter((l) => (l.unit === "M") === lining).map((l) => ({ value: l.id, label: lotOptionLabel(l) })) ?? null,
                 warm: () => warmLotCatalog(orderId),
               }}
-              onSave={async (v) => { const r = await updateAction(build({ lotId: v })); invalidateLotCatalog(orderId); return r; }}
             />
           </div>
           <Link href={`/analytics/raw/lot/${usage.lotId}`} className="shrink-0 text-xs text-blue-700 hover:underline" title="Карточка лота: закупка, где ещё использован, остаток">
@@ -128,7 +156,7 @@ export function UsageRow({
       </Td>
       <Td className="max-w-[14rem] truncate text-neutral-700" title={usage.rawMaterialName}>{usage.rawMaterialName}</Td>
       <Td className="min-w-[7.5rem]">
-        <TextCell value={usage.quantity} type="number" step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} onDraft={setQty} onSave={async (v) => { const r = await updateAction(build({ quantity: v })); invalidateLotCatalog(orderId); return r; }} />
+        <DraftInput value={usage.quantity} draft={qty} onChange={setQty} onEnter={save} onEscape={cancel} step="0.001" min="0" align="right" label="Количество" suffix={unit} readOnly={readOnly} disabled={ch.busy} />
       </Td>
       <Td className="whitespace-nowrap text-right tabular-nums">{Number(usage.lotCostExclVat) ? <Money incl={usage.lotCostExclVat} /> : <span className="text-neutral-300">—</span>}</Td>
       <Td className="min-w-[5.5rem]">
@@ -153,32 +181,19 @@ export function UsageRow({
       <Td className="text-center">
         <input
           type="checkbox"
-          defaultChecked={usage.commission4}
-          key={String(usage.commission4)}
-          disabled={readOnly || busy}
+          checked={c4}
+          disabled={readOnly || busy || ch.busy}
           className="h-4 w-4 max-md:h-5 max-md:w-5"
           aria-label="Начислять 4%"
-          title={c4Error ?? "4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"}
-          onChange={async (e) => {
-            const box = e.target;
-            const checked = box.checked;
-            // Подтверждение у завершённого ТЗ — до transition.
-            if (!(await guard())) {
-              box.checked = !checked;
-              return;
-            }
-            startBusy(async () => {
-              const r = await updateAction(build({ commission4: checked }));
-              invalidateLotCatalog(orderId);
-              setC4Error(r?.error ?? null);
-            });
-          }}
+          title="4% — наценка при купле-продаже меха и подкладки подрядчику (не комиссия Веллмеха): +4% к цене меха и подкладки в ТЗ; работа и расходы не облагаются"
+          onChange={(e) => setC4(e.target.checked)}
         />
-        {c4Error ? <span className="block text-xs text-red-600">{c4Error}</span> : null}
       </Td>
       <Td className="whitespace-nowrap text-right font-medium tabular-nums">
-        {dirty ? <Money incl={live(usage.unitIncl)} excl={live(usage.unitExcl)} /> : <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />}
-        {dirty ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}
+        {liveOk ? <Money incl={live(usage.unitIncl)} excl={live(usage.unitExcl)} /> : <Money incl={usage.totalCost} excl={usage.totalCostExclVat} />}
+        {liveOk ? <span className="ml-1 text-xs font-normal text-neutral-400" title="Предварительно, до сохранения">~</span> : null}
+        <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
+        {ch.node}
         {usage.c4Mode === "on" && !usage.commission4 && (
           <span className="ml-1 whitespace-nowrap text-xs font-normal text-neutral-500" title="4% к этому списанию не применяется">без 4%</span>
         )}

@@ -6,7 +6,9 @@ import { InfoHint } from "@/components/info-hint";
 import { patchProductionOrder, setOrderCategory, setOrderFurType, setOrderVat } from "../actions";
 import { useConfirm } from "@/components/confirm-dialog";
 import { CategoryCell, FurTypeCell, VatCell, type CategoryOpt } from "./param-combos";
-import { AreaCell, ComboFrame, SelectCell, TextCell, type SelectOpt } from "./inline-cell";
+import { AreaCell, ComboFrame, DraftInput, SelectCell, TextCell, type SelectOpt } from "./inline-cell";
+import { DraftBar, useDraftEdit } from "./change-window";
+import { useDirtyMark } from "./edit-guard";
 import { ArticleSelect } from "@/components/article-select";
 import { ColorSelect, type ColorSelectOption } from "@/components/color-select";
 
@@ -97,13 +99,15 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
   const completed = d.status === "COMPLETED";
   const { ask, node: confirmNode } = useConfirm();
   const [articleKey, setArticleKey] = useState(0);
+  const vatEdit = useDraftEdit(d.orderId);
+  const vatNow = d.vat.length === 0 ? "—" : d.vat.map((r) => `${r.rate}%`).join(" / ");
   return (
     <section aria-label="Параметры ТЗ" className="flex flex-col gap-2" id="params">
       <div className="flex items-center gap-2">
         <h2 className="block-title">Параметры ТЗ</h2>
         <InfoHint label="Как читать: Параметры ТЗ" wide>
-          <p>Что заведено в ТЗ. Клик по значению — правка по месту: Enter или уход курсора сохраняет, Esc отменяет. После сохранения пересчитываются итоги страницы, «Произведено», разделы ТЗ, Изделия, Партии и Главная.</p>
-          <p className="mt-1">Любое поле можно выбрать из списка или внести своё: артикул, категория и группа, вид меха, НДС. Категория принадлежит артикулу (меняется у всех его ТЗ), «Вид меха» по умолчанию определяется по списанным лотам. Сохранение автоматическое: рядом с полем появляется «✓ сохранено».</p>
+          <p>Что заведено в ТЗ. Клик по значению — правка по месту: у нефинансовых полей Enter или уход курсора сохраняет, Esc отменяет; у финансовых — «Сохранить» / «Отменить». После сохранения пересчитываются итоги страницы, «Произведено», разделы ТЗ, Изделия, Партии и Главная.</p>
+          <p className="mt-1">Любое поле можно выбрать из списка или внести своё: артикул, категория и группа, вид меха, НДС. Категория принадлежит артикулу (меняется у всех его ТЗ), «Вид меха» по умолчанию определяется по списанным лотам. Финансовые поля (кол-во по плану и по факту, работа, НДС) сохраняются кнопкой «Сохранить» после окна «что изменится» (Enter в поле = Сохранить, Esc = отмена); остальные (даты, размер, подкладка, примечание…) сохраняются сразу, рядом появляется «✓ сохранено».</p>
           <p className="mt-1"><b>Партия</b> — поставка пошива: итоги партии, оплаты по партии, Главная; партия 6 — без 4%. Смена партии или заказчика пересчитывает долг по партиям и спрашивает подтверждение. <b>Работа, ₽ за шт.</b> × количество — входит в себестоимость и оплаты заказчика (без НДС и 4%). <b>Кол-во по факту</b> — у завершённого ТЗ: меняет себестоимость единицы и остаток готовой продукции. <b>Окончание</b> проставляется при завершении; от него зависит год ТЗ в сводках. Сумма НДС списаний — в плитке «НДС в списаниях».</p>
         </InfoHint>
       </div>
@@ -222,23 +226,32 @@ export function ParamsTable({ d, o }: { d: ParamsData; o: ParamsOptions }) {
         </Row>
 
         <Row label="Кол-во по плану, шт.">
-          <TextCell value={d.plannedQuantity} type="number" step="1" min="1" align="right" onSave={save("plannedQuantity")} readOnly={ro} label="Плановое количество" />
+          <DraftParam orderId={d.orderId} field="plannedQuantity" title="Изменить плановое количество" fieldLabel="Кол-во по плану, шт." value={d.plannedQuantity} step="1" min="1" readOnly={ro} />
         </Row>
         <Row label="Кол-во по факту, шт.">
           {completed ? (
-            <TextCell value={d.producedQuantity} type="number" step="1" min="0" align="right" onSave={save("producedQuantity")} readOnly={ro} label="Фактически произведено" />
+            <DraftParam orderId={d.orderId} field="producedQuantity" title="Изменить фактическое количество" fieldLabel="Кол-во по факту, шт." value={d.producedQuantity} step="1" min="0" readOnly={ro} />
           ) : (
             <span className="block px-1.5 py-0.5 text-sm text-neutral-400">появится при завершении</span>
           )}
         </Row>
         <Row label="Работа, ₽ за шт.">
-          <TextCell value={d.clientWorkPricePerUnit} type="number" step="0.01" min="0" align="right" onSave={save("clientWorkPricePerUnit")} readOnly={ro} label="Стоимость работ за ед." suffix="₽" />
+          <DraftParam orderId={d.orderId} field="clientWorkPricePerUnit" title="Изменить цену работы" fieldLabel="Работа, ₽ за шт." value={d.clientWorkPricePerUnit} step="0.01" min="0" suffix="₽" readOnly={ro} />
         </Row>
         <Row label="НДС">
           {ro ? (
             <span className="block px-1.5 py-0.5 text-sm">{d.vat.length === 0 ? <span className="text-neutral-300">—</span> : d.vat.map((r) => `${r.rate}%`).join(" / ")}</span>
           ) : (
-            <VatCell rates={d.vat.map((r) => r.rate)} lines={d.vat.reduce((n, r) => n + r.lines, 0)} onSave={(v) => setOrderVat(d.orderId, v)} />
+            <>
+              <VatCell
+                rates={d.vat.map((r) => r.rate)}
+                lines={d.vat.reduce((n, r) => n + r.lines, 0)}
+                onSave={(v) => setOrderVat(d.orderId, v)}
+                confirmPick={(v) => vatEdit.run("Изменить НДС ТЗ", { kind: "vat", rate: v }, [{ label: "НДС списаний", before: vatNow, after: v.trim() === "" ? "как в лотах" : `${v.trim()}%` }], async () => undefined)}
+              />
+              {vatEdit.error ? <span className="block px-1.5 text-xs text-red-600">{vatEdit.error}</span> : null}
+              {vatEdit.node}
+            </>
           )}
         </Row>
 
@@ -300,6 +313,32 @@ function ColorCell({ current, refId, refs, canCreate, commit }: { current: strin
           if (id && text.trim() !== current.trim()) commit(text);
         }}
       />
+    </span>
+  );
+}
+
+/** Финансовое поле ТЗ с явным сохранением: правка копится («Не сохранено»), «Сохранить» (или Enter) → окно «что изменится» → запись. */
+function DraftParam({ orderId, field, title, fieldLabel, value, step, min, suffix, readOnly }: {
+  orderId: string; field: "plannedQuantity" | "producedQuantity" | "clientWorkPricePerUnit"; title: string; fieldLabel: string; value: string; step: string; min: string; suffix?: string; readOnly: boolean;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [seen, setSeen] = useState(value);
+  if (seen !== value) { setSeen(value); setDraft(value); }
+  const ch = useDraftEdit(orderId);
+  const norm = draft.trim().replace(",", ".");
+  const dirty = norm !== value.trim();
+  useDirtyMark(dirty);
+  const cancel = () => { setDraft(value); ch.setError(null); };
+  const save = async () => {
+    if (!dirty || ch.busy) return;
+    const show = (v: string) => (v === "" ? "—" : suffix ? `${v} ${suffix}` : v);
+    await ch.run(title, { kind: "param", field, value: norm }, [{ label: fieldLabel, before: show(value), after: show(norm) }], () => patchProductionOrder(orderId, field, norm));
+  };
+  return (
+    <span className="block">
+      <DraftInput value={value} draft={draft} onChange={setDraft} onEnter={save} onEscape={cancel} step={step} min={min} align="right" label={fieldLabel} suffix={suffix} readOnly={readOnly} disabled={ch.busy} />
+      <DraftBar dirty={dirty} busy={ch.busy} error={ch.error} onSave={save} onCancel={cancel} />
+      {ch.node}
     </span>
   );
 }

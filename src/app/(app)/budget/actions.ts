@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession } from "@/lib/session";
 import { loadBudgetStats } from "@/lib/budget-stats";
@@ -66,6 +66,7 @@ export async function saveBudget(id: string, params: BudgetParams, nodes: Budget
     where: { id: row.id },
     data: { params: cleanParams(params), lines: clean as object[], ...(comment === undefined ? {} : { comment: s(comment, 500) || null }), updatedBy: session.user.name ?? null },
   });
+  revalidateAll(session.user.organizationId);
   return { ok: true, at: saved.updatedAt.toISOString() };
 }
 
@@ -93,7 +94,7 @@ export async function createBudget(input: { name: string; season: string; templa
   const row = await prisma.budgetScenario.create({
     data: { organizationId: orgId, season, name, status: "DRAFT", comment, parentId, params, lines: (cleanNodes(nodes) ?? []) as object[], createdBy: session.user.name ?? null, updatedBy: session.user.name ?? null },
   });
-  revalidatePath("/budget");
+  revalidateAll(session.user.organizationId);
   return { ok: true, id: row.id };
 }
 
@@ -107,7 +108,7 @@ export async function duplicateBudget(id: string): Promise<Res<{ id: string }>> 
       params: src.params as object, lines: (cleanNodes(parseNodes(src.lines)) ?? []) as object[], createdBy: session.user.name ?? null, updatedBy: session.user.name ?? null,
     },
   });
-  revalidatePath("/budget");
+  revalidateAll(session.user.organizationId);
   return { ok: true, id: row.id };
 }
 
@@ -116,8 +117,7 @@ export async function renameBudget(id: string, name: string, season: string): Pr
   const nm = s(name, 80);
   if (!nm) return { ok: false, error: "Введите название" };
   const r = await prisma.budgetScenario.updateMany({ where: { id: s(id, 40), organizationId: session.user.organizationId }, data: { name: nm, season: s(season, 20) || "FW27", updatedBy: session.user.name ?? null } });
-  revalidatePath("/budget");
-  revalidatePath(`/budget/${s(id, 40)}`);
+  revalidateAll(session.user.organizationId);
   return r.count ? { ok: true } : { ok: false, error: "Бюджет не найден" };
 }
 
@@ -125,13 +125,14 @@ export async function setBudgetStatus(id: string, status: "DRAFT" | "APPROVED"):
   const session = await requireRole(...EDIT);
   if (status !== "DRAFT" && status !== "APPROVED") return { ok: false, error: "Неверный статус" };
   const r = await prisma.budgetScenario.updateMany({ where: { id: s(id, 40), organizationId: session.user.organizationId }, data: { status, updatedBy: session.user.name ?? null } });
+  revalidateAll(session.user.organizationId);
   return r.count ? { ok: true } : { ok: false, error: "Бюджет не найден" };
 }
 
 export async function deleteBudget(id: string): Promise<Res> {
   const session = await requireRole(...EDIT);
   const r = await prisma.budgetScenario.deleteMany({ where: { id: s(id, 40), organizationId: session.user.organizationId } });
-  revalidatePath("/budget");
+  revalidateAll(session.user.organizationId);
   return r.count ? { ok: true } : { ok: false, error: "Бюджет не найден" };
 }
 

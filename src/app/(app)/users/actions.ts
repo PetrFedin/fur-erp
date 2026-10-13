@@ -2,8 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { staleError } from "@/lib/concurrency";
@@ -26,7 +25,7 @@ const createSchema = z.object({
   role: z.enum(ROLE_VALUES),
 });
 
-export type UserFormState = { error?: string };
+export type UserFormState = { error?: string; ok?: boolean };
 
 export async function createUser(
   _prev: UserFormState,
@@ -58,8 +57,8 @@ export async function createUser(
     },
   });
 
-  revalidatePath("/users");
-  redirect("/users");
+  revalidateAll(session.user.organizationId);
+  return { ok: true };
 }
 
 const OWNER_ONLY = "Только владелец может менять владельца и назначать роль «Владелец»";
@@ -88,7 +87,7 @@ export async function updateUserRole(id: string, role: string): Promise<UserForm
   }
 
   await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { role: newRole } });
-  revalidatePath("/users");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -105,7 +104,7 @@ export async function toggleUserActive(id: string): Promise<UserFormState> {
   }
 
   await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { isActive: !user.isActive } });
-  revalidatePath("/users");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -121,6 +120,6 @@ export async function updateUserName(id: string, formData: FormData): Promise<Us
   const name = String(formData.get("name") ?? "").replace(/[\u0000-\u001f]/g, " ").trim();
   if (name.length < 2 || name.length > 100) return { error: "Имя — от 2 до 100 символов" };
   await prisma.user.updateMany({ where: { id, organizationId: orgId }, data: { name } });
-  revalidatePath("/users");
+  revalidateAll(session.user.organizationId);
   return {};
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { DialogButtons, useCreateDialog } from "@/components/create-dialog";
 import { Input, Select } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
 import { resolveVatRate, vatPeriodLabel } from "@/lib/vat-by-date";
@@ -36,7 +36,8 @@ export function PurchaseItemForm({
   purchaseDate?: string | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [colorResetKey, setColorResetKey] = useState(0);
+  const dlg = useCreateDialog();
+  const [saved, setSaved] = useState(0);
   const bound = addPurchaseItem.bind(null, purchaseId);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,9 @@ export function PurchaseItemForm({
         e.preventDefault();
         if (pending) return;
         const form = e.currentTarget;
+        const more = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.name === "_more";
         const fd = new FormData(form);
+        fd.delete("_more");
         setError(null);
         startTransition(async () => {
           try {
@@ -67,10 +70,14 @@ export function PurchaseItemForm({
               setError(res.error);
               return;
             }
-            form.reset();
-            setMaterialId("");
-            setVat(null);
-            setColorResetKey((k) => k + 1);
+            if (more) {
+              // Окно остаётся: очищаем только изменяющееся (кол-во, цена, лот); материал, сорт, цвет и НДС сохраняются.
+              for (const n of ["quantity", "unitPrice", "lotNumber"]) {
+                const el = form.elements.namedItem(n);
+                if (el instanceof HTMLInputElement) el.value = "";
+              }
+              setSaved((k) => k + 1);
+            } else dlg?.close();
           } catch {
             setError("Не удалось добавить позицию: пропала связь или сервер отклонил запрос.");
           }
@@ -114,17 +121,15 @@ export function PurchaseItemForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-neutral-500">Цвет</label>
-        <ColorSelect key={colorResetKey} refs={colorOptions} canCreate={canAddColor} />
+        <ColorSelect refs={colorOptions} canCreate={canAddColor} />
       </div>
       {error && (
         <p role="alert" className="col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-4 lg:col-span-8">
           {error}
         </p>
       )}
-      <div className="col-span-2 sm:col-span-4 lg:col-span-8 flex justify-end">
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
-          {pending ? "Добавляем..." : "+ Добавить позицию"}
-        </Button>
+      <div className="col-span-2 sm:col-span-4 lg:col-span-8">
+        <DialogButtons pending={pending} withMore saved={saved} onCancel={dlg?.close} />
       </div>
     </form>
   );

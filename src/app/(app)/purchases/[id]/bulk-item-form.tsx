@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { useCreateDialog } from "@/components/create-dialog";
 import { addPurchaseItemsBulk, type BulkFormState } from "../actions";
 import { PasteBox, IssueList, confirmNewMaterials } from "../paste-box";
 import { parsePasteRows, issueLines } from "../parse-rows";
@@ -26,6 +27,7 @@ export function BulkItemForm({
   const [pending, startTransition] = useTransition();
   const [state, setState] = useState<BulkFormState>({});
   const [rows, setRows] = useState("");
+  const dlg = useCreateDialog();
 
   return (
     <form
@@ -48,13 +50,21 @@ export function BulkItemForm({
         startTransition(async () => {
           const res = await addPurchaseItemsBulk(purchaseId, {}, fd);
           setState(res);
-          if (res.created) setRows("");
+          if (res.created) {
+            setRows("");
+            dlg?.close();
+          }
         });
       }}
       className="flex flex-col gap-3"
     >
       <PasteBox value={rows} onChange={setRows} materialNames={materialNames} existingLotNumbers={existingLotNumbers} rows={8} currency={currency} />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-end gap-2">
+        {dlg && (
+          <Button type="button" variant="ghost" size="sm" onClick={dlg.close} disabled={pending}>
+            Отмена
+          </Button>
+        )}
         <Button type="submit" variant="outline" size="sm" disabled={pending || !rows.trim()}>
           {pending ? "Добавляем..." : "Добавить в закупку"}
         </Button>

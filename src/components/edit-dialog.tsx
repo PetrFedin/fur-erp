@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useKeepingForm } from "@/lib/use-keeping-form";
+import { useConfirm } from "@/components/confirm-dialog";
 
 /**
  * Единый паттерн правки записи: кнопка «Изменить» → форма в модальном окне → «Сохранить» / «Отмена».
@@ -76,6 +77,14 @@ function EditDialogBody({ title, action, children, version, hint, saveLabel = "�
     }
   }, {});
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const [dirty, setDirty] = useState(false);
+  const { ask, node: confirmNode } = useConfirm();
+  /** Закрыть окно; если поля изменены и не сохранены — сначала спросить. */
+  const tryClose = async () => {
+    if (pending) return;
+    if (dirty && !(await ask("Закрыть без сохранения? Внесённые изменения пропадут.", { ok: "Закрыть", danger: true }))) return;
+    ref.current?.close();
+  };
 
   useEffect(() => {
     const d = ref.current;
@@ -94,11 +103,17 @@ function EditDialogBody({ title, action, children, version, hint, saveLabel = "�
       ref={ref}
       onClose={onClose}
       onCancel={(e) => {
-        if (pending) e.preventDefault();
+        // Esc: закрываем сами (с вопросом, если есть несохранённое)
+        e.preventDefault();
+        void tryClose();
+      }}
+      onClick={(e) => {
+        // клик по затемнению вне окна
+        if (e.target === ref.current) void tryClose();
       }}
       className={`m-auto w-[calc(100vw-2rem)] ${wide ? "max-w-2xl" : "max-w-lg"} rounded-xl border border-neutral-200 bg-white p-0 text-left shadow-xl backdrop:bg-black/40`}
     >
-      <form ref={keepRef} onSubmit={keepSubmit} className="flex max-h-[85vh] flex-col">
+      <form ref={keepRef} onSubmit={keepSubmit} onChange={() => setDirty(true)} className="flex max-h-[85vh] flex-col">
         <div className="border-b border-neutral-200 px-4 py-3">
           <h2 className="text-base font-semibold text-neutral-900">{title}</h2>
           {hint && <div className="mt-1 text-xs text-neutral-500">{hint}</div>}
@@ -113,7 +128,7 @@ function EditDialogBody({ title, action, children, version, hint, saveLabel = "�
           </p>
         )}
         <div className="flex justify-end gap-2 border-t border-neutral-200 px-4 py-3">
-          <Button type="button" variant="ghost" size="sm" onClick={() => ref.current?.close()} disabled={pending}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void tryClose()} disabled={pending}>
             Отмена
           </Button>
           <Button type="submit" size="sm" disabled={pending}>
@@ -121,6 +136,7 @@ function EditDialogBody({ title, action, children, version, hint, saveLabel = "�
           </Button>
         </div>
       </form>
+      {confirmNode}
     </dialog>
   );
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { zNum, parseDateInput } from "@/lib/input";
@@ -68,7 +68,7 @@ export async function addSupplyPlanEntry(_prev: FormState, formData: FormData): 
     },
   });
 
-  revalidatePath("/supply-plan");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -99,7 +99,7 @@ export async function updateSupplyPlanEntry(entryId: string, formData: FormData)
     },
   });
 
-  revalidatePath("/supply-plan");
+  revalidateAll(session.user.organizationId);
   return {};
 }
 
@@ -108,5 +108,5 @@ export async function removeSupplyPlanEntry(entryId: string) {
   await prisma.supplyPlanEntry.deleteMany({
     where: { id: entryId, organizationId: session.user.organizationId },
   });
-  revalidatePath("/supply-plan");
+  revalidateAll(session.user.organizationId);
 }

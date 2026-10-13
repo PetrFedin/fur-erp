@@ -1,9 +1,12 @@
+import { ClientForm } from "./client-form";
+import { createClient } from "./actions";
+import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { buttonVariants, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
@@ -17,7 +20,9 @@ export const metadata = { title: "Заказчики" };
 
 export default async function ClientsPage({ searchParams }: PageProps<"/clients">) {
   const session = await requireSession();
-  const f = parseFilters(LIST_FILTERS, await searchParams);
+  const sp = await searchParams;
+  const newOpen = sp.new === "1";
+  const f = parseFilters(LIST_FILTERS, sp);
   const needle = escapeLike(f.q);
   const canCreate = hasRole(session.user.role, ACCESS.clients);
   const clients = await prisma.client.findMany({
@@ -49,9 +54,9 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Заказчики</h1>
         {canCreate && (
-          <Link href="/clients/new" className={buttonVariants()}>
-            + Новый заказчик
-          </Link>
+          <CreateDialog label="+ Новый заказчик" title="Новый заказчик" defaultOpen={newOpen}>
+            <ClientForm action={createClient} />
+          </CreateDialog>
         )}
       </div>
 

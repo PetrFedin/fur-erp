@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -146,6 +147,7 @@ function Body({
   const [groupSel, setGroupSel] = useState("");
   const [clientErrs, setClientErrs] = useState<string[]>([]);
   const [shownAt, setShownAt] = useState<number | null>(null);
+  const guard = useUnsavedGuard(dirty && !pending);
   const errRef = useRef<HTMLUListElement>(null);
   const set = (k: keyof ArticleInitial) => (e: { target: { value: string } }) => {
     setF((p) => ({ ...p, [k]: e.target.value }));
@@ -196,6 +198,7 @@ function Body({
 
   return (
     <form ref={keepRef} onSubmit={onSubmit} onChange={() => setDirty(true)} className="flex flex-col gap-5 pb-4" noValidate>
+      {guard}
       <input type="hidden" name="isActive" value={f.isActive ? "1" : "0"} />
       <input type="hidden" name="group" value={groupValue} />
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
@@ -18,10 +18,7 @@ const t = (s: string | undefined, max: number) => (s ?? "").replace(/[\u0000-\u0
 
 function done(orgId: string) {
   invalidateFurIndex(orgId);
-  revalidatePath("/settings/furs");
-  revalidatePath("/analytics/raw");
-  revalidatePath("/analytics/products");
-  revalidatePath("/lots");
+  revalidateAll(orgId);
 }
 
 /** Какой другой вид меха уже владеет этим написанием (чтобы одно написание не вело в два вида). */

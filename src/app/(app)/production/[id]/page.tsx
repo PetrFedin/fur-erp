@@ -273,6 +273,7 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
   const expenseRows = order.expenses.map((e) => (
     <ExpenseRow
       key={e.id}
+      orderId={id}
       expense={{ id: e.id, categoryId: e.categoryId, categoryName: e.category.name, amount: e.amount.toString(), description: e.description }}
       categories={expenseCategories}
       readOnly={!canEdit}

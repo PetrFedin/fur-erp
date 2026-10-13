@@ -1,11 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import type { AuctionKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { invalidateFilterOptions } from "@/lib/filter-options";
 import { AUCTION_V, rowVersion } from "@/lib/concurrency";
 import {
   AuctionError, confirmAuctions, createAuction, deleteAuction, mergeAuctions, renameAuction, updateAuctionFields,
@@ -15,10 +14,9 @@ export type AuctionResult = { ok?: string; error?: string };
 
 const KINDS: AuctionKind[] = ["FUR", "LINING", "MATERIALS", "OTHER"];
 
-function touch() {
-  // Имя аукциона показывается в закупках, лотах, оплатах, документах и сверке — сбрасываем кэш всех страниц.
-  revalidatePath("/", "layout");
-  invalidateFilterOptions(); // варианты фильтра «Партия закупки» кэшируются на 30 с
+function touch(orgId: string) {
+  // Имя аукциона показывается в закупках, лотах, оплатах, документах и сверке — пересчитываем всё.
+  revalidateAll(orgId);
 }
 
 function fail(e: unknown): AuctionResult {
@@ -42,7 +40,7 @@ export async function renameAuctionAction(id: string, name: string, version?: st
   try {
     if (await stale(orgId, id, version)) return { error: STALE };
     const r = await renameAuction(orgId, id, name);
-    touch();
+    touch(session.user.organizationId);
     const n = r.synced.purchases + r.synced.payments + r.synced.documents;
     return { ok: `Имя «${r.auction.name}» сохранено${n ? `, обновлено записей: ${n}` : ""}` };
   } catch (e) {
@@ -54,7 +52,7 @@ export async function confirmAuctionAction(id: string): Promise<AuctionResult> {
   const session = await requireRole(...ACCESS.auctions);
   try {
     const n = await confirmAuctions(session.user.organizationId, [id]);
-    touch();
+    touch(session.user.organizationId);
     return { ok: n ? "Имя подтверждено" : "Уже подтверждено" };
   } catch (e) {
     return fail(e);
@@ -65,7 +63,7 @@ export async function confirmManyAction(ids: string[]): Promise<AuctionResult> {
   const session = await requireRole(...ACCESS.auctions);
   try {
     const n = await confirmAuctions(session.user.organizationId, ids.slice(0, 500));
-    touch();
+    touch(session.user.organizationId);
     return { ok: `Подтверждено имён: ${n}` };
   } catch (e) {
     return fail(e);
@@ -76,7 +74,7 @@ export async function mergeAuctionAction(fromId: string, intoId: string): Promis
   const session = await requireRole(...ACCESS.auctions);
   try {
     const r = await mergeAuctions(session.user.organizationId, fromId, intoId);
-    touch();
+    touch(session.user.organizationId);
     return { ok: `«${r.from.name}» объединён с «${r.into.name}»: перенесено закупок ${r.moved}` };
   } catch (e) {
     return fail(e);
@@ -87,7 +85,7 @@ export async function deleteAuctionAction(id: string): Promise<AuctionResult> {
   const session = await requireRole(...ACCESS.auctions);
   try {
     const a = await deleteAuction(session.user.organizationId, id);
-    touch();
+    touch(session.user.organizationId);
     return { ok: `Аукцион «${a.name}» удалён` };
   } catch (e) {
     return fail(e);
@@ -129,7 +127,7 @@ export async function createAuctionAction(_prev: AuctionResult | null, fd: FormD
       currency: str(fd.get("currency")).toUpperCase(),
       auctionDate: dateOrNull(fd.get("auctionDate")),
     });
-    touch();
+    touch(session.user.organizationId);
     return { ok: `Аукцион «${a.name}» добавлен` };
   } catch (e) {
     return fail(e);
@@ -141,7 +139,7 @@ export async function createAuctionInline(name: string): Promise<{ ok: true; id:
   const session = await requireRole(...ACCESS.auctions);
   try {
     const a = await createAuction(session.user.organizationId, { name });
-    touch();
+    touch(session.user.organizationId);
     return { ok: true, id: a.id, name: a.name };
   } catch (e) {
     return { ok: false, error: fail(e).error ?? "Не удалось добавить аукцион" };
@@ -167,7 +165,7 @@ export async function updateAuctionAction(_prev: AuctionResult | null, fd: FormD
       isService: fd.get("isService") === "on",
       aliases: aliasList(str(fd.get("aliases"))),
     });
-    touch();
+    touch(session.user.organizationId);
     return { ok: "Сохранено" };
   } catch (e) {
     return fail(e);

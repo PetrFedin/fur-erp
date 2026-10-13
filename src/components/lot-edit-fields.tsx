@@ -179,8 +179,10 @@ export function LotDateField({ lotId, kind, value, label }: { lotId: string; kin
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { ask, node } = useConfirm();
   const commit = async () => {
     if (!draft || draft === value) return;
+    if (kind === "received" && !(await ask("Дата получения влияет на период и учёт. Сохранить?", { ok: "Сохранить" }))) { setDraft(value); return; }
     setBusy(true);
     const r = kind === "received" ? await saveLotReceivedDate(lotId, draft) : await saveLotPurchaseFields(lotId, { orderDate: draft });
     setBusy(false);
@@ -190,6 +192,7 @@ export function LotDateField({ lotId, kind, value, label }: { lotId: string; kin
     <span className="block">
       <input type="date" aria-label={label} value={draft} disabled={busy} onChange={(e) => setDraft(e.target.value)} onBlur={commit} className={cn(BOX, "w-auto", error && "border-red-500 bg-red-50")} />
       <SaveStatus pending={busy} saved={saved} error={error} />
+      {node}
     </span>
   );
 }

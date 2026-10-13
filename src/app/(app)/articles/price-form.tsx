@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/utils";
 import { updateSellingPrice } from "../models/actions";
@@ -23,7 +23,7 @@ function checkPrice(raw: string): string | null {
   return null;
 }
 
-/** Розничная цена модели: сохраняется по Enter или при уходе из поля, если значение изменилось. Без права правки — текст. */
+/** Розничная цена модели: сохраняется кнопкой «Сохранить» (или Enter); при уходе из поля не сохраняется. Без права правки — текст. */
 export function ArticlePriceForm({
   modelId,
   sellingPrice,
@@ -36,7 +36,6 @@ export function ArticlePriceForm({
   canEdit?: boolean;
 }) {
   const bound = updateSellingPrice.bind(null, modelId);
-  const formRef = useRef<HTMLFormElement>(null);
   const [saved, setSaved] = useState(sellingPrice);
   const [value, setValue] = useState(sellingPrice);
   const [focused, setFocused] = useState(false);
@@ -56,7 +55,6 @@ export function ArticlePriceForm({
 
   return (
     <form
-      ref={formRef}
       id={mobile ? `price-m-${modelId}` : `price-${modelId}`}
       action={async (formData) => {
         if (value === saved) {
@@ -90,10 +88,7 @@ export function ArticlePriceForm({
           setError(null);
         }}
         onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          if (dirty && !pending) formRef.current?.requestSubmit();
-        }}
+        onBlur={() => setFocused(false)}
         aria-label="Розничная цена"
         aria-invalid={error ? true : undefined}
         title="Цена применяется к незавершённым ТЗ (в плане и в работе); у завершённых не меняется"

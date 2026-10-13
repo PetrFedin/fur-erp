@@ -18,8 +18,10 @@ const NEW = "__new__";
  * onCreate (если есть) сначала заводит значение в справочник и возвращает итоговое значение, затем оно сохраняется через onPick.
  */
 function PickOrAdd({
-  value, options, emptyLabel, label, onPick, onCreate, addLabel = "＋ Внести своё…", placeholder, type = "text", suffix, extraStatus,
+  value, options, emptyLabel, label, onPick, onCreate, addLabel = "＋ Внести своё…", placeholder, type = "text", suffix, extraStatus, confirmPick,
 }: {
+  /** Явное подтверждение выбора окном «что изменится» (вместо обычного подтверждения завершённого ТЗ); false — выбор отменён. */
+  confirmPick?: (v: string) => Promise<boolean>;
   value: string;
   options: SelectOpt[];
   emptyLabel: string;
@@ -32,7 +34,11 @@ function PickOrAdd({
   suffix?: string;
   extraStatus?: string | null;
 }) {
-  const { pending, error, save, saved } = useSaver(onPick, value);
+  const { pending, error, save: rawSave, saved } = useSaver(onPick, value, !!confirmPick);
+  const save = async (v: string, revert: () => void) => {
+    if (confirmPick && v.trim() !== value.trim() && !(await confirmPick(v))) { revert(); return; }
+    rawSave(v, revert);
+  };
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
   const [adding, setAdding] = useState(false);
@@ -190,8 +196,9 @@ export function CategoryCell({
 
 /** НДС ТЗ: ставка для всех строк списания сразу — 22, 20 или своя; «как в лотах» возвращает ставки лотов. */
 export function VatCell({
-  rates, lines, onSave,
+  rates, lines, onSave, confirmPick,
 }: {
+  confirmPick?: (v: string) => Promise<boolean>;
   rates: number[];
   lines: number;
   onSave: (rate: string) => Promise<CellResult>;
@@ -208,6 +215,7 @@ export function VatCell({
       emptyLabel={rates.length > 1 ? `Разные: ${rates.map((r) => `${r}%`).join(" / ")} (как в лотах)` : "Как в лотах"}
       label="НДС ТЗ, %"
       onPick={(v) => onSave(v)}
+      confirmPick={confirmPick}
       addLabel="＋ Своя ставка…"
       type="number"
       suffix="%"

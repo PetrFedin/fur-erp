@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { MaterialFormState } from "./actions";
 import type { RawMaterial, RawMaterialCategory } from "@prisma/client";
-import { useKeepingForm } from "@/lib/use-keeping-form";
+import { useCreateForm, DialogButtons } from "@/components/create-dialog";
 import { VatInput } from "@/components/vat-input";
 
 const initialState: MaterialFormState = {};
@@ -37,8 +36,7 @@ export function MaterialForm({
   categories: RawMaterialCategory[];
   defaultUnit?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const { state, pending, saved, dlg, setForm: keepRef, onSubmit: keepSubmit } = useCreateForm(action, initialState);
   const initialVat = material?.defaultVatRate != null ? Number(material.defaultVatRate) : null;
   const [vatMode, setVatMode] = useState<"" | "20" | "22" | "custom">(
     initialVat == null ? "" : initialVat === 20 ? "20" : initialVat === 22 ? "22" : "custom",
@@ -147,11 +145,7 @@ export function MaterialForm({
           {state.error}
         </p>
       )}
-      <div className="col-span-full flex justify-end">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохраняем..." : "Сохранить"}
-        </Button>
-      </div>
+      <DialogButtons pending={pending} withMore={Boolean(dlg) && !material} saved={saved} onCancel={dlg?.close} />
     </form>
   );
 }

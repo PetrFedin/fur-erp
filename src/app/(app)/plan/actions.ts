@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -110,7 +110,7 @@ export async function savePlan(_prev: PlanFormState, formData: FormData): Promis
       }
     }
   });
-  revalidatePath("/plan");
+  revalidateAll(session.user.organizationId);
   redirect(`/plan${season.id ? `?season=${season.id}` : ""}`);
 }
 
@@ -135,7 +135,7 @@ export async function copyPlan(formData: FormData) {
       sizes: { create: src.sizes.map((s) => ({ size: s.size, quantity: s.quantity })) },
     },
   });
-  revalidatePath("/plan");
+  revalidateAll(session.user.organizationId);
   redirect(`/plan${src.seasonId ? `?season=${src.seasonId}` : ""}`);
 }
 
@@ -146,7 +146,7 @@ export async function deletePlan(formData: FormData) {
     // События календаря остаются (planId обнулится сам, onDelete: SetNull), удаляется только позиция плана и её размеры.
     await prisma.productionPlan.delete({ where: { id: src.id } });
   }
-  revalidatePath("/plan");
+  revalidateAll(session.user.organizationId);
   redirect(`/plan${src?.seasonId ? `?season=${src.seasonId}` : ""}`);
 }
 
@@ -181,8 +181,7 @@ export async function createSeason(_prev: PlanFormState, formData: FormData): Pr
     if (isUniqueViolation(e)) return { error: `Сезон «${p.data.code}» уже есть` };
     throw e;
   }
-  revalidatePath("/plan");
-  revalidatePath("/plan/seasons");
+  revalidateAll(session.user.organizationId);
   return { ok: `Сезон «${p.data.code}» создан` };
 }
 
@@ -207,8 +206,7 @@ export async function updateSeasonDates(_prev: PlanFormState, formData: FormData
     if (isUniqueViolation(e)) return { error: `Сезон «${codeRaw}» уже есть` };
     throw e;
   }
-  revalidatePath("/plan");
-  revalidatePath("/plan/seasons");
+  revalidateAll(session.user.organizationId);
   return { ok: "Сохранено" };
 }
 
@@ -222,7 +220,7 @@ export async function createArticleInline(code: string, title: string): Promise<
   const hit = modelIndex(models).get(normalizeKey(c));
   if (hit) return { ok: true, id: hit, name: models.find((m) => m.id === hit)!.name, existed: true };
   const m = await prisma.productModel.create({ data: { organizationId: orgId, name: c, category: cleanSearch(title, 100) || null } });
-  revalidatePath("/articles");
+  revalidateAll(session.user.organizationId);
   return { ok: true, id: m.id, name: m.name, existed: false };
 }
 
@@ -241,9 +239,7 @@ export async function assignSeason(formData: FormData) {
     if (!ok) redirect("/plan/seasons?msg=noseason");
   }
   const r = await prisma.productionOrder.updateMany({ where: { id: { in: ids }, organizationId: orgId }, data: { seasonId: seasonId || null } });
-  revalidatePath("/plan");
-  revalidatePath("/plan/seasons");
-  revalidatePath("/production");
+  revalidateAll(session.user.organizationId);
   redirect(`/plan/seasons?msg=assigned&n=${r.count}`);
 }
 
@@ -265,8 +261,6 @@ export async function applySeasonRule(formData: FormData) {
     const r = await prisma.productionOrder.updateMany({ where: { id: { in: oids }, organizationId: orgId, seasonId: null }, data: { seasonId: sid } });
     n += r.count;
   }
-  revalidatePath("/plan");
-  revalidatePath("/plan/seasons");
-  revalidatePath("/production");
+  revalidateAll(session.user.organizationId);
   redirect(`/plan/seasons?msg=assigned&n=${n}`);
 }

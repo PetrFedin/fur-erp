@@ -1,13 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
 import { attrKey, parseAttrAliases } from "@/lib/fur-attr";
-import { invalidateFilterOptions } from "@/lib/filter-options";
 
 const ROLES = ACCESS.furRefs;
 const nameSchema = z.string().trim().min(2, "Укажите название признака").max(80, "Название слишком длинное");
@@ -19,8 +18,7 @@ function back(msg?: string, ok?: string): never {
 
 function touch(orgId: string) {
   // Признак виден в таблицах и фильтрах лотов, сводки, ТЗ и аналитики — сбрасываем кэш вариантов и страниц.
-  invalidateFilterOptions(orgId);
-  revalidatePath("/", "layout");
+  revalidateAll(orgId);
 }
 
 const text = (v: FormDataEntryValue | null, max: number) => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);

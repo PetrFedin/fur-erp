@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/session";
@@ -34,7 +34,7 @@ export async function createExpenseCategory(formData: FormData) {
     create: { organizationId: session.user.organizationId, ...parsed.data },
     update: { isActive: true },
   });
-  revalidatePath("/settings/expense-categories");
+  revalidateAll(session.user.organizationId);
 }
 
 export async function toggleExpenseCategoryActive(id: string) {
@@ -48,7 +48,7 @@ export async function toggleExpenseCategoryActive(id: string) {
     where: { id },
     data: { isActive: !category.isActive },
   });
-  revalidatePath("/settings/expense-categories");
+  revalidateAll(session.user.organizationId);
 }
 
 export async function updateExpenseCategory(formData: FormData) {
@@ -65,7 +65,7 @@ export async function updateExpenseCategory(formData: FormData) {
   });
   if (clash) redirect(`/settings/expense-categories?error=${encodeURIComponent("Такая статья с этим типом уже есть")}`);
   await prisma.expenseCategory.update({ where: { id }, data: parsed.data });
-  revalidatePath("/settings/expense-categories");
+  revalidateAll(session.user.organizationId);
 }
 
 /** Удалить статью можно, только если она нигде не использована (ни в расходах закупок, ни в расходах ТЗ); иначе — «Деактивировать». */
@@ -77,6 +77,6 @@ export async function deleteExpenseCategory(id: string): Promise<{ error?: strin
   const [p, q] = await Promise.all([prisma.purchaseExpense.count({ where: { categoryId: id } }), prisma.productionExpense.count({ where: { categoryId: id } })]);
   if (p + q > 0) return { error: `Статья используется в расходах (${p + q}) — деактивируйте её` };
   await prisma.expenseCategory.deleteMany({ where: { id, organizationId: orgId } });
-  revalidatePath("/settings/expense-categories");
+  revalidateAll(session.user.organizationId);
   return {};
 }

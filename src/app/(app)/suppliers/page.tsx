@@ -3,12 +3,15 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { defineFilters, parseFilters, pick } from "@/lib/filters";
 import { escapeLike } from "@/lib/input";
-import { toggleSupplierActive } from "./actions";
+import { toggleSupplierActive, createSupplier } from "./actions";
+import { SupplierForm } from "./supplier-form";
+import { CreateDialog } from "@/components/create-dialog";
+
 
 // Список: поиск по названию, контакту, телефону и email; статус — активные / неактивные.
 const LIST_FILTERS = defineFilters({ ...pick(["q"], { q: { label: "Поиск" } }) });
@@ -17,7 +20,9 @@ export const metadata = { title: "Поставщики" };
 
 export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
   const session = await requireSession();
-  const f = parseFilters(LIST_FILTERS, await searchParams);
+  const sp = await searchParams;
+  const newOpen = sp.new === "1";
+  const f = parseFilters(LIST_FILTERS, sp);
   const needle = escapeLike(f.q);
   const canCreate = hasRole(session.user.role, ACCESS.suppliers);
   const suppliers = await prisma.supplier.findMany({
@@ -49,9 +54,9 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/suppli
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Поставщики</h1>
         {canCreate && (
-          <Link href="/suppliers/new" className={buttonVariants()}>
-            + Новый поставщик
-          </Link>
+          <CreateDialog label="+ Новый поставщик" title="Новый поставщик" defaultOpen={newOpen}>
+            <SupplierForm action={createSupplier} />
+          </CreateDialog>
         )}
       </div>
 

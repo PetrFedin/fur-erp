@@ -1,11 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import type { ClientFormState } from "./actions";
 import type { Client } from "@prisma/client";
-import { useKeepingForm } from "@/lib/use-keeping-form";
+import { useCreateForm, DialogButtons } from "@/components/create-dialog";
 
 const initialState: ClientFormState = {};
 
@@ -16,8 +14,7 @@ export function ClientForm({
   action: (prev: ClientFormState, formData: FormData) => Promise<ClientFormState>;
   client?: Client;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const { state, pending, saved, dlg, setForm: keepRef, onSubmit: keepSubmit } = useCreateForm(action, initialState);
 
   return (
     <form ref={keepRef} onSubmit={keepSubmit} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -54,11 +51,7 @@ export function ClientForm({
           {state.error}
         </p>
       )}
-      <div className="col-span-full flex justify-end gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохраняем..." : "Сохранить"}
-        </Button>
-      </div>
+      <DialogButtons pending={pending} withMore={Boolean(dlg) && !client} saved={saved} onCancel={dlg?.close} />
     </form>
   );
 }

@@ -18,6 +18,7 @@ import { draftTotals, lineCalc, vatByRate, type CalcLine } from "@/lib/tz-calc";
 import { formatQty, formatMoney } from "@/lib/utils";
 import { LotPicker, type LotOpt } from "./lot-picker";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 
 export type { LotOpt } from "./lot-picker";
 
@@ -160,6 +161,8 @@ function FormBody({
   const [fur, setFur] = useState<Line[]>([]);
   const [lining, setLining] = useState<Line[]>([]);
   const [exps, setExps] = useState<ExpLine[]>([]);
+  const [touched, setTouched] = useState(false);
+  const guard = useUnsavedGuard(touched || fur.length > 0 || lining.length > 0 || exps.length > 0);
   const [paste, setPaste] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [pasteErrs, setPasteErrs] = useState<string[]>([]);
@@ -409,7 +412,8 @@ function FormBody({
   const clientName = clients.find((c) => c.id === clientId)?.name;
 
   return (
-    <form ref={(n) => { formEl.current = n; keepRef(n); }} onSubmit={onSubmit} className="flex flex-col gap-5 pb-4" noValidate>
+    <form ref={(n) => { formEl.current = n; keepRef(n); }} onSubmit={onSubmit} onChange={() => setTouched(true)} className="flex flex-col gap-5 pb-4" noValidate>
+      {guard}
       <input type="hidden" name="productModelId" value={modelId} />
       <input type="hidden" name="draft" value={draft} />
       {/* Склад в интерфейсе не указывается: подставляется склад по умолчанию (сервер при пустом значении берёт его сам). */}

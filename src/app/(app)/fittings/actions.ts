@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -32,9 +32,7 @@ export async function updateFitting(id: string, _prev: FittingFormState, formDat
       comment: str("comment").slice(0, 5000) || null,
     },
   });
-  revalidatePath("/fittings");
-  revalidatePath(`/fittings/${id}`);
-  revalidatePath(`/production/${fitting.productionOrderId}`);
+  revalidateAll(session.user.organizationId);
   return { ok: true };
 }
 
@@ -47,9 +45,7 @@ export async function deleteFittingPhoto(photoId: string) {
   if (!photo) return;
   await prisma.fittingPhoto.delete({ where: { id: photoId } });
   await removeStoredFiles([photo.storagePath]);
-  revalidatePath("/fittings");
-  revalidatePath(`/fittings/${photo.fitting.id}`);
-  revalidatePath(`/production/${photo.fitting.productionOrderId}`);
+  revalidateAll(session.user.organizationId);
 }
 
 export async function deleteFitting(id: string) {
@@ -62,7 +58,6 @@ export async function deleteFitting(id: string) {
   await prisma.fitting.delete({ where: { id } }); // фото в БД удаляются каскадом
   await removeStoredFiles(fitting.photos.map((p) => p.storagePath));
   await removeFittingDirIfEmpty(fitting.organizationId, fitting.id);
-  revalidatePath("/fittings");
-  revalidatePath(`/production/${fitting.productionOrderId}`);
+  revalidateAll(session.user.organizationId);
   redirect("/fittings");
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import type { FormState, Issue } from "../actions";
@@ -35,12 +36,15 @@ export function PurchaseCreateForm({
   const [clientIssues, setClientIssues] = useState<Issue[]>([]);
   const [currency, setCurrency] = useState("RUB");
   const [rows, setRows] = useState("");
+  const [touched, setTouched] = useState(false);
+  const guard = useUnsavedGuard(touched || rows.trim() !== "");
   const today = new Date().toISOString().slice(0, 10);
 
   const issues = clientIssues.length > 0 ? clientIssues : (state.issues ?? []);
 
   return (
     <form
+      onChange={() => setTouched(true)}
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -64,6 +68,7 @@ export function PurchaseCreateForm({
       }}
       className="flex flex-col gap-4"
     >
+      {guard}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div>
           <Label htmlFor="orderDate">Дата</Label>

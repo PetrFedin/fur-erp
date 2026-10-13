@@ -18,6 +18,7 @@ import { Money } from "@/components/money";
 import { VatLabel } from "@/components/vat-label";
 import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
+import { CreateDialog } from "@/components/create-dialog";
 import { PurchaseItemForm } from "./item-form";
 import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
@@ -702,9 +703,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <CardContent className="flex flex-col gap-3">
           {editable && (
             <>
-              <details className="rounded-md border border-neutral-200 px-3 py-2">
-                <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Вставить позиции из Excel</summary>
-                <div className="mt-3">
+              <div className="flex flex-wrap gap-2">
+                <CreateDialog label="+ Позиция" title="Новая позиция закупки" variant="outline" wide>
+                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} colorOptions={colorOptions} canAddColor={canAddColor} purchaseDate={purchase.orderDate.toISOString().slice(0, 10)} />
+                </CreateDialog>
+                <CreateDialog label="Вставить из Excel" title="Вставить позиции из Excel" variant="outline" wide>
                   <BulkItemForm
                     purchaseId={id}
                     materialNames={allMaterials.map((m) => m.name)}
@@ -712,14 +715,8 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                     currency={purchase.currency}
                     purchaseDate={purchase.orderDate.toISOString().slice(0, 10)}
                   />
-                </div>
-              </details>
-              <details className="rounded-md border border-neutral-200 px-3 py-2">
-                <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить одну позицию</summary>
-                <div className="mt-3">
-                  <PurchaseItemForm purchaseId={id} materials={allMaterials} currency={purchase.currency} colorOptions={colorOptions} canAddColor={canAddColor} purchaseDate={purchase.orderDate.toISOString().slice(0, 10)} />
-                </div>
-              </details>
+                </CreateDialog>
+              </div>
             </>
           )}
           <details open={purchase.items.length <= EXPANDED_ITEMS_LIMIT}>
@@ -850,10 +847,11 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {editable && (
-            <details className="rounded-md border border-neutral-200 px-3 py-2">
-              <summary className="cursor-pointer text-sm text-neutral-600 max-md:py-2">Добавить расход</summary>
-              <div className="mt-3"><PurchaseExpenseForm purchaseId={id} categories={expenseCategories} /></div>
-            </details>
+            <div>
+              <CreateDialog label="+ Расход" title="Новый расход по закупке" variant="outline">
+                <PurchaseExpenseForm purchaseId={id} categories={expenseCategories} />
+              </CreateDialog>
+            </div>
           )}
           {purchase.expenses.length > 0 && (
             <ResponsiveRows

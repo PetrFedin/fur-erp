@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { DialogButtons, useCreateDialog } from "@/components/create-dialog";
 import { Input } from "@/components/ui/input";
 import { VatInput } from "@/components/vat-input";
 import { addPurchaseExpense } from "../actions";
@@ -20,6 +20,9 @@ export function PurchaseExpenseForm({
   defaultVatRate?: number;
 }) {
   const [pending, startTransition] = useTransition();
+  const dlg = useCreateDialog();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(0);
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [vatRate, setVatRate] = useState(String(defaultVatRate));
@@ -28,8 +31,9 @@ export function PurchaseExpenseForm({
 
   const canAdd = categoryId !== "" && Number(amount) > 0;
 
-  function submit() {
-    if (!canAdd) return;
+  function submit(more: boolean) {
+    if (!canAdd || pending) return;
+    setError(null);
     const fd = new FormData();
     fd.set("categoryId", categoryId);
     fd.set("amount", amount);
@@ -38,16 +42,26 @@ export function PurchaseExpenseForm({
     startTransition(async () => {
       const res = await addPurchaseExpense(purchaseId, fd);
       if (res?.error) {
-        window.alert(res.error);
+        setError(res.error);
         return;
       }
-      setAmount("");
-      setDescription("");
+      if (more) {
+        // Окно остаётся: статья и НДС сохраняются, очищаются сумма и комментарий.
+        setAmount("");
+        setDescription("");
+        setSaved((k) => k + 1);
+      } else dlg?.close();
     });
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit(((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.name === "_more");
+      }}
+    >
       <div className="flex flex-wrap gap-2">
         {categories.map((c) => (
           <button
@@ -78,7 +92,7 @@ export function PurchaseExpenseForm({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                submit();
+                submit(false);
               }
             }}
             className="w-40"
@@ -102,11 +116,10 @@ export function PurchaseExpenseForm({
             + комментарий
           </button>
         )}
-        <Button type="button" variant="outline" size="sm" disabled={pending || !canAdd} onClick={submit}>
-          + Добавить расход
-        </Button>
       </div>
+      {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      <DialogButtons pending={pending} withMore saved={saved} onCancel={dlg?.close} />
       {categoryId === "" && <p className="text-xs text-neutral-500">Выберите статью, затем введите сумму.</p>}
-    </div>
+    </form>
   );
 }

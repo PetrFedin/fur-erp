@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -85,6 +86,7 @@ export function BatchWizard({
   const [restoredAt, setRestoredAt] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [rateMsg, setRateMsg] = useState<string | null>(null);
+  useUnsavedGuard(hydrated && !result && (rows.length > 0 || step > 1), { links: false });
 
   // ----- черновик (localStorage): восстанавливается сам при открытии, сохраняется при каждом изменении
   useEffect(() => {

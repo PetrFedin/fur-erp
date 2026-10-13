@@ -1,10 +1,12 @@
+import { UserCreateForm } from "./user-create-form";
+import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { UserNameEdit } from "./name-edit";
 import { rowVersion } from "@/lib/concurrency";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
-import { buttonVariants, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { redirect } from "next/navigation";
 import { RoleSelect } from "./role-select";
@@ -37,6 +39,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
   const isOwner = session.user.role === "OWNER";
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
+  const newOpen = sp.new === "1";
   const f = parseFilters(USER_FILTERS, sp);
   const users = await prisma.user.findMany({
     where: {
@@ -56,9 +59,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/users">) {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Пользователи</h1>
         {canManage && (
-          <Link href="/users/new" className={buttonVariants()}>
-            + Новый пользователь
-          </Link>
+          <CreateDialog label="+ Новый пользователь" title="Новый пользователь" hint="Пароль сообщите сотруднику лично." defaultOpen={newOpen}>
+            <UserCreateForm />
+          </CreateDialog>
         )}
       </div>
 

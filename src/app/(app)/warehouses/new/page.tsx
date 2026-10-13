@@ -1,20 +1,6 @@
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WarehouseForm } from "../warehouse-form";
-import { createWarehouse } from "../actions";
+import { redirect } from "next/navigation";
 
-export default function NewWarehousePage() {
-  return (
-    <div className="max-w-md">
-      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Склады", href: "/warehouses" }, { label: "Новый склад" }]} className="mb-3" />
-      <Card>
-        <CardHeader>
-          <CardTitle as="h1" className="text-xl">Новый склад</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <WarehouseForm action={createWarehouse} />
-        </CardContent>
-      </Card>
-    </div>
-  );
+// Создание теперь в окне поверх списка; старый адрес открывает его.
+export default function NewRedirect() {
+  redirect("/warehouses?new=1");
 }

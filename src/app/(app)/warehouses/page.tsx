@@ -1,16 +1,20 @@
+import { WarehouseForm } from "./warehouse-form";
+import { createWarehouse } from "./actions";
+import { CreateDialog } from "@/components/create-dialog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
-import { buttonVariants } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 
 export const metadata = { title: "Склады" };
 
-export default async function WarehousesPage() {
+export default async function WarehousesPage({ searchParams }: PageProps<"/warehouses">) {
   const session = await requireSession();
+  const newOpen = (await searchParams).new === "1";
   const canCreate = hasRole(session.user.role, ACCESS.warehouses);
   const warehouses = await prisma.warehouse.findMany({
     where: { organizationId: session.user.organizationId },
@@ -23,9 +27,9 @@ export default async function WarehousesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Склады</h1>
         {canCreate && (
-          <Link href="/warehouses/new" className={buttonVariants()}>
-            + Новый склад
-          </Link>
+          <CreateDialog label="+ Новый склад" title="Новый склад" defaultOpen={newOpen}>
+            <WarehouseForm action={createWarehouse} />
+          </CreateDialog>
         )}
       </div>
 

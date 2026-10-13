@@ -1,20 +1,6 @@
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SupplierForm } from "../supplier-form";
-import { createSupplier } from "../actions";
+import { redirect } from "next/navigation";
 
-export default function NewSupplierPage() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Поставщики", href: "/suppliers" }, { label: "Новый поставщик" }]} />
-      <Card>
-        <CardHeader>
-          <CardTitle as="h1" className="text-xl">Новый поставщик</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SupplierForm action={createSupplier} />
-        </CardContent>
-      </Card>
-    </div>
-  );
+// Создание теперь в окне поверх списка; старый адрес открывает его.
+export default function NewRedirect() {
+  redirect("/suppliers?new=1");
 }

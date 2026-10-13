@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { revalidateAll } from "@/lib/revalidate-all";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
@@ -17,7 +17,7 @@ const supplierSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-export type SupplierFormState = { error?: string };
+export type SupplierFormState = { error?: string; ok?: boolean };
 
 const EDIT_ROLES = ACCESS.suppliers;
 
@@ -43,12 +43,18 @@ export async function createSupplier(
     return { error: parsed.error.issues[0]?.message ?? "Проверьте поля формы" };
   }
 
+  const dup = await prisma.supplier.findFirst({
+    where: { organizationId: session.user.organizationId, name: { equals: parsed.data.name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (dup) return { error: "Такой поставщик уже есть: откройте его в списке или измените название" };
+
   await prisma.supplier.create({
     data: { organizationId: session.user.organizationId, ...parsed.data },
   });
 
-  revalidatePath("/suppliers");
-  redirect("/suppliers");
+  revalidateAll(session.user.organizationId);
+  return { ok: true };
 }
 
 export async function updateSupplier(
@@ -70,7 +76,7 @@ export async function updateSupplier(
     return { error: "Поставщик не найден" };
   }
 
-  revalidatePath("/suppliers");
+  revalidateAll(session.user.organizationId);
   redirect("/suppliers");
 }
 
@@ -85,5 +91,5 @@ export async function toggleSupplierActive(id: string) {
     where: { id },
     data: { isActive: !supplier.isActive },
   });
-  revalidatePath("/suppliers");
+  revalidateAll(session.user.organizationId);
 }

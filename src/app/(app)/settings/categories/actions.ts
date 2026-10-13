@@ -24,9 +24,9 @@ function back(msg?: string, ok?: string): never {
   redirect(`/settings/categories${q}`);
 }
 
-function touch() {
+function touch(orgId: string) {
   // Категория показывается в моделях, артикулах, ТЗ и аналитике — сбрасываем кэш всех страниц.
-  revalidateAll();
+  revalidateAll(orgId);
 }
 
 /** «a, b; c» или по строкам → список без пустых и повторов (по ключу сравнения), без совпадающих с названием. */
@@ -63,7 +63,7 @@ export async function createCategory(formData: FormData) {
   if (taken) back(taken);
   const max = (await prisma.categoryRef.aggregate({ where: { organizationId: orgId }, _max: { sortOrder: true } }))._max.sortOrder ?? 0;
   await prisma.categoryRef.create({ data: { organizationId: orgId, name, aliases, confirmed: true, sortOrder: max + 10, group: groupFromForm(formData) } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Категория «${name}» добавлена`);
 }
 
@@ -88,7 +88,7 @@ export async function updateCategory(formData: FormData) {
     await tx.categoryRef.update({ where: { id }, data: { name, aliases: keepOld ? [...aliases, ref.name] : aliases, note, group } });
     if (ref.name !== name) await tx.productModel.updateMany({ where: { organizationId: orgId, categoryRefId: id }, data: { category: name } });
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Категория «${name}» сохранена`);
 }
 
@@ -99,7 +99,7 @@ export async function confirmCategory(formData: FormData) {
   if (!ref) back("Категория не найдена");
   const rest = (ref.note ?? "").trim().replace(/^Предложено, ждёт подтверждения\.?\s*/, "");
   await prisma.categoryRef.update({ where: { id }, data: { confirmed: true, note: rest || null } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Категория «${ref.name}» подтверждена`);
 }
 
@@ -129,7 +129,7 @@ export async function mergeCategories(formData: FormData) {
     await tx.categoryRef.update({ where: { id: intoId }, data: { aliases: merged } });
     await tx.categoryRef.delete({ where: { id: fromId } });
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `«${from.name}» объединена с «${into.name}»`);
 }
 
@@ -141,7 +141,7 @@ export async function deleteCategory(formData: FormData) {
   if (!ref) back("Категория не найдена");
   if (ref._count.models > 0) back(`«${ref.name}» используется (моделей: ${ref._count.models}) — удалить нельзя. Объедините с другой категорией.`);
   await prisma.categoryRef.delete({ where: { id } });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Категория «${ref.name}» удалена`);
 }
 
@@ -184,7 +184,7 @@ export async function bindCategoryModels(formData: FormData) {
     await tx.categoryRef.update({ where: { id: target.id }, data: { aliases: [...target.aliases, ...add], confirmed: true, note: rest } });
     return models.length;
   });
-  touch();
+  touch(session.user.organizationId);
   back(undefined, `Привязано моделей: ${n} → «${target.name}»`);
 }
 

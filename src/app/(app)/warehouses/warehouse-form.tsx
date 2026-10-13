@@ -1,11 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import type { WarehouseFormState } from "./actions";
 import type { Warehouse } from "@prisma/client";
-import { useKeepingForm } from "@/lib/use-keeping-form";
+import { useCreateForm, DialogButtons } from "@/components/create-dialog";
 
 const initialState: WarehouseFormState = {};
 
@@ -16,8 +14,7 @@ export function WarehouseForm({
   action: (prev: WarehouseFormState, formData: FormData) => Promise<WarehouseFormState>;
   warehouse?: Warehouse;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
-  const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
+  const { state, pending, saved, dlg, setForm: keepRef, onSubmit: keepSubmit } = useCreateForm(action, initialState);
 
   return (
     <form ref={keepRef} onSubmit={keepSubmit} className="flex flex-col gap-4">
@@ -41,11 +38,7 @@ export function WarehouseForm({
       {state.error && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Сохраняем..." : "Сохранить"}
-        </Button>
-      </div>
+      <DialogButtons pending={pending} withMore={Boolean(dlg) && !warehouse} saved={saved} onCancel={dlg?.close} />
     </form>
   );
 }
