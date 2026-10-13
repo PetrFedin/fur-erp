@@ -1,18 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { NAV_LINKS, SECONDARY_NAV_HREFS, activeNavHref } from "./nav-links";
 
+const KEY = "sidebar-collapsed";
+
 export function Sidebar() {
   const pathname = usePathname();
   const activeHref = activeNavHref(pathname);
+  // Свёрнутое меню запоминается в браузере; по умолчанию развёрнуто (до чтения настройки рисуем развёрнутым, без расхождения с сервером).
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem(KEY) === "1"); } catch { /* без памяти браузера — развёрнуто */ }
+  }, []);
+  const toggle = (v: boolean) => {
+    setCollapsed(v);
+    try { localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* не критично */ }
+  };
+
+  if (collapsed) {
+    return (
+      <div className="hidden h-full w-10 shrink-0 flex-col items-center border-r border-neutral-200 bg-white py-4 md:flex print:!hidden">
+        <button type="button" onClick={() => toggle(false)} aria-label="Развернуть меню" title="Развернуть меню" className="inline-flex size-8 items-center justify-center rounded-md border border-neutral-300 text-neutral-700 hover:bg-neutral-50">›</button>
+      </div>
+    );
+  }
 
   return (
     <nav aria-label="Основное меню" className="hidden h-full w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 md:flex print:!hidden">
-      <div className="px-2 text-lg font-semibold">MVST FUR PRODUCTION</div>
+      <div className="flex items-start justify-between gap-2 px-2">
+        <div className="text-lg font-semibold">MVST FUR PRODUCTION</div>
+        <button type="button" onClick={() => toggle(true)} aria-label="Свернуть меню" title="Свернуть меню" className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50">‹</button>
+      </div>
       <div className="flex flex-col gap-0.5">
         {NAV_LINKS.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
           const active = activeHref === link.href;
