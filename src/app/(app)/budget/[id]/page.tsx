@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { loadBudgetStats } from "@/lib/budget-stats";
 import { articleHint, articleLabel } from "@/lib/article-label";
 import { DEFAULT_PARAMS, parseNodes, type BudgetParams } from "@/lib/budget-calc";
+import { getCommission4Mode } from "@/lib/commission4-mode";
+import { loadOrdersDrill } from "@/lib/orders-drill";
 import { BudgetEditor } from "../budget-editor";
+import { factRows } from "../fact-calc";
 
 export const metadata = { title: "Бюджет" };
 
@@ -17,7 +20,8 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
   const orgId = session.user.organizationId;
   const row = await prisma.budgetScenario.findFirst({ where: { id, organizationId: orgId } });
   if (!row) notFound();
-  const [stats, furs, cats, models] = await Promise.all([
+  const c4 = await getCommission4Mode();
+  const [stats, furs, cats, models, drill] = await Promise.all([
     loadBudgetStats(orgId),
     prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.categoryRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
@@ -26,6 +30,7 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
       select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, aliases: true },
       orderBy: { name: "asc" },
     }),
+    loadOrdersDrill(orgId, "all", c4),
   ]);
   const articles = models.map((m) => ({
     id: m.id,
@@ -48,6 +53,7 @@ export default async function BudgetVersionPage({ params }: { params: Promise<{ 
       initialParams={bp}
       initialNodes={parseNodes(row.lines)}
       initialStats={stats}
+      fact={factRows(drill)}
       furNames={furNames}
       catNames={cats.map((c) => c.name)}
       articles={articles}

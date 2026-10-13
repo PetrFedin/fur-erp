@@ -15,11 +15,12 @@ import {
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
+import { factByNode, factDev, factTotals, type FactAgg, type FactRow } from "./fact-calc";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, pct, qty, segBtn, share } from "./ui";
 
 type Props = {
   id: string; name: string; season: string; status: "DRAFT" | "APPROVED"; initialComment: string; initialParams: BudgetParams; initialNodes: BudgetNode[];
-  initialStats: BudgetStat[]; furNames: string[]; catNames: string[]; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
+  initialStats: BudgetStat[]; fact: FactRow[]; furNames: string[]; catNames: string[]; articles: ArticleOpt[]; canEdit: boolean; savedAt: string; savedBy: string | null; createdAt: string;
 };
 
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
@@ -39,7 +40,7 @@ function PcsShare({ pcs, all }: { pcs: number; all: number }) {
 function VarTag({ v }: { v: number | null }) {
   if (v == null || !Number.isFinite(v)) return null;
   const tone = v >= 15 ? "text-red-700" : v >= 5 ? "text-amber-700" : v <= -5 ? "text-emerald-700" : "text-neutral-500";
-  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Отклонение {formatPercent(v, { sign: true })}</div>;
+  return <div className={"mt-0.5 text-[10px] font-medium leading-tight " + tone}>Откл. к ценам сырья {formatPercent(v, { sign: true })}</div>;
 }
 
 const ZERO: Agg = { pcs: 0, hides: 0, mex: 0, meters: 0, lining: 0, work: 0, c4: 0, total: 0, nowTotal: 0, nowPcs: 0, cmpTotal: 0 };
@@ -77,7 +78,8 @@ export function BudgetEditor(p: Props) {
   const [stats, setStats] = useState(p.initialStats);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("saved");
+  const [saveState, setSaveState] = useState<"saving" | "saved" | "error">("saved");
+  const [reverting, setReverting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const status = p.status;
   const [view, setView] = useState<"summary" | "detail">("summary");
@@ -93,26 +95,87 @@ export function BudgetEditor(p: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const canEdit = p.canEdit && status === "DRAFT";
 
-  // Автосохранение: через секунду после последнего изменения; без изменений относительно сохранённого ничего не отправляется.
-  const lastSaved = useRef(JSON.stringify([p.initialParams, p.initialNodes, p.initialComment]));
+  // Сохранение: явная кнопка «Сохранить». Пока не сохранено, правки лежат черновиком в этом браузере (localStorage) и восстанавливаются при возврате.
+  const snapOf = (pr: BudgetParams, ns: BudgetNode[], cm: string) => JSON.stringify([pr, ns, cm]);
+  const [savedSnap, setSavedSnap] = useState(() => snapOf(p.initialParams, p.initialNodes, p.initialComment));
+  const savedVals = useRef({ params: p.initialParams, nodes: p.initialNodes, comment: p.initialComment });
+  const draftKey = `budget-draft:${p.id}`;
+  const curSnap = useMemo(() => snapOf(params, nodes, comment), [params, nodes, comment]);
+  const dirty = canEdit && curSnap !== savedSnap;
+
   useEffect(() => {
     if (!canEdit) return;
-    const cur = JSON.stringify([params, nodes, comment]);
-    if (cur === lastSaved.current) return;
-    setSaveState("saving");
     const t = setTimeout(() => {
-      saveBudget(p.id, params, nodes, comment)
-        .then((r) => { if (r.ok) { lastSaved.current = cur; setUpdatedAtState(new Date().toISOString()); } setSaveState(r.ok ? "saved" : "error"); setSaveError(r.ok ? null : r.error); })
-        .catch(() => { setSaveState("error"); setSaveError("Нет связи с сервером"); });
-    }, 900);
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (!raw) return;
+        const d = JSON.parse(raw) as { base: string; params: BudgetParams; nodes: BudgetNode[]; comment: string };
+        if (d.base !== savedSnap || snapOf(d.params, d.nodes, d.comment) === savedSnap) { localStorage.removeItem(draftKey); return; }
+        setParams(d.params); setNodes(d.nodes); setComment(d.comment);
+        setMsg("Восстановлен несохранённый черновик из этого браузера. Нажмите «Сохранить» или «Отменить изменения».");
+      } catch { /* черновик не читается — работаем с сохранённой версией */ }
+    }, 0);
     return () => clearTimeout(t);
-  }, [nodes, params, comment, p.id, canEdit]);
+    // только при открытии страницы
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!canEdit) return;
+    const t = setTimeout(() => {
+      try {
+        if (curSnap === savedSnap) localStorage.removeItem(draftKey);
+        else localStorage.setItem(draftKey, JSON.stringify({ base: savedSnap, params, nodes, comment }));
+      } catch { /* браузер не даёт хранить черновик — не страшно */ }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [curSnap, savedSnap, params, nodes, comment, canEdit, draftKey]);
+
+  const save = async () => {
+    if (!canEdit || saveState === "saving") return;
+    const snap = curSnap;
+    const vals = { params, nodes, comment };
+    setSaveState("saving"); setSaveError(null);
+    try {
+      const r = await saveBudget(p.id, vals.params, vals.nodes, vals.comment);
+      if (r.ok) { savedVals.current = vals; setSavedSnap(snap); setUpdatedAtState(r.at); setSaveState("saved"); setMsg(null); }
+      else { setSaveState("error"); setSaveError(r.error); }
+    } catch { setSaveState("error"); setSaveError("Нет связи с сервером"); }
+  };
+  const revert = () => {
+    const v = savedVals.current;
+    setParams(v.params); setNodes(v.nodes); setComment(v.comment);
+    setSaveState("saved"); setSaveError(null); setReverting(false); setMsg("Изменения отменены: возвращена последняя сохранённая версия.");
+    try { localStorage.removeItem(draftKey); } catch { /* не страшно */ }
+  };
+
+  // Уход со страницы с несохранёнными изменениями: закрытие вкладки и переходы по ссылкам внутри приложения.
+  useEffect(() => {
+    if (!dirty) return;
+    const onUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a.target === "_blank" || a.origin !== window.location.origin || a.pathname === window.location.pathname) return;
+      if (!window.confirm("Есть несохранённые изменения. Уйти без сохранения? (Черновик останется в этом браузере.)")) { e.preventDefault(); e.stopPropagation(); }
+    };
+    window.addEventListener("beforeunload", onUnload);
+    document.addEventListener("click", onClick, true);
+    return () => { window.removeEventListener("beforeunload", onUnload); document.removeEventListener("click", onClick, true); };
+  }, [dirty]);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const kids = useMemo(() => childrenMap(nodes), [nodes]);
   const calc = useMemo(() => computeTree(nodes, params), [nodes, params]);
   const total = useMemo(() => grandTotal(nodes, params), [nodes, params]);
   const furs = useMemo(() => kids.get(null) ?? [], [kids]);
+  // Факт по ТЗ: те же ТЗ, что на Главной (без отменённых, ремонт отдельно).
+  const factMap = useMemo(() => factByNode(nodes, p.fact), [nodes, p.fact]);
+  const ft = useMemo(() => factTotals(p.fact), [p.fact]);
+  const factRest = useMemo(() => {
+    const r = { ...ft.all };
+    for (const f of furs) { const x = factMap.get(f.id); if (x) { r.pcs -= x.pcs; r.hides -= x.hides; r.mex -= x.mex; r.lining -= x.lining; r.work -= x.work; r.c4 -= x.c4; r.total -= x.total; } }
+    for (const k of ["pcs", "hides", "mex", "lining", "work", "c4", "total"] as const) if (Math.abs(r[k]) < 0.5) r[k] = 0;
+    return r.pcs > 0 || r.total > 0 ? r : null;
+  }, [ft, furs, factMap]);
   const pairOptions = useMemo(() => stats.filter((s) => !s.modelId), [stats]);
 
   const setParam = (k: keyof BudgetParams, v: number) => {
@@ -332,7 +395,7 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Отклонение", v: pct(varPct(total)) }, { k: "Доля", v: "100,0%" }])}
+      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }, { k: "Отклонение к текущим ценам сырья", v: pct(varPct(total)) }, { k: "Отклонение факта по ТЗ от бюджета", v: pct(factDev(ft.all.total, total.total)) }])}
       {furTile}
       {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
       {tile("w", "Работа", money(total.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
@@ -341,7 +404,22 @@ export function BudgetEditor(p: Props) {
   );
   // ---- Сводка (для руководства): без полей ввода
   const sumCell = "whitespace-nowrap px-3 py-2 text-right text-sm tabular-nums";
-  const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean; sticky?: boolean; node?: BudgetNode }) => {
+  const factCells = (f: FactAgg | null | undefined, budget: number) => {
+    const dev = factDev(f?.total, budget);
+    return (
+      <>
+        <td className={sumCell + " " + sepL}>{f ? qz(f.pcs) : "—"}</td>
+        <td className={sumCell + " text-neutral-600"}>{f ? qz(f.hides) : "—"}</td>
+        <td className={sumCell}>{f ? mz(f.mex) : "—"}</td>
+        <td className={sumCell}>{f ? mz(f.lining) : "—"}</td>
+        <td className={sumCell}>{f ? mz(f.work) : "—"}</td>
+        <td className={sumCell + " text-neutral-500"}>{f ? mz(f.c4) : "—"}</td>
+        <td className={sumCell + " font-semibold"}>{f ? mz(f.total) : "—"}</td>
+        <td className={sumCell + " text-neutral-600"}>{dev == null ? "—" : pct(dev)}</td>
+      </>
+    );
+  };
+  const sumRow = (key: string, label: ReactNode, a: Agg, o: { bg: string; bold?: boolean; fact?: FactAgg | null }) => {
     const v = varPct(a);
     const sh = total.total > 0 ? a.total / total.total : 0;
     return (
@@ -361,6 +439,7 @@ export function BudgetEditor(p: Props) {
           </div>
         </td>
         <td className={sumCell}>{mz(perUnit(a))}<VarTag v={v} /></td>
+        {factCells(o.fact, a.total)}
       </tr>
     );
   };
@@ -378,7 +457,7 @@ export function BudgetEditor(p: Props) {
           {n.kind === "art" ? <Badge tone={n.modelId ? "info" : "manual"}>{n.modelId ? "арт." : "план"}</Badge> : null}
         </div>
       );
-      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0 }), ...(open ? summaryRows(n.id, depth + 1) : [])];
+      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0, fact: factMap.get(n.id) }), ...(open ? summaryRows(n.id, depth + 1) : [])];
     });
 
   // ---- Детально: таблица с полями (планшет и компьютер)
@@ -413,6 +492,17 @@ export function BudgetEditor(p: Props) {
     </td>
   );
 
+  const factDetail = (f: FactAgg | null | undefined, budget: number) => {
+    const dev = factDev(f?.total, budget);
+    return (
+      <>
+        <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{f ? qz(f.pcs) : "—"}</td>
+        <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{f ? mz(f.total) : "—"}</td>
+        <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{dev == null ? "—" : pct(dev)}</td>
+      </>
+    );
+  };
+
   const tableRows = (parentId: string | null, depth: number): ReactNode[] =>
     (kids.get(parentId) ?? []).flatMap((n) => {
       const a = calc.get(n.id) ?? ZERO;
@@ -440,6 +530,7 @@ export function BudgetEditor(p: Props) {
           <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-500">{mz(a.c4)}<Avg sum={a.c4} per={a.pcs} unit="₽/изд." /></td>
           <td className="whitespace-nowrap px-2 text-right text-sm font-semibold tabular-nums">{mz(a.total)}</td>
           <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{mz(perUnit(a))}<VarTag v={varPct(a)} /></td>
+          {factDetail(factMap.get(n.id), a.total)}
           <td className="border-l border-neutral-200 bg-inherit px-1.5 py-1 lg:sticky lg:right-0 lg:z-10">{actions(n, hasKids)}</td>
         </tr>
       );
@@ -459,6 +550,7 @@ export function BudgetEditor(p: Props) {
       <td className="whitespace-nowrap px-2 text-right text-xs tabular-nums text-neutral-600">{money(total.c4)}<Avg sum={total.c4} per={total.pcs} unit="₽/изд." /></td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(total.total)}</td>
       <td className="whitespace-nowrap px-2 text-right text-sm tabular-nums">{money(perT)}<VarTag v={varPct(total)} /></td>
+      {factDetail(ft.all, total.total)}
       <td className="border-l border-neutral-200 lg:sticky lg:right-0 lg:z-10" />
     </tr>
   );
@@ -496,7 +588,7 @@ export function BudgetEditor(p: Props) {
                   {cardField(n, "meterPrice", "Цена за м, ₽", "upLining")}{cardField(n, "work", "Работа/изд., ₽", "upWork")}
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Var", pct(varPct(a))]].map(([k, v]) => (
+                  {[["Всего шкур", qty(a.hides, 0)], ["Мех", money(a.mex)], ["Подкладка", money(a.lining)], ["Работа", money(a.work)], ["Надбавка", money(a.c4)], ["На 1 изделие", money(perUnit(a))], ["Откл. к ценам сырья", pct(varPct(a))], ["Факт по ТЗ, изд.", qz(factMap.get(n.id)?.pcs)], ["Факт по ТЗ, ₽", mz(factMap.get(n.id)?.total)], ["Отклонение: факт к бюджету", pct(factDev(factMap.get(n.id)?.total, a.total))]].map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-2"><dt className="text-neutral-500">{k}</dt><dd className="tabular-nums text-neutral-800">{v}</dd></div>
                   ))}
                 </dl>
@@ -509,8 +601,9 @@ export function BudgetEditor(p: Props) {
       );
     });
 
+  const savedTime = new Date(updatedAtState ?? p.savedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const saveText = !canEdit ? (status === "APPROVED" ? "Утверждён: только просмотр" : "Только просмотр")
-    : saveState === "saving" ? "Сохраняю…" : saveState === "saved" ? "Сохранено" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : "";
+    : saveState === "saving" ? "Сохраняю…" : saveState === "error" ? `Не удалось сохранить${saveError ? `: ${saveError}` : ""}` : dirty ? "Есть несохранённые изменения" : `Сохранено ${savedTime}`;
   const grp = `${sepL} border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500`;
   const upNode = upFor ? byId.get(upFor) : null;
 
@@ -530,11 +623,13 @@ export function BudgetEditor(p: Props) {
             ) : null}
           </div>
           <p className="mt-0.5 text-xs text-neutral-500">Создан {dateRu(p.createdAt)} · Обновлён {new Date(updatedAtState ?? p.savedAt).toLocaleString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}{p.savedBy ? ` · ${p.savedBy}` : ""}</p>
-          <p className="text-[11px] text-neutral-400" role="status">{saveText}</p>
+          <p className={"text-[11px] " + (dirty || saveState === "error" ? "font-medium text-amber-700" : "text-neutral-400")} role="status">{saveText}</p>
         </div>
         {staff ? (
           <div className="flex flex-wrap items-center gap-2">
-            {canEdit ? <button type="button" onClick={() => runAuto()} disabled={busy} className={BTN_PRIMARY}>{busy ? "Считаю…" : "Автоматический расчёт"}</button> : null}
+            {canEdit ? <button type="button" onClick={save} disabled={saveState === "saving" || (!dirty && saveState !== "error")} className={dirty || saveState === "error" ? BTN_PRIMARY : BTN}>{saveState === "saving" ? "Сохраняю…" : "Сохранить"}</button> : null}
+            {canEdit && dirty ? <button type="button" onClick={() => setReverting(true)} className={BTN}>Отменить изменения</button> : null}
+            {canEdit ? <button type="button" onClick={() => runAuto()} disabled={busy} className={BTN}>{busy ? "Считаю…" : "Автоматический расчёт"}</button> : null}
             {canEdit ? <button type="button" onClick={() => setAdding({ kind: "fur", parentId: null })} className={BTN}>+ Тип сырья</button> : null}
             {canEdit ? <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className={BTN}>Загрузить из файла</button> : null}
             <input ref={fileRef} type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" aria-label="Файл бюджета" onChange={(e) => onFile(e.target.files?.[0])} />
@@ -573,7 +668,7 @@ export function BudgetEditor(p: Props) {
           <h2 className="text-base font-semibold">Состав бюджета
             <InfoHint label="Как считается бюджет" wide>
               <p>Изделий × (шкур × цена шкуры + подкладка, м × цена за м + работа) + {formatPercent(params.c4)} на мех и подкладку.</p>
-              <p className="mt-1">Отклонение под «На 1 изд.» — бюджет к текущим ценам системы (те же количества без надбавок). Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
+              <p className="mt-1">Отклонение к текущим ценам сырья (под «На 1 изд.») — бюджет к текущим ценам системы (те же количества без надбавок). «Факт по ТЗ» — что уже набежало по ТЗ в работе и завершённым (без отменённых; ремонт отдельно) в тех же статьях; «Отклонение: факт к бюджету» = (факт ÷ бюджет − 1) × 100. Мелкие «ср.» под суммами — средневзвешенные: цена шкуры, цена метра, работа и надбавка на изделие, шкур на изделие. Если у категории есть артикулы, её итог — сумма артикулов.</p>
               <p className="mt-1">Точка у строки — качество данных: зелёная — достаточно данных системы, жёлтая — малая выборка, красная — нет данных, серая — вручную. Закрытый замок — строка ручная.</p>
             </InfoHint>
           </h2>
@@ -607,6 +702,7 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={2} className="border-b border-neutral-200 px-2 py-0 align-middle text-center text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Количество</th>
                   <th colSpan={4} className={grp}>Затраты</th>
                   <th colSpan={2} className={grp}>Прогноз</th>
+                  <th colSpan={8} className={grp}>Факт по ТЗ</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
                   <Th tip="Бюджет изделий, шт." unit="шт.">Изделий</Th>
@@ -617,14 +713,37 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Надбавка на мех и подкладку" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%; под цифрой доля в общем итоге" className={sepL} unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ изделий. Под цифрой «Отклонение» — бюджет к текущим ценам системы: красным выше на 15% и больше, зелёным ниже на 5% и больше" unit="₽/шт.">На 1 изд.</Th>
+                  <Th tip="Изделий по ТЗ (в работе и завершённые, без отменённых; ремонт отдельно)" className={sepL} unit="шт.">Изделий</Th>
+                  <Th tip="Шкур, списанных в этих ТЗ" unit="шт.">Шкур</Th>
+                  <Th tip="Мех по ТЗ" unit="₽">Мех</Th>
+                  <Th tip="Подкладка по ТЗ" unit="₽">Подкладка</Th>
+                  <Th tip="Работа по ТЗ (цена работы × количество)" unit="₽">Работа</Th>
+                  <Th tip="Надбавка на мех и подкладку по ТЗ" unit="₽">4%</Th>
+                  <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
+                  <Th tip="Отклонение: факт к бюджету, % = (факт ÷ бюджет − 1) × 100. Плюс — по ТЗ уже потрачено больше, чем в бюджете" unit="факт к бюджету, %">Отклонение</Th>
                 </tr>
               </thead>
               <tbody>
-                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true })}
+                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true, fact: ft.all })}
                 {summaryRows(null, 0)}
+                {factRest ? (
+                  <tr className="bg-white [&>td]:border-b [&>td]:border-neutral-100">
+                    <td className="sticky left-0 z-10 min-w-[220px] max-w-[320px] border-r border-neutral-200 bg-inherit px-3 py-2 text-sm text-neutral-600">Не вошло в строки бюджета (факт)</td>
+                    <td colSpan={8} />
+                    {factCells(factRest, 0)}
+                  </tr>
+                ) : null}
+                {sumRow("total-bottom", <TotalLabel />, total, { bg: "row-total", bold: true, fact: ft.all })}
               </tbody>
             </table>
           </div>
+
+          {view === "summary" ? (
+            <p className="text-xs text-neutral-500 print:hidden">
+              Факт по ТЗ: {qty(ft.all.pcs, 0)} изд. · {money(ft.all.total)} в колонках (мех, подкладка, работа, 4%) + расходы ТЗ и шкуры подрядчика {money(ft.extra)}
+              {ft.repair.pcs > 0 ? ` + ремонт отдельно (${qty(ft.repair.pcs, 0)} изд.) ${money(ft.repair.cost)}` : ""} = {money(ft.all.total + ft.extra + ft.repair.cost)} — «Себестоимость по ТЗ» с работой на Главной.
+            </p>
+          ) : null}
 
           <div className={(view === "detail" ? "hidden md:block " : "hidden ") + "max-h-[78vh] overflow-auto rounded-lg border border-neutral-200 bg-white print:hidden"}>
             <table className="w-max min-w-full border-separate border-spacing-0 text-left">
@@ -634,6 +753,7 @@ export function BudgetEditor(p: Props) {
                   <th colSpan={3} className={grp}>Количество</th>
                   <th colSpan={4} className={grp}>Цены на 1 изделие</th>
                   <th colSpan={6} className={grp}>Прогноз</th>
+                  <th colSpan={3} className={grp}>Факт по ТЗ</th>
                   <th rowSpan={2} scope="col" className="min-w-[190px] border-b border-l border-neutral-200 bg-white px-2 text-right text-[11px] font-semibold uppercase tracking-wide text-neutral-500 lg:sticky lg:right-0 lg:z-30">Действия</th>
                 </tr>
                 <tr className="[&>th]:border-b [&>th]:border-neutral-200">
@@ -650,6 +770,9 @@ export function BudgetEditor(p: Props) {
                   <Th tip="Надбавка на мех и подкладку (по умолчанию 4%)" unit="₽">4%</Th>
                   <Th tip="Мех + подкладка + работа + 4%" unit="₽">Всего</Th>
                   <Th tip="Всего, ₽ ÷ бюджет изделий. Под цифрой «Отклонение» — бюджет к текущим ценам системы (без надбавок, с 4%)" unit="₽/шт.">На 1 изд.</Th>
+                  <Th tip="Изделий по ТЗ (в работе и завершённые, без отменённых; ремонт отдельно)" className={sepL} unit="шт.">Изделий</Th>
+                  <Th tip="Мех + подкладка + работа + 4% по ТЗ" unit="₽">Всего</Th>
+                  <Th tip="Отклонение: факт к бюджету, % = (факт ÷ бюджет − 1) × 100" unit="факт к бюджету, %">Отклонение</Th>
                 </tr>
               </thead>
               <tbody>
@@ -753,6 +876,15 @@ export function BudgetEditor(p: Props) {
           <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3 gap-2">
             <button type="button" className={BTN} onClick={() => setPreview(null)}>Отмена</button>
             <button type="button" className={BTN_PRIMARY} onClick={applyImport}>Добавить {preview.rows.length} строк</button>
+          </div>
+        </Modal>
+      ) : null}
+      {reverting ? (
+        <Modal title="Отменить изменения?" onClose={() => setReverting(false)}>
+          <p className="text-sm text-neutral-700">Все правки после последнего сохранения ({savedTime}) пропадут, бюджет вернётся к сохранённой версии.</p>
+          <div className="mt-4 flex justify-end border-t border-neutral-200 pt-3 gap-2">
+            <button type="button" className={BTN} onClick={() => setReverting(false)}>Не отменять</button>
+            <button type="button" className="inline-flex min-h-10 items-center rounded-lg bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-800 md:min-h-8" onClick={revert}>Отменить изменения</button>
           </div>
         </Modal>
       ) : null}
