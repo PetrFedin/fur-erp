@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { SourceDocs } from "@/components/source-docs";
 import { loadOrderSourceDocs } from "@/lib/source-docs-server";
-import { IntegrityBanner } from "@/components/integrity-banner";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -382,7 +381,6 @@ export default async function ProductionOrderPage({ params }: PageProps<"/produc
           { label: order.workOrderNumber ? `ТЗ №${order.workOrderNumber}${sameTzCount > 1 ? ` · позиция ${posIndex + 1} из ${sameTzCount}` : ""}` : `Заказ ${order.number}` },
         ]}
       />
-      <IntegrityBanner kind="order" id={order.id} />
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/production" className="rounded px-1.5 py-1 text-lg leading-none text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="К списку ТЗ" aria-label="Назад к списку ТЗ">

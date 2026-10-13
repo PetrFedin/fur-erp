@@ -71,6 +71,11 @@ export function BudgetEditor(p: Props) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const status = p.status;
   const [view, setView] = useState<"summary" | "detail">("summary");
+  // Показ по виду изделий: все / одежда / аксессуары. Выбор помнится в браузере, адрес не меняется.
+  const [scope, setScope] = useState<"all" | "cloth" | "acc">("all");
+  useEffect(() => { try { const v = localStorage.getItem("budget-scope"); if (v === "cloth" || v === "acc") queueMicrotask(() => setScope(v)); } catch {} }, []);
+  const pickScope = (v: "all" | "cloth" | "acc") => { setScope(v); try { localStorage.setItem("budget-scope", v); } catch {} };
+  const scopeName = scope === "cloth" ? "Одежда" : scope === "acc" ? "Аксессуары" : "";
   // Мелкие подписи под цифрами («ср. …», «% заказа»): один флаг на таблицу, выбор помнится в браузере.
   const [subOn, setSubOn] = useState(true);
   useEffect(() => { try { if (localStorage.getItem("budget-sub-captions") === "0") queueMicrotask(() => setSubOn(false)); } catch {} }, []);
@@ -156,8 +161,26 @@ export function BudgetEditor(p: Props) {
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const kids = useMemo(() => childrenMap(nodes), [nodes]);
-  const calc = useMemo(() => computeTree(nodes, params), [nodes, params]);
-  const total = useMemo(() => grandTotal(nodes, params), [nodes, params]);
+  // Показ «Все / Одежда / Аксессуары»: только фильтр отображения, сохраняемые узлы не меняются.
+  const vNodes = useMemo(() => {
+    if (scope === "all") return nodes;
+    const keep = new Set<string>();
+    const catKept = (c: BudgetNode) => isAccessoryCat(c, p.catGroups) === (scope === "acc");
+    const byIdAll = new Map(nodes.map((n) => [n.id, n]));
+    for (const n of nodes) {
+      if (n.kind === "fur") continue;
+      let c: BudgetNode | undefined = n;
+      for (let i = 0; i < 6 && c && c.kind !== "cat"; i++) c = c.parentId ? byIdAll.get(c.parentId) : undefined;
+      if (c && c.kind === "cat" && catKept(c)) keep.add(n.id);
+    }
+    for (const n of nodes) if (keep.has(n.id) && n.parentId) { let q = byIdAll.get(n.parentId); for (let i = 0; i < 6 && q; i++) { keep.add(q.id); q = q.parentId ? byIdAll.get(q.parentId) : undefined; } }
+    return nodes.filter((n) => keep.has(n.id));
+  }, [nodes, scope, p.catGroups]);
+  const vKids = useMemo(() => childrenMap(vNodes), [vNodes]);
+  const fullCalc = useMemo(() => computeTree(nodes, params), [nodes, params]);
+  const fullTotal = useMemo(() => grandTotal(nodes, params), [nodes, params]);
+  const calc = useMemo(() => computeTree(vNodes, params), [vNodes, params]);
+  const total = useMemo(() => grandTotal(vNodes, params), [vNodes, params]);
   const furs = useMemo(() => kids.get(null) ?? [], [kids]);
   const pairOptions = useMemo(() => stats.filter((s) => !s.modelId), [stats]);
 
@@ -307,7 +330,7 @@ export function BudgetEditor(p: Props) {
     (kids.get(parentId) ?? []).filter((n) => n.kind === kind).map((n) => (kind === "art" ? (n.modelId ?? "") : n.name.toLowerCase()));
 
   // ---- Мелкие элементы строки
-  const perT = perUnit(total);
+  const perT = perUnit(fullTotal);
   const leafOf = (n: BudgetNode) => n.kind !== "fur" && (kids.get(n.id) ?? []).length === 0;
 
   /** Индикатор качества данных: цветная точка с подсказкой; у категории-листа по клику выбирается источник статистики. */
@@ -373,14 +396,14 @@ export function BudgetEditor(p: Props) {
   );
   // Плитка «Мех»: первым слайдом «Тотал», далее каждый тип меха.
   const furSlides = [
-    { id: "mex", name: "Все виды меха", a: total },
-    ...furs.map((f) => ({ id: f.id, name: f.name, a: calc.get(f.id) ?? ZERO })),
+    { id: "mex", name: "Все виды меха", a: fullTotal },
+    ...furs.map((f) => ({ id: f.id, name: f.name, a: fullCalc.get(f.id) ?? ZERO })),
   ].map((sl) => {
     const isMex = sl.id === "mex";
     const items = [
       { k: "Цена шкуры (ср.)", v: money(sl.a.hides ? sl.a.mex / sl.a.hides : null) },
       { k: "Шкур на изд. (ср.)", v: qty(sl.a.pcs ? sl.a.hides / sl.a.pcs : null, 1) },
-      { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, total.total) },
+      { k: "Доля", v: share(isMex ? sl.a.mex : sl.a.total, fullTotal.total) },
     ];
     return {
       key: sl.id, label: sl.name,
@@ -394,11 +417,11 @@ export function BudgetEditor(p: Props) {
 
   const totalTiles = (
     <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 print:grid-cols-5">
-      {tile("t", "Прогноз бюджета", money(total.total), `${qty(total.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
+      {tile("t", "Прогноз бюджета", money(fullTotal.total), `${qty(fullTotal.pcs, 0)} изд.`, [{ k: "На 1 изделие", v: money(perT) }])}
       {furTile}
-      {tile("l", "Подкладка", money(total.lining), `${qty(total.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(total.meters ? total.lining / total.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(total.pcs ? total.meters / total.pcs : null, 1) }, { k: "Доля", v: share(total.lining, total.total) }])}
-      {tile("w", "Работа", money(total.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(total.pcs ? total.work / total.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(total.work, total.total) }])}
-      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(total.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(total.pcs ? total.c4 / total.pcs : null) }, { k: "Ставка", v: formatPercent(params.c4) }, { k: "Доля", v: share(total.c4, total.total) }])}
+      {tile("l", "Подкладка", money(fullTotal.lining), `${qty(fullTotal.meters, 1)} м`, [{ k: "Цена за м (ср.)", v: money(fullTotal.meters ? fullTotal.lining / fullTotal.meters : null) }, { k: "Метров на изд. (ср.)", v: qty(fullTotal.pcs ? fullTotal.meters / fullTotal.pcs : null, 1) }, { k: "Доля", v: share(fullTotal.lining, fullTotal.total) }])}
+      {tile("w", "Работа", money(fullTotal.work), "пошив по бюджету", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.work / fullTotal.pcs : null) }, { k: "Надбавка к цене", v: formatPercent(params.upWork) }, { k: "Доля", v: share(fullTotal.work, fullTotal.total) }])}
+      {tile("c", `Надбавка ${formatPercent(params.c4)}`, money(fullTotal.c4), "на мех и подкладку", [{ k: "На 1 изделие", v: money(fullTotal.pcs ? fullTotal.c4 / fullTotal.pcs : null) }, { k: "Ставка", v: formatPercent(params.c4) }, { k: "Доля", v: share(fullTotal.c4, fullTotal.total) }])}
     </div>
   );
   // ---- Сводка (для руководства): без полей ввода
@@ -426,9 +449,9 @@ export function BudgetEditor(p: Props) {
     );
   };
   const summaryRows = (parentId: string | null, depth: number): ReactNode[] =>
-    (kids.get(parentId) ?? []).flatMap((n) => {
+    (vKids.get(parentId) ?? []).flatMap((n) => {
       const a = calc.get(n.id) ?? ZERO;
-      const ch = kids.get(n.id) ?? [];
+      const ch = vKids.get(n.id) ?? [];
       const open = !collapsed.has(n.id);
       const bg = n.kind === "fur" ? "bg-neutral-100" : ch.length ? "bg-neutral-50" : "bg-white";
       const label = (
@@ -476,9 +499,9 @@ export function BudgetEditor(p: Props) {
   );
 
   const tableRows = (parentId: string | null, depth: number): ReactNode[] =>
-    (kids.get(parentId) ?? []).flatMap((n) => {
+    (vKids.get(parentId) ?? []).flatMap((n) => {
       const a = calc.get(n.id) ?? ZERO;
-      const ch = kids.get(n.id) ?? [];
+      const ch = vKids.get(n.id) ?? [];
       const hasKids = ch.length > 0;
       const leaf = n.kind !== "fur" && !hasKids;
       const open = !collapsed.has(n.id);
@@ -510,7 +533,7 @@ export function BudgetEditor(p: Props) {
 
   const totalRowDetail = (
     <tr key="total" className="row-total">
-      <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><TotalLabel /></td>
+      <td className="sticky left-0 z-10 border-r border-neutral-200 px-3 py-2 text-sm"><><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</></td>
       <td className={`whitespace-nowrap px-2 text-right text-sm tabular-nums ${sepL}`}>{qty(total.pcs, 0)}</td>
       <td />
       <td className="px-2 text-right text-xs tabular-nums text-neutral-700">{qty(total.hides, 0)}<Avg sum={total.hides} per={total.pcs} unit="шк./изд." d={1} /></td>
@@ -530,9 +553,9 @@ export function BudgetEditor(p: Props) {
     <label className="flex flex-col gap-1 text-[11px] text-neutral-500"><span className="flex items-center justify-between gap-1">{label}{tag ? upTag(n, tag) : null}</span><NumInput value={n[k]} ariaLabel={`${label}: ${n.name}`} disabled={!canEdit} onChange={(v) => editNum(n.id, k, v)} className="!py-2 !text-base" /></label>
   );
   const cards = (parentId: string | null, depth: number): ReactNode[] =>
-    (kids.get(parentId) ?? []).map((n) => {
+    (vKids.get(parentId) ?? []).map((n) => {
       const a = calc.get(n.id) ?? ZERO;
-      const ch = kids.get(n.id) ?? [];
+      const ch = vKids.get(n.id) ?? [];
       const hasKids = ch.length > 0;
       const leaf = n.kind !== "fur" && !hasKids;
       const open = !collapsed.has(n.id);
@@ -650,6 +673,12 @@ export function BudgetEditor(p: Props) {
                 className={segBtn(view === v)}>{l}</button>
             ))}
           </div>
+          <div role="group" aria-label="Показать" className={SEG_BOX}>
+            {([["all", "Все"], ["cloth", "Одежда"], ["acc", "Аксессуары"]] as const).map(([v, l]) => (
+              <button key={v} type="button" onClick={() => pickScope(v)} aria-pressed={scope === v}
+                className={segBtn(scope === v)}>{l}</button>
+            ))}
+          </div>
           <label title="Мелкие подписи под суммами: среднее за шкуру, за метр, на изделие" className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 text-xs text-neutral-600 md:min-h-0">
             <input type="checkbox" checked={subOn} onChange={(e) => toggleSub(e.target.checked)} className="h-4 w-4" />Средние
           </label>
@@ -663,6 +692,7 @@ export function BudgetEditor(p: Props) {
         </div>
       </div>
 
+      {scopeName ? <p className="hidden text-xs text-neutral-600 print:block">Показано: {scopeName}. Сохранённый бюджет включает все позиции.</p> : null}
       {nodes.length === 0 ? (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500">
           Бюджет пуст. {canEdit ? "Нажмите «+ Тип сырья» и добавьте категории и артикулы либо «Загрузить из файла»." : ""}
@@ -690,9 +720,9 @@ export function BudgetEditor(p: Props) {
                 </tr>
               </thead>
               <tbody>
-                {sumRow("total", <TotalLabel />, total, { bg: "row-total", bold: true })}
+                {sumRow("total", <><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</>, total, { bg: "row-total", bold: true })}
                 {summaryRows(null, 0)}
-                {sumRow("total-bottom", <TotalLabel />, total, { bg: "row-total", bold: true })}
+                {sumRow("total-bottom", <><TotalLabel />{scopeName ? <span className="font-normal"> · {scopeName}</span> : null}</>, total, { bg: "row-total", bold: true })}
               </tbody>
             </table>
           </div>
