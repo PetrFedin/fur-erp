@@ -1,4 +1,4 @@
-// Факт по ТЗ для бюджета: чистые функции без базы (годятся и серверу, и клиенту).
+// Затраты по ТЗ для бюджета: чистые функции без базы (годятся и серверу, и клиенту).
 // Источник — те же ТЗ, что на Главной и в разделе «ТЗ» (loadOrdersDrill → DrillOrder): без отменённых, ремонт отдельно, никаких новых формул.
 import { normKey, type BudgetNode } from "@/lib/budget-calc";
 import { orderCost, type DrillOrder } from "@/lib/dashboard-drill";
@@ -8,27 +8,27 @@ export type FactRow = {
   mid: string; fur: string; cat: string; repair: boolean;
   /** Бобр — сырьё подрядчика, в бюджет не входит: считается отдельно, как ремонт. */
   out: boolean;
-  pcs: number; hides: number; mex: number; lining: number; work: number; c4: number;
+  pcs: number; hides: number; meters: number; mex: number; lining: number; work: number; c4: number;
   /** Расходы ТЗ + шкуры подрядчика + прочее: входят в себестоимость на Главной, в колонки бюджета (мех, подкладка, работа, 4%) не входят. */
   extra: number;
 };
-export type FactAgg = { pcs: number; hides: number; mex: number; lining: number; work: number; c4: number; total: number };
+export type FactAgg = { pcs: number; hides: number; meters: number; mex: number; lining: number; work: number; c4: number; total: number };
 
-export const zeroFact = (): FactAgg => ({ pcs: 0, hides: 0, mex: 0, lining: 0, work: 0, c4: 0, total: 0 });
+export const zeroFact = (): FactAgg => ({ pcs: 0, hides: 0, meters: 0, mex: 0, lining: 0, work: 0, c4: 0, total: 0 });
 
 export function factRows(orders: DrillOrder[]): FactRow[] {
   const m = new Map<string, FactRow>();
   for (const o of orders) {
     const repair = o.cat === "Ремонт";
     const key = `${o.mid}|${o.fur}|${o.cat}`;
-    const r = m.get(key) ?? { mid: o.mid, fur: o.fur, cat: o.cat, repair, out: normKey(o.fur) === "бобр", pcs: 0, hides: 0, mex: 0, lining: 0, work: 0, c4: 0, extra: 0 };
+    const r = m.get(key) ?? { mid: o.mid, fur: o.fur, cat: o.cat, repair, out: normKey(o.fur) === "бобр", pcs: 0, hides: 0, meters: 0, mex: 0, lining: 0, work: 0, c4: 0, extra: 0 };
     m.set(key, r);
     r.pcs += o.qty; r.work += o.work;
     let lines = 0;
     for (const l of o.lines) {
       lines += l.i;
       r.c4 += l.ci;
-      if (l.k === "l") r.lining += l.i - l.ci; else { r.mex += l.i - l.ci; r.hides += l.q; }
+      if (l.k === "l") { r.lining += l.i - l.ci; r.meters += l.q; } else { r.mex += l.i - l.ci; r.hides += l.q; }
     }
     r.extra += orderCost(o, "incl") - lines;
   }
@@ -38,7 +38,7 @@ export function factRows(orders: DrillOrder[]): FactRow[] {
 const furKey = (s: string) => { const k = normKey(s); return k === "каракульча" || k === "каракуль" ? "свакара" : k; };
 
 function add(a: FactAgg, r: FactRow): FactAgg {
-  a.pcs += r.pcs; a.hides += r.hides; a.mex += r.mex; a.lining += r.lining; a.work += r.work; a.c4 += r.c4;
+  a.pcs += r.pcs; a.hides += r.hides; a.meters += r.meters; a.mex += r.mex; a.lining += r.lining; a.work += r.work; a.c4 += r.c4;
   a.total = a.mex + a.lining + a.work + a.c4;
   return a;
 }
