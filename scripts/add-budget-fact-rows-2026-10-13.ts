@@ -12,6 +12,7 @@ import { join } from "path";
 const APPLY = process.argv.includes("--apply");
 const ROLLBACK = process.argv.includes("--rollback");
 const REMOVE_BEAVER = process.argv.includes("--remove-beaver");
+const REMOVE_ADDED = process.argv.includes("--remove-added"); // убрать добавленные строки с бюджетом 0 (Юбка меховая, Манжеты у Норки+Соболя): факта в бюджете больше нет
 const JOURNAL = join(__dirname, "..", "docs-inventory", "corrections-journal-budget-fact-rows-2026-10-13.json");
 type N = { id: string; kind: string; parentId: string | null; name: string; [k: string]: unknown };
 const blank = (id: string, kind: string, parentId: string | null, name: string, statFur: string, statCat: string): N => ({
@@ -30,6 +31,16 @@ async function main() {
     if (j.id !== row.id) throw new Error("журнал относится к другой версии");
     await prisma.budgetScenario.update({ where: { id: row.id }, data: { lines: j.before as object[] } });
     console.log("откат выполнен");
+    return;
+  }
+  if (REMOVE_ADDED) {
+    const ids = new Set(["c-юбка-кар", "c-варежки-нс"]);
+    const left = before.filter((n) => !(ids.has(n.id) && Number(n.pcs) === 0));
+    console.log(`уберётся строк: ${before.length - left.length}`);
+    if (!APPLY || left.length === before.length) { console.log(APPLY ? "" : "пробный прогон: ничего не записано (добавьте --apply)"); return; }
+    execSync("bash scripts/backup.sh", { stdio: "inherit", cwd: join(__dirname, "..") });
+    await prisma.budgetScenario.update({ where: { id: row.id }, data: { lines: left as object[] } });
+    console.log("добавленные строки с бюджетом 0 убраны");
     return;
   }
   if (REMOVE_BEAVER) {
