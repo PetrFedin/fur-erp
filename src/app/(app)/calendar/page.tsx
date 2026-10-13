@@ -75,45 +75,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const view = ["month", "week", "list"].includes(rawView) ? rawView : "month";
   let month = parseMonth(cleanSearch(sp.m, 7)) ?? today.slice(0, 7);
   if (!parseMonth(cleanSearch(sp.m, 7)) && year !== "all" && month.slice(0, 4) !== year) month = `${year}-01`;
-  // Без явного месяца (?m, ?w, ?day) — ближайший месяц с событиями: текущий, иначе ближайший будущий, иначе последний прошлый.
-  let autoMonth = false;
-  const cf0 = parseFilters(CAL_FILTERS, sp);
-  if (mode === "detail" && !parseMonth(cleanSearch(sp.m, 7)) && !cleanSearch(sp.w, 10) && !cleanSearch(sp.day, 10) && !cleanSearch(sp.new, 10)) {
-    const yrAuto = yearRange(year);
-    const base = { organizationId: orgId, ...(yrAuto ? { date: yrAuto } : {}) };
-    const startD = parseYmd(`${month}-01`);
-    const nextEv = await prisma.calendarEvent.findFirst({ where: { ...base, date: { ...(yrAuto ?? {}), gte: startD } }, orderBy: { date: "asc" }, select: { date: true } });
-    const lastEv = await prisma.calendarEvent.findFirst({ where: base, orderBy: { date: "desc" }, select: { date: true } });
-    let nextD: Date | null = nextEv?.date ?? null;
-    let lastD: Date | null = lastEv?.date ?? null;
-    // Включены «Факты»: пока в месяце нет ни событий, ни фактов, ближайший месяц ищем и по фактам.
-    if (cf0.layers === "1" && !(nextD && ymd(nextD).slice(0, 7) === month)) {
-      const gteF = { ...(yrAuto ?? {}), gte: startD };
-      const anyF = yrAuto ?? { not: null };
-      const anyN = yrAuto ?? undefined;
-      const org = { organizationId: orgId };
-      const [o1, s1, f1, p1, o2, s2, f2, p2] = await Promise.all([
-        prisma.productionOrder.findFirst({ where: { ...org, status: { not: "CANCELLED" }, endDate: gteF }, orderBy: { endDate: "asc" }, select: { endDate: true } }),
-        prisma.supplyPlanEntry.findFirst({ where: { ...org, status: { not: "CANCELLED" }, eventDate: gteF }, orderBy: { eventDate: "asc" }, select: { eventDate: true } }),
-        HIDDEN_MODULES.fittings ? null : prisma.fitting.findFirst({ where: { ...org, fittingDate: gteF }, orderBy: { fittingDate: "asc" }, select: { fittingDate: true } }),
-        HIDDEN_MODULES.shipments ? null : prisma.shipment.findFirst({ where: { ...org, status: { not: "CANCELLED" }, plannedDate: gteF }, orderBy: { plannedDate: "asc" }, select: { plannedDate: true } }),
-        prisma.productionOrder.findFirst({ where: { ...org, status: { not: "CANCELLED" }, endDate: anyF }, orderBy: { endDate: "desc" }, select: { endDate: true } }),
-        prisma.supplyPlanEntry.findFirst({ where: { ...org, status: { not: "CANCELLED" }, eventDate: anyF }, orderBy: { eventDate: "desc" }, select: { eventDate: true } }),
-        HIDDEN_MODULES.fittings ? null : prisma.fitting.findFirst({ where: { ...org, ...(anyN ? { fittingDate: anyN } : {}) }, orderBy: { fittingDate: "desc" }, select: { fittingDate: true } }),
-        HIDDEN_MODULES.shipments ? null : prisma.shipment.findFirst({ where: { ...org, status: { not: "CANCELLED" }, ...(anyN ? { plannedDate: anyN } : {}) }, orderBy: { plannedDate: "desc" }, select: { plannedDate: true } }),
-      ]);
-      const ds = (xs: (Date | null | undefined)[]) => xs.filter((x): x is Date => !!x);
-      const fut = ds([nextD, o1?.endDate, s1?.eventDate, f1?.fittingDate, p1?.plannedDate]).sort((a, b) => a.getTime() - b.getTime());
-      nextD = fut[0] ?? null;
-      const past = ds([lastD, o2?.endDate, s2?.eventDate, f2?.fittingDate, p2?.plannedDate]).sort((a, b) => b.getTime() - a.getTime());
-      lastD = past[0] ?? null;
-    }
-    const found = nextD ?? lastD;
-    if (found) {
-      const fm = ymd(found).slice(0, 7);
-      if (fm !== month) { month = fm; autoMonth = true; }
-    }
-  }
   const weekStartParam = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch(sp.w, 10)) ? cleanSearch(sp.w, 10) : "";
   const weekStart = startOfWeek(weekStartParam || (today.startsWith(month) ? today : `${month}-01`));
   const cf = parseFilters(CAL_FILTERS, sp);
@@ -402,7 +363,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Segment label="Вид" items={([["month", "Месяц"], ["week", "Неделя"], ["list", "Список"]] as const).map(([v, t]) => ({ key: v, label: t, on: view === v, href: href({ view: v, w: v === "week" ? weekStart : "" }) }))} />
         <Link href={prev} className={BTN_ICON} aria-label="Назад">‹</Link>
-        <h2 className="min-w-44 text-center text-base font-semibold">{title}{autoMonth && view !== "week" && <span className="block text-[11px] font-normal text-neutral-500">выбран автоматически: ближайший месяц с событиями{layersOn ? " или фактами" : ""}</span>}</h2>
+        <h2 className="min-w-44 text-center text-base font-semibold">{title}</h2>
         <Link href={next} className={BTN_ICON} aria-label="Вперёд">›</Link>
         <Link href={href({ m: today.slice(0, 7), w: "", event: "", new: "" })} className={BTN}>Сегодня</Link>
       </div>
@@ -410,7 +371,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {[...byAction.entries()].map(([a, q]) => (
           <span key={a} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${actionDef(a).chip}`}>{a}: {formatQty(q)}</span>
         ))}
-        {periodTotal === 0 && <span className="text-neutral-500">{layersOn && !factsHidden && days.some((d) => inPeriod(d) && (factsByDay.get(d)?.length ?? 0) > 0) ? "Своих событий нет, показаны факты" : "Событий нет"}{year !== "all" ? ` (год ${year})` : ""}.</span>}
+        {periodTotal === 0 && <span className="text-neutral-500">Событий нет{year !== "all" ? ` (год ${year})` : ""}.</span>}
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
         {CALENDAR_ACTIONS.map((a) => <span key={a.label} className="inline-flex items-center gap-1"><i className={`size-2 rounded-full ${a.dot}`} />{a.label}</span>)}
