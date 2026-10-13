@@ -130,9 +130,9 @@ export function CancelOrderButton({ orderId, blockedReason }: { orderId: string;
         variant="destructive"
         size="sm"
         disabled={pending || Boolean(blockedReason)}
-        title={blockedReason}
+        title={blockedReason ?? "ТЗ не удаляется: отмена оставляет его в списке со статусом «Отменено»"}
         onClick={async () => {
-          if (!(await ask("Отменить ТЗ? Это действие нельзя отменить.", { ok: "Отменить ТЗ", danger: true }))) return;
+          if (!(await ask("Отменить ТЗ? Само ТЗ удалить нельзя — оно останется в списке со статусом «Отменено» (так сохраняется история). Вернуть ТЗ в работу будет нельзя.", { ok: "Отменить ТЗ", danger: true, wide: true }))) return;
           startTransition(async () => {
             const result = await cancelProductionOrder(orderId);
             setError(result.error ?? null);

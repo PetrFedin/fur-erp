@@ -7,11 +7,17 @@ import { RecordHistory } from "@/components/record-history";
 import { SourceDocs } from "@/components/source-docs";
 import { TotalLabel } from "@/components/total-label";
 import { requireSession } from "@/lib/session";
+import { ACCESS, hasRole } from "@/lib/access";
+import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
+import { PAYMENT_CARD_V, PRODUCTION_CARD_V, rowVersion } from "@/lib/concurrency";
+import { PP_RX, INV_RX } from "@/lib/payment-refs";
+import { siblingPayments } from "@/lib/payment-parts";
 import { prisma } from "@/lib/prisma";
 import { tidyDocRef } from "@/lib/pay-ref";
 import { cleanNote } from "@/lib/note-tags";
-import { formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
+import { PaymentCardEdit } from "./card-edit";
 import { PAY_STATUS_LABEL, loadPaymentsRegistryFull, parsePaymentCode, type PayStatus } from "@/lib/payments-registry";
 
 const money = (n: number) => formatMoney(n.toFixed(2));
@@ -60,10 +66,43 @@ function Dl({ items }: { items: [string, ReactNode][] }) {
   );
 }
 
-const PP_RX = /п\/п\s*№?\s*(\d+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
-const INV_RX = /сч[её]т[^№;·]*№\s*([^\s;·]+)(?:\s+от\s+(\d{2}\.\d{2}\.\d{4}))?/i;
-
-/** Карточка оплаты (только чтение). Код в адресе: s-… — оплата поставщику, c-… — оплата от заказчика. Правка — в карточке закупки / ТЗ и мастером оплаты. */
+/**
+ * Карточка оплаты. Код в адресе: s-… — оплата поставщику, c-… — оплата от заказчика.
+ * Правится на месте (кнопка «Изменить»; действия — card-actions.ts); № счёта и № п/п берутся из полей оплаты, а если они пусты — из строки основания.
+ */
+async function loadEdit(parsed: { kind: "raw" | "prod"; id: string }, orgId: string) {
+  if (parsed.kind === "prod") {
+    const p = await prisma.productionPayment.findFirst({ where: { id: parsed.id, organizationId: orgId } });
+    if (!p) return null;
+    return {
+      version: rowVersion(p, PRODUCTION_CARD_V), purchaseId: "", linkText: "ТЗ — в блоке «Куда отнесено»", targets: null as { id: string; label: string }[] | null, parts: 1,
+      confirmed: p.confirmedAt != null, row: { amount: p.amount, paidAt: p.paidAt, method: p.method, notes: p.notes, docRef: p.docRef, invoiceNo: p.invoiceNo, ppNo: p.ppNo }, invoice: null,
+    };
+  }
+  const p = await prisma.payment.findFirst({
+    where: { id: parsed.id, organizationId: orgId },
+    include: { purchase: { select: { id: true, number: true, auctionSession: true, invoice: { select: { number: true, date: true, amountInclVat: true, purchases: { select: { id: true, number: true } } } } } } },
+  });
+  if (!p) return null;
+  const lump = !p.purchaseId && !!p.auctionSession;
+  const purchases = lump ? [] : await prisma.purchase.findMany({
+    where: { organizationId: orgId, supplierId: p.supplierId, OR: [{ status: { not: "CANCELLED" } }, { id: p.purchaseId ?? "" }] },
+    select: { id: true, number: true, orderDate: true, auctionSession: true, invoiceNumber: true },
+    orderBy: { orderDate: "desc" },
+    take: 300,
+  });
+  const siblings = await siblingPayments(prisma, orgId, p);
+  return {
+    version: rowVersion(p, PAYMENT_CARD_V),
+    purchaseId: p.purchaseId ?? "",
+    linkText: p.purchase ? `закупка ${p.purchase.number}` : p.auctionSession ? `партия «${p.auctionSession}»` : "без привязки (аванс)",
+    targets: lump ? null : purchases.map((x) => ({ id: x.id, label: `${x.number} · ${formatDate(x.orderDate)}${x.auctionSession ? ` · ${x.auctionSession.split("\n")[0]}` : ""}${x.invoiceNumber ? ` · счёт ${x.invoiceNumber}` : ""}` })),
+    parts: siblings.length + 1,
+    confirmed: p.confirmedAt != null,
+    row: { amount: p.amount, paidAt: p.paidAt, method: p.method, notes: p.notes, docRef: p.docRef, invoiceNo: p.invoiceNo, ppNo: p.ppNo },
+    invoice: p.purchase?.invoice ?? null,
+  };
+}
 export default async function PaymentCardPage({ params }: PageProps<"/payments/[id]">) {
   const { id } = await params;
   const session = await requireSession();
@@ -73,8 +112,23 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
   const { parsed, item } = loaded;
   const { row: r, ov, verify, registryFact, files } = item;
   const dateText = ruDate(r.iso);
-  const pp = PP_RX.exec(ov.doc ?? "");
-  const inv = INV_RX.exec(ov.doc ?? "");
+  const canEdit = hasRole(session.user.role, parsed.kind === "raw" ? ACCESS.supplierPayments : PRODUCTION_EDIT_ROLES);
+  const info = await loadEdit(parsed, orgId);
+  const edit = canEdit ? info : null;
+  // Поля оплаты — главный источник; пусто — запасной вариант: разбор строки основания (docRef).
+  const dbRow = info?.row ?? null;
+  const pp = dbRow?.ppNo ? null : PP_RX.exec(ov.doc ?? "");
+  const inv = dbRow?.invoiceNo ? null : INV_RX.exec(ov.doc ?? "");
+  const ppText = dbRow?.ppNo ? `№ ${dbRow.ppNo}` : pp ? `№ ${pp[1]}${pp[2] ? ` от ${pp[2]}` : ""}` : r.pp || "—";
+  const invText = dbRow?.invoiceNo ? `№${dbRow.invoiceNo}` : inv ? `№${inv[1]}${inv[2] ? ` от ${inv[2]}` : ""}` : r.invoice || "—";
+  const invRec = info?.invoice ?? null;
+  const invOthers = invRec ? invRec.purchases.filter((x) => x.id !== info?.purchaseId) : [];
+  const invoiceInBase: ReactNode | null = invRec ? (
+    <>
+      №{invRec.number}{invRec.date ? ` от ${formatDate(invRec.date)}` : ""}{invRec.amountInclVat ? ` · ${money(Number(invRec.amountInclVat))}` : ""}
+      {invOthers.length > 0 && <> · ещё на закупках: {invOthers.map((x, i) => <span key={x.id}>{i > 0 ? ", " : ""}<Link href={`/purchases/${x.id}`} className="text-blue-700 hover:underline">{x.number}</Link></span>)}</>}
+    </>
+  ) : null;
   const basis = tidyDocRef(ov.doc, dateText);
   const note = ov.fields.find((f) => f[0] === "Заметка")?.[1];
   const method = ov.fields.find((f) => f[0] === "Способ")?.[1];
@@ -121,14 +175,35 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
           ["Сумма", money(r.amount)],
           [r.direction === "out" ? "Получатель" : "Плательщик", r.counterparty],
           ["Тип", r.what],
-          ["Счёт", inv ? `№${inv[1]}${inv[2] ? ` от ${inv[2]}` : ""}` : r.invoice || "—"],
-          ["П/п", pp ? `№ ${pp[1]}${pp[2] ? ` от ${pp[2]}` : ""}` : r.pp || "—"],
+          ["Счёт", invText],
+          ...(invoiceInBase ? [["Счёт в базе", invoiceInBase] as [string, ReactNode]] : []),
+          ["П/п", ppText],
           ...(method ? [["Способ", method] as [string, ReactNode]] : []),
           ...(basis ? [["Основание", basis] as [string, ReactNode]] : []),
           ...(note ? [["Заметка", cleanNote(note) ?? note] as [string, ReactNode]] : []),
           ...(ov.fields.find((f) => f[0] === "Внесена") ? [["Внесена", ov.fields.find((f) => f[0] === "Внесена")![1]] as [string, ReactNode]] : []),
         ]} />
-        <p className="text-xs text-neutral-500">Править оплату — в карточке {parsed.kind === "raw" ? "закупки или партии" : "ТЗ"} либо мастером «+ Внести оплату».</p>
+        {edit ? (
+          <PaymentCardEdit
+            code={id}
+            version={edit.version}
+            defaults={{
+              amount: Number(edit.row.amount).toFixed(2),
+              paidAt: edit.row.paidAt.toISOString().slice(0, 10),
+              method: edit.row.method,
+              invoiceNo: dbRow?.invoiceNo ?? inv?.[1] ?? "",
+              ppNo: dbRow?.ppNo ?? pp?.[1] ?? "",
+              notes: edit.row.notes ?? "",
+              purchaseId: edit.purchaseId,
+            }}
+            targets={edit.targets}
+            linkText={edit.linkText}
+            parts={edit.parts}
+            confirmed={edit.confirmed}
+          />
+        ) : (
+          <p className="text-xs text-neutral-500">Править оплату могут {parsed.kind === "raw" ? "владелец, администратор, закупщик и бухгалтер" : "владелец, администратор и технолог"}.</p>
+        )}
       </Block>
 
       <Block title="Куда отнесено" hint={<p>Разнесение оплаты: {parsed.kind === "raw" ? "по закупкам партии (доля в сумме партии)" : "по ТЗ, как записано в разнесении"}. Остаток «не разнесено» — аванс, который ещё не отнесён к закупкам или ТЗ.</p>}>

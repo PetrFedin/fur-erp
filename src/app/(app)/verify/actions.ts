@@ -1,5 +1,7 @@
 "use server";
 
+import { refFields } from "@/lib/payment-refs";
+import { syncPurchaseInvoice } from "@/lib/invoice-sync";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
@@ -130,7 +132,7 @@ export async function patchPaymentRow(kind: string, id: string, formData: FormDa
     if (!amount.greaterThan(0)) return { error: "Сумма должна быть больше нуля" };
   }
   const ref = clean(formData.get("ref"));
-  const data = { ...(paidAt ? { paidAt } : {}), ...(amount ? { amount } : {}), docRef: ref || null };
+  const data = { ...(paidAt ? { paidAt } : {}), ...(amount ? { amount } : {}), docRef: ref || null, ...refFields(ref || null) };
   // Правка и сброс подтверждения — одной транзакцией: иначе при сбое правка останется «подтверждённой».
   const missing = await prisma.$transaction(async (tx) => {
     if (kind === "payment") {
@@ -162,6 +164,7 @@ export async function patchPurchaseRow(id: string, formData: FormData): Promise<
       data: { ...(orderDate ? { orderDate } : {}), invoiceNumber: clean(formData.get("number"), 100) || null, transferDocument: clean(formData.get("ref")) || null },
     });
     if (!r.count) return false;
+    await syncPurchaseInvoice(tx, id);
     await resetVerification(tx, c.orgId, { purchaseIds: [id] });
     return true;
   });

@@ -1,10 +1,12 @@
 "use server";
 
+import { refFields } from "@/lib/payment-refs";
 import { z } from "zod";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { resetByBatch, resetByOrder } from "@/lib/verification";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { batchDeleteBlocker } from "@/lib/batch-delete";
 import { requireRole } from "@/lib/session";
 import { consumeFromLot, returnToLot, receiveFinishedGoodsStock } from "@/lib/stock";
 import { FG_FULL_COST_NOTE, fullFinishedCost, orderStockContribution } from "@/lib/finished-goods-cost";
@@ -1493,6 +1495,7 @@ export async function updateProductionPayment(orderId: string, paymentId: string
         paidAt: new Date(parsed.data.paidAt),
         notes: (formData.get("notes") as string)?.trim() || null,
         docRef,
+        ...refFields(docRef),
       },
     });
     await tx.productionPaymentOrder.deleteMany({ where: { productionPaymentId: paymentId, productionOrderId: { notIn: wanted } } });
@@ -1559,6 +1562,19 @@ export async function updateProductionBatch(batchId: string, formData: FormData)
   await resetByBatch(orgId, batchId);
   revalidateAll(orgId);
   return { number };
+}
+
+/** «Удалить» пустую партию пошива (без ТЗ и документов). Партию с ТЗ удалить нельзя. */
+export async function deleteProductionBatch(batchId: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const batch = await prisma.productionBatch.findFirst({ where: { id: batchId, organizationId: orgId }, select: { id: true } });
+  if (!batch) return { error: "Партия не найдена" };
+  const why = await batchDeleteBlocker(orgId, batchId);
+  if (why) return { error: why };
+  await prisma.productionBatch.deleteMany({ where: { id: batchId, organizationId: orgId } });
+  revalidateAll(orgId);
+  return {};
 }
 
 /**

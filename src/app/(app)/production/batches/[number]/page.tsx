@@ -31,6 +31,9 @@ import { c4Suffix } from "@/lib/commission4";
 import { BatchDocsPay } from "../../docs-pay";
 import { VerifyBlock } from "../../../verify/verify-block";
 import { BatchEditButton } from "../../[id]/edit-buttons";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { deleteProductionBatch } from "../../actions";
+import { batchDeleteBlocker } from "@/lib/batch-delete";
 import { rowVersion, BATCH_V } from "@/lib/concurrency";
 import { CollapsibleBlock } from "@/components/collapsible-block";
 import { OrdersTree } from "@/components/orders-tree";
@@ -153,11 +156,20 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
         </p>
         {cleanNote(batch.notes) && <p className="mt-1 text-sm text-neutral-600 whitespace-pre-line">{cleanNote(batch.notes)}</p>}
         {canEditProduction(session.user.role) && (
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-start gap-2">
+            <Link href={`/production/new?batch=${batch.number}`} className="inline-flex h-8 items-center rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800">
+              Создать ТЗ в этой партии
+            </Link>
             <BatchEditButton
               batchId={batch.id}
               version={rowVersion(batch, BATCH_V)}
               defaults={{ number: String(batch.number), name: batch.name ?? "", year: batch.year != null ? String(batch.year) : "", plannedUnits: batch.plannedUnits != null ? String(batch.plannedUnits) : "", notes: batch.notes ?? "" }}
+            />
+            <DeleteEntityButton
+              confirmText={`Удалить пустую партию ${batch.number}? Это нельзя отменить.`}
+              blockedReason={await batchDeleteBlocker(session.user.organizationId, batch.id)}
+              action={deleteProductionBatch.bind(null, batch.id)}
+              redirectTo="/production/batches"
             />
           </div>
         )}

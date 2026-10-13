@@ -708,6 +708,8 @@ export type BatchHeader = {
   vatDefault: string;
   /** Номер счёта, если в таблице нет столбца «Счёт аукциона №» (одна закупка). */
   invoiceNumber: string;
+  /** Дата счёта (ГГГГ-ММ-ДД, необязательно): попадает в Purchase.invoiceDate и в Invoice. */
+  invoiceDate?: string;
   /** Принять на склад сразу (иначе закупка остаётся черновиком — мех ещё в пути). */
   receiveNow: boolean;
   notes: string;
@@ -791,6 +793,8 @@ export type BatchPreview = {
   newMaterials: string[];
   newColors: string[];
   mismatchDocs: number;
+  /** Счета этой партии, уже стоящие на других закупках того же поставщика (предупреждение, не запрет). */
+  dupInvoices: { invoice: string; purchaseNumber: string }[];
 };
 
 export type BatchResult = {

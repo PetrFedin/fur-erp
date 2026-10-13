@@ -27,6 +27,11 @@ type ModelOption = { id: string; name: string; retailPrice: string | null; categ
 type Opt = { id: string; name: string };
 type Line = { key: number; lotId: string; qty: string; c4: boolean; c4Touched: boolean };
 type ExpLine = { key: number; categoryId: string; amount: string; desc: string };
+/** Что остаётся в форме после «Сохранить и добавить ещё»: заказчик, договор, партия, даты, цвет, вид меха и т.п. (артикул, количество и строки очищаются). */
+type Carry = {
+  f: Record<string, string>; clientId: string; contract: string; contractTouched: boolean;
+  batchSel: string; batchNew: string; furSel: string; furNew: string; vatSel: string; vatCustom: string; colorRefId: string;
+};
 
 const num = (s: string) => {
   const n = Number(String(s).replace(",", ".").replace(/\s/g, ""));
@@ -72,6 +77,8 @@ const th = "px-2 py-1.5 text-left text-xs font-medium text-neutral-500";
 export function ProductionCreateForm(props: {
   /** Предзаполнение артикула: /production/new?article=… (кнопка «Создать ТЗ на этот артикул» в карточке). */
   initialArticleId?: string;
+  /** Предзаполнение партии: /production/new?batch=<номер> (кнопка «Создать ТЗ в этой партии» на карточке партии). */
+  initialBatchId?: string;
   action: (prev: CreateOrderState, formData: FormData) => Promise<CreateOrderState>;
   models: ModelOption[];
   warehouses: { id: string; name: string; isDefault: boolean }[];
@@ -81,7 +88,7 @@ export function ProductionCreateForm(props: {
   colorOptions: ColorSelectOption[];
   canAddColor: boolean;
   canAddFur: boolean;
-  batches: { id: string; number: number; label: string; /** Партия без ТЗ («пусто») — в выборе не показываем, пока не выбрана. */ empty?: boolean }[];
+  batches: { id: string; number: number; label: string; /** Партия без ТЗ («пусто») — в выборе не показываем, пока не выбрана. */ empty?: boolean; /** № ТЗ, уже стоящих в партии. */ tz?: string[] }[];
   /** Следующий свободный № ТЗ (наибольший числовой + 1); пусто — предложить нечего. */
   nextTzNumber?: string;
   /** Сколько позиций уже заведено под каждым № ТЗ (ключ — номер в нижнем регистре): для предупреждения о дубле. */
@@ -93,10 +100,13 @@ export function ProductionCreateForm(props: {
   const [resetKey, setResetKey] = useState(0);
   const [createdMsg, setCreatedMsg] = useState<{ id: string; label: string } | null>(null);
   const lastCreated = useRef<string | null>(null);
+  const carryRef = useRef<Carry | null>(null);
+  const [carry, setCarry] = useState<Carry | null>(null);
   useEffect(() => {
     const c = state.created;
     if (c && lastCreated.current !== c.id) {
       lastCreated.current = c.id;
+      setCarry(carryRef.current);
       setCreatedMsg(c);
       setResetKey((k) => k + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -107,40 +117,46 @@ export function ProductionCreateForm(props: {
       {createdMsg && (
         <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {createdMsg.label} сохранено.{" "}
-          <Link href={`/production/${createdMsg.id}`} className="font-medium underline">Открыть карточку →</Link> Форма очищена — вносите следующее.
+          <Link href={`/production/${createdMsg.id}`} className="font-medium underline">Открыть карточку →</Link> Заказчик, договор, партия, даты, цвет и вид меха оставлены; артикул, количество и строки очищены — вносите следующую позицию.
         </p>
       )}
-      <FormBody key={resetKey} {...props} state={state} formAction={formAction} pending={pending} />
+      <FormBody key={resetKey} {...props} state={state} formAction={formAction} pending={pending} carry={carry} carryRef={carryRef} />
     </div>
   );
 }
 
 function FormBody({
-  initialArticleId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, nextTzNumber = "", tzNumberCounts = {}, expenseCategories, furs,
-  state, formAction, pending,
-}: Parameters<typeof ProductionCreateForm>[0] & { state: CreateOrderState; formAction: (fd: FormData) => void; pending: boolean }) {
+  initialArticleId, initialBatchId, models, warehouses, clients, lots, lastContractByClient, colorOptions, canAddColor, canAddFur, batches, nextTzNumber = "", tzNumberCounts = {}, expenseCategories, furs,
+  state, formAction, pending, carry, carryRef,
+}: Parameters<typeof ProductionCreateForm>[0] & { state: CreateOrderState; formAction: (fd: FormData) => void; pending: boolean; carry: Carry | null; carryRef: { current: Carry | null } }) {
   const { setForm: keepRef, onSubmit: keepSubmit } = useKeepingForm(formAction, state, pending);
   const today = new Date().toISOString().slice(0, 10);
   const defaultWarehouse = warehouses.find((w) => w.isDefault)?.id ?? warehouses[0]?.id ?? "";
 
   const [modelId, setModelId] = useState(initialArticleId ?? "");
-  const [f, setF] = useState<Record<string, string>>({ startDate: today, workOrderDate: today, rawWarehouseId: defaultWarehouse, workOrderNumber: nextTzNumber });
+  // После «Сохранить и добавить ещё» (carry): № ТЗ остаётся тем же — это следующая позиция того же ТЗ.
+  const [f, setF] = useState<Record<string, string>>(carry ? carry.f : { startDate: today, workOrderDate: today, rawWarehouseId: defaultWarehouse, workOrderNumber: nextTzNumber });
   const { ask, node: confirmNode } = useConfirm();
   const formEl = useRef<HTMLFormElement | null>(null);
   const confirmed = useRef(false);
   const [batchQuery, setBatchQuery] = useState("");
   const set = (k: string) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const [clientId, setClientId] = useState("");
-  const [contract, setContract] = useState("");
-  const [contractTouched, setContractTouched] = useState(false);
-  const [batchSel, setBatchSel] = useState("");
-  const [batchNew, setBatchNew] = useState("");
-  const [furSel, setFurSel] = useState("");
-  const [furNew, setFurNew] = useState("");
+  const [clientId, setClientId] = useState(carry?.clientId ?? "");
+  const [contract, setContract] = useState(carry?.contract ?? "");
+  const [contractTouched, setContractTouched] = useState(carry?.contractTouched ?? false);
+  const [batchSel, setBatchSel] = useState(() => {
+    if (!carry) return initialBatchId ?? "";
+    // Партия, созданная только что новым номером, уже есть в списке — берём её; иначе номер уйдёт снова и сервер найдёт её по номеру.
+    if (carry.batchSel === "__new__") return batches.find((b) => b.number === Number(carry.batchNew))?.id ?? "__new__";
+    return carry.batchSel;
+  });
+  const [batchNew, setBatchNew] = useState(carry?.batchNew ?? "");
+  const [furSel, setFurSel] = useState(carry?.furSel ?? "");
+  const [furNew, setFurNew] = useState(carry?.furNew ?? "");
   const [furList, setFurList] = useState(furs);
   const [furErr, setFurErr] = useState("");
-  const [vatSel, setVatSel] = useState("");
-  const [vatCustom, setVatCustom] = useState("");
+  const [vatSel, setVatSel] = useState(carry?.vatSel ?? "");
+  const [vatCustom, setVatCustom] = useState(carry?.vatCustom ?? "");
   const [fur, setFur] = useState<Line[]>([]);
   const [lining, setLining] = useState<Line[]>([]);
   const [exps, setExps] = useState<ExpLine[]>([]);
@@ -149,6 +165,10 @@ function FormBody({
   const [pasteErrs, setPasteErrs] = useState<string[]>([]);
   const [clientErrs, setClientErrs] = useState<string[]>([]);
   const errRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    carryRef.current = { f: { ...f, plannedQuantity: "" }, clientId, contract, contractTouched, batchSel, batchNew, furSel, furNew, vatSel, vatCustom, colorRefId: f.colorRefId ?? "" };
+  });
 
   const model = models.find((m) => m.id === modelId) ?? null;
   const lotById = useMemo(() => new Map(lots.map((l) => [l.id, l])), [lots]);
@@ -234,7 +254,7 @@ function FormBody({
     const w: string[] = [];
     const no = (f.workOrderNumber ?? "").trim();
     const dup = no ? tzNumberCounts[no.toLowerCase()] ?? 0 : 0;
-    if (dup > 0) w.push(`№ ТЗ ${no} уже есть в базе (позиций: ${dup}). Позиции одного ТЗ допустимы — если это ещё одна позиция того же ТЗ, всё верно; иначе исправьте номер.`);
+    if (dup > 0 && !(carry && no === (carry.f.workOrderNumber ?? "").trim())) w.push(`№ ТЗ ${no} уже есть в базе (позиций: ${dup}). Позиции одного ТЗ допустимы — если это ещё одна позиция того же ТЗ, всё верно; иначе исправьте номер.`);
     if (!(workPrice > 0)) w.push("Цена работы не указана: сумму работы и оплату по ТЗ определить нельзя.");
     return w;
   }
@@ -401,7 +421,6 @@ function FormBody({
         <h1 className="text-xl font-semibold">Новое ТЗ</h1>
         <div className="ml-auto flex items-center gap-2">
           <Link href="/production" className="rounded-md px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100">Отмена</Link>
-          <Button type="submit" name="intent" value="open" size="sm" disabled={pending}>{pending ? "Сохраняем…" : "Сохранить ТЗ"}</Button>
         </div>
       </header>
 
@@ -426,7 +445,9 @@ function FormBody({
           </Field>
     <Field htmlFor="workOrderNumber" label="№ ТЗ" hint="Предложен следующий свободный номер (наибольший числовой + 1); можно изменить. Если номер уже есть, перед сохранением спросим: позиции одного ТЗ допустимы.">
             <Input id="workOrderNumber" name="workOrderNumber" placeholder="№ ТЗ" value={f.workOrderNumber ?? ""} onChange={set("workOrderNumber")} />
-            {nextTzNumber && f.workOrderNumber === nextTzNumber ? <p className="mt-1 text-xs text-neutral-400">следующий свободный</p> : null}
+            {carry && f.workOrderNumber === carry.f.workOrderNumber && (f.workOrderNumber ?? "") !== "" ? (
+              <p className="mt-1 text-xs text-neutral-500">следующая позиция ТЗ № {f.workOrderNumber}</p>
+            ) : nextTzNumber && f.workOrderNumber === nextTzNumber ? <p className="mt-1 text-xs text-neutral-400">следующий свободный</p> : null}
           </Field>
           <Field htmlFor="workOrderDate" label="Дата ТЗ"><Input id="workOrderDate" name="workOrderDate" type="date" value={f.workOrderDate ?? ""} onChange={set("workOrderDate")} /></Field>
 
@@ -456,9 +477,21 @@ function FormBody({
             {batchSel === "__new__" && (
               <Input className="mt-1" inputMode="numeric" placeholder="Номер новой партии" aria-label="Номер новой партии" value={batchNew} onChange={(e) => { setBatchNew(e.target.value); onBatch("__new__", e.target.value); }} />
             )}
+            {batchSel === "__new__" && batchNew.trim() !== "" && (() => {
+              const hit = batches.find((b) => b.number === Number(batchNew));
+              return hit ? (
+                <p className="mt-1 text-xs text-amber-700" data-batch-hint>Партия {hit.number} уже есть: {hit.tz && hit.tz.length ? `ТЗ ${hit.tz.join(", ")}` : "ТЗ пока нет"}. <button type="button" className="underline" onClick={() => { setBatchSel(hit.id); onBatch(hit.id); }}>Выбрать её</button></p>
+              ) : (
+                <p className="mt-1 text-xs text-amber-700" data-batch-hint>Партии {batchNew.trim()} ещё нет — будет создана новая.</p>
+              );
+            })()}
+            {batchSel && batchSel !== "__new__" && (() => {
+              const hit = batches.find((b) => b.id === batchSel);
+              return hit && hit.tz && hit.tz.length ? <p className="mt-1 text-xs text-neutral-500">Партия {hit.number}: ТЗ {hit.tz.join(", ")}</p> : null;
+            })()}
           </Field>
           <Field label="Цвет" hint="Из справочника цветов или своё значение (синонимы привяжутся автоматически).">
-            <ColorSelect refs={colorOptions} canCreate={canAddColor} placeholder="Коричневый" onChange={(t) => setF((p) => ({ ...p, color: t }))} />
+            <ColorSelect refs={colorOptions} canCreate={canAddColor} placeholder="Коричневый" defaultValue={carry?.f.color ?? ""} defaultRefId={carry?.colorRefId || null} onChange={(t, r) => setF((p) => ({ ...p, color: t, colorRefId: r }))} />
           </Field>
 
           <Field htmlFor="size" label="Размеры"><Input id="size" name="size" placeholder="42, 44" value={f.size ?? ""} onChange={set("size")} /></Field>

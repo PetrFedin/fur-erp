@@ -218,11 +218,13 @@ export function computeSupplierDebt(
 }
 
 /** Исходные данные для расчёта долга (отдельно, чтобы проверять расчёт на переименованных копиях — scripts/test-supplier-debt-rename.ts). */
-export async function loadDebtInputs(db: Db, organizationId: string) {
+/** supplierId — долг только по этому поставщику (закупки, оплаты аукционов и авансы); без него — по всей организации. */
+export async function loadDebtInputs(db: Db, organizationId: string, supplierId?: string) {
+  const sup = supplierId ? { supplierId } : {};
   const [allPurchases, auctionPayments, advances, refs] = await Promise.all([
     // Отменённые тоже: деньги, ушедшие по ним в рамках аукциона, входят в оплаченное по аукциону.
     db.purchase.findMany({
-      where: { organizationId },
+      where: { organizationId, ...sup },
       include: {
         items: true,
         expenses: true,
@@ -231,11 +233,11 @@ export async function loadDebtInputs(db: Db, organizationId: string) {
       },
     }),
     db.payment.findMany({
-      where: { organizationId, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
+      where: { organizationId, ...sup, purchaseId: null, auctionSession: { not: null }, status: { in: ["COMPLETED", "PENDING"] } },
       select: { auctionSession: true, amount: true, status: true, confirmed: true, confirmedAt: true },
     }),
     db.payment.findMany({
-      where: { organizationId, purchaseId: null, auctionSession: null, status: "COMPLETED" },
+      where: { organizationId, ...sup, purchaseId: null, auctionSession: null, status: "COMPLETED" },
       select: { amount: true, paidAt: true, confirmed: true, confirmedAt: true },
     }),
     db.auction.findMany({ where: { organizationId }, select: { id: true, name: true, aliases: true, isService: true, confirmed: true } }),
@@ -268,6 +270,6 @@ export function supplierDebtFromInputs(inputs: DebtInputs, year: YearFilter = "a
 }
 
 /** Загружает данные организации и считает долг поставщику (при year ≠ "all" — за закупки этого года). */
-export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all"): Promise<SupplierDebt> {
-  return supplierDebtFromInputs(await loadDebtInputs(db, organizationId), year);
+export async function loadSupplierDebt(db: Db, organizationId: string, year: YearFilter = "all", supplierId?: string): Promise<SupplierDebt> {
+  return supplierDebtFromInputs(await loadDebtInputs(db, organizationId, supplierId), year);
 }

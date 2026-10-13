@@ -11,6 +11,9 @@ import { RecordComments } from "@/components/comments/record-comments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ArticleForm } from "../article-form";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { deleteArticle } from "@/app/(app)/settings/articles-ref/actions";
+import { articleDeleteBlocker } from "@/lib/article-save";
 import { saveArticleForm } from "../actions";
 import { formatMoney, formatQty, formatDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -74,6 +77,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
   const session = await requireSession();
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.models);
+  const deleteBlocker = canEdit ? await articleDeleteBlocker(session.user.organizationId, id) : null;
   const [model, fittings, categoryOptions, orders, shipments] = await Promise.all([
     prisma.productModel.findFirst({
       where: { id, organizationId: orgId },
@@ -195,8 +199,18 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
             categories={categoryOptions}
             canCreateCategory={hasRole(session.user.role, ACCESS.categories)}
             canEdit={canEdit}
+            extraActions={canEdit ? (
+              <DeleteEntityButton
+                confirmText={`Удалить артикул ${model.name}? Это нельзя отменить. Нормы расхода артикула удалятся вместе с ним.`}
+                blockedReason={deleteBlocker}
+                action={deleteArticle.bind(null, id)}
+                redirectTo="/settings/articles-ref"
+              />
+            ) : null}
             initial={{
               name: model.name,
+              sku: model.sku ?? "",
+              lengthClass: model.lengthClass ?? "",
               salesCode: model.salesCode ?? "",
               salesName: model.salesName ?? "",
               aliases: model.aliases.join(", "),

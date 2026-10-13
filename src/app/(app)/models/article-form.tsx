@@ -8,10 +8,13 @@ import { InfoHint } from "@/components/info-hint";
 import { CategorySelect, type CategorySelectOption } from "@/components/category-select";
 import { useKeepingForm } from "@/lib/use-keeping-form";
 import { CATEGORY_GROUPS, NO_GROUP } from "@/lib/category-groups";
+import { LENGTH_VALUES } from "@/lib/length-class";
 import type { ArticleSaveState } from "./actions";
 
 export type ArticleInitial = {
   name: string;
+  sku: string;
+  lengthClass: string;
   salesCode: string;
   salesName: string;
   aliases: string;
@@ -22,7 +25,7 @@ export type ArticleInitial = {
   isActive: boolean;
 };
 
-const EMPTY: ArticleInitial = { name: "", salesCode: "", salesName: "", aliases: "", category: "", categoryRefId: null, sellingPrice: "", description: "", isActive: true };
+const EMPTY: ArticleInitial = { name: "", sku: "", lengthClass: "", salesCode: "", salesName: "", aliases: "", category: "", categoryRefId: null, sellingPrice: "", description: "", isActive: true };
 const initialState: ArticleSaveState = {};
 const cardCls = "rounded-lg border border-neutral-200 bg-white p-3";
 
@@ -72,7 +75,19 @@ export function ArticleForm({
   categories,
   canCreateCategory,
   canEdit = true,
+  embedded = false,
+  onSaved,
+  onCancel,
+  extraActions,
 }: {
+  /** Встроена в строку справочника: без заголовка и «Сохранить и добавить ещё». */
+  embedded?: boolean;
+  /** Вызывается после успешного сохранения правки. */
+  onSaved?: () => void;
+  /** Показывает кнопку «Закрыть» (справочник артикулов). */
+  onCancel?: () => void;
+  /** Доп. кнопки рядом с «Сохранить» (например, «Удалить»). */
+  extraActions?: ReactNode;
   mode: "new" | "edit";
   action: (prev: ArticleSaveState, formData: FormData) => Promise<ArticleSaveState>;
   initial?: ArticleInitial;
@@ -102,14 +117,18 @@ export function ArticleForm({
           <Link href={`/production/new?article=${createdMsg.id}`} className="font-medium underline">Создать ТЗ →</Link> Форма очищена — вносите следующий.
         </p>
       )}
-      <Body key={resetKey} mode={mode} initial={initial} categories={categories} canCreateCategory={canCreateCategory} canEdit={canEdit} state={state} formAction={formAction} pending={pending} />
+      <Body key={resetKey} embedded={embedded} onSaved={onSaved} onCancel={onCancel} extraActions={extraActions} mode={mode} initial={initial} categories={categories} canCreateCategory={canCreateCategory} canEdit={canEdit} state={state} formAction={formAction} pending={pending} />
     </div>
   );
 }
 
 function Body({
-  mode, initial, categories, canCreateCategory, canEdit, state, formAction, pending,
+  mode, initial, categories, canCreateCategory, canEdit, state, formAction, pending, embedded, onSaved, onCancel, extraActions,
 }: {
+  embedded: boolean;
+  onSaved?: () => void;
+  onCancel?: () => void;
+  extraActions?: ReactNode;
   mode: "new" | "edit";
   initial: ArticleInitial;
   categories: CategorySelectOption[];
@@ -139,6 +158,10 @@ function Body({
     setShownAt(savedAt);
     setDirty(false);
   }
+  useEffect(() => {
+    if (savedAt) onSaved?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAt]);
   const justSaved = mode === "edit" && savedAt != null && savedAt === shownAt && !dirty && !pending;
 
   const refGroup = categories.find((c) => c.id === catRef)?.group ?? null;
@@ -176,7 +199,7 @@ function Body({
       <input type="hidden" name="isActive" value={f.isActive ? "1" : "0"} />
       <input type="hidden" name="group" value={groupValue} />
 
-      {mode === "new" && (
+      {mode === "new" && !embedded && (
         <header className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-1 py-2">
           <Link href="/articles" className="rounded px-1.5 py-1 text-lg leading-none text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" title="К списку изделий" aria-label="Назад к списку изделий">←</Link>
           <h1 className="text-xl font-semibold">Новый артикул</h1>
@@ -197,6 +220,9 @@ function Body({
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
           <Field htmlFor="name" label="Код артикула *" error={fe.name} hint="Наш код: M012, МН-02… Латиница и кириллица в похожих буквах считаются одним написанием.">
             <Input className="ui-field rounded-lg" id="name" name="name" value={f.name} onChange={set("name")} placeholder="M012" disabled={!canEdit} aria-invalid={fe.name ? true : undefined} />
+          </Field>
+          <Field htmlFor="sku" label="SKU" hint="Наш внутренний SKU, если он отличается от кода артикула. Уникален в пределах организации.">
+            <Input className="ui-field rounded-lg" id="sku" name="sku" value={f.sku} onChange={set("sku")} disabled={!canEdit} />
           </Field>
           <Field htmlFor="salesCode" label="Код в продажах" hint="Код этого же изделия в системе продаж. Уходит в сверку продаж и поиск артикула.">
             <Input className="ui-field rounded-lg" id="salesCode" name="salesCode" value={f.salesCode} onChange={set("salesCode")} disabled={!canEdit} />
@@ -248,11 +274,17 @@ function Body({
           <Field htmlFor="sellingPrice" label="Розничная цена, ₽ (с НДС)" error={fe.sellingPrice}>
             <Input className="ui-field rounded-lg" id="sellingPrice" name="sellingPrice" inputMode="decimal" value={f.sellingPrice} onChange={set("sellingPrice")} placeholder="не задана" disabled={!canEdit} aria-invalid={fe.sellingPrice ? true : undefined} />
           </Field>
+          <Field htmlFor="lengthClass" label="Длина" hint="Short / Regular / Long по системе продаж; у аксессуаров длины нет.">
+            <Select className="ui-field rounded-lg" id="lengthClass" name="lengthClass" value={f.lengthClass} onChange={set("lengthClass")} disabled={!canEdit}>
+              <option value="">— без длины —</option>
+              {LENGTH_VALUES.map((x) => <option key={x} value={x}>{x}</option>)}
+            </Select>
+          </Field>
           {mode === "edit" && (
-            <Field label="Использование" hint="Неиспользуемый артикул скрыт в выборе при создании ТЗ и плана, но остаётся в отчётах.">
+            <Field label="Активный" hint="Неактивный артикул скрыт в выборе при создании ТЗ и плана, но остаётся в отчётах. Так «удаляют» артикул, у которого уже есть ТЗ.">
               <label className="flex h-9 items-center gap-2 text-sm">
                 <input type="checkbox" className="h-4 w-4" checked={f.isActive} disabled={!canEdit} onChange={(e) => { setF((p) => ({ ...p, isActive: e.target.checked })); setDirty(true); }} />
-                Используется
+                Активный артикул
               </label>
             </Field>
           )}
@@ -263,10 +295,12 @@ function Body({
       </Step>
 
       {canEdit && (
-        <div className={mode === "new" ? "sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-t border-neutral-200 bg-white px-1 py-2" : "flex flex-wrap items-center gap-2"}>
+        <div className={mode === "new" && !embedded ? "sticky bottom-0 z-20 -mx-1 flex flex-wrap items-center gap-2 border-t border-neutral-200 bg-white px-1 py-2" : "flex flex-wrap items-center gap-2"}>
           {status}
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {mode === "new" && <Button type="submit" name="intent" value="again" variant="outline" size="sm" disabled={pending}>Сохранить и добавить ещё</Button>}
+            {extraActions}
+            {onCancel && <Button type="button" variant="outline" size="sm" onClick={onCancel}>Закрыть</Button>}
+            {mode === "new" && !embedded && <Button type="submit" name="intent" value="again" variant="outline" size="sm" disabled={pending}>Сохранить и добавить ещё</Button>}
             <Button type="submit" name="intent" value="open" disabled={pending}>{pending ? "Сохраняем…" : mode === "new" ? "Сохранить артикул" : "Сохранить артикул"}</Button>
           </div>
         </div>

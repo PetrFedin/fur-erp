@@ -29,6 +29,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
   const [batchName, setBatchName] = useState("");
   const [batchTouched, setBatchTouched] = useState(false);
   const [invoice, setInvoice] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState("");
   const [notes, setNotes] = useState("");
   const [priceIncl, setPriceIncl] = useState(mode === "incl");
   const [seq, setSeq] = useState(1);
@@ -56,7 +57,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
 
   const submit = (more: boolean) => {
     const fd = new FormData();
-    fd.set("date", date); fd.set("supplierId", supplierId); fd.set("batchName", batchShown); fd.set("invoiceNumber", invoice); fd.set("notes", notes);
+    fd.set("date", date); fd.set("supplierId", supplierId); fd.set("batchName", batchShown); fd.set("invoiceNumber", invoice); fd.set("invoiceDate", invoiceDate); fd.set("notes", notes);
     fd.set("priceMode", priceIncl ? "incl" : "excl");
     fd.set("lines", JSON.stringify(lines.map((l) => ({ materialId: l.materialId, newNumber: l.newNumber, meters: l.meters, price: l.price, vat: l.vatTouched ? l.vat : "" }))));
     setState({});
@@ -64,7 +65,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
       const res = await createLiningBatchPurchase({}, fd);
       setState(res);
       if (res.ok) {
-        if (more) { setLines([blank(seq)]); setSeq(seq + 1); setInvoice(""); setNotes(""); window.scrollTo({ top: 0, behavior: "smooth" }); router.refresh(); }
+        if (more) { setLines([blank(seq)]); setSeq(seq + 1); setInvoice(""); setInvoiceDate(""); setNotes(""); window.scrollTo({ top: 0, behavior: "smooth" }); router.refresh(); }
         else router.push(res.purchaseId ? `/purchases/${res.purchaseId}` : "/lots?tab=lining");
       }
     });
@@ -100,6 +101,7 @@ export function LiningBuyForm({ suppliers, materials, defaultSupplierId }: { sup
             <p className="mt-1 text-[11px] text-neutral-500">По умолчанию «Подкладка ММ.ГГ» по дате</p>
           </div>
           <div><Label htmlFor="lb-inv">№ счёта / УПД</Label><Input id="lb-inv" value={invoice} onChange={(e) => setInvoice(e.target.value)} /></div>
+          <div><Label htmlFor="lb-invdate">Дата счёта</Label><Input id="lb-invdate" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
           <div className="sm:col-span-2 lg:col-span-4"><Label htmlFor="lb-notes">Примечание</Label><Input id="lb-notes" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         </div>
       </section>

@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { articleKey, searchArticleList } from "@/lib/article-key";
 import { LocalFilterBar } from "@/components/filters/filter-bar";
-import { CategorySelect, type CategorySelectOption } from "@/components/category-select";
-import { LENGTH_VALUES } from "@/lib/length-class";
-import { mergeArticles, saveArticle, type ArticleInput } from "./actions";
+import type { CategorySelectOption } from "@/components/category-select";
+import Link from "next/link";
+import { mergeArticles, deleteArticle } from "./actions";
+import { ArticleForm } from "@/app/(app)/models/article-form";
+import { saveArticleForm } from "@/app/(app)/models/actions";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
 
 export type ArticleRow = {
   id: string;
@@ -26,88 +29,14 @@ export type ArticleRow = {
   seasons: string[];
   tzCount: number;
   produced: number;
+  /** Почему артикул нельзя удалить (есть ТЗ, план, остатки); null — можно. */
+  deleteBlocker?: string | null;
+  description?: string | null;
 };
 
 type SortKey = "name" | "category" | "salesCode" | "price" | "tz" | "produced";
-const EMPTY: ArticleInput = { name: "", sku: "", category: "", categoryRefId: "", salesCode: "", salesName: "", aliases: "", sellingPrice: "", lengthClass: "", isActive: true };
-const toInput = (r: ArticleRow): ArticleInput => ({
-  name: r.name,
-  sku: r.sku ?? "",
-  category: (r.category ?? "").replace(/\s+/g, " ").trim(),
-  categoryRefId: r.categoryRefId ?? "",
-  salesCode: r.salesCode ?? "",
-  salesName: r.salesName ?? "",
-  aliases: r.aliases.join(", "),
-  sellingPrice: r.sellingPrice == null ? "" : String(r.sellingPrice).replace(".", ","),
-  lengthClass: r.lengthClass ?? "",
-  isActive: r.isActive,
-});
 const fmtPrice = (n: number | null) => (n == null ? "—" : n.toLocaleString("ru-RU") + " ₽");
 const fmtQty = (n: number) => n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
-
-function EditForm({ initial, onDone, onCancel, id, categories, canCreateCategory }: { initial: ArticleInput; id: string | null; onDone: () => void; onCancel: () => void; categories: CategorySelectOption[]; canCreateCategory: boolean }) {
-  const [v, setV] = useState<ArticleInput>(initial);
-  const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
-  const set = (k: keyof ArticleInput) => (e: { target: { value: string } }) => setV((p) => ({ ...p, [k]: e.target.value }));
-  const f = (label: string, k: keyof ArticleInput, ph = "", w = "") => (
-    <label className={`flex flex-col gap-1 text-xs text-neutral-600 ${w}`}>
-      {label}
-      <Input value={String(v[k])} onChange={set(k)} placeholder={ph} />
-    </label>
-  );
-  return (
-    <div className="flex flex-col gap-3 bg-neutral-50 p-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {f("Наш код *", "name", "M012")}
-        <label className="flex flex-col gap-1 text-xs text-neutral-600">
-          Категория (справочник)
-          <CategorySelect
-            refs={categories}
-            canCreate={canCreateCategory}
-            defaultValue={initial.category}
-            defaultRefId={initial.categoryRefId || null}
-            placeholder="Жилет"
-            onChange={(text, refId) => setV((p) => ({ ...p, category: text, categoryRefId: refId }))}
-          />
-        </label>
-        {f("Наш SKU", "sku")}
-        {f("Цена продажи, ₽", "sellingPrice")}
-        {f("Код в системе продаж", "salesCode", "как в системе продаж")}
-        {f("Название в системе продаж", "salesName", "как в системе продаж", "lg:col-span-2")}
-        <label className="flex flex-col gap-1 text-xs text-neutral-600">
-          Длина
-          <select value={v.lengthClass} onChange={set("lengthClass")} className="h-9 rounded-md border border-neutral-300 bg-white px-2 text-sm">
-            <option value="">— без длины —</option>
-            {LENGTH_VALUES.map((x) => <option key={x} value={x}>{x}</option>)}
-          </select>
-        </label>
-        {f("Другие написания (через запятую)", "aliases", "М012, M012/MINK BGL")}
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={v.isActive} onChange={(e) => setV((p) => ({ ...p, isActive: e.target.checked }))} />
-        Активный артикул
-      </label>
-      {err && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              const r = await saveArticle(id, v);
-              if (r.error) setErr(r.error);
-              else onDone();
-            })
-          }
-        >
-          {pending ? "Сохраняю…" : "Сохранить"}
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
-      </div>
-    </div>
-  );
-}
 
 function MergePanel({ source, rows, onClose }: { source: ArticleRow; rows: ArticleRow[]; onClose: () => void }) {
   const [q, setQ] = useState("");
@@ -190,7 +119,6 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [editing, setEditing] = useState<string | null>(null);
   const [merging, setMerging] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
 
   const view = useMemo(() => {
     let list = rows;
@@ -248,15 +176,9 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
         <span className="text-sm text-neutral-500">Показано {view.length} из {rows.length}</span>
         <span className="ml-auto flex gap-2">
           <a href="/settings/articles-ref/export" className="inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium hover:bg-neutral-50">Скачать CSV</a>
-          {canEdit && <Button size="sm" onClick={() => { setAdding(true); setEditing(null); }}>+ Новый артикул</Button>}
+          {canEdit && <Link href="/models/new" className="inline-flex h-8 items-center rounded-md bg-neutral-900 px-3 text-xs font-medium text-white hover:bg-neutral-800">+ Новый артикул</Link>}
         </span>
       </div>
-
-      {adding && (
-        <div className="overflow-hidden rounded-lg border border-neutral-200">
-          <EditForm categories={categories} canCreateCategory={canCreateCategory} id={null} initial={EMPTY} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
-        </div>
-      )}
 
       <Table>
         <Thead>
@@ -305,13 +227,37 @@ export function ArticlesRefTable({ rows, canEdit, categories = [], canCreateCate
                   <Td><Badge variant={r.isActive ? "success" : "default"}>{r.isActive ? "Активен" : "Не активен"}</Badge></Td>
                   {canEdit && (
                     <Td className="whitespace-nowrap">
-                      <button type="button" className="text-blue-700 hover:underline" onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); setAdding(false); }}>Изменить</button>
+                      <button type="button" className="text-blue-700 hover:underline" onClick={() => { setEditing(editing === r.id ? null : r.id); setMerging(null); }}>Изменить</button>
                       <button type="button" className="ml-3 text-neutral-500 hover:underline" onClick={() => { setMerging(merging === r.id ? null : r.id); setEditing(null); }}>Объединить…</button>
+                      <span className="ml-3 inline-block align-middle">
+                        <DeleteEntityButton
+                          label="Удалить" variant="ghost" className="h-auto px-0 py-0 text-neutral-500 hover:underline" showReason={false}
+                          confirmText={`Удалить артикул ${r.name}? Это нельзя отменить. Нормы расхода артикула удалятся вместе с ним.`}
+                          blockedReason={r.deleteBlocker}
+                          action={() => deleteArticle(r.id)}
+                        />
+                      </span>
                     </Td>
                   )}
                 </Tr>
                 {editing === r.id && (
-                  <Tr><Td colSpan={cols} className="p-0"><EditForm categories={categories} canCreateCategory={canCreateCategory} id={r.id} initial={toInput(r)} onDone={() => setEditing(null)} onCancel={() => setEditing(null)} /></Td></Tr>
+                  <Tr>
+                    <Td colSpan={cols} className="bg-neutral-50 p-3">
+                      <ArticleForm
+                        mode="edit" embedded
+                        action={saveArticleForm.bind(null, r.id)}
+                        categories={categories}
+                        canCreateCategory={canCreateCategory}
+                        onCancel={() => setEditing(null)}
+                        initial={{
+                          name: r.name, sku: r.sku ?? "", lengthClass: r.lengthClass ?? "", salesCode: r.salesCode ?? "", salesName: r.salesName ?? "",
+                          aliases: r.aliases.join(", "), category: (r.category ?? "").replace(/\s+/g, " ").trim(), categoryRefId: r.categoryRefId,
+                          sellingPrice: r.sellingPrice == null ? "" : String(r.sellingPrice).replace(".", ","), description: r.description ?? "", isActive: r.isActive,
+                        }}
+                      />
+                      {r.deleteBlocker && <p className="mt-1 text-xs text-neutral-500">Удалить нельзя: {r.deleteBlocker}</p>}
+                    </Td>
+                  </Tr>
                 )}
                 {merging === r.id && (
                   <Tr><Td colSpan={cols} className="p-0"><MergePanel source={r} rows={rows} onClose={() => setMerging(null)} /></Td></Tr>

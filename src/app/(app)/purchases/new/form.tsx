@@ -78,6 +78,10 @@ export function PurchaseCreateForm({
           <Input id="invoiceNumber" name="invoiceNumber" placeholder="2004" />
         </div>
         <div>
+          <Label htmlFor="invoiceDate">Дата счёта</Label>
+          <Input id="invoiceDate" name="invoiceDate" type="date" />
+        </div>
+        <div>
           <Label htmlFor="currency">Валюта</Label>
           <Select id="currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value="RUB">RUB — рубль</option>

@@ -134,7 +134,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
     return "key" in t ? remainingOf(t) : t.workCents - t.paidCents;
   };
   // Номер счёта подсказывает цель только если такой счёт уже известен какой-то закупке (иначе новый счёт увёл бы всё в «аванс»).
-  const invBasis = invoiceNo.trim() ? `счёт № ${invoiceNo.trim()}` : "";
+  const invBasis = invoiceNo.trim() ? `${side === "work" ? "документ" : "счёт"} № ${invoiceNo.trim()}` : "";
   const invKnown = side === "supplier" && !!invBasis && (targets as WizardData["supTargets"]).some((t) => refHit(t.refs, invBasis));
   const allocBasis = [invKnown ? invBasis : "", basis].filter(Boolean).join(", ");
   const sumC = lines.reduce((s, l) => s + (Number.isFinite(centsOf(l.amount)) ? centsOf(l.amount) : 0), 0);
@@ -188,7 +188,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
   if (!paidAt) step1Problems.push("Укажите дату оплаты");
   if (side === "supplier" && !supplierId) step1Problems.push("Выберите поставщика");
   if (side === "work" && !clientId) step1Problems.push("Выберите заказчика");
-  if (!invoiceNo.trim()) step1Problems.push("Укажите номер счёта");
+  if (side === "supplier" && !invoiceNo.trim()) step1Problems.push("Укажите номер счёта");
   if (!ppNo.trim()) step1Problems.push("Укажите № п/п");
   if (kind === "OTHER" && note.trim().length < 3) step1Problems.push("Для вида «Другое» напишите пометку");
   if (markConfirmed && !canConfirm({ hasProofFile: false, ppNo, paidAt, amount: amountC / 100 })) step1Problems.push("«Подтверждено» — только с № п/п");
@@ -279,7 +279,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             <div><Label htmlFor="pw-kind">Вид оплаты</Label><Select id="pw-kind" value={kind} onChange={(e) => setKind(e.target.value as PayKind)}>{KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}</Select></div>
             <div><Label htmlFor="pw-date">Дата оплаты</Label><Input id="pw-date" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} /></div>
             <div><Label htmlFor="pw-amount">Сумма, ₽</Label><Input id="pw-amount" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setLines([]); }} placeholder="например, 1 500 000,00" /></div>
-            <div><Label htmlFor="pw-inv">№ счёта (обязательно)</Label><Input id="pw-inv" value={invoiceNo} onChange={(e) => { setInvoiceNo(e.target.value); setLines([]); }} placeholder="например, 2004" required /></div>
+            <div><Label htmlFor="pw-inv">{side === "work" ? "№ документа (по желанию)" : "№ счёта (обязательно)"}</Label><Input id="pw-inv" value={invoiceNo} onChange={(e) => { setInvoiceNo(e.target.value); setLines([]); }} placeholder={side === "work" ? "счёт, акт или письмо" : "например, 2004"} required={side !== "work"} /></div>
             <div><Label htmlFor="pw-pp">№ п/п (обязательно; дата — выше)</Label><Input id="pw-pp" value={ppNo} onChange={(e) => setPpNo(e.target.value)} placeholder="например, 43831" required /></div>
             <div><Label htmlFor="pw-method">Способ</Label><Select id="pw-method" value={method} onChange={(e) => setMethod(e.target.value)}><option value="BANK_TRANSFER">Банк. перевод</option><option value="CASH">Наличные</option><option value="CARD">Карта</option><option value="OTHER">Другое</option></Select></div>
             <div className="sm:col-span-2"><Label htmlFor="pw-file">Файл (по желанию): платёжка или счёт</Label>

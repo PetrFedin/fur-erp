@@ -92,7 +92,7 @@ const sameNumber = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+
  * Единый расчёт мастера: проверка строк → позиции → закупки (по счетам) → суммы (purchase-totals) → сверка документов.
  * Вызывается и для предпросмотра, и перед созданием — одним и тем же кодом.
  */
-export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: number) {
+export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: number, knownInvoices: { invoice: string; number: string }[] = []) {
   const h = payload.header;
   const blocking: string[] = [];
   const currency = (h.currency || "RUB").toUpperCase();
@@ -209,6 +209,19 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
   const preview: BatchPreview = {
     validation, purchases: purchases.map((p) => p.totals), totals, docs, blocking, planDiffRows, debtNow,
     receiving: h.receiveNow, newMaterials, newColors, mismatchDocs,
+    dupInvoices: purchases
+      .filter((p) => p.invoice.trim())
+      .flatMap((p) => knownInvoices.filter((k) => sameNumber(k.invoice, p.invoice)).slice(0, 1).map((k) => ({ invoice: p.invoice.trim(), purchaseNumber: k.number }))),
   };
   return { preview, purchases, ctx, auctionName, existingAuctionId: existing?.id ?? null, rate: ctx.rate, currency };
+}
+
+/** Счета (invoiceNumber) действующих закупок поставщика — для предупреждения о совпадении номера счёта. */
+export async function loadSupplierInvoices(db: Db, orgId: string, supplierId: string) {
+  if (!supplierId) return [];
+  const rows = await db.purchase.findMany({
+    where: { organizationId: orgId, supplierId, status: { not: "CANCELLED" }, invoiceNumber: { not: null } },
+    select: { number: true, invoiceNumber: true },
+  });
+  return rows.filter((r) => r.invoiceNumber?.trim()).map((r) => ({ invoice: r.invoiceNumber as string, number: r.number }));
 }

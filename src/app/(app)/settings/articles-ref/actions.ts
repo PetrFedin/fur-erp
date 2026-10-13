@@ -4,12 +4,12 @@ import { revalidateAll } from "@/lib/revalidate-all";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
-import { isUniqueViolation, normalizeNumberInput } from "@/lib/input";
+import { isUniqueViolation } from "@/lib/input";
 import { loadArticleList } from "@/lib/article-ref";
 import { articleKey, candidatesFromList, parseAliases, spellingsOf, type ArticleLite } from "@/lib/article-key";
-import { resolveCategoryInput } from "@/lib/categories";
 import { parseTableFile } from "@/lib/table-file";
 import { parseLength } from "@/lib/length-class";
+import { saveArticleCore, articleDeleteBlocker } from "@/lib/article-save";
 
 const ROLES = ACCESS.models;
 
@@ -57,56 +57,35 @@ function conflictOf(list: ArticleLite[], exceptId: string | null, own: { name: s
   );
 }
 
-function parseInput(i: ArticleInput) {
-  const name = t(i.name, 100);
-  if (name.length < 2) return { error: "Укажите наш код артикула" } as const;
-  const price = normalizeNumberInput(i.sellingPrice);
-  if (price !== undefined && (typeof price !== "number" || !Number.isFinite(price) || price < 0 || price > 999_999_999_999)) return { error: "Цена продажи: укажите число" } as const;
-  if (i.lengthClass?.trim() && !parseLength(i.lengthClass)) return { error: "Длина: Short, Regular или Long" } as const;
-  const own = {
-    name,
-    sku: t(i.sku, 100),
-    salesCode: t(i.salesCode, 100),
-    aliases: parseAliases(i.aliases).filter((a) => articleKey(a) !== articleKey(name)),
-  };
-  return {
-    data: {
-      ...own,
-      category: t(i.category, 300) || null,
-      salesName: t(i.salesName, 500) || null,
-      sellingPrice: price === undefined ? null : (price as number),
-      lengthClass: parseLength(i.lengthClass),
-      isActive: !!i.isActive,
-    },
-    own,
-  } as const;
-}
-
+/** Тонкая обёртка: запись артикула — ЕДИНЫЙ код saveArticleCore (src/lib/article-save.ts), тот же, что у формы артикула. */
 export async function saveArticle(id: string | null, input: ArticleInput): Promise<Res> {
   const session = await requireRole(...ROLES);
   const orgId = session.user.organizationId;
-  const p = parseInput(input);
-  if ("error" in p) return { error: p.error };
-  const list = await loadArticleList(orgId);
-  if (id && !list.some((a) => a.id === id)) return { error: "Артикул не найден" };
-  const bad = conflictOf(list, id, p.own);
-  if (bad) return { error: bad };
-  const cat = await resolveCategoryInput(prisma, orgId, { category: p.data.category, categoryRefId: input.categoryRefId || null });
-  const data = { ...p.data, category: cat.category, categoryRefId: cat.categoryRefId, sku: p.data.sku || null, salesCode: p.data.salesCode || null };
+  const r = await saveArticleCore(orgId, session.user.role, id, {
+    name: input.name, sku: input.sku, salesCode: input.salesCode, salesName: input.salesName, aliases: input.aliases,
+    category: input.category, categoryRefId: input.categoryRefId || null, sellingPrice: input.sellingPrice,
+    lengthClass: input.lengthClass, isActive: input.isActive,
+  });
+  if (r.error) return { error: r.error };
+  revalidateAll(orgId);
+  return { ok: true, id: r.id };
+}
+
+/** Удалить артикул можно, только если на нём ничего нет (ТЗ, план, остатки готовой продукции); иначе — «Активный» выключается. */
+export async function deleteArticle(id: string): Promise<Res> {
+  const session = await requireRole(...ROLES);
+  const orgId = session.user.organizationId;
+  const m = await prisma.productModel.findFirst({ where: { id, organizationId: orgId }, select: { id: true } });
+  if (!m) return { error: "Артикул не найден" };
+  const why = await articleDeleteBlocker(orgId, id);
+  if (why) return { error: why };
   try {
-    if (id) {
-      const r = await prisma.productModel.updateMany({ where: { id, organizationId: orgId }, data });
-      if (r.count === 0) return { error: "Артикул не найден" };
-    } else {
-      const m = await prisma.productModel.create({ data: { organizationId: orgId, ...data } });
-      id = m.id;
-    }
-  } catch (e) {
-    if (isUniqueViolation(e)) return { error: "Артикул с таким кодом или SKU уже есть" };
-    throw e;
+    await prisma.productModel.deleteMany({ where: { id, organizationId: orgId } });
+  } catch {
+    return { error: "Артикул связан с другими записями — деактивируйте его (галочка «Активный»)" };
   }
   revalidateAll(orgId);
-  return { ok: true, id: id! };
+  return { ok: true };
 }
 
 /** Быстрое добавление нового артикула из формы выбора (только код и, если есть, название). */

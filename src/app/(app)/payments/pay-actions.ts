@@ -19,6 +19,7 @@ import { batchOrderInclude, batchTotals } from "@/lib/batch-stats";
 import { resetVerification } from "@/lib/verification";
 import { autoAllocatePayment } from "@/lib/payment-alloc";
 import { formatMoney } from "@/lib/utils";
+import { cleanRefNo } from "@/lib/payment-refs";
 import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type DocRole, type PayKind } from "@/lib/payment-form-core";
 
 /**
@@ -192,6 +193,9 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
   const paidIso = paidAt.toISOString().slice(0, 10);
   const mode = ["percent", "rest"].includes(String(formData.get("mode"))) ? String(formData.get("mode")) : "amount";
   const ppNo = String(formData.get("ppNo") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40);
+  // № счёта и № п/п — отдельными полями (docRef остаётся читаемой строкой для совместимости).
+  const ppField = cleanRefNo(ppNo) || null;
+  const invoiceField = cleanRefNo(String(formData.get("invoiceNo") ?? "")) || null;
   const noteIn = String(formData.get("note") ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 600);
   const methodRaw = String(formData.get("method") ?? "BANK_TRANSFER");
   const method = (["CASH", "BANK_TRANSFER", "CARD", "OTHER"].includes(methodRaw) ? methodRaw : "BANK_TRANSFER") as "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
@@ -355,7 +359,7 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
         const rest = stored.filter((s) => s !== proofs[0]);
         let documentId: string | null = null;
         const kindLabel = PAY_KINDS.find((k) => k.v === kind)!.label;
-        const docRef = docRefOf(ppNo, paidIso);
+        const docRef = [docRefOf(ppNo, paidIso), invoiceField ? `счёт № ${invoiceField}` : ""].filter(Boolean).join(", ") || null;
         const noteParts = [kindNote(kind), noteIn, allocateLater && !spec.auction && !spec.purchaseId && side === "supplier" ? SAVED_LATER_NOTE : "", mode === "percent" ? `${percentIn}% от суммы` : ""].filter(Boolean);
         const notes = noteParts.join(" · ").slice(0, 1000) || null;
         const confirmedFlag = markConfirmed || proofs.length > 0;
@@ -383,6 +387,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
               notes,
               documentId,
               docRef,
+              invoiceNo: invoiceField,
+              ppNo: ppField,
               confirmed: confirmedFlag,
               ...(markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {}),
             },
@@ -407,6 +413,8 @@ export async function savePayment(formData: FormData): Promise<SaveResult> {
               paidAt,
               notes,
               docRef,
+              invoiceNo: invoiceField,
+              ppNo: ppField,
               confirmed: confirmedFlag,
               ...(markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {}),
               orders: { create: orders.map((o) => ({ productionOrderId: o.id })) },

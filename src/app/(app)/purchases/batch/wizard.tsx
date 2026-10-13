@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/utils";
 import { createBatch, previewBatch } from "./actions";
 import { getCbrRate } from "../cbr-actions";
 import { LotsStep } from "./lots-step";
+import { useConfirm } from "@/components/confirm-dialog";
 import { CompositionTable, ExpensesBlock } from "./expenses-block";
 import { compositionOf, EMPTY_EXPENSES, hasAnyExpense, type BatchExpenses } from "@/lib/batch-expenses";
 import type { DocState, Draft, TableInfo, WizardRefs } from "./shared";
@@ -79,6 +80,8 @@ export function BatchWizard({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
+  const dupAsked = useRef(false);
+  const { ask, node: confirmNode } = useConfirm();
   const [restoredAt, setRestoredAt] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [rateMsg, setRateMsg] = useState<string | null>(null);
@@ -200,7 +203,7 @@ export function BatchWizard({
   if (!header.supplierId) headerProblems.push("Выберите поставщика / посредника");
   if (!header.orderDate) headerProblems.push("Укажите дату закупки");
   if (header.currency !== "RUB" && !(numOf(header.exchangeRate) > 0)) headerProblems.push(`Укажите курс ${header.currency} → RUB`);
-  if (header.orderDate && header.receiveNow && header.orderDate > today()) headerProblems.push("Дата закупки в будущем, а мех принимается на склад сразу: поправьте дату или снимите «Принять на склад сразу» (Дополнительно)");
+  if (header.orderDate && header.receiveNow && header.orderDate > today()) headerProblems.push("Дата закупки в будущем, а мех принимается на склад сразу: поправьте дату или снимите «Принять на склад сразу»");
 
   const set = <K extends keyof BatchHeader>(k: K, v: BatchHeader[K]) => setHeader((h) => ({ ...h, [k]: v }));
 
@@ -236,6 +239,15 @@ export function BatchWizard({
   // ----- создание
   function submit() {
     if (sending.current || pending) return;
+    if (preview && preview.dupInvoices.length > 0 && !dupAsked.current) {
+      const d = preview.dupInvoices[0];
+      void ask(`Счёт № ${d.invoice} уже есть на закупке ${d.purchaseNumber} этого поставщика. Это та же поставка? Если да, партию создавать не нужно. Продолжить и создать новую?`, { ok: "Продолжить", wide: true }).then((ok) => {
+        if (!ok) return;
+        dupAsked.current = true;
+        submit();
+      });
+      return;
+    }
     sending.current = true;
     setError(null);
     const fd = new FormData();
@@ -255,6 +267,7 @@ export function BatchWizard({
         setError("Нет ответа от сервера. Партия могла создаться: проверьте список закупок, повторное нажатие «Создать» не создаст дубль.");
       } finally {
         sending.current = false;
+        dupAsked.current = false;
       }
     });
   }
@@ -396,12 +409,22 @@ export function BatchWizard({
                 {header.currency === "RUB" && <div aria-hidden className="invisible h-[6.25rem]" />}
               </div>
 
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={header.receiveNow} onChange={(e) => set("receiveNow", e.target.checked)} />
+                Принять на склад сразу (мех появится в остатке)
+                <span className="text-xs text-neutral-500">— без галочки закупка останется черновиком, мех ещё в пути</span>
+              </label>
+
               <details className="rounded-md border border-neutral-200 px-3 py-2">
                 <summary className="cursor-pointer text-sm text-neutral-600">Дополнительно</summary>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="invoiceNumber">Счёт аукциона № (если в таблице нет столбца «Счёт»)</Label>
                     <Input id="invoiceNumber" value={header.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="invoiceDate">Дата счёта</Label>
+                    <Input id="invoiceDate" type="date" value={header.invoiceDate ?? ""} onChange={(e) => set("invoiceDate", e.target.value)} />
                   </div>
                   <div>
                     <Label htmlFor="invoiceAmount">Сумма счёта аукциона по документу, ₽ (для сверки)</Label>
@@ -412,10 +435,6 @@ export function BatchWizard({
                     <Input id="serviceVat" inputMode="decimal" placeholder={`по дате: ${serviceVatPctFor(header.orderDate)}`} value={header.serviceVat ?? ""} onChange={(e) => set("serviceVat", e.target.value)} />
                     <p className="mt-1 text-xs text-neutral-500">Пусто — 22% (закупки до 2026 года — 20%). Для иностранного аукциона со ввозным НДС в таможенных платежах укажите 0, а НДС строк — 0, платежи — в «Таможне».</p>
                   </div>
-                  <label className="flex items-center gap-2 self-end text-sm">
-                    <input type="checkbox" checked={header.receiveNow} onChange={(e) => set("receiveNow", e.target.checked)} />
-                    Принять на склад сразу (иначе закупка останется черновиком — мех ещё в пути)
-                  </label>
                   <div className="sm:col-span-2">
                     <Label htmlFor="notes">Заметки</Label>
                     <Textarea id="notes" rows={2} value={header.notes} onChange={(e) => set("notes", e.target.value)} />
@@ -463,6 +482,7 @@ export function BatchWizard({
       </Card>
 
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>}
+      {confirmNode}
 
       {step < 4 && (
         <div className="flex flex-wrap items-center justify-between gap-2 pb-20 sm:pb-16">
@@ -585,6 +605,13 @@ function ReviewStep({
           <input type="checkbox" className="mt-1" checked={ack} onChange={(e) => setAck(e.target.checked)} />
           Я вижу расхождение суммы документа с лотами и всё равно создаю партию (проверю документ позже)
         </label>
+      )}
+      {preview.dupInvoices.length > 0 && (
+        <ul className="list-disc rounded-md bg-amber-50 px-8 py-2 text-sm text-amber-900" data-dup-invoice>
+          {preview.dupInvoices.map((d) => (
+            <li key={d.invoice}>Счёт № {d.invoice} уже на закупке <b>{d.purchaseNumber}</b> — это та же поставка? Если счёт законно делится на две закупки, продолжайте; при создании будет окно подтверждения.</li>
+          ))}
+        </ul>
       )}
       {preview.blocking.length > 0 && (
         <ul className="list-disc rounded-md bg-red-50 px-8 py-2 text-sm text-red-700">{preview.blocking.map((b, i) => <li key={i}>{b}</li>)}</ul>

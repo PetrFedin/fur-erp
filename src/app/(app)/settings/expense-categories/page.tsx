@@ -7,7 +7,8 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { createExpenseCategory, toggleExpenseCategoryActive, updateExpenseCategory } from "./actions";
+import { createExpenseCategory, toggleExpenseCategoryActive, updateExpenseCategory, deleteExpenseCategory } from "./actions";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
 
 const KIND_LABELS: Record<string, string> = {
   PURCHASE: "Закупка",
@@ -24,6 +25,7 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
   const categories = await prisma.expenseCategory.findMany({
     where: { organizationId: session.user.organizationId },
     orderBy: [{ kind: "asc" }, { name: "asc" }],
+    include: { _count: { select: { purchaseExpenses: true, productionExpenses: true } } },
   });
 
   return (
@@ -94,6 +96,13 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
                     {c.isActive ? "Деактивировать" : "Активировать"}
                   </Button>
                 </form>
+                <DeleteEntityButton
+                  variant="ghost"
+                  confirmText={`Удалить статью «${c.name}»? Это нельзя отменить.`}
+                  blockedReason={c._count.purchaseExpenses + c._count.productionExpenses > 0 ? `Используется в расходах (${c._count.purchaseExpenses + c._count.productionExpenses}) — деактивируйте` : null}
+                  showReason={false}
+                  action={deleteExpenseCategory.bind(null, c.id)}
+                />
               </Td>
             </Tr>
           ))}

@@ -209,6 +209,7 @@ model Organization {
   expenseCategories      ExpenseCategory[]
   purchases              Purchase[]
   payments               Payment[]
+  invoices               Invoice[]
   productionPayments     ProductionPayment[]
   rawMaterialLots        RawMaterialLot[]
   stockMovements         StockMovement[]
@@ -293,9 +294,30 @@ model Supplier {
 
   purchases      Purchase[]
   payments       Payment[]
+  invoices       Invoice[]
   driveDocuments DriveDocument[]
 
   @@index([organizationId])
+}
+
+/// Счёт поставщика. Один счёт может покрывать несколько закупок (Purchase.invoiceId).
+/// Реестр сверки с документами (src/data/reconciliation.json) здесь не хранится.
+model Invoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime?
+  supplierId     String?
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id])
+  amountInclVat  Decimal?     @db.Decimal(14, 2)
+  vatRate        Decimal?     @db.Decimal(5, 2)
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  purchases      Purchase[]
+
+  @@index([organizationId, supplierId, number])
 }
 
 // A customer commissioning production (давалец/заказчик по договору подряда) —
@@ -448,6 +470,9 @@ model Purchase {
   /// Дата счёта поставщика
   invoiceDate      DateTime?
   transferDocument String?
+  /// Счёт поставщика (таблица Invoice); invoiceNumber/invoiceDate выше остаются и обновляются синхронно.
+  invoiceId        String?
+  invoice          Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   orderDate        DateTime       @default(now())
   expectedDate     DateTime?
   receivedDate     DateTime?
@@ -476,6 +501,7 @@ model Purchase {
 
   @@unique([organizationId, number])
   @@index([organizationId])
+  @@index([invoiceId])
   @@index([auctionId])
 }
 
@@ -593,6 +619,9 @@ model Payment {
   // Номер платёжки / счёта, по которому прошла оплата; confirmed = false — оплата
   // упомянута в документах, но подтверждения (платёжки) ещё нет.
   docRef         String?
+  /// Номер счёта и номер п/п отдельными полями (docRef остаётся читаемой строкой для совместимости).
+  invoiceNo      String?
+  ppNo           String?
   confirmed      Boolean           @default(true)
   driveDocuments DriveDocument[]
 
@@ -640,6 +669,8 @@ model ProductionPayment {
   createdAt      DateTime                 @default(now())
   orders         ProductionPaymentOrder[]
   docRef         String?
+  invoiceNo      String?
+  ppNo           String?
   confirmed      Boolean                  @default(true)
   confirmedAt    DateTime?
   confirmedBy    String?

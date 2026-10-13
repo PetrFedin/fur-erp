@@ -17,8 +17,9 @@ import { purchaseRules } from "@/lib/doc-coverage";
 import { PROPOSED_MARK, capitalizeColor, colorKey } from "@/lib/color-ref";
 import { furKey } from "@/lib/fur-ref";
 import { formatMoney } from "@/lib/utils";
-import { loadIntakeRefs, planBatch } from "@/lib/batch-intake-server";
+import { loadIntakeRefs, loadSupplierInvoices, planBatch } from "@/lib/batch-intake-server";
 import { getDefaultWarehouseId } from "@/lib/default-warehouse";
+import { syncPurchaseInvoice } from "@/lib/invoice-sync";
 import {
   AMOUNT_KINDS,
   DOC_KINDS,
@@ -172,7 +173,7 @@ function coercePayload(raw: unknown): BatchPayload | null {
     header: {
       auctionId: str(h.auctionId, 60), newAuction: na ? { name: str(na.name, 120), date: str(na.date, 10), house: str(na.house, 80) } : null,
       supplierId: str(h.supplierId, 60), warehouseId: str(h.warehouseId, 60), orderDate: str(h.orderDate, 10), currency: str(h.currency, 3).toUpperCase(),
-      exchangeRate: str(h.exchangeRate, 30), vatDefault: str(h.vatDefault, 10), invoiceNumber: str(h.invoiceNumber, 100), receiveNow: bool(h.receiveNow),
+      exchangeRate: str(h.exchangeRate, 30), vatDefault: str(h.vatDefault, 10), invoiceNumber: str(h.invoiceNumber, 100), invoiceDate: /^\d{4}-\d{2}-\d{2}$/.test(str(h.invoiceDate, 10)) ? str(h.invoiceDate, 10) : "", receiveNow: bool(h.receiveNow),
       notes: str(h.notes, 1000), invoiceAmount: str(h.invoiceAmount, 40), serviceVat: str(h.serviceVat, 10),
     },
     rows: rows.map(rowOf),
@@ -197,8 +198,8 @@ export async function previewBatch(payloadJson: string): Promise<{ error: string
   }
   if (!payload) return { error: "Не удалось разобрать данные мастера" };
   const orgId = session.user.organizationId;
-  const [refs, debt] = await Promise.all([loadIntakeRefs(prisma, orgId), loadSupplierDebt(prisma, orgId)]);
-  const { preview } = planBatch(payload, refs, Number(debt.debt.toFixed(2)));
+  const [refs, debt, known] = await Promise.all([loadIntakeRefs(prisma, orgId), loadSupplierDebt(prisma, orgId), loadSupplierInvoices(prisma, orgId, payload.header.supplierId)]);
+  const { preview } = planBatch(payload, refs, Number(debt.debt.toFixed(2)), known);
   return { ok: true, preview };
 }
 
@@ -237,7 +238,7 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
   const plan = planBatch(payload, refs, Number(debtBefore.debt.toFixed(2)));
   const { preview } = plan;
   if (preview.blocking.length > 0) return { error: `Партию создать нельзя: ${preview.blocking[0]}` };
-  if (preview.mismatchDocs > 0 && !payload.ackMismatch) return { error: "Сумма документа расходится с суммой лотов — подтвердите на шаге 4, что создать партию всё равно нужно." };
+  if (preview.mismatchDocs > 0 && !payload.ackMismatch) return { error: "Сумма документа расходится с суммой лотов — подтвердите на шаге 3, что создать партию всё равно нужно." };
 
   // права на справочники
   if (payload.header.newAuction && !hasRole(role, ACCESS.auctions)) return { error: "Создавать новые аукционы может владелец, администратор или закупщик — выберите аукцион из справочника." };
@@ -329,10 +330,14 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
             data: {
               organizationId: orgId, number, supplierId: h.supplierId, warehouseId, currency: plan.currency,
               exchangeRate: plan.currency === "RUB" ? 1 : plan.rate, auctionSession: plan.auctionName, auctionId,
-              invoiceNumber: p.invoice || null, transferDocument: transfer, orderDate: new Date(h.orderDate),
+              invoiceNumber: p.invoice || null, invoiceDate: h.invoiceDate ? new Date(h.invoiceDate) : null, transferDocument: transfer, orderDate: new Date(h.orderDate),
               notes: h.notes.trim() || null, createdById: session.user.id,
             },
           });
+          const invoiceId = await syncPurchaseInvoice(tx, row.id);
+          // Сумма счёта по документу (шаг 1) — только когда счёт один на всю партию.
+          const invSum = Number(String(h.invoiceAmount ?? "").replace(/\s/g, "").replace(",", "."));
+          if (invoiceId && ordered.length === 1 && Number.isFinite(invSum) && invSum > 0) await tx.invoice.update({ where: { id: invoiceId }, data: { amountInclVat: invSum } });
           await tx.purchaseItem.createMany({
             data: p.items.map((i) => ({
               purchaseId: row.id,

@@ -14,6 +14,7 @@ import { resetVerification } from "@/lib/verification";
 import { allocatedCentsByOrder, orderWorkCents } from "@/lib/payment-alloc";
 import { fromCents, toCents } from "@/lib/payment-alloc-core";
 import { refFromField, extractDocRefs } from "@/lib/source-docs";
+import { cleanRefNo } from "@/lib/payment-refs";
 import { PAY_KINDS, SAVED_LATER_NOTE, canConfirm, docRefOf, kindNote, type PayKind } from "@/lib/payment-form-core";
 import { normRef, type SupTarget, type WorkTarget } from "@/lib/payment-wizard-core";
 import { formatMoney } from "@/lib/utils";
@@ -212,8 +213,10 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
   if (!Number.isFinite(amountC) || amountC < 1) return { error: "Сумма оплаты: укажите положительное число" };
   const ppNo = String(p.ppNo ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 40);
   const invoiceNo = String(p.invoiceNo ?? "").replace(/[\u0000-\u001f]/g, " ").replace(/^\s*(?:сч[её]т\p{L}*\s*)?№?\s*/iu, "").trim().slice(0, 40);
-  if (!invoiceNo) return { error: "Укажите номер счёта" };
+  if (side === "supplier" && !invoiceNo) return { error: "Укажите номер счёта" };
   if (!docRefOf(ppNo, "2000-01-01")) return { error: "Укажите № п/п" };
+  const ppField = cleanRefNo(ppNo);
+  const invoiceField = cleanRefNo(invoiceNo);
   const basis = String(p.basis ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 300);
   const noteIn = String(p.note ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 600);
   if (p.kind === "OTHER" && noteIn.length < 3) return { error: "Для вида «Другое» напишите пометку — что это за платёж" };
@@ -250,7 +253,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
       async (tx): Promise<WizardResult> => {
         const warn = [...warns];
         const lines: string[] = [];
-        const docRef = `${docRefOf(ppNo, paidIso)}, счёт № ${invoiceNo}`;
+        const docRef = `${docRefOf(ppNo, paidIso)}${invoiceNo ? `, ${side === "work" ? "документ" : "счёт"} № ${invoiceNo}` : ""}`;
         const baseNotes = [kindNote(p.kind), basis ? `Основание: ${basis}` : "", noteIn, "внесена в мастере оплаты"].filter(Boolean);
         const confirmedFlag = p.markConfirmed;
         const confirmStamp = p.markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {};
@@ -296,7 +299,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
                 organizationId: orgId, supplierId, purchaseId: r.purchaseId, auctionSession: r.auctionSession, amount: new Decimal(r.c / 100),
                 currency: "RUB", method, status: "COMPLETED", paidAt, kind: kindDef.db,
                 notes: [...baseNotes, rows.length > 1 ? `часть ${i + 1} из ${rows.length} оплаты ${formatMoney(amountC / 100)}` : "", !r.purchaseId && !r.auctionSession ? SAVED_LATER_NOTE : ""].filter(Boolean).join(" · ").slice(0, 1000),
-                docRef, confirmed: confirmedFlag, ...confirmStamp,
+                docRef, invoiceNo: invoiceField, ppNo: ppField, confirmed: confirmedFlag, ...confirmStamp,
               },
             });
             ids.push(pay.id);
@@ -335,7 +338,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         const pay = await tx.productionPayment.create({
           data: {
             organizationId: orgId, clientId, amount: new Decimal(amountC / 100), paymentType: kindDef.db === "OTHER" ? "PARTIAL" : kindDef.db, method, status: "COMPLETED", paidAt,
-            notes: [...baseNotes, restC > 0 ? `не разнесено ${formatMoney(restC / 100)}` : ""].filter(Boolean).join(" · ").slice(0, 1000), docRef, confirmed: confirmedFlag, ...confirmStamp,
+            notes: [...baseNotes, restC > 0 ? `не разнесено ${formatMoney(restC / 100)}` : ""].filter(Boolean).join(" · ").slice(0, 1000), docRef, invoiceNo: invoiceField, ppNo: ppField, confirmed: confirmedFlag, ...confirmStamp,
             orders: { create: orderIds.map((productionOrderId) => ({ productionOrderId })) },
           },
         });

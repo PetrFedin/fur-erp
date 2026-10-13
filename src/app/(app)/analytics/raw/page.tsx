@@ -42,6 +42,7 @@ const rub = (d: Decimal) => formatMoney(q2(d));
 export default async function RawAnalyticsPage({ searchParams }: PageProps<"/analytics/raw">) {
   const session = await requireSession();
   const sp = await searchParams;
+  const fromPurchases = sp.from === "purchases";
   const year = await getYearFilter();
   const c4 = await getCommission4Mode();
   const { f, by } = parseFilters(sp);
@@ -192,7 +193,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
   ];
   return (
     <div className="flex flex-col gap-4">
-      <Breadcrumbs items={[{ label: "Сырьё", href: "/lots" }, { label: "Аналитика" }]} />
+      <Breadcrumbs items={[fromPurchases ? { label: "Закупки", href: "/purchases" } : { label: "Сырьё", href: "/lots" }, { label: "Аналитика" }]} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Аналитика сырья</h1><YearNote year={year} />
           <Mode4Badge mode={c4} />
@@ -257,7 +258,7 @@ export default async function RawAnalyticsPage({ searchParams }: PageProps<"/ana
       </div>
 
       {/* Итоги */}
-      <WidgetRow id="raw" title="Аналитика сырья — итоги" headerEnd={<Link href="/lots" className="text-xs text-blue-700 hover:underline print:hidden">→ Сырьё</Link>}>
+      <WidgetRow id="raw" title="Аналитика сырья — итоги" headerEnd={<Link href={fromPurchases ? "/purchases" : "/lots"} className="text-xs text-blue-700 hover:underline print:hidden">{fromPurchases ? "→ Закупки" : "→ Сырьё"}</Link>}>
       <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-5">
         <Tile unit={unit} c4={c4}
           title="Куплено"

@@ -15,6 +15,7 @@ export const metadata = { title: "Новое ТЗ" };
 export default async function NewProductionOrderPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const articleParam = Array.isArray(sp.article) ? sp.article[0] : sp.article;
+  const batchParam = Array.isArray(sp.batch) ? sp.batch[0] : sp.batch;
   const session = await requireSession();
   if (!canEditProduction(session.user.role)) {
     return (
@@ -46,7 +47,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     prisma.productionBatch.findMany({
       where: { organizationId: orgId },
       orderBy: { number: "desc" },
-      select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true } } },
+      select: { id: true, number: true, year: true, orders: { select: { workOrderDate: true, endDate: true, startDate: true, workOrderNumber: true } } },
     }),
     prisma.expenseCategory.findMany({ where: { organizationId: orgId, kind: "PRODUCTION", isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.furRef.findMany({ where: { organizationId: orgId }, select: { name: true }, orderBy: { name: "asc" } }),
@@ -94,6 +95,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
     <Breadcrumbs items={[{ label: "ТЗ", href: "/production" }, { label: "Новое ТЗ" }]} />
     <ProductionCreateForm
       action={createProductionOrder}
+      initialBatchId={batchParam ? batches.find((b) => String(b.number) === batchParam.trim())?.id ?? "" : ""}
       initialArticleId={articleParam && models.some((m) => m.id === articleParam) ? articleParam : ""}
       models={models.map((m) => ({ id: m.id, name: m.name, retailPrice: m.sellingPrice?.toString() ?? null, category: m.category ?? null, group: m.categoryRef?.group ?? null }))}
       warehouses={warehouses.map((w) => ({ id: w.id, name: w.name, isDefault: w.isDefault }))}
@@ -103,7 +105,7 @@ export default async function NewProductionOrderPage({ searchParams }: { searchP
       colorOptions={colorOptions}
       canAddColor={hasRole(session.user.role, ACCESS.colors)}
       canAddFur={hasRole(session.user.role, ACCESS.furRefs)}
-      batches={batches.map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders), empty: b.orders.length === 0 }))}
+      batches={batches.map((b) => ({ id: b.id, number: b.number, label: batchLabel(b.number, b.year, b.orders), empty: b.orders.length === 0, tz: [...new Set(b.orders.map((o) => (o.workOrderNumber ?? "").trim()).filter(Boolean))] }))}
       nextTzNumber={nextTzNumber}
       tzNumberCounts={tzNumberCounts}
       expenseCategories={expenseCategories}

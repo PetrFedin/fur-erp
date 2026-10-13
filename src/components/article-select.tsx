@@ -125,7 +125,11 @@ export function ArticleSelect({
               <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-neutral-100" onClick={() => choose(a)}>
                 <span className="font-medium">{a.name}</span>
                 {!a.isActive && <span className="ml-1 text-xs text-neutral-500">(не активен)</span>}
-                <span className="ml-2 text-neutral-500">{(a.category ?? "").replace(/\s+/g, " ").slice(0, 50)}</span>
+                {(a.category ?? "").trim() ? (
+                  <span className="ml-2 text-neutral-500">{(a.category ?? "").replace(/\s+/g, " ").slice(0, 50)}</span>
+                ) : (
+                  <span className="ml-2 text-xs text-amber-700">артикул неполный: укажите категорию</span>
+                )}
                 {(a.salesCode || (a.via && a.via.kind !== "name")) && (
                   <span className="block text-xs text-neutral-500">
                     {a.salesCode ? `в продажах: ${a.salesCode}` : ""}

@@ -67,3 +67,16 @@ export async function updateExpenseCategory(formData: FormData) {
   await prisma.expenseCategory.update({ where: { id }, data: parsed.data });
   revalidatePath("/settings/expense-categories");
 }
+
+/** Удалить статью можно, только если она нигде не использована (ни в расходах закупок, ни в расходах ТЗ); иначе — «Деактивировать». */
+export async function deleteExpenseCategory(id: string): Promise<{ error?: string }> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const c = await prisma.expenseCategory.findFirst({ where: { id, organizationId: orgId }, select: { id: true } });
+  if (!c) return { error: "Статья не найдена" };
+  const [p, q] = await Promise.all([prisma.purchaseExpense.count({ where: { categoryId: id } }), prisma.productionExpense.count({ where: { categoryId: id } })]);
+  if (p + q > 0) return { error: `Статья используется в расходах (${p + q}) — деактивируйте её` };
+  await prisma.expenseCategory.deleteMany({ where: { id, organizationId: orgId } });
+  revalidatePath("/settings/expense-categories");
+  return {};
+}

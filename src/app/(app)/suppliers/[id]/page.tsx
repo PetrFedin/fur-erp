@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 /**
  * Карточка поставщика: долг, оплаты, закупки и документы в одном месте, ниже — реквизиты (редактируются, как раньше).
- * Числа те же, что на Главной и в «Оплатах»: долг считает loadSupplierDebt; его считают по всей организации,
- * поэтому у второго и следующих поставщиков долг не показываем (см. отчёт владельцу).
+ * Числа те же, что на Главной и в «Оплатах»: долг считает loadSupplierDebt, здесь — с фильтром по этому поставщику
+ * (закупки, оплаты аукционов и авансы только его). Один поставщик — цифра совпадает с Главной.
  */
 export default async function EditSupplierPage({ params }: PageProps<"/suppliers/[id]">) {
   const { id } = await params;
@@ -46,7 +46,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
   const canEdit = hasRole(session.user.role, ACCESS.suppliers);
   const canPay = hasRole(session.user.role, ACCESS.supplierPayments);
 
-  const [purchases, payments, withPurchases] = await Promise.all([
+  const [purchases, payments, debt] = await Promise.all([
     prisma.purchase.findMany({
       where: { organizationId: orgId, supplierId: id },
       include: { items: true, expenses: true, payments: { where: { status: "COMPLETED" }, select: { amount: true } } },
@@ -57,15 +57,13 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
       select: { id: true, amount: true, paidAt: true, status: true, kind: true, docRef: true, confirmed: true, auctionSession: true, purchase: { select: { number: true } } },
       orderBy: { paidAt: "desc" },
     }),
-    prisma.purchase.groupBy({ by: ["supplierId"], where: { organizationId: orgId } }),
+    loadSupplierDebt(prisma, orgId, "all", id),
   ]);
   const live = purchases.filter((p) => p.status !== "CANCELLED");
   const totalAll = live.reduce((s, p) => s + Number(purchaseTotalInclVat(p).toString()), 0);
   const done = payments.filter((p) => p.status === "COMPLETED");
   const paidAll = done.reduce((s, p) => s + Number(p.amount), 0);
   const unlinked = done.filter((p) => !p.purchase && !p.auctionSession).reduce((s, p) => s + Number(p.amount), 0);
-  const onlyOne = withPurchases.length <= 1;
-  const debt = onlyOne ? await loadSupplierDebt(prisma, orgId) : null;
 
   const shownPays = payments.slice(0, PAY_SHOWN);
   const session2 = { organizationId: orgId, role: session.user.role };
@@ -86,11 +84,7 @@ export default async function EditSupplierPage({ params }: PageProps<"/suppliers
           <div className={row}><span className="text-neutral-600">Куплено (закупки, с НДС)</span><b className="tabular-nums">{rub(totalAll)}</b></div>
           <div className={row}><span className="text-neutral-600">Оплачено</span><b className="tabular-nums">{rub(paidAll)}</b></div>
           {unlinked > 0.5 && <div className={row}><span className="text-neutral-600">в том числе аванс без привязки</span><span className="tabular-nums">{rub(unlinked)}</span></div>}
-          {debt ? (
-            <div className={row}><span className="font-medium">Долг</span><b className="tabular-nums">{rub(debt.debt.toString())}</b></div>
-          ) : (
-            <p className="py-1.5 text-xs text-neutral-500">Долг считается по всем поставщикам вместе — его цифра на Главной и в «Оплатах».</p>
-          )}
+          <div className={row}><span className="font-medium">Долг</span><b className="tabular-nums">{rub(debt.debt.toString())}</b></div>
         </div>
       </WidgetRow>
 

@@ -21,7 +21,7 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
   const canEdit = hasRole(session.user.role, ACCESS.models);
 
   const categories = await getCategoryOptions(orgId);
-  const [models, grouped, producedGrouped, seasonRows] = await Promise.all([
+  const [models, grouped, producedGrouped, seasonRows, planUse, stockUse, moveUse] = await Promise.all([
     prisma.productModel.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
     prisma.productionOrder.groupBy({
       by: ["productModelId"],
@@ -37,7 +37,12 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
       distinct: ["productModelId", "seasonId"],
       select: { productModelId: true, season: { select: { code: true } } },
     }),
+    prisma.supplyPlanEntry.groupBy({ by: ["productModelId"], where: { organizationId: orgId }, _count: { _all: true } }),
+    prisma.finishedGoodsStock.groupBy({ by: ["productModelId"], where: { organizationId: orgId }, _count: { _all: true } }),
+    prisma.finishedGoodsMovement.groupBy({ by: ["productModelId"], where: { organizationId: orgId }, _count: { _all: true } }),
   ]);
+  const usedPlan = new Set(planUse.map((x) => x.productModelId));
+  const usedStock = new Set([...stockUse, ...moveUse].map((x) => x.productModelId));
   const stat = new Map(grouped.map((g) => [g.productModelId, g]));
   // «Произведено» — все ТЗ без отменённых (production-totals.ts): выпуск завершённых + план ТЗ в работе.
   const producedBy = new Map<string, number>();
@@ -62,6 +67,12 @@ export default async function ArticlesRefPage({ searchParams }: PageProps<"/sett
     seasons: Array.from(new Set(seasons.get(m.id) ?? [])).sort(),
     tzCount: stat.get(m.id)?._count._all ?? 0,
     produced: producedBy.get(m.id) ?? 0,
+    description: m.description,
+    deleteBlocker:
+      (stat.get(m.id)?._count._all ?? 0) > 0 ? `по артикулу есть ТЗ (${stat.get(m.id)?._count._all}) — снимите «Активный» в «Изменить»`
+      : usedPlan.has(m.id) ? "артикул стоит в плане поставок — снимите «Активный»"
+      : usedStock.has(m.id) ? "есть остатки или движения готовой продукции — снимите «Активный»"
+      : null,
   }));
 
   const withSales = rows.filter((r) => r.salesCode?.trim()).length;

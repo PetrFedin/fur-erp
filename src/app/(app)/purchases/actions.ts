@@ -1,11 +1,13 @@
 "use server";
 
+import { refFields } from "@/lib/payment-refs";
 import { revalidateAll } from "@/lib/revalidate-all";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { ACCESS } from "@/lib/access";
+import { cancelReceivedPurchaseInTx, purchaseCancelBlocker } from "@/lib/purchase-cancel";
 import { receivePurchaseInTx, lockPurchase, AlreadyReceivedError } from "@/lib/purchase-receive";
 import { resolveColorInput } from "@/lib/colors";
 import { nextDocumentNumber } from "@/lib/numbering";
@@ -25,6 +27,7 @@ import { parseLotSizeGrade } from "@/lib/lot-size";
 import { resolveVatRate, vatRateForDate } from "@/lib/vat-by-date";
 import { invalidateFilterOptions } from "@/lib/filter-options";
 import { getDefaultWarehouseId } from "@/lib/default-warehouse";
+import { syncPurchaseInvoice } from "@/lib/invoice-sync";
 import { buildCostPlanJson, deriveCostPlanInputs, computeCostPlan, roundQty, roundPrice, roundVat, roundRate } from "@/lib/cost-plan";
 
 const dateField = (label = "Некорректная дата") =>
@@ -84,6 +87,7 @@ const purchaseSchema = z.object({
   exchangeRate: zNum("Курс", { positive: true, max: 1_000_000 }),
   auctionSession: z.string().trim().max(500).optional(),
   invoiceNumber: z.string().trim().max(200).optional(),
+  invoiceDate: dateField().optional(),
   transferDocument: z.string().trim().max(200).optional(),
   orderDate: z.string().min(1, "Укажите дату").pipe(dateField()),
   expectedDate: dateField().optional(),
@@ -104,6 +108,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
     exchangeRate: formData.get("exchangeRate") || 1,
     auctionSession: formData.get("auctionSession") || undefined,
     invoiceNumber: formData.get("invoiceNumber") || undefined,
+    invoiceDate: formData.get("invoiceDate") || undefined,
     transferDocument: formData.get("transferDocument") || undefined,
     orderDate: formData.get("orderDate"),
     expectedDate: formData.get("expectedDate") || undefined,
@@ -160,6 +165,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         auctionSession: auc.auctionSession,
         auctionId: auc.auctionId,
         invoiceNumber: parsed.data.invoiceNumber,
+        invoiceDate: parsed.data.invoiceDate ? new Date(parsed.data.invoiceDate) : undefined,
         transferDocument: parsed.data.transferDocument,
         orderDate: new Date(parsed.data.orderDate),
         expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : undefined,
@@ -167,6 +173,7 @@ export async function createPurchase(_prev: FormState, formData: FormData): Prom
         createdById: session.user.id,
       },
     });
+    await syncPurchaseInvoice(tx, created.id, { setDate: true });
     if (pasteRows.length > 0) await insertPasteRows(tx, orgId, created.id, pasteRows);
     return created;
     });
@@ -486,6 +493,7 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
     },
   });
 
+  await syncPurchaseInvoice(prisma, purchaseId, { setDate: true });
   if (!keepVerification) await resetByPurchase(purchaseId);
   revalidateAll();
   return {};
@@ -543,7 +551,28 @@ async function updateReceivedPurchaseHeader(
       auctionId: auc.auctionId,
     },
   });
+  await syncPurchaseInvoice(prisma, purchase.id, { setDate: true });
   if (!keepVerification) await resetVerification(prisma, orgId, { purchaseIds: [purchase.id], auctions: [oldAuction, newAuction] });
+  revalidateAll(orgId);
+  return {};
+}
+
+/**
+ * «Отменить закупку» для ОШИБОЧНО ПРИНЯТОЙ закупки: возможна, только если по её лотам нет списаний и движений и нет оплат.
+ * Одна транзакция: движения приёмки и лоты удаляются (остатки и итоги пересчитываются сами), позиции остаются, статус — «Отменена».
+ * Запись в журнале изменений пишет общий слой (удаление лотов и движений, смена статуса).
+ */
+export async function cancelReceivedPurchase(purchaseId: string): Promise<FormState> {
+  const session = await requireRole(...EDIT_ROLES);
+  const orgId = session.user.organizationId;
+  const reason = await purchaseCancelBlocker(prisma, orgId, purchaseId);
+  if (reason) return { error: reason };
+  try {
+    await prisma.$transaction((tx) => cancelReceivedPurchaseInTx(tx, orgId, purchaseId), { timeout: 60_000, maxWait: 10_000 });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Не удалось отменить закупку" };
+  }
+  await resetByPurchase(purchaseId);
   revalidateAll(orgId);
   return {};
 }
@@ -1185,6 +1214,7 @@ export async function updatePurchasePayment(purchaseId: string, paymentId: strin
         paidAt: new Date(parsed.data.paidAt),
         notes: (formData.get("notes") as string)?.trim() || null,
         docRef,
+        ...refFields(docRef),
       },
     });
     return {};
@@ -1318,6 +1348,9 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
   const mm = String(orderDate.getUTCMonth() + 1).padStart(2, "0");
   const batchName = (String(formData.get("batchName") ?? "").trim() || `Подкладка ${mm}.${String(orderDate.getUTCFullYear()).slice(2)}`).slice(0, 120);
   const invoiceNumber = String(formData.get("invoiceNumber") ?? "").trim().slice(0, 60) || undefined;
+  const invoiceDateRaw = String(formData.get("invoiceDate") ?? "").trim();
+  const invoiceDate = invoiceDateRaw ? parseDateInput(invoiceDateRaw) : null;
+  if (invoiceDateRaw && !invoiceDate) return { error: "Укажите корректную дату счёта" };
   const notes = String(formData.get("notes") ?? "").trim().slice(0, 2000) || undefined;
   const priceIncl = String(formData.get("priceMode") ?? "excl") === "incl";
 
@@ -1389,9 +1422,10 @@ export async function createLiningBatchPurchase(_prev: LiningBatchState, formDat
       const purchase = await tx.purchase.create({
         data: {
           organizationId: orgId, number, supplierId: supplier.id, warehouseId: defaultWarehouseId, currency: "RUB", exchangeRate: 1,
-          auctionSession: auctionText, auctionId, invoiceNumber, orderDate, notes, createdById: session.user.id,
+          auctionSession: auctionText, auctionId, invoiceNumber, invoiceDate: invoiceDate ?? undefined, orderDate, notes, createdById: session.user.id,
         },
       });
+      await syncPurchaseInvoice(tx, purchase.id, { setDate: true });
       const idByName = new Map<string, string>();
       for (const p of prepared) {
         let mid = p.materialId ?? idByName.get(p.materialName.toLowerCase()) ?? null;

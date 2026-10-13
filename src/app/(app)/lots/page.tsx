@@ -277,7 +277,7 @@ export default async function RawStockPage({ searchParams }: PageProps<"/lots">)
     const os = furKinds.orders.filter((o) => furKindsOfOrder(o.fur).includes(k));
     return [k, { units: os.reduce((a, o) => a + o.qty, 0), orders: os.length, work: os.reduce((a, o) => a + o.work, 0) }];
   }));
-  const tilesHeaderEnd = <Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>;
+  const tilesHeaderEnd = undefined; // ссылка «→ Оплаты» убрана: есть раздел «Оплаты» в меню
   const payTiles = <PayTiles bare d={dash} c4Mode={c4Mode} year={year} only={tab === "lining" ? "lining" : "fur"} />;
   const tiles = (
     <div key="raw-tiles" data-raw-tiles>

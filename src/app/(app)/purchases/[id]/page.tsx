@@ -23,6 +23,7 @@ import { BulkItemForm } from "./bulk-item-form";
 import { PurchaseExpenseForm } from "./expense-form";
 import { PaymentFormButton } from "@/components/payment-form";
 import { PurchaseActions } from "./purchase-actions";
+import { purchaseCancelBlocker } from "@/lib/purchase-cancel";
 import { ExchangeRateForm } from "./exchange-rate-form";
 import { PurchaseEditForm } from "./purchase-edit-form";
 import { ItemRowShared, PurchaseItemRow } from "./item-row";
@@ -635,6 +636,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           canReceive={canReceive}
           canCancel={canEditRole}
           hasCostPlan={planItems.length > 0}
+          cancelBlocker={purchase.status === "RECEIVED" ? await purchaseCancelBlocker(prisma, session.user.organizationId, id) : null}
         />
         </div>
       </div>

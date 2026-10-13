@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { setPurchaseStatus, receivePurchase } from "../actions";
+import { useConfirm } from "@/components/confirm-dialog";
+import { setPurchaseStatus, receivePurchase, cancelReceivedPurchase } from "../actions";
 
 // Two states in the UI: draft -> accepted to stock. (ORDERED / IN_TRANSIT rows
 // in the DB behave exactly like a draft here.) Accepting is irreversible, so
@@ -13,6 +14,7 @@ export function PurchaseActions({
   canReceive = true,
   canCancel = true,
   hasCostPlan = false,
+  cancelBlocker = null,
 }: {
   purchaseId: string;
   status: string;
@@ -20,10 +22,37 @@ export function PurchaseActions({
   canCancel?: boolean;
   /** В закупке есть позиции с расчётом: после приёмки расчёт заблокируется. */
   hasCostPlan?: boolean;
+  /** Для принятой закупки: почему её нельзя отменить (null — можно). */
+  cancelBlocker?: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { ask, node } = useConfirm();
 
+  if (status === "RECEIVED" && canCancel) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending || !!cancelBlocker}
+          title={cancelBlocker ?? "Ошибочно принятая закупка: лоты и приход на склад будут убраны, остатки и итоги пересчитаются"}
+          onClick={async () => {
+            if (!(await ask("Отменить принятую закупку? Её лоты и приход на склад будут удалены, остатки и итоги пересчитаются. Позиции закупки останутся, статус станет «Отменена». Действие нельзя быстро вернуть.", { ok: "Отменить закупку", danger: true, wide: true }))) return;
+            startTransition(async () => {
+              const result = await cancelReceivedPurchase(purchaseId);
+              setError(result.error ?? null);
+            });
+          }}
+        >
+          {pending ? "Отменяем..." : "Отменить закупку"}
+        </Button>
+        {cancelBlocker && <p className="max-w-xs text-right text-xs text-neutral-500">Отмена недоступна: {cancelBlocker}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {node}
+      </div>
+    );
+  }
   if (status === "RECEIVED" || status === "CANCELLED" || (!canReceive && !canCancel)) return null;
 
   return (

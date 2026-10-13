@@ -4,7 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { buttonVariants } from "@/components/ui/button";
-import { formatDate, formatMoney, formatPercent, formatQty, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
+import { formatDate, formatMoney, formatPercent, formatQty, OVERPAY_FROM } from "@/lib/utils";
 import { purchaseTotalInclVat, purchaseTotalExclVat, itemTotalInclVat, grossUp } from "@/lib/purchase-totals";
 import { Decimal } from "@prisma/client/runtime/library";
 import type { Prisma } from "@prisma/client";
@@ -69,7 +69,9 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const tree = f.view !== "list";
   const limitRaw = Number(f.limit || PAGE);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), PAGE), 2000) : PAGE;
-  const filtersOn = activeCount(PURCHASE_FILTERS_ALL, f) > 0;
+  // Переключатель «Все | Мех | Подкладка» (sec) — выбор набора, а не фильтр: без него «Все» считается как раньше (шкуры подрядчика и округление остаются).
+  const sec = f.sec === "fur" || f.sec === "lining" ? f.sec : "";
+  const filtersOn = activeCount(PURCHASE_FILTERS_ALL, { ...f, sec: "" }) > 0;
 
   const auctionIds = f.auction.length ? await purchaseIdsByAuction(orgId, f.auction) : null;
   const furMaterialIds = f.fur.length ? await furMaterialIdsByKind(orgId, f.fur) : [];
@@ -183,11 +185,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   });
 
   // Итоги — по ВСЕМ закупкам выборки (не только по показанным строкам).
-  const tot = aggregate(rows);
-  const live = rows.filter((p) => p.status !== "CANCELLED");
+
   // Без фильтров к закупкам добавляются шкуры подрядчика (оплачены в составе пошива): тогда итог совпадает с Главной и «Оплатами».
   const hidesAll = hidesP ? new Decimal((await hidesP).filter((r) => year === "all" || r.year === Number(year)).reduce((a, r) => a + r.hides, 0)) : new Decimal(0);
-  const hides = hidesAll.toNumber();
+  const hides = sec === "lining" ? 0 : hidesAll.toNumber();
 
   // Часть закупки по виду (мех / подкладка): кол-во и позиции вида; сумма, оплата и долг — по доле стоимости позиций вида (расходы — пропорционально).
   // Закупка со смешанным составом попадает в обе секции своей частью; Σ секций = итог.
@@ -214,7 +215,10 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const d = lotsSum - docs;
     return Math.abs(d) < 0.005 ? 0 : d;
   };
-  const roundFur = roundOf("fur"), roundLin = roundOf("lining");
+  const roundFur = sec === "lining" ? 0 : roundOf("fur"), roundLin = sec === "fur" ? 0 : roundOf("lining");
+  // Набор для итогов, плиток и дерева: при выборе «Мех» / «Подкладка» — только часть закупки этого вида.
+  const rowsSel = sec ? rows.map((p) => partOf(p, sec)).filter((p): p is TreePurchase => p != null) : rows;
+  const live = rowsSel.filter((p) => p.status !== "CANCELLED");
   const hidesRow: ExtraRow[] = hides > 0.5 ? [{
     key: "hides", label: "Шкуры подрядчика", sub: "оплачены в составе счетов за пошив", href: "/lots/contractor-hides", sum: hides, paid: hides,
     note: <>Шкуры подрядчика (партии 7 и 8): оплачены в составе счетов за пошив, закупки на них нет, в ТЗ не списаны. Есть на Главной в «Сырьё — мех» (использовано). Страница ↗ — детализация.</>,
@@ -227,17 +231,26 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
   const liningExtras = roundRow("round-lin", roundLin);
   // В общей таблице «по годам и партиям» округление мех + подкладка — одной строкой (сумма та же).
   const treeExtras = [...hidesRow, ...roundRow("round", roundFur + roundLin)];
-  const boughtTotal = tot.total + hides + roundFur + roundLin;
-  const boughtExcl = tot.totalExcl + hides + roundFur + roundLin;
-  const paidTotal = tot.paid + hides;
-  const restRaw = tot.rest;
-  const restTotal = Math.abs(restRaw) <= 0.5 ? 0 : restRaw;
+  // Блоки верхних итогов: «Все» — Всего, Мех, Подкладка; «Мех» / «Подкладка» — только свой блок. Те же формулы, что для набора.
+  const mkBlock = (key: string, title: string | null, rs: TreePurchase[], h: number, rf: number, rl: number) => {
+    const t = aggregate(rs);
+    const bought = t.total + h + rf + rl;
+    return { key, title, t, h, bought, boughtExcl: t.totalExcl + h + rf + rl, paid: t.paid + h, rest: Math.abs(t.rest) <= 0.5 ? 0 : t.rest, kind: key === "lining" ? ("lining" as const) : key === "fur" ? ("fur" as const) : null };
+  };
+  // «Все»: в одном виджете две секции — вверху Мех, внизу Подкладка; «Мех» / «Подкладка» — только своя секция. Общий итог — в шапке.
+  const grand = mkBlock("all", null, rowsSel, hides, roundFur, roundLin);
+  const blocks = sec
+    ? [mkBlock(sec, sec === "fur" ? "Мех" : "Подкладка", rowsSel, hides, roundFur, roundLin)]
+    : [
+        mkBlock("fur", "Мех", rows.map((p) => partOf(p, "fur")).filter((p): p is TreePurchase => p != null), hidesAll.toNumber(), roundFur, 0),
+        mkBlock("lining", "Подкладка", rows.map((p) => partOf(p, "lining")).filter((p): p is TreePurchase => p != null), 0, 0, roundLin),
+      ];
 
   // Дерево «год → партия → закупка → позиции / расходы / оплаты».
   const treeYears: TreeYear[] = [];
   if (tree) {
     const byYear = new Map<number, Map<string, TreeBatch & { first: string }>>();
-    for (const p of rows) {
+    for (const p of rowsSel) {
       const batches = byYear.get(p.year) ?? new Map();
       const ap = auctionPays.get(p.auction ?? "");
       const b = batches.get(p.batchKey) ?? {
@@ -272,14 +285,22 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
     const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
     return (sortDir === "asc" ? c : -c) || collator.compare(b.number, a.number);
   });
-  const listRows = sorted.slice(0, limit);
-  const hasMore = sorted.length > limit;
   const secOf = (kind: "fur" | "lining") => sorted.map((p) => partOf(p, kind)).filter((p): p is TreePurchase => p != null);
   const sections = ([["fur", "Мех — закупки", "шт."], ["lining", "Подкладка — закупки", "м"]] as const).filter(([k]) => !f.sec || f.sec === k).map(([k, title, unit]) => ({ k, title, unit, all: secOf(k) }));
   const sortHrefs = Object.fromEntries(
     Object.keys(SORT).map((k) => [k, filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sort: k, dir: sortKey === k && sortDir === (k === "number" ? "desc" : "asc") ? (k === "number" ? "asc" : "desc") : k === "number" ? "desc" : "asc", limit: "" })]),
   );
   const moreHref = filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { limit: String(limit + PAGE) });
+
+  // «Аналитика сырья» получает тот же контекст: вид, партии, год закупки, поиск (год шапки общий); подкладка — scope=lining.
+  const rawQs = new URLSearchParams();
+  if (sec === "lining") rawQs.set("scope", "lining");
+  for (const v of f.auction) rawQs.append("auction", v);
+  for (const v of f.fur) rawQs.append("fur", v);
+  for (const v of f.pyear) rawQs.append("pyear", v);
+  if (f.q) rawQs.set("q", f.q);
+  rawQs.set("from", "purchases");
+  const rawHref = `/analytics/raw?${rawQs}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -327,49 +348,72 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         />
       </div>
 
-      <WidgetRow id="purchases" title="Закупки — итоги" headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>}>
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <div role="group" aria-label="Набор закупок" className="inline-flex overflow-hidden rounded-lg border border-neutral-300 text-xs">
+          {([["", "Все"], ["fur", "Мех"], ["lining", "Подкладка"]] as const).map(([v, label]) => (
+            <Link key={v} aria-current={sec === v ? "true" : undefined} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sec: v, limit: "" })}
+              className={"inline-flex min-h-10 items-center px-3 md:min-h-8 " + (sec === v ? "bg-neutral-900 text-white" : "bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
+          ))}
+        </div>
+        <InfoHint label="Как разделены мех и подкладка" wide>
+          <p>«Мех» — закупки шкур (шт.), «Подкладка» — закупки метров. Итоги, плитки и таблицы считаются по выбранному набору; «Все» — как раньше. Закупка из меха и подкладки попадает в оба набора своей частью: количество и позиции вида, сумма, оплата и долг — по доле стоимости позиций вида.</p>
+        </InfoHint>
+      </div>
+
+      <WidgetRow id="purchases" title="Закупки — итоги" headerEnd={
+        <span className="text-xs text-neutral-500" data-testid="purchases-grand">
+          Всего куплено {formatMoney(grand.bought.toFixed(2))} · оплачено {formatMoney(grand.paid.toFixed(2))} · {grand.rest < -OVERPAY_FROM ? "переплата" : "к оплате"} {formatMoney(Math.abs(grand.rest).toFixed(2))}
+        </span>
+      }>
         <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[repeat(6,minmax(0,1fr))_10rem]" data-testid="purchases-totals">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:col-span-6 xl:grid-cols-6 print:grid-cols-6">
-            <div className={TILE_BOX}>
-              <TileHead>Закупок</TileHead>
-              <TileValue compact>{tot.purchases}</TileValue>
-            </div>
-            <div className={TILE_BOX}>
-              <TileHead>Лотов</TileHead>
-              <TileValue compact>{tot.lots}</TileValue>
-              <TileCaption>позиций закупок</TileCaption>
-            </div>
-            <div className={TILE_BOX}>
-              <TileHead>Шкур, шт.</TileHead>
-              <TileValue compact>{formatQty(tot.fur)}</TileValue>
-              <TileCaption>{tot.lining > 0 ? `подкладка: ${formatQty(tot.lining)} м` : "подкладки нет"}</TileCaption>
-            </div>
-            <div className={TILE_BOX}>
-              <TileHead><VatLabel base="Куплено" /></TileHead>
-              <div className="absolute right-3 top-3">
-                <InfoHint label="О «Куплено»" align="right">
-                  <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
-                </InfoHint>
+          <div className="flex flex-col gap-3 xl:col-span-6">
+            {blocks.map((b) => (
+              <div key={b.key} className="flex flex-col gap-1.5" data-testid={`purchases-totals-${b.key}`}>
+                {b.title ? <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{b.title}</div> : null}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 print:grid-cols-6">
+                  <div className={TILE_BOX}>
+                    <TileHead>Закупок</TileHead>
+                    <TileValue compact>{b.t.purchases}</TileValue>
+                  </div>
+                  <div className={TILE_BOX}>
+                    <TileHead>Лотов</TileHead>
+                    <TileValue compact>{b.t.lots}</TileValue>
+                    <TileCaption>позиций закупок</TileCaption>
+                  </div>
+                  <div className={TILE_BOX}>
+                    <TileHead>{b.kind === "lining" ? "Подкладка, м" : "Шкур, шт."}</TileHead>
+                    <TileValue compact>{formatQty(b.kind === "lining" ? b.t.lining : b.t.fur)}</TileValue>
+                                      </div>
+                  <div className={TILE_BOX}>
+                    <TileHead><VatLabel base="Куплено" /></TileHead>
+                    <div className="absolute right-3 top-3">
+                      <InfoHint label="О «Куплено»" align="right">
+                        <p>Стоимость закупок выборки: позиции плюс расходы закупки. Без фильтров к ним добавлены шкуры подрядчика (оплачены в составе пошива) — тогда итог совпадает с «Общая стоимость» сырья на Главной и в Оплатах. Отменённые закупки не входят.</p>
+                      </InfoHint>
+                    </div>
+                    <TileValue compact><Money incl={b.bought.toFixed(2)} excl={b.boughtExcl.toFixed(2)} /></TileValue>
+                    <TileCaption>{b.h > 0.5 ? `с шкурами подрядчика ${formatMoney(b.h.toFixed(2))}` : "позиции + расходы"}</TileCaption>
+                  </div>
+                  <div className={TILE_BOX}>
+                    <TileHead>Оплачено</TileHead>
+                    <TileValue compact>{formatMoney(b.paid.toFixed(2))}</TileValue>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.paid / b.bought) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
+                  </div>
+                  <div className={TILE_BOX}>
+                    <TileHead>{b.rest < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
+                    <TileValue compact className={b.rest > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(b.rest).toFixed(2))}</TileValue>
+                    <TileCaption>{b.bought > 0 ? `${formatPercent((b.rest / b.bought) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
+                  </div>
+                </div>
               </div>
-              <TileValue compact><Money incl={boughtTotal.toFixed(2)} excl={boughtExcl.toFixed(2)} /></TileValue>
-              <TileCaption>{hides > 0.5 ? `с шкурами подрядчика ${formatMoney(hides.toFixed(2))}` : "позиции + расходы"}</TileCaption>
-            </div>
-            <div className={TILE_BOX}>
-              <TileHead>Оплачено</TileHead>
-              <TileValue compact>{formatMoney(paidTotal.toFixed(2))}</TileValue>
-              <TileCaption>{boughtTotal > 0 ? `${formatPercent((paidTotal / boughtTotal) * 100)} от куплено · с НДС` : "всегда с НДС"}</TileCaption>
-            </div>
-            <div className={TILE_BOX}>
-              <TileHead>{restTotal < -OVERPAY_FROM ? "Переплата" : "К оплате"}</TileHead>
-              <TileValue compact className={restTotal > PAY_EPS.toNumber() ? "text-amber-700" : ""}>{formatMoney(Math.abs(restTotal).toFixed(2))}</TileValue>
-              <TileCaption>{boughtTotal > 0 ? `${formatPercent((restTotal / boughtTotal) * 100)} от куплено · Куплено − Оплачено` : "Куплено − Оплачено"}</TileCaption>
-            </div>
+            ))}
           </div>
           {/* Колонка действий справа. */}
           <div className="flex flex-row flex-wrap items-stretch gap-2 print:hidden xl:flex-col xl:flex-nowrap" aria-label="Действия">
-            {canCreate ? <Link href="/purchases/batch" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>+ Закупка меха</Link> : null}
-            <Link href="/payments" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Оплаты</Link>
-            <Link href="/analytics/raw" className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Аналитика сырья</Link>
+            {canCreate ? (sec === "lining"
+              ? <Link href="/purchases/lining/new" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>Купить подкладку</Link>
+              : <Link href="/purchases/batch" className={`${buttonVariants()} flex-1 justify-center xl:flex-none`}>+ Закупка меха</Link>) : null}
+            <Link href={rawHref} className={`${buttonVariants({ variant: "outline" })} flex-1 justify-center xl:flex-none`}>Аналитика сырья</Link>
           </div>
         </div>
       </WidgetRow>
@@ -382,7 +426,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {rowsSel.length === 0 ? (
         <p className="rounded-lg border border-neutral-200 bg-white py-8 text-center text-neutral-600">
           {filtersOn ? "По этим фильтрам закупок нет" : emptyForYear(year, "закупок", "Закупок пока нет")}
           {filtersOn && (
@@ -395,30 +439,11 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         <PurchasesTree years={treeYears} extras={treeExtras} />
       ) : (
         <>
-          <div role="tablist" aria-label="Раздел списка" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
-            <span>Показать:</span>
-            {([["", "Мех и подкладка"], ["fur", "Мех"], ["lining", "Подкладка"]] as const).map(([v, label]) => (
-              <Link key={v} role="tab" aria-selected={(f.sec || "") === v} href={filterHref(PURCHASE_FILTERS_ALL, "/purchases", f, { sec: v, limit: "" })}
-                className={"rounded-lg border px-3 py-1.5 text-xs " + ((f.sec || "") === v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50")}>{label}</Link>
-            ))}
-            <InfoHint label="Как разделены мех и подкладка" wide>
-              <p>Закупки меха (шкуры, шт.) и подкладки (метры) — отдельные таблицы со своими единицами, итогом и сортировкой; фильтры общие. Закупка из меха и подкладки попадает в обе таблицы своей частью: кол-во и позиции вида, сумма, оплата и долг — по доле стоимости позиций вида. Σ таблиц = общий итог.</p>
-            </InfoHint>
-          </div>
           {sections.map((sec) => {
             const rowsSec = sec.all.slice(0, limit);
-            const a = aggregate(sec.all);
             const ex = sec.k === "fur" ? furExtras : liningExtras;
-            const exSum = ex.reduce((x, e) => x + e.sum, 0);
-            const q = sec.k === "fur" ? a.fur : a.lining;
             return (
               <div key={sec.k} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid={`tiles-${sec.k}`}>
-                  <div className={TILE_BOX}><TileHead>Закупок</TileHead><TileValue compact>{a.purchases}</TileValue><TileCaption>{sec.k === "fur" ? "с мехом" : "с подкладкой"}</TileCaption></div>
-                  <div className={TILE_BOX}><TileHead>{sec.k === "fur" ? "Шкур, шт." : "Подкладка, м"}</TileHead><TileValue compact>{formatQty(q)}</TileValue><TileCaption>{a.lots} позиций</TileCaption></div>
-                  <div className={TILE_BOX}><TileHead>Сумма, ₽</TileHead><TileValue compact>{formatMoney((a.total + exSum).toFixed(2))}</TileValue><TileCaption>{ex.length ? "с шкурами подрядчика и округлением" : "с НДС"}</TileCaption></div>
-                  <div className={TILE_BOX}><TileHead>{a.rest < -OVERPAY_FROM ? "Переплата, ₽" : "Долг, ₽"}</TileHead><TileValue compact className={a.rest > 0.5 && !isRoundingRest(a.rest, a.total + exSum) ? "text-amber-700" : ""}>{isRoundingRest(a.rest, a.total + exSum) ? "оплачено" : formatMoney((a.rest < -OVERPAY_FROM ? -a.rest : a.rest).toFixed(2))}</TileValue><TileCaption>{isRoundingRest(a.rest, a.total + exSum) ? roundingRestHint(a.rest) : "Сумма − оплачено"}</TileCaption></div>
-                </div>
                 <PurchasesList
                   id={`pur-list-${sec.k}`}
                   title={sec.title}
