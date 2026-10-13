@@ -7,7 +7,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { PaymentForm } from "@/components/payment-form";
 import { PAY_KINDS, canConfirm, type PayKind } from "@/lib/payment-form-core";
 import { centsOf, remainingOf, rubOf, suggestSupplierAlloc, suggestWorkAlloc } from "@/lib/payment-wizard-core";
-import { getWizardData, saveWizardPayment, type WizardData, type WizardResult } from "@/app/(app)/payments/wizard-actions";
+import { checkWizardDuplicate, getWizardData, saveWizardPayment, type WizardData, type WizardResult } from "@/app/(app)/payments/wizard-actions";
 
 const money = (c: number) => (c / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
 /** Подпись остатка цели в списке: остаток / оплачено / переплата (минус не показываем). */
@@ -58,6 +58,18 @@ export function PaymentWizard({ onDone, defaultSide }: { onDone?: () => void; de
   }, [defaultSide]);
 
   const amountC = centsOf(amount);
+  const [dupNote, setDupNote] = useState("");
+  const counterpartyId = side === "supplier" ? supplierId : clientId;
+  // Мягкая подсветка дубля: та же дата + сумма + контрагент уже есть в базе (ничего не блокирует).
+  useEffect(() => {
+    let alive = true;
+    const t = setTimeout(() => {
+      if (!paidAt || !Number.isFinite(amountC) || amountC < 1) return setDupNote("");
+      checkWizardDuplicate({ side, counterpartyId, paidAt, amount }).then((r) => { if (alive) setDupNote(r.dup ?? ""); }).catch(() => { if (alive) setDupNote(""); });
+    }, 400);
+    return () => { alive = false; clearTimeout(t); };
+  }, [side, counterpartyId, paidAt, amount, amountC]);
+  const futureDate = !!paidAt && paidAt > today();
   const targets = useMemo(() => {
     if (!data) return [];
     if (side === "supplier") return data.supTargets.filter((t) => !supplierId || t.supplierIds.includes(supplierId));
@@ -180,6 +192,8 @@ export function PaymentWizard({ onDone, defaultSide }: { onDone?: () => void; de
             <div className="sm:col-span-2"><Label htmlFor="pw-basis">Основание (по нему система предложит разнесение)</Label><Input id="pw-basis" value={basis} onChange={(e) => { setBasis(e.target.value); setLines([]); }} placeholder={side === "supplier" ? "например: счёт 2004, спецификация 13, СП 09.26" : "например: ТЗ 88, ТЗ 91"} /></div>
             {(kind === "OTHER" || note) && <div className="sm:col-span-2"><Label htmlFor="pw-note">Пометка</Label><Input id="pw-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>}
           </div>
+          {futureDate && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note" data-wizard-future>Дата в будущем — оплата ещё не произведена? Плановую оплату внести можно, при записи спросим ещё раз.</p>}
+          {dupNote && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note" data-wizard-dup>{dupNote}</p>}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={markConfirmed} onChange={(e) => setMarkConfirmed(e.target.checked)} /> Отметить оплату подтверждённой (нужен № п/п)</label>
         </div>
       )}
@@ -211,6 +225,9 @@ export function PaymentWizard({ onDone, defaultSide }: { onDone?: () => void; de
               </table>
             </div>
           )}
+          {lines.filter((l) => l.key && centsOf(l.amount) - remOf(l.key) >= 100).map((l) => (
+            <p key={l.key} className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800" role="alert" data-wizard-overpay>Сумма больше остатка: {labelOf(l.key)} — остаток {money(Math.max(remOf(l.key), 0))}, разнесено {money(centsOf(l.amount))} (переплата {money(centsOf(l.amount) - Math.max(remOf(l.key), 0))}). Записать можно, при записи спросим ещё раз.</p>
+          ))}
           <div className={"rounded-md px-3 py-2 text-sm " + (restC < 0 ? "bg-red-50 text-red-800" : restC > 0 ? "bg-amber-50 text-amber-900" : "bg-green-50 text-green-900")} role="status" data-rest>
             Сумма оплаты {money(amountC)}; разнесено {money(sumC)}; <b>{restC < 0 ? `перебор ${money(-restC)}` : restC > 0 ? `не разнесено ${money(restC)}${side === "supplier" ? " — останется авансом без привязки" : " — останется неразнесённым авансом заказчика"}` : "всё разнесено"}</b>
           </div>

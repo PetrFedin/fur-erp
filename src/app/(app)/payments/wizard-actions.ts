@@ -161,6 +161,24 @@ const cents = (s: unknown): number => {
   return /^[+]?(\d+\.?\d*|\.\d+)$/.test(t) ? Math.round(Number(t) * 100) : NaN;
 };
 
+/** Мягкая подсветка на шаге 1: есть ли уже в базе оплата с той же датой, суммой и контрагентом. Ничего не блокирует. */
+export async function checkWizardDuplicate(q: { side: "supplier" | "work"; counterpartyId: string; paidAt: string; amount: string }): Promise<{ dup: string | null }> {
+  const session = await requireSession();
+  const orgId = session.user.organizationId;
+  const paidAt = parseDateInput(String(q.paidAt ?? "").trim());
+  const c = cents(q.amount);
+  if (!paidAt || !Number.isFinite(c) || c < 1) return { dup: null };
+  if (!hasRole(session.user.role, q.side === "supplier" ? SUPPLIER_ROLES : WORK_ROLES)) return { dup: null };
+  const amount = new Decimal(c / 100);
+  const cp = String(q.counterpartyId ?? "");
+  const rows = q.side === "supplier"
+    ? await prisma.payment.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" }, amount, paidAt, ...(cp ? { supplierId: cp } : {}) }, select: { docRef: true }, take: 3 })
+    : await prisma.productionPayment.findMany({ where: { organizationId: orgId, status: { not: "CANCELLED" }, amount, paidAt, ...(cp ? { clientId: cp } : {}) }, select: { docRef: true }, take: 3 });
+  if (rows.length === 0) return { dup: null };
+  const ref = rows.map((r) => r.docRef).find(Boolean);
+  return { dup: `В базе уже есть оплата с такой же датой, суммой и контрагентом${ref ? ` (${ref})` : ""} — возможно, это дубль.` };
+}
+
 export async function saveWizardPayment(formData: FormData): Promise<WizardResult> {
   const session = await requireSession();
   const orgId = session.user.organizationId;
@@ -187,7 +205,7 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
   if (p.kind === "OTHER" && noteIn.length < 3) return { error: "Для вида «Другое» напишите пометку — что это за платёж" };
   const method = (["CASH", "BANK_TRANSFER", "CARD", "OTHER"].includes(p.method) ? p.method : "BANK_TRANSFER") as "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
   const warns: string[] = [];
-  if (paidIso > todayIso()) warns.push(`Дата оплаты (${paidIso}) в будущем.`);
+  if (paidIso > todayIso()) warns.push(`Дата оплаты (${paidIso.split("-").reverse().join(".")}) в будущем — оплата ещё не произведена?`);
 
   const parts = (Array.isArray(p.parts) ? p.parts : []).map((x) => ({ key: String(x.key), c: cents(x.amount) }));
   if (parts.length > 40) return { error: "Не больше 40 строк разнесения" };
@@ -213,7 +231,6 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         const baseNotes = [kindNote(p.kind), basis ? `Основание: ${basis}` : "", noteIn, "внесена в мастере оплаты"].filter(Boolean);
         const confirmedFlag = p.markConfirmed;
         const confirmStamp = p.markConfirmed ? { confirmedAt: new Date(), confirmedBy: userId } : {};
-        const dupSince = new Date(Date.now() - 2 * 60 * 1000);
 
         if (side === "supplier") {
           const supplierId = String(p.supplierId ?? "");
@@ -243,8 +260,8 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
             }
           }
           if (overpay.length) warn.push(`Переплата: ${overpay.join("; ")}.`);
-          const dup = await tx.payment.count({ where: { organizationId: orgId, supplierId, amount: new Decimal(amountC / 100), paidAt, createdAt: { gte: dupSince } } });
-          if (dup > 0) warn.push("Такая же оплата (сумма, дата, поставщик) только что уже записана — возможно, это двойная отправка.");
+          const dup = await tx.payment.count({ where: { organizationId: orgId, supplierId, amount: new Decimal(amountC / 100), paidAt } });
+          if (dup > 0) warn.push("В базе уже есть оплата с такой же датой, суммой и поставщиком — возможно, это дубль.");
           if (warn.length > 0 && !p.confirmOverpay) return { confirm: `${warn.join(" ")} Всё равно записать?` };
 
           const rows = [...links.map((l) => ({ c: l.c, ...l.link, title: l.title })), ...(restC > 0 ? [{ c: restC, auctionSession: null, purchaseId: null, title: "Аванс без привязки (остаток)" }] : [])];
@@ -283,8 +300,8 @@ export async function saveWizardPayment(formData: FormData): Promise<WizardResul
         }).filter((x) => x.extra > 1);
         if (over.length) warn.push(`Разнесено больше остатка работы: ${over.slice(0, 3).map((x) => `ТЗ ${x.o.workOrderNumber ?? x.o.number} (+${fromCents(x.extra)} ₽)`).join(", ")}${over.length > 3 ? " и др." : ""} — переплата.`);
         if (parts.length > 0 && orders.some((o) => orderWorkCents(o) === 0)) warn.push("У части ТЗ не задана цена работы — оплата по ним возможна только как аванс.");
-        const dup = await tx.productionPayment.count({ where: { organizationId: orgId, amount: new Decimal(amountC / 100), paidAt, createdAt: { gte: dupSince }, ...(clientId ? { clientId } : {}) } });
-        if (dup > 0) warn.push("Такая же оплата (сумма, дата, заказчик) только что уже записана — возможно, это двойная отправка.");
+        const dup = await tx.productionPayment.count({ where: { organizationId: orgId, amount: new Decimal(amountC / 100), paidAt, ...(clientId ? { clientId } : {}) } });
+        if (dup > 0) warn.push("В базе уже есть оплата с такой же датой, суммой и заказчиком — возможно, это дубль.");
         if (warn.length > 0 && !p.confirmOverpay) return { confirm: `${warn.join(" ")} Всё равно записать?` };
 
         const pay = await tx.productionPayment.create({

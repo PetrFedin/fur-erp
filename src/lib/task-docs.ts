@@ -217,7 +217,27 @@ export async function loadTaskBlocks(db: Db, organizationId: string, now = new D
 
   // ---- решения владельца
   const stateByKey = new Map(states.map((s) => [s.key, s.value as Record<string, unknown>]));
-  const decisions: DecisionView[] = DECISIONS.map((decision) => {
+  // «Аванс июль 2026»: суммы считаются по данным (платежи по счетам №141 и №143), а не хранятся в тексте — после каждого разнесения они сами обновляются.
+  const advPays = await db.productionPayment.findMany({
+    where: { organizationId, status: "COMPLETED" },
+    select: { amount: true, docRef: true, allocations: { select: { amount: true, productionOrder: { select: { status: true } } } } },
+  });
+  let advTotal = 0, advAlloc = 0;
+  for (const p of advPays) {
+    if (!/сч[её]т\s*№\s*(141|143)(?!\d)/i.test(p.docRef ?? "")) continue;
+    advTotal += Number(p.amount.toString());
+    advAlloc += p.allocations.filter((a) => a.productionOrder.status !== "CANCELLED").reduce((x, a) => x + Number(a.amount.toString()), 0);
+  }
+  const advRest = Math.max(0, Math.round((advTotal - advAlloc) * 100) / 100);
+  const rub = (n: number) => `${Math.round(n).toLocaleString("ru-RU")} ₽`.replace(/\u00a0/g, " ");
+  const mln = (n: number) => `${(Math.round(n / 10_000) / 100).toLocaleString("ru-RU")} млн`;
+  const decisions: DecisionView[] = DECISIONS.map((base) => {
+    const decision: Decision = base.id !== "advance-15-9" || advTotal <= 0 ? base : {
+      ...base,
+      title: `Аванс июль 2026: разнесено ${mln(advAlloc)}, без привязки ${advRest > 0.5 ? `остаётся ${rub(advRest)}` : "ничего не осталось"} из ${rub(advTotal)}`,
+      why: `По счетам №141 и №143 заказчик перечислил ${rub(advTotal)}; по ТЗ и партиям разнесено ${rub(advAlloc)}. ${advRest > 0.5 ? `Без привязки остаётся ${rub(advRest)}: ТЗ М023×6, М026×3, М001Е×1 и остаток по счёту №143 — это запрос Веллмеху. Разнести можно в «Оплаты → За производство → Неразнесённые авансы».` : "Весь аванс отнесён к ТЗ."} На долг заказчиков не влияет.`,
+      amount: advRest,
+    };
     const v = stateByKey.get(DECISION_KEY_PREFIX + decision.id);
     const opt = v ? decision.options.find((o) => o.key === v.choice) : null;
     const choice = v && opt

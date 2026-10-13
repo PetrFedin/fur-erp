@@ -205,7 +205,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                             <li key={p.id}>{formatDate(p.paidAt)} — {money(p.rest.toNumber())}{p.docRef ? ` · ${p.docRef}` : ""}</li>
                           ))}
                         </ul>
-                        <p className="mt-1">Разнести их на ТЗ можно в <Link href="/attention" className="underline">Контроль → Что требует внимания → Неразнесённые авансы</Link>.</p>
+                        <p className="mt-1">Разнести их на ТЗ можно в <Link href="/payments?tab=clients#unallocated" className="underline">Оплаты → За производство → Неразнесённые авансы</Link>.</p>
                       </>
                     )}
                   </>
@@ -363,6 +363,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
         <p className="text-sm text-neutral-700" data-testid="batches-bridge">
           К доплате по партиям <b className="tabular-nums">{money(Math.max(payRest, 0))}</b>
           {" · "}Аванс без партии <b className="tabular-nums">−{money(debt.unallocated)}</b>
+          {debt.unallocated > 1 ? <> <Link href="/payments?tab=clients#unallocated" className="text-blue-700 hover:underline print:hidden">Разнести…</Link></> : null}
           {" → "}Долг по работе = Главная <b className="tabular-nums">{money(debt.balance)}</b>
         </p>
       ) : null}

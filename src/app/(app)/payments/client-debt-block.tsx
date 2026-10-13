@@ -1,67 +1,69 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, formatDate } from "@/lib/utils";
 import { AllocationEditButton } from "@/components/allocation-editor";
-import { loadAllocEditorData, loadClientDebt } from "@/lib/payment-alloc";
+import { isContractorHidesRest, loadAllocEditorData, loadClientDebt } from "@/lib/payment-alloc";
 import { canEditProduction } from "@/lib/production-access";
 import { PAYMENT_TYPE_LABELS_RU } from "@/lib/payment-alloc-labels";
 import { InfoHint } from "@/components/info-hint";
 
 const KIND_LABEL = { advance: "аванс без разнесения", excess: "сверх работы ТЗ" } as const;
+const PP = /п\/п\s*№?\s*\d+/i;
 
 /**
- * Долг заказчиков (вкладка «От заказчиков»): работа − оплачено, где оплачено = разнесено по ТЗ + неразнесённые авансы;
- * ниже — список платежей с неразнесённым остатком и кнопка «Разнесение» (тот же редактор, что в карточке ТЗ).
+ * Вкладка «За производство» → «Неразнесённые авансы»: платежи заказчика, часть которых ещё не отнесена ни к одному ТЗ.
+ * Итог совпадает со строкой «Аванс без партии» на /production/batches (тот же loadClientDebt; шкуры подрядчика — это сырьё, их здесь нет).
+ * Кнопка «Разнести…» открывает редактор разнесения по ТЗ (тот же, что в карточке ТЗ). Якорь #unallocated — для ссылок из Контроля.
  */
 export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; year: string; role: string }) {
   const debt = await loadClientDebt(prisma, orgId, { year });
   const canEdit = canEditProduction(role);
-  const pays = debt.payments;
+  const pays = debt.payments.filter((p) => !isContractorHidesRest(p) && p.rest.toNumber() > 1); // копейки округления в список не выносим, в итог они входят
+  const total = debt.unallocated;
   const links = pays.length && canEdit
     ? await prisma.productionPaymentOrder.findMany({ where: { productionPaymentId: { in: pays.map((p) => p.id) } }, select: { productionPaymentId: true, productionOrderId: true } })
     : [];
   const edit = canEdit
     ? await loadAllocEditorData(prisma, orgId, pays.map((p) => ({ id: p.id, clientId: p.clientId, linkedOrderIds: links.filter((l) => l.productionPaymentId === p.id).map((l) => l.productionOrderId) })))
     : new Map();
-  const rest = debt.unallocatedByKind;
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4" aria-label="Долг заказчиков">
+    <section id="unallocated" aria-label="Неразнесённые авансы" className="scroll-mt-20 flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold"><span className="inline-flex items-center gap-1.5">Долг заказчиков <span className="font-normal text-neutral-500">· с НДС</span>
-          <InfoHint label="Как считается долг" wide>
-            <p>Остаток = работа − оплачено. «Неразнесённые авансы» — части платежей, не отнесённые ни к одному ТЗ: аванс без разнесения {formatMoney(rest.advance.toFixed(2))}{rest.excess > 0.005 ? <>, платежи сверх работы ТЗ (например, шкуры подрядчика) {formatMoney(rest.excess.toFixed(2))}</> : null}. Итог долга от разнесения не зависит.</p>
-          </InfoHint></span></h2>
-        <span className={"text-xl font-semibold tabular-nums " + (debt.balance > 0 ? "text-amber-700" : "")}>{formatMoney(debt.balance.toFixed(2))}</span>
+        <h2 className="text-sm font-semibold">
+          <span className="inline-flex items-center gap-1.5">Неразнесённые авансы <span className="font-normal text-neutral-500">· {pays.length} на {formatMoney(total.toFixed(2))}</span>
+            <InfoHint label="Про неразнесённые авансы" wide>
+              <p>Часть платежа заказчика, не отнесённая ни к одному ТЗ. В долге заказчиков она уже учтена отдельной строкой, поэтому разнесение итог долга не меняет — оно переносит аванс из «без партии» в конкретные ТЗ и партии. Эта сумма — «Аванс без партии» на странице «Партии».</p>
+              <p className="mt-1">Платежи в счёт шкур подрядчика — это сырьё, а не оплата работы, их здесь нет.</p>
+            </InfoHint></span>
+        </h2>
+        <Link href="/production/batches" className="text-xs text-blue-700 hover:underline print:hidden">→ Партии</Link>
       </div>
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-neutral-500">Работа заказчикам</dt><dd className="tabular-nums">{formatMoney(debt.billable.toFixed(2))}</dd></div>
-        <div><dt className="text-xs text-neutral-500">Разнесено по ТЗ</dt><dd className="tabular-nums">{formatMoney(debt.allocated.toFixed(2))}</dd></div>
-        <div><dt className="text-xs text-neutral-500">Неразнесённые авансы</dt><dd className="tabular-nums">{formatMoney(debt.unallocated.toFixed(2))}</dd></div>
-        <div><dt className="text-xs text-neutral-500">Оплачено всего</dt><dd className="tabular-nums">{formatMoney(debt.paid.toFixed(2))}</dd></div>
-      </dl>
-      <div id="unallocated" className="scroll-mt-20">
-        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium">Неразнесённые авансы ({pays.length})<InfoHint label="Про разнесение"><p>Платёж разносится по ТЗ автоматически при создании; здесь — то, что не удалось разнести. Подробнее: Контроль → Что требует внимания.</p></InfoHint></h3>
-        {pays.length === 0 ? (
-          <p className="text-sm text-neutral-500">Все платежи отнесены к ТЗ.</p>
-        ) : (
-          <ul className="divide-y divide-neutral-100 text-sm">
-            {pays.map((p) => (
+      {pays.length === 0 ? (
+        <p className="text-sm text-neutral-500">Все платежи заказчиков отнесены к ТЗ.</p>
+      ) : (
+        <ul className="divide-y divide-neutral-100 text-sm">
+          {pays.map((p) => {
+            const pp = PP.exec(p.docRef ?? "");
+            return (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <div>
-                    <span className="font-medium tabular-nums">{formatMoney(p.rest.toFixed(2))}</span>
-                    <span className="text-neutral-500"> из {formatMoney(p.amount.toFixed(2))} · {formatDate(p.paidAt)} · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · {KIND_LABEL[p.kind]}</span>
+                    <Link href={`/payments/c-${p.id}`} className="text-blue-700 hover:underline">{formatDate(p.paidAt)}</Link>
+                    <span className="text-neutral-500"> · {PAYMENT_TYPE_LABELS_RU[p.paymentType] ?? p.paymentType} · {p.clientName ?? "без заказчика"}{pp ? ` · ${pp[0]}` : ""}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-neutral-500">
-                    <span>{p.clientName ?? "без заказчика"}{/п\/п\s*№?\s*\d+/i.exec(p.docRef ?? "") ? ` · ${/п\/п\s*№?\s*\d+/i.exec(p.docRef ?? "")![0]}` : ""}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</span>
+                  <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
+                    <span>разнесено {formatMoney(p.allocated.toFixed(2))} из {formatMoney(p.amount.toFixed(2))}</span>
+                    <span className="font-medium tabular-nums text-amber-700">не разнесено {formatMoney(p.rest.toFixed(2))}</span>
+                    <span>· {KIND_LABEL[p.kind]}{p.linkedOrders > 0 ? ` · в наборе ${p.linkedOrders} ТЗ` : " · без ТЗ"}</span>
                     {p.docRef ? <InfoHint label="Основание платежа"><p>{p.docRef}</p></InfoHint> : null}
                   </div>
                 </div>
-                {edit.get(p.id) && <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={edit.get(p.id)!.orders} initial={edit.get(p.id)!.initial} label="Разнести" />}
+                {edit.get(p.id) && <AllocationEditButton paymentId={p.id} amount={p.amount.toFixed(2)} orders={edit.get(p.id)!.orders} initial={edit.get(p.id)!.initial} label="Разнести…" />}
               </li>
-            ))}
-          </ul>
-        )}
-      </div>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

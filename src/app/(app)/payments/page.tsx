@@ -57,6 +57,7 @@ async function overviewLeft(orgId: string) {
   return { byYear: Object.fromEntries(l.byYear), raw: l.raw, prod: l.prod };
 }
 import { loadClientDebt } from "@/lib/payment-alloc";
+import { ClientDebtBlock } from "./client-debt-block";
 import { PaymentLinesTable, PurchaseLinesTable, type PayLine, type PurchaseLine } from "./payment-lines";
 import { docCounts } from "@/lib/doc-links";
 import { loadPaymentsSourceDocs } from "@/lib/source-docs-server";
@@ -741,6 +742,7 @@ export default async function PaymentsPage({
         />
         </div>
         {goodsTotals && !pdate && <GoodsTiles {...goodsTotals} owed={owedOrders} />}
+        {!pdate && <ClientDebtBlock orgId={orgId} year={year} role={session.user.role} />}
                 <ClientPaymentsTable
                   rows={clientRows}
                   rest={(() => {

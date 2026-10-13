@@ -159,7 +159,10 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
               <tr className="row-total">
                 <td className="py-1.5 pr-2"><TotalLabel /></td>
                 <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{money(partsTotal)}</td>
-                <td className={"px-2 py-1.5 " + (r.unallocated > 0.5 ? "text-amber-700" : "")}>{r.unallocated > 0.5 ? `в т. ч. не разнесено ${money(r.unallocated)}` : "разнесено полностью"}</td>
+                <td className={"px-2 py-1.5 " + (r.unallocated > 0.5 ? "text-amber-700" : "")}>
+                  {r.unallocated > 0.5 ? `в т. ч. не разнесено ${money(r.unallocated)}` : "разнесено полностью"}
+                  {parsed.kind === "prod" && r.unallocated > 1 ? <Link href="/payments?tab=clients#unallocated" className="ml-2 text-blue-700 hover:underline print:hidden">Разнести остаток →</Link> : null}
+                </td>
               </tr>
             </tfoot>
           </table>
