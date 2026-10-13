@@ -176,16 +176,16 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>Оплата работы</TileHead>
               <TileValue className={t.remaining.greaterThan(0.005) ? "text-amber-700" : ""}>{mny(Math.abs(Number(t.remaining)))}</TileValue>
-              <TileCaption>{overpaid ? "оплачено сверх работы" : "задолженность: работа − оплачено"}</TileCaption>
+              <TileCaption>{overpaid ? "оплачено сверх работы" : "К оплате по партиям: работа − оплачено"}</TileCaption>
               <TileList items={[
                 { k: "Работа заказчику", v: mny(workN) },
-                { k: "Оплачено (разнесено на партию)", v: mny(paidN), share: workN ? paidN / workN : null },
+                { k: "Оплачено (разнесено на партии)", v: mny(paidN), share: workN ? paidN / workN : null },
               ]} />
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата" wide align="right">
-                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>Остаток</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
-                <p className="mt-1">«Оплачено всего» на Главной и в «Оплатах» больше: туда входят и авансы, не разнесённые на ТЗ. Мост — в «Партии пошива» → плитка «Оплата работы».</p>
+                <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, разнесённые на ТЗ партии (каждая один раз). <b>К оплате по партиям</b> = работа − оплачено. Суммы оплаты всегда с НДС.</p>
+                <p className="mt-1">«Оплачено всего» на Главной и в «Оплатах» больше: разница = неразнесённый аванс (аванс заказчика, ещё не отнесён к партиям). Мост — в «Партии пошива» → плитка «Оплата работы».</p>
               </InfoHint>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default async function BatchPage({ params }: { params: Promise<{ number: 
             <span>
               Не отнесено к ТЗ: <span className="font-medium">{formatMoney(t.unallocated.toString())}</span>
               <InfoHint label="Про неотнесённую сумму" wide>
-                {hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Платёж больше остатка работы ТЗ партии."} В остаток по ТЗ это не входит; список — <Link href="/attention" className="underline">Контроль → Задачи → Неразнесённые авансы</Link>.
+                {hidesInPay ? `В оплате учтены шкуры подрядчика ${formatMoney(hidesInPay.toString())}.` : "Платёж больше остатка работы ТЗ партии."} В остаток по ТЗ это не входит; список — <Link href="/attention" className="underline">Контроль → Что требует внимания → Неразнесённые авансы</Link>.
               </InfoHint>
             </span>
           )}

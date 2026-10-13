@@ -39,10 +39,13 @@ import { getFilterOptions } from "@/lib/filter-options";
 import { ClientPaymentsTable, type ClientPayRow } from "./client-payments-table";
 import { ClientDateDetail } from "./client-date-detail";
 import { PaymentTiles } from "./payment-tiles";
+import { rawRounding } from "@/lib/raw-rounding";
 import { YearGroup } from "./year-group";
 import { GoodsTiles, type BatchRow, type OwedOrder } from "./goods-tiles";
 import { PaymentsOverview } from "./payments-overview";
 import { PayTiles } from "../dashboard/pay-tiles";
+import { PaymentsNav } from "./payments-nav";
+import { PaymentsRegistry } from "./registry-tab";
 import { loadDashboard } from "@/lib/dashboard-data";
 import { DASH_FILTERS, type DashFilters } from "@/lib/dashboard-calc";
 import { getCommission4Mode } from "@/lib/commission4-mode";
@@ -138,10 +141,12 @@ export default async function PaymentsPage({
   const flashError = typeof sp.error === "string" ? (FLASH_ERRORS[sp.error] ?? "") : "";
   // Раздел: «Все» (по умолчанию), «За сырьё» (suppliers) или «За производство» (clients). Ссылки с параметрами аукциона ведут в «За сырьё».
   const supplierParams = ["auction", "auc", "q", "dq", "supplier", "f", "noauction"].some((k) => sp[k] !== undefined);
-  const tab: "all" | "suppliers" | "clients" =
-    sp.tab === "clients" ? "clients" : sp.tab === "suppliers" ? "suppliers" : sp.tab === "all" ? "all" : supplierParams ? "suppliers" : "all";
+  // По умолчанию — «Реестр» (одна таблица всех оплат); прежний разбор по статьям («Все») — ?tab=all.
+  const tab: "registry" | "all" | "suppliers" | "clients" =
+    sp.tab === "clients" ? "clients" : sp.tab === "suppliers" ? "suppliers" : sp.tab === "all" ? "all" : supplierParams ? "suppliers" : "registry";
   const orgId = session.user.organizationId;
   const year = await getYearFilter();
+  if (tab === "registry") return <PaymentsRegistry sp={sp} orgId={orgId} year={year} canPay={canPay} flashError={flashError} />;
   // Подтверждение оплат («Подтверждено ✓» по каждой строке): поставщику — вкладка «Поставщики», производства — «Заказчики».
   const pv = await loadPaymentVerify(tab === "clients" ? "prodPayment" : "payment");
   const pf = parseFilters(PAY_FILTERS, sp);
@@ -652,12 +657,7 @@ export default async function PaymentsPage({
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}
 
-      <nav aria-label="Разделы оплат" className="inline-flex self-start rounded-lg border border-neutral-300 bg-white p-0.5 text-sm">
-        {([["all", "Все"], ["suppliers", "За сырьё"], ["clients", "За производство"]] as const).map(([k, label]) => (
-          <Link key={k} href={`/payments?tab=${k}`} aria-current={tab === k ? "page" : undefined}
-            className={"inline-flex min-h-10 items-center rounded-md px-3 md:min-h-7 md:py-0.5 " + (tab === k ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900")}>{label}</Link>
-        ))}
-      </nav>
+      <PaymentsNav tab={tab} />
 
       {tab === "all" ? (
         <>
@@ -768,6 +768,7 @@ export default async function PaymentsPage({
               <PaymentTiles
                 split={supDash ? { paid: { fur: supDash.paidByItem.fur, lining: supDash.paidByItem.lining }, debt: { fur: supDash.left.fur, lining: supDash.left.lining } } : undefined}
                 hidesMemo={hidesMemo}
+                rounding={supDash ? rawRounding(supDash) : 0}
                 paid={{
                   // Та же сумма, что «Оплачено → За сырьё» в разделе «Все» (мех и подкладка по оплатам, с шкурами подрядчика и зачётом переплат).
                   total: rawPaidAll,

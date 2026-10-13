@@ -13,6 +13,8 @@ import { PayTiles } from "./pay-tiles";
 import { ProductionBlock } from "./production-block";
 import { YearsTable, RawTable } from "./dynamics-tables";
 import { PrintButton } from "./print-button";
+import { MainStrip } from "./main-strip";
+import { buildStrip, loadReliability } from "@/lib/main-strip";
 import { PriceCompositionBlock } from "./price-composition-block";
 import { priceComposition } from "@/lib/price-composition-server";
 import { PageModes, type ModeInfo } from "./mode-line";
@@ -114,6 +116,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         />
       </div>
 
+      {/* ───────── Главное: ключевые цифры одной полосой, каждая плитка ведёт в раздел ───────── */}
+      <MainStrip s={buildStrip(d, c4Mode)} r={await loadReliability(organizationId, d)} hrefs={{ fur: rawHref, lining: "/lining", prod: prodHref }} />
+
       <RawBlock href={rawHref} rows={d.rawTable} fur={d.raw.fur} lining={d.raw.lining} c4={c4Mode} lots={d.raw.lots} info={info} orderFilters={orderFiltersOn(f)} vat={d.vat} />
 
       <YearsTable rows={d.years} c4={c4Mode} info={info} />
@@ -126,7 +131,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       <ProductionBlock href={prodHref} vatCost={d.vat.cost} kind={f.kind?.[0] ?? ""} hides={d.hides} c4Parts={{ fur: { incl: Math.abs(d.raw.fur.incl.usedValue - d.raw.fur.incl.usedValueOther), excl: Math.abs(d.raw.fur.excl.usedValue - d.raw.fur.excl.usedValueOther) }, lining: { incl: Math.abs(d.raw.lining.incl.usedValue - d.raw.lining.incl.usedValueOther), excl: Math.abs(d.raw.lining.excl.usedValue - d.raw.lining.excl.usedValueOther) } }} years={d.years.filter((y) => y.key !== "all").map((y) => ({ label: y.label, qty: y.prod.qty }))} done={prodNums(d.prod.done)} all={prodNums(d.prod.all)} work={prodNums(d.prod.work)} c4={c4Mode} search={search} info={info} bridge={{ usedBase: d.bridge.usedBase, comparable: d.bridge.usedComparable, lotFilters: lotFiltersOn(f), yearOnly: year !== "all" }} />
 
       {/* ───────── Оплаты, долги, задачи ───────── */}
-      <PayTiles d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
+      <PayTiles defaultCollapsed d={d} c4Mode={c4Mode} year={year} headerEnd={<Link href="/payments" className="text-xs text-blue-700 hover:underline print:hidden">→ Оплаты</Link>} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/utils";
+import { rawRounding } from "@/lib/raw-rounding";
 import type { YearFilter } from "@/lib/year-filter";
 import { InfoHint } from "@/components/info-hint";
 import { SupplierDebtHint } from "@/components/supplier-debt-hint";
@@ -18,7 +19,7 @@ function isPastRu(date: string): boolean {
  * Три плитки оплат: «Общая стоимость», «Оплачено», «К оплате» — одни и те же цифры на Главной и в «Оплаты → Все».
  * Всегда с НДС; 4% отдельной суммой не добавляются (оплачены в составе оплат ТЗ).
  */
-export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false }: { /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
+export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Оплаты", headerEnd, bare = false, defaultCollapsed = false }: { /** Свёрнуто по умолчанию (на Главной эти цифры уже в полосе «Главное»). */ defaultCollapsed?: boolean; /** Только три плитки, без WidgetRow и сетки: их кладёт в общий ряд «Сырьё | Оплаты» вызывающий (RawCards pay). */ bare?: boolean; /** Ссылка «→ Раздел» над кнопками «Свернуть/Закрепить». */ headerEnd?: React.ReactNode; /** id и заголовок ряда виджетов (запоминание «свернуть/закрепить»). */ id?: string; title?: string; d: DashboardData; c4Mode: "on" | "off"; year: YearFilter; /** Только мех или только подкладка (страница «Сырьё»): без работы и без общих подсказок по долгу. */ only?: "fur" | "lining" }) {
   const { debt } = d;
   const mln = (v: number) => formatCompactMoney(v);
   const rawPaid = d.paidByItem.fur + d.paidByItem.lining;
@@ -40,10 +41,12 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   const inFur = only !== "lining", inLin = only !== "fur", inWork = !only;
   const paidAll = (inFur ? d.paidByItem.fur : 0) + (inLin ? d.paidByItem.lining : 0) + (inWork ? prodPaid : 0);
   const leftAll = (inFur ? d.left.fur : 0) + (inLin ? d.left.lining : 0) + (inWork ? d.left.prod : 0);
-  const totalAll = paidAll + leftAll;
+  // Копеечное округление между «Куплено» (сумма лотов) и документами: на «Сырьё» показываем строкой, чтобы итог совпал с Главной (на самой Главной не трогаем).
+  const roundAll = only ? rawRounding(d, { fur: inFur, lining: inLin }) : 0;
+  const totalAll = paidAll + leftAll + roundAll;
   void rawPaid;
   const part = (v: number, whole: number) => (whole > 0.5 ? v / whole : null);
-  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean): TileItem[] => [
+  const list = (whole: number, fur: number, furSplit: { stock: number; used: number }, furC4: number, lin: number, linSplit: { stock: number; used: number }, linC4: number, work: number, warn?: boolean, workLabel = "Работа"): TileItem[] => [
     ...(inFur ? [
       ...(only ? [] : [{ k: "Мех", v: money(fur), share: part(fur, whole), tone: warn && fur > 0 ? "text-amber-700" : undefined }]),
       { k: "остаток на складе", v: dash(furSplit.stock), sub: !only },
@@ -56,7 +59,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
       { k: "использовано", v: dash(linSplit.used), sub: !only },
       { k: "4%", v: dash(linC4), sub: !only },
     ] : []),
-    ...(inWork ? [{ k: "Работа", v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
+    ...(inWork ? [{ k: workLabel, v: money(work), share: part(work, whole), tone: warn && work > 0 ? "text-amber-700" : undefined }] : []),
   ];
 
   const tiles = (
@@ -70,11 +73,19 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
           </InfoHint>
         </div>
         <TileValue compact={bare}>{money(totalAll)}</TileValue>
-        <TileList stack={bare} items={list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true)} />
+        <TileList stack={bare} items={[...list(totalAll, d.paidByItem.fur + d.left.fur, { stock: furD.stock, used: furD.used }, furD.c4, d.paidByItem.lining + d.left.lining, { stock: linD.stock, used: linD.used }, linD.c4, prodPaid + d.left.prod, true), ...(roundAll !== 0 ? [{ k: "округление", v: money(roundAll) }] : [])]} />
       </div>
 
       <div key="paid" className={TILE_BOX}>
-        <TileHead>Оплачено</TileHead>
+        <TileHead>Оплачено всего</TileHead>
+        {inWork ? (
+          <div className="absolute right-3 top-3">
+            <InfoHint label="Чем «Оплачено всего» отличается от оплат по партиям" align="right">
+              <p>«Оплачено всего» — всё, что оплачено: сырьё и работа. В «Партиях пошива» и карточке партии — «Оплачено (разнесено на партии)»: меньше.</p>
+              <p className="mt-1">Разница = неразнесённый аванс {money(d.clientDebtInfo.unallocated)} (аванс заказчика, ещё не отнесён к партиям).</p>
+            </InfoHint>
+          </div>
+        ) : null}
         <TileValue compact={bare}>{money(paidAll)}</TileValue>
         <div data-testid="paid-by-item">
           <TileList stack={bare} items={list(paidAll, d.paidByItem.fur, furPaidD, furD.c4, d.paidByItem.lining, linPaidD, linD.c4, prodPaid, true)} />
@@ -82,16 +93,17 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
       </div>
 
       <div key="left" className={TILE_BOX} data-testid="debt-bridge">
-        <TileHead>К оплате</TileHead>
+        <TileHead>К оплате всего</TileHead>
         <div className={"absolute right-3 top-3 flex items-center gap-1" + (only ? " hidden" : "")}>
           <BridgeHint label="Как сходится долг поставщику">
-            <p>Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
+            <p>Долг по работе (общий баланс): работа по всем ТЗ минус все оплаты, включая авансы, ещё не привязанные к партиям — сколько предстоит заплатить, если все авансы отработают (договор №1605: аванс 70 %, доплата 30 % после сдачи).</p>
+            <p className="mt-1">Закупки всего <b>{mln(debt.total.toNumber())}</b> = мех получен <b>{mln(d.bridge.purchases.received)}</b> + ещё не получен <b>{mln(d.bridge.purchases.draft)}</b>. Минус оплачено <b>{mln(d.supplierCashPaid)}</b> = долг <b>{mln(debt.debt.toNumber())}</b>.</p>
             <p className="mt-1">Части (по УПД, счёт не оплачен, ожидаемое) в сумме дают этот долг. Всегда с НДС.</p>
           </BridgeHint>
           <SupplierDebtHint debt={debt} year={year} align="right" />
         </div>
         <TileValue compact={bare} className={leftAll > 0 ? "text-amber-700" : ""}>{money(leftAll)}</TileValue>
-        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true)} />
+        <TileList stack={bare} items={list(leftAll, d.left.fur, furLeftD, 0, d.left.lining, linLeftD, 0, d.left.prod, true, "Долг по работе (общий баланс)")} />
         {d.invoiceDeadlines.length > 0 && !only ? (
           <div className="mt-2 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
             <div className="font-medium text-neutral-700">Ближайшие сроки счетов</div>
@@ -106,7 +118,7 @@ export function PayTiles({ d, c4Mode, year, only, id = "pay", title = "Опла�
   );
   if (bare) return tiles;
   return (
-    <WidgetRow headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
+    <WidgetRow defaultCollapsed={defaultCollapsed} headerEnd={headerEnd} id={id + (only ? "-" + only : "")} title={only === "fur" ? "Оплаты — мех" : only === "lining" ? "Оплаты — подкладка" : title}>
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-3 print:grid-cols-3">{tiles}</div>
     </WidgetRow>
   );

@@ -39,7 +39,7 @@ export async function ClientDebtBlock({ orgId, year, role }: { orgId: string; ye
         <div><dt className="text-xs text-neutral-500">Оплачено всего</dt><dd className="tabular-nums">{formatMoney(debt.paid.toFixed(2))}</dd></div>
       </dl>
       <div id="unallocated" className="scroll-mt-20">
-        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium">Неразнесённые авансы ({pays.length})<InfoHint label="Про разнесение"><p>Платёж разносится по ТЗ автоматически при создании; здесь — то, что не удалось разнести. Подробнее: Контроль → Задачи.</p></InfoHint></h3>
+        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium">Неразнесённые авансы ({pays.length})<InfoHint label="Про разнесение"><p>Платёж разносится по ТЗ автоматически при создании; здесь — то, что не удалось разнести. Подробнее: Контроль → Что требует внимания.</p></InfoHint></h3>
         {pays.length === 0 ? (
           <p className="text-sm text-neutral-500">Все платежи отнесены к ТЗ.</p>
         ) : (

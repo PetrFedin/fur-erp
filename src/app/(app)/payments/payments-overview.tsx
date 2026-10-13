@@ -4,7 +4,7 @@ import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
 import { Fragment, useState, type ReactNode } from "react";
 import type { OverviewRow } from "@/lib/payments-overview";
-import { formatDebt, formatMoney, OVERPAY_FROM } from "@/lib/utils";
+import { formatDebt, formatMoney, isRoundingRest, OVERPAY_FROM, roundingRestHint } from "@/lib/utils";
 import { InfoHint } from "@/components/info-hint";
 import { ARROW_TD, ARROW_TH, Chevron, Dash, INDENT, SCROLL_BOX, TD, TH_LEFT, rowTone } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
@@ -31,7 +31,7 @@ export function PaymentsOverview({ tiles, rows, left, controls }: { tiles: React
   const arrow = (isOpen: boolean, onClick: () => void, label: string) => (
     <button type="button" onClick={onClick} aria-expanded={isOpen} aria-label={`Раскрыть: ${label}`}><Chevron open={isOpen} /></button>
   );
-  const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 ? " text-amber-700" : "")}>{v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
+  const debtTd = (v: number, cls = "") => <td className={TD + cls + (v > 0.5 && !isRoundingRest(v) ? " text-amber-700" : "")}>{isRoundingRest(v) ? <span title={roundingRestHint(v)} className="cursor-help">—</span> : v < -OVERPAY_FROM ? formatDebt(v) : m(v)}</td>;
   const figures = (r: { fur: number; lining: number; work: number; paid: number; debt: number | null }, cls = "") => (
     <>
       <td className={TD + " border-l border-neutral-200" + cls}>{m(r.fur)}</td>

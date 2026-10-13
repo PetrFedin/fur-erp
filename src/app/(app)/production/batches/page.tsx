@@ -174,13 +174,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             <div className={TILE_BOX + " shadow-sm print:shadow-none"}>
               <TileHead>Оплата работы</TileHead>
               <TileValue className={payRest > 0.5 ? "text-amber-700" : ""}>{money(Math.max(payRest, 0))}</TileValue>
-              <TileCaption>задолженность: работа − оплачено</TileCaption>
+              <TileCaption>К доплате по партиям (до зачёта аванса без партии)</TileCaption>
               <TileList items={[
                 { k: "Работа (партии)", v: money(payWork) },
                 { k: "Оплачено (разнесено на партии)", v: money(payPaid), share: payWork ? payPaid / payWork : null },
                 ...(payOver > 0.5 ? [{ k: "Сверх работы (шкуры подрядчика и др.)", v: money(payOver), sub: true }] : []),
                 ...(debt ? [
-                  { k: "Оплачено всего (Главная, Оплаты)", v: money(debt.paid) },
+                  { k: "Оплачено всего", v: money(debt.paid) },
                   { k: "из них разнесено на партии", v: money(payPaid), sub: true },
                   ...(Math.abs(outAlloc) > 0.5 ? [{ k: "разнесено на ТЗ без партии", v: money(outAlloc), sub: true }] : []),
                   { k: "не разнесено на партии (аванс)", v: money(debt.unallocated), sub: true },
@@ -191,9 +191,11 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
             </div>
             <div className="absolute right-3 top-3">
               <InfoHint label="Как считается оплата работы" wide align="right">
-                <p><b>Оплачено</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>Задолженность</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
+                <p><b>Оплачено (разнесено на партии)</b> — оплаты заказчика, разнесённые на ТЗ партий (каждая оплата один раз, отменённые не входят). <b>К доплате по партиям (до зачёта аванса без партии)</b> = Σ работа − Σ оплачено по партиям, где работа больше оплаты; суммы всегда с НДС и от переключателей не зависят.</p>
                 {debt && (
                   <>
+                    <p className="mt-1">Остаток по каждой партии после аванса, уже привязанного к её ТЗ. Договор №1605: аванс 70 %, доплата 30 % после сдачи партии. Часть аванса пока не привязана к партиям — после привязки цифра уменьшится до «Долга по работе» на Главной.</p>
+                    <p className="mt-1"><b>Разница = неразнесённый аванс {money(debt.unallocated)}</b> (аванс заказчика, ещё не отнесён к партиям): «Оплачено всего» − «Оплачено (разнесено на партии)».</p>
                     <p className="mt-1"><b>До Главной и «Оплат»:</b> там «оплачено» — всё, что перечислил заказчик ({money(debt.paid)}), а работа — по всем ТЗ ({money(debt.billable)}). Здесь по партиям: оплачено {money(payPaid)}, работа {money(payWork)}. Разница в оплате — {money(debt.unallocated)} аванса, не разнесённого на ТЗ{Math.abs(outAlloc) > 0.5 ? `, и ${money(outAlloc)} на ТЗ без партии` : ""}; в работе — {money(outWork)} по ТЗ без партии. Долг на Главной {money(debt.balance)} = {money(Math.max(payRest, 0))} здесь − {money(debt.unallocated)} аванса{Math.abs(outAlloc - outWork) > 0.5 ? ` ${outAlloc - outWork > 0 ? "+" : "−"} ${money(Math.abs(outAlloc - outWork))} по ТЗ без партии` : ""}.</p>
                     {unallocList.length > 0 && (
                       <>
@@ -203,7 +205,7 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
                             <li key={p.id}>{formatDate(p.paidAt)} — {money(p.rest.toNumber())}{p.docRef ? ` · ${p.docRef}` : ""}</li>
                           ))}
                         </ul>
-                        <p className="mt-1">Разнести их на ТЗ можно в <Link href="/attention" className="underline">Контроль → Задачи → Неразнесённые авансы</Link>.</p>
+                        <p className="mt-1">Разнести их на ТЗ можно в <Link href="/attention" className="underline">Контроль → Что требует внимания → Неразнесённые авансы</Link>.</p>
                       </>
                     )}
                   </>
@@ -356,6 +358,13 @@ export default async function BatchesPage({ searchParams }: PageProps<"/producti
           <p className="py-8 text-center text-neutral-500">{emptyForYear(year, "партий", "Партий пока нет. Они появятся после привязки ТЗ к партиям.")}</p>
         )}
       </ResponsiveRows>
+      {debt ? (
+        <p className="text-sm text-neutral-700" data-testid="batches-bridge">
+          К доплате по партиям <b className="tabular-nums">{money(Math.max(payRest, 0))}</b>
+          {" · "}Аванс без партии <b className="tabular-nums">−{money(debt.unallocated)}</b>
+          {" → "}Долг по работе = Главная <b className="tabular-nums">{money(debt.balance)}</b>
+        </p>
+      ) : null}
 
       <OrdersTree
         orders={drill}

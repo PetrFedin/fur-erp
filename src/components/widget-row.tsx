@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
  * Состояние запоминается в браузере отдельно для каждой страницы и ряда (id).
  * Использование: <WidgetRow id="prod" title="Производство">…плитки…</WidgetRow>
  */
-export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd }: { id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
+export function WidgetRow({ id, title = "Виджеты", children, className = "", titleClass = "", headerExtra, headerEnd, defaultCollapsed = false }: { /** Свёрнут, пока пользователь сам не развернул (выбор запоминается в браузере). */ defaultCollapsed?: boolean; id: string; title?: string; children: ReactNode; className?: string; titleClass?: string; headerExtra?: ReactNode; headerEnd?: ReactNode }) {
   const path = usePathname();
   const key = `widgets:${path}:${id}`;
   const [collapsed, setCollapsed] = useState(false);
@@ -18,14 +18,14 @@ export function WidgetRow({ id, title = "Виджеты", children, className = 
   // Чтение localStorage возможно только в браузере (после гидратации), иначе разметка сервера и клиента разошлась бы.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    let c = false, p = false;
+    let c = defaultCollapsed, p = false;
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw) { const v = JSON.parse(raw) as { c?: boolean; p?: boolean }; c = !!v.c; p = !!v.p; }
+      if (raw) { const v = JSON.parse(raw) as { c?: boolean; p?: boolean }; c = v.c === undefined ? defaultCollapsed : !!v.c; p = !!v.p; }
     } catch { /* без памяти браузера работает так же, просто без запоминания */ }
     setCollapsed(c); setPinned(p);
     setReady(true);
-  }, [key]);
+  }, [key, defaultCollapsed]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const save = (c: boolean, p: boolean) => {
