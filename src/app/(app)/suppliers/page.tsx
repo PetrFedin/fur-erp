@@ -13,6 +13,8 @@ import { toggleSupplierActive } from "./actions";
 // Список: поиск по названию, контакту, телефону и email; статус — активные / неактивные.
 const LIST_FILTERS = defineFilters({ ...pick(["q"], { q: { label: "Поиск" } }) });
 
+export const metadata = { title: "Поставщики" };
+
 export default async function SuppliersPage({ searchParams }: PageProps<"/suppliers">) {
   const session = await requireSession();
   const f = parseFilters(LIST_FILTERS, await searchParams);

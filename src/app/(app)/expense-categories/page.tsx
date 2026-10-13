@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,8 @@ const KIND_LABELS: Record<string, string> = {
   GENERAL: "Общая",
 };
 
+export const metadata = { title: "Статьи расходов" };
+
 export default async function ExpenseCategoriesPage({ searchParams }: PageProps<"/expense-categories">) {
   const session = await requireSession();
   const sp = await searchParams;
@@ -26,9 +29,7 @@ export default async function ExpenseCategoriesPage({ searchParams }: PageProps<
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Настройки", href: "/settings" }, { label: "Статьи расходов" }]} />
-      <div>
-        <h1 className="text-xl font-semibold">Статьи расходов</h1>
-      </div>
+      <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-semibold">Статьи расходов</h1><InfoHint label="О статьях расходов">Категории дополнительных расходов: тип «Закупка» — расходы к закупке, «Производство» — к ТЗ, «Общая» — прочие. Название и тип можно править в таблице; отключённая статья остаётся в старых записях, но не предлагается в новых.</InfoHint></div>
       {flashError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{flashError}</p>
       )}

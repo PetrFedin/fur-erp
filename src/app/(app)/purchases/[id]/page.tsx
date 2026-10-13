@@ -582,7 +582,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
         <SummaryCard
           label={<VatLabel base="Всего, ₽" />}
           value={<Money incl={grandTotalRub} excl={itemsTotalExclVatRub.add(expensesTotalExclVat)} />}
-          note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
+          note={`сырьё ${formatMoney(goodsExclVatRub.toString())}${extraExclVat.isZero() ? "" : ` · расходы без НДС ${formatMoney(extraExclVat.toString())}`} · НДС ${formatMoney(vatTotal.toString())}${isForeignCurrency ? ` · позиции ${formatCurrency(itemsTotal.toString(), purchase.currency)}` : ""}`}
           emphasis
         />
         {auctionPay ? (

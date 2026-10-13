@@ -57,6 +57,7 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
   const [ppNo, setPpNo] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileRole, setFileRole] = useState<DocRole>("PAYMENT_PROOF");
   const [batchPick, setBatchPick] = useState("");
   const [basis, setBasis] = useState("");
@@ -283,7 +284,9 @@ export function PaymentWizard({ onDone, defaultSide, preset }: { onDone?: () => 
             <div><Label htmlFor="pw-method">Способ</Label><Select id="pw-method" value={method} onChange={(e) => setMethod(e.target.value)}><option value="BANK_TRANSFER">Банк. перевод</option><option value="CASH">Наличные</option><option value="CARD">Карта</option><option value="OTHER">Другое</option></Select></div>
             <div className="sm:col-span-2"><Label htmlFor="pw-file">Файл (по желанию): платёжка или счёт</Label>
               <div className="flex flex-wrap items-center gap-2">
-                <input id="pw-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx" className="text-sm" onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); if (f) setFileRole(guessDocRole(f.name)); }} />
+                <input ref={fileInputRef} id="pw-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); if (f) setFileRole(guessDocRole(f.name)); }} />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>{file ? "Заменить файл" : "Выбрать файл"}</Button>
+                <span className="max-w-64 truncate text-xs text-neutral-500">{file ? file.name : "файл не выбран"}</span>
                 {file && <Select className="h-8 w-48 text-xs" value={fileRole} onChange={(e) => setFileRole(e.target.value as DocRole)} aria-label="Тип файла">{DOC_ROLES.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</Select>}
               </div>
             </div>

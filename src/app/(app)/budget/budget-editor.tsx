@@ -15,7 +15,7 @@ import {
 } from "@/lib/budget-calc";
 import { exportBudgetXlsx, parseBudgetFile, refreshBudgetStats, renameBudget, saveBudget, type ImportRow } from "./actions";
 import { AddDialog, type AddKind, type ArticleOpt } from "./add-dialog";
-import { factByNode, factTotals, type FactAgg, type FactRow } from "./fact-calc";
+import { factByNode, factTotals, zeroFact, type FactAgg, type FactRow } from "./fact-calc";
 import { BTN, BTN_PRIMARY, Badge, FIELD, Modal, NumInput, SEG_BOX, dateRu, money, pct, qty, segBtn, share } from "./ui";
 
 type Props = {
@@ -26,7 +26,7 @@ type Props = {
 /** Мелкая подпись под суммой: средняя цена шкуры / метра подкладки / работы на изделие. */
 function Avg({ sum, per, unit, d = 0 }: { sum: number; per: number; unit: string; d?: number }) {
   if (!(per > 0) || !(sum > 0)) return null;
-  return <div className="sub-cap mt-0.5 whitespace-normal text-[10px] font-normal leading-tight text-neutral-500">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
+  return <div className="sub-cap mt-0.5 whitespace-normal text-[10px] font-normal leading-tight text-neutral-600">ср. {(sum / per).toLocaleString("ru-RU", { maximumFractionDigits: d })} {unit}</div>;
 }
 
 
@@ -464,8 +464,32 @@ export function BudgetEditor(p: Props) {
           
         </div>
       );
-      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0, fact: factMap.get(n.id) }), ...(open ? summaryRows(n.id, depth + 1) : [])];
+      return [sumRow(n.id, label, a, { bg, bold: n.kind === "fur" || ch.length > 0, fact: factMap.get(n.id) }), ...(open ? [...summaryRows(n.id, depth + 1), ...noLenRow(n, ch, depth + 1)] : [])];
     });
+  // «Без длины»: ТЗ категории с артикулами без указанной длины (вычисляемая строка, в данных бюджета её нет).
+  const noLenRow = (n: BudgetNode, ch: BudgetNode[], depth: number): ReactNode[] => {
+    if (n.kind !== "cat" || !ch.some((c) => c.kind === "len")) return [];
+    const cf = factMap.get(n.id);
+    if (!cf) return [];
+    const r = { ...zeroFact() };
+    for (const k of ["pcs", "hides", "meters", "mex", "lining", "work", "c4"] as const) {
+      r[k] = cf[k];
+      for (const c of ch) if (c.kind === "len") r[k] -= factMap.get(c.id)?.[k] ?? 0;
+      if (Math.abs(r[k]) < 0.5) r[k] = 0;
+    }
+    r.total = r.mex + r.lining + r.work + r.c4;
+    if (!(r.pcs > 0 || r.total > 0)) return [];
+    const dash = <td className={sumCell}>—</td>;
+    return [(
+      <tr key={n.id + ":nolen"} className="bg-white [&>td]:border-b [&>td]:border-neutral-100 print:break-inside-avoid">
+        <td className="sticky left-0 z-10 min-w-[120px] max-w-[320px] border-r border-neutral-200 bg-inherit px-1.5 py-2 text-sm text-neutral-600 print:static">
+          <div className="flex items-center gap-1" style={{ paddingLeft: depth * 14 + 24 }}><span>Без длины</span></div>
+        </td>
+        <td className={sumCell}>0</td>{dash}<td className={sumCell + " " + sepL}>—</td>{dash}{dash}{dash}<td className={sumCell + " " + sepL}>—</td>{dash}
+        {factCells(r, 0)}
+      </tr>
+    )];
+  };
 
   // ---- Детально: таблица с полями (планшет и компьютер)
   const numCell = (n: BudgetNode, k: NumKey, label: string, w: string, tag?: UpKey, below?: ReactNode) => (

@@ -29,6 +29,8 @@ const USER_FILTERS = defineFilters({
   role: { kind: "multi", label: "Роль", allowed: Object.keys(ROLE_LABELS) },
 });
 
+export const metadata = { title: "Пользователи" };
+
 export default async function UsersPage({ searchParams }: PageProps<"/users">) {
   const session = await requireRole("OWNER", "ADMIN");
   const canManage = true;

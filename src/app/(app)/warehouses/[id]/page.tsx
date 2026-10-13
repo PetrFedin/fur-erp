@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WarehouseForm } from "../warehouse-form";
 import { updateWarehouse } from "../actions";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const r = await prisma.warehouse.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
+  return { title: r ? `Склад ${r.name}` : "Склад" };
+}
+
 export default async function EditWarehousePage({ params }: PageProps<"/warehouses/[id]">) {
   const { id } = await params;
   const session = await requireSession();

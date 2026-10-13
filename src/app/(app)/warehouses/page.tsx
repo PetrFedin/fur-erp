@@ -7,6 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 
+export const metadata = { title: "Склады" };
+
 export default async function WarehousesPage() {
   const session = await requireSession();
   const canCreate = hasRole(session.user.role, ACCESS.warehouses);
@@ -43,7 +45,7 @@ export default async function WarehousesPage() {
                   {w.name}
                 </Link>
               </Td>
-              <Td>{w.address ?? "—"}</Td>
+              <Td>{w.address?.trim() ? w.address : canCreate ? <Link href={`/warehouses/${w.id}`} className="text-xs text-neutral-500 hover:underline">не указан — заполнить</Link> : "—"}</Td>
               <Td>{w.isDefault && <Badge variant="info">По умолчанию</Badge>}</Td>
             </Tr>
           ))}

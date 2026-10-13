@@ -21,6 +21,13 @@ const rub = (v: { toString(): string } | number) => formatMoney(typeof v === "nu
 const PAY_SHOWN = 15;
 const PUR_SHOWN = 15;
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const r = await prisma.supplier.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
+  return { title: r ? `Поставщик ${r.name}` : "Поставщик" };
+}
+
 /**
  * Карточка поставщика: долг, оплаты, закупки и документы в одном месте, ниже — реквизиты (редактируются, как раньше).
  * Числа те же, что на Главной и в «Оплатах»: долг считает loadSupplierDebt; его считают по всей организации,

@@ -15,6 +15,7 @@ import { PRODUCTION_EDIT_ROLES } from "@/lib/production-access";
 import { PAYMENT_TYPE_LABELS_RU } from "@/lib/payment-alloc-labels";
 import { ORDER_STATUS_LABELS } from "@/lib/dashboard-calc";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { groupByTz, tzLabel, articlesWord } from "@/lib/tz-key";
 import { ClientForm } from "../client-form";
 import { updateClient } from "../actions";
 
@@ -22,6 +23,13 @@ const rub = (v: number | string) => formatMoney(typeof v === "number" ? v.toFixe
 const cents = (c: number) => rub(c / 100);
 const PAY_SHOWN = 15;
 const ORD_SHOWN = 20;
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const r = await prisma.client.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
+  return { title: r ? `Заказчик ${r.name}` : "Заказчик" };
+}
 
 /**
  * Карточка заказчика: работа и оплаты (долг), оплаты с документами, ТЗ — в одном месте, ниже — реквизиты (редактируются, как раньше).
@@ -54,6 +62,7 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
   ]);
   const debt = debtAll.rows.find((r) => r.clientId === id);
   const alloc = await allocatedCentsByOrder(prisma, orgId, orders.map((o) => o.id));
+  const tzGroups = Array.from(groupByTz(orders).values());
   const shownPays = payments.slice(0, PAY_SHOWN);
   const payDocs = await loadPaymentsSourceDocs({ organizationId: orgId, role: session.user.role }, { productionPayments: shownPays.map((p) => p.id) });
   const row = "flex flex-wrap items-baseline justify-between gap-x-4 border-b border-neutral-100 py-1.5 last:border-0";
@@ -107,7 +116,7 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
 
       <Card>
         <CardHeader>
-          <CardTitle as="h2" className="text-base">ТЗ <span className="font-normal text-neutral-500">· {orders.length}</span></CardTitle>
+          <CardTitle as="h2" className="text-base">ТЗ <span className="font-normal text-neutral-500">· {tzGroups.length}</span></CardTitle>
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (
@@ -116,19 +125,26 @@ export default async function EditClientPage({ params }: PageProps<"/clients/[id
             <Table>
               <Thead><Tr><Th>ТЗ</Th><Th>Партия</Th><Th>Статус</Th><Th className="text-right" unit="₽">Работа</Th><Th className="text-right" unit="₽">Оплачено</Th></Tr></Thead>
               <Tbody>
-                {orders.slice(0, ORD_SHOWN).map((o) => (
-                  <Tr key={o.id}>
-                    <Td><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={o.number}>ТЗ {o.workOrderNumber ?? o.number}</Link></Td>
-                    <Td>{o.batch ? o.batch.number : "—"}</Td>
-                    <Td>{ORDER_STATUS_LABELS[o.status] ?? o.status}</Td>
-                    <Td className="text-right tabular-nums">{orderWorkCents(o) > 0 ? cents(orderWorkCents(o)) : "—"}</Td>
-                    <Td className="text-right tabular-nums">{cents(alloc.get(o.id) ?? 0)}</Td>
-                  </Tr>
-                ))}
+                {tzGroups.slice(0, ORD_SHOWN).map((g) => {
+                  const o = g[0];
+                  const work = g.reduce((s, x) => s + orderWorkCents(x), 0);
+                  const paid = g.reduce((s, x) => s + (alloc.get(x.id) ?? 0), 0);
+                  const batches = Array.from(new Set(g.map((x) => x.batch?.number).filter(Boolean)));
+                  const statuses = Array.from(new Set(g.map((x) => ORDER_STATUS_LABELS[x.status] ?? x.status)));
+                  return (
+                    <Tr key={o.id}>
+                      <Td><Link href={`/production/${o.id}`} className="text-blue-700 hover:underline" title={o.number}>ТЗ {tzLabel(o)}</Link>{g.length > 1 && <span className="ml-1 text-xs text-neutral-500">· {g.length} {articlesWord(g.length)}</span>}</Td>
+                      <Td>{batches.length ? batches.join(", ") : "—"}</Td>
+                      <Td>{statuses.join(", ")}</Td>
+                      <Td className="text-right tabular-nums">{work > 0 ? cents(work) : "—"}</Td>
+                      <Td className="text-right tabular-nums">{cents(paid)}</Td>
+                    </Tr>
+                  );
+                })}
               </Tbody>
             </Table>
           )}
-          {orders.length > ORD_SHOWN && <p className="mt-2 text-xs text-neutral-500">Показаны последние {ORD_SHOWN} из {orders.length}. Все ТЗ — в разделе <Link href="/production" className="text-blue-700 hover:underline">«Производство»</Link>.</p>}
+          {tzGroups.length > ORD_SHOWN && <p className="mt-2 text-xs text-neutral-500">Показаны последние {ORD_SHOWN} из {tzGroups.length}. Все ТЗ — в разделе <Link href="/production" className="text-blue-700 hover:underline">«Производство»</Link>.</p>}
         </CardContent>
       </Card>
 

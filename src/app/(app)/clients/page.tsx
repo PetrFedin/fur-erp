@@ -13,6 +13,8 @@ import { toggleClientActive } from "./actions";
 // Список: поиск по названию, контакту, телефону и email; статус — активные / неактивные.
 const LIST_FILTERS = defineFilters({ ...pick(["q"], { q: { label: "Поиск" } }) });
 
+export const metadata = { title: "Заказчики" };
+
 export default async function ClientsPage({ searchParams }: PageProps<"/clients">) {
   const session = await requireSession();
   const f = parseFilters(LIST_FILTERS, await searchParams);

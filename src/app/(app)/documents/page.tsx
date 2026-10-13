@@ -359,10 +359,10 @@ function SummaryTile({ title, stat, href, strong }: { title: string; stat: Secti
         <div className={cn("h-full rounded-full", barTone(stat.percent))} style={{ width: `${stat.percent ?? 0}%` }} />
       </div>
       <div className="mt-1 text-xs text-neutral-500">
-        документы привязаны: {stat.have} из {stat.required}
+        документы привязаны: {stat.have} из {stat.required} документов
       </div>
       <div className={cn("text-xs", stat.rowsWithGaps > 0 ? "text-red-600" : "text-emerald-700")}>
-        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows}` : `без пробелов (${stat.rows})`}
+        {stat.rowsWithGaps > 0 ? `нужен файл: ${stat.rowsWithGaps} из ${stat.rows} записей` : `без пробелов (${stat.rows} записей)`}
       </div>
     </Link>
   );
