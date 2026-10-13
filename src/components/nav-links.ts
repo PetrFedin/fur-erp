@@ -5,10 +5,10 @@ export const NAV_LINKS = [
   // «Сырьё» — один раздел с вкладками (<RawTabs>): Закупки · Мех · Подкладка · Сводка по годам. Закупки — первая вкладка.
   { href: "/lots", label: "Сырьё", also: ["/purchases", "/lining", "/raw-materials", "/analytics", "/materials"] },
   { href: "/production", label: "ТЗ", also: ["/shipments", "/fittings", "/plan", "/supply-plan"] },
-  { href: "/calendar", label: "Календарь", also: [] },
   { href: "/articles", label: "Изделия", also: ["/models", "/finished-stock", "/repair", "/analytics/products", "/analytics/pricing"] },
   { href: "/payments", label: "Оплаты", also: [] },
   { href: "/budget", label: "Бюджет", also: [] },
+  { href: "/calendar", label: "Календарь", also: [] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · Анализ документов · История.
   // Адреса страниц прежние, меняется только то, какой пункт меню на них подсвечен.
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity"] },
