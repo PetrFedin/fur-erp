@@ -25,6 +25,8 @@ export type CostPlanInputs = {
   transit: number;
   /** Ставка НДС на товар, %. */
   vat: number;
+  /** Ставка НДС на сбор аукциона и выделку, %. По умолчанию 22 (с 01.01.2026); для закупок 2025 года — 20. */
+  serviceVatPct?: number;
 };
 
 /** Округление «как в БД» (half-up по десятичной записи), без ошибок двоичной дроби вроде 1.005. */
@@ -66,12 +68,13 @@ export type CostPlanResult = {
 };
 
 export function computeCostPlan(i: CostPlanInputs): CostPlanResult {
+  const svc = i.serviceVatPct != null && Number.isFinite(i.serviceVatPct) ? i.serviceVatPct / 100 : SERVICE_VAT;
   const goods = i.price * i.rate;
   const fee = goods * (i.feePct / 100);
-  const feeVat = fee * SERVICE_VAT;
+  const feeVat = fee * svc;
   const goodsVat = (goods * i.vat) / 100;
   const broker = goods * (i.brokerPct / 100);
-  const dressingExcl = i.dressing / (1 + SERVICE_VAT);
+  const dressingExcl = i.dressing / (1 + svc);
   const unitIncl = goods + fee + feeVat + goodsVat + i.dressing + i.transport + broker + i.transit;
   const unitExcl = goods + fee + dressingExcl + i.transport + broker + i.transit;
   return {
@@ -103,13 +106,22 @@ export type StoredInputs = {
   transport: number;
   brokerPct: number;
   transit: number;
+  /** Только если не 22 (закупки 2025 года — 20). */
+  serviceVatPct?: number;
+  /** Части «транспорта» (он хранится суммой): таможня и упаковка — отдельные строки расчёта. */
+  customs?: number;
+  packing?: number;
 };
 
 export type PlanMeta = { furDescription?: unknown; exchangeRateFixed?: unknown };
 
 /** Готовый JSON для PurchaseItem.costPlan (формат совпадает с import-sp0926). */
-export function buildCostPlanJson(i: CostPlanInputs, meta: PlanMeta, editedAtIso: string) {
+export function buildCostPlanJson(i: CostPlanInputs, meta: PlanMeta, editedAtIso: string, parts?: { customs?: number; packing?: number }) {
   const c = computeCostPlan(i);
+  const svcPct = i.serviceVatPct != null && Number.isFinite(i.serviceVatPct) ? i.serviceVatPct : SERVICE_VAT * 100;
+  const customs = Math.max(0, Math.min(parts?.customs ?? 0, i.transport));
+  const packing = Math.max(0, Math.min(parts?.packing ?? 0, i.transport - customs));
+  const transportOnly = r6(i.transport - customs - packing);
   const items = [
     { label: "Цена за ед., $", value: i.price },
     { label: "Курс ЦБ на дату счёта", value: i.rate },
@@ -117,8 +129,10 @@ export function buildCostPlanJson(i: CostPlanInputs, meta: PlanMeta, editedAtIso
     { label: `Аукционный сбор, маркетинговый сбор, сбор за доставку (${pctText(i.feePct)}% от цены), ₽`, value: r6(c.fee) },
     { label: "НДС на аукционный сбор, ₽", value: r6(c.feeVat) },
     { label: `НДС ${pctText(i.vat)}% на товар, ₽`, value: r6(c.goodsVat) },
-    { label: "Выделка (с НДС 22%), ₽", value: i.dressing },
-    { label: "Транспорт на выделку и обратно, ₽", value: i.transport },
+    { label: `Выделка (с НДС ${pctText(svcPct)}%), ₽`, value: i.dressing },
+    { label: "Транспорт на выделку и обратно, ₽", value: transportOnly },
+    ...(customs ? [{ label: "Таможня и таможенные платежи, ₽", value: customs }] : []),
+    ...(packing ? [{ label: "Упаковка и прочее, ₽", value: packing }] : []),
     { label: `Брокерский %, ${pctText(i.brokerPct)}% от цены, ₽`, value: r6(c.broker) },
     ...(i.transit ? [{ label: "Комиссия за транзит денег, ₽", value: i.transit }] : []),
     { label: "Итого себестоимость за единицу, ₽", value: r6(c.unitIncl) },
@@ -129,6 +143,9 @@ export function buildCostPlanJson(i: CostPlanInputs, meta: PlanMeta, editedAtIso
     transport: i.transport,
     brokerPct: i.brokerPct,
     transit: i.transit,
+    ...(svcPct !== SERVICE_VAT * 100 ? { serviceVatPct: svcPct } : {}),
+    ...(customs ? { customs } : {}),
+    ...(packing ? { packing } : {}),
   };
   return {
     unitCostInclVat: s6(c.unitIncl),
@@ -183,5 +200,6 @@ export function deriveCostPlanInputs(
     transport: num(stored?.transport) ?? find("транспорт на выделку") ?? 0,
     brokerPct: num(stored?.brokerPct) ?? pctOf(find("брокер")) ?? DEFAULT_BROKER_PCT,
     transit: num(stored?.transit) ?? find("комиссия за транзит") ?? 0,
+    ...(num(stored?.serviceVatPct) != null ? { serviceVatPct: num(stored?.serviceVatPct)! } : {}),
   };
 }

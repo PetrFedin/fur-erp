@@ -10,6 +10,7 @@ import {
   num,
   parseMoney,
   reconcileAmount,
+  serviceVatPctFor,
   validateRows,
   type BatchPayload,
   type BatchPreview,
@@ -103,6 +104,14 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
   if (!/^\d{4}-\d{2}-\d{2}$/.test(h.orderDate) || Number.isNaN(Date.parse(h.orderDate))) blocking.push("Укажите дату закупки (шаг 1)");
   else if (h.receiveNow && h.orderDate > new Date().toISOString().slice(0, 10)) blocking.push("Дата закупки в будущем, а мех принимается на склад сразу: поправьте дату или снимите «Принять на склад сразу» (шаг 1)");
 
+  if ((h.invoiceAmount ?? "").trim() && !(Number.isFinite(parseMoney(h.invoiceAmount!.trim()) ?? num(h.invoiceAmount!)) && (parseMoney(h.invoiceAmount!.trim()) ?? num(h.invoiceAmount!)) > 0))
+    blocking.push("Сумма счёта аукциона (шаг 1, «Дополнительно») должна быть положительным числом — или очистите поле");
+
+  if ((h.serviceVat ?? "").trim() !== "") {
+    const sv = num(h.serviceVat!);
+    if (!(Number.isFinite(sv) && sv >= 0 && sv <= 100)) blocking.push("НДС на сборы аукциона (шаг 1, «Дополнительно») должен быть от 0 до 100 — или очистите поле");
+  }
+
   let auctionName = "";
   const existing = h.auctionId ? refs.auctions.find((a) => a.id === h.auctionId) : undefined;
   if (h.newAuction) {
@@ -126,12 +135,13 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
     colors: refs.colors,
     existingLots,
     rate: rate > 0 ? rate : 1,
+    pctCols: payload.pct,
   };
   const validation = validateRows(payload.rows, ctx, payload.decisions);
   if (payload.rows.length === 0) blocking.push("Нет ни одной строки лота (шаг 2)");
   if (validation.errorCount > 0) blocking.push(`В таблице лотов ошибок: ${validation.errorCount} (шаг 2)`);
 
-  const items = itemsOf(payload.rows, validation.checks, { vatDefault: ctx.vatDefault, rate: ctx.rate, currency, pctCols: payload.pct });
+  const items = itemsOf(payload.rows, validation.checks, { vatDefault: ctx.vatDefault, rate: ctx.rate, currency, pctCols: payload.pct, serviceVatPct: serviceVatPctFor(h.orderDate, h.serviceVat) });
 
   // закупки по счетам аукциона
   const withInv = items.filter((i) => i.invoice).length;
@@ -171,7 +181,12 @@ export function planBatch(payload: BatchPayload, refs: IntakeRefs, debtNow: numb
     vatRates: [...new Set(purchases.flatMap((p) => p.totals.vatRates))],
     auctionPart: allParts,
   };
-  const docs: DocRecon[] = payload.docs.map((d) => {
+  // Сумма счёта аукциона, введённая на шаге 1, сверяется как документ (файлы не прикладываются).
+  const invAmount = (h.invoiceAmount ?? "").trim();
+  const docInputs = invAmount
+    ? [...payload.docs, { idx: 1000, name: "Счёт аукциона (сумма с шага 1)", kind: "AUCTION_INVOICE" as const, number: h.invoiceNumber, date: "", amount: invAmount }]
+    : payload.docs;
+  const docs: DocRecon[] = docInputs.map((d) => {
     const amount = d.amount.trim() ? parseMoney(d.amount.trim()) ?? num(d.amount) : NaN;
     const base: Pick<DocRecon, "idx" | "name" | "kind"> = { idx: d.idx, name: d.name, kind: d.kind };
     if (!AMOUNT_KINDS.includes(d.kind)) return { ...base, against: "", amount: null, recon: null, note: "Для этого типа документа сумма не сверяется" };

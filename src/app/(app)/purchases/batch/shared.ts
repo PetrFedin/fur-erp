@@ -1,3 +1,4 @@
+import type { BatchExpenses } from "@/lib/batch-expenses";
 import type { BatchHeader, Decisions, DocKindKey, IntakeRow, Mapping } from "@/lib/batch-intake";
 
 export type WizardRefs = {
@@ -35,4 +36,6 @@ export type Draft = {
   pct: Partial<Record<"fee" | "broker", boolean>>;
   info: Omit<TableInfo, "table"> | null;
   nextN: number;
+  /** Общие суммы «Расходов партии» (поле появилось позже: в старых черновиках его нет). */
+  expenses?: BatchExpenses;
 };

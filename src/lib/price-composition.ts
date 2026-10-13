@@ -183,8 +183,12 @@ function decodeItems(items: CompRow[], c: CompInput, opt: DecodeOpt = {}): Compo
     cats.raw = ((v("Цена за ед. по курсу, ₽") ?? 0) + items.filter((x) => /^нду?с(?![а-яa-z]).*на товар/i.test(x.label)).reduce((a, x) => (used.add(x.label), a + x.value), 0)) * q;
     cats.agent += (vStarts("Аукционный сбор") + vStarts("НДС на аукционный сбор")) * q;
     cats.dress += vStarts("Выделка") * q;
-    cats.transport += vStarts("Транспорт") * q;
+    cats.transport += (vStarts("Транспорт") + vStarts("Таможня")) * q;
     cats.mediator += vStarts("Брокерский %") * q;
+    // Строки мастера «Новая закупка»: упаковка — «Прочие расходы», комиссия за транзит денег — «Валютные комиссии».
+    pack = vStarts("Упаковка") * q;
+    cats.other += pack;
+    cats.fx += vStarts("Комиссия за транзит") * q;
   } else return null;
 
   const detail: { label: string; parent: string }[] = [];

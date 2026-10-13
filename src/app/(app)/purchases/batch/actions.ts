@@ -158,6 +158,7 @@ function coercePayload(raw: unknown): BatchPayload | null {
       n: i + 1, lot: g("lot"), material: g("material"), color: g("color"), grade: g("grade"), qty: g("qty"), price: g("price"), vat: g("vat"),
       currency: g("currency"), invoice: g("invoice"), rate: g("rate"), fee: g("fee"), dressing: g("dressing"), transport: g("transport"),
       broker: g("broker"), transit: g("transit"), fileUnit: g("fileUnit"), fileTotal: g("fileTotal"),
+      customs: g("customs"), packing: g("packing"),
     };
   };
   const docs: DocMeta[] = (Array.isArray(r.docs) ? r.docs : []).slice(0, 10).map((x, i) => {
@@ -172,11 +173,14 @@ function coercePayload(raw: unknown): BatchPayload | null {
       auctionId: str(h.auctionId, 60), newAuction: na ? { name: str(na.name, 120), date: str(na.date, 10), house: str(na.house, 80) } : null,
       supplierId: str(h.supplierId, 60), warehouseId: str(h.warehouseId, 60), orderDate: str(h.orderDate, 10), currency: str(h.currency, 3).toUpperCase(),
       exchangeRate: str(h.exchangeRate, 30), vatDefault: str(h.vatDefault, 10), invoiceNumber: str(h.invoiceNumber, 100), receiveNow: bool(h.receiveNow),
-      notes: str(h.notes, 1000),
+      notes: str(h.notes, 1000), invoiceAmount: str(h.invoiceAmount, 40), serviceVat: str(h.serviceVat, 10),
     },
     rows: rows.map(rowOf),
     decisions: { fur: cleanDec(dec.fur, ["ref", "add"]), color: cleanDec(dec.color, ["ref", "add", "keep"]) },
     pct: { fee: bool(pct.fee), broker: bool(pct.broker) },
+    expenses: Object.fromEntries(
+      Object.entries((r.expenses ?? {}) as Record<string, unknown>).filter(([, v]) => typeof v === "string" && v.trim() !== "").slice(0, 12).map(([k, v]) => [k.slice(0, 20), str(v, 40)]),
+    ),
     docs,
     ackMismatch: bool(r.ackMismatch),
   };
@@ -383,6 +387,7 @@ export async function createBatch(formData: FormData): Promise<{ error: string }
               auction: plan.auctionName, auctionCreated, receiving: h.receiveNow, purchases: created, lots: preview.totals.lots,
               qty: preview.totals.qty, inclVat: preview.totals.inclVat, docs: docsAttached, newMaterials: newMat, newColors: newCol,
               debtBefore: Number(debtBefore.debt.toFixed(2)),
+              expenses: payload.expenses ?? {},
             } as unknown as Prisma.InputJsonValue,
           },
         });

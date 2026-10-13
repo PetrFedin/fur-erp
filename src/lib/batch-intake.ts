@@ -122,6 +122,8 @@ export type IntakeRow = {
   n: number;
   lot: string; material: string; color: string; grade: string; qty: string; price: string; vat: string; currency: string; invoice: string;
   rate: string; fee: string; dressing: string; transport: string; broker: string; transit: string; fileUnit: string; fileTotal: string;
+  /** Из «Расходов партии»: таможня и упаковка ₽ за шкуру — отдельные строки расчёта (в столбец «Транспорт» не входят). */
+  customs?: string; packing?: string;
 };
 
 export const EMPTY_ROW: Omit<IntakeRow, "n"> = {
@@ -183,6 +185,8 @@ export type IntakeContext = {
   existingLots: Map<string, string>;
   /** Курс партии, для сверки с «курсом» в файле. */
   rate: number;
+  /** Столбцы «сбор»/«брокерский» заданы в процентах (иначе рубли за шкуру). */
+  pctCols?: Partial<Record<"fee" | "broker", boolean>>;
 };
 
 export type RowCheck = {
@@ -248,6 +252,19 @@ export function validateRows(rows: IntakeRow[], ctx: IntakeContext, dec: Decisio
       const v = num(r.vat);
       if (!Number.isFinite(v)) c.errors.push(`НДС «${r.vat}» — не число`);
       else if (v < 0 || v > 100) c.errors.push("НДС должен быть от 0 до 100");
+    }
+    // --- расходы строки: числа, не отрицательные; проценты — до 100
+    const EXP: [keyof IntakeRow, string, boolean][] = [
+      ["fee", "сборы аукциона", !!ctx.pctCols?.fee], ["broker", "брокерский", !!ctx.pctCols?.broker], ["dressing", "выделка", false],
+      ["transport", "транспорт", false], ["customs", "таможня", false], ["packing", "упаковка", false], ["transit", "комиссия за транзит", false],
+    ];
+    for (const [k, label, isPct] of EXP) {
+      const raw = String(r[k] ?? "").trim();
+      if (!raw) continue;
+      const x = num(raw);
+      if (!Number.isFinite(x)) c.errors.push(`${label} «${raw}» — не число`);
+      else if (x < 0) c.errors.push(`${label} не может быть отрицательной`);
+      else if (isPct && x > 100) c.errors.push(`${label}: процент должен быть от 0 до 100`);
     }
     const cur = r.currency.trim().toUpperCase();
     if (cur && cur !== ctx.currency) c.errors.push(`валюта строки ${cur} не совпадает с валютой партии ${ctx.currency}: партия ведётся в одной валюте`);
@@ -392,7 +409,7 @@ const optNum = (s: string): number | null => {
 export function itemsOf(
   rows: IntakeRow[],
   checks: RowCheck[],
-  ctx: { vatDefault: number; rate: number; currency: string; pctCols?: Partial<Record<"fee" | "broker", boolean>> },
+  ctx: { vatDefault: number; rate: number; currency: string; pctCols?: Partial<Record<"fee" | "broker", boolean>>; serviceVatPct?: number },
 ): ItemDraft[] {
   const byN = new Map(checks.map((c) => [c.n, c]));
   const out: ItemDraft[] = [];
@@ -403,7 +420,8 @@ export function itemsOf(
     const unitPrice = roundPrice(num(r.price));
     const vatRate = roundVat(r.vat.trim() ? num(r.vat) : ctx.vatDefault);
     const fee = optNum(r.fee), dressing = optNum(r.dressing), transport = optNum(r.transport), broker = optNum(r.broker), transit = optNum(r.transit);
-    const hasCalc = [fee, dressing, transport, broker, transit].some((x) => x !== null);
+    const customs = optNum(r.customs ?? ""), packing = optNum(r.packing ?? "");
+    const hasCalc = [fee, dressing, transport, broker, transit, customs, packing].some((x) => x !== null);
     const rate = ctx.currency === "RUB" ? 1 : ctx.rate;
     const goods = unitPrice * rate;
     const pct = (v: number | null, isPct?: boolean) => (v === null ? 0 : isPct ? v : goods > 0 ? (v / goods) * 100 : 0);
@@ -416,11 +434,12 @@ export function itemsOf(
         quantity, price: unitPrice, rate, vat: vatRate,
         feePct: Math.round(pct(fee, ctx.pctCols?.fee) * 1e6) / 1e6,
         dressing: dressing ?? 0,
-        transport: transport ?? 0,
+        transport: (transport ?? 0) + (customs ?? 0) + (packing ?? 0),
         brokerPct: Math.round(pct(broker, ctx.pctCols?.broker) * 1e6) / 1e6,
         transit: transit ?? 0,
+        ...(ctx.serviceVatPct != null && ctx.serviceVatPct !== 22 ? { serviceVatPct: ctx.serviceVatPct } : {}),
       };
-      costPlan = buildCostPlanJson(inputs, { furDescription: r.grade || null }, new Date().toISOString());
+      costPlan = buildCostPlanJson(inputs, { furDescription: r.grade || null }, new Date().toISOString(), { customs: customs ?? 0, packing: packing ?? 0 });
       const cp = computeCostPlan(inputs);
       auctionUnit = cp.goods + cp.fee + cp.feeVat;
       if (fileUnit !== null) planDiffUnit = Math.round((cp.unitIncl - fileUnit) * 100) / 100;
@@ -692,7 +711,20 @@ export type BatchHeader = {
   /** Принять на склад сразу (иначе закупка остаётся черновиком — мех ещё в пути). */
   receiveNow: boolean;
   notes: string;
+  /** Сумма счёта аукциона по документу (необязательно): мастер сверит её с суммой лотов. */
+  invoiceAmount?: string;
+  /** НДС на сборы аукциона и выделку, % ("" — по дате закупки: 22 с 2026 года, 20 раньше; 0 — иностранный аукцион, ввозной НДС внутри «Таможни»). */
+  serviceVat?: string;
 };
+
+/** Ставка НДС на сборы аукциона и выделку: 22% с 01.01.2026, до того 20% (по дате закупки). */
+export function serviceVatPctFor(orderDate: string, override?: string): number {
+  if (override && override.trim() !== "") {
+    const v = num(override);
+    if (Number.isFinite(v) && v >= 0 && v <= 100) return v;
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(orderDate) && orderDate < "2026-01-01" ? 20 : 22;
+}
 
 export type DocMeta = {
   /** Порядковый номер файла в отправке (индекс в FormData files). */
@@ -711,6 +743,8 @@ export type BatchPayload = {
   rows: IntakeRow[];
   decisions: Decisions;
   pct: Partial<Record<"fee" | "broker", boolean>>;
+  /** «Расходы партии», как введены (для журнала): пустые строки не передаются. */
+  expenses?: Record<string, string>;
   docs: DocMeta[];
   /** Пользователь подтвердил, что знает о расхождениях сумм документов с лотами. */
   ackMismatch: boolean;

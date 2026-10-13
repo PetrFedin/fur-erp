@@ -23,19 +23,20 @@ export type BatchExpenses = {
   dressing: string;
   /** Транспорт за всю партию, ₽. */
   transport: string;
-  /** Таможня и таможенные платежи, ₽ (в расчётном листе — в строке «Транспорт»). */
+  /** Таможня и таможенные платежи, ₽ (в расчётном листе — отдельная строка, сектор «Транспорт и таможня»). */
   customs: string;
   /** Комиссия за транзит денег, ₽. */
   transit: string;
-  /** Упаковка и прочее, ₽ (в расчётном листе — в строке «Транспорт»). */
+  /** Упаковка и прочее, ₽ (в расчётном листе — отдельная строка «Упаковка и прочее», сектор «Прочие расходы»). */
   other: string;
   /** Как делить ₽-суммы: поровну на шкуру или пропорционально стоимости товара. */
   base: SpreadBase;
+  /** Номера строк (IntakeRow.n), на которые расходы уже разнесены: чтобы заметить новые лоты. */
+  applied?: number[];
 };
 
 export const EMPTY_EXPENSES: BatchExpenses = { fee: "", feeMode: "pct", broker: "", brokerMode: "pct", dressing: "", transport: "", customs: "", transit: "", other: "", base: "qty" };
 
-const r4 = (n: number) => Math.round(n * 1e4) / 1e4;
 const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
 const fmtNum = (n: number) => String(n).replace(".", ",");
 
@@ -76,7 +77,7 @@ export function expenseProblems(e: BatchExpenses): string[] {
 
 export type SpreadResult = {
   /** Что записать в строки: ключ — IntakeRow.n. */
-  patch: Map<number, Pick<IntakeRow, "fee" | "dressing" | "transport" | "broker" | "transit">>;
+  patch: Map<number, Pick<IntakeRow, "fee" | "dressing" | "transport" | "broker" | "transit" | "customs" | "packing">>;
   /** Процентные столбцы: после применения «сбор» и «брокерский» хранятся в процентах. */
   pct: Partial<Record<"fee" | "broker", boolean>>;
   /** Строк получили расходы. */
@@ -84,11 +85,11 @@ export type SpreadResult = {
   /** Строк пропущено (нет количества или цены). */
   skipped: number;
   /** Сумма по строкам после округления до 4 знаков на шкуру — для сверки с введённым. */
-  spread: { dressing: number; transport: number; transit: number };
+  spread: { dressing: number; transport: number; customs: number; packing: number; transit: number };
 };
 
 /**
- * Раскладка общих расходов на строки. ₽-суммы (выделка, транспорт+таможня+прочее, транзит) делятся на шкуры поровну
+ * Раскладка общих расходов на строки. ₽-суммы (выделка, транспорт, таможня, упаковка, транзит) делятся на шкуры поровну
  * либо пропорционально стоимости товара лота; % и ₽ сборов/брокерского переводятся в процент от стоимости товара.
  */
 export function spreadExpenses(rows: IntakeRow[], rate: number, e: BatchExpenses): SpreadResult {
@@ -97,11 +98,10 @@ export function spreadExpenses(rows: IntakeRow[], rate: number, e: BatchExpenses
   const totalQty = valid.reduce((s, v) => s + v.qty, 0);
   const totalGoods = valid.reduce((s, v) => s + v.qty * v.price * rate, 0);
   const val = (s: string) => (s.trim() === "" ? 0 : Math.max(0, num(s) || 0));
-  const transportAll = val(e.transport) + val(e.customs) + val(e.other);
   const unitOf = (total: number, v: Valid): number => {
     if (total <= 0) return 0;
-    if (e.base === "value" && totalGoods > 0) return r4((total * (v.price * rate)) / totalGoods);
-    return totalQty > 0 ? r4(total / totalQty) : 0;
+    if (e.base === "value" && totalGoods > 0) return r6((total * (v.price * rate)) / totalGoods);
+    return totalQty > 0 ? r6(total / totalQty) : 0;
   };
   const pctOf = (raw: string, mode: FeeMode): number | null => {
     if (raw.trim() === "") return null;
@@ -111,28 +111,36 @@ export function spreadExpenses(rows: IntakeRow[], rate: number, e: BatchExpenses
   };
   const feePct = pctOf(e.fee, e.feeMode);
   const brokerPct = pctOf(e.broker, e.brokerMode);
-  const spread = { dressing: 0, transport: 0, transit: 0 };
+  const spread = { dressing: 0, transport: 0, customs: 0, packing: 0, transit: 0 };
+  const blank = (s: string) => s.trim() === "";
   for (const v of valid) {
     const dressing = unitOf(val(e.dressing), v);
-    const transport = unitOf(transportAll, v);
+    const transport = unitOf(val(e.transport), v);
+    const customs = unitOf(val(e.customs), v);
+    const packing = unitOf(val(e.other), v);
     const transit = unitOf(val(e.transit), v);
     spread.dressing += dressing * v.qty;
     spread.transport += transport * v.qty;
+    spread.customs += customs * v.qty;
+    spread.packing += packing * v.qty;
     spread.transit += transit * v.qty;
     patch.set(v.r.n, {
       fee: feePct === null ? v.r.fee : fmtNum(feePct),
       broker: brokerPct === null ? v.r.broker : fmtNum(brokerPct),
-      dressing: e.dressing.trim() === "" ? v.r.dressing : fmtNum(dressing),
-      transport: e.transport.trim() === "" && e.customs.trim() === "" && e.other.trim() === "" ? v.r.transport : fmtNum(transport),
-      transit: e.transit.trim() === "" ? v.r.transit : fmtNum(transit),
+      dressing: blank(e.dressing) ? v.r.dressing : fmtNum(dressing),
+      transport: blank(e.transport) ? v.r.transport : fmtNum(transport),
+      customs: blank(e.customs) ? v.r.customs : fmtNum(customs),
+      packing: blank(e.other) ? v.r.packing : fmtNum(packing),
+      transit: blank(e.transit) ? v.r.transit : fmtNum(transit),
     });
   }
+  const c2 = (n: number) => Math.round(n * 100) / 100;
   return {
     patch,
     pct: { ...(feePct !== null ? { fee: true } : {}), ...(brokerPct !== null ? { broker: true } : {}) },
     rows: valid.length,
     skipped: rows.length - valid.length,
-    spread: { dressing: Math.round(spread.dressing * 100) / 100, transport: Math.round(spread.transport * 100) / 100, transit: Math.round(spread.transit * 100) / 100 },
+    spread: { dressing: c2(spread.dressing), transport: c2(spread.transport), customs: c2(spread.customs), packing: c2(spread.packing), transit: c2(spread.transit) },
   };
 }
 
@@ -150,6 +158,8 @@ export type Composition = {
   feeVat: number;
   dressing: number;
   transport: number;
+  customs: number;
+  packing: number;
   broker: number;
   transit: number;
   /** Итого с НДС — Σ computeCostPlan.totalIncl. */
@@ -168,10 +178,10 @@ export type Composition = {
  */
 export function compositionOf(
   rows: IntakeRow[],
-  ctx: { rate: number; currency: string; vatDefault: number; pct?: Partial<Record<"fee" | "broker", boolean>> },
+  ctx: { rate: number; currency: string; vatDefault: number; pct?: Partial<Record<"fee" | "broker", boolean>>; serviceVatPct?: number },
 ): Composition {
   const rate = ctx.currency === "RUB" ? 1 : ctx.rate;
-  const c: Composition = { lots: 0, qty: 0, goods: 0, fee: 0, goodsVat: 0, feeVat: 0, dressing: 0, transport: 0, broker: 0, transit: 0, totalIncl: 0, totalExcl: 0, perUnitIncl: 0, perUnitExcl: 0, perLot: [] };
+  const c: Composition = { lots: 0, qty: 0, goods: 0, fee: 0, goodsVat: 0, feeVat: 0, dressing: 0, transport: 0, customs: 0, packing: 0, broker: 0, transit: 0, totalIncl: 0, totalExcl: 0, perUnitIncl: 0, perUnitExcl: 0, perLot: [] };
   const opt = (s: string) => (s.trim() === "" ? null : (Number.isFinite(num(s)) ? num(s) : null));
   for (const { r, qty, price } of validRows(rows)) {
     const q = roundQty(qty);
@@ -179,12 +189,14 @@ export function compositionOf(
     const pct = (v: number | null, isPct?: boolean) => (v === null ? 0 : isPct ? v : goods > 0 ? (v / goods) * 100 : 0);
     const vat = r.vat.trim() ? num(r.vat) : ctx.vatDefault;
     const dressing = opt(r.dressing) ?? 0, transport = opt(r.transport) ?? 0, transit = opt(r.transit) ?? 0;
+    const customs = opt(r.customs ?? "") ?? 0, packing = opt(r.packing ?? "") ?? 0;
     const cp = computeCostPlan({
       quantity: q, price, rate,
       vat: Number.isFinite(vat) ? vat : DEFAULT_VAT,
       feePct: pct(opt(r.fee), ctx.pct?.fee),
       brokerPct: pct(opt(r.broker), ctx.pct?.broker),
-      dressing, transport, transit,
+      dressing, transport: transport + customs + packing, transit,
+      ...(ctx.serviceVatPct != null && ctx.serviceVatPct !== 22 ? { serviceVatPct: ctx.serviceVatPct } : {}),
     });
     c.lots += 1;
     c.qty += q;
@@ -194,6 +206,8 @@ export function compositionOf(
     c.goodsVat += cp.goodsVat * q;
     c.dressing += dressing * q;
     c.transport += transport * q;
+    c.customs += customs * q;
+    c.packing += packing * q;
     c.broker += cp.broker * q;
     c.transit += transit * q;
     c.totalIncl += cp.totalIncl;

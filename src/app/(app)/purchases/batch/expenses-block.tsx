@@ -5,43 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { compositionOf, EMPTY_EXPENSES, expenseProblems, hasAnyExpense, spreadExpenses, type BatchExpenses, type Composition } from "@/lib/batch-expenses";
 import { formatMoney } from "@/lib/utils";
-import type { IntakeRow } from "@/lib/batch-intake";
+import { num, type IntakeRow } from "@/lib/batch-intake";
 
 const money = (n: number) => formatMoney(n);
 const fmt = (n: number, d = 0) => n.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d });
 
-type Ctx = { rate: number; currency: string; vatDefault: number };
+type Ctx = { rate: number; currency: string; vatDefault: number; serviceVatPct?: number };
 
 /**
  * «Расходы партии» (шаг «Лоты»): общие суммы раскладываются на лоты в те же столбцы расчётного листа,
  * итог и «себестоимость за шкуру» пересчитываются сразу, до сохранения.
  */
 export function ExpensesBlock({
-  rows, setRows, pct, setPct, ctx,
+  rows, setRows, pct, setPct, ctx, e, setE,
 }: {
   rows: IntakeRow[];
   setRows: (r: IntakeRow[] | ((p: IntakeRow[]) => IntakeRow[])) => void;
   pct: Partial<Record<"fee" | "broker", boolean>>;
   setPct: (p: Partial<Record<"fee" | "broker", boolean>>) => void;
   ctx: Ctx;
+  /** Введённые общие суммы живут в мастере и сохраняются вместе с черновиком. */
+  e: BatchExpenses;
+  setE: (v: BatchExpenses | ((p: BatchExpenses) => BatchExpenses)) => void;
 }) {
-  const [e, setE] = useState<BatchExpenses>(EMPTY_EXPENSES);
   const [note, setNote] = useState<string | null>(null);
   const set = <K extends keyof BatchExpenses>(k: K, v: BatchExpenses[K]) => { setE((x) => ({ ...x, [k]: v })); setNote(null); };
   const comp = useMemo(() => compositionOf(rows, { ...ctx, pct }), [rows, ctx, pct]);
   const problems = expenseProblems(e);
   const rate = ctx.currency === "RUB" ? 1 : ctx.rate;
   const noRate = ctx.currency !== "RUB" && !(ctx.rate > 0);
+  // лоты, добавленные или исправленные после «Разнести»: у них расходов нет
+  const fresh = e.applied ? rows.filter((r) => num(r.qty) > 0 && num(r.price) >= 0 && !e.applied!.includes(r.n)).length : 0;
 
   function apply() {
     const res = spreadExpenses(rows, rate, e);
     if (res.rows === 0) return setNote("Нет строк с количеством и ценой — сначала заполните таблицу лотов.");
     setRows((prev) => prev.map((r) => (res.patch.has(r.n) ? { ...r, ...res.patch.get(r.n)! } : r)));
     setPct({ ...pct, ...res.pct });
+    setE((x) => ({ ...x, applied: [...res.patch.keys()] }));
     setNote(`Расходы разнесены на лоты: ${res.rows}${res.skipped ? `; строк без количества или цены пропущено: ${res.skipped}` : ""}. Итог ниже пересчитан.`);
   }
   function clearAll() {
-    setRows((prev) => prev.map((r) => ({ ...r, fee: "", dressing: "", transport: "", broker: "", transit: "" })));
+    setRows((prev) => prev.map((r) => ({ ...r, fee: "", dressing: "", transport: "", broker: "", transit: "", customs: "", packing: "" })));
     setPct({});
     setE(EMPTY_EXPENSES);
     setNote("Расходы в таблице лотов очищены.");
@@ -61,7 +66,7 @@ export function ExpensesBlock({
     <section className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3" data-expenses-block>
       <div>
         <h2 className="text-sm font-semibold">Расходы партии</h2>
-        <p className="text-xs text-neutral-500">Общие суммы за всю партию. «Разнести на лоты» запишет их в столбцы расчётного листа каждого лота; в составе цены лота они попадут в «Выделку», «Транспорт», «Брокерский» и «Сбор». Пропустите то, чего нет.</p>
+        <p className="text-xs text-neutral-500">Общие суммы за всю партию. «Разнести на лоты» запишет их в расчёт каждого лота; в составе цены лота они попадут в «Выделку», «Транспорт и таможню», «Аукционные сборы», «Комиссию» и «Прочие расходы». Пропустите то, чего нет.</p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label>Сборы аукциона (% от товара или ₽)</Label>{unit(e.feeMode, "fee")}</div>
@@ -79,7 +84,8 @@ export function ExpensesBlock({
           </Select>
         </div>
       </div>
-      <p className="text-xs text-neutral-500">Таможня и «упаковка и прочее» в расчётном листе идут одной строкой с транспортом. Сборы и брокерский в рублях переводятся в процент от стоимости товара всей партии.</p>
+      <p className="text-xs text-neutral-500">Выделка, транспорт, таможня, упаковка и комиссия за транзит записываются в расчёт каждого лота отдельными строками. Сборы и брокерский в рублях переводятся в процент от стоимости товара всей партии. Введённые суммы сохраняются в черновике.</p>
+      {fresh > 0 && <p className="rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">В таблице лотов есть строки, на которые расходы не разнесены ({fresh}). Нажмите «Разнести на лоты» ещё раз — суммы пересчитаются на все лоты.</p>}
       {noRate && <p className="text-xs text-amber-800">Укажите курс на шаге 1 — без него стоимость товара не считается.</p>}
       {problems.length > 0 && <ul className="list-disc rounded-md bg-red-50 px-6 py-1.5 text-xs text-red-700">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +106,9 @@ export function CompositionTable({ c, live = false, serverTotal }: { c: Composit
     ["Сборы аукциона", c.fee],
     ["Брокерский", c.broker],
     ["Выделка (с НДС 22%)", c.dressing],
-    ["Транспорт, таможня, прочее", c.transport],
+    ["Транспорт", c.transport],
+    ["Таможня", c.customs],
+    ["Упаковка и прочее", c.packing],
     ["Комиссия за транзит", c.transit],
     ["НДС на товар и на сбор", vat],
   ].filter(([, v], i) => i === 0 || Math.abs(v as number) > 0.004) as [string, number][];

@@ -14,6 +14,7 @@ import {
   type BatchPreview,
   type BatchResult,
   type Decisions,
+  serviceVatPctFor,
   type IntakeContext,
   type IntakeRow,
 } from "@/lib/batch-intake";
@@ -22,7 +23,7 @@ import { createBatch, previewBatch } from "./actions";
 import { getCbrRate } from "../cbr-actions";
 import { LotsStep } from "./lots-step";
 import { CompositionTable, ExpensesBlock } from "./expenses-block";
-import { compositionOf } from "@/lib/batch-expenses";
+import { compositionOf, EMPTY_EXPENSES, hasAnyExpense, type BatchExpenses } from "@/lib/batch-expenses";
 import type { DocState, Draft, TableInfo, WizardRefs } from "./shared";
 
 const STEPS = ["Аукцион", "Лоты", "Проверка", "Итог"];
@@ -68,6 +69,7 @@ export function BatchWizard({
   const [info, setInfo] = useState<TableInfo | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({ fur: {}, color: {} });
   const [pct, setPct] = useState<Partial<Record<"fee" | "broker", boolean>>>({});
+  const [expenses, setExpenses] = useState<BatchExpenses>(EMPTY_EXPENSES);
   const [docs, setDocs] = useState<DocState[]>([]); // документы партии больше не прикладываются: массив всегда пуст (формат запроса не меняем)
   const [ack, setAck] = useState(false);
   const [key, setKey] = useState(() => newKey());
@@ -77,38 +79,24 @@ export function BatchWizard({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
-  const [saved, setSaved] = useState<Draft | null>(null);
+  const [restoredAt, setRestoredAt] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [rateMsg, setRateMsg] = useState<string | null>(null);
 
-  // ----- черновик (localStorage): предлагаем продолжить, сохраняем при каждом изменении
+  // ----- черновик (localStorage): восстанавливается сам при открытии, сохраняется при каждом изменении
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(draftKey);
-      if (raw) {
-        const d = JSON.parse(raw) as Draft;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (d.v === 1 && (d.rows.length > 0 || d.step > 1)) setSaved(d);
-      }
-    } catch {
-      /* без черновика */
-    }
-    setHydrated(true);
-  }, [draftKey]);
-
-  useEffect(() => {
-    if (!hydrated || result || saved) return;
+    if (!hydrated || result) return;
     const t = setTimeout(() => {
       try {
-        if (rows.length === 0 && step === 1 && !header.auctionId && !header.newAuction) return;
-        const d: Draft = { v: 1, savedAt: Date.now(), step: Math.min(step, 3), header, rows, decisions, pct, info: info ? { fileName: info.fileName, headers: info.headers, headerIdx: info.headerIdx, mapping: info.mapping, note: info.note } : null, nextN };
+        if (rows.length === 0 && step === 1 && !header.auctionId && !header.newAuction && !hasAnyExpense(expenses)) return;
+        const d: Draft = { v: 1, savedAt: Date.now(), step: Math.min(step, 3), header, rows, decisions, pct, info: info ? { fileName: info.fileName, headers: info.headers, headerIdx: info.headerIdx, mapping: info.mapping, note: info.note } : null, nextN, expenses };
         window.localStorage.setItem(draftKey, JSON.stringify(d));
       } catch {
         /* хранилище недоступно */
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [hydrated, result, saved, step, header, rows, decisions, pct, info, nextN, draftKey]);
+  }, [hydrated, result, step, header, rows, decisions, pct, info, nextN, expenses, draftKey]);
 
   function clearDraft() {
     try {
@@ -118,15 +106,37 @@ export function BatchWizard({
     }
   }
   function restore(d: Draft) {
-    setHeader(d.header);
+    setHeader({ ...initialHeader(refs), ...d.header });
     setRows(d.rows);
     setDecisions(d.decisions);
     setPct(d.pct);
     setNextN(d.nextN);
+    setExpenses({ ...EMPTY_EXPENSES, ...(d.expenses ?? {}) });
     setInfo(d.info ? { ...d.info, table: [] } : null);
-    setStep(Math.min(d.step, 3) as number);
-    setSaved(null);
+    setStep(Math.min(Math.max(d.step, 1), 3));
+    setRestoredAt(d.savedAt);
   }
+  /** «Сбросить»: стирает черновик и возвращает мастер в начальное состояние. */
+  function resetDraft() {
+    clearDraft();
+    restart();
+    setRestoredAt(null);
+  }
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (raw) {
+        const d = JSON.parse(raw) as Draft;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (d.v === 1 && Array.isArray(d.rows) && (d.rows.length > 0 || d.step > 1 || (d.expenses && hasAnyExpense(d.expenses)))) restore(d);
+      }
+    } catch {
+      /* без черновика */
+    }
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
 
   // ----- проверка строк (тот же код, что и на сервере)
   const rate = header.currency === "RUB" ? 1 : numOf(header.exchangeRate) || 1;
@@ -139,8 +149,9 @@ export function BatchWizard({
       colors: refs.colors,
       existingLots: new Map(header.auctionId && !header.newAuction ? (refs.lotsByAuction[header.auctionId] ?? []) : []),
       rate,
+      pctCols: pct,
     }),
-    [header.currency, header.vatDefault, header.auctionId, header.newAuction, refs, rate],
+    [header.currency, header.vatDefault, header.auctionId, header.newAuction, refs, rate, pct],
   );
   const validation = useMemo(() => validateRows(rows, ctx, decisions), [rows, ctx, decisions]);
 
@@ -151,9 +162,10 @@ export function BatchWizard({
       rows,
       decisions,
       pct,
+      expenses: Object.fromEntries(Object.entries(expenses).filter(([k, v]) => typeof v === "string" && v.trim() !== "" && k !== "applied")) as Record<string, string>,
       docs: docs.map((d, i) => ({ idx: i, name: d.name, kind: d.kind, number: d.number, date: d.date, amount: d.amount })),
     }),
-    [header, rows, decisions, pct, docs],
+    [header, rows, decisions, pct, expenses, docs],
   );
   const seq = useRef(0);
   useEffect(() => {
@@ -243,6 +255,7 @@ export function BatchWizard({
     setInfo(null);
     setDecisions({ fur: {}, color: {} });
     setPct({});
+    setExpenses(EMPTY_EXPENSES);
     setDocs([]);
     setAck(false);
     setPreview(null);
@@ -256,15 +269,10 @@ export function BatchWizard({
 
   return (
     <div className="flex flex-col gap-3">
-      {saved && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900" data-draft-banner>
-          <span>
-            Найден черновик от {new Date(saved.savedAt).toLocaleString("ru-RU")}: строк {saved.rows.length}, шаг {saved.step}.
-          </span>
-          <span className="flex gap-2">
-            <Button size="sm" onClick={() => restore(saved)}>Продолжить</Button>
-            <Button size="sm" variant="outline" onClick={() => { clearDraft(); setSaved(null); }}>Начать заново</Button>
-          </span>
+      {restoredAt !== null && !result && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--ui-accent)] bg-[var(--ui-soft)] px-3 py-2 text-sm text-neutral-900" data-draft-banner role="status">
+          <span>Черновик восстановлен (сохранён {new Date(restoredAt).toLocaleString("ru-RU")}): лотов {rows.length}{hasAnyExpense(expenses) ? ", расходы партии на месте" : ""}. Он сохраняется сам при каждом изменении.</span>
+          <Button size="sm" variant="outline" onClick={resetDraft}>Сбросить</Button>
         </div>
       )}
 
@@ -381,6 +389,15 @@ export function BatchWizard({
                     <Label htmlFor="invoiceNumber">Счёт аукциона № (если в таблице нет столбца «Счёт»)</Label>
                     <Input id="invoiceNumber" value={header.invoiceNumber} onChange={(e) => set("invoiceNumber", e.target.value)} />
                   </div>
+                  <div>
+                    <Label htmlFor="invoiceAmount">Сумма счёта аукциона по документу, ₽ (для сверки)</Label>
+                    <Input id="invoiceAmount" inputMode="decimal" placeholder="необязательно" value={header.invoiceAmount ?? ""} onChange={(e) => set("invoiceAmount", e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="serviceVat">НДС на сборы аукциона и выделку, %</Label>
+                    <Input id="serviceVat" inputMode="decimal" placeholder={`по дате: ${serviceVatPctFor(header.orderDate)}`} value={header.serviceVat ?? ""} onChange={(e) => set("serviceVat", e.target.value)} />
+                    <p className="mt-1 text-xs text-neutral-500">Пусто — 22% (закупки до 2026 года — 20%). Для иностранного аукциона со ввозным НДС в таможенных платежах укажите 0, а НДС строк — 0, платежи — в «Таможне».</p>
+                  </div>
                   <label className="flex items-center gap-2 self-end text-sm">
                     <input type="checkbox" checked={header.receiveNow} onChange={(e) => set("receiveNow", e.target.checked)} />
                     Принять на склад сразу (иначе закупка останется черновиком — мех ещё в пути)
@@ -419,12 +436,12 @@ export function BatchWizard({
           )}
           {step === 2 && (
             <div className="mt-4">
-              <ExpensesBlock rows={rows} setRows={setRows} pct={pct} setPct={setPct} ctx={{ rate, currency: header.currency || "RUB", vatDefault: ctx.vatDefault }} />
+              <ExpensesBlock rows={rows} setRows={setRows} pct={pct} setPct={setPct} e={expenses} setE={setExpenses} ctx={{ rate, currency: header.currency || "RUB", vatDefault: ctx.vatDefault, serviceVatPct: serviceVatPctFor(header.orderDate, header.serviceVat) }} />
             </div>
           )}
 
           {step === 3 && (
-            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} rows={rows} pct={pct} rate={rate} vatDefault={ctx.vatDefault} />
+            <ReviewStep preview={preview} previewErr={previewErr} header={header} refs={refs} ack={ack} setAck={setAck} debtNow={debtNow} rows={rows} pct={pct} rate={rate} vatDefault={ctx.vatDefault} serviceVatPct={serviceVatPctFor(header.orderDate, header.serviceVat)} />
           )}
 
           {step === 4 && result && <ResultStep result={result} onRestart={restart} />}
@@ -464,12 +481,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function ReviewStep({
-  preview, previewErr, header, refs, ack, setAck, debtNow, rows, pct, rate, vatDefault,
+  preview, previewErr, header, refs, ack, setAck, debtNow, rows, pct, rate, vatDefault, serviceVatPct,
 }: {
   preview: BatchPreview | null; previewErr: string | null; header: BatchHeader; refs: WizardRefs; ack: boolean; setAck: (v: boolean) => void; debtNow: number;
-  rows: IntakeRow[]; pct: Partial<Record<"fee" | "broker", boolean>>; rate: number; vatDefault: number;
+  rows: IntakeRow[]; pct: Partial<Record<"fee" | "broker", boolean>>; rate: number; vatDefault: number; serviceVatPct: number;
 }) {
-  const comp = useMemo(() => compositionOf(rows, { rate, currency: header.currency || "RUB", vatDefault, pct }), [rows, rate, header.currency, vatDefault, pct]);
+  const comp = useMemo(() => compositionOf(rows, { rate, currency: header.currency || "RUB", vatDefault, pct, serviceVatPct }), [rows, rate, header.currency, vatDefault, pct, serviceVatPct]);
   if (previewErr) return <p className="text-sm text-red-700">{previewErr}</p>;
   if (!preview) return <p className="text-sm text-neutral-500">Считаем итоги…</p>;
   const t = preview.totals;
