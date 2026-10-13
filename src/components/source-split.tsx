@@ -77,7 +77,7 @@ export function SourceSplit({ lots, total, compactTitle = false }: { lots: FurLo
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => line(r.source, SOURCE_LABEL[r.source as PurchaseSource], r.qty, val(r), r.source === "contractor" || r.source === "ordered", r.source === "contractor" || r.source === "ordered" ? undefined : r.lots))}
+            {rows.map((r) => line(r.source, SOURCE_LABEL[r.source as PurchaseSource], r.qty, val(r), false, r.lots))}
             {hasDiff ? line("rounding", "округление", dQ, dV, true) : null}
             <tr className="row-total">
               <td className="py-1.5 pr-2 text-left">Всего (= «Куплено»)</td>

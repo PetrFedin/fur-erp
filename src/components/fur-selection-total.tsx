@@ -40,11 +40,11 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   usage: { kind: { fur: "Использование", lining: "Использование" }, all: "Любое" },
   rate: { kind: { fur: "Ставка НДС", lining: "Ставка НДС" }, all: "Любая" },
 };
-/** Слайды-источники «Куплено» после слайда «Все виды меха»: аукционы → поставщик → прочее (шкуры подрядчика + заказано, не получено). Ключ начинается с «@». */
-const SRC_KEYS = ["@auction", "@supplier", "@other"] as const;
-const SRC_TITLE: Record<string, string> = { "@auction": "Куплено на аукционах", "@supplier": "Куплено у поставщика", "@other": "Прочее к «Куплено»" };
-const SRC_SHORT: Record<string, string> = { "@auction": "На аукционах", "@supplier": "У поставщика", "@other": "Прочее к «Куплено»" };
-const inSrc = (k: string, l: FurLot) => { const s = classifyLotSource(l); return k === "@auction" ? s === "auction" : k === "@supplier" ? s === "supplier" : s === "contractor" || s === "ordered"; };
+/** Слайды-источники «Куплено» после слайда «Все виды меха»: аукционы → поставщик (всё купленное — либо там, либо там). Ключ начинается с «@». */
+const SRC_KEYS = ["@auction", "@supplier"] as const;
+const SRC_TITLE: Record<string, string> = { "@auction": "Куплено на аукционах", "@supplier": "Куплено у поставщика" };
+const SRC_SHORT: Record<string, string> = { "@auction": "На аукционах", "@supplier": "У поставщика" };
+const inSrc = (k: string, l: FurLot) => { return classifyLotSource(l) === (k === "@auction" ? "auction" : "supplier"); };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -580,7 +580,7 @@ export function FurSelectionTotal({
       {raw ? (
         <>
           {slides ? (() => {
-            // «Все виды меха» (без фильтров — плитки Главной) и сумма трёх слайдов-источников — для долей и сверки.
+            // «Все виды меха» (без фильтров — плитки Главной) и сумма двух слайдов-источников — для долей и сверки.
             const allFig = (slides[0].data ? slides[0].data.pair : raw.fur)[vat];
             const shareNote = (f: FlowFigures) => `доля от «Все виды меха»: ${allFig.recvQty > 0 ? formatPercent((f.recvQty / allFig.recvQty) * 100) : "—"} по шт., ${allFig.recvValue > 0 ? formatPercent((f.recvValue / allFig.recvValue) * 100) : "—"} по ₽`;
             const srcFigs = SRC_KEYS.map((k) => slides.find((x) => x.key === k)?.data?.pair[vat]).filter((x): x is FlowFigures => !!x);
@@ -592,14 +592,14 @@ export function FurSelectionTotal({
             const srcCheck = (
               <div className="mt-1 flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-500" data-testid="source-check">
                 <span>
-                  «На аукционах» + «У поставщика» + «Прочее к «Куплено»» = «Все виды меха»: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
+                  «На аукционах» + «У поставщика» = «Все виды меха»: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
                   {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
                 </span>
                 <InfoHint label="Что такое аукцион, поставщик и прочее" align="left" wide>
                   <p><b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); привязка — поле закупки «Аукцион».</p>
-                  <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада и прочее.</p>
-                  <p className="mt-1"><b>Прочее к «Куплено»</b> — шкуры подрядчика (сырьё подрядчика, оплаченное в составе счетов за пошив) и «заказано, не получено» (закупки-черновики без лотов: остаток = заказанное количество, использовано 0).</p>
-                  <p className="mt-1">Три слайда вместе дают «Все виды меха» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
+                  <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада, а также шкуры подрядчика (сырьё Веллмех, оплаченное в составе счетов за пошив).</p>
+                  <p className="mt-1">Любая закупка — либо на аукционе, либо у поставщика; третьего источника нет. «На аукционах» включает заказанное, но ещё не полученное (СП 09.26, FH 06.26): по ним лотов нет, поэтому остаток = заказанное количество, использовано 0 — на «Использовано» и «Остаток» этого слайда это влияет.</p>
+                  <p className="mt-1">Два слайда вместе дают «Все виды меха» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
                 </InfoHint>
               </div>
             );

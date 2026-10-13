@@ -140,7 +140,7 @@ export function furLotFromRecord(l: LotRecord, furIdx?: FurIndex): FurLot {
     hamQty: hammer ? recvN : 0,
     hamSubExcl: hammer ? recvN * hammer.excl : 0,
     hamSubIncl: hammer ? recvN * hammer.incl : 0,
-    source: l.purchase?.isContractorRaw ? "contractor" : classifyPurchaseSource(l.purchase?.auction),
+    source: l.purchase?.isContractorRaw ? "supplier" : classifyPurchaseSource(l.purchase?.auction),
     purchaseStatus: l.purchase ? (l.purchase.status === "RECEIVED" ? "RECEIVED" : l.purchase.status === "CANCELLED" ? "CANCELLED" : "DRAFT") : "RECEIVED",
     orderDate: l.purchase?.orderDate ? l.purchase.orderDate.toISOString().slice(0, 10) : undefined,
     usages: Array.from(byOrder.values()).map((u) => ({ orderId: u.orderId, number: u.number, qty: num(u.qty), incl: num(u.incl), excl: num(u.excl), extraIncl: num(u.extraIncl), extraExcl: num(u.extraExcl) })),

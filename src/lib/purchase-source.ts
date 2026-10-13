@@ -2,8 +2,12 @@
 // Без server-only: годится и для клиентских компонентов, и для скриптов.
 import { figures, flowOf, type FurLot } from "./fur-table";
 
-/** Источник закупки: настоящий аукцион, прямая закупка у поставщика, шкуры подрядчика, заказано-но-не-получено (черновики). */
-export type PurchaseSource = "auction" | "supplier" | "contractor" | "ordered";
+/**
+ * Источник закупки — ровно один из двух: настоящий аукцион или поставщик.
+ * «Заказано, не получено» (черновики СП 09.26, FH 06.26 и т. п.) — закупки настоящих аукционов, поэтому «auction».
+ * «Шкуры подрядчика» (isContractorRaw: З-2026-0001, 0010…0013 и заглушки hides) — сырьё поставщика (Веллмех), поэтому «supplier».
+ */
+export type PurchaseSource = "auction" | "supplier";
 
 /**
  * Дома, которые считаются настоящими пушными аукционами (поле Auction.house). Всё остальное в справочнике —
@@ -24,15 +28,13 @@ export function classifyPurchaseSource(auction: { kind: string; house: string | 
 }
 
 /** Источник лота: в строке лота он уже посчитан при загрузке (furLotFromRecord / заглушки Главной). */
-export const classifyLotSource = (l: Pick<FurLot, "source">): PurchaseSource => l.source ?? "supplier";
+export const classifyLotSource = (l: Pick<FurLot, "source">): PurchaseSource => (l.source === "auction" ? "auction" : "supplier");
 
 export const SOURCE_LABEL: Record<PurchaseSource, string> = {
   auction: "Куплено на аукционах",
   supplier: "Куплено у поставщика",
-  contractor: "Шкуры подрядчика",
-  ordered: "Заказано, не получено",
 };
-export const SOURCE_ORDER: PurchaseSource[] = ["auction", "supplier", "contractor", "ordered"];
+export const SOURCE_ORDER: PurchaseSource[] = ["auction", "supplier"];
 
 export type SourceSplitRow = { source: PurchaseSource; qty: number; incl: number; excl: number; lots: number };
 
