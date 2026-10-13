@@ -14,7 +14,7 @@ import { TH, THGroup } from "@/components/table-head";
 import { UNIT } from "@/lib/units";
 import { RawCards, type RawSlide } from "@/app/(app)/dashboard/raw-block";
 import { useSlideWindow } from "@/components/slide-window";
-import { SourceSplit } from "@/components/source-split";
+import { classifyLotSource } from "@/lib/purchase-source";
 import { FilteredPayTiles } from "@/app/(app)/dashboard/filtered-pay-tiles";
 import { rawRowsFromLots } from "@/lib/raw-rows";
 import { FurOrdersTable, type OrderInfo } from "@/components/fur-orders-table";
@@ -40,6 +40,11 @@ const FILTER_LABELS: Record<FilterKey, { kind: Record<FurKind, string>; all: str
   usage: { kind: { fur: "Использование", lining: "Использование" }, all: "Любое" },
   rate: { kind: { fur: "Ставка НДС", lining: "Ставка НДС" }, all: "Любая" },
 };
+/** Слайды-источники «Куплено» после слайда «Все виды меха»: аукционы → поставщик → прочее (шкуры подрядчика + заказано, не получено). Ключ начинается с «@». */
+const SRC_KEYS = ["@auction", "@supplier", "@other"] as const;
+const SRC_TITLE: Record<string, string> = { "@auction": "Куплено на аукционах", "@supplier": "Куплено у поставщика", "@other": "Прочее к «Куплено»" };
+const SRC_SHORT: Record<string, string> = { "@auction": "На аукционах", "@supplier": "У поставщика", "@other": "Прочее к «Куплено»" };
+const inSrc = (k: string, l: FurLot) => { const s = classifyLotSource(l); return k === "@auction" ? s === "auction" : k === "@supplier" ? s === "supplier" : s === "contractor" || s === "ordered"; };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const firstOf = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -151,12 +156,14 @@ export function FurSelectionTotal({
     if (!raw || lockItem) return [] as string[];
     const have = Array.from(new Set(table.filteredLots.map((l) => l.item))).sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
     const extra = kind === "fur" ? (noLotsKinds ?? []).filter((k) => !have.includes(k) && (!filters.item.length || filters.item.includes(k))) : [];
-    return [...have, ...extra];
+    const items = [...have, ...extra];
+    return kind === "fur" && items.length ? [...SRC_KEYS, ...items] : items;
   }, [raw, lockItem, table.filteredLots, kind, noLotsKinds, filters.item]);
   // Лента слайдов (прокрутка колесом/тачпадом/свайпом/перетаскиванием со scroll-snap) — тот же механизм, что в TileCarousel.
   const sw = useSlideWindow(slideKeys.length + 1, "(min-width: 1024px)", 1);
   const slideIdx = slideKeys.length ? sw.cur : 0;
   const slideNow = slideIdx > 0 ? slideKeys[slideIdx - 1] ?? "" : "";
+  const slideNowTitle = slideNow.startsWith("@") ? SRC_TITLE[slideNow] : slideNow;
   const goSlide = (i: number) => { const n = slideKeys.length + 1; sw.goTo(((i % n) + n) % n); };
   // Плитки одного набора лотов: те же flowOf/figures, что на Главной; деньги оплат — доли аукционов по стоимости лота.
   const tilesOf = (ls: FurLot[], item: string) => {
@@ -172,8 +179,9 @@ export function FurSelectionTotal({
   const slides = useMemo(() => {
     if (!raw || lockItem || !slideKeys.length) return null;
     return ["", ...slideKeys].map((k) => {
-      const ls = k ? table.filteredLots.filter((l) => l.item === k) : table.filteredLots;
-      return { key: k, lots: ls, data: k || isFiltered ? tilesOf(ls, k) : null };
+      const src = k.startsWith("@");
+      const ls = src ? table.filteredLots.filter((l) => inSrc(k, l)) : k ? table.filteredLots.filter((l) => l.item === k) : table.filteredLots;
+      return { key: k, lots: ls, data: k || isFiltered ? tilesOf(ls, src ? "" : k) : null };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw, lockItem, slideKeys, table.filteredLots, isFiltered]);
@@ -516,12 +524,12 @@ export function FurSelectionTotal({
       <button type="button" className={CAROUSEL_ARROW} aria-label="Предыдущий слайд" onClick={() => goSlide(slideIdx - 1)}>‹</button>
       <div className="flex items-center gap-1" role="tablist" aria-label="Вид">
         {["", ...slideKeys].map((k, i) => (
-          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={k || "Все виды меха"} title={k || "Все виды меха"} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
+          <button key={k || "total"} type="button" role="tab" aria-selected={i === slideIdx} aria-label={SRC_TITLE[k] ?? (k || "Все виды меха")} title={SRC_TITLE[k] ?? (k || "Все виды меха")} onClick={() => goSlide(i)} className={"h-2 rounded-full transition-all " + (i === slideIdx ? "w-5 bg-neutral-900" : "w-2 bg-neutral-300 hover:bg-neutral-400")} />
         ))}
       </div>
       <button type="button" className={CAROUSEL_ARROW} aria-label="Следующий слайд" onClick={() => goSlide(slideIdx + 1)}>›</button>
       <span className="ml-1 max-w-[9rem] truncate text-xs text-neutral-600">
-        {slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? "Все виды меха" : "Все ткани"}
+        {slideNow.startsWith("@") ? SRC_SHORT[slideNow] : slideNow ? (kind === "fur" ? <Link href={`/lots/fur/${encodeURIComponent(slideNow)}`} className="hover:underline" title="Страница вида меха">{slideNow}↗</Link> : slideNow) : kind === "fur" ? "Все виды меха" : "Все ткани"}
       </span>
     </div>
   ) : null;
@@ -572,15 +580,39 @@ export function FurSelectionTotal({
       {raw ? (
         <>
           {slides ? (() => {
+            // «Все виды меха» (без фильтров — плитки Главной) и сумма трёх слайдов-источников — для долей и сверки.
+            const allFig = (slides[0].data ? slides[0].data.pair : raw.fur)[vat];
+            const shareNote = (f: FlowFigures) => `доля от «Все виды меха»: ${allFig.recvQty > 0 ? formatPercent((f.recvQty / allFig.recvQty) * 100) : "—"} по шт., ${allFig.recvValue > 0 ? formatPercent((f.recvValue / allFig.recvValue) * 100) : "—"} по ₽`;
+            const srcFigs = SRC_KEYS.map((k) => slides.find((x) => x.key === k)?.data?.pair[vat]).filter((x): x is FlowFigures => !!x);
+            const sum = (g: (f: FlowFigures) => number) => srcFigs.reduce((a, f) => a + g(f), 0);
+            const dif = (g: (f: FlowFigures) => number) => g(allFig) - sum(g);
+            const used$ = (f: FlowFigures) => (raw.c4 === "on" ? f.usedValueOther : f.usedValue); // «Использовано» без 4% — как в плитке
+            const chk: [string, (f: FlowFigures) => number, boolean][] = [["куплено", (f) => f.recvQty, false], ["куплено", (f) => f.recvValue, true], ["использовано", (f) => f.usedQty, false], ["использовано", used$, true], ["остаток", (f) => f.remQty, false], ["остаток", (f) => f.remValue, true]];
+            const rounding = chk.filter(([, g]) => Math.abs(dif(g)) >= 0.5).map(([n, g, m]) => `${n} ${m ? formatMoney(dif(g)) : formatQty(dif(g)) + " шт."}`);
+            const srcCheck = (
+              <div className="mt-1 flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-500" data-testid="source-check">
+                <span>
+                  «На аукционах» + «У поставщика» + «Прочее к «Куплено»» = «Все виды меха»: куплено {formatQty(sum((f) => f.recvQty))} шт., {formatMoney(sum((f) => f.recvValue))}; использовано {formatQty(sum((f) => f.usedQty))} шт., {formatMoney(sum(used$))}; остаток {formatQty(sum((f) => f.remQty))} шт., {formatMoney(sum((f) => f.remValue))}
+                  {rounding.length ? `; округление: ${rounding.join(", ")}` : ""}.
+                </span>
+                <InfoHint label="Что такое аукцион, поставщик и прочее" align="left" wide>
+                  <p><b>На аукционах</b> — закупки, привязанные к настоящему аукциону справочника (SAGA, Kopenhagen, Fur Harvesters, AME, Союзпушнина, Русьпушнина); привязка — поле закупки «Аукцион».</p>
+                  <p className="mt-1"><b>У поставщика</b> — закупки без аукциона: напрямую у поставщика или фермы (КФХ), белая норка №80/№96, красная лиса со склада и прочее.</p>
+                  <p className="mt-1"><b>Прочее к «Куплено»</b> — шкуры подрядчика (сырьё подрядчика, оплаченное в составе счетов за пошив) и «заказано, не получено» (закупки-черновики без лотов: остаток = заказанное количество, использовано 0).</p>
+                  <p className="mt-1">Три слайда вместе дают «Все виды меха» (до рубля и штуки); разница округления, если есть, показана строкой «округление». Использовано — без 4%.</p>
+                </InfoHint>
+              </div>
+            );
             const pane: RawSlide[] = slides.map((sl) => {
               const d = sl.data;
               const fur = kind === "fur" && d ? d.pair : raw.fur;
               const lining = kind === "lining" && d ? d.pair : raw.lining;
               const own = kind === "fur" ? fur : lining;
               return {
-                key: sl.key, label: sl.key || (kind === "fur" ? "Все виды меха" : "Все ткани"), fur, lining,
+                key: sl.key, label: sl.key ? SRC_TITLE[sl.key] ?? sl.key : (kind === "fur" ? "Все виды меха" : "Все ткани"), fur, lining,
                 pay: d ? <FilteredPayTiles figs={d.pair.incl} paid={d.paid} due={d.due} c4={raw.c4} /> : raw.pay ?? null,
-                below: kind === "fur" ? <SourceSplit lots={sl.lots} total={own} /> : null,
+                recvNote: sl.key.startsWith("@") ? shareNote(own[vat]) : undefined,
+                below: sl.key.startsWith("@") ? srcCheck : null,
               };
             });
             const curData = slides[Math.min(slideIdx, slides.length - 1)]?.data;
@@ -589,7 +621,7 @@ export function FurSelectionTotal({
                 rows={curData?.rows ?? raw.rows}
                 fur={kind === "fur" && curData ? curData.pair : raw.fur}
                 lining={kind === "lining" && curData ? curData.pair : raw.lining}
-                c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={slideNow || undefined} headerExtra={slideCtl} />
+                c4={raw.c4} headerEnd={raw.headerEnd} titleSuffix={slideNowTitle || undefined} headerExtra={slideCtl} />
             );
           })() : lockItem ? (
             <>
@@ -597,7 +629,6 @@ export function FurSelectionTotal({
                 <RawCards key="raw-filtered" view={kind} rows={tileData.rows} fur={tileData.pair} lining={raw.lining} c4={raw.c4} headerEnd={raw.headerEnd}
                   pay={<FilteredPayTiles figs={tileData.pair.incl} paid={tileData.paid} due={tileData.due} c4={raw.c4} />} />
               ) : raw.tiles}
-              {kind === "fur" ? <SourceSplit lots={table.filteredLots} total={tileData ? tileData.pair : raw.fur} /> : null}
             </>
           ) : raw.tiles}
           {isFiltered ? (

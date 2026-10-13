@@ -75,7 +75,7 @@ function Duo({ children }: { children: React.ReactNode }) {
 }
 
 /** Слайд ряда «Сырьё | Оплаты»: плитки одного вида меха (или «Все виды меха») + то, что под ними (разбивка «Куплено»). */
-export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pay: React.ReactNode; below?: React.ReactNode };
+export type RawSlide = { key: string; label: string; fur: Pair; lining: Pair; pay: React.ReactNode; below?: React.ReactNode; /** Строка под цифрами «Куплено» (доля от «Все виды меха» на слайдах-источниках). */ recvNote?: React.ReactNode };
 
 /** Ряд плиток «Куплено / Использовано / Остаток» по меху или подкладке (Главная и страница «Сырьё»).
  *  Если передан pay (три плитки оплат), они встают в ТОТ ЖЕ ряд: «Сырьё | Оплаты» — шесть плиток в одну строку на мониторе, тонкая линия между группами. */
@@ -96,7 +96,7 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
                 <div className="raw-group" role="group" aria-label="Сырьё">
                   <div className="raw-group-label">Сырьё</div>
                   <div className="raw-tiles">
-                    <RawTriple view={view} fur={s.fur} lining={s.lining} c4={c4} compact onOpen={setPriceCol} vatRates={i === cur ? vatRates : undefined} />
+                    <RawTriple view={view} fur={s.fur} lining={s.lining} c4={c4} compact onOpen={setPriceCol} vatRates={i === cur ? vatRates : undefined} recvNote={s.recvNote} />
                   </div>
                 </div>
                 <div className="raw-divider" aria-hidden />
@@ -145,7 +145,7 @@ export function RawCards({ view, rows, fur, lining, c4, vatRates, pay, headerEnd
 
 /** Три плитки «Куплено / Использовано / Остаток» по меху или подкладке. compact — узкая раскладка для общего ряда из шести плиток:
  *  поля стоят в столбик с зарезервированной высотой, поэтому одинаковые строки лежат на одной горизонтали во всех шести плитках. */
-function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates }: { view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
+function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false, vatRates, recvNote }: { recvNote?: React.ReactNode; view: "fur" | "lining"; fur: Pair; lining: Pair; c4: "on" | "off"; onOpen: (c: "recv" | "used" | "rem") => void; compact?: boolean; vatRates?: VatTriple }) {
   const { mode: vat } = useVatDisplay();
   const F = fur[vat];
   const L = lining[vat];
@@ -213,6 +213,7 @@ function RawTriple({ view, fur, lining, c4, onOpen: setPriceCol, compact = false
                 <Row k={`Цена, ₽/${priceUnit}`} sub={compact ? <SubLines n={1} /> : undefined} v={cur.recvAvg != null ? rub(cur.recvAvg) : "—"} />
                 {usdTile && usdBought ? <Row k="Цена, $/шт." v={usdBought.main} /> : null}
               </Duo>
+              {recvNote ? <div className="mt-2 text-[11px] leading-4 text-neutral-500" data-testid="recv-share">{recvNote}</div> : null}
               {vatRates ? <VatLine v={vatRates.recv} minRem={compact ? 3 : 1} className="mt-auto pt-2" /> : null}
             </>
           )}
