@@ -37,6 +37,7 @@ export function PurchaseEditForm({
     auctionSession: string;
     auctionId: string | null;
     invoiceNumber: string;
+    invoiceDate: string;
     transferDocument: string;
     notes: string;
   };
@@ -113,6 +114,10 @@ export function PurchaseEditForm({
         <Label htmlFor="invoiceNumber">№ счёта</Label>
         <Input id="invoiceNumber" name="invoiceNumber" defaultValue={defaults.invoiceNumber} placeholder="2004" />
       </div>
+      <div>
+        <Label htmlFor="invoiceDate">Дата счёта</Label>
+        <Input id="invoiceDate" name="invoiceDate" type="date" defaultValue={defaults.invoiceDate} />
+      </div>
       <div className="sm:col-span-2">
         <Label htmlFor="transferDocument">УПД</Label>
         <Input
@@ -124,11 +129,12 @@ export function PurchaseEditForm({
       </div>
       <div className="sm:col-span-2">
         <Label htmlFor="notes">Примечание</Label>
+        <p className="mb-1 text-xs text-neutral-500">Примечание не сбрасывает подтверждение</p>
         <Textarea id="notes" name="notes" rows={4} maxLength={4000} defaultValue={defaults.notes} />
       </div>
       <p className="sm:col-span-2 text-xs text-neutral-500">
         {receivedMode
-          ? "Закупка принята на склад: поставщик, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта, УПД и примечание; подтверждение закупки сбросится."
+          ? "Закупка принята на склад: поставщик, валюта и курс не меняются — лоты уже посчитаны. Правятся дата, аукцион, № счёта, дата счёта, УПД и примечание; подтверждение закупки сбросится (кроме правки одного примечания)."
           : currencyLocked
           ? "Валюта и курс не меняются: в закупке есть позиции с расчётом из расчётного листа."
           : "При смене валюты курс сбрасывается на 1 — обновите его ниже."}

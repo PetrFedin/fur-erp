@@ -387,6 +387,25 @@ export async function updateCostPlanRate(purchaseId: string, formData: FormData)
 // exchangeRate to 1 (or leaves it, for RUB) exactly like createPurchase does,
 // since a stale rate carried over from a different currency is meaningless
 // and must be re-entered.
+/** Правка шапки изменила только примечание (не финансовое поле) — подтверждение закупки тогда не сбрасываем. */
+function onlyNotesChanged(
+  purchase: { supplierId: string; warehouseId: string; currency: string; auctionSession: string | null; auctionId: string | null; invoiceNumber: string | null; invoiceDate: Date | null; transferDocument: string | null; orderDate: Date },
+  next: { supplierId: string; warehouseId: string; currency: string; auctionSession: string | null | undefined; auctionId: string | null | undefined; invoiceNumber: string | null; invoiceDate: Date | null; transferDocument: string | null; orderDate: Date },
+): boolean {
+  const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+  return (
+    next.supplierId === purchase.supplierId &&
+    next.warehouseId === purchase.warehouseId &&
+    next.currency === purchase.currency &&
+    (next.auctionSession === undefined || next.auctionSession === purchase.auctionSession) &&
+    (next.auctionId === undefined || next.auctionId === purchase.auctionId) &&
+    next.invoiceNumber === (purchase.invoiceNumber?.trim() || null) &&
+    day(next.invoiceDate) === day(purchase.invoiceDate) &&
+    next.transferDocument === (purchase.transferDocument?.trim() || null) &&
+    day(next.orderDate) === day(purchase.orderDate)
+  );
+}
+
 const purchaseHeaderSchema = z.object({
   supplierId: z.string().min(1, "Выберите поставщика"),
   warehouseId: z.string().optional(),
@@ -437,6 +456,14 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
   if ("error" in auc) return { error: auc.error };
   const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim() || null;
   const transferDocument = (formData.get("transferDocument") as string)?.trim() || null;
+  const invoiceDateRaw = String(formData.get("invoiceDate") ?? "").trim();
+  const invoiceDate = invoiceDateRaw ? parseDateInput(invoiceDateRaw) : null;
+  if (invoiceDateRaw && !invoiceDate) return { error: "Укажите корректную дату счёта" };
+  const keepVerification = onlyNotesChanged(purchase, {
+    supplierId: parsed.data.supplierId, warehouseId, currency: parsed.data.currency,
+    auctionSession: auc.auctionSession, auctionId: auc.auctionId,
+    invoiceNumber, invoiceDate, transferDocument, orderDate: new Date(parsed.data.orderDate),
+  });
   // Примечание правится той же формой; если поля в форме нет (старые вызовы) — не трогаем.
   const notesField = formData.has("notes") ? { notes: (formData.get("notes") as string).trim().slice(0, 4000) || null } : {};
 
@@ -453,13 +480,14 @@ export async function updatePurchase(purchaseId: string, formData: FormData): Pr
       auctionSession: auc.auctionSession,
       auctionId: auc.auctionId,
       invoiceNumber,
+      invoiceDate,
       transferDocument,
       ...notesField,
       orderDate: new Date(parsed.data.orderDate),
     },
   });
 
-  await resetByPurchase(purchaseId);
+  if (!keepVerification) await resetByPurchase(purchaseId);
   revalidateAll();
   return {};
 }
@@ -480,6 +508,9 @@ async function updateReceivedPurchaseHeader(
   if (!dateRaw || parseDateInput(dateRaw) === null) return { error: "Укажите корректную дату заказа" };
   const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim().slice(0, 200) || null;
   const transferDocument = (formData.get("transferDocument") as string)?.trim().slice(0, 200) || null;
+  const invoiceDateRaw = String(formData.get("invoiceDate") ?? "").trim();
+  const invoiceDate = invoiceDateRaw ? parseDateInput(invoiceDateRaw) : null;
+  if (invoiceDateRaw && !invoiceDate) return { error: "Укажите корректную дату счёта" };
   const notesField = formData.has("notes") ? { notes: (formData.get("notes") as string).trim().slice(0, 4000) || null } : {};
   const auc = await purchaseAuctionFromForm(orgId, formData, purchase.auctionSession);
   if ("error" in auc) return { error: auc.error };
@@ -496,18 +527,24 @@ async function updateReceivedPurchaseHeader(
       };
     }
   }
+  const keepVerification = onlyNotesChanged(purchase, {
+    supplierId: purchase.supplierId, warehouseId: purchase.warehouseId, currency: purchase.currency,
+    auctionSession: auc.auctionSession, auctionId: auc.auctionId,
+    invoiceNumber, invoiceDate, transferDocument, orderDate: new Date(dateRaw),
+  });
   await prisma.purchase.updateMany({
     where: { id: purchase.id, organizationId: orgId, status: "RECEIVED" },
     data: {
       orderDate: new Date(dateRaw),
       invoiceNumber,
+      invoiceDate,
       transferDocument,
       ...notesField,
       auctionSession: auc.auctionSession,
       auctionId: auc.auctionId,
     },
   });
-  await resetVerification(prisma, orgId, { purchaseIds: [purchase.id], auctions: [oldAuction, newAuction] });
+  if (!keepVerification) await resetVerification(prisma, orgId, { purchaseIds: [purchase.id], auctions: [oldAuction, newAuction] });
   revalidateAll(orgId);
   return {};
 }

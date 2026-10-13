@@ -445,6 +445,8 @@ model Purchase {
   auctionId        String?
   auction          Auction?       @relation(fields: [auctionId], references: [id], onDelete: SetNull)
   invoiceNumber    String?
+  /// Дата счёта поставщика
+  invoiceDate      DateTime?
   transferDocument String?
   orderDate        DateTime       @default(now())
   expectedDate     DateTime?

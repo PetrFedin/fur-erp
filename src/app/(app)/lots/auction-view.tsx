@@ -470,7 +470,7 @@ export async function AuctionView({
           >
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-neutral-50 [&::-webkit-details-marker]:hidden">
               <span className="inline-block text-neutral-500 transition-transform group-open:rotate-90">›</span>
-              <span className="font-medium">{p.invoiceNumber ? `Счёт ${p.invoiceNumber}` : p.number}</span>
+              <span className="font-medium">{p.invoiceNumber ? `Счёт ${p.invoiceNumber}${p.invoiceDate ? ` от ${formatDate(p.invoiceDate)}` : ""}` : p.number}</span>
               <span className="text-xs text-neutral-500">
                 {p.number} · {formatDate(p.orderDate)}
               </span>

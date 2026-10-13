@@ -528,7 +528,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
               </>
             ) : null}
             {[
-              purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}` : null,
+              purchase.invoiceNumber ? `счёт № ${purchase.invoiceNumber}${purchase.invoiceDate ? ` от ${formatDate(purchase.invoiceDate)}` : ""}` : purchase.invoiceDate ? `счёт от ${formatDate(purchase.invoiceDate)}` : null,
               purchase.transferDocument ? `УПД ${purchase.transferDocument}` : null,
               isForeignCurrency ? `валюта позиций ${purchase.currency}, курс ${purchase.exchangeRate.toString()}` : null,
               vatRatesText ? `НДС ${vatRatesText}%` : null,
@@ -572,6 +572,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
                   auctionSession: purchase.auctionSession ?? "",
                   auctionId: auctionIdDefault,
                   invoiceNumber: purchase.invoiceNumber ?? "",
+                  invoiceDate: purchase.invoiceDate ? purchase.invoiceDate.toISOString().slice(0, 10) : "",
                   transferDocument: purchase.transferDocument ?? "",
                   notes: purchase.notes ?? "",
                 }}

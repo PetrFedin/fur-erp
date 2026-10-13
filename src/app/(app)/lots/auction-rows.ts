@@ -37,6 +37,7 @@ type Block = {
     id: string;
     number: string;
     invoiceNumber: string | null;
+    invoiceDate?: Date | null;
     status: string;
     currency: string;
     exchangeRate: Decimal;
