@@ -760,7 +760,7 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
                         <div className="flex flex-wrap items-center gap-1">
                           <Button type="button" size="sm" className={seg + (d.mode === "accepted" ? " bg-emerald-600 text-white hover:bg-emerald-700" : "")} variant={d.mode === "accepted" ? "default" : "outline"} aria-pressed={d.mode === "accepted"} onClick={() => pick(r, "accepted")}>Принято</Button>
                           <Button type="button" size="sm" className={seg + (d.mode === "rejected" ? " bg-red-600 text-white hover:bg-red-700" : "")} variant={d.mode === "rejected" ? "default" : "outline"} aria-pressed={d.mode === "rejected"} onClick={() => pick(r, "rejected")}>Не принято</Button>
-                          {r.quantity > 1 && (
+                          {r.quantity > 1 && d.mode === "partial" && (
                             <button type="button" className="text-xs text-blue-700 hover:underline" onClick={() => setD(r, d.mode === "partial" ? { mode: "none" } : { mode: "partial", acc: String(r.quantity), ret: "0" })}>
                               {d.mode === "partial" ? "без разбивки" : "частично…"}
                             </button>
