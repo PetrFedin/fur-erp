@@ -8,6 +8,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { INBOX_FILE_KINDS } from "@/lib/supplier-inbox-consts";
 import { CalcDetail } from "./calc-detail";
 import { SimpleSteps } from "./simple-steps";
+import { FinalFigures } from "./final-figures";
 import { detectFormat, finalFigures, needsAdvanced } from "@/lib/supplier-calc-simple";
 import { FORMAT_LABEL, STAGE_LABEL, remapCustomRefs, syncLetters, calcAll, columnsFor, emptyRow, headerRate, missingRates, rowFilled, newId, rateCols, switchFormat, type CalcFormat, type CalcPayload, type CalcHeader } from "@/lib/supplier-calc";
 import { attachInboxFile, deleteCalcDraft, parseCalcFile, removeInboxFile, saveCalcDraft, sendCalc } from "./actions";
@@ -79,6 +80,7 @@ export function CalcForm({ id, initial, readOnly, files, reviewNote }: { id: str
       {reviewNote && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">Комментарий проверяющего: {reviewNote}</div>}
       {!advanced && (
         <>
+          {ro && <FinalFigures {...finalFigures(p, t)} />}
           {!ro && <p className="text-sm text-neutral-600">Перенесите из аукционного счёта: аукцион, лоты и цены. Расходы добавьте ниже — остальное посчитается само.</p>}
           <SimpleSteps p={p} setP={setP} t={t} ro={ro} missing={missing} notify={(text, bad) => setMsg({ text, bad })}
             onAuction={(auction, seller) => setP((x) => {
