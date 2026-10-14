@@ -362,6 +362,7 @@ export function paramList(p: CalcPayload): { name: string; label: string; own: b
   return out;
 }
 
+export const colLetterOf = colLetter;
 const LETTERS = /^[A-Za-z]{1,3}$/;
 
 const matchRule = (r: ColRule, rowNo: number, raw: CalcRow): boolean => {
