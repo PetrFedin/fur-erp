@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +29,10 @@ type Usage = { orders: Array<{ id: string; number: string }>; purchases: Map<str
 export default async function ColorsPage({ searchParams }: PageProps<"/settings/colors">) {
   const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
+  if (session.user.role === "SUPPLIER") {
+    const refs = await prisma.colorRef.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" }, select: { id: true, name: true, aliases: true } });
+    return <SupplierSimpleRef title="Справочник цветов" rows={refs} />;
+  }
   const canEdit = hasRole(session.user.role, ACCESS.colors);
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";

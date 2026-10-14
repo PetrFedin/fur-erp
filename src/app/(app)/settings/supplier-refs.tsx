@@ -52,3 +52,29 @@ export function SupplierFursRef({ rows }: { rows: { id: string; name: string; na
     </div>
   );
 }
+
+/** Общий вид справочника для поставщика: название, группа и другие написания. Без счётчиков, ТЗ, закупок и примечаний. */
+export function SupplierSimpleRef({ title, rows }: { title: string; rows: { id: string; name: string; group?: string | null; sub?: string | null; aliases: string[] }[] }) {
+  const hasGroup = rows.some((r) => r.group);
+  const hasSub = rows.some((r) => r.sub);
+  return (
+    <div className="flex flex-col gap-4">
+      <Breadcrumbs items={[{ label: "Справочники", href: "/settings" }, { label: title }]} />
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <Table stickyHeader className="min-w-[520px]">
+        <Thead><Tr><Th>Название</Th>{hasGroup && <Th>Группа</Th>}{hasSub && <Th>Вид меха</Th>}<Th>Другие написания</Th></Tr></Thead>
+        <Tbody>
+          {rows.map((r) => (
+            <Tr key={r.id}>
+              <Td className="font-medium">{r.name}</Td>
+              {hasGroup && <Td className="text-sm">{r.group ?? "—"}</Td>}
+              {hasSub && <Td className="text-sm">{r.sub ?? "—"}</Td>}
+              <Td className="text-sm text-neutral-600">{r.aliases.join(", ") || "—"}</Td>
+            </Tr>
+          ))}
+          {rows.length === 0 && <Tr><Td colSpan={4} className="py-8 text-center text-neutral-500">Справочник пуст</Td></Tr>}
+        </Tbody>
+      </Table>
+    </div>
+  );
+}

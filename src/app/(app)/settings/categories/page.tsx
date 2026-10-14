@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +27,11 @@ const CATEGORY_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: 
 export default async function CategoriesPage({ searchParams }: PageProps<"/settings/categories">) {
   const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
+  // Поставщику — только названия, группы и написания (счётчики моделей и ТЗ, «не сопоставлено» и примечания — наши).
+  if (session.user.role === "SUPPLIER") {
+    const refs = await prisma.categoryRef.findMany({ where: { organizationId: orgId, confirmed: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, group: true, aliases: true } });
+    return <SupplierSimpleRef title="Справочник категорий" rows={refs} />;
+  }
   const canEdit = hasRole(session.user.role, ACCESS.categories);
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";

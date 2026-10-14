@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { SupplierSimpleRef } from "../supplier-refs";
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { requireSession } from "@/lib/session";
@@ -23,6 +24,10 @@ const ATTR_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "П�
 export default async function FurAttrsPage({ searchParams }: PageProps<"/settings/fur-attrs">) {
   const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
+  if (session.user.role === "SUPPLIER") {
+    const refs = await prisma.furAttrRef.findMany({ where: { organizationId: orgId, confirmed: true }, orderBy: { name: "asc" }, select: { id: true, name: true, group: true, furKind: true, aliases: true } });
+    return <SupplierSimpleRef title="Признаки меха" rows={refs.map((r) => ({ id: r.id, name: r.name, group: r.group, sub: r.furKind, aliases: r.aliases }))} />;
+  }
   const canEdit = hasRole(session.user.role, ACCESS.furRefs);
   const sp = await searchParams;
   const flashError = typeof sp.error === "string" ? sp.error.slice(0, 300) : "";
