@@ -97,7 +97,7 @@ export async function deleteShipment(id: string): Promise<{ error?: string }> {
 // ───────────── состав ─────────────
 
 /** Добавить позиции ТЗ в состав. Цвет, размер и вид меха берутся из ТЗ на сервере; та же позиция суммируется со строкой отгрузки. */
-export async function addShipmentLines(shipmentId: string, items: { key: string; qty: number }[]): Promise<{ error?: string; added?: number }> {
+export async function addShipmentLines(shipmentId: string, items: { key: string; qty: number }[], asReady = false): Promise<{ error?: string; added?: number }> {
   const session = await requireRole(...EDIT_ROLES);
   const orgId = session.user.organizationId;
   const sh = await prisma.shipment.findFirst({ where: { id: shipmentId, organizationId: orgId }, select: { id: true } });
@@ -116,8 +116,8 @@ export async function addShipmentLines(shipmentId: string, items: { key: string;
     for (const [key, qty] of picked) {
       const c = cands.get(key)!;
       const cur = await tx.shipmentLine.findFirst({ where: { shipmentId, productionOrderId: c.orderId, color: c.color, size: c.size } });
-      if (cur) await tx.shipmentLine.update({ where: { id: cur.id }, data: { quantity: cur.quantity + qty } });
-      else await tx.shipmentLine.create({ data: { shipmentId, productionOrderId: c.orderId, color: c.color, size: c.size, furKind: c.furKind || null, quantity: qty } });
+      if (cur) await tx.shipmentLine.update({ where: { id: cur.id }, data: { quantity: cur.quantity + qty, ...(asReady ? { stage: "READY" } : {}) } });
+      else await tx.shipmentLine.create({ data: { shipmentId, productionOrderId: c.orderId, color: c.color, size: c.size, furKind: c.furKind || null, quantity: qty, ...(asReady ? { stage: "READY" } : {}) } });
     }
   });
   revalidateAll(orgId);

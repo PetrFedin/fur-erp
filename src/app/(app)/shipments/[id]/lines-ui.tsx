@@ -22,10 +22,10 @@ import { formatQty } from "@/lib/utils";
 import { ACCEPT_NEEDS_READY, REWORK_STATE_LABEL, STAGE_LABEL, VIEW_LABEL, lineView, reworkRemainText, rowsText, type ReworkState, type Stage, type ViewKey } from "@/lib/shipment-stage";
 
 /** «+ Добавить из ТЗ»: окно со списком позиций загруженных ТЗ (не отменённых). */
-export function AddLinesButton({ shipmentId }: { shipmentId: string }) {
+export function AddLinesButton({ shipmentId, asReady = false }: { shipmentId: string; asReady?: boolean }) {
   return (
-    <CreateDialog label="+ Добавить из ТЗ" title="Добавить в отгрузку из ТЗ" wide hint="Отметьте позиции и укажите, сколько штук входит в эту отгрузку. Цвет, размер и вид меха берутся из ТЗ.">
-      <AddLinesBody shipmentId={shipmentId} />
+    <CreateDialog label={asReady ? "+ Добавить артикул" : "+ Добавить из ТЗ"} title={asReady ? "Добавить артикул в список к приёмке" : "Добавить в отгрузку из ТЗ"} wide hint="Отметьте позиции и укажите, сколько штук входит в эту отгрузку. Цвет, размер и вид меха берутся из ТЗ.">
+      <AddLinesBody shipmentId={shipmentId} asReady={asReady} />
     </CreateDialog>
   );
 }
@@ -34,7 +34,7 @@ type PickState = { on: boolean; qty: string };
 const defaultQty = (c: ShipmentCandidate) => Math.max(0, c.qtyTz - c.inOthers - c.inHere);
 const sel = "h-9 max-md:h-10";
 
-function AddLinesBody({ shipmentId }: { shipmentId: string }) {
+function AddLinesBody({ shipmentId, asReady }: { shipmentId: string; asReady: boolean }) {
   const dlg = useCreateDialog();
   const router = useRouter();
   const [cands, setCands] = useState<ShipmentCandidate[] | null>(null);
@@ -98,7 +98,7 @@ function AddLinesBody({ shipmentId }: { shipmentId: string }) {
     if (items.length === 0) return setError("Отметьте хотя бы одну позицию");
     if (items.some((i) => !Number.isInteger(i.qty) || i.qty <= 0)) return setError("У каждой отмеченной позиции количество — целое число больше 0");
     start(async () => {
-      const r = await addShipmentLines(shipmentId, items);
+      const r = await addShipmentLines(shipmentId, items, asReady);
       if (r.error) return setError(r.error);
       router.refresh();
       dlg?.close();
@@ -714,7 +714,12 @@ export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, 
             Приёмка в Коптево
           </button>
         </h2>
-        {editable && open && ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
+        {editable && open && (
+          <div className="flex flex-wrap items-center gap-2">
+            <AddLinesButton shipmentId={shipmentId} asReady />
+            {ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
+          </div>
+        )}
       </div>
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
         {!event && !closed && <p className="text-sm text-neutral-700" data-accept-none>Приёмка в Коптево не создана{canEdit ? " — добавьте ожидаемый этап, потом по нему закрывается приёмка." : "."}</p>}
