@@ -6,7 +6,7 @@ type Prof = { names: [string, number][]; colors: [string, number][]; sizes: stri
 
 /** «Профиль по ТЗ»: что написано про артикул в Word-ТЗ (приложения к договору подряда) — без цен. Данные: scripts/data/build-article-profile.py. */
 export function TzProfile({ code }: { code: string }) {
-  const p = (profiles as Record<string, Prof>)[normalizeModelCode(code).toUpperCase().replace(/-/g, "")];
+  const p = (profiles as unknown as Record<string, Prof>)[normalizeModelCode(code).toUpperCase().replace(/-/g, "")];
   if (!p) return null;
   const row = (label: string, v: string) => (v ? <div className="grid grid-cols-[8rem_1fr] gap-2"><dt className="text-neutral-500">{label}</dt><dd>{v}</dd></div> : null);
   const list = (xs: [string, number][]) => xs.map(([n, c]) => (c > 1 ? `${n} (×${c})` : n)).join("; ");
