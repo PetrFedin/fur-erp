@@ -63,7 +63,7 @@ async function CalcView({ p, s }: { p: CalcPayload; s: Awaited<ReturnType<typeof
             <Tbody>
               {t.sheet.cols.filter((c) => c.kind === "custom").map((c) => (
                 <Tr key={c.id}>
-                  <Td className="font-mono">{c.letter}</Td><Td>{c.title}{c.unit ? `, ${c.unit}` : ""}</Td><Td className="font-mono text-xs">{c.formula}</Td>
+                  <Td className="font-mono">{c.letter}</Td><Td>{c.title}{c.unit && !c.title.includes(c.unit) ? `, ${c.unit}` : ""}</Td><Td className="font-mono text-xs">{c.formula}</Td>
                   <Td className="text-xs">{[t.sheet.unitCol === c.id ? "идёт в закупку как себестоимость шкуры" : "", t.sheet.qtyCol === c.id ? "количество" : "", t.sheet.colErrors[c.id] ?? "", Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length ? `ручных значений: ${Object.values(p.overrides ?? {}).filter((o) => o[c.id] !== undefined).length}` : ""].filter(Boolean).join("; ") || "—"}</Td>
                 </Tr>
               ))}

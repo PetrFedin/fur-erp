@@ -156,7 +156,7 @@ function planItemsFor(p: CalcPayload, all: ReturnType<typeof calcAll>, index: nu
   for (const c of sh.cols) {
     if (c.kind !== "custom") continue;
     const v = sh.cells[c.id]?.[index]?.v;
-    if (v != null) items.push({ label: `${c.title}${c.unit ? `, ${c.unit}` : ""}`, value: r6(v) });
+    if (v != null) items.push({ label: `${c.title}${c.unit && !c.title.includes(c.unit) ? `, ${c.unit}` : ""}`, value: r6(v) });
   }
   items.push({ label: "Итого себестоимость за единицу, ₽", value: r6(want) });
   return items;

@@ -71,7 +71,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
       <h3 className="text-sm font-semibold">{draft.id ? "Столбец" : "Новый столбец"}</h3>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
         <div className="sm:col-span-2"><Label>Название</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Сбор аукциона, ₽" /></div>
-        <div><Label>Единица</Label><Input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="₽" /></div>
+        <div><Label>Единица (необязательно)</Label><Input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="₽" /></div>
         <div className="sm:col-span-4">
           <Label>Формула</Label>
           <Input value={draft.formula} onChange={(e) => setDraft({ ...draft, formula: e.target.value })} placeholder="=H*курс*ставка_сбора/100" className="font-mono" />
@@ -115,7 +115,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
 
       {!ro && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => { setDraft({ id: null, title: "", unit: "₽", formula: "" }); setDraftErr(null); }}>+ Столбец</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => { setDraft({ id: null, title: "", unit: "", formula: "" }); setDraftErr(null); }}>+ Столбец</Button>
           <Button type="button" size="sm" variant="outline" onClick={() => setP((x) => ({ ...x, rows: [...x.rows, { ...Object.fromEntries(Object.keys(x.rows[0] ?? {}).map((k) => [k, ""])), _id: newId(), invoice: x.header.invoice, dest: x.header.dest }] }))}>+ Лот</Button>
         </div>
       )}
@@ -169,7 +169,7 @@ export function CalcDetail({ p, setP, t, ro }: { p: CalcPayload; setP: Dispatch<
             {sh.cols.map((c) => (
               <Th key={c.id} title={c.hint}>
                 <div className="font-mono text-[11px] text-neutral-400">{c.letter}{c.id === sh.unitCol ? " · в закупку" : ""}{c.id === sh.qtyCol && c.id !== QTY_COL ? " · кол-во" : ""}</div>
-                {c.title}{c.kind === "custom" && c.unit ? `, ${c.unit}` : ""}
+                {c.title}{c.kind === "custom" && c.unit && !c.title.includes(c.unit) ? `, ${c.unit}` : ""}
               </Th>
             ))}
             {!ro && <Th />}
