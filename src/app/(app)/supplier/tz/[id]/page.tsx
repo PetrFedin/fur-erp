@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
+import { ReopenButton } from "../../reopen-button";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import { loadTzFormRefs } from "@/lib/supplier-tz-data";
 import type { TzPayload } from "@/lib/tz-vendor";
@@ -23,6 +24,7 @@ export default async function TzPage({ params }: PageProps<"/supplier/tz/[id]">)
         <h1 className="text-xl font-semibold">{row.title}</h1>
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
       </div>
+      {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       <TzForm id={row.id} initial={row.payload as unknown as TzPayload} readOnly={readOnly} colors={refs.colors} models={refs.models} lots={refs.lots} reviewNote={row.reviewNote} />
     </div>
   );

@@ -13,7 +13,7 @@ export default async function SupplierTzPage() {
   const isSup = s.user.role === "SUPPLIER";
   const rows = await prisma.supplierInbox.findMany({
     where: { kind: "TZ", ...inboxScope(s) }, orderBy: { updatedAt: "desc" },
-    select: { id: true, title: true, status: true, updatedAt: true, sentAt: true, payload: true, supplier: { select: { name: true } } },
+    select: { id: true, title: true, status: true, reviewNote: true, updatedAt: true, sentAt: true, payload: true, supplier: { select: { name: true } } },
   });
   return (
     <div className="flex flex-col gap-4">
@@ -28,7 +28,7 @@ export default async function SupplierTzPage() {
         <Tbody>
           {rows.map((r) => (
             <Tr key={r.id}>
-              <Td><Link className="font-medium underline" href={`/supplier/tz/${r.id}`}>{r.title}</Link></Td>
+              <Td><Link className="font-medium underline" href={`/supplier/tz/${r.id}`}>{r.title}</Link>{r.status === "REJECTED" && r.reviewNote && <div className="mt-0.5 text-xs text-red-700">Замечание: {r.reviewNote}</div>}</Td>
               {!isSup && <Td>{r.supplier.name}</Td>}
               <Td className="tabular-nums">{(r.payload as { totals?: { qty?: number } })?.totals?.qty ?? "—"}</Td>
               <Td>{INBOX_STATUS_LABEL[r.status]}</Td>

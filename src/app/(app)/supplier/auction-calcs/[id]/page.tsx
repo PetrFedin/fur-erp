@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
+import { ReopenButton } from "../../reopen-button";
 import { requireInboxViewer, inboxScope, INBOX_STATUS_LABEL } from "@/lib/supplier-inbox";
 import type { CalcPayload } from "@/lib/supplier-calc";
 import { CalcForm } from "../calc-form";
@@ -24,6 +25,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
         <h1 className="text-xl font-semibold">{row.title}</h1>
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
       </div>
+      {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
       <CalcForm id={row.id} initial={row.payload as unknown as CalcPayload} readOnly={readOnly} files={row.files} reviewNote={row.reviewNote} />
     </div>
   );
