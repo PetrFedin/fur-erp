@@ -196,6 +196,7 @@ model CalendarEvent {
 }
 
 model Organization {
+  rawStages SupplierRawStage[]
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
@@ -296,6 +297,7 @@ model SystemState {
 // ---------- Reference data ----------
 
 model Supplier {
+  rawStages SupplierRawStage[]
   id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -514,6 +516,7 @@ model Purchase {
   stockMovements  StockMovement[]
   rawMaterialLots RawMaterialLot[]
   documents       PurchaseDocument[]
+  rawStages       SupplierRawStage[]
   driveDocuments  DriveDocument[]
   // Подтверждение строки человеком (или автоматически по документам): «сумма и документ корректны».
   // verifiedBy: id пользователя либо "auto:<основание>"; сброс = null.
@@ -830,6 +833,7 @@ model RawMaterialLot {
   stockMovements StockMovement[]
   usages         ProductionMaterialUsage[]
   attrs          RawMaterialLotAttr[]
+  rawStages      SupplierRawStage[]
   driveDocuments DriveDocument[]
   documents      PurchaseDocument[]
 
@@ -1744,4 +1748,36 @@ model SupplierInboxFile {
   createdAt    DateTime      @default(now())
 
   @@index([inboxId])
+}
+
+/// Этап сырья аукциона: Веллмех отмечает, где сырьё и когда его ждать (куплено, выделка, тонировка, логистика…).
+/// Ведётся на весь аукцион (lotId пусто) или на отдельный лот. Справочник этапов — src/lib/raw-stage.ts.
+model SupplierRawStage {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier       @relation(fields: [supplierId], references: [id])
+  purchaseId     String
+  purchase       Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  lotId          String?
+  lot            RawMaterialLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  stage          String
+  /// PLANNED / IN_PROGRESS / DONE
+  status         String         @default("PLANNED")
+  /// Завод / склад / город: Прогресс, МК ЛИС, XIN, Финляндия, Калининград, Москва…
+  place          String?
+  plannedStart   DateTime?
+  plannedEnd     DateTime?
+  factStart      DateTime?
+  factEnd        DateTime?
+  /// Сколько шкур на этапе
+  qty            Int?
+  note           String?
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([organizationId, purchaseId])
+  @@index([supplierId, status])
 }

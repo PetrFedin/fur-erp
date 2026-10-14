@@ -41,6 +41,7 @@ export const AUDITED_MODELS: Record<string, Op[]> = {
   ShipmentLine: ALL,
   ShipmentEvent: ALL,
   ShipmentEventLine: ALL,
+  SupplierRawStage: ALL,
   Fitting: ALL,
   SupplyPlanEntry: ALL,
   FinishedGoodsStock: ["create", "delete"],
@@ -213,6 +214,7 @@ export const MODEL_TITLES: Record<string, string> = {
   ShipmentLine: "Строка отгрузки",
   ShipmentEvent: "Этап отгрузки",
   ShipmentEventLine: "Строка этапа отгрузки",
+  SupplierRawStage: "Этап сырья",
   Fitting: "Примерка",
   SupplyPlanEntry: "План поставок",
   FinishedGoodsStock: "Остаток готовой продукции",
@@ -254,6 +256,7 @@ export function labelFor(model: string, r: Record<string, unknown>): string {
     case "PurchaseDocument": return `Документ ${s("title") ?? ""}`.trim();
     case "Shipment": return s("name") ? `Отгрузка «${s("name")}»` : `Отгрузка ${day(r.plannedDate)}`.trim();
     case "ShipmentLine": return `Строка отгрузки${s("color") ? " " + s("color") : ""}${s("size") ? " р." + s("size") : ""} ×${s("quantity") ?? ""}`.trim();
+    case "SupplierRawStage": return `Этап сырья «${s("stage") ?? ""}»${s("place") ? " · " + s("place") : ""} (${s("status") ?? ""})`;
     case "ShipmentEvent": return `Этап отгрузки «${s("title") ?? ""}» ${day(r.occurredAt)}`.trim();
     case "ShipmentEventLine": return `Строка этапа: принято ${s("accepted") ?? "—"}, не принято ${s("rejected") ?? "—"}, возвращено ${s("returned") ?? "—"}`;
     case "Fitting": return `Примерка ${day(r.fittingDate)}`.trim();
