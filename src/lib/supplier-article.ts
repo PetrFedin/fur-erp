@@ -13,7 +13,7 @@ export function supplierArticleTitle(salesName: string | null | undefined, descr
   const d = (description ?? "").replace(/\r/g, "").trim();
   if (!d) return null;
   if (/^Каталог\s*:/i.test(d)) {
-    const segs = d.replace(/^Каталог\s*:/i, "").split(/\s\/\s/).map((x) => x.trim()).filter((x) => x && !/^Цены/i.test(x) && !PRICEY.test(x));
+    const segs = d.split("\n")[0].replace(/^Каталог\s*:/i, "").split(/\s\/\s/).map((x) => x.trim()).filter((x) => x && !/^Цены/i.test(x) && !PRICEY.test(x));
     return segs.length > 1 ? segs[segs.length - 1] : null;
   }
   if (/^Цены/i.test(d)) return null;
