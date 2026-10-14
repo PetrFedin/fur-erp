@@ -9,6 +9,7 @@ import { FORMAT_LABEL, calcAll, ensureRowIds } from "@/lib/supplier-calc";
 import { formatDate } from "@/lib/utils";
 import { AttachDocument } from "../attach";
 import { RawStagesBlock } from "@/components/raw-stages";
+import { ChatLink } from "@/components/chat-link";
 
 export const metadata = { title: "Аукцион" };
 
@@ -138,6 +139,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
         <div className="mb-1 flex flex-wrap items-center gap-3">
           <h2 className="text-sm font-semibold">Документы аукциона</h2>
           {isSup && <AttachDocument purchaseId={p.id} label="Приложить документ" />}
+          <ChatLink type="Purchase" id={p.id} role={s.user.role} />
         </div>
         {docs.every((x) => x.files.length === 0) ? (
           <p className="text-sm text-neutral-500">Документов пока нет. Приложите аукционный счёт, свой счёт, спецификацию или УПД.</p>
