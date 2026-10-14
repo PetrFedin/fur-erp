@@ -57,8 +57,8 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
     setP((x) => ({ ...x, materials: [...x.materials, { ...emptyMaterial(), name: `${l.material}${l.color ? " " + l.color : ""}`, lot: l.lot }] }));
   };
 
-  const cellInput = (v: string, on: (v: string) => void, w: number, list?: string, num = false) => (
-    <input value={v} readOnly={ro} list={list} inputMode={num ? "decimal" : "text"} onChange={(e) => on(e.target.value)} style={{ width: w }}
+  const cellInput = (v: string, on: (v: string) => void, w: number, list?: string, num = false, placeholder?: string) => (
+    <input value={v} readOnly={ro} list={list} placeholder={placeholder} inputMode={num ? "decimal" : "text"} onChange={(e) => on(e.target.value)} style={{ width: w }}
       className="h-8 rounded border border-neutral-200 bg-white px-1.5 text-sm tabular-nums read-only:border-transparent read-only:bg-transparent" />
   );
 
@@ -98,7 +98,8 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
           {p.items.map((r, i) => (
             <Tr key={i}>
               <Td className="text-neutral-500">{i + 1}</Td>
-              <Td className="p-1">{cellInput(r.name, (v) => setItem(i, "name", v), 150)}</Td>
+              <Td className="p-1"><textarea value={r.name} readOnly={ro} rows={2} onChange={(e) => setItem(i, "name", e.target.value)} style={{ width: 150 }}
+                className="rounded border border-neutral-200 bg-white px-1.5 py-1 text-sm read-only:border-transparent read-only:bg-transparent" title="Enter — вторая строка в ячейке, как в Word" /></Td>
               <Td className="p-1">{cellInput(r.color, (v) => setItem(i, "color", v), 90, "tz-colors")}</Td>
               <Td className="p-1">{cellInput(r.model, (v) => setItem(i, "model", v), 80, "tz-models")}</Td>
               <Td className="p-1">{cellInput(r.material, (v) => setItem(i, "material", v), 150)}</Td>
@@ -108,13 +109,15 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
               <Td className="p-1">{cellInput(r.pelts, (v) => setItem(i, "pelts", v), 60, undefined, true)}</Td>
               <Td className="p-1">{cellInput(r.work, (v) => setItem(i, "work", v), 80, undefined, true)}</Td>
               <Td className="p-1">{cellInput(r.price, (v) => setItem(i, "price", v), 90, undefined, true)}</Td>
-              <Td className="whitespace-nowrap text-right tabular-nums">{money(t.itemTotals[i] ?? 0)}</Td>
+              <Td className="p-1 text-right">{cellInput(r.total ?? "", (v) => setItem(i, "total", v), 100, undefined, true, money(t.itemTotals[i] ?? 0))}</Td>
               {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-400 hover:text-red-600" title="Убрать" onClick={() => setP((x) => ({ ...x, items: x.items.filter((_, j) => j !== i) }))}>×</button></Td>}
             </Tr>
           ))}
           <Tr><Td colSpan={7} className="font-semibold">Итого:</Td><Td className="font-semibold tabular-nums">{t.qty}</Td><Td className="tabular-nums text-neutral-600">{t.pelts ? `${t.pelts} шк.` : ""}</Td><Td className="font-semibold tabular-nums">{money(t.work)}</Td><Td /><Td className="text-right font-semibold tabular-nums">{money(t.total)}</Td>{!ro && <Td />}</Tr>
         </Tbody>
       </Table>
+      <p className="-mt-3 text-[11px] text-neutral-500">Колонка «ИТОГО» считается сама ({repair ? "работа + материал" : "количество × стоимость продукции"}); если у вас в Word другая сумма — впишите её в клетку, она пойдёт в документ как есть.</p>
+      {!repair && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={ro} checked={p.showWorkTotal !== false} onChange={(e) => setP((x) => ({ ...x, showWorkTotal: e.target.checked }))} /> Показывать сумму работ в строке «Итого:»</label>}
       {!ro && (
         <div className="flex gap-2">
           <Button type="button" size="sm" variant="outline" onClick={() => setP((x) => ({ ...x, items: [...x.items, { ...(x.items.at(-1) ?? emptyItem()) }] }))}>+ Изделие (копия последнего)</Button>
@@ -124,7 +127,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
 
       <h2 className="text-sm font-semibold">Заказчик передал (сырьё, материалы)</h2>
       <Table className="min-w-[800px]">
-        <Thead><Tr><Th>Наименование материалов</Th><Th>Лот</Th><Th>Единица</Th><Th>Количество сырья</Th><Th>Стоимость за единицу в рублях без НДС</Th><Th>НДС, %</Th><Th className="text-right">Общая стоимость, ₽</Th>{!ro && <Th />}</Tr></Thead>
+        <Thead><Tr><Th>Наименование материалов</Th><Th>Лот</Th><Th>Единица</Th><Th>Количество сырья</Th><Th>Стоимость за единицу в рублях без НДС</Th><Th>НДС, %</Th><Th className="text-right" title="Считается сама; впишите свою сумму, если у вас другая">Общая стоимость, ₽</Th>{!ro && <Th />}</Tr></Thead>
         <Tbody>
           {p.materials.map((m, i) => (
             <Tr key={i}>
@@ -134,7 +137,7 @@ export function TzForm({ id, initial, readOnly, colors, models, lots, batches, r
               <Td className="p-1">{cellInput(m.qty, (v) => setMat(i, "qty", v), 70, undefined, true)}</Td>
               <Td className="p-1">{cellInput(m.priceNet, (v) => setMat(i, "priceNet", v), 100, undefined, true)}</Td>
               <Td className="p-1">{cellInput(m.vatPct, (v) => setMat(i, "vatPct", v), 55, undefined, true)}</Td>
-              <Td className="whitespace-nowrap text-right tabular-nums">{money(t.matTotals[i] ?? 0)}</Td>
+              <Td className="p-1 text-right">{cellInput(m.total ?? "", (v) => setMat(i, "total", v), 110, undefined, true, money(t.matTotals[i] ?? 0))}</Td>
               {!ro && <Td className="p-1"><button type="button" className="px-1 text-neutral-400 hover:text-red-600" onClick={() => setP((x) => ({ ...x, materials: x.materials.filter((_, j) => j !== i) }))}>×</button></Td>}
             </Tr>
           ))}
