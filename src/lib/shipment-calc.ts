@@ -151,6 +151,9 @@ export const SIDES = [
 ] as const;
 export const SIDE_LABEL: Record<string, string> = Object.fromEntries(SIDES.map((x) => [x.value, x.label]));
 export const isSide = (v: string) => SIDES.some((x) => x.value === v);
+export const SIDE_ERROR = "Укажите, на ком этап: Веллмех или ЦУМ";
+/** «На ком» обязателен и только Веллмех / ЦУМ: текст ошибки или null. */
+export const sideError = (v: string | null | undefined): string | null => (v && isSide(v) ? null : SIDE_ERROR);
 
 // ───────────── этап приёмки и итог поставки ─────────────
 
@@ -163,6 +166,42 @@ export function isAcceptanceEvent(e: { expected: boolean; title: string; place: 
 /** Короткая дата и время для ленты: «09.10» и «19:07» (время неизвестно — null). */
 export function shortStamp(d: Date, timeKnown: boolean): { date: string; time: string | null; full: string } {
   return { date: `${p2(d.getUTCDate())}.${p2(d.getUTCMonth() + 1)}`, time: timeKnown ? wallTimeHm(d) : null, full: fmtWall(d, timeKnown) };
+}
+
+const WEEKDAYS_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+/** Заголовок дня ленты: «Пн, 12 октября 2026». */
+export function dayHeading(d: Date): string {
+  return `${WEEKDAYS_SHORT[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS_GEN[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+export type DayGroup<T> = {
+  /** «2026-10-12». */
+  day: string;
+  heading: string;
+  /** Этапы дня с индексом в общем (отсортированном) списке. */
+  items: { event: T; index: number }[];
+  /** past — день до сегодняшнего; today — сегодня; upcoming — все этапы дня ожидаемые или день позже сегодняшнего. */
+  kind: "past" | "today" | "upcoming";
+};
+
+/** Группировка отсортированных этапов по календарным дням (настенное время). `todayIso` — сегодня в формате «2026-10-14». */
+export function groupEventsByDay<T extends { occurredAt: Date; expected: boolean }>(sorted: readonly T[], todayIso: string): DayGroup<T>[] {
+  const out: DayGroup<T>[] = [];
+  sorted.forEach((event, index) => {
+    const day = wallDateIso(event.occurredAt);
+    let g = out[out.length - 1];
+    if (!g || g.day !== day) {
+      g = { day, heading: dayHeading(event.occurredAt), items: [], kind: "past" };
+      out.push(g);
+    }
+    g.items.push({ event, index });
+  });
+  for (const g of out) {
+    g.kind = g.items.every((x) => x.event.expected) ? "upcoming" : g.day === todayIso ? "today" : g.day > todayIso ? "upcoming" : "past";
+  }
+  return out;
 }
 
 const dayNum = (d: Date) => Math.round(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);

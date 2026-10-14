@@ -2,7 +2,7 @@
  * Чистые расчёты раздела «Отгрузки» (без базы и prisma generate):
  *   node --conditions=react-server --env-file=.env node_modules/.bin/tsx scripts/test-shipment-calc.ts
  */
-import { acceptLineError, acceptSummaryText, deliverySummary, groupByOrder, isAcceptanceEvent, planVsFact, shipmentTotals, shortStamp, wallToDate } from "../src/lib/shipment-calc";
+import { acceptLineError, acceptSummaryText, deliverySummary, dayHeading, groupByOrder, groupEventsByDay, isAcceptanceEvent, sideError, planVsFact, shipmentTotals, shortStamp, wallToDate } from "../src/lib/shipment-calc";
 
 let fails = 0;
 const ok = (c: unknown, m: string) => { console.log(`${c ? "ok  " : "FAIL"} ${m}`); if (!c) fails++; };
@@ -53,6 +53,20 @@ const grp = groupByOrder([
   { orderKey: "o2", label: "ТЗ 170", article: "B", quantity: 4, acceptedQty: null, returnedQty: null, comment: null },
 ]);
 ok(grp.length === 2 && grp[0].quantity === 15 && grp[0].accepted === 13 && grp[0].returned === 2 && grp[0].reasons.join() === "шов" && grp[1].waiting === 4, "группировка по ТЗ: суммы, причины только у строк с возвратом");
+
+// «На ком»: только Веллмех / ЦУМ
+ok(sideError("") !== null && sideError(null) !== null && sideError("ЧУЖОЙ") !== null && sideError("WELLMEKH") === null && sideError("CUM") === null, "«на ком»: пусто и чужое — ошибка, WELLMEKH / CUM — ок");
+ok(sideError("") === "Укажите, на ком этап: Веллмех или ЦУМ", "текст ошибки «на ком»");
+
+// Группировка по дням
+ok(dayHeading(d("2026-10-12")) === "Пн, 12 октября 2026" && dayHeading(d("2026-10-04")) === "Вс, 4 октября 2026", "заголовок дня: " + dayHeading(d("2026-10-12")));
+const gev = (s: string, expected = false) => ({ occurredAt: d(s), expected });
+const grpEv = [gev("2026-10-05"), gev("2026-10-09 19:07"), gev("2026-10-09 20:00"), gev("2026-10-14 10:00"), gev("2026-10-14 18:00", true), gev("2026-10-15", true), gev("2026-10-15 12:00", true)];
+const gd = groupEventsByDay(grpEv, "2026-10-14");
+ok(gd.map((g) => g.items.length).join() === "1,2,2,2", "группы по дням: " + gd.map((g) => g.items.length).join());
+ok(gd.map((g) => g.kind).join() === "past,past,today,upcoming", "виды: " + gd.map((g) => g.kind).join());
+ok(gd.flatMap((g) => g.items.map((x) => x.index)).join() === "0,1,2,3,4,5,6", "индексы сохраняют общий порядок");
+ok(groupEventsByDay([], "2026-10-14").length === 0, "пусто — нет групп");
 
 console.log(fails ? `\nПРОВАЛЕНО: ${fails}` : "\nВсе проверки пройдены");
 process.exit(fails ? 1 : 0);

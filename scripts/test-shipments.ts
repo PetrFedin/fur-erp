@@ -121,7 +121,7 @@ async function main() {
   let Lr = await stageOf(L.id);
   ok(!toRw.error && Lr.stage === "REWORK" && Lr.reworks.length === 2 && Lr.stageChangedBy === user.id && !!Lr.stageChangedAt, "REVIEW → REWORK: стадия, два пункта, кто и когда");
   const evRw = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: { startsWith: "На доработку: " } } });
-  ok(!!evRw && evRw.title.includes("Перешить манжет") && evRw.responsibleUserId === user.id && evRw.side === null && evRw.timeKnown && !evRw.expected && (await raw.shipmentEvent.count({ where: { shipmentId: id } })) === e0n + 1, "автоэтап «На доработку: <артикул>: <первый пункт>», ответственный — нажавший кнопку, «на ком» пусто");
+  ok(!!evRw && evRw.title.includes("Перешить манжет") && evRw.responsibleUserId === user.id && evRw.side === "CUM" && evRw.timeKnown && !evRw.expected && (await raw.shipmentEvent.count({ where: { shipmentId: id } })) === e0n + 1, "автоэтап «На доработку: <артикул>: <первый пункт>», ответственный — нажавший кнопку, «на ком» = ЦУМ");
   ok(!!(await A.sendLineToRework(L.id, [{ text: "ещё", state: "OPEN", note: "" }])).error, "повторно отправить на доработку нельзя");
   ok(!!(await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 1, returned: null, comment: null }])).error, "приёмка недоступна, пока строка на доработке");
   const blocked = await A.acceptLinesByReview(id, [L.id]);
@@ -206,7 +206,9 @@ async function main() {
 
   // 4. Этапы: «на ком», ответственный текстом
   console.log("4. Этапы");
-  const e0 = await A.createEvent(id, {}, fd({ title: "Примерка", date: "2026-10-05", time: "", responsible: "Василий (Веллмех)", side: "WELLMEKH", place: "Санкт-Петербург", details: "Поездка", nextTitle: "Принято в Коптево", nextDate: "2026-10-15" }));
+  const autoEvs = await raw.shipmentEvent.findMany({ where: { shipmentId: id, OR: [{ title: { contains: "Принято по просмотру" } }, { title: { contains: "На доработку" } }, { title: { contains: "Принято после доработки" } }, { title: { contains: "Согласовано к отгрузке" } }] } });
+  ok(autoEvs.length > 0 && autoEvs.every((e) => e.side === "CUM"), `все автоэтапы (${autoEvs.length}) имеют «на ком» = ЦУМ`);
+  const e0 = await A.createEvent(id, {}, fd({ title: "Примерка", date: "2026-10-05", time: "", responsible: "Василий (Веллмех)", side: "WELLMEKH", place: "Санкт-Петербург", details: "Поездка", nextTitle: "Принято в Коптево", nextDate: "2026-10-15", nextSide: "CUM" }));
   ok(e0.ok === true, "этап без времени создан " + (e0.error ?? ""));
   let evs = await raw.shipmentEvent.findMany({ where: { shipmentId: id }, orderBy: { createdAt: "asc" } });
   const prim = evs.find((e) => e.title === "Примерка")!;
@@ -215,7 +217,17 @@ async function main() {
   ok(prim.side === "WELLMEKH", "«на ком» = Веллмех записано");
   ok(exp.expected === true && exp.timeKnown === false && exp.occurredAt.toISOString().startsWith("2026-10-15"), "«Следующий этап» создал ожидаемый этап в той же транзакции");
   ok(prim.createdById === user.id, "кто внёс записан");
-  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", side: "ЧУЖОЙ" }))).error != null, "неизвестное «на ком» отклонено");
+  ok(exp.side === "CUM", "«Следующий этап» с выбранным «на ком» = ЦУМ");
+  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", side: "ЧУЖОЙ" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "неизвестное «на ком» отклонено");
+  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "пустое «на ком» при создании — ошибка");
+  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", side: "" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "пустая строка «на ком» — ошибка");
+  const nxt = await A.createEvent(id, {}, fd({ title: "Основной этап", date: "2026-10-06", side: "CUM", nextTitle: "Следующий по умолчанию", nextDate: "2026-10-20" }));
+  const nxt2 = await A.createEvent(id, {}, fd({ title: "Основной этап 2", date: "2026-10-06", side: "CUM", nextTitle: "Следующий у Веллмеха", nextDate: "2026-10-21", nextSide: "WELLMEKH" }));
+  const nxtBad = await A.createEvent(id, {}, fd({ title: "Основной этап 3", date: "2026-10-06", side: "CUM", nextTitle: "Следующий плохой", nextDate: "2026-10-21", nextSide: "ЧУЖОЙ" }));
+  const nsEv = await raw.shipmentEvent.findMany({ where: { shipmentId: id, title: { startsWith: "Следующий" } } });
+  ok(nxt.ok === true && nxt2.ok === true && nsEv.find((e) => e.title === "Следующий по умолчанию")?.side === "CUM" && nsEv.find((e) => e.title === "Следующий у Веллмеха")?.side === "WELLMEKH" && nsEv.every((e) => e.expected), "«Следующий этап»: без nextSide — как у основного (ЦУМ), с nextSide — выбранный; оба ожидаемые");
+  ok(!!nxtBad.error && !nsEv.some((e) => e.title === "Следующий плохой") && (await raw.shipmentEvent.count({ where: { shipmentId: id, title: "Основной этап 3" } })) === 0, "неверное «на ком» следующего этапа — ошибка, ничего не создано");
+  await raw.shipmentEvent.deleteMany({ where: { shipmentId: id, title: { in: ["Основной этап", "Основной этап 2", "Следующий по умолчанию", "Следующий у Веллмеха"] } } });
 
   const rAnna = await A.createEvent(id, {}, fd({ title: "Подтверждение исправлений", date: "2026-10-09", time: "19:07", responsible: user.name.toUpperCase(), side: "CUM" }));
   const rOlga = await A.createEvent(id, {}, fd({ title: "Ольга отправила УПД", date: "2026-10-12", time: "13:06", responsible: "Ольга", side: "WELLMEKH" }));
@@ -228,12 +240,15 @@ async function main() {
   ok(C.formatInterval(ea, eo) === "2 дн. 17 ч 59 мин", `интервал Анна 09.10 19:07 → Ольга 12.10 13:06 = ${C.formatInterval(ea, eo)}`);
   const notes = C.intervalNotes([...evs].sort(C.compareEvents));
   ok(notes.some((n) => n?.text === "2 дн. 17 ч 59 мин" || n?.exact === "2 дн. 17 ч 59 мин"), "интервал Анна → Ольга виден на ленте");
-  ok((await A.createEvent(id, {}, fd({ title: "", date: "2026-10-15" }))).error != null, "пустое название отклонено");
-  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", time: "25:99" }))).error != null, "неверное время отклонено");
+  ok((await A.createEvent(id, {}, fd({ title: "", date: "2026-10-15", side: "CUM" }))).error != null, "пустое название отклонено");
+  ok((await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", time: "25:99", side: "CUM" }))).error != null, "неверное время отклонено");
 
-  const upd = await A.updateEvent(eo.id, fd({ title: "Ольга отправила УПД (правка)", date: "2026-10-12", time: "13:10", responsible: "Приёмщик", side: "", place: "офис" }));
+  const upd = await A.updateEvent(eo.id, fd({ title: "Ольга отправила УПД (правка)", date: "2026-10-12", time: "13:10", responsible: "Приёмщик", side: "CUM", place: "офис" }));
+  ok((await A.updateEvent(eo.id, fd({ title: "Ольга отправила УПД (правка)", date: "2026-10-12", time: "13:10", side: "" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "правка этапа с пустым «на ком» — ошибка");
+  ok((await A.updateEvent(eo.id, fd({ title: "Ольга отправила УПД (правка)", date: "2026-10-12", time: "13:10", side: "WELLMEKH" }))).ok === true, "правка: Веллмех — ок");
+  const upd2 = await A.updateEvent(eo.id, fd({ title: "Ольга отправила УПД (правка)", date: "2026-10-12", time: "13:10", responsible: "Приёмщик", side: "CUM", place: "офис" }));
   const eo2 = await raw.shipmentEvent.findUniqueOrThrow({ where: { id: eo.id } });
-  ok(upd.ok === true && eo2.title === "Ольга отправила УПД (правка)" && eo2.responsibleName === "Приёмщик" && eo2.side === null && eo2.updatedById === user.id, "правка этапа: поля, «на ком» очищено, «изменил» записан");
+  ok(upd.ok === true && eo2.title === "Ольга отправила УПД (правка)" && eo2.responsibleName === "Приёмщик" && eo2.side === "CUM" && upd2.ok === true && eo2.updatedById === user.id, "правка этапа: поля, «на ком» = ЦУМ, «изменил» записан");
 
   console.log("   файл этапа");
   const pdf = Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
@@ -248,7 +263,7 @@ async function main() {
   more.set("file", new File([pdf], "второй.pdf", { type: "application/pdf" }));
   ok((await A.uploadEventDocument(rFile.id!, more)).ok === true && (await raw.driveDocument.count({ where: { shipmentEventId: rFile.id } })) === 2, "«+ Документ» прикрепил второй файл");
   const bad = new FormData();
-  for (const [k, v] of Object.entries({ title: "Плохой файл", date: "2026-10-12" })) bad.set(k, v);
+  for (const [k, v] of Object.entries({ title: "Плохой файл", date: "2026-10-12", side: "CUM" })) bad.set(k, v);
   bad.set("file", new File([Buffer.from("это не документ")], "фейк.pdf", { type: "application/pdf" }));
   const rBad = await A.createEvent(id, {}, bad);
   ok(!!rBad.error && (await raw.shipmentEvent.count({ where: { shipmentId: id, title: "Плохой файл" } })) === 0, "неподходящий файл отклонён до создания этапа (этап не создаётся)");
@@ -257,7 +272,7 @@ async function main() {
 
   // 5. Ожидаемый → выполненный
   console.log("5. Ожидаемый этап");
-  const extra = await A.createEvent(id, {}, fd({ title: "Ждём курьера", date: "2026-10-16", expected: "on" }));
+  const extra = await A.createEvent(id, {}, fd({ title: "Ждём курьера", date: "2026-10-16", expected: "on", side: "WELLMEKH" }));
   const done = await A.markEventDone(extra.id!);
   const ex2 = await raw.shipmentEvent.findUniqueOrThrow({ where: { id: extra.id! } });
   ok(!done.error && ex2.expected === false && ex2.timeKnown === true, "«Выполнено»: expected=false, время известно");
@@ -299,8 +314,9 @@ async function main() {
   await A.deleteEvent(exp.id);
   const mk = await A.createAcceptanceEvent(id);
   const created = await raw.shipmentEvent.findFirst({ where: { shipmentId: id, title: "Принято в Коптево" } });
-  ok(!mk.error && created?.expected === true && created.place === "Коптево" && created.occurredAt.toISOString().startsWith("2026-10-15"), "«+ Приёмка в Коптево»: ожидаемый этап на плановую дату");
+  ok(!mk.error && created?.expected === true && created.side === "CUM" && created.place === "Коптево" && created.occurredAt.toISOString().startsWith("2026-10-15"), "«+ Приёмка в Коптево»: ожидаемый этап на плановую дату");
   await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 45, returned: 5, comment: "брак швов" }]);
+  ok((await A.confirmAcceptance(id, created!.id, accForm({ side: "" }))).error === "Укажите, на ком этап: Веллмех или ЦУМ", "подтверждение приёмки без «на ком» — ошибка");
   // строка не в списке приёмки (на просмотре) не входит в итоги приёмки
   const exOne = cands.find((c) => c.key !== c182.key && !cOther.some((o) => o.key === c.key) && c.qtyTz > 0);
   if (exOne) {
@@ -332,7 +348,7 @@ async function main() {
   ok(aud.length > 0, "в журнале есть записи по Shipment/ShipmentEvent");
   setSession("VIEWER");
   let denied = false;
-  try { await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15" })); } catch (e) { denied = String((e as Error).message).startsWith("FORBIDDEN"); }
+  try { await A.createEvent(id, {}, fd({ title: "x", date: "2026-10-15", side: "CUM" })); } catch (e) { denied = String((e as Error).message).startsWith("FORBIDDEN"); }
   ok(denied, "роль VIEWER не может добавлять этапы");
   let denied2 = false;
   try { await A.saveLineAcceptance(id, [{ id: L.id, n: 1, accepted: 1, returned: null, comment: null }]); } catch (e) { denied2 = String((e as Error).message).startsWith("FORBIDDEN"); }

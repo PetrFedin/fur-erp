@@ -12,8 +12,8 @@ import { loadTzPositions } from "@/lib/order-label-db";
 import { ORDER_COLORS_INCLUDE } from "@/lib/order-colors";
 import { orderSortKey, SHIPMENT_STATUS } from "@/lib/shipments";
 import {
-  candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals, shortStamp,
-  SIDE_LABEL, wallDateIso, wallTimeHm,
+  candidateRows, compareEvents, deliverySummary, fmtWall, groupByOrder, groupEventsByDay, intervalNotes, isAcceptanceEvent, lineKey, parseDocLinks, shareOf, shipmentTotals,
+  SIDE_LABEL, wallDateIso, wallNow, wallTimeHm,
 } from "@/lib/shipment-calc";
 import { HeaderDelete, HeaderEdit } from "./header-ui";
 import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
@@ -129,6 +129,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
 
   const sorted = [...s.events].sort(compareEvents);
   const notes = intervalNotes(sorted);
+  const dayGroups = groupEventsByDay(sorted, wallDateIso(wallNow()));
   const respText = (e: (typeof sorted)[number]) => (e.responsibleUserId ? userName.get(e.responsibleUserId) : null) ?? e.responsibleName ?? "";
 
   const values = (e: (typeof sorted)[number]): EventValues => ({
@@ -238,63 +239,82 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             Этапов пока нет{canEdit ? " — добавьте первый кнопкой «+ Этап»: что произошло, когда и на ком" : ""}.
           </p>
         ) : (
-          <ol className="flex flex-col rounded-lg border border-neutral-200 bg-white px-3 py-1">
-            {sorted.map((e, i) => {
-              const note = notes[i];
-              const st = shortStamp(e.occurredAt, e.timeKnown);
-              const docs = parseDocLinks(e.docLinks);
-              const resp = respText(e);
-              const meta = e.place ? `место: ${e.place}` : "";
-              const sideCls = e.side === "WELLMEKH" ? "bg-sky-100 text-sky-800" : e.side === "CUM" ? "bg-emerald-100 text-emerald-800" : "bg-neutral-100 text-neutral-500";
-              const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—");
-              const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}`;
-              return (
-                <li key={e.id} data-event={e.id}>
-                  {note && (
-                    <div className="py-0.5 text-[11px] md:pl-[8.75rem] text-neutral-400" data-interval>
-                      {note.text}
-                      {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
-                    </div>
-                  )}
-                  <div className={"flex flex-wrap gap-x-3 gap-y-1 py-2 " + (e.expected ? "text-neutral-400" : "")}>
-                    <div className="flex w-full shrink-0 flex-col items-start gap-0.5 tabular-nums md:w-32" title={st.full} data-event-side>
-                      <span className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : sideCls)}>{e.side ? SIDE_LABEL[e.side] ?? e.side : "—"}</span>
-                      <div className={"text-base font-semibold " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>{st.date}</div>
-                      <div className="text-xs">{st.time ?? <span className="text-[10px] text-neutral-400">время не указано</span>}</div>
-                      <div className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</div>
-                    </div>
-                    <div className="min-w-[12rem] flex-1 md:border-l md:border-neutral-200 md:pl-3">
-                      <h3 className={"break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
-                        {e.title}
-                        {e.expected && <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
-                        <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
-                      </h3>
-                      {e.details && <ClampText text={e.details} />}
-                      {meta && <p className="text-[11px] text-neutral-500">{meta}</p>}
-                      {(e.documents.length > 0 || docs.length > 0) && (
-                        <ul className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                          {e.documents.map((d) => (
-                            <li key={d.id} className="flex items-center">
-                              <Clip />
-                              <a href={`/api/drive-docs/${d.id}`} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline" title={d.title}>{d.title}</a>
-                              {canEdit && <DocRemove id={d.id} title={d.title} />}
-                            </li>
-                          ))}
-                          {docs.map((d, k) => (
-                            <li key={k} className="flex items-center">
-                              <Clip />
-                              {d.href ? <a href={d.href} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline">{d.text}</a> : <span className="ml-1">{d.text}</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    {canEdit && <EventActions v={values(e)} titles={titles} names={names} canDone={!isAcceptanceEvent(e)} />}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="relative rounded-lg border border-neutral-200 bg-white py-3 pl-8 pr-3" data-timeline>
+            <div aria-hidden className="absolute bottom-4 left-[0.9375rem] top-4 w-px bg-neutral-200" />
+            {dayGroups.map((g) => (
+              <section key={g.day} className="relative" data-day={g.day} data-day-kind={g.kind} aria-label={g.heading}>
+                <h3 className="relative flex items-center gap-2 py-1.5 text-xs">
+                  <span aria-hidden className={"absolute -left-[1.1875rem] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full " + (g.kind === "today" ? "bg-neutral-800" : "bg-neutral-300")} />
+                  <span className={g.kind === "today" ? "font-semibold text-neutral-900" : g.kind === "upcoming" ? "font-medium text-neutral-400" : "font-medium text-neutral-600"}>{g.heading}</span>
+                  {g.kind === "today" && <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium text-white">сегодня</span>}
+                  {g.kind === "upcoming" && <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-normal text-neutral-500">ожидается</span>}
+                </h3>
+                <ol className="flex flex-col">
+                  {g.items.map(({ event: e, index: i }) => {
+                    const note = notes[i];
+                    const docs = parseDocLinks(e.docLinks);
+                    const resp = respText(e);
+                    const side = e.side && SIDE_LABEL[e.side] ? e.side : null;
+                    const tone = side === "WELLMEKH" ? { dot: "bg-sky-600 border-sky-600", ring: "border-sky-400", badge: "bg-sky-50 text-sky-800" } : side === "CUM" ? { dot: "bg-emerald-600 border-emerald-600", ring: "border-emerald-400", badge: "bg-emerald-50 text-emerald-800" } : { dot: "bg-neutral-400 border-neutral-400", ring: "border-neutral-300", badge: "bg-neutral-100 text-neutral-500" };
+                    const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—");
+                    const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}`;
+                    const time = e.timeKnown ? wallTimeHm(e.occurredAt) : null;
+                    return (
+                      <li key={e.id} data-event={e.id} data-expected={e.expected ? "1" : "0"}>
+                        {note && (
+                          <div className="py-1.5 text-[11px] leading-tight text-neutral-400" data-interval>
+                            {note.text}
+                            {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
+                          </div>
+                        )}
+                        <div className="relative">
+                          <span aria-hidden data-marker={e.expected ? "expected" : "done"} className={"absolute -left-[1.5rem] top-4 h-3.5 w-3.5 rounded-full border-2 " + (e.expected ? `border-dashed bg-white ${tone.ring}` : tone.dot)} />
+                          <div className={"flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:gap-4 " + (e.expected ? "border-dashed border-neutral-200 bg-neutral-50/60 text-neutral-400" : "border-neutral-200 bg-white shadow-sm")} title={fmtWall(e.occurredAt, e.timeKnown)}>
+                            <div className="flex shrink-0 flex-row flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums sm:w-28 sm:flex-col sm:items-start" data-event-side>
+                              <span className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : tone.badge)}>{side ? SIDE_LABEL[side] : "не указано"}</span>
+                              <span className={"text-lg font-semibold leading-tight " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>
+                                {time ?? <span className="text-[10px] font-normal text-neutral-400">время не указано</span>}
+                              </span>
+                              <span className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</span>
+                            </div>
+                            <div className="min-w-0 flex-1 sm:border-l sm:border-neutral-100 sm:pl-4">
+                              <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                                <h4 className={"min-w-[10rem] flex-1 break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
+                                  {e.title}
+                                  {e.expected && <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
+                                  <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
+                                </h4>
+                                {canEdit && <EventActions v={values(e)} titles={titles} names={names} canDone={!isAcceptanceEvent(e)} />}
+                              </div>
+                              {e.details && <ClampText text={e.details} />}
+                              {e.place && <p className="mt-0.5 text-[11px] text-neutral-500">место: {e.place}</p>}
+                              {(e.documents.length > 0 || docs.length > 0) && (
+                                <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                                  {e.documents.map((d) => (
+                                    <li key={d.id} className="flex items-center">
+                                      <Clip />
+                                      <a href={`/api/drive-docs/${d.id}`} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline" title={d.title}>{d.title}</a>
+                                      {canEdit && <DocRemove id={d.id} title={d.title} />}
+                                    </li>
+                                  ))}
+                                  {docs.map((d, k) => (
+                                    <li key={k} className="flex items-center">
+                                      <Clip />
+                                      {d.href ? <a href={d.href} target="_blank" rel="noopener noreferrer" className="ml-1 max-w-[16rem] truncate text-blue-700 hover:underline">{d.text}</a> : <span className="ml-1">{d.text}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            ))}
+          </div>
         )}
 
         <AcceptList

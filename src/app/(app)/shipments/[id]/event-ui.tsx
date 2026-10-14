@@ -18,7 +18,7 @@ export type EventValues = {
   title: string;
   date: string;
   time: string;
-  /** "" | "WELLMEKH" | "CUM". */
+  /** "WELLMEKH" | "CUM" ("" только у старых записей до прогона скрипта данных). */
   side: string;
   /** Ответственный текстом. */
   responsible: string;
@@ -61,11 +61,13 @@ function EventFields({ titles, names, initial, withNext }: Common & { initial?: 
   const listId = useId();
   const namesId = useId();
   const [today] = useState(() => todayIso());
+  const [side, setSide] = useState(initial?.side || "WELLMEKH");
+  // «Следующий этап»: пока не выбрано своё значение, «на ком» берётся как у основного этапа.
+  const [nextSide, setNextSide] = useState<string | null>(null);
   return (
     <>
       <Field label="На ком">
-        <Select name="side" defaultValue={initial?.side ?? ""}>
-          <option value="">—</option>
+        <Select name="side" required value={side} onChange={(e) => setSide(e.target.value)}>
           {SIDES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
@@ -110,11 +112,18 @@ function EventFields({ titles, names, initial, withNext }: Common & { initial?: 
       </label>
 
       {withNext && (
-        <fieldset className="grid grid-cols-1 gap-3 rounded-md border border-dashed border-neutral-300 p-3 sm:col-span-2 sm:grid-cols-3">
+        <fieldset className="grid grid-cols-1 gap-3 rounded-md border border-dashed border-neutral-300 p-3 sm:col-span-2 sm:grid-cols-2">
           <legend className="px-1 text-xs text-neutral-500">Следующий этап (необязательно): создаст ожидаемый этап</legend>
           <Field label="Название"><Input name="nextTitle" maxLength={120} list={listId} autoComplete="off" /></Field>
           <Field label="Ожидаемая дата"><Input name="nextDate" type="date" /></Field>
           <Field label="Время (необязательно)"><Input name="nextTime" type="time" /></Field>
+          <Field label="На ком">
+            <Select name="nextSide" required value={nextSide ?? side} onChange={(e) => setNextSide(e.target.value)}>
+              {SIDES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </Select>
+          </Field>
         </fieldset>
       )}
     </>
@@ -271,8 +280,7 @@ function AcceptFields({ shipmentId, rows, totals, namesId, names }: { shipmentId
         <datalist id={namesId}>{names.map((n) => <option key={n} value={n} />)}</datalist>
       </Field>
       <Field label="На ком">
-        <Select name="side" defaultValue="CUM">
-          <option value="">—</option>
+        <Select name="side" required defaultValue="CUM">
           {SIDES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </Select>
       </Field>

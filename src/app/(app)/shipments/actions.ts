@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { checkOrgRefs } from "@/lib/org-guard";
 import { DATE_RANGE_ERROR, MAX_LINE_QTY, MAX_LINES, isDateInRange } from "@/lib/shipments";
-import { acceptLineError, acceptSummaryText, isSide, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
+import { acceptLineError, acceptSummaryText, sideError, shipmentTotals, wallNow, wallToDate } from "@/lib/shipment-calc";
 import { loadShipmentCandidates, nextShipmentName } from "@/lib/shipment-data";
 import { ACCEPT_NEEDS_READY, clip, eventTitles, isReworkState, moveError, REWORK_STATE_LABEL } from "@/lib/shipment-stage";
 import { orderLabel } from "@/lib/order-label";
@@ -247,7 +247,8 @@ async function parseEvent(orgId: string, fd: FormData): Promise<EventData | stri
   const time = str(fd, "time");
   if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return "Время укажите в формате ЧЧ:ММ или оставьте пустым";
   const side = str(fd, "side");
-  if (side && !isSide(side)) return "«На ком» — Веллмех, ЦУМ или пусто";
+  const sideErr = sideError(side);
+  if (sideErr) return sideErr;
   const who = await resolveResponsible(orgId, str(fd, "responsible"));
   const place = str(fd, "place");
   const details = str(fd, "details");
@@ -259,7 +260,7 @@ async function parseEvent(orgId: string, fd: FormData): Promise<EventData | stri
     title,
     occurredAt: wallToDate(date, time),
     timeKnown: Boolean(time),
-    side: side || null,
+    side,
     ...who,
     place: place || null,
     details: details || null,
@@ -346,7 +347,10 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
   const nextTitle = str(fd, "nextTitle");
   const nextDate = str(fd, "nextDate");
   const nextTime = str(fd, "nextTime");
+  const nextSide = str(fd, "nextSide") || e.side;
   if (nextTitle) {
+    const ns = sideError(nextSide);
+    if (ns) return { error: ns };
     if (nextTitle.length > 120) return { error: "Название следующего этапа не длиннее 120 символов" };
     if (!dateOk(nextDate)) return { error: "Укажите ожидаемую дату следующего этапа" };
     if (nextTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(nextTime)) return { error: "Время следующего этапа — ЧЧ:ММ или пусто" };
@@ -355,7 +359,7 @@ export async function createEvent(shipmentId: string, _prev: ShipmentFormState, 
     const ev = await tx.shipmentEvent.create({ data: { shipmentId, ...e, createdById: session.user.id } });
     if (nextTitle) {
       await tx.shipmentEvent.create({
-        data: { shipmentId, title: nextTitle, occurredAt: wallToDate(nextDate, nextTime), timeKnown: Boolean(nextTime), expected: true, createdById: session.user.id },
+        data: { shipmentId, title: nextTitle, occurredAt: wallToDate(nextDate, nextTime), timeKnown: Boolean(nextTime), expected: true, side: nextSide, createdById: session.user.id },
       });
     }
     return ev;
@@ -427,7 +431,7 @@ export async function createAcceptanceEvent(shipmentId: string): Promise<{ error
   if (!sh) return { error: "Отгрузка не найдена" };
   if (sh.acceptedAt) return { error: "Приёмка уже подтверждена" };
   await prisma.shipmentEvent.create({
-    data: { shipmentId, title: "Принято в Коптево", occurredAt: sh.plannedDate, timeKnown: false, expected: true, place: "Коптево", createdById: session.user.id },
+    data: { shipmentId, title: "Принято в Коптево", occurredAt: sh.plannedDate, timeKnown: false, expected: true, place: "Коптево", side: "CUM", createdById: session.user.id },
   });
   revalidateAll(orgId);
   return {};
@@ -453,7 +457,8 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
   const time = str(fd, "time");
   if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return { error: "Время укажите в формате ЧЧ:ММ или оставьте пустым" };
   const side = str(fd, "side");
-  if (side && !isSide(side)) return { error: "«На ком» — Веллмех, ЦУМ или пусто" };
+  const sideErr = sideError(side);
+  if (sideErr) return { error: sideErr };
   const comment = str(fd, "comment");
   if (comment.length > 1000) return { error: "Комментарий не длиннее 1000 символов" };
   const who = await resolveResponsible(orgId, str(fd, "acceptedBy"));
@@ -464,7 +469,7 @@ export async function confirmAcceptance(shipmentId: string, eventId: string, fd:
   await prisma.$transaction(async (tx) => {
     await tx.shipmentEvent.update({
       where: { id: ev.id },
-      data: { expected: false, occurredAt: at, timeKnown: Boolean(time), side: side || null, ...who, details, updatedById: session.user.id },
+      data: { expected: false, occurredAt: at, timeKnown: Boolean(time), side, ...who, details, updatedById: session.user.id },
     });
     await tx.shipment.update({ where: { id: shipmentId }, data: { acceptedAt: at, acceptedBy: who.responsibleName, acceptEventId: ev.id, status: "ACCEPTED" } });
   });
@@ -519,9 +524,9 @@ async function lineDetails(orgId: string, lines: { id: string; size: string | nu
 }
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
-/** Автоэтап хронологии: «сейчас», время известно, ответственный — нажавший кнопку, «на ком» не заполняется. */
+/** Автоэтап хронологии: «сейчас», время известно, ответственный — нажавший кнопку, «на ком» — ЦУМ. */
 async function stageEvent(tx: Tx, shipmentId: string, userId: string, title: string, details: string | null) {
-  await tx.shipmentEvent.create({ data: { shipmentId, title, occurredAt: wallNow(), timeKnown: true, responsibleUserId: userId, details, createdById: userId } });
+  await tx.shipmentEvent.create({ data: { shipmentId, title, occurredAt: wallNow(), timeKnown: true, responsibleUserId: userId, details, side: "CUM", createdById: userId } });
 }
 
 async function loadOwnLines(orgId: string, shipmentId: string, ids?: string[]) {
