@@ -24,7 +24,7 @@ const MAX_LINKS = 8;
 const CATEGORY_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["proposed", "confirmed"] } }) });
 
 export default async function CategoriesPage({ searchParams }: PageProps<"/settings/categories">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.categories);
   const sp = await searchParams;

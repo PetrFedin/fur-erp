@@ -16,7 +16,7 @@ const FUR_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "По
 export const metadata = { title: "Справочник меха" };
 
 export default async function FursPage({ searchParams }: PageProps<"/settings/furs">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const f = parseFilters(FUR_FILTERS, await searchParams);
   const canEdit = hasRole(session.user.role, ACCESS.furRefs);

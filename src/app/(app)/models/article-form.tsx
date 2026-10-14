@@ -76,6 +76,7 @@ export function ArticleForm({
   categories,
   canCreateCategory,
   canEdit = true,
+  noPrice = false,
   embedded = false,
   onSaved,
   onCancel,
@@ -95,6 +96,8 @@ export function ArticleForm({
   categories: CategorySelectOption[];
   canCreateCategory: boolean;
   canEdit?: boolean;
+  /** Кабинет поставщика: без цены, шаг «Цена» убран, ссылки на карточку и ТЗ не показываются. */
+  noPrice?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [resetKey, setResetKey] = useState(0);
@@ -114,17 +117,21 @@ export function ArticleForm({
       {createdMsg && (
         <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           Артикул {createdMsg.name} сохранён.{" "}
-          <Link href={`/models/${createdMsg.id}`} className="font-medium underline">Открыть карточку →</Link>{" "}
-          <Link href={`/production/new?article=${createdMsg.id}`} className="font-medium underline">Создать ТЗ →</Link> Форма очищена — вносите следующий.
+          {noPrice ? <Link href="/articles" className="font-medium underline">К списку изделий →</Link> : (
+            <>
+              <Link href={`/models/${createdMsg.id}`} className="font-medium underline">Открыть карточку →</Link>{" "}
+              <Link href={`/production/new?article=${createdMsg.id}`} className="font-medium underline">Создать ТЗ →</Link>
+            </>
+          )}{" "}Форма очищена — вносите следующий.
         </p>
       )}
-      <Body key={resetKey} embedded={embedded} onSaved={onSaved} onCancel={onCancel} extraActions={extraActions} mode={mode} initial={initial} categories={categories} canCreateCategory={canCreateCategory} canEdit={canEdit} state={state} formAction={formAction} pending={pending} />
+      <Body key={resetKey} embedded={embedded} onSaved={onSaved} onCancel={onCancel} extraActions={extraActions} mode={mode} initial={initial} categories={categories} canCreateCategory={canCreateCategory} canEdit={canEdit} noPrice={noPrice} state={state} formAction={formAction} pending={pending} />
     </div>
   );
 }
 
 function Body({
-  mode, initial, categories, canCreateCategory, canEdit, state, formAction, pending, embedded, onSaved, onCancel, extraActions,
+  mode, initial, categories, canCreateCategory, canEdit, noPrice, state, formAction, pending, embedded, onSaved, onCancel, extraActions,
 }: {
   embedded: boolean;
   onSaved?: () => void;
@@ -135,6 +142,7 @@ function Body({
   categories: CategorySelectOption[];
   canCreateCategory: boolean;
   canEdit: boolean;
+  noPrice: boolean;
   state: ArticleSaveState;
   formAction: (fd: FormData) => void;
   pending: boolean;
@@ -176,7 +184,7 @@ function Body({
   function validate(): string[] {
     const e: string[] = [];
     if (f.name.trim().length < 2) e.push("Код артикула: не короче 2 символов (например, M012)");
-    if (!priceOk(f.sellingPrice)) e.push("Цена продажи: число больше 0 или оставьте пустой");
+    if (!noPrice && !priceOk(f.sellingPrice)) e.push("Цена продажи: число больше 0 или оставьте пустой");
     return e;
   }
   const onSubmit = (ev: React.FormEvent<HTMLFormElement>) => {
@@ -272,11 +280,13 @@ function Body({
         </div>
       </Step>
 
-      <Step n={3} title="Цена и описание" hint={<><p>Розничная цена — с НДС. Меняется сразу и у ТЗ в плане и в работе; у завершённых ТЗ не меняется. Уходит в наценку «Изделий», «Ценообразования» и Главной.</p><p className="mt-1">Вид меха, цвет и НДС в строках списания задаются в ТЗ — артикул показывает их по своим ТЗ.</p></>}>
+      <Step n={3} title={noPrice ? "Длина и описание" : "Цена и описание"} hint={noPrice ? undefined : <><p>Розничная цена — с НДС. Меняется сразу и у ТЗ в плане и в работе; у завершённых ТЗ не меняется. Уходит в наценку «Изделий», «Ценообразования» и Главной.</p><p className="mt-1">Вид меха, цвет и НДС в строках списания задаются в ТЗ — артикул показывает их по своим ТЗ.</p></>}>
         <div className={`${cardCls} grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
-          <Field htmlFor="sellingPrice" label="Розничная цена, ₽ (с НДС)" error={fe.sellingPrice}>
-            <Input className="ui-field rounded-lg" id="sellingPrice" name="sellingPrice" inputMode="decimal" value={f.sellingPrice} onChange={set("sellingPrice")} placeholder="не задана" disabled={!canEdit} aria-invalid={fe.sellingPrice ? true : undefined} />
-          </Field>
+          {!noPrice && (
+            <Field htmlFor="sellingPrice" label="Розничная цена, ₽ (с НДС)" error={fe.sellingPrice}>
+              <Input className="ui-field rounded-lg" id="sellingPrice" name="sellingPrice" inputMode="decimal" value={f.sellingPrice} onChange={set("sellingPrice")} placeholder="не задана" disabled={!canEdit} aria-invalid={fe.sellingPrice ? true : undefined} />
+            </Field>
+          )}
           <Field htmlFor="lengthClass" label="Длина" hint="Short / Regular / Long по системе продаж; у аксессуаров длины нет.">
             <Select className="ui-field rounded-lg" id="lengthClass" name="lengthClass" value={f.lengthClass} onChange={set("lengthClass")} disabled={!canEdit}>
               <option value="">— без длины —</option>

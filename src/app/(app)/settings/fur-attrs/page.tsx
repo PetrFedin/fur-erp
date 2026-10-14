@@ -21,7 +21,7 @@ export const metadata = { title: "Признаки меха" };
 const ATTR_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "Поиск" }, status: { allowed: ["proposed", "confirmed"] } }), group: { kind: "multi", label: "Группа" } });
 
 export default async function FurAttrsPage({ searchParams }: PageProps<"/settings/fur-attrs">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.furRefs);
   const sp = await searchParams;

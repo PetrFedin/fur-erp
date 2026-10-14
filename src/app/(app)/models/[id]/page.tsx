@@ -3,7 +3,7 @@ import { loadTzPositions } from "@/lib/order-label-db";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { TH as Head, THGroup } from "@/components/table-head";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { ACCESS, hasRole } from "@/lib/access";
@@ -50,7 +50,8 @@ const BL = " border-l border-neutral-200";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
+  if (session.user.role === "SUPPLIER") return { title: "Артикул" };
   const m = await prisma.productModel.findFirst({ where: { id, organizationId: session.user.organizationId }, select: { name: true } });
   return { title: m ? `Артикул ${m.name}` : "Артикул" };
 }
@@ -76,7 +77,9 @@ function SectionLink({ href, label, count }: { href: string; label: string; coun
 
 export default async function EditModelPage({ params }: PageProps<"/models/[id]">) {
   const { id } = await params;
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
+  // В карточке артикула цены и себестоимость: поставщику она закрыта.
+  if (session.user.role === "SUPPLIER") redirect("/articles");
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.models);
   const deleteBlocker = canEdit ? await articleDeleteBlocker(session.user.organizationId, id) : null;

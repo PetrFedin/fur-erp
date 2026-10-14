@@ -13,7 +13,7 @@ import { AuctionsTable, type AuctionRowData } from "./auctions-table";
 export const metadata = { title: "Справочник аукционов" };
 
 export default async function AuctionsPage() {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.auctions);
 

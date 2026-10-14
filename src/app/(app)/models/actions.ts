@@ -37,6 +37,27 @@ export async function updateSellingPrice(modelId: string, formData: FormData): P
   return {};
 }
 
+// ───────────────────────── артикул от внешнего поставщика ─────────────────────────
+
+/**
+ * Новый артикул из кабинета поставщика (Веллмех): без цены (sellingPrice всегда пусто), сразу активный, только создание —
+ * чужие артикулы и цены поставщик не меняет. В журнале изменений виден актёр с ролью SUPPLIER.
+ */
+export async function createArticleBySupplier(_prev: ArticleSaveState, formData: FormData): Promise<ArticleSaveState> {
+  const session = await requireRole("SUPPLIER");
+  const orgId = session.user.organizationId;
+  const g = (k: string) => String(formData.get(k) ?? "");
+  const r = await saveArticleCore(orgId, session.user.role, null, {
+    name: g("name"), sku: g("sku"), salesCode: g("salesCode"), salesName: g("salesName"), aliases: g("aliases"),
+    category: g("category"), categoryRefId: g("categoryRefId") || null, group: "",
+    sellingPrice: null, lengthClass: g("lengthClass"), description: g("description"), isActive: true,
+  });
+  if (r.error) return { error: r.error, fields: r.fields };
+  revalidateAll(orgId);
+  if (formData.get("intent") === "again") return { created: { id: r.id!, name: one(formData.get("name"), 100), at: Date.now() } };
+  redirect("/articles");
+}
+
 // ───────────────────────── единая форма артикула (новый + правка по месту) ─────────────────────────
 
 export type ArticleSaveState = {

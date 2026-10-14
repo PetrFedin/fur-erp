@@ -26,7 +26,7 @@ const COLOR_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "П
 type Usage = { orders: Array<{ id: string; number: string }>; purchases: Map<string, string>; lots: number; items: number };
 
 export default async function ColorsPage({ searchParams }: PageProps<"/settings/colors">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const canEdit = hasRole(session.user.role, ACCESS.colors);
   const sp = await searchParams;

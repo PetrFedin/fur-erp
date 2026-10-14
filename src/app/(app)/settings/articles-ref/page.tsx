@@ -15,7 +15,7 @@ const ARTICLE_FILTERS = defineFilters({ ...pick(["q", "status"], { q: { label: "
 export const metadata = { title: "Справочник артикулов" };
 
 export default async function ArticlesRefPage({ searchParams }: PageProps<"/settings/articles-ref">) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
   const orgId = session.user.organizationId;
   const f = parseFilters(ARTICLE_FILTERS, await searchParams);
   const canEdit = hasRole(session.user.role, ACCESS.models);

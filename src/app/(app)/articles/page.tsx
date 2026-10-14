@@ -34,6 +34,7 @@ import { CostTwo } from "@/components/cost-two";
 import { CATEGORY_GROUPS, NO_GROUP, groupOf } from "@/lib/category-groups";
 import { TotalLabel } from "@/components/total-label";
 import { LENGTH_OPTIONS } from "@/lib/length-class";
+import { SupplierArticles } from "./supplier-view";
 
 export const metadata = { title: "Изделия" };
 
@@ -53,7 +54,9 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const f = parseFilters(ARTICLE_FILTERS, await searchParams);
   const q = f.q;
   const showEmpty = f.empty === "1";
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
+  // Поставщик (Веллмех): отдельный вид без денег — возвращаем ДО любых денежных запросов ниже.
+  if (session.user.role === "SUPPLIER") return <SupplierArticles orgId={session.user.organizationId} q={q} />;
   const c4Mode = await getCommission4Mode();
   const year = await getYearFilter();
   const canCreate = hasRole(session.user.role, ACCESS.models);

@@ -20,8 +20,12 @@ const SETTINGS_LINKS = [
 
 export const metadata = { title: "Настройки" };
 
+// Что из справочников видит внешний поставщик (только просмотр).
+const SUPPLIER_LINKS = ["/settings/colors", "/settings/categories", "/settings/furs", "/settings/fur-attrs", "/settings/auctions", "/settings/articles-ref"];
+
 export default async function SettingsPage() {
-  await requireSession();
+  const session = await requireSession({ allowSupplier: true });
+  const links = session.user.role === "SUPPLIER" ? SETTINGS_LINKS.filter((l) => SUPPLIER_LINKS.includes(l.href)) : SETTINGS_LINKS;
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Настройки" }]} />
@@ -32,7 +36,7 @@ export default async function SettingsPage() {
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {SETTINGS_LINKS.map((item) => (
+        {links.map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="h-full transition-colors hover:border-neutral-400">
               <CardHeader>
