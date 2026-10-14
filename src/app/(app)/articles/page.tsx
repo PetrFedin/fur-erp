@@ -14,6 +14,7 @@ import { getYearFilter } from "@/lib/year-filter";
 import { YearNote, emptyForYear } from "@/components/year-note";
 import { InfoHint } from "@/components/info-hint";
 import { formatMoney } from "@/lib/utils";
+import { parseSupplierDescription } from "@/lib/supplier-article";
 import { compareModelNames } from "@/lib/model-code";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { ArticlePriceForm } from "./price-form";
@@ -82,7 +83,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
   const models = await prisma.productModel.findMany({
     // Ремонт — не изделия: отдельная страница «Ремонт».
     where: { AND: [articleModelWhere(orgId, f), { OR: [{ category: null }, { category: { not: "Ремонт" } }] }] },
-    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, sellingPrice: true, supplierWorkPrice: true, supplierFurPerUnit: true, isActive: true, categoryRef: { select: { group: true } } },
+    select: { id: true, name: true, sku: true, category: true, salesCode: true, salesName: true, description: true, sellingPrice: true, supplierWorkPrice: true, supplierFurPerUnit: true, isActive: true, categoryRef: { select: { group: true } } },
     orderBy: { name: "asc" },
   });
 
@@ -125,7 +126,11 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
     const price = m.sellingPrice ? m.sellingPrice.toNumber() : null;
     // Показатели из тех же ТЗ: шкуры, подкладка, средневзвешенное, НДС, основной вид меха (src/lib/article-metrics.ts).
     const met = articleMetrics(os);
-    const colors = Array.from(new Set(os.flatMap((o) => colorsByOrder.get(o.id) ?? []))).sort((a, b) => a.localeCompare(b, "ru"));
+    // Профиль из описания артикула (строки «Мех/Подкладка/Размеры/Цвета» — собраны из Word-ТЗ): цвета — если нет ТЗ в базе.
+    const own = parseSupplierDescription(m.description);
+    const ownColors = own.colors ? own.colors.split(/,\s*/).filter(Boolean) : [];
+    const colors0 = Array.from(new Set(os.flatMap((o) => colorsByOrder.get(o.id) ?? []))).sort((a, b) => a.localeCompare(b, "ru"));
+    const colors = colors0.length ? colors0 : ownColors;
     return {
       id: m.id,
       name: m.name,
@@ -143,6 +148,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       primaryFur: met.primaryFur ?? furTypes.get(m.id)?.fur ?? null,
       met,
       colors,
+      sizes: own.sizes,
+      lining: own.lining,
     };
   });
 
@@ -276,13 +283,15 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
       )}
 
       <ResponsiveRows table={
-      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1420px]">
+      <Table anchor="table:articles" label="Таблица изделий" stickyHeader className="min-w-[1640px]">
         <Thead>
           <Tr>
             <Th>Артикул</Th>
             <Th>Категория / группа</Th>
             <Th>Тип меха</Th>
             <Th>Цвет</Th>
+            <Th>Размеры</Th>
+            <Th>Состав подкладки</Th>
             <Th className="text-right" unit="шт.">
               В выпуске
               <InfoHint label="Что такое «в выпуске»">Все ТЗ артикула без отменённых и без ремонта: готово (завершённые) + в работе (план ТЗ «В работе» и «Запланировано») — как на Главной.</InfoHint>
@@ -343,6 +352,8 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
                 {r.colors.length ? r.colors.slice(0, 2).join(", ") : "—"}
                 {r.colors.length > 2 ? <span className="text-[11px] text-neutral-400"> +{r.colors.length - 2}</span> : null}
               </Td>
+              <Td className="text-neutral-700 text-xs" title={r.sizes}>{r.sizes ? (r.sizes.length > 24 ? `${r.sizes.slice(0, 24)}…` : r.sizes) : "—"}</Td>
+              <Td className="text-neutral-700 text-xs" title={r.lining}>{r.lining ? (r.lining.length > 32 ? `${r.lining.slice(0, 32)}…` : r.lining) : "—"}</Td>
               <Td className="text-right tabular-nums">{r.qty > 0 ? formatQty(r.qty) : "—"}</Td>
               <Td className="text-right tabular-nums">
                 {r.met.fur.qty > 0 ? formatQty(Math.round(r.met.fur.qty * 100) / 100) : "—"}
@@ -390,7 +401,7 @@ export default async function ArticlesPage({ searchParams }: { searchParams: Pro
           )}
           {rows.length === 0 && (
             <Tr>
-              <Td colSpan={17} className="py-8 text-center text-neutral-500">
+              <Td colSpan={19} className="py-8 text-center text-neutral-500">
                 {q || modelFilterOn || tzActive ? "Ничего не найдено" : year !== "all" ? emptyForYear(year, "ТЗ по артикулам", "") : emptyCount > 0 ? "Нет артикулов с ТЗ и остатком" : "Артикулов пока нет"}
               </Td>
             </Tr>

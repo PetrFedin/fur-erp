@@ -11,6 +11,7 @@ import { ACCESS, hasRole } from "@/lib/access";
 import { getCategoryOptions } from "@/lib/categories";
 import { RecordHistory } from "@/components/record-history";
 import { RecordComments } from "@/components/comments/record-comments";
+import { TzProfile } from "./tz-profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ArticleForm } from "../article-form";
@@ -253,6 +254,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
         </div>
       </CollapsibleBlock>
 
+      <TzProfile code={model.name} />
       <Card>
         <CardHeader>
           <CardTitle as="h2" className="flex items-center gap-1">
