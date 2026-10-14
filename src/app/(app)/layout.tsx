@@ -12,6 +12,7 @@ import { parseCommission4Cookie } from "@/lib/commission4-mode";
 import { YearDisplayProvider } from "@/lib/year-display";
 import { availableYears, parseYearCookie } from "@/lib/year-filter";
 import { prisma } from "@/lib/prisma";
+import { canUseChat, chatCounts, viewerOf } from "@/lib/chat";
 import { BlockHover } from "@/components/block-hover";
 import { FromTracker } from "@/components/from-tracker";
 import { BackLink } from "@/components/back-link";
@@ -34,6 +35,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ]);
   const dataMaxYear = Math.max(0, ...[pu._max.orderDate, pa._max.paidAt, pp._max.paidAt].map((d) => (d ? d.getUTCFullYear() : 0)));
   const years = availableYears(dataMaxYear);
+  // Непрочитанное в чате — значок у пункта «Чат».
+  const chatUnread = canUseChat(session.user.role) ? (await chatCounts(viewerOf(session)).catch(() => ({ unread: 0 }))).unread : 0;
+  const badges = { "/chat": chatUnread };
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
 
   return (
@@ -41,13 +45,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Commission4DisplayProvider initialMode={c4Mode}>
       <YearDisplayProvider initialYear={yearFilter} years={years}>
       <div className="flex h-dvh w-full overflow-hidden print:block print:h-auto print:overflow-visible">
-        <Sidebar links={navLinksFor(session.user.role)} />
+        <Sidebar links={navLinksFor(session.user.role)} badges={badges} />
         <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
             organizationName={session.user.organizationName}
             userName={session.user.name}
             role={session.user.role}
             links={navLinksFor(session.user.role)}
+            badges={badges}
           />
           <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">
             <Suspense fallback={null}>

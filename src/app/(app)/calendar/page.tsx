@@ -1,4 +1,5 @@
 import { loadRawFacts } from "@/lib/raw-calendar";
+import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -480,6 +481,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-600">
                           {done ? <Badge variant="success">выполнено</Badge> : over ? <Badge variant="danger">просрочено</Badge> : <Badge variant="info">в плане</Badge>}
                           {e.supplierId && <span>{e.factDate ? `факт ${fmtRu(ymd(e.factDate))}` : "факта пока нет"}{e.docNote ? ` · № ${e.docNote}` : ""}</span>}
+                          {e.supplierId && <ChatLink type="CalendarEvent" id={e.id} role={session.user.role} label="Запросить статус" className="!py-0 text-xs" />}
                           {e.endDate && ymd(e.endDate) !== ymd(e.date) && <span className="tabular-nums">{fmtRu(ymd(e.date))} — {fmtRu(ymd(e.endDate))}</span>}
                           {e.season && <span>сезон {e.season.code}</span>}
                           {e.orderId && <Link href={`/production/${e.orderId}`} className="text-blue-700 hover:underline">{pi ? pipeTitle(pi) : "карточка ТЗ"} →</Link>}

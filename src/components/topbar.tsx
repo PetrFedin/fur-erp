@@ -22,17 +22,19 @@ export function Topbar({
   userName,
   role,
   links,
+  badges,
 }: {
   organizationName: string;
   userName: string;
   role: string;
   links: readonly NavItem[];
+  badges?: Record<string, number>;
 }) {
   const isSupplier = role === "SUPPLIER";
   return (
     <header className="print:hidden flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-neutral-200 bg-white px-3 py-2 md:px-4">
       <div className="flex min-w-0 items-center gap-2">
-        <MobileNav links={links} />
+        <MobileNav links={links} badges={badges} />
         <div className="truncate text-sm font-medium text-neutral-700 max-md:min-w-[3.25rem]">{organizationName}</div>
         {isSupplier && <span className="shrink-0 rounded-md bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-800">Кабинет Веллмеха</span>}
       </div>

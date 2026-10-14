@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
@@ -115,7 +116,7 @@ export default async function SupplierCalendarPage({ searchParams }: PageProps<"
                 <Td className="tabular-nums">{fmtRu(e.planDate)}</Td>
                 <Td className="tabular-nums">{e.factDate ? fmtRu(e.factDate) : "—"}</Td>
                 <Td className="max-w-64 break-words text-xs">{e.notes || "—"}</Td>
-                {isSup && <Td><RowActions entry={e} models={modelNames} /></Td>}
+                {isSup && <Td><div className="flex items-center gap-1"><RowActions entry={e} models={modelNames} /><ChatLink type="CalendarEvent" id={e.id} role={s.user.role} label="Написать" className="!py-0.5 text-xs" /></div></Td>}
               </Tr>
             ))}
             {shown.length === 0 && <Tr><Td colSpan={9} className="py-8 text-center text-neutral-500">{entries.length === 0 ? "Записей пока нет. Добавьте первую выше или загрузите Excel." : "По выбранным условиям записей нет"}</Td></Tr>}

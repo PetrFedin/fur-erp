@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChatLink } from "@/components/chat-link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -157,6 +158,7 @@ export default async function PaymentCardPage({ params }: PageProps<"/payments/[
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold tabular-nums">{money(r.amount)}</h1>
           <span className="text-sm text-neutral-600">{r.direction === "out" ? "Мы платим" : "Нам платят"} · {cpHref ? <Link href={cpHref} className="text-blue-700 hover:underline">{r.counterparty}</Link> : r.counterparty}</span>
+          {parsed.kind === "raw" && <ChatLink type="Payment" id={parsed.id} role={session.user.role} className="ml-auto" label="Запросить у Веллмеха" />}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span>{r.what} · {dateText}</span>

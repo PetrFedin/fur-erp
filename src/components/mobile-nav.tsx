@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { SECONDARY_NAV_HREFS, activeNavHref, type NavItem } from "./nav-links";
 
 /** Гамбургер и выезжающее меню для узких экранов (<768px); на десктопе скрыто. */
-export function MobileNav({ links }: { links: readonly NavItem[] }) {
+export function MobileNav({ links, badges }: { links: readonly NavItem[]; badges?: Record<string, number> }) {
   const pathname = usePathname();
   const [openAt, setOpenAt] = useState<string | null>(null);
   // Меню открыто, только пока путь тот же, что при открытии: переход закрывает его.
@@ -61,6 +61,7 @@ export function MobileNav({ links }: { links: readonly NavItem[] }) {
                     )}
                   >
                     {link.label}
+                    {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white" aria-label="непрочитанных">{badges?.[link.href]}</span>}
                   </Link>
                 );
               })}

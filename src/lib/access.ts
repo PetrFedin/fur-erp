@@ -31,6 +31,10 @@ export const ACCESS = {
   // Решения владельца в «Контроль → Задачи» (двойной учёт, разнос аванса, ставки НДС…): записывают владелец и администратор.
   // «Входящие» (/inbox): проверка и приём черновиков от внешнего поставщика (расчёты аукционов, ТЗ). Поставщика (SUPPLIER) сюда не пускаем.
   inbox: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER"],
+  // Чат с поставщиком (/chat): внутренние роли видят все обсуждения организации; SUPPLIER — только свои (отдельная проверка в chat.ts).
+  chat: ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"],
+  // Каналы мессенджеров (/settings/channels): токен, привязки, WhatsApp.
+  channels: ["OWNER", "ADMIN"],
   taskDecisions: ["OWNER", "ADMIN"],
 } as const satisfies Record<string, readonly UserRole[]>;
 

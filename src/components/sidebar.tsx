@@ -9,7 +9,7 @@ import { SECONDARY_NAV_HREFS, activeNavHref, type NavItem } from "./nav-links";
 
 const KEY = "sidebar-collapsed";
 
-export function Sidebar({ links }: { links: readonly NavItem[] }) {
+export function Sidebar({ links, badges }: { links: readonly NavItem[]; badges?: Record<string, number> }) {
   const pathname = usePathname();
   const activeHref = activeNavHref(pathname, links);
   // Свёрнутое меню запоминается в браузере; по умолчанию развёрнуто (до чтения настройки рисуем развёрнутым, без расхождения с сервером).
@@ -50,6 +50,7 @@ export function Sidebar({ links }: { links: readonly NavItem[] }) {
               )}
             >
               {link.label}
+              {(badges?.[link.href] ?? 0) > 0 && <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white" aria-label="непрочитанных">{badges?.[link.href]}</span>}
             </Link>
           );
         })}

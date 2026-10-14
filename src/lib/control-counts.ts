@@ -3,6 +3,7 @@ import { buildAttentionBlocks, computeAttention, countAttentionBlocks } from "@/
 import { loadVerifyFlags } from "@/lib/verification";
 import { computeDocCoverage } from "@/lib/doc-coverage";
 import { loadTaskBlocks, stripCoveredPayments, type TaskBlocks } from "@/lib/task-docs";
+import { staleSupplierRequests } from "@/lib/chat";
 import type { YearFilter } from "@/lib/year-filter";
 
 /** Три числа раздела «Контроль»: задачи, ждёт проверки, записей с пробелами документов. */
@@ -36,12 +37,13 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
   const hit = cache.get(key);
   if (!opts.fresh && hit && Date.now() - hit.at < TTL_MS) return hit.value;
   const value = (async () => {
-    const [allRows, vf, coverage, blocks, inbox] = await Promise.all([
+    const [allRows, vf, coverage, blocks, inbox, chatStale] = await Promise.all([
       computeAttention(prisma, organizationId, year),
       loadVerifyFlags(prisma, organizationId, year),
       computeDocCoverage(prisma, organizationId),
       loadTaskBlocks(prisma, organizationId),
       prisma.supplierInbox.count({ where: { organizationId, status: "SENT" } }),
+      staleSupplierRequests(organizationId).catch(() => 0),
     ]);
     // Оплаты, описанные задачами на документы, не считаются второй раз в «Нет платёжек» / «Аванс без привязки».
     const attentionRows = stripCoveredPayments(allRows, blocks.coveredPaymentIds);
@@ -52,6 +54,8 @@ export function loadControlCounts(organizationId: string, year: YearFilter, opts
       .map((b) => ({ id: b.id, title: b.meta.title, count: b.count, priority: b.priority, href: b.meta.link?.href ?? "/attention" }));
     if (blocks.openDocs > 0) top.push({ id: "doc-tasks", title: "Документы для поиска и загрузки", count: blocks.openDocs, priority: blocks.urgentDocs > 0 ? "red" : "yellow", href: "/attention#doc-tasks" });
     if (blocks.openDecisions > 0) top.push({ id: "owner-decisions", title: "Решения владельца", count: blocks.openDecisions, priority: "yellow", href: "/attention#owner-decisions" });
+    // Запросы Веллмеха без ответа более 2 дней — строка в «Что требует внимания» (в общий счётчик задач не входит).
+    if (chatStale > 0) top.push({ id: "chat-stale", title: "Запросы Веллмеха без ответа более 2 дней", count: chatStale, priority: "yellow", href: "/chat?f=await" });
     top.sort((x, y) => y.count - x.count);
     return {
       tasks: a.main + blocks.openDocs + blocks.openDecisions,

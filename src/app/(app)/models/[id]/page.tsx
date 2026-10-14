@@ -1,4 +1,5 @@
 import { orderLabel as tzOrderLabel } from "@/lib/order-label";
+import { ChatLink } from "@/components/chat-link";
 import { loadTzPositions } from "@/lib/order-label-db";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import Link from "next/link";
@@ -150,6 +151,7 @@ export default async function EditModelPage({ params }: PageProps<"/models/[id]"
       <div className="flex flex-wrap items-center gap-y-2">
         <h1 className="text-xl font-semibold"><ArticleName model={model} /></h1>
         <YearNote year={year} />
+        <ChatLink type="ProductModel" id={model.id} role={session.user.role} className="ml-3" />
         <span className="ml-2 inline-flex">
           <InfoHint label="О карточке артикула" wide>
             <p>Всё по артикулу: итоги, показатели, реквизиты и цена, ТЗ с составом по лотам и закупкам, отгрузки, документы ТЗ. Числа — те же ТЗ, что в «В выпуске» на Главной (без отменённых и без ремонта). Год в шапке ограничивает ТЗ и себестоимость.</p>

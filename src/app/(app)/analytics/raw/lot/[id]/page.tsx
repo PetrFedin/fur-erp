@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChatLink } from "@/components/chat-link";
 import { notFound } from "next/navigation";
 import { Decimal } from "@prisma/client/runtime/library";
 import { vatPeriodLabel, vatRateForDate } from "@/lib/vat-by-date";
@@ -269,6 +270,7 @@ export default async function LotCardPage({ params }: { params: Promise<{ id: st
         <Link href={lining ? "/lots?tab=lining" : "/lots"} aria-label="Назад к сырью" className="text-lg leading-none text-neutral-500 hover:text-neutral-900">←</Link>
         <h1 className="text-xl font-semibold">{lining ? `${shortMaterialName(p.materialName)} · ${l.auctionLabel}` : `Лот № ${row.lotNumber ?? "—"}`}</h1>
         <Mode4Badge mode={c4} />
+        <ChatLink type="RawMaterialLot" id={id} role={session.user.role} />
         <InfoHint label="О карточке" wide>
           <p>Один купленный лот: сколько куплено, использовано и осталось, из чего состоит цена и в каких изделиях он участвует. Карточка не зависит от года в шапке. Деньги — «С НДС / Без НДС» из шапки; 4% добавляется только к списаниям, где оно применяется.</p>
         </InfoHint>

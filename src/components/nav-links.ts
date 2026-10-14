@@ -11,6 +11,8 @@ export const NAV_LINKS = [
   { href: "/calendar", label: "Календарь", also: [] },
   // «Отгрузки» — карточки отгрузок с хронологией этапов (состав из ТЗ, приёмка по строкам).
   { href: "/shipments", label: "Отгрузки", also: [] },
+  // «Чат» — обсуждения и запросы с поставщиком (Веллмех); значок — непрочитанное. Виден ролям из ACCESS.chat.
+  { href: "/chat", label: "Чат", also: [] },
   // «Настройки» — только справочники и параметры.
   { href: "/settings", label: "Настройки", also: ["/clients", "/suppliers", "/warehouses", "/materials", "/users"] },
   // «Контроль» — один раздел с вкладками (<ControlTabs>): Задачи · Подтвердить · Документы · Сверка · История.
@@ -29,12 +31,17 @@ const SUPPLIER_NAV: readonly NavItem[] = [
   { href: "/shipments", label: "Отгрузки", also: [] },
   { href: "/supplier/calendar", label: "Календарь", also: [] },
   { href: "/settings", label: "Справочники", also: [] },
+  { href: "/chat", label: "Чат", also: [] },
 ];
 
 /** Пункты меню для роли: SUPPLIER получает усечённое меню, остальные — полное. Чистая функция. */
 export function navLinksFor(role: string | null | undefined): readonly NavItem[] {
-  return role === "SUPPLIER" ? SUPPLIER_NAV : NAV_LINKS;
+  if (role === "SUPPLIER") return SUPPLIER_NAV;
+  // «Чат» — только ролям с доступом (кладовщику и наблюдателю не показываем).
+  return CHAT_ROLES.includes(role ?? "") ? NAV_LINKS : NAV_LINKS.filter((l) => l.href !== "/chat");
 }
+
+const CHAT_ROLES: readonly string[] = ["OWNER", "ADMIN", "TECHNOLOGIST", "PURCHASER", "ACCOUNTANT"];
 
 /**
  * Какой пункт меню подсвечивать на этом адресе: побеждает самый длинный подходящий префикс.

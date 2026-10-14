@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ChatLink } from "@/components/chat-link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { prisma } from "@/lib/prisma";
 import { ReopenButton } from "../../reopen-button";
@@ -27,6 +28,7 @@ export default async function CalcPage({ params }: PageProps<"/supplier/auction-
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-xl font-semibold">{row.title}</h1>
         <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs">{INBOX_STATUS_LABEL[row.status]}</span>
+        <ChatLink type="SupplierInbox" id={row.id} role={s.user.role} />
         {payload.stage && <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs text-blue-800">{STAGE_LABEL[payload.stage]}</span>}
       </div>
       {row.status === "REJECTED" && s.user.role === "SUPPLIER" && <ReopenButton id={row.id} />}
