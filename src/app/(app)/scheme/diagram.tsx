@@ -149,6 +149,26 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
         </svg>
       </div>
 
+      {fHot && (
+        <aside aria-live="polite" data-link-panel className={"pointer-events-none fixed right-4 top-20 z-30 w-72 rounded-xl border-2 bg-white p-3 shadow-xl max-md:hidden " + (fHot.side === "wellmekh" ? "border-emerald-500" : "border-red-400")}>
+          <p className={"text-xs font-semibold " + (fHot.side === "wellmekh" ? "text-emerald-800" : "text-red-800")}>{fHot.side === "wellmekh" ? "Веллмех · планируется" : "Наш план · планируется"}</p>
+          <p className="mb-2 text-sm font-semibold text-neutral-900">{fHot.title}</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Связан с текущими шагами</p>
+          <ol className="flex flex-col gap-1">
+            {steps.map((st, i) => {
+              const on = fHot.steps.includes(i + 1);
+              return (
+                <li key={st.title} className={"flex items-center gap-2 rounded-md px-2 py-1 text-xs " + (on ? (fHot.side === "wellmekh" ? "bg-emerald-50 font-medium text-emerald-900" : "bg-red-50 font-medium text-red-900") : "text-neutral-400")}>
+                  <span className={"flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] " + (on ? (fHot.side === "wellmekh" ? "bg-emerald-600 text-white" : "bg-red-500 text-white") : "bg-neutral-200 text-neutral-500")}>{i + 1}</span>
+                  <span className="min-w-0 truncate">{st.title}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-2 text-[11px] text-neutral-500">{fHot.links}</p>
+        </aside>
+      )}
+
       <dialog
         ref={ref}
         onClose={() => setSel(null)}
