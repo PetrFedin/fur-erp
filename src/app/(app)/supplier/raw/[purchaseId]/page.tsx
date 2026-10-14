@@ -83,7 +83,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
         {payload && t ? (
           <div className="overflow-x-auto rounded-md border border-neutral-300 bg-white">
             <Table className="min-w-[900px]">
-              <Thead><Tr><Th>№</Th>{t.sheet.cols.map((c) => <Th key={c.id} title={c.hint}>{c.title}{c.unit ? `, ${c.unit}` : ""}</Th>)}</Tr></Thead>
+              <Thead><Tr><Th>№</Th>{t.sheet.cols.map((c) => <Th key={c.id} title={c.hint}>{c.unit && !c.title.trim().endsWith(c.unit) ? `${c.title}, ${c.unit}` : c.title}</Th>)}</Tr></Thead>
               <Tbody>
                 {payload.rows.map((r, i) => !t.sheet.used[i] ? null : (
                   <Tr key={r._id ?? i}>
@@ -94,7 +94,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
                   </Tr>
                 ))}
                 <Tr className="font-semibold">
-                  <Td />{t.sheet.cols.map((c, ci) => <Td key={c.id} className="text-right tabular-nums">{ci === 0 ? "Итого" : c.text ? "" : cell(t.sheet.sums[c.id]?.v)}</Td>)}
+                  <Td />{t.sheet.cols.map((c, ci) => <Td key={c.id} className="text-right tabular-nums">{ci === 0 ? "Итого" : c.id === "qty" || c.id === "total" || c.id === t.sheet.qtyCol ? cell(t.sheet.sums[c.id]?.v) : ""}</Td>)}
                 </Tr>
               </Tbody>
             </Table>
