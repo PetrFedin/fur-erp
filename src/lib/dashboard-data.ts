@@ -513,8 +513,9 @@ export async function loadDashboard(orgId: string, year: YearFilter, f: DashFilt
       const due = purchaseTotalInclVat(p).sub(p.payments.filter((x) => x.status === "COMPLETED").reduce((a, x) => a.add(x.amount), new Decimal(0))).toNumber();
       if (due < 0.5) continue;
       const ls = lotsYear.filter((l) => l.kind === "fur" && l.purchaseId === p.id);
-      const tot = ls.reduce((a, l) => a + l.recvIncl, 0);
-      if (tot <= 0) continue;
+      // База долевого деления — ВСЕ лоты закупки (как в lotMoney ниже): иначе при фильтре по виду меха на выбранный вид ложится весь долг многовидовой закупки.
+      const tot = allLots.filter((l) => l.kind === "fur" && l.purchaseId === p.id).reduce((a, l) => a + l.recvIncl, 0);
+      if (tot <= 0 || ls.length === 0) continue;
       const byItem = new Map<string, number>();
       for (const l of ls) byItem.set(l.item, (byItem.get(l.item) ?? 0) + l.recvIncl);
       for (const [item, v] of byItem) { const r = rowOf(item); if (r) addTo(r, 0, due * (v / tot)); }
