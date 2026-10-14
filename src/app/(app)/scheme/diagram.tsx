@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { Branch, Kind, Step } from "./data";
+import { FLOWS, type Branch, type Kind, type Step } from "./data";
 import { IconGear, IconPencil, IconTrash } from "@/components/icons";
 
 function KindIcons({ kind, className = "h-3.5 w-3.5" }: { kind: Kind; className?: string }) {
@@ -28,6 +28,8 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
   }, [sel]);
 
   const step = sel ? steps[sel.i] : null;
+  const takes = sel ? FLOWS.filter((f) => f.to === sel.i + 1) : [];
+  const gives = sel ? FLOWS.filter((f) => f.from === sel.i + 1) : [];
   const branch: Branch | null = sel && sel.kind === "branch" ? steps[sel.i].branches[sel.j] : null;
 
   return (
@@ -76,6 +78,24 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
         ))}
       </ol>
 
+      <section className="mt-6" aria-label="Кто откуда забирает данные" data-flows>
+        <h2 className="mb-2 text-sm font-semibold text-neutral-900">Кто откуда забирает данные</h2>
+        <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-neutral-50 text-left text-xs text-neutral-500"><tr><th className="px-3 py-2">Откуда</th><th className="px-3 py-2">Что передаётся</th><th className="px-3 py-2">Куда</th></tr></thead>
+            <tbody className="divide-y divide-neutral-100">
+              {FLOWS.map((f, k) => (
+                <tr key={k}>
+                  <td className="px-3 py-1.5 align-top"><button type="button" onClick={() => setSel({ kind: "step", i: f.from - 1 })} className="text-left font-medium hover:underline">{f.from}. {steps[f.from - 1].title}</button></td>
+                  <td className="px-3 py-1.5 text-neutral-700">{f.what}</td>
+                  <td className="px-3 py-1.5 align-top"><button type="button" onClick={() => setSel({ kind: "step", i: f.to - 1 })} className="text-left font-medium hover:underline">→ {f.to}. {steps[f.to - 1].title}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <dialog
         ref={ref}
         onClose={() => setSel(null)}
@@ -99,6 +119,9 @@ export function SchemeDiagram({ steps }: { steps: Step[] }) {
                 <Section tone="sky" icon={<><IconPencil className="h-3.5 w-3.5" /><IconTrash className="h-3.5 w-3.5" /></>} title="Можно изменить и удалить" items={step.edit} />
                 <Section tone="emerald" icon={<IconGear className="h-3.5 w-3.5" />} title="Считается автоматически" items={step.auto} />
                 <Section tone="neutral" icon={<span aria-hidden>→</span>} title="Получаем" items={step.get} />
+                {takes.length > 0 && <Section tone="violet" icon={<span aria-hidden>←</span>} title="Забирает данные из" items={takes.map((f) => `Шаг ${f.from}. ${steps[f.from - 1].title}: ${f.what}`)} />}
+                {gives.length > 0 && <Section tone="violet" icon={<span aria-hidden>→</span>} title="Отдаёт данные в" items={gives.map((f) => `Шаг ${f.to}. ${steps[f.to - 1].title}: ${f.what}`)} />}
+                <Section tone="rose" icon={<IconGear className="h-3.5 w-3.5" />} title="Если поправить здесь, пересчитается" items={step.recalc} />
               </>
             )}
             <Link href={branch ? branch.href : step.href} className="inline-flex h-10 items-center justify-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-700">
@@ -116,6 +139,8 @@ const TONES = {
   sky: "bg-sky-50/70 text-sky-800",
   emerald: "bg-emerald-50/70 text-emerald-800",
   neutral: "bg-neutral-100 text-neutral-700",
+  violet: "bg-violet-50/70 text-violet-800",
+  rose: "bg-rose-50/70 text-rose-800",
 } as const;
 
 function Section({ tone, icon, title, items }: { tone: keyof typeof TONES; icon: React.ReactNode; title: string; items: string[] }) {
