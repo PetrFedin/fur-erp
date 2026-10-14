@@ -1821,6 +1821,8 @@ enum ChannelLinkKind {
 /// Обсуждение (общий чат с поставщиком по записи или без неё). supplierId = null — внутреннее.
 model ChatThread {
   id              String      @id @default(cuid())
+  /// Короткий номер обсуждения («#12») — для команды /t в мессенджере.
+  number          Int         @unique @default(autoincrement())
   organizationId  String
   supplierId      String?
   kind            ChatKind    @default(GENERAL)
