@@ -200,7 +200,7 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             {name}
             {s.status === "ACCEPTED" && status ? <Badge variant={status.variant}>{status.label}</Badge> : null}
           </h1>
-          <ChatLink type="Shipment" id={s.id} role={session.user.role} />
+          <ChatLink type="Shipment" id={s.id} role={session.user.role} label={isSupplier ? undefined : "Запросить у Веллмеха"} />
           <GroupLink type="Shipment" id={s.id} role={session.user.role} label="Создать группу" />
           {canEdit && (
             <div className="flex flex-wrap items-start gap-2">

@@ -21,6 +21,8 @@ import { buildTaskCategories, TASK_LABELS, type TaskCategory, type TaskCategoryI
 import { ControlTabs } from "@/components/control-tabs";
 import { stripCoveredPayments } from "@/lib/task-docs";
 import { ACCESS, hasRole } from "@/lib/access";
+import { loadSupplierActivity } from "@/lib/supplier-activity";
+import { canUseChat, chatCounts, viewerOf } from "@/lib/chat";
 import { DecisionsBlock, DocTasksBlock } from "./task-blocks";
 import { UnallocatedAdvancesBlock } from "./unallocated-block";
 import { formatMoney, cn } from "@/lib/utils";
@@ -46,6 +48,8 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
   // Числа считаем свежо и кладём в кэш: вкладки и Сводка показывают то же, что этот экран.
   const counts = await loadControlCounts(session.user.organizationId, year, { fresh: true });
   const taskBlocks = counts.blocks!;
+  const supplierActivity = await loadSupplierActivity(prisma, session.user.organizationId).catch(() => []);
+  const chat = canUseChat(session.user.role) ? await chatCounts(viewerOf(session)).catch(() => ({ unread: 0, awaiting: 0 })) : { unread: 0, awaiting: 0 };
   const all = stripCoveredPayments(await computeAttention(prisma, session.user.organizationId, year), taskBlocks.coveredPaymentIds);
   // Единый центр задач: те же данные, что у «Подтвердить» (замечания строк), «Документов» и «Что не заведено», сложенные по категориям.
   const model = await loadVerifyModel(prisma, session.user.organizationId, { userId: session.user.id as string, c4Mode: "off", canUpload: false, canMark: false });
@@ -101,6 +105,35 @@ export default async function AttentionPage({ searchParams }: PageProps<"/attent
             </span>
             <Link href="/inbox" className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть входящие →</Link>
             <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{counts.inbox}</span>
+          </div>
+        </Card>
+      )}
+      {!showAll && (chat.awaiting > 0 || chat.unread > 0) && (
+        <Card className="overflow-hidden">
+          <div className="flex items-center gap-3 p-3">
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", DOT.yellow)} aria-hidden />
+            <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">
+              Чат: сообщения от Веллмеха
+              <span className="block text-xs font-normal text-neutral-500">
+                {chat.awaiting > 0 ? `Ждут вашего ответа: ${chat.awaiting}. ` : ""}{chat.unread > 0 ? `Непрочитанных: ${chat.unread}.` : ""}
+              </span>
+            </span>
+            <Link href={chat.awaiting > 0 ? "/chat?f=await" : "/chat"} className="inline-flex h-8 shrink-0 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs hover:bg-neutral-100">Открыть чат →</Link>
+            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", BADGE.yellow)}>{chat.awaiting || chat.unread}</span>
+          </div>
+        </Card>
+      )}
+      {!showAll && supplierActivity.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="flex flex-col gap-1 p-3">
+            <span className="text-sm font-medium text-neutral-900">Веллмех внёс за 7 дней
+              <span className="block text-xs font-normal text-neutral-500">Это видно у нас сразу, без приёмки. Что-то не так — откройте запись и напишите Веллмеху через «Написать / Запросить».</span>
+            </span>
+            <ul className="mt-1 flex flex-wrap gap-2 text-sm">
+              {supplierActivity.map((a) => (
+                <li key={a.key}><Link href={a.href} className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 py-1 hover:bg-neutral-100"><b className="tabular-nums">{a.count}</b> {a.label}</Link></li>
+              ))}
+            </ul>
           </div>
         </Card>
       )}

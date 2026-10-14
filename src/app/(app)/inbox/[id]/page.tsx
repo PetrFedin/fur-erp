@@ -17,6 +17,7 @@ import { FinalFigures } from "../../supplier/auction-calcs/final-figures";
 import { finalFigures } from "@/lib/supplier-calc-simple";
 import { CompareBlock } from "../../supplier/auction-calcs/compare-block";
 import { CalcSheetReadonly } from "@/components/calc-sheet-readonly";
+import { ChatLink } from "@/components/chat-link";
 import { DocumentCard } from "./document-card";
 
 export const metadata = { title: "Входящее" };
@@ -206,6 +207,7 @@ export default async function InboxCardPage({ params }: PageProps<"/inbox/[id]">
         </div>
       )}
 
+      <div><ChatLink type="SupplierInbox" id={row.id} role={s.user.role} label="Уточнить у Веллмеха" /></div>
       {sent && <DecideButtons id={row.id} blocked={!!preview && preview.problems.length > 0} />}
 
       {row.kind === "AUCTION_CALC" ? <CalcView p={ensureRowIds(row.payload as unknown as CalcPayload)} s={s} /> : <TzView p={row.payload as unknown as TzPayload} />}

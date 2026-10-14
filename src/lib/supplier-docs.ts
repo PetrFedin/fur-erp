@@ -4,6 +4,8 @@ export const SUPPLIER_DOC_TYPES = [
   { key: "SPECIFICATION", label: "Спецификация", inbox: "SPECIFICATION", purchase: "SPECIFICATION" },
   { key: "INVOICE", label: "Счёт", inbox: "PAYMENT_INVOICE", purchase: "OTHER" },
   { key: "LETTER", label: "Письмо", inbox: "OTHER", purchase: "OTHER" },
+  { key: "PAYMENT_NOTE", label: "Оплата: подтверждение или запрос", inbox: "OTHER", purchase: "OTHER" },
+  { key: "BUDGET", label: "Смета / бюджет", inbox: "OTHER", purchase: "OTHER" },
 ] as const;
 export type SupplierDocKey = (typeof SUPPLIER_DOC_TYPES)[number]["key"];
 

@@ -560,7 +560,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/purchas
           {/* «i» — рядом с заголовком, а не внутри: иначе имя заголовка читается как «Закупка З-… О закупке». */}
           <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Закупка {purchase.number}</h1>
-          <ChatLink type="Purchase" id={purchase.id} role={session.user.role} />
+          <ChatLink type="Purchase" id={purchase.id} role={session.user.role} label={purchase.supplier?.name?.includes("Веллмех") ? "Запросить у Веллмеха" : undefined} />
             <InfoHint label="О закупке" wide>
               <p>Позиции сырья и подкладки, расходы закупки, оплаты и документы. Дата заказа {formatDate(purchase.orderDate)} — по ней закупка попадает в общий фильтр года.</p>
             </InfoHint>
