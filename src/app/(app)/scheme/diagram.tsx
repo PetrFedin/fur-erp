@@ -41,6 +41,7 @@ type Sel = { kind: "step"; i: number } | { kind: "branch"; i: number; j: number 
 export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<Record<CardKey, string>> }) {
   const [sel, setSel] = useState<Sel>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const [hoverF, setHoverF] = useState<number | null>(null);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -49,7 +50,8 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
     if (!sel && d.open) d.close();
   }, [sel]);
 
-  const hot = hover ?? (sel && sel.kind !== "future" ? sel.i : null);
+  const fHot = hoverF != null ? FUTURE[hoverF] : null;
+  const hot = fHot ? null : hover ?? (sel && sel.kind !== "future" ? sel.i : null);
   const fut = sel && sel.kind === "future" ? FUTURE[sel.i] : null;
   const step = sel && sel.kind !== "future" ? steps[sel.i] : null;
   const takes = step && sel ? FLOWS.filter((f) => f.to === sel.i + 1) : [];
@@ -65,7 +67,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
         <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm border border-dashed border-red-400 bg-red-50" /> наш план</span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white" data-scheme>
-        <svg viewBox="-60 0 1120 1260" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
+        <svg viewBox="-60 0 1120 1570" className="mx-auto block min-w-[980px] w-full" role="img" aria-label="Схема связей и взаимодействий">
           <defs>
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a3a3a3" /></marker>
             <marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#171717" /></marker>
@@ -74,7 +76,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
             const f = FLOWS.find((x) => x.from === e.f && x.to === e.t)!;
             const on = hot != null && (f.from === hot + 1 || f.to === hot + 1);
             return (
-              <g key={`${e.f}-${e.t}`} opacity={hot == null || on ? 1 : 0.25}>
+              <g key={`${e.f}-${e.t}`} opacity={fHot ? 0.15 : hot == null || on ? 1 : 0.25}>
                 <path d={e.d} fill="none" stroke={on ? "#171717" : "#a3a3a3"} strokeWidth={on ? 2 : 1.4} strokeDasharray={e.dash ? "5 4" : undefined} markerEnd={on ? "url(#arr-hot)" : "url(#arr)"} />
                 <g transform={`translate(${e.lx} ${e.ly})`}>
                   <rect x={-(f.label.length * 3.6 + 5)} y="-10" width={f.label.length * 7.2 + 10} height="18" rx="4" fill="white" opacity="0.92" />
@@ -83,6 +85,18 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
               </g>
             );
           })}
+          {fHot && hoverF != null && (() => {
+            const side = fHot.side;
+            const col = side === "wellmekh" ? "#059669" : "#ef4444";
+            const idx = FUTURE.map((f, k) => ({ f, k })).filter((e) => e.f.side === side).findIndex((e) => e.k === hoverF);
+            const sx = (side === "wellmekh" ? -40 : 540) + 240;
+            const sy = 832 + idx * 100;
+            return fHot.steps.map((n) => {
+              const p = NODES[n - 1];
+              const tx = p.x + 120, ty = p.y + 70;
+              return <path key={n} d={`M ${sx} ${sy} C ${sx} ${sy - 90} ${tx} ${ty + 90} ${tx} ${ty}`} fill="none" stroke={col} strokeWidth="2" strokeDasharray="6 4" markerEnd="url(#arr-hot)" opacity="0.85" />;
+            });
+          })()}
           {steps.map((s, i) => {
             const p = NODES[i];
             const lines = wrap(s.title, 26);
@@ -92,7 +106,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
               <g key={s.title} data-step={i + 1} transform={`translate(${p.x} ${p.y})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={s.title}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
                 onClick={() => setSel({ kind: "step", i })} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel({ kind: "step", i }); } }}>
-                <rect width="240" height="70" rx="12" fill={hot === i ? "#171717" : "white"} stroke="#171717" strokeWidth="2" />
+                <rect width="240" height="70" rx="12" fill={hot === i ? "#171717" : fHot && fHot.steps.includes(i + 1) ? (fHot.side === "wellmekh" ? "#ecfdf5" : "#fef2f2") : "white"} stroke={fHot && fHot.steps.includes(i + 1) ? (fHot.side === "wellmekh" ? "#059669" : "#ef4444") : "#171717"} strokeWidth={fHot && fHot.steps.includes(i + 1) ? 4 : 2} opacity={fHot && !fHot.steps.includes(i + 1) ? 0.35 : 1} />
                 <circle cx="26" cy="35" r="14" fill={hot === i ? "white" : "#171717"} />
                 <text x="26" y="40" textAnchor="middle" fontSize="14" fontWeight="600" fill={hot === i ? "#171717" : "white"}>{i + 1}</text>
                 {lines.map((l, k) => (
@@ -120,7 +134,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
                   const lines = wrap(e.f.title, 40);
                   return (
                     <g key={e.f.title} data-future={e.k + 1} data-side={side} transform={`translate(${x} ${832 + row * 100})`} className="cursor-pointer" tabIndex={0} role="button" aria-label={`${e.f.title} (пока не реализовано)`}
-                      onClick={() => setSel({ kind: "future", i: e.k })} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSel({ kind: "future", i: e.k }); } }}>
+                      onMouseEnter={() => setHoverF(e.k)} onMouseLeave={() => setHoverF(null)} onFocus={() => setHoverF(e.k)} onBlur={() => setHoverF(null)} onClick={() => setSel({ kind: "future", i: e.k })} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSel({ kind: "future", i: e.k }); } }}>
                       <rect width="480" height="86" rx="12" fill={c.fill} stroke={c.stroke} strokeWidth="1.8" strokeDasharray="7 4" />
                       {lines.map((l, j) => <text key={j} x="18" y={29 + j * 16} fontSize="14" fontWeight="600" fill={c.text}>{l}</text>)}
                       <text x="18" y={29 + lines.length * 16 + 2} fontSize="12" fontStyle="italic" fill={c.sub}>{e.f.sub}</text>
@@ -158,6 +172,7 @@ export function SchemeDiagram({ steps, cards }: { steps: Step[]; cards: Partial<
                 <p className={"rounded-md px-3 py-1.5 text-xs font-medium " + (fut.side === "wellmekh" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800")}>
                   {fut.side === "wellmekh" ? "Со стороны Веллмеха: он вносит данные в своём кабинете" : "Наш план: развитие нашей системы"}
                 </p>
+                <p className="rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-800"><span className="font-medium">Зачем: </span>{fut.why}</p>
                 <Section tone="neutral" icon={<span aria-hidden>•</span>} title="Что делает" items={fut.what} />
                 <Section tone="violet" icon={<span aria-hidden>→</span>} title={fut.side === "wellmekh" ? "Что мы им отдаём" : "Что берёт из нашей системы"} items={fut.out} />
                 <Section tone="emerald" icon={<span aria-hidden>←</span>} title={fut.side === "wellmekh" ? "Что у них забираем" : "Что даёт нам"} items={fut.inn} />
