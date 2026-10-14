@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { ProductionTabs } from "@/components/production-tabs";
 import { ArticleName } from "@/components/article-name";
 import { Badge } from "@/components/ui/badge";
 import { SummaryTiles } from "../../production/summary-tiles";
@@ -19,7 +18,7 @@ import {
 import { HeaderDelete, HeaderEdit } from "./header-ui";
 import { AcceptList, AddLinesButton, LinesTable, type LineRow } from "./lines-ui";
 import { STAGE_LABEL } from "@/lib/shipment-stage";
-import { AcceptPanel, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
+import { CreateAcceptanceButton, ClampText, DocRemove, EventActions, NewEventButton, SummaryShell, type EventValues } from "./event-ui";
 
 export const metadata = { title: "Отгрузка" };
 const EDIT_ROLES = ["OWNER", "ADMIN", "TECHNOLOGIST"];
@@ -168,7 +167,6 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
   return (
     <div className="flex flex-col gap-5">
       <Breadcrumbs items={[{ label: "Отгрузки", href: "/shipments" }, { label: name }]} />
-      <ProductionTabs active="shipments" />
 
       {/* а) шапка */}
       <section className="flex flex-col gap-3" aria-label="Шапка отгрузки">
@@ -200,13 +198,13 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
         </dl>
       </section>
 
-      {/* б) виджеты и состав — один сворачиваемый контейнер: «Свернуть» прячет и плитки, и таблицу состава */}
+      {/* б) виджеты и «Примерка» — один сворачиваемый контейнер: «Свернуть» прячет и плитки, и таблицу примерки */}
       <SummaryTiles
         id="shipment"
         title="Отгрузка — итоги"
         tiles={[
           { key: "in", label: "К отгрузке, шт.", value: formatQty(totals.inShipment), caption: `${formatQty(readyLines.length)} из ${formatQty(lines.length)} строк · из ${formatQty(allQty)} на примерке${reworkQty ? `; на доработке ${formatQty(reworkQty)}` : ""}${reviewQty ? `; на просмотре ${formatQty(reviewQty)}` : ""}` },
-          { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «К отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в составе отгрузки (сохранённые значения).</p> },
+          { key: "acc", label: "Принято, шт.", value: formatQty(totals.accepted), caption: sharePct(totals.accepted) ? `${sharePct(totals.accepted)} от «К отгрузке»` : undefined, hint: <p>Сумма колонки «Принято» в блоке «Приёмка в Коптево» (сохранённые значения).</p> },
           {
             key: "ret",
             label: "Не принято, шт.",
@@ -221,12 +219,11 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
             rows={lineRows}
             canEdit={canEdit}
             addButton={<AddLinesButton shipmentId={s.id} />}
-            hint={<p>Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Сначала стадия: «Принято» по просмотру или «На доработку». Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке ниже, только для строк «Готов к отгрузке».</p>}
+            hint={<p>Список изделий, показанных на примерке; здесь по каждой строке отмечается просмотр: «Принято» (устраивает полностью) или «На доработку». Строки берутся из позиций загруженных ТЗ: цвет, размер и вид меха — копия на момент добавления. Принятие в Коптево («Принято» / «Не принято» и причина) — в блоке «Приёмка в Коптево» под хронологией, только для строк «Готов к отгрузке».</p>}
           />
         }
       />
 
-      <AcceptList shipmentId={s.id} rows={lineRows} canEdit={canEdit} hasEvent={s.events.some((e) => isAcceptanceEvent({ expected: true, title: e.title, place: e.place }))} waiting={{ rework: reworkQty, review: reviewQty }} />
 
       {/* в) хронология */}
       <section className="flex flex-col gap-2" aria-label="Хронология">
@@ -247,30 +244,33 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
               const st = shortStamp(e.occurredAt, e.timeKnown);
               const docs = parseDocLinks(e.docLinks);
               const resp = respText(e);
-              const meta = [e.side ? `на ком: ${SIDE_LABEL[e.side] ?? e.side}` : "", resp ? `ответственный: ${resp}` : "", e.place ? `место: ${e.place}` : ""].filter(Boolean).join(" · ");
+              const meta = e.place ? `место: ${e.place}` : "";
+              const sideCls = e.side === "WELLMEKH" ? "bg-sky-100 text-sky-800" : e.side === "CUM" ? "bg-emerald-100 text-emerald-800" : "bg-neutral-100 text-neutral-500";
               const author = userName.get(e.createdById) ?? (e.createdById.startsWith("script:") ? "скрипт (пример)" : "—");
               const trail = `внёс: ${author}, ${stamp(e.createdAt)}${e.updatedById && e.updatedAt.getTime() - e.createdAt.getTime() > 1000 ? ` · изменил: ${userName.get(e.updatedById) ?? "—"}, ${stamp(e.updatedAt)}` : ""}`;
               return (
                 <li key={e.id} data-event={e.id}>
                   {note && (
-                    <div className="py-0.5 pl-[4.75rem] text-[11px] text-neutral-400" data-interval>
+                    <div className="py-0.5 text-[11px] md:pl-[8.75rem] text-neutral-400" data-interval>
                       {note.text}
                       {note.exact && note.fromTitle ? ` · от «${note.fromTitle}»: ${note.exact}` : ""}
                     </div>
                   )}
                   <div className={"flex flex-wrap gap-x-3 gap-y-1 py-2 " + (e.expected ? "text-neutral-400" : "")}>
-                    <div className="w-16 shrink-0 text-right tabular-nums" title={st.full}>
-                      <div className={"text-sm font-medium " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>{st.date}</div>
+                    <div className="flex w-full shrink-0 flex-col items-start gap-0.5 tabular-nums md:w-32" title={st.full} data-event-side>
+                      <span className={"rounded px-1.5 py-0.5 text-[11px] font-medium " + (e.expected ? "bg-neutral-100 text-neutral-400" : sideCls)}>{e.side ? SIDE_LABEL[e.side] ?? e.side : "—"}</span>
+                      <div className={"text-base font-semibold " + (e.expected ? "text-neutral-400" : "text-neutral-900")}>{st.date}</div>
                       <div className="text-xs">{st.time ?? <span className="text-[10px] text-neutral-400">время не указано</span>}</div>
+                      <div className="text-[11px] text-neutral-500" title="Автор / ответственный действия">{resp || "—"}</div>
                     </div>
-                    <div className="min-w-[12rem] flex-1 border-l border-neutral-200 pl-3">
+                    <div className="min-w-[12rem] flex-1 md:border-l md:border-neutral-200 md:pl-3">
                       <h3 className={"break-words text-sm font-semibold " + (e.expected ? "text-neutral-500" : "text-neutral-900")}>
                         {e.title}
                         {e.expected && <span className="ml-2 rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] font-normal text-neutral-500">ожидается</span>}
                         <span className="ml-1.5 cursor-help rounded-full border border-neutral-300 px-1 text-[10px] font-normal text-neutral-400" title={trail} aria-label={trail} tabIndex={0}>i</span>
                       </h3>
-                      {meta && <p className="text-xs text-neutral-600">{meta}</p>}
                       {e.details && <ClampText text={e.details} />}
+                      {meta && <p className="text-[11px] text-neutral-500">{meta}</p>}
                       {(e.documents.length > 0 || docs.length > 0) && (
                         <ul className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
                           {e.documents.map((d) => (
@@ -297,16 +297,16 @@ export default async function ShipmentPage({ params }: PageProps<"/shipments/[id
           </ol>
         )}
 
-        {!s.acceptedAt && (
-          <AcceptPanel
-            shipmentId={s.id}
-            event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
-            rows={acceptRows}
-            totals={totals}
-            canEdit={canEdit}
-            names={names}
-          />
-        )}
+        <AcceptList
+          shipmentId={s.id}
+          rows={lineRows}
+          canEdit={canEdit}
+          waiting={{ rework: reworkQty, review: reviewQty }}
+          event={acceptEvent ? { id: acceptEvent.id, stamp: fmtWall(acceptEvent.occurredAt, acceptEvent.timeKnown) } : null}
+          closed={s.acceptedAt && summary ? `${summary.accepted.stamp}${s.acceptedBy ? `, принял ${s.acceptedBy}` : ""}` : null}
+          closeProps={{ rows: acceptRows, totals, names }}
+          createEvent={canEdit ? <CreateAcceptanceButton shipmentId={s.id} /> : null}
+        />
 
         {s.acceptedAt && summary && (
           <SummaryShell

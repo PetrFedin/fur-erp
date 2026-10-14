@@ -211,48 +211,48 @@ export function DocRemove({ id, title }: { id: string; title: string }) {
 
 export type AcceptRow = { label: string; quantity: number; accepted: number | null; returned: number | null; comment: string };
 
-/** Панель под лентой: «Приёмка в Коптево — ожидается …» и крупная кнопка «ПРИНЯТО»; нет этапа — «+ Приёмка в Коптево». */
-export function AcceptPanel({ shipmentId, event, rows, totals, canEdit, names }: {
-  shipmentId: string;
-  event: { id: string; stamp: string } | null;
-  rows: AcceptRow[];
-  totals: { inShipment: number; accepted: number; returned: number; filledLines: number };
-  canEdit: boolean;
-  names: string[];
-}) {
+/** Кнопка «+ Приёмка в Коптево» (когда этапа приёмки в хронологии нет). */
+export function CreateAcceptanceButton({ shipmentId }: { shipmentId: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" disabled={pending}
+        onClick={() => start(async () => { setError(null); const r = await createAcceptanceEvent(shipmentId); if (r.error) return setError(r.error); router.refresh(); })}>
+        {pending ? "Добавляем…" : "+ Приёмка в Коптево"}
+      </Button>
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+/** Крупная кнопка «ЗАКРЫТЬ ПРИЁМКУ» (окно: дата-время, кто принял, на ком, комментарий и сводка). Активна, когда все строки списка отмечены. */
+export function AcceptCloseButton({ shipmentId, event, rows, totals, names, disabled, disabledReason }: {
+  shipmentId: string;
+  event: { id: string; stamp: string };
+  rows: AcceptRow[];
+  totals: { inShipment: number; accepted: number; returned: number; filledLines: number };
+  names: string[];
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
   const namesId = useId();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3" data-accept-panel>
-      <div className="min-w-0">
-        <p className="font-semibold text-neutral-900">{event ? `Приёмка в Коптево — ожидается ${event.stamp}` : "Приёмка в Коптево не запланирована"}</p>
-        <p className="text-xs text-neutral-500">
-          {event ? "Когда изделия приняты, отметьте «Принято» / «Не принято» в списке на приёмке и нажмите «ПРИНЯТО»: появится итог поставки." : "Добавьте ожидаемый этап — потом по нему подтверждается приёмка и формируется итог."}
-        </p>
-        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-      </div>
-      {canEdit && (event ? (
-        <EditDialog
-          label="ПРИНЯТО"
-          variant="default"
-          className="h-12 bg-emerald-600 px-10 text-base font-bold tracking-wide text-white hover:bg-emerald-700 max-md:w-full"
-          title="Принято в Коптево"
-          hint="Этап приёмки станет выполненным, отгрузка получит статус «Принята», внизу появится итог поставки."
-          saveLabel="Подтвердить приёмку"
-          action={confirmAcceptance.bind(null, shipmentId, event.id)}
-          wide
-        >
-          <AcceptFields shipmentId={shipmentId} rows={rows} totals={totals} namesId={namesId} names={names} />
-        </EditDialog>
-      ) : (
-        <Button type="button" disabled={pending}
-          onClick={() => start(async () => { setError(null); const r = await createAcceptanceEvent(shipmentId); if (r.error) return setError(r.error); router.refresh(); })}>
-          {pending ? "Добавляем…" : "+ Приёмка в Коптево"}
-        </Button>
-      ))}
-    </div>
+    <EditDialog
+      label="ЗАКРЫТЬ ПРИЁМКУ"
+      variant="default"
+      className="h-12 bg-emerald-600 px-10 text-base font-bold tracking-wide text-white hover:bg-emerald-700 disabled:bg-neutral-300 max-md:w-full"
+      title="Закрыть приёмку в Коптево"
+      hint="Этап приёмки станет выполненным, отгрузка получит статус «Принята», внизу появится итог поставки."
+      saveLabel="Закрыть приёмку"
+      action={confirmAcceptance.bind(null, shipmentId, event.id)}
+      disabled={disabled}
+      disabledReason={disabledReason}
+      wide
+    >
+      <AcceptFields shipmentId={shipmentId} rows={rows} totals={totals} namesId={namesId} names={names} />
+    </EditDialog>
   );
 }
 
@@ -282,14 +282,14 @@ function AcceptFields({ shipmentId, rows, totals, namesId, names }: { shipmentId
         <h3 className="text-xs font-medium text-neutral-700">По строкам списка на приёмке</h3>
         {empty ? (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <span className="mr-auto">Сначала отметьте «Принято» / «Не принято» в списке товаров на приёмке (и нажмите «Сохранить»).</span>
+            <span className="mr-auto">Сначала отметьте «Принято» / «Не принято» в блоке «Приёмка в Коптево» (и нажмите «Сохранить»).</span>
             <Button type="button" size="sm" variant="outline" disabled={pending}
               onClick={() => start(async () => { setErr(null); const r = await acceptAllLines(shipmentId); if (r.error) return setErr(r.error); router.refresh(); })}>
               {pending ? "…" : "Принять все по списку"}
             </Button>
           </div>
         ) : (
-          <p className="text-xs text-neutral-500">Берутся сохранённые значения. Не сохранённые в списке на приёмке правки сюда не попадут.</p>
+          <p className="text-xs text-neutral-500">Берутся сохранённые значения. Не сохранённые в блоке приёмки правки сюда не попадут.</p>
         )}
         {err && <p role="alert" className="text-xs text-red-600">{err}</p>}
         <div className="max-h-[34vh] overflow-auto rounded-md border border-neutral-200">
@@ -342,7 +342,7 @@ export function SummaryShell({ shipmentId, canEdit, subtitle, children }: { ship
         {canEdit && (
           <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={pending}
             onClick={async () => {
-              if (!(await ask("Отменить приёмку? Этап снова станет ожидаемым, итог поставки исчезнет. Отметки «Принято» и «Возврат» в составе останутся.", { ok: "Отменить приёмку", danger: true }))) return;
+              if (!(await ask("Отменить приёмку? Этап снова станет ожидаемым, итог поставки исчезнет. Отметки «Принято» и «Возврат» в списке приёмки останутся.", { ok: "Отменить приёмку", danger: true }))) return;
               start(async () => { setError(null); const r = await cancelAcceptance(shipmentId); if (r.error) return setError(r.error); router.refresh(); });
             }}>
             Отменить приёмку

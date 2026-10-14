@@ -16,6 +16,7 @@ import { InfoHint } from "@/components/info-hint";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
 import { ResponsiveRows, RowCard } from "@/components/responsive-rows";
 import { Dash } from "@/components/tree-table";
+import { AcceptCloseButton } from "./event-ui";
 import { TotalLabel } from "@/components/total-label";
 import { formatQty } from "@/lib/utils";
 import { ACCEPT_NEEDS_READY, REWORK_STATE_LABEL, STAGE_LABEL, VIEW_LABEL, lineView, reworkRemainText, rowsText, type ReworkState, type Stage, type ViewKey } from "@/lib/shipment-stage";
@@ -344,7 +345,7 @@ function ReworkBody({ line }: { line: LineRow }) {
 type SegKey = "all" | ViewKey;
 const SEGMENTS: SegKey[] = ["all", "review", "rework", "ready", "accepted", "rejected"];
 
-// ───────────── таблица «Состав отгрузки» с приёмкой прямо в ячейках ─────────────
+// ───────────── таблица «Примерка» ─────────────
 
 export type LineRow = {
   id: string;
@@ -385,7 +386,7 @@ const parseQty = (s: string): number | null | undefined => {
 };
 
 /**
- * Состав отгрузки: список с примерки. У каждой строки стадия («Принято» по просмотру / «На доработку»), поиск, фильтр по стадии
+ * Примерка: список изделий, показанных на примерке. У каждой строки стадия («Принято» по просмотру / «На доработку»), поиск, фильтр по стадии
  * и счётчики. Приёмка в Коптево (принято / не принято) — отдельный блок AcceptList под составом.
  */
 export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shipmentId: string; rows: LineRow[]; canEdit: boolean; addButton?: ReactNode; hint?: ReactNode }) {
@@ -455,15 +456,15 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
   const editValues = (r: LineRow): LineEditValues => ({ id: r.id, label: r.label, quantity: r.quantity, size: r.size ?? "", comment: r.comment, accepted: r.accepted == null ? "" : String(r.accepted), returned: r.returned == null ? "" : String(r.returned), itemNo: r.itemNo, stage: r.stage });
 
   return (
-    <section className="flex flex-col gap-2" aria-label="Состав отгрузки">
+    <section className="flex flex-col gap-2" aria-label="Примерка">
       {confirmNode}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="block-title flex items-center gap-1">
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-touch-ok className="inline-flex items-center gap-1 hover:text-neutral-700">
             <span aria-hidden className={"inline-block w-3 transition-transform " + (open ? "rotate-90" : "")}>›</span>
-            Состав отгрузки
+            Примерка
           </button>
-          {hint ? <InfoHint label="О составе отгрузки">{hint}</InfoHint> : null}
+          {hint ? <InfoHint label="О примерке">{hint}</InfoHint> : null}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {canEdit && counts.review > 0 && open && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllReview()} disabled={pending}>Принято всё, что на просмотре</Button>}
@@ -475,7 +476,7 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
           {(["review", "rework", "ready", "accepted", "rejected"] as ViewKey[]).map((k) => `${VIEW_LABEL[k]} ${counts[k]}`).join(" · ")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по составу отгрузки" />
+          <Input className="h-8 w-56 max-md:h-10" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: №, ТЗ, артикул, цвет" aria-label="Поиск по примерке" />
           <div className="flex flex-wrap gap-1" role="group" aria-label="Фильтр по стадии">
             {SEGMENTS.map((k) => (
               <Button key={k} type="button" size="sm" variant={seg === k ? "default" : "outline"} aria-pressed={seg === k} onClick={() => setSeg(k)}>
@@ -534,7 +535,7 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
                 )}
                 {rows.length === 0 && (
                   <Tr>
-                    <Td colSpan={canEdit ? 11 : 9} className="py-8 text-center text-neutral-500">Состав пока пуст{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ»" : ""}</Td>
+                    <Td colSpan={canEdit ? 11 : 9} className="py-8 text-center text-neutral-500">Примерка пока пуста{canEdit ? " — добавьте позиции кнопкой «+ Добавить из ТЗ»" : ""}</Td>
                   </Tr>
                 )}
                 {rows.length > 0 && shown.length === 0 && (
@@ -568,7 +569,7 @@ export function LinesTable({ shipmentId, rows, canEdit, addButton, hint }: { shi
               }
             />
           ))}
-          {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Состав пока пуст</p>}
+          {rows.length === 0 && <p className="py-6 text-center text-sm text-neutral-500">Примерка пока пуста</p>}
         </ResponsiveRows>
       </div>
     </section>
@@ -611,10 +612,21 @@ function adError(d: AD, qty: number): string | null {
 const sameEff = (x: ReturnType<typeof effOf>, y: ReturnType<typeof effOf>) => !!x && !!y && x.a === y.a && x.b === y.b && x.comment === y.comment;
 
 /**
- * «Список товаров на приёмке в Коптево» = строки состава со стадией «Готов к отгрузке». По каждой — «Принято» / «Не принято»
+ * «Список товаров на приёмке в Коптево» = строки примерки со стадией «Готов к отгрузке». По каждой — «Принято» / «Не принято»
  * (у «Не принято» — обязательная причина; у строк с шт. > 1 — «частично»). Выбор копится черновиком и сохраняется общей панелью.
  */
-export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { shipmentId: string; rows: LineRow[]; canEdit: boolean; hasEvent: boolean; waiting: { rework: number; review: number } }) {
+export function AcceptList({ shipmentId, rows, canEdit, waiting, event, closed, closeProps, createEvent }: {
+  shipmentId: string;
+  rows: LineRow[];
+  canEdit: boolean;
+  waiting: { rework: number; review: number };
+  /** Ожидаемый этап приёмки в хронологии; null — этапа нет. */
+  event: { id: string; stamp: string } | null;
+  /** Приёмка закрыта: «<дата-время>, принял <кто>»; null — не закрыта. */
+  closed: string | null;
+  closeProps: Omit<Parameters<typeof AcceptCloseButton>[0], "shipmentId" | "event" | "disabled" | "disabledReason">;
+  createEvent: ReactNode;
+}) {
   const router = useRouter();
   const ready = rows.filter((r) => r.stage === "READY");
   const [edits, setEdits] = useState<Record<string, AD>>({});
@@ -623,6 +635,7 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(true);
   const { ask, node: confirmNode } = useConfirm();
+  const editable = canEdit && !closed;
 
   const sig = ready.map((r) => `${r.id}:${r.quantity}:${r.accepted}:${r.returned}:${r.comment}`).join("|");
   const [prevSig, setPrevSig] = useState(sig);
@@ -669,7 +682,6 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
     setEdits((p) => { const n = { ...p }; for (const r of ready) n[r.id] = { ...(p[r.id] ?? base(r)), mode: "accepted" }; return n; });
   };
 
-  if (ready.length === 0) return null;
   const qtyReady = ready.reduce((t, r) => t + r.quantity, 0);
   const notIn = [waiting.rework ? `на доработке ${formatQty(waiting.rework)} шт.` : "", waiting.review ? `на просмотре ${formatQty(waiting.review)} шт.` : ""].filter(Boolean).join(", ");
   const panel = dirtyRows.length > 0 && (
@@ -679,6 +691,17 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
       <Button type="button" size="sm" variant="outline" onClick={() => { setEdits({}); setError(null); }} disabled={pending}>Отменить</Button>
     </div>
   );
+  const unmarked = ready.filter((r) => r.accepted == null && r.returned == null).length;
+  const blocked = dirtyRows.length > 0 ? "Сначала сохраните отметки" : ready.length === 0 ? "Нет строк на приёмку" : unmarked > 0 ? `Осталось отметить: ${rowsText(unmarked)}` : null;
+  const footer = canEdit && !closed && (event ? (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3" data-accept-panel>
+      <div className="min-w-0">
+        <p className="font-semibold text-neutral-900">Приёмка в Коптево — ожидается {event.stamp}</p>
+        <p className="text-xs text-neutral-500">{blocked ?? "Все строки списка отмечены. Нажмите «ЗАКРЫТЬ ПРИЁМКУ»: появится итог поставки."}</p>
+      </div>
+      <AcceptCloseButton shipmentId={shipmentId} event={event} disabled={!!blocked} disabledReason={blocked ?? undefined} {...closeProps} />
+    </div>
+  ) : createEvent);
   const seg = "h-8 max-md:h-10";
   return (
     <section className="flex flex-col gap-2" aria-label="Приёмка в Коптево" data-accept-list>
@@ -688,14 +711,16 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
         <h2 className="block-title flex items-center gap-1">
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-touch-ok className="inline-flex items-center gap-1 hover:text-neutral-700">
             <span aria-hidden className={"inline-block w-3 transition-transform " + (open ? "rotate-90" : "")}>›</span>
-            Список товаров на приёмке в Коптево
+            Приёмка в Коптево
           </button>
         </h2>
-        {canEdit && open && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
+        {editable && open && ready.length > 0 && <Button type="button" variant="outline" size="sm" onClick={() => void acceptAllList()} disabled={pending}>Принять все по списку</Button>}
       </div>
       <div className={open ? "flex flex-col gap-2" : "hidden"}>
-        <p className="text-xs text-neutral-600">На приёмку идёт {rowsText(ready.length)} / {formatQty(qtyReady)} шт.{notIn ? `; ${notIn} — не в списке` : ""}.{!hasEvent && " Приёмка в Коптево не создана — кнопка «+ Приёмка в Коптево» под хронологией."}</p>
-        {panel}
+        {!event && !closed && <p className="text-sm text-neutral-700" data-accept-none>Приёмка в Коптево не создана{canEdit ? " — добавьте ожидаемый этап, потом по нему закрывается приёмка." : "."}</p>}
+        {closed && <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900" data-accept-closed>Приёмка закрыта {closed}</p>}
+        <p className="text-xs text-neutral-600">На приёмку идёт {rowsText(ready.length)} / {formatQty(qtyReady)} шт.{notIn ? `; ${notIn} — не в списке` : ""}.</p>
+        {editable && panel}
         {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <Table className="min-w-[760px]">
           <Thead>
@@ -724,7 +749,7 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
                   <Td>{r.size ?? <Dash />}</Td>
                   <Td className="text-right font-medium tabular-nums">{formatQty(r.quantity)}</Td>
                   <Td className="min-w-72">
-                    {canEdit ? (
+                    {editable ? (
                       <div className="flex flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-1">
                           <Button type="button" size="sm" className={seg + (d.mode === "accepted" ? " bg-emerald-600 text-white hover:bg-emerald-700" : "")} variant={d.mode === "accepted" ? "default" : "outline"} aria-pressed={d.mode === "accepted"} onClick={() => pick(r, "accepted")}>Принято</Button>
@@ -756,7 +781,8 @@ export function AcceptList({ shipmentId, rows, canEdit, hasEvent, waiting }: { s
             })}
           </Tbody>
         </Table>
-        {panel}
+        {editable && panel}
+        {footer}
       </div>
     </section>
   );

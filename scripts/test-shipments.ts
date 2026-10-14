@@ -160,7 +160,7 @@ async function main() {
     for (const l of nowLines) await A.deleteShipmentLine(l.id);
   } else console.log("   (мало позиций ТЗ для проверки массового действия — пропущено)");
   ok(!!(await A.acceptAllOnReview(id)).error, "массовое «Принято» без строк на просмотре отклонено");
-  ok((await raw.shipmentLine.findMany({ where: { shipmentId: id } })).every((l) => l.stage === "READY"), "все строки состава — READY, дальше финальная приёмка");
+  ok((await raw.shipmentLine.findMany({ where: { shipmentId: id } })).every((l) => l.stage === "READY"), "все строки примерки — READY, дальше финальная приёмка");
 
   // 3. Приёмка по строкам: принято 45 из 50, возврат 5
   console.log("3. Приёмка по строкам");

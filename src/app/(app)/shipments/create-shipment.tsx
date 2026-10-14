@@ -11,7 +11,7 @@ type Opt = { id: string; name: string };
 /** «+ Отгрузка»: окно с названием (по умолчанию «Отгрузка <месяц> <год> · N»), поставщиком, партией пошива, плановой датой и примечанием. После «Создать» открывается карточка. */
 export function CreateShipmentButton(props: { defaultName: string; suppliers: Opt[]; defaultSupplierId: string; batches: { id: string; label: string }[] }) {
   return (
-    <CreateDialog label="+ Отгрузка" title="Новая отгрузка" hint="Состав и этапы добавляются в карточке после создания.">
+    <CreateDialog label="+ Отгрузка" title="Новая отгрузка" hint="Примерка и этапы добавляются в карточке после создания.">
       <ShipmentCreateForm {...props} />
     </CreateDialog>
   );

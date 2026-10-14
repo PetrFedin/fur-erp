@@ -4,7 +4,6 @@ import { escapeLike } from "@/lib/input";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@/components/ui/table";
-import { ProductionTabs } from "@/components/production-tabs";
 import { formatDate, formatQty, formatShare } from "@/lib/utils";
 import { Dash } from "@/components/tree-table";
 import { TotalLabel } from "@/components/total-label";
@@ -137,15 +136,14 @@ export default async function ShipmentsPage({ searchParams }: PageProps<"/shipme
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs items={[{ label: "Отгрузки" }]} />
-      <ProductionTabs active="shipments" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold">Отгрузки</h1>
           <YearNote year={year} />
           <InfoHint label="Об отгрузках" wide>
-            <p>Отгрузка — карточка, в которой мы ведём путь партии изделий от поставщика до приёмки: состав из позиций ТЗ и этапы по порядку, у каждого — дата, время и ответственный.</p>
+            <p>Отгрузка — карточка, в которой мы ведём путь партии изделий от поставщика до приёмки: примерка (позиции из ТЗ) и этапы по порядку, у каждого — дата, время и ответственный.</p>
             <p className="mt-1">Склад отгрузка не списывает. Год ({year === "all" ? "все годы" : year}): по плановой дате отгрузки.</p>
-            <p className="mt-1">«Принято» и «Не принято» (возврат) вносятся в составе отгрузки по каждой строке; приёмка в Коптево подтверждается в карточке кнопкой «ПРИНЯТО».</p>
+            <p className="mt-1">«Принято» и «Не принято» (возврат) вносятся по каждой строке: просмотр — в блоке «Примерка», приёмка в Коптево — в блоке «Приёмка в Коптево» внизу карточки, где она закрывается кнопкой «ЗАКРЫТЬ ПРИЁМКУ».</p>
           </InfoHint>
         </div>
         {createButton}
