@@ -78,7 +78,7 @@ export default async function SupplierAuctionPage({ params }: PageProps<"/suppli
           ))}
         </dl>
         {!payload && <p className="mt-2 text-xs text-neutral-500">Расчёта аукциона по этой закупке нет — ниже лоты и цены из отчёта. Расчёт можно внести в разделе «Аукционы».</p>}
-        {calc && <p className="mt-2 text-sm"><Link href={`/supplier/auction-calcs/${calc.id}`} className="text-blue-700 underline">Открыть расчёт «{calc.title}»</Link></p>}
+        {calc && <p className="mt-2 text-sm"><Link href={`/supplier/auction-calcs/${calc.id}`} className="text-blue-700 underline">Открыть расчёт «{calc.title}»</Link>{isSup && <> · <Link href={`/supplier/auction-calcs/new?from=${encodeURIComponent(`calc:${calc.id}`)}`} className="text-blue-700 underline" title="Принятый расчёт не меняется: копия берёт формат, столбцы с формулами и параметры, вы правите лоты и цифры">Новый расчёт на этой основе</Link></>}</p>}
       </section>
 
       <section>
