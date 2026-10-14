@@ -26,7 +26,7 @@ function useNarrow() {
  * Переключатели режимов в шапке. На ширине >= 400 px — как раньше, в ряд; на уже — одна кнопка «Режимы»
  * с раскрывающейся панелью, чтобы шапка не налезала на меню и не выходила за экран (360 и 320 px).
  */
-export function TopbarModes() {
+export function TopbarModes({ yearOnly = false }: { yearOnly?: boolean } = {}) {
   const narrow = useNarrow();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -54,14 +54,18 @@ export function TopbarModes() {
           <span className="hidden text-xs text-neutral-500 xl:inline">Год:</span>
           <YearToggle />
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="hidden text-xs text-neutral-500 xl:inline">Цены:</span>
-          <VatToggle />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="hidden text-xs text-neutral-500 xl:inline">4% к сырью:</span>
-          <Commission4Toggle />
-        </div>
+        {!yearOnly && (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="hidden text-xs text-neutral-500 xl:inline">Цены:</span>
+              <VatToggle />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="hidden text-xs text-neutral-500 xl:inline">4% к сырью:</span>
+              <Commission4Toggle />
+            </div>
+          </>
+        )}
       </>
     );
   }
@@ -85,14 +89,18 @@ export function TopbarModes() {
             <span className="text-xs text-neutral-500">Год: все, 2025 или 2026</span>
             <YearToggle />
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">Цены: с НДС или без НДС</span>
-            <VatToggle />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-neutral-500">4% к сырью: без или с 4%</span>
-            <Commission4Toggle />
-          </div>
+          {!yearOnly && (
+            <>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-neutral-500">Цены: с НДС или без НДС</span>
+                <VatToggle />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-neutral-500">4% к сырью: без или с 4%</span>
+                <Commission4Toggle />
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

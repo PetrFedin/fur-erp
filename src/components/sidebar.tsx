@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
-import { NAV_LINKS, SECONDARY_NAV_HREFS, activeNavHref } from "./nav-links";
+import { SECONDARY_NAV_HREFS, activeNavHref, type NavItem } from "./nav-links";
 
 const KEY = "sidebar-collapsed";
 
-export function Sidebar() {
+export function Sidebar({ links }: { links: readonly NavItem[] }) {
   const pathname = usePathname();
-  const activeHref = activeNavHref(pathname);
+  const activeHref = activeNavHref(pathname, links);
   // Свёрнутое меню запоминается в браузере; по умолчанию развёрнуто (до чтения настройки рисуем развёрнутым, без расхождения с сервером).
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
@@ -37,7 +37,7 @@ export function Sidebar() {
         <button type="button" onClick={() => toggle(true)} aria-label="Свернуть меню" title="Свернуть меню" className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50">‹</button>
       </div>
       <div className="flex flex-col gap-0.5">
-        {NAV_LINKS.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
+        {links.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
           const active = activeHref === link.href;
           return (
             <Link
@@ -55,7 +55,7 @@ export function Sidebar() {
         })}
       </div>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-neutral-200 pt-3">
-        {NAV_LINKS.filter((l) => SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
+        {links.filter((l) => SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
           const active = activeHref === link.href;
           return (
             <Link

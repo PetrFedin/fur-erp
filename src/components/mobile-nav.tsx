@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS, SECONDARY_NAV_HREFS, activeNavHref } from "./nav-links";
+import { SECONDARY_NAV_HREFS, activeNavHref, type NavItem } from "./nav-links";
 
 /** Гамбургер и выезжающее меню для узких экранов (<768px); на десктопе скрыто. */
-export function MobileNav() {
+export function MobileNav({ links }: { links: readonly NavItem[] }) {
   const pathname = usePathname();
   const [openAt, setOpenAt] = useState<string | null>(null);
   // Меню открыто, только пока путь тот же, что при открытии: переход закрывает его.
@@ -47,8 +47,8 @@ export function MobileNav() {
               </button>
             </div>
             <div className="flex flex-col gap-0.5">
-              {NAV_LINKS.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
-                const active = activeNavHref(pathname) === link.href;
+              {links.filter((l) => !SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
+                const active = activeNavHref(pathname, links) === link.href;
                 return (
                   <Link
                     key={link.href}
@@ -66,8 +66,8 @@ export function MobileNav() {
               })}
             </div>
             <div className="mt-auto flex flex-col gap-0.5 border-t border-neutral-200 pt-3">
-              {NAV_LINKS.filter((l) => SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
-                const active = activeNavHref(pathname) === link.href;
+              {links.filter((l) => SECONDARY_NAV_HREFS.includes(l.href)).map((link) => {
+                const active = activeNavHref(pathname, links) === link.href;
                 return (
                   <Link
                     key={link.href}

@@ -18,14 +18,28 @@ export const NAV_LINKS = [
   { href: "/attention", label: "Контроль", also: ["/verify", "/documents", "/reconciliation", "/document-analysis", "/history", "/comments", "/integrity"] },
 ] as const;
 
+export type NavItem = { readonly href: string; readonly label: string; readonly also: readonly string[] };
+
+/** Меню кабинета внешнего поставщика (Веллмех): только отгрузки, изделия без цен и справочники (просмотр). */
+const SUPPLIER_NAV: readonly NavItem[] = [
+  { href: "/shipments", label: "Отгрузки", also: [] },
+  { href: "/articles", label: "Изделия", also: ["/models"] },
+  { href: "/settings", label: "Справочники", also: [] },
+];
+
+/** Пункты меню для роли: SUPPLIER получает усечённое меню, остальные — полное. Чистая функция. */
+export function navLinksFor(role: string | null | undefined): readonly NavItem[] {
+  return role === "SUPPLIER" ? SUPPLIER_NAV : NAV_LINKS;
+}
+
 /**
  * Какой пункт меню подсвечивать на этом адресе: побеждает самый длинный подходящий префикс.
  * Так «/analytics/products» относится к «Изделиям», а остальная «/analytics» — к «Сырью»,
  * и одна страница не подсвечивает два пункта сразу.
  */
-export function activeNavHref(pathname: string): string | null {
+export function activeNavHref(pathname: string, links: readonly { href: string; also: readonly string[] }[] = NAV_LINKS): string | null {
   let best: { href: string; len: number } | null = null;
-  for (const link of NAV_LINKS) {
+  for (const link of links) {
     for (const h of [link.href, ...link.also]) {
       if ((pathname === h || pathname.startsWith(h + "/")) && (!best || h.length > best.len)) best = { href: link.href, len: h.length };
     }

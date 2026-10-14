@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Suspense } from "react";
 import { CommentWidget } from "@/components/comments/comment-widget";
 import { Sidebar } from "@/components/sidebar";
+import { navLinksFor } from "@/components/nav-links";
 import { Topbar } from "@/components/topbar";
 import { VatDisplayProvider } from "@/lib/vat-display";
 import { parseVatModeCookie } from "@/lib/vat-mode";
@@ -16,17 +17,21 @@ import { FromTracker } from "@/components/from-tracker";
 import { BackLink } from "@/components/back-link";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireSession();
+  const session = await requireSession({ allowSupplier: true });
+  const isSupplier = session.user.role === "SUPPLIER";
   const cookieStore = await cookies();
   const vatMode = parseVatModeCookie("incl");
   const yearFilter = parseYearCookie(cookieStore.get("yearFilter")?.value);
   // Год из данных: если есть закупки/оплаты позже 2026, переключатель и блоки получают этот год сами.
   const orgId = session.user.organizationId;
-  const [pu, pa, pp] = await Promise.all([
-    prisma.purchase.aggregate({ where: { organizationId: orgId }, _max: { orderDate: true } }),
-    prisma.payment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
-    prisma.productionPayment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
-  ]);
+  // Поставщику закупки и оплаты не нужны (и не читаются): год — из отгрузок.
+  const [pu, pa, pp] = isSupplier
+    ? [{ _max: { orderDate: null } }, { _max: { paidAt: null } }, { _max: { paidAt: null } }]
+    : await Promise.all([
+        prisma.purchase.aggregate({ where: { organizationId: orgId }, _max: { orderDate: true } }),
+        prisma.payment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
+        prisma.productionPayment.aggregate({ where: { organizationId: orgId }, _max: { paidAt: true } }),
+      ]);
   const dataMaxYear = Math.max(0, ...[pu._max.orderDate, pa._max.paidAt, pp._max.paidAt].map((d) => (d ? d.getUTCFullYear() : 0)));
   const years = availableYears(dataMaxYear);
   const c4Mode = parseCommission4Cookie(cookieStore.get("commission4Display")?.value);
@@ -36,12 +41,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Commission4DisplayProvider initialMode={c4Mode}>
       <YearDisplayProvider initialYear={yearFilter} years={years}>
       <div className="flex h-dvh w-full overflow-hidden print:block print:h-auto print:overflow-visible">
-        <Sidebar />
+        <Sidebar links={navLinksFor(session.user.role)} />
         <div className="flex min-w-0 flex-1 flex-col print:block">
           <Topbar
             organizationName={session.user.organizationName}
             userName={session.user.name}
             role={session.user.role}
+            links={navLinksFor(session.user.role)}
           />
           <main className="relative flex-1 overflow-y-auto p-3 pb-16 md:p-6 md:pb-16 print:overflow-visible print:p-0">
             <Suspense fallback={null}>
@@ -53,11 +59,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       <BlockHover />
       <FromTracker />
-      <div className="print:hidden">
-        <Suspense fallback={null}>
-          <CommentWidget />
-        </Suspense>
-      </div>
+      {!isSupplier && (
+        <div className="print:hidden">
+          <Suspense fallback={null}>
+            <CommentWidget />
+          </Suspense>
+        </div>
+      )}
       </YearDisplayProvider>
     </Commission4DisplayProvider>
     </VatDisplayProvider>
